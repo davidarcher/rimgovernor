@@ -128,21 +128,21 @@ public static partial class CombatGrenadeRules
 
         foreach (var r in m.Roles)
         {
-            if (r.Mortar is not null || m.Rescue?.Carrying(r.Pawn) == true)
+            if (r.Fire is RoleFire.CrewMortar || m.Rescue?.Carrying(r.Pawn) == true)
             {
                 continue;
             }
 
             // A role whose pawn is not in the view throws nothing; one with a held cell aims from it, so the
             // throw waits until the pawn is there.
-            if (!state.TryGetValue(r.Pawn, out var carrier) || (r.Cell is { } held && carrier.Cell != held))
+            if (!state.TryGetValue(r.Pawn, out var carrier) || (r.Posted(out var held) && carrier.Cell != held))
             {
                 continue;
             }
 
             if (CombatMechRules.GrenadeAim(view, m, carrier, hostiles, colonists) is { } c2)
             {
-                r.Ground = c2;
+                r.Fire = new RoleFire.AtGround(c2);
             }
         }
     }

@@ -298,10 +298,10 @@ public static partial class CombatAnimalsRules
         var cells = new List<Cell>();
         foreach (var t in view.Positional.Items)
         {
-            if (t.Position.TryGetValue(out var c) && melee.Contains(t.Id) && !down.Contains(t.Id))
+            if (melee.Contains(t.Id) && !down.Contains(t.Id))
             {
                 ids.Add(t.Id);
-                cells.Add(c);
+                cells.Add(t.Position);
             }
         }
 
@@ -328,9 +328,9 @@ public static partial class CombatAnimalsRules
         var ours = new List<Cell>();
         foreach (var t in view.Positional.Items)
         {
-            if (humanlike.Contains(t.Id) && !down.Contains(t.Id) && t.Position.TryGetValue(out var c))
+            if (humanlike.Contains(t.Id) && !down.Contains(t.Id))
             {
-                raiders.Add(c);
+                raiders.Add(t.Position);
             }
         }
 

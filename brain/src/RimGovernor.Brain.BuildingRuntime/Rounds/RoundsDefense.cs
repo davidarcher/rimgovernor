@@ -574,7 +574,10 @@ partial class RoundsDefensePlanner
         {
             var row = inp.Rows[id];
             threats.Add(Armament.SquadThreatFacts(row, catalog, inp.Ranged[id]) with { Hunting = inp.Hunting.Contains(id) });
-            positional.Add(DefensiveThreatFacts(row));
+            if (DefensiveThreatFacts(row, catalog) is { } placed)
+            {
+                positional.Add(placed);
+            }
         }
         foreach (var id in inp.Prey)
         {
@@ -731,32 +734,25 @@ partial class RoundsDefensePlanner
         return lines;
     }
 
-    internal static DefensiveThreatFacts DefensiveThreatFacts(O.PawnState row)
+    /// <summary>The positional facts of one hostile's pawn-table row; null when the hostile is off the map, which leaves it out of the positional threats.</summary>
+    internal static DefensiveThreatFacts? DefensiveThreatFacts(O.PawnState row, DefinitionCatalog catalog)
     {
-        var facts = new DefensiveThreatFacts
+        if (row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var position })
         {
-            Id = new PawnId(row.Pawn.Id ?? ""),
-            Dead = Fact.Known(row.Dead),
-            Downed = Fact.Known(row.Downed),
-            Humanlike = Known(row.Humanlike),
+            return null;
+        }
+        return new DefensiveThreatFacts
+        {
+            Id = new PawnId(row.Pawn.Id),
+            Dead = row.Dead,
+            Downed = row.Downed,
+            Humanlike = row.Humanlike,
+            LordJobClass = row.LordJobClass,
+            LordToilClass = row.LordToilClass,
+            NearestColonist = row.NearestColonist,
+            Position = new Cell(position.X, position.Z),
+            Mech = catalog.RaceFlags(row.Pawn.DefName ?? "").Mechanoid,
         };
-        if (row.LordJobClass is { } lordJob)
-        {
-            facts = facts with { LordJobClass = Known(lordJob) };
-        }
-        if (row.LordToilClass is { } lordToil)
-        {
-            facts = facts with { LordToilClass = Known(lordToil) };
-        }
-        if (row.NearestColonist is O.NearestColonist.At nearest)
-        {
-            facts = facts with { NearestColonistDistance = Known(nearest.Distance) };
-        }
-        if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var position })
-        {
-            facts = facts with { Position = Known(new Cell(position.X, position.Z)) };
-        }
-        return facts;
     }
 
     /// <summary>The unfinished draft-dependent actions: movement and subdue actions whose draft or other requirement is cancelled or unsuccessful.</summary>

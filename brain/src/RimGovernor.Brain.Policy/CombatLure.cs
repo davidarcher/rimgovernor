@@ -54,7 +54,7 @@ public static partial class CombatLureRules
 
         foreach (var r in m.Roles)
         {
-            if (!r.Ranged || r.Retreat || r.Cell is not { } cell)
+            if (!r.Ranged || r.Retreat || !r.Posted(out var cell))
             {
                 continue;
             }
@@ -63,7 +63,7 @@ public static partial class CombatLureRules
             {
                 if (lure && cell == layout.Firing[j])
                 {
-                    r.Cell = layout.Retreat[j];
+                    r.Post = new CombatPost.At(layout.Retreat[j]);
                     r.Target = default;
                 }
                 else if (lure && cell == layout.Retreat[j])
@@ -72,7 +72,7 @@ public static partial class CombatLureRules
                 }
                 else if (!lure && cell == layout.Retreat[j])
                 {
-                    r.Cell = layout.Firing[j];
+                    r.Post = new CombatPost.At(layout.Firing[j]);
                 }
                 else
                 {

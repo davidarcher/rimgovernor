@@ -36,7 +36,7 @@ public static partial class CombatSiegeRules
             var dist = Math.Sqrt((dx * dx) + (dz * dz));
             cell = new Cell(t.X + (int)Math.Round(dx / dist * want, MidpointRounding.AwayFromZero), t.Z + (int)Math.Round(dz / dist * want, MidpointRounding.AwayFromZero));
         }
-        return r with { Duty = CombatDuty.Harasser, Target = target.Id, Cell = cell };
+        return r with { Duty = CombatDuty.Harasser, Target = target.Id, Post = new CombatPost.At(cell) };
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public static partial class CombatSiegeRules
         for (var i = 0; i < roles.Count; i++)
         {
             var r = roles[i];
-            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponFacts.Reach < CombatLoadoutRules.LoadoutTribalRange || HarassReach * s.WeaponFacts.Reach <= theirs)
+            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || r.Duty != CombatDuty.None || r.Fire is RoleFire.CrewMortar || s.WeaponFacts.Reach < CombatLoadoutRules.LoadoutTribalRange || HarassReach * s.WeaponFacts.Reach <= theirs)
             {
                 continue;
             }
@@ -158,7 +158,7 @@ public static partial class CombatSiegeRules
         for (var i = 0; i < roles.Count; i++)
         {
             var r = roles[i];
-            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponFacts.Reach <= 0)
+            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || r.Duty != CombatDuty.None || r.Fire is RoleFire.CrewMortar || s.WeaponFacts.Reach <= 0)
             {
                 continue;
             }

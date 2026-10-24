@@ -56,7 +56,7 @@ public static partial class CombatFlankRules
         var gunners = new List<PawnId>();
         foreach (var r in roles)
         {
-            if (r.Ranged && r.Duty == CombatDuty.None && !r.Retreat && r.Cell is not null && r.Mortar is null)
+            if (r.Ranged && r.Duty == CombatDuty.None && !r.Retreat && r.Post is CombatPost.At && r.Fire is not RoleFire.CrewMortar)
             {
                 gunners.Add(r.Pawn);
             }
@@ -155,7 +155,7 @@ public static partial class CombatFlankRules
         var taken = new HashSet<Cell>();
         foreach (var r in m.Roles)
         {
-            if (r.Cell is { } cell && !gunners.Contains(r.Pawn))
+            if (r.Posted(out var cell) && !gunners.Contains(r.Pawn))
             {
                 taken.Add(cell);
             }
@@ -231,7 +231,7 @@ public static partial class CombatFlankRules
                 continue;
             }
 
-            r.Cell = f.Cells[j];
+            r.Post = new CombatPost.At(f.Cells[j]);
             if (!f.Open)
             {
                 r.Target = default;

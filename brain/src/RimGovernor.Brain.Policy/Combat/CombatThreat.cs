@@ -237,7 +237,7 @@ public static partial class CombatThreatRules
             }
             // A gunner not in the view has no cell and no seen weapon: every hostile counts as in its range.
             var seen = state.TryGetValue(r.Pawn, out var s);
-            var from = r.Cell ?? (seen ? s!.Cell : null);
+            Cell? from = r.Posted(out var posted) ? posted : seen ? s!.Cell : null;
             var reach = seen ? s!.WeaponFacts.Reach : 0;
             // A hostile locked with our blocker is passed over while another is in range.
             Func<CombatPawnState, bool> pick = h => InRange(from, reach, h) && !locked.Contains(h.Id);

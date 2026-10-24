@@ -115,8 +115,10 @@ public static partial class CombatInfestationRules
         var hostiles = CombatThreatRules.RankThreats(view);
         foreach (var r in m.Roles)
         {
-            r.Mortar = null;
-            r.Aim = null;
+            if (r.Fire is RoleFire.CrewMortar)
+            {
+                r.Fire = new RoleFire.Own();
+            }
             if (m.Rescue?.Carrying(r.Pawn) == true)
             {
                 continue;
@@ -130,7 +132,10 @@ public static partial class CombatInfestationRules
             if (carrier.WeaponFacts.Burner())
             {
                 // Never a molotov at an insect: flame on one may send the hive to assault.
-                r.Ground = null;
+                if (r.Fire is RoleFire.AtGround)
+                {
+                    r.Fire = new RoleFire.Own();
+                }
                 continue;
             }
 
@@ -140,7 +145,7 @@ public static partial class CombatInfestationRules
             }
 
             var from = carrier.Cell;
-            if (r.Cell is { } held && from != held)
+            if (r.Posted(out var held) && from != held)
             {
                 continue;
             }
@@ -167,7 +172,7 @@ public static partial class CombatInfestationRules
             }
 
             best ??= CombatGrenadeRules.GrenadeTarget(carrier, hostiles, colonists);
-            r.Ground = best;
+            r.Fire = best is { } ground ? new RoleFire.AtGround(ground) : r.Fire is RoleFire.AtGround ? new RoleFire.Own() : r.Fire;
         }
     }
 
@@ -256,7 +261,7 @@ public static partial class CombatInfestationRules
             i = roles.Count - 1;
         }
 
-        roles[i] = new CombatRole { Pawn = m.Driller, Cell = to, Retreat = true };
+        roles[i] = new CombatRole { Pawn = m.Driller, Post = new CombatPost.At(to), Retreat = true };
         m.Roles = EquatableArray.From(roles);
     }
 }

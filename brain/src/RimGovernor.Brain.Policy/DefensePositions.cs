@@ -1,30 +1,36 @@
+using NearestColonist = RimGovernor.Contracts.Wire.Observations.NearestColonist;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What SelectDefensivePositions needs to know about one hostile: the native lord evidence that says how the
-/// raid intends to arrive, and how close it already stands to a colonist.
+/// raid intends to arrive, and how close it already stands to a colonist. Every member is read from the
+/// hostile's pawn-table row; a hostile off the map is not a positional threat at all.
 /// </summary>
 public sealed record DefensiveThreatFacts
 {
-    public PawnId Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> Humanlike { get; init; }
+    public required bool Humanlike { get; init; }
 
-    public Fact<string> LordJobClass { get; init; }
+    /// <summary>The hostile's LordJob class name; null when it has no lord.</summary>
+    public required string? LordJobClass { get; init; }
 
-    public Fact<string> LordToilClass { get; init; }
+    /// <summary>The lord's current LordToil class name; null without a lord or without a current toil.</summary>
+    public required string? LordToilClass { get; init; }
 
-    public Fact<double> NearestColonistDistance { get; init; }
+    /// <summary>The distance to the nearest live colonist, or none on the map.</summary>
+    public required NearestColonist NearestColonist { get; init; }
 
     /// <summary>The hostile's cell; against the layout's firing line and corridor direction it says whether the raid is still in front of the line.</summary>
-    public Fact<Cell> Position { get; init; }
+    public required Cell Position { get; init; }
 
     /// <summary>A mechanoid: a mechanoid assault lord holds like a humanlike raid.</summary>
-    public bool Mech { get; init; }
+    public required bool Mech { get; init; }
 }
 
 /// <summary>Sends one ranged defender to one firing cell and names the opponent it engages from there.</summary>
@@ -66,36 +72,23 @@ public static class DefensePositions
         var live = new List<DefensiveThreatFacts>();
         foreach (var t in threats)
         {
-            var dk = t.Dead.TryGetValue(out var dead);
-            var wk = t.Downed.TryGetValue(out var downed);
-            if (!dk || !wk)
-            {
-                return ([], $"hostile {t.Id}: dead/downed unknown");
-            }
-            if (dead || downed)
+            if (t.Dead || t.Downed)
             {
                 continue;
             }
-            var hk = t.Humanlike.TryGetValue(out var humanlike);
-            var jk = t.LordJobClass.TryGetValue(out var job);
-            var tk = t.LordToilClass.TryGetValue(out var toil);
-            var pk = t.Position.TryGetValue(out var position);
-            if (!t.Mech && (!hk || !humanlike))
+            if (!t.Mech && !t.Humanlike)
             {
-                return ([], $"hostile {t.Id}: not known humanlike");
+                return ([], $"hostile {t.Id}: not humanlike");
             }
-            if (!jk || !tk)
+            if (t.LordJobClass is not { } job || t.LordToilClass is not { } toil)
             {
-                return ([], $"hostile {t.Id}: lord unknown (job \"{job}\" known={Lower(jk)}, toil \"{toil}\" known={Lower(tk)})");
+                return ([], $"hostile {t.Id}: no lord toil (job \"{t.LordJobClass}\", toil \"{t.LordToilClass}\")");
             }
-            if (!EdgeAssault(job!, toil!))
+            if (!EdgeAssault(job, toil))
             {
                 return ([], $"hostile {t.Id}: not an edge assault ({job}/{toil})");
             }
-            if (!pk)
-            {
-                return ([], $"hostile {t.Id}: position unknown");
-            }
+            var position = t.Position;
             if (inside is not null && inside(position) && !(held is not null && held(position)))
             {
                 return ([], $"hostile {t.Id}: inside room at ({position.X},{position.Z})");
@@ -146,23 +139,23 @@ public static class DefensePositions
     }
 
     /// <summary>
-    /// Says whether a standing hold must be abandoned for squad defense: some live hostile is known to be at or
-    /// behind the line's cover row, or its lord evidence is known to be anything but an edge assault. Unknown
-    /// evidence never abandons a hold.
+    /// Says whether a standing hold must be abandoned for squad defense: some live hostile is at or behind the
+    /// line's cover row, or its lord toil is anything but an edge assault. A hostile between lord toils (no lord
+    /// or no current toil) never abandons a hold.
     /// </summary>
     public static bool HoldCompromised(IReadOnlyList<Cell> firing, Rotation toward, IReadOnlyList<DefensiveThreatFacts> threats)
     {
         foreach (var t in threats)
         {
-            if (!t.Dead.TryGetValue(out var dead) || !t.Downed.TryGetValue(out var downed) || dead || downed)
+            if (t.Dead || t.Downed)
             {
                 continue;
             }
-            if (t.LordJobClass.TryGetValue(out var job) && t.LordToilClass.TryGetValue(out var toil) && !EdgeAssault(job, toil))
+            if (t.LordJobClass is { } job && t.LordToilClass is { } toil && !EdgeAssault(job, toil))
             {
                 return true;
             }
-            if (t.Position.TryGetValue(out var position) && BehindFiringLine(firing, toward, position))
+            if (BehindFiringLine(firing, toward, t.Position))
             {
                 return true;
             }
@@ -230,6 +223,4 @@ public static class DefensePositions
         }
         return toil.StartsWith("LordToil_", StringComparison.Ordinal);
     }
-
-    private static string Lower(bool b) => b ? "true" : "false";
 }

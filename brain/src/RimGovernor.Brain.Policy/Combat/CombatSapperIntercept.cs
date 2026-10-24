@@ -64,7 +64,7 @@ public static partial class CombatSapperRules
             // A gunner not in the view targets the first digger and keeps no stand-off cell.
             var known = state.TryGetValue(r.Pawn, out var s);
             var digger = diggers[0];
-            Cell? cell = null;
+            CombatPost post = new CombatPost.Free();
             if (known)
             {
                 var at = s!.Cell;
@@ -75,9 +75,9 @@ public static partial class CombatSapperRules
                         digger = d;
                     }
                 }
-                cell = StandOff(digger, at, s.WeaponFacts.Reach);
+                post = new CombatPost.At(StandOff(digger, at, s.WeaponFacts.Reach));
             }
-            roles[i] = r with { Duty = CombatDuty.Interceptor, Target = digger.Id, Cell = cell, Retreat = false };
+            roles[i] = r with { Duty = CombatDuty.Interceptor, Target = digger.Id, Post = post, Retreat = false };
         }
         return m with { Intercept = true, Roles = EquatableArray.From(roles) };
     }

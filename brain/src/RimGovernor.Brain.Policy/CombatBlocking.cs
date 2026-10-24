@@ -193,7 +193,7 @@ public static partial class CombatBlockingRules
         var roles = new List<CombatRole>();
         for (var i = 0; i < n; i++)
         {
-            roles.Add(new CombatRole { Pawn = pool[i].Id, Cell = proposals[i], Duty = CombatDuty.Blocker });
+            roles.Add(new CombatRole { Pawn = pool[i].Id, Post = new CombatPost.At(proposals[i]), Duty = CombatDuty.Blocker });
         }
 
         if (n > 0 && n < pool.Count)
@@ -201,7 +201,7 @@ public static partial class CombatBlockingRules
             var role = new CombatRole { Pawn = pool[n].Id, Duty = CombatDuty.Reserve };
             if (n < proposals.Count)
             {
-                role.Cell = proposals[n];
+                role.Post = new CombatPost.At(proposals[n]);
             }
 
             roles.Add(role);
@@ -213,8 +213,8 @@ public static partial class CombatBlockingRules
             var role = new CombatRole { Pawn = pool[n].Id, Duty = CombatDuty.Peeler };
             if (CombatPeelRules.PeelerHome(view) is { } home && geometry.Stands(home))
             {
-                role.Cell = home;
-                role.Home = home;
+                role.Post = new CombatPost.At(home);
+                role.Standby = new CombatPost.At(home);
             }
 
             roles.Add(role);
@@ -239,7 +239,7 @@ public static partial class CombatBlockingRules
         for (var i = 0; i < m.Roles.Count; i++)
         {
             var r = m.Roles[i];
-            if (r.Pawn == stop.Pawn && r.Duty == CombatDuty.Blocker && r.Cell is not null)
+            if (r.Pawn == stop.Pawn && r.Duty == CombatDuty.Blocker && r.Post is CombatPost.At)
             {
                 hurt = i;
             }
@@ -254,13 +254,13 @@ public static partial class CombatBlockingRules
             return false;
         }
 
-        var back = m.Roles[reserve].Cell;
+        var back = m.Roles[reserve].Post;
         foreach (var p in view.Pawns.Items)
         {
             var at = p.Cell;
             if (p.Id == m.Roles[reserve].Pawn)
             {
-                back = at;
+                back = new CombatPost.At(at);
             }
         }
 
@@ -269,11 +269,11 @@ public static partial class CombatBlockingRules
             return false;
         }
 
-        m.Roles[reserve].Cell = m.Roles[hurt].Cell;
+        m.Roles[reserve].Post = m.Roles[hurt].Post;
         m.Roles[reserve].Duty = CombatDuty.Blocker;
 
         // The relieved blocker's pull-back is a retreat: it passes the aim guard and the fall-back leaves it in place.
-        m.Roles[hurt].Cell = back;
+        m.Roles[hurt].Post = back;
         m.Roles[hurt].Duty = CombatDuty.None;
         m.Roles[hurt].Target = default;
         m.Roles[hurt].Retreat = true;

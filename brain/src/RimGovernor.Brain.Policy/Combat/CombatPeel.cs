@@ -51,13 +51,13 @@ public static partial class CombatPeelRules
         var role = m.Roles[peeler];
         if (!role.Target.IsEmpty && view.HostileDown(role.Target))
         {
-            role = role with { Target = default, Cell = role.Home };
+            role = role with { Target = default, Post = role.Standby };
         }
         // A peeler never melees an exploder.
         var boom = CombatManhunterRules.LiveExploders(view).ContainsKey(stop.Pawn);
         if (role.Target.IsEmpty && stop.Kind == CombatEvent.MeleeContact && gunner && !boom && !view.HostileDown(stop.Pawn))
         {
-            role = role with { Target = stop.Pawn, Cell = null };
+            role = role with { Target = stop.Pawn, Post = new CombatPost.Free() };
         }
         var roles = m.Roles.ToList();
         roles[peeler] = role;
@@ -153,7 +153,7 @@ public static partial class CombatPeelRules
             var r = result[i];
             if (melee.Contains(r.Pawn) && !r.Ranged)
             {
-                result[i] = new CombatRole { Pawn = r.Pawn, Duty = CombatDuty.Peeler, Cell = gunner, Home = gunner };
+                result[i] = new CombatRole { Pawn = r.Pawn, Duty = CombatDuty.Peeler, Post = new CombatPost.At(gunner.Value), Standby = new CombatPost.At(gunner.Value) };
             }
         }
         return result;

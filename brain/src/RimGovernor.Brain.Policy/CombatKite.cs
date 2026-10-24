@@ -129,11 +129,11 @@ public static partial class CombatKiteRules
         var role = m.Roles[i];
         role.Duty = CombatDuty.Kiter;
         role.Target = chaser;
-        role.Cell = null;
+        role.Post = new CombatPost.Free();
         role.Retreat = false;
         if (m.Leading)
         {
-            role.Cell = lead.Lure;
+            role.Post = new CombatPost.At(lead.Lure);
             role.Retreat = true;
         }
     }

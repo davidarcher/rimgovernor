@@ -245,7 +245,7 @@ public static partial class CombatFireRules
                 if (FiringCell(from, geometry, sight, ranked, taken) is { } found)
                 {
                     taken.Add(found.Cell);
-                    roles[i].Cell = found.Cell;
+                    roles[i].Post = new CombatPost.At(found.Cell);
                     roles[i].Target = found.Target;
                     output.Add(new CombatOrder { Pawn = o.Pawn, Kind = CombatOrderKind.Move, Cell = found.Cell, Reason = CombatOrderReason.Formation });
                 }
@@ -280,7 +280,7 @@ public static partial class CombatFireRules
             return output;
         }
 
-        var cell = roles[i].Cell ?? roles[i].Home;
+        Cell? cell = roles[i].Posted(out var posted) ? posted : roles[i].Standby is CombatPost.At { Cell: var standby } ? standby : null;
         if (cell is not { } c || c == from)
         {
             return output;

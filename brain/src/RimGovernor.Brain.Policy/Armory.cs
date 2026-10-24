@@ -179,8 +179,8 @@ public static class ArmoryRules
         var hunts = new Dictionary<Resource, long>();
         foreach (var p in pawns)
         {
-            var known = p.Armed.TryGetValue(out var armed);
-            if (!known || assigned.Contains(p.Pawn) || !ArmoryFighter(p))
+            var armed = p.Armed;
+            if (assigned.Contains(p.Pawn) || !ArmoryFighter(p))
             {
                 continue;
             }
@@ -243,15 +243,7 @@ public static class ArmoryRules
             return false;
         }
 
-        foreach (var f in new[] { p.Dead, p.Downed, p.Drafted, p.IncapableOfViolence })
-        {
-            if (!f.TryGetValue(out var value) || value)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return !p.Dead && !p.Downed && !p.Drafted && !p.IncapableOfViolence;
     }
 
     internal static (Resource Best, double Score) ArmoryBestWeapon(

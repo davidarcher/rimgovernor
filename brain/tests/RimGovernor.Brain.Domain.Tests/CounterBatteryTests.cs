@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
+using NearestColonist = RimGovernor.Contracts.Wire.Observations.NearestColonist;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -24,11 +24,14 @@ public sealed class CounterBatteryTests
         Positional = EquatableArray.From(besiegers.Select(b => new DefensiveThreatFacts
         {
             Id = new(b.Id),
-            Dead = Known(false),
-            Downed = Known(false),
-            LordJobClass = Known("LordJob_Siege"),
-            LordToilClass = Known(toil),
-            Position = Known(b.Cell),
+            Dead = false,
+            Downed = false,
+            Humanlike = true,
+            LordJobClass = "LordJob_Siege",
+            LordToilClass = toil,
+            NearestColonist = new NearestColonist.None(),
+            Position = b.Cell,
+            Mech = false,
         })),
         Orderable = EquatableArray.From(new[] { Near, Far }),
         Mortars = EquatableArray.From(new[] { new CombatMortar { Id = "Mortar_1", Cell = MortarCell, MinRange = 3, MaxRange = 60 } }),
@@ -44,11 +47,9 @@ public sealed class CounterBatteryTests
         var (memory, stood) = CombatMortarRules.CounterBattery(view, [], new CombatMemory());
 
         Assert.Empty(stood);
-        var role = Assert.Single(memory.Roles.Items, r => r.Mortar is not null);
+        var role = Assert.Single(memory.Roles.Items, r => r.Fire is RoleFire.CrewMortar);
         Assert.Equal(Near, role.Pawn);
-        Assert.Equal(MortarCell, role.Mortar);
-        Assert.Equal(new Cell(80, 80), role.Aim);
-        Assert.Equal("Shell_HighExplosive", role.Shell);
+        Assert.Equal(new RoleFire.CrewMortar(MortarCell, new Cell(80, 80), "Shell_HighExplosive"), role.Fire);
     }
 
     [Fact]
@@ -59,18 +60,18 @@ public sealed class CounterBatteryTests
 
         var (memory, _) = CombatMortarRules.CounterBattery(view, [], new CombatMemory());
 
-        Assert.DoesNotContain(memory.Roles.Items, r => r.Mortar is not null);
+        Assert.DoesNotContain(memory.Roles.Items, r => r.Fire is RoleFire.CrewMortar);
     }
 
     [Fact]
     public void TravellingSiegeIsLeftAloneAndTheLastCrewStoodDown()
     {
         var view = View("LordToil_Travel", ("Besieger_1", new(80, 80)));
-        var prev = new[] { new CombatRole { Pawn = Near, Mortar = MortarCell, Aim = new Cell(80, 80) } };
+        var prev = new[] { new CombatRole { Pawn = Near, Fire = new RoleFire.CrewMortar(MortarCell, new Cell(80, 80), "Shell_HighExplosive") } };
 
         var (memory, stood) = CombatMortarRules.CounterBattery(view, prev, new CombatMemory());
 
-        Assert.DoesNotContain(memory.Roles.Items, r => r.Mortar is not null);
+        Assert.DoesNotContain(memory.Roles.Items, r => r.Fire is RoleFire.CrewMortar);
         Assert.Equal([new MortarStand(MortarCell, Near)], stood);
     }
 }

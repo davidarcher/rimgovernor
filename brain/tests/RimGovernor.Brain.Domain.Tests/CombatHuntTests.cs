@@ -95,7 +95,7 @@ public sealed class CombatHuntTests
         {
             Assert.Equal(Deer, r.Target);
             Assert.True(r.Ranged);
-            Assert.NotNull(r.Cell);
+            Assert.IsType<CombatPost.At>(r.Post);
         });
     }
 
@@ -184,8 +184,8 @@ public sealed class CombatHuntTests
 
         var roles = CombatHuntRules.HuntFormation(view, []);
 
-        Assert.Equal(new Cell(48, 50), roles.Single(r => r.Pawn == Rifleman).Cell);
-        Assert.Equal(new Cell(52, 50), roles.Single(r => r.Pawn == Marksman).Cell);
+        Assert.Equal(new CombatPost.At(new Cell(48, 50)), roles.Single(r => r.Pawn == Rifleman).Post);
+        Assert.Equal(new CombatPost.At(new Cell(52, 50)), roles.Single(r => r.Pawn == Marksman).Post);
     }
 
     [Fact]
@@ -203,8 +203,9 @@ public sealed class CombatHuntTests
         var role = Assert.Single(CombatHuntRules.HuntFormation(view, []));
 
         Assert.Equal(20, CombatHuntRules.StageDistance(ShortRifle.Range, 3));
-        Assert.Equal(new Cell(53, 50), role.Cell);
-        Assert.All(preyCells, p => Assert.True(Distance(role.Cell!.Value, p) <= HuntEstimator.EngageRangeFactor * ShortRifle.Range, $"prey at {p} is beyond the engage distance"));
+        Assert.Equal(new CombatPost.At(new Cell(53, 50)), role.Post);
+        var post = Assert.IsType<CombatPost.At>(role.Post).Cell;
+        Assert.All(preyCells, p => Assert.True(Distance(post, p) <= HuntEstimator.EngageRangeFactor * ShortRifle.Range, $"prey at {p} is beyond the engage distance"));
     }
 
     [Fact]
@@ -229,7 +230,7 @@ public sealed class CombatHuntTests
         var memory = new CombatMemory
         {
             Tactic = CombatTactic.Hunt,
-            Roles = EquatableArray.From(new[] { new CombatRole { Pawn = Rifleman, Cell = new Cell(50, 50), Target = Deer, Ranged = true } }),
+            Roles = EquatableArray.From(new[] { new CombatRole { Pawn = Rifleman, Post = new CombatPost.At(new Cell(50, 50)), Target = Deer, Ranged = true } }),
         };
         CombatView At(Cell deer) => View([Gunner(Rifleman, new Cell(50, 50), RifleDef, Rifle), Animal(Deer, deer)], [Rifleman], [Deer], [Rifleman]);
 

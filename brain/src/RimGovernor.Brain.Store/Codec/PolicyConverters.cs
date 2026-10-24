@@ -194,7 +194,9 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
             Scattered = e.Bool("Scattered"),
             Repairs = e.Get<List<Cell>>("Repairs", o),
             LineHeld = e.I32("LineHeld"),
-            SapperBreach = e.GetOr<Cell?>("SapperBreach", null, o),
+            SapperGuard = e.Has("SapperBreach")
+                ? new BreachGuard.Guarding(e.Get<Cell>("SapperBreach", o))
+                : new BreachGuard.Unguarded(),
             Intercept = e.Bool("Intercept"),
             MechLure = e.Bool("MechLure"),
             Rushing = e.Bool("Rushing"),
@@ -254,9 +256,9 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
         w.WriteBoolean("Scattered", v.Scattered);
         w.Put("Repairs", v.Repairs, o);
         w.WriteNum("LineHeld", v.LineHeld);
-        if (v.SapperBreach is { } vSapperBreach)
+        if (v.SapperGuard is BreachGuard.Guarding guarding)
         {
-            w.Put("SapperBreach", vSapperBreach, o);
+            w.Put("SapperBreach", guarding.Wall, o);
         }
         w.WriteBoolean("Intercept", v.Intercept);
         w.WriteBoolean("MechLure", v.MechLure);
@@ -370,50 +372,54 @@ internal sealed class CombatRoleConverter : ObjectCodec<CombatRole>
         new()
         {
             Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
-            Cell = e.GetOr<Cell?>("Cell", null, o),
+            Post = ReadPost(e, "Cell", o),
             Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
             Ranged = e.Bool("Ranged"),
             Duty = e.Get<CombatDuty>("Duty", o),
             Retreat = e.Bool("Retreat"),
-            Home = e.GetOr<Cell?>("Home", null, o),
-            Mortar = e.GetOr<Cell?>("Mortar", null, o),
-            Aim = e.GetOr<Cell?>("Aim", null, o),
-            Shell = e.Str("Shell"),
-            Ground = e.GetOr<Cell?>("Ground", null, o),
-            Repair = e.GetOr<Cell?>("Repair", null, o),
+            Standby = ReadPost(e, "Home", o),
+            Fire = e.Has("Mortar")
+                ? new RoleFire.CrewMortar(e.Get<Cell>("Mortar", o), e.Get<Cell>("Aim", o), e.Str("Shell"))
+                : e.Has("Ground")
+                    ? new RoleFire.AtGround(e.Get<Cell>("Ground", o))
+                    : new RoleFire.Own(),
+            RepairDoor = e.Has("Repair") ? new RoleRepair.Door(e.Get<Cell>("Repair", o)) : new RoleRepair.NoDoor(),
         };
+
+    private static CombatPost ReadPost(JsonElement e, string key, Codecs o) =>
+        e.Has(key) ? new CombatPost.At(e.Get<Cell>(key, o)) : new CombatPost.Free();
 
     protected override void WriteFields(Utf8JsonWriter w, CombatRole v, Codecs o)
     {
         w.Put("Pawn", v.Pawn, o);
-        if (v.Cell is { } vCell)
+        if (v.Post is CombatPost.At post)
         {
-            w.Put("Cell", vCell, o);
+            w.Put("Cell", post.Cell, o);
         }
         w.Put("Target", v.Target, o);
         w.WriteBoolean("Ranged", v.Ranged);
         w.Put("Duty", v.Duty, o);
         w.WriteBoolean("Retreat", v.Retreat);
-        if (v.Home is { } vHome)
+        if (v.Standby is CombatPost.At standby)
         {
-            w.Put("Home", vHome, o);
+            w.Put("Home", standby.Cell, o);
         }
-        if (v.Mortar is { } vMortar)
+        switch (v.Fire)
         {
-            w.Put("Mortar", vMortar, o);
+            case RoleFire.CrewMortar crew:
+                w.Put("Mortar", crew.Mortar, o);
+                w.Put("Aim", crew.Aim, o);
+                w.WriteString("Shell", crew.Shell);
+                break;
+            case RoleFire.AtGround ground:
+                w.Put("Ground", ground.Cell, o);
+                break;
+            case RoleFire.Own:
+                break;
         }
-        if (v.Aim is { } vAim)
+        if (v.RepairDoor is RoleRepair.Door door)
         {
-            w.Put("Aim", vAim, o);
-        }
-        w.WriteString("Shell", v.Shell);
-        if (v.Ground is { } vGround)
-        {
-            w.Put("Ground", vGround, o);
-        }
-        if (v.Repair is { } vRepair)
-        {
-            w.Put("Repair", vRepair, o);
+            w.Put("Repair", door.Cell, o);
         }
     }
 }

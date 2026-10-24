@@ -131,7 +131,7 @@ public static partial class CombatMechRules
         var taken = new HashSet<Cell>();
         foreach (var r in m.Roles)
         {
-            if (r.Retreat && r.Cell is { } held)
+            if (r.Retreat && r.Posted(out var held))
             {
                 taken.Add(held);
             }
@@ -139,16 +139,19 @@ public static partial class CombatMechRules
 
         foreach (var r in m.Roles)
         {
-            if (r.Duty != CombatDuty.Blocker || r.Retreat || r.Cell is not { } at || !waking.Any(c => LightingRules.Chebyshev(c, at) <= EmpNearBlocker))
+            if (r.Duty != CombatDuty.Blocker || r.Retreat || !r.Posted(out var at) || !waking.Any(c => LightingRules.Chebyshev(c, at) <= EmpNearBlocker))
             {
                 continue;
             }
 
-            if (CombatFallbackRules.RetreatCell(layout, r.Cell, taken) is { } cell)
+            if (CombatFallbackRules.RetreatCell(layout, r.Post, taken) is { } cell)
             {
-                r.Cell = cell;
+                r.Post = new CombatPost.At(cell);
                 r.Retreat = true;
-                r.Ground = null;
+                if (r.Fire is RoleFire.AtGround)
+                {
+                    r.Fire = new RoleFire.Own();
+                }
                 r.Target = default;
             }
         }

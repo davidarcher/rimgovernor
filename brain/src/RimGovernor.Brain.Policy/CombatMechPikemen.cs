@@ -29,8 +29,8 @@ public static partial class CombatMechRules
                 continue;
             }
 
-            r.Cell = null;
-            r.Home = null;
+            r.Post = new CombatPost.Free();
+            r.Standby = new CombatPost.Free();
             r.Ranged = false;
             r.Target = pikemen[0].Id;
             var id = NearestHostile(view, s.Cell);
@@ -50,12 +50,12 @@ public static partial class CombatMechRules
         foreach (var t in view.Positional.Items)
         {
             var id = t.Id;
-            if (!t.Position.TryGetValue(out var c) || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(id))
+            if (t.Dead || t.Downed || down.Contains(id))
             {
                 continue;
             }
 
-            var d = CombatManhunterRules.Distance2(from, c);
+            var d = CombatManhunterRules.Distance2(from, t.Position);
             if (bestD < 0 || d < bestD)
             {
                 best = id;

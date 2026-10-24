@@ -207,7 +207,7 @@ public static partial class CombatDoorRules
             }
 
             var cell = support[next++];
-            roles.Add(new CombatRole { Pawn = defender.Id, Cell = cell, Target = target, Ranged = true });
+            roles.Add(new CombatRole { Pawn = defender.Id, Post = new CombatPost.At(cell), Target = target, Ranged = true });
         }
 
         return CombatDecideRules.SortRoles(roles);
@@ -246,7 +246,7 @@ public static partial class CombatDoorRules
 
             var pawn = view.Pawns.Items.FirstOrDefault(p => p.Id == role.Pawn);
             var defender = view.Defenders.Items.FirstOrDefault(p => p.Id == role.Pawn);
-            if (pawn is null || defender is null || !SquadDefenseRules.SquadDefenderEligible(defender) || !view.Orderable.Items.Contains(role.Pawn) || role.Retreat || role.Cell is null)
+            if (pawn is null || defender is null || !SquadDefenseRules.SquadDefenderEligible(defender) || !view.Orderable.Items.Contains(role.Pawn) || role.Retreat || !role.Posted(out var roleCell))
             {
                 ready = false;
                 continue;
@@ -257,7 +257,7 @@ public static partial class CombatDoorRules
                 blockers++;
             }
 
-            if (role.Pawn != door.Opener && pawn.Cell != role.Cell)
+            if (role.Pawn != door.Opener && pawn.Cell != roleCell)
             {
                 ready = false;
             }

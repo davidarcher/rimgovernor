@@ -259,15 +259,7 @@ public static partial class CombatLoadoutRules
         {
             return false;
         }
-        foreach (var f in new[] { p.Dead, p.Downed, p.IncapableOfViolence })
-        {
-            if (!f.TryGetValue(out var v) || v)
-            {
-                return false;
-            }
-        }
-
-        return p.Role != WeaponRole.NonCombatant && p.NoArms.Length == 0;
+        return !p.Dead && !p.Downed && !p.IncapableOfViolence && p.Role != WeaponRole.NonCombatant && p.NoArms.Length == 0;
     }
 
     /// <summary>A melee fighter: the melee role, a melee-only pawn, or one holding a melee weapon.</summary>

@@ -63,7 +63,7 @@ public static partial class CombatSiteExitRules
             {
                 continue;
             }
-            roles.Add(new CombatRole { Pawn = id, Cell = cell, Retreat = true });
+            roles.Add(new CombatRole { Pawn = id, Post = new CombatPost.At(cell), Retreat = true });
             var order = new CombatOrder { Pawn = id, Kind = CombatOrderKind.Move, Cell = cell, Reason = CombatOrderReason.Retreat };
             // The roles recorded so far are the memory the doing check reads.
             m = m with { Roles = EquatableArray.From(roles) };

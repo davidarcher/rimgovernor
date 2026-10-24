@@ -425,12 +425,54 @@ public enum CombatTactic
     SiteExit,
 }
 
-/// <summary>One defender's place in the formation: a firing cell to hold (hold-the-line) and the hostile to engage.</summary>
+/// <summary>Where a role stands: free to fight from wherever its pawn is, or posted on a cell.</summary>
+public abstract record CombatPost
+{
+    private protected CombatPost() { }
+
+    /// <summary>No post: the role fights from wherever its pawn stands.</summary>
+    public sealed record Free : CombatPost;
+
+    /// <summary>Posted: the pawn moves to the cell and fights from there.</summary>
+    public sealed record At(Cell Cell) : CombatPost;
+}
+
+/// <summary>What a role fires: its own weapon at its target, a crewed colony mortar, or its carried rocket or grenade at the ground.</summary>
+public abstract record RoleFire
+{
+    private protected RoleFire() { }
+
+    /// <summary>Its own weapon: the role moves to its post and engages its target.</summary>
+    public sealed record Own : RoleFire;
+
+    /// <summary>Crews the colony mortar on <paramref name="Mortar"/> and fires <paramref name="Shell"/> (empty: whatever is loaded) at <paramref name="Aim"/>; it wins over the post and the target.</summary>
+    public sealed record CrewMortar(Cell Mortar, Cell Aim, string Shell) : RoleFire;
+
+    /// <summary>Fires its carried rocket or grenade at the ground cell; it wins over the post and the target.</summary>
+    public sealed record AtGround(Cell Cell) : RoleFire;
+}
+
+/// <summary>A damaged door queued at a line collapse and given to the role, or none.</summary>
+public abstract record RoleRepair
+{
+    private protected RoleRepair() { }
+
+    public sealed record NoDoor : RoleRepair;
+
+    /// <summary>The pawn repairs the door on the cell; it wins over every other order of the role.</summary>
+    public sealed record Door(Cell Cell) : RoleRepair;
+}
+
+/// <summary>
+/// One defender's place in the formation: its post (a firing cell to hold, or none), the hostile to engage, and
+/// the duties layered over them. A crewed mortar or a ground shot wins over the post and the target; a queued
+/// door repair wins over everything. Each duty carries exactly the cells it needs.
+/// </summary>
 public sealed partial record CombatRole
 {
     public PawnId Pawn { get; set; }
 
-    public Cell? Cell { get; set; }
+    public CombatPost Post { get; set; } = new CombatPost.Free();
 
     public PawnId Target { get; set; }
 
@@ -442,38 +484,39 @@ public sealed partial record CombatRole
     /// <summary>Marks a role pulled back to its inner-line cell, or a hurt blocker relieved by the reserve.</summary>
     public bool Retreat { get; set; }
 
-    /// <summary>A checked standby cell: where a peeler waits between targets, or where a tank pulls back to when its shield breaks.</summary>
-    public Cell? Home { get; set; }
+    /// <summary>A checked standby post: where a peeler waits between targets, or where a tank pulls back to when its shield breaks; free holds where it stands.</summary>
+    public CombatPost Standby { get; set; } = new CombatPost.Free();
 
-    /// <summary>The colony mortar the pawn crews; set with Aim, they win over Cell and Target.</summary>
-    public Cell? Mortar { get; set; }
+    public RoleFire Fire { get; set; } = new RoleFire.Own();
 
-    /// <summary>The cell the crewed mortar fires at.</summary>
-    public Cell? Aim { get; set; }
+    public RoleRepair RepairDoor { get; set; } = new RoleRepair.NoDoor();
 
-    /// <summary>The shell the mortar fires, empty whatever is loaded.</summary>
-    public string Shell { get; set; } = "";
-
-    /// <summary>The cell a rocket carrier fires at; set, it wins over Cell and Target.</summary>
-    public Cell? Ground { get; set; }
-
-    /// <summary>A damaged door queued at a line collapse; set, the pawn repairs it.</summary>
-    public Cell? Repair { get; set; }
+    /// <summary>The cell the role is posted on, if it is posted.</summary>
+    internal bool Posted(out Cell cell)
+    {
+        if (Post is CombatPost.At at)
+        {
+            cell = at.Cell;
+            return true;
+        }
+        cell = default;
+        return false;
+    }
 
     /// <summary>The order the role asks of a pawn in state <paramref name="s"/>.</summary>
     internal (CombatOrder Order, bool Ok) Want(CombatPawnState s)
     {
-        if (Mortar is { } mortar && Aim is { } aim)
+        if (Fire is RoleFire.CrewMortar crew)
         {
-            return (new CombatOrder { Pawn = Pawn, Kind = CombatOrderKind.ManMortar, Cell = mortar, Aim = aim, Shell = Shell, Reason = CombatOrderReason.CounterBattery }, true);
+            return (new CombatOrder { Pawn = Pawn, Kind = CombatOrderKind.ManMortar, Cell = crew.Mortar, Aim = crew.Aim, Shell = crew.Shell, Reason = CombatOrderReason.CounterBattery }, true);
         }
 
-        if (Ground is { } ground)
+        if (Fire is RoleFire.AtGround { Cell: var ground })
         {
             return (new CombatOrder { Pawn = Pawn, Kind = CombatOrderKind.AttackGround, Cell = ground, Reason = CombatOrderReason.RocketClump }, true);
         }
 
-        if (Cell is { } cell)
+        if (Post is CombatPost.At { Cell: var cell })
         {
             if (s.Cell != cell)
             {
@@ -626,6 +669,16 @@ public sealed record IssuedOrder(CombatOrder CombatOrder, Tick Tick)
 /// <summary>An attack native refused cannot_hit: Pawn could not hit Target from From.</summary>
 public readonly record struct HitRefusal(PawnId Pawn, PawnId Target, Cell From);
 
+/// <summary>The predicted breach wall a sapper formation guards, or none.</summary>
+public abstract record BreachGuard
+{
+    private protected BreachGuard() { }
+
+    public sealed record Unguarded : BreachGuard;
+
+    public sealed record Guarding(Cell Wall) : BreachGuard;
+}
+
 /// <summary>The fight's small explicit state between stops.</summary>
 public sealed partial record CombatMemory
 {
@@ -695,8 +748,8 @@ public sealed partial record CombatMemory
     /// <summary>The most hold-the-line cells defenders stood on at once this fight, the base a collapse is judged against.</summary>
     public int LineHeld { get; set; }
 
-    /// <summary>The wall cell a sapper formation guards.</summary>
-    public Cell? SapperBreach { get; set; }
+    /// <summary>The wall cell a sapper formation guards, or none outside a sapper formation.</summary>
+    public BreachGuard SapperGuard { get; set; } = new BreachGuard.Unguarded();
 
     /// <summary>A sapper fight whose gunners went out to the diggers.</summary>
     public bool Intercept { get; set; }
@@ -801,7 +854,7 @@ public sealed partial record CombatMemory
         PawnId crew = default;
         foreach (var r in Roles)
         {
-            if (r.Mortar is { } mortar && mortar == order.Cell)
+            if (r.Fire is RoleFire.CrewMortar { Mortar: var mortar } && mortar == order.Cell)
             {
                 crew = r.Pawn;
             }
@@ -1091,12 +1144,12 @@ public static partial class CombatDecideRules
                 next.Tactic = CombatTactic.Sapper;
                 next.Roles = EquatableArray.From(CombatSapperRules.SapperFormation(view, breach));
                 next.Refusal = "";
-                next.SapperBreach = breach.Wall;
+                next.SapperGuard = new BreachGuard.Guarding(breach.Wall);
                 next.Rushing = false;
             }
             else
             {
-                next.SapperBreach = null;
+                next.SapperGuard = new BreachGuard.Unguarded();
                 var formGeometry = geometry;
                 if (geometry.Role == FormationRole.FiringCells)
                 {
@@ -1115,7 +1168,7 @@ public static partial class CombatDecideRules
                     next.Tactic = CombatTactic.Shelter;
                     next.Roles = EquatableArray.From(
                         memory.Roles
-                            .Where(r => live.GetValueOrDefault(r.Pawn) && !(r.Cell is { } c && next.Unreachable.Contains(c)))
+                            .Where(r => live.GetValueOrDefault(r.Pawn) && !(r.Posted(out var c) && next.Unreachable.Contains(c)))
                             .Select(r => r with { })
                     );
                 }
@@ -1238,7 +1291,7 @@ public static partial class CombatDecideRules
             }
 
             var nativeHold = ordinaryHolder && !targetExcluded;
-            var atCell = role.Cell is { } rc && rs.Cell == rc;
+            var atCell = role.Posted(out var rc) && rs.Cell == rc;
             if (nativeHold)
             {
                 // Native acquires targets; no stale policy target participates in the observed-target
@@ -1246,7 +1299,7 @@ public static partial class CombatDecideRules
                 next.Roles[i].Target = default;
                 if (atCell)
                 {
-                    (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.HoldPosition, Cell = role.Cell!.Value, Reason = CombatOrderReason.Formation }, true);
+                    (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.HoldPosition, Cell = rc, Reason = CombatOrderReason.Formation }, true);
                 }
             }
 
@@ -1267,7 +1320,7 @@ public static partial class CombatDecideRules
             {
                 (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.Repair, Cell = potshot.Cell, Reason = CombatOrderReason.Repair }, true);
             }
-            else if (role.Repair is { } repair)
+            else if (role.RepairDoor is RoleRepair.Door { Cell: var repair })
             {
                 (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.Repair, Cell = repair, Reason = CombatOrderReason.Repair }, true);
             }
@@ -1366,7 +1419,7 @@ public static partial class CombatDecideRules
 
         foreach (var r in m.Roles)
         {
-            if (r.Cell is { } c && m.Unreachable.Contains(c))
+            if (r.Posted(out var c) && m.Unreachable.Contains(c))
             {
                 return true;
             }
@@ -1623,13 +1676,13 @@ public static partial class CombatDecideRules
             cells = CombatFireRules.SpaceCells(cells, CombatMechRules.FiringGap(view));
             var (defenders, tanks) = CombatTankRules.SplitTanks(view);
             IReadOnlyList<DefensivePosition> positions;
-            (positions, refusal) = DefensePositions.ExplainDefensivePositionsIn(cells, layout.Toward, CombatBlockingRules.InsideRooms(view), CombatBlockingRules.ChokeHeld(view, layout), CombatMechRules.MarkMechs(view), defenders);
+            (positions, refusal) = DefensePositions.ExplainDefensivePositionsIn(cells, layout.Toward, CombatBlockingRules.InsideRooms(view), CombatBlockingRules.ChokeHeld(view, layout), view.Positional, defenders);
             if (refusal.Length == 0)
             {
                 var roles = new List<CombatRole>(positions.Count);
                 foreach (var p in positions)
                 {
-                    roles.Add(new CombatRole { Pawn = p.Defender, Cell = p.Cell, Target = p.Target, Ranged = true });
+                    roles.Add(new CombatRole { Pawn = p.Defender, Post = new CombatPost.At(p.Cell), Target = p.Target, Ranged = true });
                 }
 
                 var chokes = CombatManhunterRules.ChargeChokes(view);
@@ -1643,7 +1696,7 @@ public static partial class CombatDecideRules
                     roles.AddRange(CombatBlockingRules.BrawlerRoles(view, defenders, blocking, geometry, relieved));
                 }
 
-                var taken = roles.Where(r => r.Cell is not null).Select(r => r.Cell!.Value).ToList();
+                var taken = roles.Select(r => r.Post).OfType<CombatPost.At>().Select(p => p.Cell).ToList();
                 roles.AddRange(CombatTankRules.TankRoles(view, tanks, positions, layout.Toward, geometry, taken));
                 return (CombatTactic.Hold, SortRoles(roles), "");
             }

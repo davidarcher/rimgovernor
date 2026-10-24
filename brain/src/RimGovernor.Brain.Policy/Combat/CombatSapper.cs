@@ -190,13 +190,13 @@ public static partial class CombatSapperRules
         var posts = BreachPosts(b, SapperInset, SapperSpread, gunners.Count);
         for (var i = 0; i < gunners.Count; i++)
         {
-            roles.Add(new CombatRole { Pawn = gunners[i].Id, Target = top, Ranged = true, Cell = i < posts.Count ? posts[i] : null });
+            roles.Add(new CombatRole { Pawn = gunners[i].Id, Target = top, Ranged = true, Post = i < posts.Count ? new CombatPost.At(posts[i]) : new CombatPost.Free() });
         }
         var guards = CombatBlockingRules.Brawlers(rest);
         var cells = BreachPosts(b, 1, 1, guards.Count);
         for (var i = 0; i < guards.Count; i++)
         {
-            roles.Add(new CombatRole { Pawn = guards[i].Id, Duty = CombatDuty.Blocker, Cell = i < cells.Count ? cells[i] : null });
+            roles.Add(new CombatRole { Pawn = guards[i].Id, Duty = CombatDuty.Blocker, Post = i < cells.Count ? new CombatPost.At(cells[i]) : new CombatPost.Free() });
         }
         return CombatDecideRules.SortRoles(roles);
     }
@@ -213,6 +213,6 @@ public static partial class CombatSapperRules
         {
             return b is not null;
         }
-        return b is null || m.SapperBreach is null || m.SapperBreach.Value != b.Wall || CombatDecideRules.SquadTargetDown(view, m);
+        return b is null || m.SapperGuard is not BreachGuard.Guarding { Wall: var wall } || wall != b.Wall || CombatDecideRules.SquadTargetDown(view, m);
     }
 }

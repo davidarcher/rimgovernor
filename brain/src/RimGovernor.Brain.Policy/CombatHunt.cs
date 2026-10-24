@@ -79,7 +79,7 @@ public static partial class CombatHuntRules
                 continue;
             }
 
-            roles.Add(new CombatRole { Pawn = g.Id, Cell = cell, Target = top, Ranged = true });
+            roles.Add(new CombatRole { Pawn = g.Id, Post = new CombatPost.At(cell), Target = top, Ranged = true });
         }
 
         return CombatDecideRules.SortRoles(roles);
@@ -240,7 +240,7 @@ public static partial class CombatHuntRules
             }
 
             var range = ranges.GetValueOrDefault(r.Pawn);
-            if (range > 0 && (r.Cell is { } c ? c : cells.TryGetValue(r.Pawn, out var own) ? own : (Cell?)null) is { } at && Distance(at, target) > range)
+            if (range > 0 && (r.Posted(out var c) ? c : cells.TryGetValue(r.Pawn, out var own) ? own : (Cell?)null) is { } at && Distance(at, target) > range)
             {
                 return true;
             }

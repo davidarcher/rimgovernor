@@ -121,11 +121,11 @@ public static partial class CombatTankRules
                 }
             }
             used.Add(cell);
-            var role = new CombatRole { Pawn = tanks[roles.Count].Id, Cell = cell, Duty = CombatDuty.Tank };
+            var role = new CombatRole { Pawn = tanks[roles.Count].Id, Post = new CombatPost.At(cell), Duty = CombatDuty.Tank };
             var back = new Cell(g.Cell.X + v.X, g.Cell.Z + v.Z);
             if (geometry.Stands(back))
             {
-                role = role with { Home = back };
+                role = role with { Standby = new CombatPost.At(back) };
             }
             roles.Add(role);
         }
@@ -144,7 +144,7 @@ public static partial class CombatTankRules
         }
         return m with
         {
-            Roles = EquatableArray.From(m.Roles.Select(r => r.Pawn == stop.Pawn && r.Duty == CombatDuty.Tank ? r with { Cell = r.Home, Duty = CombatDuty.None, Retreat = true } : r)),
+            Roles = EquatableArray.From(m.Roles.Select(r => r.Pawn == stop.Pawn && r.Duty == CombatDuty.Tank ? r with { Post = r.Standby, Duty = CombatDuty.None, Retreat = true } : r)),
         };
     }
 }

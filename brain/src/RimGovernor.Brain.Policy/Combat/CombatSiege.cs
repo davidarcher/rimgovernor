@@ -32,14 +32,12 @@ public static partial class CombatSiegeRules
         var result = new Dictionary<PawnId, string>();
         foreach (var t in view.Positional)
         {
-            t.LordJobClass.TryGetValue(out var job);
-            t.LordToilClass.TryGetValue(out var toil);
             var id = t.Id;
-            if (job != SiegeLordJob || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(id))
+            if (t.LordJobClass != SiegeLordJob || t.Dead || t.Downed || down.Contains(id))
             {
                 continue;
             }
-            if (toil == SiegeCampToil || toil == SiegeTravel)
+            if (t.LordToilClass is { } toil && (toil == SiegeCampToil || toil == SiegeTravel))
             {
                 result[id] = toil;
             }
@@ -146,7 +144,7 @@ public static partial class CombatSiegeRules
             }
             else if (i < firing.Count)
             {
-                role = role with { Cell = firing[i] };
+                role = role with { Post = new CombatPost.At(firing[i]) };
                 i++;
             }
             roles.Add(role);

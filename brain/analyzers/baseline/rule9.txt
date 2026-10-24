@@ -117,7 +117,6 @@ BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|12
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|9
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Unknown|4
 BuildingRuntime/Rounds/RoundsDeepDrill.cs|Fact|13
-BuildingRuntime/Rounds/RoundsDefense.cs|Fact|7
 BuildingRuntime/Rounds/RoundsDefenseEntities.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDefenseLayout.cs|Fact|10
 BuildingRuntime/Rounds/RoundsDefenseLayoutAdmit.cs|Fact|10
@@ -132,7 +131,7 @@ BuildingRuntime/Rounds/RoundsDisease.cs|Fact|3
 BuildingRuntime/Rounds/RoundsDisease.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Fact|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsEquip.cs|Fact|6
+BuildingRuntime/Rounds/RoundsEquip.cs|Fact|1
 BuildingRuntime/Rounds/RoundsExcavation.cs|Fact|1
 BuildingRuntime/Rounds/RoundsField.cs|Discard|1
 BuildingRuntime/Rounds/RoundsField.cs|Fact|17
@@ -404,7 +403,7 @@ Policy/AnimalsFamily.cs|Fact|17
 Policy/AnomalyFamily.cs|Fact|6
 Policy/ApparelPolicy.cs|Discard|1
 Policy/Armory.cs|Discard|1
-Policy/Armory.cs|Fact|10
+Policy/Armory.cs|Fact|8
 Policy/Armory.cs|UnknownMember|1
 Policy/ArmoryShells.cs|Fact|6
 Policy/ArmoryShells.cs|Unknown|1
@@ -464,14 +463,6 @@ Policy/ColonyModel/ProjectMarginalValue.cs|Fact|7
 Policy/ColonyModel/ProjectRun.cs|Discard|1
 Policy/ColonyModel/ProjectRun.cs|Fact|19
 Policy/ColonyModel/SkillStock.cs|Fact|1
-Policy/Combat/CombatPodsWait.cs|Fact|1
-Policy/Combat/CombatShelter.cs|Fact|3
-Policy/Combat/CombatSiege.cs|Fact|2
-Policy/CombatAnimals.cs|Fact|2
-Policy/CombatBleed.cs|Fact|2
-Policy/CombatDecide.cs|NullableValue|7
-Policy/CombatLoadout.cs|Fact|1
-Policy/CombatMechPikemen.cs|Fact|1
 Policy/Comfort.cs|Fact|6
 Policy/Comfort.cs|Unknown|2
 Policy/Comfort.cs|UnknownMember|1
@@ -509,7 +500,6 @@ Policy/DefenseCapacity.cs|Fact|6
 Policy/DefenseCapacity.cs|Unknown|1
 Policy/DefenseIEDs.cs|Fact|3
 Policy/DefenseMortars.cs|Fact|8
-Policy/DefensePositions.cs|Fact|18
 Policy/DefenseTier.cs|Fact|4
 Policy/DeliveryCredit.cs|Fact|6
 Policy/Disaster.cs|Fact|23
@@ -530,7 +520,7 @@ Policy/EntityBioferrite.cs|Fact|3
 Policy/EntityCapture.cs|Fact|3
 Policy/EntityStudy.cs|Fact|4
 Policy/EntityUpkeep.cs|Fact|2
-Policy/Equip.cs|Fact|6
+Policy/Equip.cs|Fact|1
 Policy/EssentialServices.cs|Fact|23
 Policy/EssentialServices.cs|UnknownMember|2
 Policy/EventLoot.cs|Fact|6
@@ -951,7 +941,7 @@ Policy/TunnelSite.cs|Fact|6
 Policy/Upkeep.cs|Fact|6
 Policy/WealthBudget.cs|Fact|9
 Policy/WealthBudget.cs|Unknown|1
-Policy/WeaponAssignment.cs|Fact|5
+Policy/WeaponAssignment.cs|Fact|1
 Policy/WeaponDef.cs|NullableValue|1
 Policy/WorkAssignment.cs|Fact|6
 Policy/WorkDispatch.cs|Fact|5

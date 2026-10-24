@@ -67,7 +67,7 @@ public static partial class CombatExplosivesRules
 
         foreach (var r in m.Roles)
         {
-            if (!state.TryGetValue(r.Pawn, out var s) || s.Presence is not CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } || r.Ranged || r.Mortar is not null)
+            if (!state.TryGetValue(r.Pawn, out var s) || s.Presence is not CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } || r.Ranged || r.Fire is RoleFire.CrewMortar)
             {
                 continue;
             }
@@ -84,8 +84,8 @@ public static partial class CombatExplosivesRules
                 }
             }
 
-            r.Cell = null;
-            r.Home = null;
+            r.Post = new CombatPost.Free();
+            r.Standby = new CombatPost.Free();
             r.Duty = CombatDuty.None;
             r.Retreat = false;
             r.Target = target;

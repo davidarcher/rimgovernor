@@ -1,3 +1,5 @@
+using NearestColonist = RimGovernor.Contracts.Wire.Observations.NearestColonist;
+
 namespace RimGovernor.Brain.Policy;
 
 
@@ -32,7 +34,7 @@ public static partial class CombatBleedRules
             {
                 if (t.Id == h)
                 {
-                    return t.LordToilClass.TryGetValue(out var toil) && CombatPodsRules.PodStrikeToils.Contains(toil);
+                    return t.LordToilClass is { } toil && CombatPodsRules.PodStrikeToils.Contains(toil);
                 }
             }
 
@@ -51,7 +53,7 @@ public static partial class CombatBleedRules
                 continue;
             }
 
-            if (t.NearestColonistDistance.TryGetValue(out var d) && s.WeaponFacts.Reach > 0 && d > s.WeaponFacts.Reach)
+            if (t.NearestColonist is NearestColonist.At { Distance: var d } && s.WeaponFacts.Reach > 0 && d > s.WeaponFacts.Reach)
             {
                 return true;
             }
@@ -184,7 +186,7 @@ public static partial class CombatBleedRules
             if (role.TryGetValue(d.Id, out var i))
             {
                 var r = next.Roles[i];
-                if (r.Cell is not null || r.Duty != CombatDuty.None || r.Retreat || r.Mortar is not null || r.Ground is not null || (r.Target != default && !finish.Contains(r.Target)))
+                if (r.Post is CombatPost.At || r.Duty != CombatDuty.None || r.Retreat || r.Fire is not RoleFire.Own || (r.Target != default && !finish.Contains(r.Target)))
                 {
                     continue;
                 }

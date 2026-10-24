@@ -91,12 +91,10 @@ public static partial class CombatFallbackRules
         {
             r.Target = default;
             r.Duty = CombatDuty.None;
-            r.Cell = null;
-            r.Home = null;
-            r.Mortar = null;
-            r.Aim = null;
-            r.Ground = null;
-            r.Repair = null;
+            r.Post = new CombatPost.Free();
+            r.Standby = new CombatPost.Free();
+            r.Fire = new RoleFire.Own();
+            r.RepairDoor = new RoleRepair.NoDoor();
             if (!at.TryGetValue(r.Pawn, out var from) || n == 0)
             {
                 continue;
@@ -112,10 +110,10 @@ public static partial class CombatFallbackRules
                 l = 1;
             }
 
-            r.Cell = new Cell(
+            r.Post = new CombatPost.At(new Cell(
                 Math.Max(0, from.X + (int)Math.Round(dx / l * scatter, MidpointRounding.AwayFromZero)),
                 Math.Max(0, from.Z + (int)Math.Round(dz / l * scatter, MidpointRounding.AwayFromZero))
-            );
+            ));
             r.Retreat = true;
         }
 
@@ -133,15 +131,15 @@ public static partial class CombatFallbackRules
         m.Repairs.RemoveAll(d => !view.DamagedDoors.Items.Contains(d));
         foreach (var r in m.Roles)
         {
-            if (r.Repair is { } repair && !m.Repairs.Contains(repair))
+            if (r.RepairDoor is RoleRepair.Door { Cell: var repair } && !m.Repairs.Contains(repair))
             {
-                r.Repair = null;
+                r.RepairDoor = new RoleRepair.NoDoor();
             }
         }
 
         foreach (var d in m.Repairs)
         {
-            if (m.Roles.Any(r => r.Repair == d))
+            if (m.Roles.Any(r => r.RepairDoor is RoleRepair.Door { Cell: var door } && door == d))
             {
                 continue;
             }
@@ -150,7 +148,7 @@ public static partial class CombatFallbackRules
             for (var i = 0; i < m.Roles.Count; i++)
             {
                 var r = m.Roles[i];
-                if (r.Repair is not null || !at.TryGetValue(r.Pawn, out var c))
+                if (r.RepairDoor is RoleRepair.Door || !at.TryGetValue(r.Pawn, out var c))
                 {
                     continue;
                 }
@@ -163,7 +161,7 @@ public static partial class CombatFallbackRules
 
             if (best >= 0)
             {
-                m.Roles[best].Repair = d;
+                m.Roles[best].RepairDoor = new RoleRepair.Door(d);
             }
         }
     }
@@ -199,7 +197,7 @@ public static partial class CombatFallbackRules
         var taken = new HashSet<Cell>();
         foreach (var r in m.Roles)
         {
-            if (r.Retreat && r.Cell is { } cell)
+            if (r.Retreat && r.Posted(out var cell))
             {
                 taken.Add(cell);
             }
@@ -213,9 +211,9 @@ public static partial class CombatFallbackRules
                 continue;
             }
 
-            if (RetreatCell(layout, r.Cell, taken) is { } to)
+            if (RetreatCell(layout, r.Post, taken) is { } to)
             {
-                r.Cell = to;
+                r.Post = new CombatPost.At(to);
                 r.Retreat = true;
                 changed = true;
             }
@@ -228,9 +226,9 @@ public static partial class CombatFallbackRules
     /// The inner-line cell behind <paramref name="from"/>: its own Retreat cell when from is a firing cell,
     /// else (a proposed cover cell, or none) the first Retreat cell not yet taken.
     /// </summary>
-    internal static Cell? RetreatCell(CombatLayout layout, Cell? from, HashSet<Cell> taken)
+    internal static Cell? RetreatCell(CombatLayout layout, CombatPost from, HashSet<Cell> taken)
     {
-        if (from is { } f)
+        if (from is CombatPost.At { Cell: var f })
         {
             for (var i = 0; i < layout.Firing.Count; i++)
             {

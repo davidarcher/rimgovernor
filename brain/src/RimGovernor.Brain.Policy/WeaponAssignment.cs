@@ -44,7 +44,7 @@ public static partial class WeaponAssignmentRules
         {
             return 0;
         }
-        if (!p.IncapableOfViolence.TryGetValue(out var incapable) || incapable)
+        if (p.IncapableOfViolence)
         {
             return 0;
         }
@@ -112,7 +112,7 @@ public static partial class WeaponAssignmentRules
         var n = 0;
         foreach (var p in pawns)
         {
-            if (!(p.Armed.TryGetValue(out var armed) && armed) && !assigned.Contains((PawnId)p.Pawn) && EquipAvailable(p))
+            if (!p.Armed && !assigned.Contains((PawnId)p.Pawn) && EquipAvailable(p))
             {
                 n++;
             }
@@ -129,14 +129,7 @@ public static partial class WeaponAssignmentRules
         {
             return false;
         }
-        foreach (var f in new[] { p.Dead, p.Downed, p.Drafted, p.IncapableOfViolence })
-        {
-            if (!f.TryGetValue(out var value) || value)
-            {
-                return false;
-            }
-        }
-        return p.Armed.TryGetValue(out var armed) && (!armed || p.Current is not null);
+        return !p.Dead && !p.Downed && !p.Drafted && !p.IncapableOfViolence && (!p.Armed || p.Current is not null);
     }
 
     /// <summary>

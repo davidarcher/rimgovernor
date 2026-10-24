@@ -179,7 +179,7 @@ public static partial class CombatManhunterRules
             var role = new CombatRole { Pawn = gunners[i].Id, Target = top, Ranged = true };
             if (i < cells.Count)
             {
-                role.Cell = cells[i];
+                role.Post = new CombatPost.At(cells[i]);
             }
 
             roles.Add(role);

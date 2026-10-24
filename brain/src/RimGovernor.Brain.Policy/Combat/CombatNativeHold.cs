@@ -9,7 +9,7 @@ public static partial class CombatNativeHoldRules
     /// </summary>
     internal static bool StationaryRangedHold(CombatMemory m, CombatRole r, CombatPawnState s) =>
         m.Tactic == CombatTactic.Hold && m.Flank is null && m.Groups.Count == 0 && !m.MechLure &&
-        r.Ranged && r.Cell is not null && r.Duty == CombatDuty.None && !r.Retreat && r.Home is null &&
-        r.Mortar is null && r.Ground is null && r.Repair is null &&
+        r.Ranged && r.Post is CombatPost.At && r.Duty == CombatDuty.None && !r.Retreat && r.Standby is CombatPost.Free &&
+        r.Fire is RoleFire.Own && r.RepairDoor is RoleRepair.NoDoor &&
         s.WeaponFacts.Hunts() && !s.WeaponFacts.EMP && !s.WeaponFacts.OneUse && !s.WeaponFacts.ForcedMiss;
 }

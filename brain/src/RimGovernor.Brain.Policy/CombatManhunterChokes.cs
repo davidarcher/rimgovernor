@@ -226,7 +226,7 @@ public static partial class CombatManhunterRules
 
                 var cell = chokes[i].Cells[next[i]];
                 next[i]++;
-                roles.Add(new CombatRole { Pawn = rest.Dequeue().Id, Cell = cell, Target = chokes[i].Nearest, Duty = CombatDuty.Blocker });
+                roles.Add(new CombatRole { Pawn = rest.Dequeue().Id, Post = new CombatPost.At(cell), Target = chokes[i].Nearest, Duty = CombatDuty.Blocker });
                 placed = true;
             }
 

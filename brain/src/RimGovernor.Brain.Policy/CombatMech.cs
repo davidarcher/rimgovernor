@@ -10,13 +10,6 @@ public static partial class CombatMechRules
         return ranked.Count > 0 && ranked.All(h => h.Mech);
     }
 
-    /// <summary>The view's positional facts with each mechanoid marked, so a mech raid's assault lord gets the hold.</summary>
-    internal static List<DefensiveThreatFacts> MarkMechs(CombatView view)
-    {
-        var mech = MechKinds(view);
-        return [.. view.Positional.Items.Select(t => t with { Mech = mech.GetValueOrDefault(t.Id) })];
-    }
-
     /// <summary>The view's squad threats with each mechanoid marked, so a mech raid without a hold still forms a squad.</summary>
     internal static List<SquadThreatFacts> MarkSquadMechs(CombatView view)
     {

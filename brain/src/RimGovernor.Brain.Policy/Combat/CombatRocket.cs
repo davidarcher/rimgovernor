@@ -17,7 +17,7 @@ public static partial class CombatRocketRules
     /// </summary>
     internal static CombatMemory RocketClumps(CombatView view, CombatMemory m)
     {
-        var roles = m.Roles.Select(r => r with { Ground = null }).ToList();
+        var roles = m.Roles.Select(r => r.Fire is RoleFire.AtGround ? r with { Fire = new RoleFire.Own() } : r with { }).ToList();
         var live = view.Live();
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats)
@@ -60,7 +60,7 @@ public static partial class CombatRocketRules
                 reach = p.WeaponFacts.Range;
             }
             var i = roles.FindIndex(r => r.Pawn == p.Id);
-            if (i >= 0 && roles[i].Mortar is not null)
+            if (i >= 0 && roles[i].Fire is RoleFire.CrewMortar)
             {
                 continue;
             }
@@ -97,7 +97,7 @@ public static partial class CombatRocketRules
                 roles.Add(new CombatRole { Pawn = p.Id, Ranged = true });
                 i = roles.Count - 1;
             }
-            roles[i] = roles[i] with { Ground = aim };
+            roles[i] = roles[i] with { Fire = new RoleFire.AtGround(aim) };
         }
         return m with { Roles = EquatableArray.From(CombatDecideRules.SortRoles(roles)) };
     }

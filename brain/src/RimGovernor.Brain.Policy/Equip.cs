@@ -8,17 +8,18 @@ public sealed record EquipCandidatePawn
 {
     public Domain.PawnId Pawn { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> Drafted { get; init; }
+    public required bool Drafted { get; init; }
 
     public bool MentalState { get; init; }
 
-    public Fact<bool> IncapableOfViolence { get; init; }
+    /// <summary>The pawn's story disables violent work.</summary>
+    public required bool IncapableOfViolence { get; init; }
 
-    public Fact<bool> Armed { get; init; }
+    public required bool Armed { get; init; }
 
     public Cell Position { get; init; }
 

@@ -162,13 +162,13 @@ public static partial class CombatWaitRules
         var roles = m.Roles.ToList();
         for (var i = 0; i < roles.Count; i++)
         {
-            var r = roles[i] with { Target = default, Duty = CombatDuty.None, Cell = null, Retreat = false };
+            var r = roles[i] with { Target = default, Duty = CombatDuty.None, Post = new CombatPost.Free(), Retreat = false };
             if (inner.Count > 0)
             {
                 var k = CombatManhunterRules.NearestIndex(at.GetValueOrDefault(r.Pawn), inner);
                 var c = inner[k];
                 inner.RemoveAt(k);
-                r = r with { Cell = c, Retreat = true };
+                r = r with { Post = new CombatPost.At(c), Retreat = true };
             }
             roles[i] = r;
         }

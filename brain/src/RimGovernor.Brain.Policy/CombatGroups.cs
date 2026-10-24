@@ -205,7 +205,7 @@ public static partial class CombatGroupsRules
         var output = new List<PawnId>();
         foreach (var r in m.Roles)
         {
-            if (!r.Ranged || r.Duty != CombatDuty.None || r.Retreat || r.Cell is null || r.Mortar is not null
+            if (!r.Ranged || r.Duty != CombatDuty.None || r.Retreat || r.Post is not CombatPost.At || r.Fire is RoleFire.CrewMortar
                 || (m.Flank is not null && m.Flank.Pawns.Contains(r.Pawn)) || m.Groups.Any(g => g.Pawns.Contains(r.Pawn)))
             {
                 continue;
@@ -251,7 +251,7 @@ public static partial class CombatGroupsRules
             var taken = new HashSet<Cell>();
             foreach (var r in m.Roles)
             {
-                if (r.Cell is { } cell)
+                if (r.Posted(out var cell))
                 {
                     taken.Add(cell);
                 }
@@ -319,7 +319,7 @@ public static partial class CombatGroupsRules
                     continue;
                 }
 
-                r.Cell = g.FellBack ? g.Fallback[j] : g.Cells[j];
+                r.Post = new CombatPost.At(g.FellBack ? g.Fallback[j] : g.Cells[j]);
                 r.Retreat = g.FellBack;
                 if (!target.IsEmpty)
                 {

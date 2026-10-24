@@ -114,7 +114,7 @@ public static partial class CombatPodsRules
 
                 var d = pool.Dequeue();
                 taken.Add(d.Id);
-                roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Target = CombatMechRules.NearestHostile(view, cell), Ranged = d.RangedEquipped, Duty = CombatDuty.Doorway });
+                roles.Add(new CombatRole { Pawn = d.Id, Post = new CombatPost.At(cell), Target = CombatMechRules.NearestHostile(view, cell), Ranged = d.RangedEquipped, Duty = CombatDuty.Doorway });
                 held = true;
             }
 
@@ -147,7 +147,7 @@ public static partial class CombatPodsRules
                 var i = CombatManhunterRules.NearestIndex(from, inner);
                 var cell = inner[i];
                 inner.RemoveAt(i);
-                role.Cell = cell;
+                role.Post = new CombatPost.At(cell);
                 role.Retreat = true;
             }
 
@@ -468,7 +468,7 @@ public static partial class CombatPodsRules
 
             var cell = safe[0];
             safe.RemoveAt(0);
-            output.Add(new CombatRole { Pawn = d.Id, Cell = cell, Duty = CombatDuty.Evacuee });
+            output.Add(new CombatRole { Pawn = d.Id, Post = new CombatPost.At(cell), Duty = CombatDuty.Evacuee });
         }
 
         return output;
@@ -508,7 +508,7 @@ public static partial class CombatPodsRules
                 return true;
             }
 
-            if (view.Positional.Items.Any(t => t.Id == r.Target && (RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed))))
+            if (view.Positional.Items.Any(t => t.Id == r.Target && (t.Dead || t.Downed)))
             {
                 return true;
             }

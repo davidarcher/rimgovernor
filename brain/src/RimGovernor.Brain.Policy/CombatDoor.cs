@@ -212,7 +212,7 @@ public static partial class CombatDoorRules
         for (var k = 0; k < n; k++)
         {
             var role = roles[gunners[k]];
-            role.Cell = cells[k];
+            role.Post = new CombatPost.At(cells[k]);
             role.Duty = CombatDuty.Doorway;
             role.Ranged = true;
         }

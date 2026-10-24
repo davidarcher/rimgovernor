@@ -16,9 +16,9 @@ public static partial class CombatShelterRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Positional)
         {
-            if (t.Position.TryGetValue(out var c) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed) && !down.Contains(t.Id))
+            if (!t.Dead && !t.Downed && !down.Contains(t.Id))
             {
-                hostiles.Add(c);
+                hostiles.Add(t.Position);
             }
         }
         if (hostiles.Count == 0)
@@ -74,7 +74,7 @@ public static partial class CombatShelterRules
                 }
                 cell = candidates[0];
             }
-            roles.Add(new CombatRole { Pawn = d.Id, Cell = cell, Retreat = true });
+            roles.Add(new CombatRole { Pawn = d.Id, Post = new CombatPost.At(cell), Retreat = true });
             taken.Add(cell);
         }
         return CombatDecideRules.SortRoles(roles);
@@ -92,7 +92,7 @@ public static partial class CombatShelterRules
         }
         foreach (var role in m.Roles)
         {
-            if (role.Cell is { } roleCell && m.Unreachable.Contains(roleCell))
+            if (role.Posted(out var roleCell) && m.Unreachable.Contains(roleCell))
             {
                 return "shelter_unreachable";
             }
@@ -104,7 +104,7 @@ public static partial class CombatShelterRules
         }
         foreach (var role in m.Roles)
         {
-            if (role.Cell is not { } roleCell)
+            if (!role.Posted(out var roleCell))
             {
                 continue;
             }
@@ -117,10 +117,11 @@ public static partial class CombatShelterRules
                 var at = pawn.Cell;
                 foreach (var hostile in view.Positional)
                 {
-                    if (!hostile.Position.TryGetValue(out var cell) || RoundsRules.Positive(hostile.Dead) || RoundsRules.Positive(hostile.Downed))
+                    if (hostile.Dead || hostile.Downed)
                     {
                         continue;
                     }
+                    var cell = hostile.Position;
                     var reach = 1.5;
                     foreach (var state in view.Pawns)
                     {
@@ -175,9 +176,9 @@ public static partial class CombatShelterRules
             var hostiles = new List<Cell>();
             foreach (var h in view.Positional)
             {
-                if (h.Position.TryGetValue(out var c) && !RoundsRules.Positive(h.Dead) && !RoundsRules.Positive(h.Downed))
+                if (!h.Dead && !h.Downed)
                 {
-                    hostiles.Add(c);
+                    hostiles.Add(h.Position);
                 }
             }
             if (hostiles.Count == 0)

@@ -118,7 +118,7 @@ public static partial class CombatMortarRules
         foreach (var r in prev)
         {
             // The last stop's crews, which a re-formation this stop has already dropped from memory.
-            if (r.Mortar is { } mortarCell)
+            if (r.Fire is RoleFire.CrewMortar { Mortar: var mortarCell })
             {
                 crewed[mortarCell] = r.Pawn;
             }
@@ -126,10 +126,10 @@ public static partial class CombatMortarRules
         var roles = memory.Roles.ToList();
         for (var i = 0; i < roles.Count; i++)
         {
-            if (roles[i].Mortar is { } mortarCell)
+            if (roles[i].Fire is RoleFire.CrewMortar { Mortar: var mortarCell })
             {
                 crewed[mortarCell] = roles[i].Pawn;
-                roles[i] = roles[i] with { Mortar = null, Aim = null };
+                roles[i] = roles[i] with { Fire = new RoleFire.Own() };
             }
         }
         var orderable = new HashSet<PawnId>(view.Orderable);
@@ -200,7 +200,7 @@ public static partial class CombatMortarRules
                 roles.Add(new CombatRole { Pawn = crew });
                 index = roles.Count - 1;
             }
-            roles[index] = roles[index] with { Mortar = mortar.Cell, Aim = aim, Shell = shell };
+            roles[index] = roles[index] with { Fire = new RoleFire.CrewMortar(mortar.Cell, aim, shell) };
         }
         return (memory with { Roles = EquatableArray.From(CombatDecideRules.SortRoles(roles)) }, stood);
     }

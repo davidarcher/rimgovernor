@@ -121,7 +121,7 @@ public sealed class PolicyController : IFightController
             }
 
             Decisions++;
-            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{r.Cell?.X},{r.Cell?.Z}"))}] stop={stop.Kind}");
+            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{(r.Post is CombatPost.At pa ? pa.Cell.X + "," + pa.Cell.Z : "-")}"))}] stop={stop.Kind}");
             foreach (var o in batch.Orders)
             {
                 Log?.Invoke($"   order {o.Pawn?.EntityId} {o.Order}");
@@ -188,7 +188,7 @@ public sealed class PolicyController : IFightController
 
     private static string BurnTrace(CombatStep step) =>
         "doors=" + string.Join(";", step.View.DoorStates.Items.Select(d => $"{d.Cell.X},{d.Cell.Z}:open={d.Open} hold={d.HoldOpen}"))
-        + $" defenders=[{string.Join(" ", step.View.Defenders.Items.Select(d => d.Id + ":dead=" + d.Dead + ",down=" + d.Downed))}] orderable=[{string.Join(" ", step.View.Orderable.Items)}] roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}";
+        + $" defenders=[{string.Join(" ", step.View.Defenders.Items.Select(d => d.Id + ":dead=" + d.Dead + ",down=" + d.Downed))}] orderable=[{string.Join(" ", step.View.Orderable.Items)}] roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Post is CombatPost.At rc ? rc.Cell.X + "," + rc.Cell.Z : "-")} retreat={r.Retreat} ground={r.Fire is RoleFire.AtGround} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}";
 
     private static string Casters(CombatView view) =>
         view.Royalty is not { } royal ? "" : string.Join(" ", royal.Psycasts.Select(c =>

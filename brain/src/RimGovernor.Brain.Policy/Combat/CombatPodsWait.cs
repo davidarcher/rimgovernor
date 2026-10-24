@@ -38,7 +38,7 @@ public static partial class CombatPodsRules
         }
         foreach (var t in view.Positional)
         {
-            if (!RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed) && !down.Contains(t.Id))
+            if (!t.Dead && !t.Downed && !down.Contains(t.Id))
             {
                 theirs++;
             }
@@ -59,7 +59,7 @@ public static partial class CombatPodsRules
         }
         foreach (var t in view.Positional)
         {
-            if (t.LordToilClass.TryGetValue(out var toil) && PodStrikeToils.Contains(toil) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
+            if (t.LordToilClass is { } toil && PodStrikeToils.Contains(toil) && !t.Dead && !t.Downed)
             {
                 return true;
             }
