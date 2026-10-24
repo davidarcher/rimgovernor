@@ -159,7 +159,7 @@ public sealed partial class BiotechRounds
         {
             return BuildingReasonNoDeficit;
         }
-        if (!f.Biotech.TryGetValue(out var biotech))
+        if (f.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech })
         {
             return FieldUnavailable("biotech");
         }
@@ -221,7 +221,7 @@ public sealed partial class BiotechRounds
         {
             return BuildingReasonNoDeficit;
         }
-        if (!f.Biotech.TryGetValue(out var biotech))
+        if (f.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech })
         {
             return FieldUnavailable("biotech");
         }
@@ -412,7 +412,7 @@ partial class BiotechRounds
         return (output, read);
     }
 
-    internal static (Cell Anchor, bool Found) GeneBankAnchor(ColonyProjection facts, BiotechColony biotech)
+    internal static (Cell Anchor, bool Found) GeneBankAnchor(ColonyProjection facts, PbObservations.BiotechColonyFacts biotech)
     {
         if (biotech.GeneAssemblers.Count > 0)
         {

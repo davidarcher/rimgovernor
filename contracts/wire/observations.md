@@ -554,59 +554,44 @@ own counting is unverified against these rules (native acceptance verifies).
 
 ## Biotech colony section
 
-`ColonyFactsSnapshot.biotech` (`BiotechSection`) is the colony-wide
-Biotech read, one keyed section with the snapshot's seq/tick; it is
-absent without Biotech and without `observed` when the read failed. The pollution
-cell grid is unchanged: the section carries `PollutionGrid` totals and the
-player's pollution-clear area size, then rows for what makes pollution
-(`polluters`: `CompToxifier`, `CompPolluteOverTime`), what removes it
-(`pumps`: `CompPollutionPump`, with its disabled-by-artificial-buildings flag;
-`atomizers`: `Building_WastepackAtomizer`), the wastepack stacks
-(`wastepacks`: spawned things with `CompDissolution`, with frozen, outdoors,
-in-atomizer and can-dissolve verdicts) and the producers of wastepacks
-(`gestators`: `Building_MechGestator` with its active mech bill; `chargers`:
-`Building_MechCharger`, each with the waste it holds). `babies` lists each
-player Newborn or Baby with `ChildcareUtility`'s suckle and play verdicts, its
-bed and its autofeeders; `breastfeeders` lists the pawns
-`ChildcareUtility.CanBreastfeedPlayerPawns` names. Verdicts come from the game
-(comps, buildings, `ChildcareUtility`), never def-name lists; an absent scalar
-is unknown, never zero. The brain validates the rows (`bridge.validateBiotechColony`:
-unique ids per table, cells on the map, nonnegative counts) and projects them
-into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
-held in memory (persistence-contracts.md); it adds no store.
+`ColonyFactsSnapshot.biotech` (`BiotechSection`) is the colony-wide Biotech
+read: `inactive` without Biotech (`ModsConfig.BiotechActive`), otherwise
+`active` with the whole `BiotechColonyFacts`. Native builds it whole and a
+failed read throws and fails the colony read; there is no partial section.
+Every row is a spawned player-owned thing on the colony map:
 
-Gene-building rows sit in the same section:
-`gene_banks` (any building with `CompGenepackContainer`: powered, capacity,
-held pack ids, auto-load), `gene_assemblers` (`Building_GeneAssembler`: powered,
-working, `max_complexity` from `MaxComplexity()`, linked bank ids; while
-working also progress, total work, selected pack ids, archites owed and the
-`CanBeWorkedOnNow` verdict), `gene_extractors` (`Building_GeneExtractor`:
-powered, working, `SelectedPawn`, occupant; while working ticks remaining and
-cumulative power-cut ticks), `genepacks` (each pack held by a bank, with
-`bank_id`, or spawned loose, with a cell; genes as GeneDef defNames, hit
-points, `Genepack.Deteriorating`, auto-load) and `xenogerms` (spawned items
-with genes and the pending implant target). Complexity, metabolism and archite
-totals on packs and xenogerms are the game's own `GeneSet` values, never
-summed in the brain. Each xenogerm also carries `implant_metabolism`: the
-game's `GeneUtility.MetabolismAfterImplanting` for every colonist, slave or
-colony prisoner on its map (one row per pawn id; the implant is refused below
-the biostat range minimum). Run facts are absent while idle, a banked pack has no cell, and
-the xenogerm name is not on the wire (user text). The brain validates unique ids per
-table, nonnegative counts, distinct gene ids and that a pack is in exactly
-one place, a bank listed in `gene_banks` or a cell
-(`bridge.validateGeneBuilding`), and projects into
-`BiotechColony.GeneBanks`/`GeneAssemblers`/`GeneExtractors`/`Genepacks`/
-`Xenogerms`. Read-only: no write or goal consumes these yet.
+- `polluted_uncovered_cells`: the `PollutionGrid`'s polluted pollutable cells
+  outside the player's `Area_PollutionClear` (the cleanup crew's area).
+- `wastepacks`: spawned stacks with `CompDissolution` (thing id, def, cell,
+  stack count, and the frozen, in-atomizer and forbidden verdicts).
+- `atomizers`: each `Building_WastepackAtomizer`'s cell (the charger siter's
+  disposal anchors).
+- `gestators`: each `Building_MechGestator`'s active mech bill id (null while
+  none runs) and the waste its `CompWasteProducer` holds.
+- `chargers`: each `Building_MechCharger`'s `IsPowered`, `IsFullOfWaste` and
+  attached mech (null while none charges).
+- `gene_banks` (buildings with `CompGenepackContainer`: cell, capacity, held
+  pack ids), `gene_assemblers` (cells) and `genepacks` (the bank holding each
+  pack, null for a pack spawned loose).
+- `babies` (player humanlike Newborn or Baby pawn ids) and `breastfeeders`
+  (the pawns `ChildcareUtility.CanBreastfeedPlayerPawns` names).
 
-`pollution` also counts the polluted pollutable cells (`polluted_cells`) and
-those outside the pollution-clear area (`polluted_uncovered_cells`).
+Verdicts come from the game (comps, buildings, `ChildcareUtility`), never
+def-name lists. `ColonyProjection.BiotechSection` carries the section as read;
+`observation.BiotechColonyReads` lifts it into the policy inputs (the recharge
+policy's chargers, the gestation review's gestators and wastepacks, the
+gene-bank Need's banks and packs, `RoundsFacts.Pollution`). Every one of them
+is unknown when the section is inactive, so no Biotech Need derives on a colony
+without Biotech. Derived state held in memory (persistence-contracts.md); it
+adds no store.
+
 `RoundsFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
-verdicts and that count; it is unknown without Biotech, and so is the
-`biotech/pollution` Need (Wellbeing, labor Hauling, #3261). Its Method is the
-forbidden packs' `supply_allow`, the pollution-clear `AreaIntent` edit
-(polluted cells of the planning window) and the wastepack-guarded HAUL
-(`wastepack_haul`); an allowed pack is hauled on a later Method. Admission
-takes only the allows the review's `PollutionSupplies` cohort lists (#3317).
+verdicts and the uncovered count for the `biotech/pollution` Need (Wellbeing,
+labor Hauling, #3261). Its Method is the forbidden packs' `supply_allow`, the
+pollution-clear `AreaIntent` edit (polluted cells of the planning window) and
+the wastepack-guarded HAUL (`wastepack_haul`); an allowed pack is hauled on a
+later Method. Admission takes only the allows the review's `PollutionSupplies`
+cohort lists (#3317).
 Siting freezer storage is not planned yet (open on #1683).
 
 ## Polluting-building flag

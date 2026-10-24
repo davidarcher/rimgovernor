@@ -4,203 +4,75 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Biotech colony facts: what makes and removes pollution, the mech
-    // gestators and chargers that produce wastepacks, and baby care. Every
-    // verdict is the game's own (comps, buildings, ChildcareUtility); nothing
-    // is a def-name list. The section is absent without Biotech.
+    // Biotech colony facts: the polluted cells the cleanup crew does not
+    // cover, the wastepacks and the atomizers, gestators and chargers around
+    // them, the gene banks, assemblers and genepacks, and the babies and
+    // breastfeeders. Every verdict is the game's own (comps, buildings,
+    // ChildcareUtility); nothing is a def-name list. The section is inactive
+    // without Biotech, and a failed read throws and fails the colony read.
     internal static class NativeBiotechColony
     {
-        private static readonly System.Reflection.FieldInfo? Disabled = BridgeCommon.PrivateInstanceField(typeof(CompPollutionPump), "disabledByArtificialBuildings");
-        private static readonly System.Reflection.FieldInfo? AssemblerTotalWork = BridgeCommon.PrivateInstanceField(typeof(Building_GeneAssembler), "totalWorkRequired");
-        private static readonly System.Reflection.FieldInfo? AssemblerPacks = BridgeCommon.PrivateInstanceField(typeof(Building_GeneAssembler), "genepacksToRecombine");
-        private static readonly System.Reflection.FieldInfo? ExtractorTicks = BridgeCommon.PrivateInstanceField(typeof(Building_GeneExtractor), "ticksRemaining");
-        private static readonly System.Reflection.FieldInfo? ExtractorPowerCut = BridgeCommon.PrivateInstanceField(typeof(Building_GeneExtractor), "powerCutTicks");
-        private static readonly System.Reflection.FieldInfo? XenogermTarget = BridgeCommon.PrivateInstanceField(typeof(Xenogerm), "targetPawn");
-        private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
-        private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
-        private static float? Finite(float value) => float.IsNaN(value) || float.IsInfinity(value) ? (float?)null : value;
+        private static string Id(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
+        private static RimGovernor.Brain.Domain.Cell Cell(IntVec3 c) => new RimGovernor.Brain.Domain.Cell(c.x, c.z);
         private static bool Owned(Thing t, Map map) => t.Spawned && t.Map == map && t.Faction == Faction.OfPlayer;
 
-        internal static Obs.BiotechSection? Read(Map map)
+        internal static Obs.BiotechSection Read(Map map)
         {
-            if (!ModsConfig.BiotechActive) return null;
-            try {
-                var facts = new Obs.BiotechColonyFacts();
-                var grid = map.pollutionGrid;
-                var totals = new Obs.PollutionTotals { TotalPollution = grid.TotalPollution, PollutableCells = (uint)grid.AllPollutableCells.Count };
-                var clear = map.areaManager.PollutionClear;
-                if (clear != null) { totals = totals with { ClearAreaId = Id(clear.GetUniqueLoadID()) }; totals = totals with { ClearAreaCells = clear.TrueCount }; }
-                uint polluted = 0, uncovered = 0;
-                foreach (var cell in grid.AllPollutableCells) {
-                    if (!grid.IsPolluted(cell)) continue;
-                    polluted++;
-                    if (clear == null || !clear[cell]) uncovered++;
-                }
-                totals = totals with { PollutedCells = polluted }; totals = totals with { PollutedUncoveredCells = uncovered };
-                facts = facts with { Pollution = totals };
-
-                var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Owned(b, map)).OrderBy(b => b.thingIDNumber).ToList();
-                foreach (var b in buildings) {
-                    var toxifier = b.TryGetComp<CompToxifier>();
-                    var over = b.TryGetComp<CompPolluteOverTime>();
-                    if (toxifier != null || over != null) {
-                        var row = new Obs.Polluter { ThingId = Id(b.GetUniqueLoadID()), DefName = Id(b.def.defName), Position = Cell(b.Position) };
-                        if (toxifier != null) row = row with { Polluting = toxifier.CanPolluteNow };
-                        if (over?.props is CompProperties_PolluteOverTime props) row = row with { CellsPerDay = props.cellsToPollutePerDay };
-                        facts = facts with { Polluters = [.. facts.Polluters, row] };
-                    }
-                    if (b is Building_WastepackAtomizer atomizer) {
-                        var comp = atomizer.Atomizer;
-                        var row = new Obs.WastepackAtomizer { ThingId = Id(b.GetUniqueLoadID()), DefName = Id(b.def.defName), Position = Cell(b.Position),
-                            Powered = b.GetComp<CompPowerTrader>()?.PowerOn ?? false, SpaceLeft = comp.SpaceLeft, AutoLoad = comp.AutoLoad, TicksLeft = comp.TicksLeftUntilAllAtomized };
-                        if (Finite(comp.FillPercent) is float fill) row = row with { FillPercent = fill };
-                        facts = facts with { Atomizers = [.. facts.Atomizers, row] };
-                    }
-                    var pump = b.TryGetComp<CompPollutionPump>();
-                    if (pump != null) {
-                        var row = new Obs.PollutionPump { ThingId = Id(b.GetUniqueLoadID()), DefName = Id(b.def.defName), Position = Cell(b.Position),
-                            Powered = b.GetComp<CompPowerTrader>()?.PowerOn ?? false };
-                        if (Disabled?.GetValue(pump) is bool disabled) row = row with { DisabledByArtificialBuildings = disabled };
-                        facts = facts with { Pumps = [.. facts.Pumps, row] };
-                    }
-                    if (b is Building_MechGestator gestator) facts = facts with { Gestators = [.. facts.Gestators, Gestator(gestator)] };
-                    if (b is Building_MechCharger charger) facts = facts with { Chargers = [.. facts.Chargers, Charger(charger)] };
-                    var container = b.TryGetComp<CompGenepackContainer>();
-                    if (container != null) facts = facts with { GeneBanks = [.. facts.GeneBanks, GeneBank(b, container)] };
-                    if (b is Building_GeneAssembler assembler) facts = facts with { GeneAssemblers = [.. facts.GeneAssemblers, GeneAssembler(assembler)] };
-                    if (b is Building_GeneExtractor extractor) facts = facts with { GeneExtractors = [.. facts.GeneExtractors, GeneExtractor(extractor)] };
-                    if (container != null)
-                        foreach (var pack in container.ContainedGenepacks.OrderBy(p => p.thingIDNumber)) facts = facts with { Genepacks = [.. facts.Genepacks, GenepackRow(pack, b, null)] };
-                }
-
-                foreach (var t in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).OrderBy(t => t.thingIDNumber)) {
-                    if (t is Genepack loose && loose.Spawned) facts = facts with { Genepacks = [.. facts.Genepacks, GenepackRow(loose, null, loose.Position)] };
-                    else if (t is Xenogerm germ && germ.Spawned) facts = facts with { Xenogerms = [.. facts.Xenogerms, XenogermRow(germ)] };
-                    var dissolution = (t as ThingWithComps)?.GetComp<CompDissolution>();
-                    if (dissolution == null || !t.Spawned) continue;
-                    facts = facts with { Wastepacks = [.. facts.Wastepacks, new Obs.Wastepack { ThingId = Id(t.GetUniqueLoadID()), DefName = Id(t.def.defName), Position = Cell(t.Position), Count = t.stackCount,
-                        Frozen = dissolution.IsFrozen, InAtomizer = dissolution.InAtomizer,
-                        Forbidden = t.IsForbidden(Faction.OfPlayer) }] };
-                }
-
-                foreach (var pawn in map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.RaceProps.Humanlike
-                    && (p.DevelopmentalStage.Baby() || p.DevelopmentalStage.Newborn())).OrderBy(p => p.thingIDNumber))
-                    facts = facts with { Babies = [.. facts.Babies, Baby(pawn)] };
-                facts = facts with { Breastfeeders = [.. facts.Breastfeeders, .. ChildcareUtility.CanBreastfeedPlayerPawns.Where(p => p.Spawned && p.Map == map)
-                    .Select(p => Id(p.GetUniqueLoadID())).Where(i => i != null).Select(i => i!).OrderBy(i => i, StringComparer.Ordinal)] };
-                return new Obs.BiotechSection { Observed = facts };
-            } catch (Exception ex) {
-                ReadFailureLog.Note("biotech", ex);
-                return new Obs.BiotechSection();
-            }
+            if (!ModsConfig.BiotechActive) return new Obs.BiotechSection.Inactive();
+            var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Owned(b, map)).OrderBy(b => b.thingIDNumber).ToList();
+            var banks = buildings.Select(b => (Building: b, Container: b.TryGetComp<CompGenepackContainer>())).Where(x => x.Container != null).ToList();
+            var haulables = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned).OrderBy(t => t.thingIDNumber).ToList();
+            var held = banks.SelectMany(x => x.Container!.ContainedGenepacks.OrderBy(p => p.thingIDNumber)
+                .Select(p => new Obs.GenepackState { BankId = Id(x.Building.GetUniqueLoadID()) }));
+            var loose = haulables.OfType<Genepack>().Select(_ => new Obs.GenepackState { BankId = null });
+            return new Obs.BiotechSection.Active(new Obs.BiotechColonyFacts
+            {
+                PollutedUncoveredCells = Uncovered(map),
+                Wastepacks = [.. haulables.Select(t => (Thing: t, Dissolution: (t as ThingWithComps)?.GetComp<CompDissolution>()))
+                    .Where(x => x.Dissolution != null).Select(x => new Obs.Wastepack
+                    {
+                        ThingId = Id(x.Thing.GetUniqueLoadID()), DefName = x.Thing.def.defName, Position = Cell(x.Thing.Position), Count = x.Thing.stackCount,
+                        Frozen = x.Dissolution!.IsFrozen, InAtomizer = x.Dissolution.InAtomizer, Forbidden = x.Thing.IsForbidden(Faction.OfPlayer),
+                    })],
+                Atomizers = [.. buildings.OfType<Building_WastepackAtomizer>().Select(a => new Obs.WastepackAtomizer { Position = Cell(a.Position) })],
+                Gestators = [.. buildings.OfType<Building_MechGestator>().Select(g => new Obs.MechGestatorState
+                    {
+                        BillId = g.ActiveMechBill is Bill_Mech bill ? Id(bill.GetUniqueLoadID()) : null,
+                        WasteCount = g.WasteProducer?.Waste?.stackCount ?? 0,
+                    })],
+                Chargers = [.. buildings.OfType<Building_MechCharger>().Select(c => new Obs.MechChargerState
+                    {
+                        Powered = c.IsPowered, FullOfWaste = c.IsFullOfWaste,
+                        ChargingMechId = c.CurrentlyChargingMech is Pawn mech ? Id(mech.GetUniqueLoadID()) : null,
+                    })],
+                GeneBanks = [.. banks.Select(x => new Obs.GeneBankState
+                    {
+                        Position = Cell(x.Building.Position), Capacity = x.Container!.Props.maxCapacity,
+                        PackIds = [.. x.Container.ContainedGenepacks.Select(p => Id(p.GetUniqueLoadID())).OrderBy(i => i, StringComparer.Ordinal)],
+                    })],
+                GeneAssemblers = [.. buildings.OfType<Building_GeneAssembler>().Select(a => new Obs.GeneAssemblerState { Position = Cell(a.Position) })],
+                Genepacks = [.. held, .. loose],
+                Babies = [.. map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.RaceProps.Humanlike
+                    && (p.DevelopmentalStage.Baby() || p.DevelopmentalStage.Newborn())).Select(p => Id(p.GetUniqueLoadID())).OrderBy(i => i, StringComparer.Ordinal)],
+                Breastfeeders = [.. ChildcareUtility.CanBreastfeedPlayerPawns.Where(p => p.Spawned && p.Map == map)
+                    .Select(p => Id(p.GetUniqueLoadID())).OrderBy(i => i, StringComparer.Ordinal)],
+            });
         }
 
-        private static IEnumerable<string> Genes(GeneSet? set) => (set?.GenesListForReading ?? new List<GeneDef>())
-            .Select(g => Id(g.defName)).Where(n => n != null).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal);
-
-        private static IEnumerable<string> Ids(IEnumerable<Thing?>? things) => (things ?? Enumerable.Empty<Thing?>())
-            .Where(t => t != null).Select(t => Id(t!.GetUniqueLoadID())).Where(i => i != null).Select(i => i!).OrderBy(i => i, StringComparer.Ordinal);
-
-        private static Obs.GeneBankState GeneBank(Building b, CompGenepackContainer c)
+        // The PollutionGrid's polluted pollutable cells outside the player's
+        // Area_PollutionClear (all of them while the area does not exist).
+        private static uint Uncovered(Map map)
         {
-            var row = new Obs.GeneBankState { ThingId = Id(b.GetUniqueLoadID()), DefName = Id(b.def.defName), Position = Cell(b.Position),
-                Powered = c.PowerOn, Capacity = c.Props.maxCapacity, AutoLoad = c.autoLoad };
-            row = row with { PackIds = [.. row.PackIds, .. Ids(c.ContainedGenepacks)] };
-            return row;
-        }
-
-        private static Obs.GeneAssemblerState GeneAssembler(Building_GeneAssembler a)
-        {
-            var row = new Obs.GeneAssemblerState { ThingId = Id(a.GetUniqueLoadID()), DefName = Id(a.def.defName), Position = Cell(a.Position), Powered = a.PowerOn,
-                Working = a.Working, MaxComplexity = a.MaxComplexity() };
-            row = row with { LinkedBankIds = [.. row.LinkedBankIds, .. Ids(a.ConnectedFacilities?.Where(f => f.TryGetComp<CompGenepackContainer>() != null))] };
-            if (a.Working) {
-                if (Finite(a.ProgressPercent) is float progress) row = row with { Progress = progress };
-                if (AssemblerTotalWork?.GetValue(a) is float total && Finite(total) is float finiteTotal) row = row with { TotalWork = finiteTotal };
-                if (AssemblerPacks?.GetValue(a) is List<Genepack> packs) row = row with { PackIds = [.. row.PackIds, .. Ids(packs)] };
-                row = row with { ArchitesOwed = Math.Max(0, a.ArchitesRequiredNow) };
-                row = row with { CanWorkNow = a.CanBeWorkedOnNow.Accepted };
-            }
-            return row;
-        }
-
-        private static Obs.GeneExtractorState GeneExtractor(Building_GeneExtractor e)
-        {
-            var row = new Obs.GeneExtractorState { ThingId = Id(e.GetUniqueLoadID()), DefName = Id(e.def.defName), Position = Cell(e.Position), Powered = e.PowerOn,
-                Working = e.Working };
-            if (e.SelectedPawn != null) row = row with { SelectedPawnId = Id(e.SelectedPawn.GetUniqueLoadID()) };
-            if (e.innerContainer.FirstOrDefault() is Pawn occupant) row = row with { OccupantId = Id(occupant.GetUniqueLoadID()) };
-            if (e.Working) {
-                if (ExtractorTicks?.GetValue(e) is int ticks) row = row with { TicksRemaining = ticks };
-                if (ExtractorPowerCut?.GetValue(e) is int cut) row = row with { PowerCutTicks = cut };
-            }
-            return row;
-        }
-
-        private static Obs.GenepackState GenepackRow(Genepack pack, Building? bank, IntVec3? at)
-        {
-            var row = new Obs.GenepackState { ThingId = Id(pack.GetUniqueLoadID()), DefName = Id(pack.def.defName), Deteriorating = pack.Deteriorating, AutoLoad = pack.AutoLoad,
-                HitPoints = pack.HitPoints, Complexity = pack.GeneSet.ComplexityTotal, Metabolism = pack.GeneSet.MetabolismTotal, Archites = pack.GeneSet.ArchitesTotal };
-            row = row with { Genes = [.. row.Genes, .. Genes(pack.GeneSet)] };
-            if (bank != null) row = row with { BankId = Id(bank.GetUniqueLoadID()) };
-            if (at is IntVec3 cell) row = row with { Position = Cell(cell) };
-            return row;
-        }
-
-        private static Obs.XenogermState XenogermRow(Xenogerm g)
-        {
-            var row = new Obs.XenogermState { ThingId = Id(g.GetUniqueLoadID()), DefName = Id(g.def.defName), Position = Cell(g.Position),
-                Complexity = g.GeneSet.ComplexityTotal, Metabolism = g.GeneSet.MetabolismTotal, Archites = g.GeneSet.ArchitesTotal, Forbidden = g.IsForbidden(Faction.OfPlayer) };
-            row = row with { Genes = [.. row.Genes, .. Genes(g.GeneSet)] };
-            if (XenogermTarget?.GetValue(g) is Pawn target) row = row with { TargetPawnId = Id(target.GetUniqueLoadID()) };
-            // The pawns an implant may target (Xenogerm target rules): the game's
-            // own metabolism after implanting, per pawn.
-            if (g.Map != null)
-                foreach (var p in g.Map.mapPawns.AllPawnsSpawned.Where(p => p.genes != null && p.RaceProps.Humanlike && !p.IsQuestLodger()
-                    && (p.IsColonist || p.IsSlaveOfColony || p.IsPrisonerOfColony)).OrderBy(p => p.thingIDNumber))
-                    if (Id(p.GetUniqueLoadID()) is string pawnId)
-                        row = row with { ImplantMetabolism = [.. row.ImplantMetabolism, new Obs.XenogermImplantMetabolism { PawnId = pawnId, MetabolismAfter = GeneUtility.MetabolismAfterImplanting(p, g.GeneSet) }] };
-            return row;
-        }
-
-        private static Obs.MechGestatorState Gestator(Building_MechGestator g)
-        {
-            var row = new Obs.MechGestatorState { ThingId = Id(g.GetUniqueLoadID()), DefName = Id(g.def.defName), Position = Cell(g.Position), Powered = g.PoweredOn,
-                WasteCount = g.WasteProducer?.Waste?.stackCount ?? 0 };
-            var bill = g.ActiveMechBill;
-            if (bill != null) {
-                row = row with { BillId = Id(bill.GetUniqueLoadID()) };
-                row = row with { State = bill.State.ToString() };
-                row = row with { CyclesCompleted = bill.GestationCyclesCompleted };
-                if (Finite(bill.BandwidthCost) is float cost) row = row with { BandwidthCost = cost };
-                if (Finite(g.CurrentBillFormingPercent) is float percent) row = row with { FormingPercent = percent };
-                var mech = bill.BoundPawn;
-                if (mech != null) { row = row with { BoundPawnId = Id(mech.GetUniqueLoadID()) }; row = row with { MechKind = Id(mech.kindDef?.defName) }; }
-            }
-            return row;
-        }
-
-        private static Obs.MechChargerState Charger(Building_MechCharger c)
-        {
-            var row = new Obs.MechChargerState { ThingId = Id(c.GetUniqueLoadID()), DefName = Id(c.def.defName), Position = Cell(c.Position), Powered = c.IsPowered,
-                WasteCount = c.GetComp<CompWasteProducer>()?.Waste?.stackCount ?? 0, FullOfWaste = c.IsFullOfWaste };
-            if (c.CurrentlyChargingMech != null) row = row with { ChargingMechId = Id(c.CurrentlyChargingMech.GetUniqueLoadID()) };
-            return row;
-        }
-
-        private static Obs.BabyCare Baby(Pawn baby)
-        {
-            var row = new Obs.BabyCare { PawnId = Id(baby.GetUniqueLoadID()), InBed = baby.CurrentBed() != null,
-                WantsSuckle = ChildcareUtility.WantsSuckle(baby, out _), CanSuckleNow = ChildcareUtility.CanSuckleNow(baby, out _),
-                BeingPlayedWith = ChildcareUtility.BabyBeingPlayedWith(baby) };
-            foreach (var feeder in (baby.mindState?.Autofeeders() ?? Enumerable.Empty<Pawn>()).OrderBy(p => p.thingIDNumber))
-                row = row with { Autofeeders = [.. row.Autofeeders, new Obs.BabyAutofeeder { PawnId = Id(feeder.GetUniqueLoadID()), Mode = baby.mindState!.AutofeedSetting(feeder).ToString() }] };
-            return row;
+            var grid = map.pollutionGrid;
+            var clear = map.areaManager.PollutionClear;
+            uint uncovered = 0;
+            foreach (var cell in grid.AllPollutableCells)
+                if (grid.IsPolluted(cell) && (clear == null || !clear[cell])) uncovered++;
+            return uncovered;
         }
     }
 }

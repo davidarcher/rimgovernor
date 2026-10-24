@@ -170,6 +170,7 @@ public static class ColonyDecodeReads
             Foods = catalog.Foods(),
             FoodEaters = FoodEaters(v.Policies.FoodEaters, tables.Pawns, races, catalog),
             RoyaltySection = v.Royalty,
+            BiotechSection = v.Biotech,
         };
         r = r with { FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races) };
         var (conditions, conditionsKnown) = ColonyFramesReads.ColonyConditions(v, catalog);
@@ -205,10 +206,6 @@ public static class ColonyDecodeReads
         // The biome's permanent darkness is its map conditions', read only where something decides on it
         // (sowing climate, a lighting census): there a frame without a biome read or a catalog fails, never counts as lit.
         var outdoorsDark = default(Fact<bool>);
-        r = r with
-        {
-            Biotech = BiotechColonyReads.ColonyBiotech(v.Biotech),
-        };
         // No eligible indoor bed (SleepingTemperature.NoIndoorBed) leaves the rounds' indoor sleeping range unknown.
         var (indoor, sleepingMin, sleepingMax) = v.SleepingTemperature is O.SleepingTemperature.Indoor(var min, var max) ? (true, min, max) : (false, 0d, 0d);
         var f = new RoundsFacts
@@ -444,7 +441,7 @@ public static class ColonyDecodeReads
                 Roamers = AnimalUpkeepReads.ColonyRoamers(v),
             },
         };
-        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Pollution = ColonyFramesReads.ColonyPollution(r.Biotech) };
+        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Pollution = BiotechColonyReads.Pollution(r.BiotechSection) };
         f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
         if (f.Upkeep.Lighting.IsKnown && !outdoorsDark.IsKnown)
         {

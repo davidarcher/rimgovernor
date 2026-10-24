@@ -181,7 +181,8 @@ public sealed partial record ColonyProjection
     /// </summary>
     public required IReadOnlyList<FoodEater> FoodEaters { get; init; }
 
-    public Fact<BiotechColony> Biotech { get; init; }
+    /// <summary>The Biotech colony section; inactive without Biotech.</summary>
+    public required O.BiotechSection BiotechSection { get; init; }
 
 
     /// <summary>The Royalty colony section; inactive without Royalty.</summary>

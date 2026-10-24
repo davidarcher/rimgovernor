@@ -18,7 +18,7 @@ internal static class RoundsMech
             hostile = hostile || (t.Kind == ThreatKind.Hostile && !t.Dead && !t.Downed);
         }
 
-        var chargerReady = read.Projection.Biotech.TryGetValue(out var biotech) && MechRules.MechChargerReady(biotech.MechChargerRows());
+        var chargerReady = read.Projection.BiotechSection is PbObservations.BiotechSection.Active { Facts: var biotech } && MechRules.MechChargerReady(BiotechColonyReads.MechChargerRows(biotech));
         return MechRules.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
     }
 

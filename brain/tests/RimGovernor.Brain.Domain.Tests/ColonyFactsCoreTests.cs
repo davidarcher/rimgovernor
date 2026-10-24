@@ -47,7 +47,7 @@ public sealed class ColonyFactsCoreTests
         DeepResources = DeepResourcesTests.NoDeepResources,
         FermentingBarrels = 0,
         Policies = PoliciesTests.NoPolicies,
-        Biotech = null,
+        Biotech = BiotechSectionTests.NoBiotech,
         Anomaly = AnomalySectionTests.NoAnomaly,
         Royalty = RoyaltySectionTests.NoRoyalty,
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
@@ -72,6 +72,7 @@ public sealed class ColonyFactsCoreTests
         Foods = [],
         FoodEaters = [],
         RoyaltySection = RoyaltySectionTests.NoRoyalty,
+        BiotechSection = BiotechSectionTests.NoBiotech,
     };
 
     /// <summary>A threat read of a colony with no wealth, no raid points, no hostile faction and no raid on the map.</summary>

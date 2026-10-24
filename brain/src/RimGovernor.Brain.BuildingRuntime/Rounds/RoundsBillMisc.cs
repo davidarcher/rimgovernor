@@ -44,7 +44,7 @@ partial class Rounder
     /// </summary>
     internal static async Task<MechGestation?> MechGestationAsync(object native, C.Identity identity, ColonyProjection projection, CancellationToken call)
     {
-        if (!projection.Biotech.TryGetValue(out var colony) || !projection.WorkPawns.TryGetValue(out var pawns))
+        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony } || !projection.WorkPawns.TryGetValue(out var pawns))
         {
             return null;
         }
@@ -75,17 +75,7 @@ partial class Rounder
         {
             g = g with { Coverage = roster };
         }
-        var gestators = new List<GestatorFact>();
-        foreach (var x in colony.Gestators)
-        {
-            gestators.Add(new GestatorFact { Active = Known(x.BillID.IsKnown), WasteCount = x.WasteCount });
-        }
-        var wastepacks = new List<WastepackFact>();
-        foreach (var x in colony.Wastepacks)
-        {
-            wastepacks.Add(new WastepackFact { Count = x.Count, Frozen = x.Frozen, InAtomizer = x.InAtomizer });
-        }
-        return g with { Mechanitors = mechanitors, Gestators = gestators, Wastepacks = wastepacks, Chargers = colony.MechChargerRows() };
+        return g with { Mechanitors = mechanitors, Gestators = BiotechColonyReads.GestatorFacts(colony), Wastepacks = BiotechColonyReads.WastepackFacts(colony), Chargers = BiotechColonyReads.MechChargerRows(colony) };
     }
 
     /// <summary>The part benches with each recipe's mech kind carried over from the gear census.</summary>

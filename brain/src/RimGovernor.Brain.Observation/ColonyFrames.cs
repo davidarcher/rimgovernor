@@ -131,20 +131,6 @@ public static class ColonyFramesReads
         }
     }
     /// <summary>
-    /// The biotech/pollution Need's read from the Biotech colony section: each wastepack with the game's verdicts and
-    /// the count of polluted cells outside the pollution-clear area. Unknown without the section, so the Need is
-    /// unknown on a colony without Biotech.
-    /// </summary>
-    internal static Fact<PollutionFacts> ColonyPollution(Fact<BiotechColony> section)
-    {
-        if (!section.TryGetValue(out var b))
-        {
-            return Unknown<PollutionFacts>();
-        }
-        return Known(new PollutionFacts { UncoveredCells = b.PollutedUncoveredCells, Wastepacks = b.Wastepacks });
-    }
-
-    /// <summary>
     /// Decodes the colony read's corpse census (its embedded WasteReply) into the rows MorgueWaiting and the
     /// tomb census read. A missing observed snapshot, or a row whose corpse the frame's entity table does not
     /// hold, stays unknown.

@@ -6591,9 +6591,9 @@ public sealed record ColonyFactsSnapshot
     public required Policies Policies { get; init; }
 
     /// <summary>
-    /// Biotech pollution sources, wastepacks, gestators, chargers and baby care; null without Biotech.
+    /// Biotech pollution, wastepacks, gestators, chargers, gene banks and babies, or inactive without Biotech.
     /// </summary>
-    public required BiotechSection? Biotech { get; init; }
+    public required BiotechSection Biotech { get; init; }
 
     /// <summary>
     /// Anomaly incident and monolith state, or inactive without Anomaly.
@@ -6765,406 +6765,138 @@ public sealed record FoodEater
 }
 
 /// <summary>
-/// Biotech colony facts, a keyed colony section. The pollution
-/// cell grid is a separate code; pollution here is its totals plus what makes
-/// and removes it. Every row is a spawned player-map thing; a scalar absent
-/// is unknown, never zero.
-/// pollution: PollutionGrid totals (total_pollution is PollutionGrid.TotalPollution,
-/// pollutable_cells the count of AllPollutableCells) and the player's
-/// Area_PollutionClear (the cleanup crew's allowed area, clear_area_cells its
-/// size). polluters: buildings with CompToxifier or CompPolluteOverTime.
-/// wastepacks: spawned stacks of things with CompDissolution, which turn into
-/// pollution when they dissolve. atomizers and pumps remove waste and
-/// pollution (pumps: CompPollutionPump, off while disabled_by_artificial_buildings). gestators, chargers: Building_MechGestator and
-/// Building_MechCharger, the producers of wastepacks. babies: each player
-/// pawn whose developmental stage is Newborn or Baby; breastfeeders are the
-/// pawns ChildcareUtility.CanBreastfeedPlayerPawns lists (pawn ids).
+/// The Biotech colony section: the colony facts, or <see cref="Inactive"/> without Biotech. A failed read fails the
+/// colony read.
 /// </summary>
-public sealed record BiotechSection
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BiotechSection.Active), "active")]
+[JsonDerivedType(typeof(BiotechSection.Inactive), "inactive")]
+public abstract record BiotechSection
 {
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public BiotechColonyFacts? Observed { get; init; }
-}
+    private protected BiotechSection() { }
 
-public sealed record BiotechColonyFacts
-{
-    public PollutionTotals? Pollution { get; init; }
+    public sealed record Active(BiotechColonyFacts Facts) : BiotechSection;
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Polluter>))]
-    public EquatableArray<Polluter> Polluters { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Wastepack>))]
-    public EquatableArray<Wastepack> Wastepacks { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<WastepackAtomizer>))]
-    public EquatableArray<WastepackAtomizer> Atomizers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PollutionPump>))]
-    public EquatableArray<PollutionPump> Pumps { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<MechGestatorState>))]
-    public EquatableArray<MechGestatorState> Gestators { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<MechChargerState>))]
-    public EquatableArray<MechChargerState> Chargers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyCare>))]
-    public EquatableArray<BabyCare> Babies { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Breastfeeders { get; init; }
-
-    /// <summary>
-    /// Gene-building rows: the banks, assemblers, extractors, genepacks
-    /// and xenogerms of the colony map.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GeneBankState>))]
-    public EquatableArray<GeneBankState> GeneBanks { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GeneAssemblerState>))]
-    public EquatableArray<GeneAssemblerState> GeneAssemblers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GeneExtractorState>))]
-    public EquatableArray<GeneExtractorState> GeneExtractors { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GenepackState>))]
-    public EquatableArray<GenepackState> Genepacks { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<XenogermState>))]
-    public EquatableArray<XenogermState> Xenogerms { get; init; }
+    public sealed record Inactive : BiotechSection;
 }
 
 /// <summary>
-/// Gene-building rows. A pawn or thing reference is a thing id. gene
-/// lists are GeneDef defNames, sorted; complexity, metabolism and archites are
-/// the game's own GeneSet totals (ComplexityTotal, MetabolismTotal,
-/// ArchitesTotal), never summed by the brain.
-/// GeneBankState: a building with CompGenepackContainer. capacity is
-/// CompProperties_GenepackContainer.maxCapacity, pack_ids the contained
-/// packs, auto_load the container's own flag.
+/// Biotech colony facts; every row is a spawned player-owned thing on the colony map, sorted by thing id number.
+/// polluted_uncovered_cells counts the PollutionGrid's polluted pollutable cells outside the player's
+/// Area_PollutionClear (the cleanup crew's allowed area). wastepacks: spawned stacks of things with CompDissolution,
+/// which turn into pollution when they dissolve. atomizers: Building_WastepackAtomizer. gestators, chargers:
+/// Building_MechGestator and Building_MechCharger, the producers of wastepacks. gene_banks: buildings with
+/// CompGenepackContainer; gene_assemblers: Building_GeneAssembler; genepacks: each Genepack held in a bank or spawned
+/// loose. babies: the pawn ids of the player's humanlike pawns whose developmental stage is Newborn or Baby;
+/// breastfeeders: the pawn ids ChildcareUtility.CanBreastfeedPlayerPawns lists on the map. Id lists are sorted.
+/// </summary>
+public sealed record BiotechColonyFacts
+{
+    public required uint PollutedUncoveredCells { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Wastepack>))]
+    public required EquatableArray<Wastepack> Wastepacks { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<WastepackAtomizer>))]
+    public required EquatableArray<WastepackAtomizer> Atomizers { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<MechGestatorState>))]
+    public required EquatableArray<MechGestatorState> Gestators { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<MechChargerState>))]
+    public required EquatableArray<MechChargerState> Chargers { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GeneBankState>))]
+    public required EquatableArray<GeneBankState> GeneBanks { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GeneAssemblerState>))]
+    public required EquatableArray<GeneAssemblerState> GeneAssemblers { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GenepackState>))]
+    public required EquatableArray<GenepackState> Genepacks { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Babies { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Breastfeeders { get; init; }
+}
+
+/// <summary>
+/// A building with CompGenepackContainer: its cell, capacity (CompProperties_GenepackContainer.maxCapacity) and the
+/// packs it holds (thing ids, sorted).
 /// </summary>
 public sealed record GeneBankState
 {
-    public string? ThingId { get; init; }
+    public required Cell Position { get; init; }
 
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public int? Capacity { get; init; }
+    public required int Capacity { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PackIds { get; init; }
-
-    public bool? AutoLoad { get; init; }
+    public required EquatableArray<string> PackIds { get; init; }
 }
 
-/// <summary>
-/// GeneAssemblerState: Building_GeneAssembler. working is Working; the run
-/// fields (progress, total_work, pack_ids, archites_owed, can_work_now) are
-/// set only while working. max_complexity is MaxComplexity(), archites_owed
-/// ArchitesRequiredNow, can_work_now CanBeWorkedOnNow, linked_bank_ids the
-/// connected facilities that hold a genepack container.
-/// </summary>
+/// <summary>A Building_GeneAssembler's cell.</summary>
 public sealed record GeneAssemblerState
 {
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public bool? Working { get; init; }
-
-    public double? Progress { get; init; }
-
-    public double? TotalWork { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PackIds { get; init; }
-
-    public int? ArchitesOwed { get; init; }
-
-    public int? MaxComplexity { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> LinkedBankIds { get; init; }
-
-    public bool? CanWorkNow { get; init; }
+    public required Cell Position { get; init; }
 }
 
-/// <summary>
-/// GeneExtractorState: Building_GeneExtractor. selected_pawn_id is
-/// Building_Enterable.SelectedPawn, occupant_id the pawn inside; ticks_remaining
-/// and power_cut_ticks are set only while working.
-/// </summary>
-public sealed record GeneExtractorState
-{
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public bool? Working { get; init; }
-
-    public string? SelectedPawnId { get; init; }
-
-    public string? OccupantId { get; init; }
-
-    public int? TicksRemaining { get; init; }
-
-    public int? PowerCutTicks { get; init; }
-}
-
-/// <summary>
-/// GenepackState: a Genepack, in a bank (bank_id, no position) or spawned
-/// loose (position). deteriorating is Genepack.Deteriorating.
-/// </summary>
+/// <summary>A Genepack: bank_id is the bank holding it, null for a pack spawned loose on the map.</summary>
 public sealed record GenepackState
 {
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Genes { get; init; }
-
-    public string? BankId { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Deteriorating { get; init; }
-
-    public bool? AutoLoad { get; init; }
-
-    public int? HitPoints { get; init; }
-
-    public int? Complexity { get; init; }
-
-    public int? Metabolism { get; init; }
-
-    public int? Archites { get; init; }
+    public required string? BankId { get; init; }
 }
 
 /// <summary>
-/// XenogermState: a spawned Xenogerm item; target_pawn_id is its pending
-/// implant target.
-/// </summary>
-public sealed record XenogermState
-{
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Genes { get; init; }
-
-    public string? TargetPawnId { get; init; }
-
-    public int? Complexity { get; init; }
-
-    public int? Metabolism { get; init; }
-
-    public int? Archites { get; init; }
-
-    public bool? Forbidden { get; init; }
-
-    /// <summary>
-    /// implant_metabolism: GeneUtility.MetabolismAfterImplanting per colonist, slave or
-    /// colony prisoner on the map (the game's number; the implant is refused below the
-    /// biostat range minimum), sorted by pawn id.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<XenogermImplantMetabolism>))]
-    public EquatableArray<XenogermImplantMetabolism> ImplantMetabolism { get; init; }
-}
-
-public sealed record XenogermImplantMetabolism
-{
-    public string? PawnId { get; init; }
-
-    public int? MetabolismAfter { get; init; }
-}
-
-public sealed record PollutionTotals
-{
-    public int? TotalPollution { get; init; }
-
-    public uint? PollutableCells { get; init; }
-
-    public string? ClearAreaId { get; init; }
-
-    public int? ClearAreaCells { get; init; }
-
-    /// <summary>
-    /// polluted_cells counts the pollutable cells PollutionGrid.IsPolluted holds;
-    /// polluted_uncovered_cells those outside the pollution-clear area.
-    /// </summary>
-    public uint? PollutedCells { get; init; }
-
-    public uint? PollutedUncoveredCells { get; init; }
-}
-
-/// <summary>
-/// polluting is CompToxifier.CanPolluteNow; cells_per_day is
-/// CompProperties_PolluteOverTime.cellsToPollutePerDay.
-/// </summary>
-public sealed record Polluter
-{
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Polluting { get; init; }
-
-    public int? CellsPerDay { get; init; }
-}
-
-/// <summary>
-/// frozen and in_atomizer are CompDissolution's own verdicts.
+/// A spawned stack of a thing with CompDissolution: count is its stackCount, frozen CompDissolution.IsFrozen,
+/// in_atomizer InAtomizer and forbidden IsForbidden to the player.
 /// </summary>
 public sealed record Wastepack
 {
-    public string? ThingId { get; init; }
+    public required string ThingId { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public Common.Cell? Position { get; init; }
+    public required Cell Position { get; init; }
 
-    public int? Count { get; init; }
+    public required int Count { get; init; }
 
-    public bool? Frozen { get; init; }
+    public required bool Frozen { get; init; }
 
-    public bool? InAtomizer { get; init; }
+    public required bool InAtomizer { get; init; }
 
-    public bool? Forbidden { get; init; }
+    public required bool Forbidden { get; init; }
 }
 
-/// <summary>
-/// Building_WastepackAtomizer: its CompAtomizer's room and progress.
-/// </summary>
+/// <summary>A Building_WastepackAtomizer's cell.</summary>
 public sealed record WastepackAtomizer
 {
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public int? SpaceLeft { get; init; }
-
-    public double? FillPercent { get; init; }
-
-    public bool? AutoLoad { get; init; }
-
-    public int? TicksLeft { get; init; }
-}
-
-public sealed record PollutionPump
-{
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public bool? DisabledByArtificialBuildings { get; init; }
+    public required Cell Position { get; init; }
 }
 
 /// <summary>
-/// state is the active Bill_Mech's FormingState name (Gathering, Preparing,
-/// Forming, Formed), absent with no bill. bound_pawn_id is the mech being
-/// gestated, mech_kind its PawnKindDef; forming_percent is
-/// CurrentBillFormingPercent. waste_count is the wastepacks held in the
-/// gestator's CompWasteProducer.
+/// A Building_MechGestator: bill_id is its ActiveMechBill (null while none runs) and waste_count the stack its
+/// CompWasteProducer holds (0 when none).
 /// </summary>
 public sealed record MechGestatorState
 {
-    public string? ThingId { get; init; }
+    public required string? BillId { get; init; }
 
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public string? BillId { get; init; }
-
-    public string? State { get; init; }
-
-    public string? MechKind { get; init; }
-
-    public string? BoundPawnId { get; init; }
-
-    public int? CyclesCompleted { get; init; }
-
-    public double? BandwidthCost { get; init; }
-
-    public double? FormingPercent { get; init; }
-
-    public int? WasteCount { get; init; }
+    public required int WasteCount { get; init; }
 }
 
 /// <summary>
-/// full_of_waste is Building_MechCharger.IsFullOfWaste.
+/// A Building_MechCharger: powered is IsPowered, full_of_waste IsFullOfWaste and charging_mech_id the
+/// CurrentlyChargingMech (null while none is attached).
 /// </summary>
 public sealed record MechChargerState
 {
-    public string? ThingId { get; init; }
+    public required bool Powered { get; init; }
 
-    public string? DefName { get; init; }
+    public required bool FullOfWaste { get; init; }
 
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public string? ChargingMechId { get; init; }
-
-    public int? WasteCount { get; init; }
-
-    public bool? FullOfWaste { get; init; }
-}
-
-/// <summary>
-/// wants_suckle, can_suckle_now and being_played_with are ChildcareUtility's
-/// verdicts; autofeeders are the feeders with an AutofeedMode set for the baby
-/// (Pawn_MindState.Autofeeders, mode the AutofeedMode name).
-/// </summary>
-public sealed record BabyCare
-{
-    public string? PawnId { get; init; }
-
-    public bool? WantsSuckle { get; init; }
-
-    public bool? CanSuckleNow { get; init; }
-
-    public bool? BeingPlayedWith { get; init; }
-
-    public bool? InBed { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyAutofeeder>))]
-    public EquatableArray<BabyAutofeeder> Autofeeders { get; init; }
-}
-
-public sealed record BabyAutofeeder
-{
-    public string? PawnId { get; init; }
-
-    public string? Mode { get; init; }
+    public required string? ChargingMechId { get; init; }
 }
 
 /// <summary>

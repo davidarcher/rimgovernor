@@ -213,8 +213,8 @@ public static class RoundsReads
         {
             Facts = p.Facts with
             {
-                MechChargerOwed = MechRules.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.Biotech)),
-                GeneBankOwed = GeneBankConcernRules.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.Biotech)),
+                MechChargerOwed = MechRules.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.BiotechSection)),
+                GeneBankOwed = GeneBankConcernRules.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.BiotechSection)),
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = Known(FrameResearch(ResearchSection(frame), catalog)),
@@ -253,11 +253,9 @@ public static class RoundsReads
                 Ideology = FrameIdeology(frame.Ideology),
                 Worship = WorshipRules.FactsOf(frame.Ideology),
                 IdeologyInstalled = frame.IdeologyActive,
-                AnomalyInstalled = ColonyDecodeReads.RequireCatalog(catalog).HasAnomaly(),
-                BiotechInstalled = ColonyDecodeReads.RequireCatalog(catalog).HasBiotech(),
-                RoyaltyInstalled = ColonyDecodeReads.RequireCatalog(catalog).HasRoyalty(),
             },
         };
+        p = p with { Facts = DlcSectionReads.Installed(p.Facts, colony) };
         p = p with { Facts = p.Facts with { RitualSites = RitualSitesReads.RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
         var ideologyDefs = catalog.IdeologyDefs();
         p = p with

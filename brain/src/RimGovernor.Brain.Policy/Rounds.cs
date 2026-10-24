@@ -350,13 +350,13 @@ public sealed record RoundsFacts
     /// <summary>Whether the Ideology expansion is active; unknown when the frame does not say.</summary>
     public Fact<bool> IdeologyInstalled { get; init; }
 
-    /// <summary>Whether the Anomaly expansion is active (the catalog's <c>HasAnomaly</c>): without it the anomaly family derives no Needs.</summary>
+    /// <summary>Whether the Anomaly expansion is active (the colony read's Anomaly section is active): without it the anomaly family derives no Needs.</summary>
     public bool AnomalyInstalled { get; init; }
 
-    /// <summary>Whether the Biotech expansion is active (the catalog's <c>HasBiotech</c>): without it the biotech family derives no Needs.</summary>
+    /// <summary>Whether the Biotech expansion is active (the colony read's Biotech section is active): without it the biotech family derives no Needs.</summary>
     public bool BiotechInstalled { get; init; }
 
-    /// <summary>Whether the Royalty expansion is active (the catalog's <c>HasRoyalty</c>): without it the royalty family derives no Needs.</summary>
+    /// <summary>Whether the Royalty expansion is active (the colony read's Royalty section is active): without it the royalty family derives no Needs.</summary>
     public bool RoyaltyInstalled { get; init; }
 
     /// <summary>The bestowing-ceremony quests the title claim gate allows to accept now (ClaimQuests); the review fills it once the plan, rooms and royalty read are known.</summary>

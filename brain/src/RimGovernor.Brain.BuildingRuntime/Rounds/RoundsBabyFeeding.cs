@@ -7,16 +7,14 @@ public sealed partial class Rounder
     internal ColonyProjection ReviewBabyFeeding(ColonyProjection p)
     {
         p = p with { Facts = p.Facts with { BabyFeeding = Unknown<BabyFeeding>() } };
-        var known = p.Biotech.TryGetValue(out var biotech);
-        var supplied = p.FoodSupply.TryGetValue(out var supply);
-        if (!known || !supplied)
+        if (p.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech } || !p.FoodSupply.TryGetValue(out var supply))
         {
             return p;
         }
-        var babies = biotech!.Babies.Select(b => new PawnId(b.PawnID)).ToList();
+        var babies = biotech.Babies.Select(b => new PawnId(b)).ToList();
         try
         {
-            var review = BabyFeedingRules.ReviewBabyFeeding(babies, biotech.Breastfeeders.Count, supply!, Seasonal(p.Facts).FoodTargetDays);
+            var review = BabyFeedingRules.ReviewBabyFeeding(babies, biotech.Breastfeeders.Count, supply, Seasonal(p.Facts).FoodTargetDays);
             p = p with { Facts = p.Facts with { BabyFeeding = Known(review) } };
         }
         catch (DomainException)
