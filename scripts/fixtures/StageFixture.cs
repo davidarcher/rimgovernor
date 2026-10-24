@@ -251,7 +251,7 @@ namespace HomeBridge.BridgeTools
                     LordJob = pawn.GetLord()?.LordJob?.GetType().Name, MentalState = pawn.MentalStateDef?.defName, Inspiration = pawn.InspirationDef?.defName,
                     Health = pawn.health.summaryHealth.SummaryHealthPercent,
                     Worn = pawn.apparel?.WornApparel.Count ?? 0,
-                    CombatPower = pawn.kindDef.combatPower, MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS), RangedDps = NativeDefenseStats.PawnRangedDps(pawn), Primary = Primary(pawn),
+                    CombatPower = pawn.kindDef.combatPower, MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS), RangedDps = NativeDefenseStats.PawnRangedDps(pawn) * NativeDefenseStats.PawnRangedHitFactor(pawn), Primary = Primary(pawn),
                     Skills = spec.Pawns.First(x => x.Name == name).Skills?.Keys.ToDictionary(k => k, k => pawn.skills.GetSkill(FixtureKit.Def<SkillDef>(k)).Level),
                 };
             foreach (var z in spec.Zones)

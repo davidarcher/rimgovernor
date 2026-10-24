@@ -411,7 +411,8 @@ public static class RoundsMoodReads
             }
             if (row.Equipment is { } e)
             {
-                d = d with { RangedDPS = ColonyDecodeReads.Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault()) };
+                // Ranged DPS counts at the pawn's hit chance over the reference gunner's (#3845).
+                d = d with { RangedDPS = ColonyDecodeReads.Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault() * e.RangedHitFactor) };
                 if (e.MeleeDps is not null && row.Health is { } health)
                 {
                     d = d with { MeleePower = Known(e.MeleeDps.GetValueOrDefault() * health.SummaryFraction) };

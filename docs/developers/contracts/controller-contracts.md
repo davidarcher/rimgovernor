@@ -491,7 +491,9 @@ story watcher's adaptation and the difficulty's threat scale are inside them); t
 required, and a threat read the native cannot complete fails the census. They are
 storyteller inputs, not a raid prediction.
 
-- Turret budget from the observed raid shortfall (raid points minus defense capacity): the turrets
+- Turret budget from the observed raid shortfall (raid points minus defense capacity, whose ranged DPS counts at
+  each colonist's game hit chance over the reference gunner's; see
+  [the capacity's ranged hit chance](../testing/harm-exposure-calibration.md#the-capacitys-ranged-hit-chance)): the turrets
   standing plus the shortfall over the points a standing powered turret adds; one is built when none stands
   to measure. Power, stock, spacing and lines of fire still gate placement; armed
   colonists size the firing line, never wealth.

@@ -6,13 +6,16 @@ public static class DefenseCapacityPolicy
     /// Converts observed combat strength (damage per second) into raid-point units. Vanilla prices a pirate gunner
     /// carrying an assault rifle (about 11 DPS on the wire) at 50-65 combat power, and an unarmed raider brawls
     /// near 2-3 melee DPS for 35-ish points, so about 5 points per DPS lines the colony's measure up with the
-    /// storyteller's raid budget.
+    /// storyteller's raid budget. Ranged DPS is in that gunner's units (#3845): each pawn's counts at its game hit chance
+    /// over the reference gunner's (<c>PawnEquipment.RangedHitFactor</c>), so the reference gunner, and every gunner the
+    /// exposure calibration staged, counts at 1 and the scale holds.
     /// </summary>
     public const double DefensePointsPerDps = 5.0;
 
     /// <summary>
     /// The colony's combat strength in raid-point units: each combat-ready colonist (living, not downed, capable
-    /// of violence) adds melee power plus ranged weapon DPS, and every powered turret adds its DPS. Any unknown
+    /// of violence) adds melee power plus ranged weapon DPS weighted by its hit factor, and every powered turret adds its
+    /// DPS. Any unknown
     /// input a sum needs leaves the result unknown.
     /// </summary>
     public static Fact<double> DefenseCapacity(Fact<EquatableArray<SquadDefenderFacts>> defenders, Fact<EquatableArray<DefenseTurretFacts>> turrets)

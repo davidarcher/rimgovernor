@@ -99,7 +99,8 @@ public sealed record StagedPawn
     public int Worn { get; init; }
 
     /// <summary>
-    /// The pawn kind's combat power, and the pawn's melee and primary-ranged damage per second as the colony read measures
+    /// The pawn kind's combat power, and the pawn's melee and primary-ranged damage per second (ranged at its hit factor,
+    /// #3845) as the colony read measures
     /// them (test-only: the combat sweep's raid points and defense capacity).
     /// </summary>
     public double CombatPower { get; init; }

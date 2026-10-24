@@ -99,7 +99,7 @@ internal static class HarmArmorDirection
             throw new AcceptanceException("the stage made no soldier");
         }
 
-        // The defense capacity the colony reads: 5 points per DPS of melee and ranged power (DefenseCapacityPolicy).
+        // The defense capacity the colony reads: 5 points per DPS of melee and hit-weighted ranged power (DefenseCapacityPolicy).
         var capacity = DefenseCapacityPolicy.DefensePointsPerDps * (soldier.MeleeDps + soldier.RangedDps);
         s.Record("soldier", string.Create(CultureInfo.InvariantCulture,
             $"weapon={soldier.Weapon} melee_dps={soldier.MeleeDps:0.###} ranged_dps={soldier.RangedDps:0.###} capacity={capacity:0.###} worn={soldier.Worn}"));

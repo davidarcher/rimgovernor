@@ -918,6 +918,17 @@ public sealed record PawnEquipment
     /// </summary>
     public double? RangedDps { get; init; }
 
+    /// <summary>
+    /// Defense capacity (#3845): the pawn's game hit chance with its primary over the reference gunner's, the factor
+    /// its ranged DPS counts for. The hit chance is <c>ShotReport</c>'s standard-target aim chance (the shooter's
+    /// <c>HitFactorFromShooter</c> x the weapon's <c>GetHitChanceFactor</c>) at the engagement distance,
+    /// <c>CastPositionFinder.OptimalRangeFactor</c> x the verb's range. The reference gunner is the shooter the
+    /// raid-point scale and the exposure calibration were measured with: the game's no-skill shooting accuracy
+    /// (<c>ShootingAccuracyPawn.noSkillOffset</c>, a level-8 shooter) with a normal assault rifle. 0 without a ranged
+    /// primary.
+    /// </summary>
+    public double RangedHitFactor { get; init; }
+
     public double? MeleeDps { get; init; }
 }
 

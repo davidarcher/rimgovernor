@@ -26,6 +26,28 @@ Roles: `gunner` with a ranged primary; `melee` with a melee primary, or unarmed 
 colonist that can fight); `noncombatant` when staged downed. Every staged colonist counts as able to fight in the
 capacity. A staged turret counts only with a power trader that is on, as in the colony read.
 
+## The capacity's ranged hit chance
+
+Defense capacity counts each colonist's ranged DPS at its hit factor (#3845): the pawn's game hit chance with its
+primary over the reference gunner's (`PawnEquipment.RangedHitFactor`, read by `NativeDefenseStats.PawnRangedHitFactor`).
+
+- The hit chance is `ShotReport`'s standard-target aim chance: `HitFactorFromShooter(pawn, d)` (1 for a verb that
+  cannot go wild) times the weapon's `VerbProperties.GetHitChanceFactor(weapon, d)`, floored at
+  `ShootTuning.MinAimOnChance_StandardTarget`. Weather, blind smoke, darkness and cover are situational and stay
+  neutral; the target is a standing human-sized one.
+- The distance `d` is where the game's AI shoots from: `CastPositionFinder` scores a cell by its distance to the target
+  against `OptimalRangeFactor` (0.8) times the verb's range. It uses the verb's own range, without the weather cap.
+- The reference gunner is the shooter both anchors of the scale were measured with: `DefensePointsPerDps` (a pirate
+  gunner with an assault rifle) and this calibration, whose every gunner is a lab colonist at Shooting 8 with no traits
+  and a normal assault rifle. Its accuracy is `ShootingAccuracyPawn` at the game's no-skill offset (`noSkillOffset` 8,
+  the same level), and its rifle's accuracy is the def's abstract stats at the rifle's own engagement distance (24.72
+  cells). Its hit chance is about 0.237.
+
+The exposure table needs no recalibration. A calibration gunner is the reference gunner, so its factor is exactly 1;
+melee and turrets are unchanged. So each fixture's capacity, its ratio and the bin of every committed row are the same
+under the hit-weighted capacity, and `exposure.json` holds as it is. The staging reply's `RangedDps` carries the hit
+factor too, so a new sweep measures the capacity the colony reads.
+
 ## Rows
 
 ```

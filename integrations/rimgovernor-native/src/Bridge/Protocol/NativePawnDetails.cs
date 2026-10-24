@@ -378,8 +378,8 @@ namespace HomeBridge.BridgeTools
         private static Obs.PawnEquipment Equipment(Pawn pawn)
         {
             var row=NativeGearFacts.Equipment(pawn);
-            // Defense capacity: observed damage per second.
-            if(pawn.equipment!=null) try {row = row with { RangedDps = NativeDefenseStats.PawnRangedDps(pawn), MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS) };} catch {}
+            // Defense capacity: observed damage per second and the ranged hit factor it counts for (#3845).
+            if(pawn.equipment!=null) row = row with { RangedDps = NativeDefenseStats.PawnRangedDps(pawn), RangedHitFactor = NativeDefenseStats.PawnRangedHitFactor(pawn), MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS) };
             return row;
         }
 
