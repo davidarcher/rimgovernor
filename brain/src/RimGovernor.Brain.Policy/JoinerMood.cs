@@ -65,17 +65,53 @@ public static class JoinerMoodRules
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double>> Colony = new();
 
     /// <summary>
-    /// The joiner's mood as a colonist (#3805): its base level plus, over 100, the colony's thoughts, its trait thoughts, its
-    /// memories and the colonistMoodOffset (unclamped, as <see cref="PawnMoodRead.Target"/>), at its own break threshold; null
-    /// without a mood (it never breaks). A colony thought that is one of the joiner's trait thoughts counts once, at the joiner's
-    /// own offset: its traits decide it, not the colonists'.
+    /// The joiner's mood as a colonist (#3805, #3899): its base level plus, over 100, the colony's thoughts, its trait thoughts,
+    /// its own-bedroom trait thoughts served as the colonists are (<see cref="RoomTraits"/>), its memories and the
+    /// colonistMoodOffset (unclamped, as <see cref="PawnMoodRead.Target"/>), at its own break threshold; null without a mood (it
+    /// never breaks). A colony thought that is one of the joiner's trait thoughts counts once, at the joiner's own offset: its
+    /// traits decide it, not the colonists'.
     /// </summary>
-    public static PawnMoodRead? MoodOf(JoinerMoodRead? mood, IReadOnlyDictionary<string, double> colony)
+    public static PawnMoodRead? MoodOf(JoinerMoodRead? mood, IReadOnlyDictionary<string, double> colony, IReadOnlyList<NeedsForecastPawn> colonists)
     {
         if (mood is null) return null;
-        var own = mood.Traits.Select(t => t.Thought).ToHashSet(StringComparer.Ordinal);
+        var own = mood.Traits.Select(t => t.Thought).Concat(mood.RoomTraits.Select(r => r.Thought)).ToHashSet(StringComparer.Ordinal);
         var shared = colony.Where(c => !own.Contains(c.Key)).Sum(c => c.Value);
-        return new(mood.BaseLevel + ((shared + mood.Traits.Sum(t => t.Offset) + mood.Memories.Sum(m => m.Offset) + mood.ColonistOffset) / 100), mood.Threshold);
+        var room = mood.RoomTraits.Count == 0 ? 0 : RoomTraits(mood.RoomTraits, colonists);
+        return new(mood.BaseLevel + ((shared + mood.Traits.Sum(t => t.Offset) + room + mood.Memories.Sum(m => m.Offset) + mood.ColonistOffset) / 100), mood.Threshold);
+    }
+
+    /// <summary>
+    /// The joiner's own-bedroom trait thoughts as a colonist (#3899): the median over <paramref name="colonists"/> of their sum
+    /// with the joiner in each one's room (<see cref="NeedsForecastPawn.OwnedRoom"/>), as the workers stage them: Greedy
+    /// (ThoughtWorker_Greedy) at the room's Impressiveness stage + 1, stage 0 without a room; Ascetic (ThoughtWorker_Ascetic) at
+    /// the room's stage, none without one; Jealous (ThoughtWorker_BedroomJealous) held when a room another pawn owns
+    /// (<see cref="NeedsForecastPawn.RivalRooms"/>) beats the room's Impressiveness (0 without one) by
+    /// <see cref="ForecastHousing.JealousMargin"/> of it. A missing stage row or no colonist throws <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static double RoomTraits(IReadOnlyList<NeedThoughtStage> rows, IReadOnlyList<NeedsForecastPawn> colonists)
+    {
+        var pawns = colonists.DistinctBy(p => p.Pawn, StringComparer.Ordinal).ToArray();
+        if (pawns.Length == 0) throw new RequiredFactException("colony pawns");
+        double Row(string def, string role, int stage) => rows.FirstOrDefault(r => r.Thought == def && r.Role == role && r.Stage == stage)?.Offset
+            ?? throw new RequiredFactException(role + " thought stage:" + def);
+        var sums = new List<double>();
+        foreach (var pawn in pawns)
+        {
+            var room = pawn.OwnedRoom;
+            double sum = 0;
+            foreach (var (def, role) in rows.Select(r => (r.Thought, r.Role)).Distinct())
+                sum += role switch
+                {
+                    ForecastHousing.GreedyRole => Row(def, role, room is null ? 0 : room.Stage + 1),
+                    "ascetic" => room is null ? 0 : Row(def, role, room.Stage),
+                    ForecastHousing.JealousRole => pawn.RivalRooms.Any(r => r - (room?.Impressiveness ?? 0) >= Math.Abs((room?.Impressiveness ?? 0) * ForecastHousing.JealousMargin))
+                        ? Row(def, role, 0) : 0,
+                    _ => throw new RequiredFactException("room trait role:" + role),
+                };
+            sums.Add(sum);
+        }
+
+        return Median(sums);
     }
 
     /// <summary>
@@ -134,7 +170,7 @@ public static class JoinerMoodRules
         return PawnValueRules.Of(new PawnValueFacts(pawn)
         {
             Speeds = joiner.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), Incapable = joiner.Upkeep.IncapableWork,
-            FoodPerDay = joiner.Upkeep.FoodPerDay, Mood = MoodOf(joiner.Mood, ColonyThoughts(context)), FreeTicksPerDay = free * GameTime.TicksPerHour,
+            FoodPerDay = joiner.Upkeep.FoodPerDay, Mood = MoodOf(joiner.Mood, ColonyThoughts(context), context.Needs.Pawns), FreeTicksPerDay = free * GameTime.TicksPerHour,
         }, new PawnValueColony { Shortfall = shortfall, Food = joiners.Food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays });
     }
 

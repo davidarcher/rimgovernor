@@ -864,23 +864,36 @@ bed room or thought rows, or a patient's mood. Named as not modelled with each s
 `BotchedMySurgery` thought, the temperature sleep thoughts, the colony's standing medical beds (#3817), outcome classes other
 than success, death and failure, and surgeries on non-colonists. Two planned hospitals each credit every patient.
 
-*Prison credit (#3805).* A planned prison the outcome serves is credited (`ForecastPrison.PrisonCredit`) the recruitment it
+*Prison credit (#3805, #3899).* A planned prison the outcome serves is credited (`ForecastPrison.PrisonCredit`) the recruitment it
 enables, per prisoner under `prison/<room>/<prisoner>`. A held prisoner without a prison bed is never recruited; the outcome's
-served prisons, in service order, bed the recruitable ones (not unwaveringly loyal, not wild men) up to their beds (planned beds
-plus the prediction's), the most valuable first. One chat of the best-NegotiationAbility warden lowers resistance by
-NegotiationAbility × the mood curve at the prisoner's instant mood in the room (its unclamped mood with its prison thought now
-replaced by the room's PrisonCell, one bed, or PrisonBarracks stage) × the opinion curve at its opinion of the warden; recruitment
-takes `ceil(resistance / perChat) + 1` chats at two a day (`ForecastPrison.RecruitDays`). The prisoner's value is its #3825 value
+served prisons, in service order, bed the recruitable ones (not unwaveringly loyal) up to their beds (planned beds plus the
+prediction's), the most valuable first. The best-NegotiationAbility warden chats with each from the room's service, chat by chat
+(`ForecastPrison.Recruitment`): job k starts `k × 60000 / 2` ticks in; its five rapport chats come 350 ticks apart, each a
+`RapportBuilt` memory at its opinionOffset × the warden's SocialImpact with its stack limits (`ForecastPrison.Opinion`), and its
+attempt comes 1,750 ticks after the first. The prisoner's opinion of the warden at an attempt is its relations plus its situational
+social thoughts plus its social memory groups (a fading memory's InverseLerp, a cumulative one's day steps) and the rapport, times
+the hediff factor, rounded and clamped as `Pawn_RelationsTracker.OpinionOf`. Its mood at the attempt is its unclamped mood now with
+its prison thought replaced by the room's PrisonCell (one bed) or PrisonBarracks stage and each mood memory group at its fade and
+expiry then (`ForecastPrison.Mood`). An attempt with resistance left lowers it by NegotiationAbility × the mood curve × the opinion
+curve; at 0 the next one recruits. A wild man is tamed at the warden's tame chance each attempt. The warden's inspiration is a
+renewal process (`ForecastPrison.Inspirations`, one-hour steps): the one it has now runs out, a new one starts at the MTB its mood
+target gives, the def picked by its share of the defs that can occur; `Inspired_Recruitment` (`Inspired_Taming` for a wild man)
+recruits at the next attempt, and any other blocks new ones while it lasts. The prisoner's value is its #3825 value
 as a colonist (`JoinerMoodRules.ValueOf`) against the work the outcome leaves short (`WorkShortfallRules.Of` over the outcome's
 chosen roots, `JoinerMoodRules.ShortfallOf`, computed once per outcome by the shared `PerOutcome` cache, #3913): its own speeds, food and incapable work; its mood the colony's food, room and recreation thoughts
-(the median of the colonists' observed rows, picked by thought_triggers.tsv owner, grant and dependency) plus its trait thoughts (a colony thought that is one of them counted once, at its own offset)
-and memories; its free hours the median over the colonists of its own need falls served as each is served. The row is that value a
-day with a `Once` of −value × the recruitment days: the value over the days the room saves. A non-positive value earns nothing
+(the median of the colonists' observed rows, picked by thought_triggers.tsv owner, grant and dependency) plus its trait thoughts (a colony thought that is one of them counted once, at its own offset;
+Greedy, Jealous and Ascetic at the median over the colonists of the stage their owned bedroom gives, `JoinerMoodRules.RoomTraits`;
+pain, added body parts and Recluse at their stage now) and memories; its free hours the median over the colonists of its own need
+falls served as each is served. The row is that value a day with a `Once` of −value × the expected recruitment days, less the
+expected chat jobs × the warden work a job takes (its 2,100 toil ticks as the shortfall rows they would fill, as the classroom
+charges its teacher). A non-positive value earns nothing
 (`prison_joiner_costs_more`). Named states, each earning nothing: no prisoner (`prison_no_prisoner`), no recruitable prisoner
 without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
-no bed (`prison_no_bed`) and the review before the first layout plan (`prison_awaiting:layout_plan`). Named as not modelled: a wild
-man's taming chance, trait thoughts whose worker reads the situation, the warden's chat labour, `Inspired_Recruitment`, and the
-prisoner's mood, memories and opinion held at now's over the recruitment.
+no bed (`prison_no_bed`) and the review before the first layout plan (`prison_awaiting:layout_plan`). Named as not modelled: the
+warden's walks (`prison_warden_walk`, #3964), the other trait thoughts whose worker reads the situation
+(`joiner_situational_trait_thoughts`, #3965), memories a bedless prisoner renews until bedded (`prison_bedless_memory_renewal`,
+#3966), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every
+prisoner (`prison_inspiration_shared`, #3968).
 
 *Classroom credit (#3809).* A planned classroom the outcome serves is credited (`ForecastClassroom.ClassroomCredit`) the lessons
 it seats, per child under `classroom/<room>/<child>`. A child (a colonist with a learning need, `NeedsForecastRead.School`) takes

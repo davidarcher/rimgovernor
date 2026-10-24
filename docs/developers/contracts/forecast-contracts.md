@@ -362,15 +362,24 @@ unknown. What the game does not have is a case, never an unknown:
   `SteadyEnvironmentEffects.FinalDeteriorationRate` now (every DeteriorationRate part
   applied), whether the environmental part applies, the terrain's
   extraDeteriorationFactor and edifice protection.
-- `NeedsForecastRead.Prison` (#3805, `PrisonRecruitRead`): `InteractionWorker_RecruitAttempt`'s
-  private mood and opinion resistance curves, `Pawn_GuestTracker.MaxInteractionsPerDay`, the
-  Warden-capable colonists' `NegotiationAbility`, and per held prisoner (`PrisonersOfColonySpawned`)
-  `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`, its mood (the unclamped
-  level, its PrisonCell/PrisonBarracks thought now, and those thoughts' stage offsets for it; none for
-  an Ascetic), its opinion of each warden rebuilt from its social thoughts and relations without
-  `OpinionOf` (whose recalculation drops memories), and its `JoinerRead`: its upkeep as a colonist,
+- `NeedsForecastPawn.OwnedRoom` (#3899): the pawn's owned bedroom's Impressiveness and its score stage
+  (`ownership.OwnedRoom`), null without one: the room the joiner's Greedy, Ascetic and Jealous thoughts read.
+- `NeedsForecastRead.Prison` (#3805, #3899, `PrisonRecruitRead`): `InteractionWorker_RecruitAttempt`'s
+  private mood and opinion resistance curves, `Pawn_GuestTracker.MaxInteractionsPerDay`, BuildRapport's
+  recipient thought (`RapportRead`: its def, duration, stack limits, stackedEffectMultiplier and
+  lerpOpinionToZeroAfterDurationPct), `InspirationDefOf.Inspired_Recruitment` and `Inspired_Taming`, the
+  Warden-capable colonists (`WardenRead`: `NegotiationAbility`, its inspiration now with its age and duration, whether a
+  hediff blocks inspirations, and each def whose `InspirationCanOccur` holds with its `CommonalityFor` and duration), and
+  per held prisoner (`PrisonersOfColonySpawned`) `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`,
+  its mood (the unclamped level, its PrisonCell/PrisonBarracks thought now, those thoughts' stage offsets for it, none for
+  an Ascetic, and its mood memory groups with their stackedEffectMultiplier), its opinion of each warden by its parts
+  (`WardenOpinionRead`: relations, situational social thoughts each rounded away from 0, the hediffs' opinionOfOthersFactor,
+  hostility, its social memory groups of the warden, fading or cumulative, the rapport one chat gives, the ages of its
+  rapport memories of other pawns, and the warden's tame chance for a wild man; rebuilt without `OpinionOf`, whose
+  recalculation drops memories), and its `JoinerRead`: its upkeep as a colonist,
   its joiner mood (base level, colonistMoodOffset, break threshold, trait thoughts as unattached
-  `MakeThought` offsets, the names of trait thoughts whose worker reads the situation, and its
+  `MakeThought` offsets or their worker's `CurrentState` stage for pain, added body parts and Recluse, the Greedy, Ascetic
+  and Jealous stage rows, the names of the other trait thoughts whose worker reads the situation, and its
   memories, which `RecruitUtility.Recruit` keeps) and its need rates, joy from its own Need\_Joy or a
   detached one built under `Rand.PushState`.
 - `NeedsForecastRead.School` (#3809, `SchoolRead`): `Need_Learning.BaseFallPerTick`,

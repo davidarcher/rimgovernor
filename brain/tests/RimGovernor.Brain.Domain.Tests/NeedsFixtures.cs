@@ -33,8 +33,12 @@ internal static class NeedsFixtures
     public static PrisonRecruitRead NoPrison => new()
     {
         MoodCurve = [new(0, .2), new(.5, 1), new(1, 1.5)], OpinionCurve = [new(-100, .5), new(0, 1), new(100, 1.5)],
-        MaxInteractionsPerDay = 2, Wardens = [], Prisoners = [],
+        MaxInteractionsPerDay = 2, Rapport = Rapport, RecruitInspiration = "Inspired_Recruitment", TamingInspiration = "Inspired_Taming",
+        Wardens = [], Prisoners = [],
     };
+
+    /// <summary>BuildRapport's RapportBuilt (Thoughts_Memory_Social.xml, 1.7): 20 days, stacking 300 in all and 50 a pawn, multiplier 1, fading from 70% of its duration.</summary>
+    public static RapportRead Rapport => new("RapportBuilt", 20 * 60000, 300, 50, 1, 0.7);
 
     /// <summary>The lesson read of no child, no desk and no teacher, at the game's rates and desires (Biotech, 1.7).</summary>
     public static SchoolRead NoSchool => new()
@@ -58,7 +62,7 @@ internal static class NeedsFixtures
         LocalHour = 12, Awake = true, BedThoughts = new BedThoughtOnset.None(), SleepThreshold = .75, WakeThreshold = 1, SleepBlocked = false, SleepBlockedUntilTicks = 0,
         SleepWhileStarving = false, Mood = null, ComfortableMin = 16, ComfortableMax = 26, SleepComfortableMin = 0, SleepComfortableMax = 0,
         Sleep = null, LyingIn = null, Needs = [], Targets = [], Unsupported = [], Outdoors = new NeedLevel.Lacks(), OutdoorsDisabled = false,
-        OwnedBed = "", OwnedBedRoom = null, Ascetic = false, RivalRooms = [], ThoughtStages = [], Apparel = null,
+        OwnedBed = "", OwnedBedRoom = null, OwnedRoom = null, Ascetic = false, RivalRooms = [], ThoughtStages = [], Apparel = null,
         Consciousness = 1, Moving = 1, Manipulation = 1, Sight = 1, Talking = 1,
         MalnutritionSeverity = 0, FoodPoisoningSeverity = 0, HypothermiaSeverity = 0, HeatstrokeSeverity = 0,
         PainShockThreshold = .8, HealthScale = 1, IncomingDamageFactor = 1, InjuryHealingFactor = 1, ResearchSpeed = 1, PlantWorkSpeed = 1,

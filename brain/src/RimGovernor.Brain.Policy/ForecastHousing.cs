@@ -383,7 +383,7 @@ public static class ForecastHousing
     /// ThoughtWorker_BedroomJealous's margin, an inline literal of the game's: another owned room at least this fraction of the
     /// own room's Impressiveness (its absolute value) better makes a Jealous pawn jealous. Kept constant (kept-constants.md).
     /// </summary>
-    private const double JealousMargin = 0.1;
+    internal const double JealousMargin = 0.1;
 
     /// <summary>
     /// Per throne room or suite closure with a colonist (<see cref="ForecastCoupledContext.RoyalRooms"/>) whose role is priced,

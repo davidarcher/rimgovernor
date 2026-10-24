@@ -153,12 +153,16 @@ public sealed record BabyHearerRead
 /// </summary>
 public sealed record HeardMemoryRead(string Fit, string Thought, double Offset, double DurationTicks, int StackLimit, double StackedMultiplier);
 /// <summary>
-/// The recruitment mechanics (#3805), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance is
-/// above 0, each warden chat lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/> at the
-/// prisoner's instant mood (1 without a mood need) times <see cref="OpinionCurve"/> at its opinion of the warden; at 0 the next
-/// chat recruits. A prisoner is chatted with at most <see cref="MaxInteractionsPerDay"/> times a day
+/// The recruitment mechanics (#3805, #3899), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance
+/// is above 0, each warden recruit attempt lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/>
+/// at the prisoner's instant mood (1 without a mood need) times <see cref="OpinionCurve"/> at its opinion of the warden; at 0 the
+/// next attempt recruits. A prisoner is chatted with at most <see cref="MaxInteractionsPerDay"/> times a day
 /// (<c>Pawn_GuestTracker.MaxInteractionsPerDay</c>, as <c>ScheduledForInteraction</c> gates it). The two curves are the worker's
-/// private <c>ResistanceImpactFactorCurve_Mood</c> and <c>ResistanceImpactFactorCurve_Opinion</c>, point by point.
+/// private <c>ResistanceImpactFactorCurve_Mood</c> and <c>ResistanceImpactFactorCurve_Opinion</c>, point by point. Each chat job
+/// (<c>JobDriver_ChatWithPrisoner</c>) first builds rapport (<see cref="Rapport"/>, <c>InteractionDefOf.BuildRapport</c>'s
+/// recipient thought); an initiator inspired by <see cref="RecruitInspiration"/> (<c>InspirationDefOf.Inspired_Recruitment</c>)
+/// recruits a prisoner at once, one inspired by <see cref="TamingInspiration"/> (<c>InspirationDefOf.Inspired_Taming</c>) tames a
+/// wild man at once, either ending the inspiration.
 /// </summary>
 public sealed record PrisonRecruitRead
 {
@@ -167,6 +171,9 @@ public sealed record PrisonRecruitRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
     public required EquatableArray<CurvePointRead> OpinionCurve { get; init; }
     public required int MaxInteractionsPerDay { get; init; }
+    public required RapportRead Rapport { get; init; }
+    public required string RecruitInspiration { get; init; }
+    public required string TamingInspiration { get; init; }
     /// <summary>Every colonist given that can do Warden work (not <c>Pawn.WorkTypeIsDisabled</c>), in pawn id order. Empty means none can.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<WardenRead>))]
     public required EquatableArray<WardenRead> Wardens { get; init; }
@@ -176,10 +183,77 @@ public sealed record PrisonRecruitRead
 }
 /// <summary>One point of a game <c>SimpleCurve</c>, in its order.</summary>
 public sealed record CurvePointRead(double X, double Y);
-/// <summary>A colonist who can do Warden work and its <c>StatDefOf.NegotiationAbility</c>.</summary>
-public sealed record WardenRead(string Pawn, double NegotiationAbility);
-/// <summary>A prisoner's opinion of one warden (#3805), rebuilt as <c>Pawn_RelationsTracker.OpinionOf</c> computes it without its thought cache.</summary>
-public sealed record WardenOpinionRead(string Warden, int Opinion);
+/// <summary>
+/// The rapport memory a chat gives the prisoner (#3899): <c>InteractionDefOf.BuildRapport.recipientThought</c>'s defName, its
+/// <c>DurationTicks</c>, <c>stackLimit</c> (over every other pawn), <c>stackLimitForSameOtherPawn</c>, <c>stackedEffectMultiplier</c>
+/// and <c>lerpOpinionToZeroAfterDurationPct</c>, as <c>MemoryThoughtHandler.TryGainMemory</c> stacks it and
+/// <c>Thought_MemorySocial.OpinionOffset</c> fades it.
+/// </summary>
+public sealed record RapportRead(string Thought, double DurationTicks, int StackLimit, int StackLimitPerPawn, double StackedMultiplier, double LerpAfter);
+/// <summary>
+/// A colonist who can do Warden work (#3805, #3899): its <c>StatDefOf.NegotiationAbility</c>, its inspiration now (null when it
+/// has none), whether a hediff blocks a new one (<c>InspirationHandler.BlockedByHediff</c>), and each inspiration def that can
+/// start for it now (<c>InspirationWorker.InspirationCanOccur</c>), in def order.
+/// </summary>
+public sealed record WardenRead(string Pawn, double NegotiationAbility)
+{
+    public required InspirationNowRead? Inspired { get; init; }
+    public required bool InspirationBlocked { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<InspirationChanceRead>))]
+    public required EquatableArray<InspirationChanceRead> Inspirations { get; init; }
+}
+/// <summary>The inspiration a pawn has now: its def and <c>Inspiration.AgeDays</c>, and the def's <c>baseDurationDays</c>.</summary>
+public sealed record InspirationNowRead(string Def, double AgeDays, double DurationDays);
+/// <summary>An inspiration def that can start for a pawn: <c>InspirationWorker.CommonalityFor</c> (its weight in the random pick) and <c>baseDurationDays</c>.</summary>
+public sealed record InspirationChanceRead(string Def, double Commonality, double DurationDays);
+/// <summary>
+/// A prisoner's opinion of one warden (#3805, #3899), in the parts <c>Pawn_RelationsTracker.OpinionOf</c> sums, read without its
+/// thought cache: the relations' opinionOffset, the situational social thoughts' <c>OpinionOffsetOfGroup</c>s now (each rounded),
+/// its social memory groups of the warden (<see cref="SocialMemoryGroupRead"/>), the hediffs' <c>opinionOfOthersFactor</c> product
+/// and whether the prisoner is hostile to the warden (a positive opinion of a hostile pawn is 0). Rapport is the opinionOffset
+/// one chat's rapport memory starts at (<see cref="RapportRead"/>'s stage offset times the warden's <c>StatDefOf.SocialImpact</c>,
+/// as <c>Pawn_InteractionsTracker.AddInteractionThought</c> scales it; 0 when the prisoner cannot get it: no mood need,
+/// <c>ThoughtUtility.CanGetThought</c>, the developmental filter or nullification), OtherRapport the ages of the prisoner's
+/// rapport memories of other pawns (they share the def's stackLimit), and TameChance the chance a tame attempt of the warden
+/// succeeds on the prisoner held in its cell (the worker's TameAnimalChance × wildness curve × prison, bond and venerated
+/// factors), read for a wild man and 0 for a pawn recruited by resistance, which is never rolled.
+/// </summary>
+public sealed record WardenOpinionRead(string Warden, int Relations, int Situational, double Factor, bool Hostile)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SocialMemoryGroupRead>))]
+    public required EquatableArray<SocialMemoryGroupRead> Memories { get; init; }
+    public required double Rapport { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
+    public required EquatableArray<double> OtherRapport { get; init; }
+    public required double TameChance { get; init; }
+}
+/// <summary>
+/// One group of a pawn's social memories of another (#3899, <c>Thought_MemorySocial.GroupsWith</c>): its def, the def's
+/// <c>stackedEffectMultiplier</c> and <c>lerpOpinionToZeroAfterDurationPct</c>, and its memories.
+/// </summary>
+public sealed record SocialMemoryGroupRead(string Thought, double StackedMultiplier, double LerpAfter)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SocialMemoryRead>))]
+    public required EquatableArray<SocialMemoryRead> Members { get; init; }
+}
+/// <summary>
+/// A social memory (#3899), by its class: a <c>Thought_MemorySocial</c> fades its opinionOffset by its age
+/// (<c>OpinionOffset</c>'s InverseLerp from 1 to the group's LerpAfter of age over <c>DurationTicks</c>) and is discarded past
+/// its duration; a <c>Thought_MemorySocialCumulative</c> moves its opinionOffset 1 toward 0 each day of age (<c>ThoughtInterval</c>
+/// at age 60000, the age then reset), counts at most its def's <c>maxCumulatedOpinionOffset</c> and is discarded at 0. Offset is
+/// the opinionOffset, 0 while the thought is nullified.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SocialMemoryRead.Fading), "fading")]
+[JsonDerivedType(typeof(SocialMemoryRead.Cumulative), "cumulative")]
+public abstract record SocialMemoryRead
+{
+    private protected SocialMemoryRead() { }
+
+    public sealed record Fading(double Offset, double Age, double DurationTicks) : SocialMemoryRead;
+
+    public sealed record Cumulative(double Offset, double Age, double Cap) : SocialMemoryRead;
+}
 /// <summary>
 /// One prisoner as the prison credit reads it (#3805): <c>Pawn_GuestTracker.Recruitable</c> (false for the unwaveringly loyal),
 /// its <c>Resistance</c>, whether it owns a prison bed (<c>ownership.OwnedBed.ForPrisoners</c>), whether it is a wild man (recruited
@@ -203,16 +277,29 @@ public sealed record PrisonerRecruitRead
     public required JoinerRead Joiner { get; init; }
 }
 /// <summary>
-/// A prisoner's mood now (#3805): its unclamped instant mood (as <see cref="NeedMood.UnclampedTarget"/>: the base level plus the
-/// thoughts' total and the difficulty's colonistMoodOffset, over 100; <c>Need_Mood.CurInstantLevel</c> clamps it), the mood offset
-/// of its PrisonCell and PrisonBarracks thought groups now, and those thoughts' offset at every stage (<see cref="NeedThoughtStage"/>,
-/// roles <c>prison_cell</c> and <c>prison_barracks</c>; the stage is the room's Impressiveness score stage, a null stage or an
-/// Ascetic prisoner a 0 row, as <c>ThoughtWorker_RoomImpressiveness</c> leaves the thought inactive).
+/// A prisoner's mood now (#3805, #3899): its unclamped instant mood (as <see cref="NeedMood.UnclampedTarget"/>: the base level
+/// plus the thoughts' total and the difficulty's colonistMoodOffset, over 100; <c>Need_Mood.CurInstantLevel</c> clamps it), the
+/// mood offset of its PrisonCell and PrisonBarracks thought groups now, those thoughts' offset at every stage
+/// (<see cref="NeedThoughtStage"/>, roles <c>prison_cell</c> and <c>prison_barracks</c>; the stage is the room's Impressiveness
+/// score stage, a null stage or an Ascetic prisoner a 0 row, as <c>ThoughtWorker_RoomImpressiveness</c> leaves the thought
+/// inactive), and its memory groups (<see cref="MemoryGroupRead"/>), whose expiry and fading the recruitment's chats see.
 /// </summary>
 public sealed record PrisonerMoodRead(double UnclampedLevel, double CellThought)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
     public required EquatableArray<NeedThoughtStage> CellStages { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<MemoryGroupRead>))]
+    public required EquatableArray<MemoryGroupRead> Memories { get; init; }
+}
+/// <summary>
+/// One mood memory group (#3899, <c>Thought.GroupsWith</c>): its def's <c>stackedEffectMultiplier</c> and its memories
+/// (<see cref="NeedMemory"/>: MoodOffset now, life and fading). <c>ThoughtHandler.MoodOffsetOfGroup</c> is the members' mean
+/// offset times the stacked sum of the multiplier's powers over their count.
+/// </summary>
+public sealed record MemoryGroupRead(double StackedMultiplier)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
+    public required EquatableArray<NeedMemory> Members { get; init; }
 }
 /// <summary>
 /// A pawn as it would be once it joins the colony (#3805; the joiner's mood model, shared by any pawn not yet a colonist): its
@@ -228,18 +315,25 @@ public sealed record JoinerRead
     public required EquatableArray<NeedRate> Needs { get; init; }
 }
 /// <summary>
-/// What a joiner's mood is built from (#3805), its own part: the mood base level (<c>OverrideMoodBase</c> or the need's
+/// What a joiner's mood is built from (#3805, #3899), its own part: the mood base level (<c>OverrideMoodBase</c> or the need's
 /// baseLevel), the difficulty's colonistMoodOffset a colonist gets, its minor break threshold, its trait thoughts and its live
 /// memories, which joining keeps (<c>RecruitUtility.Recruit</c> clears none), one row per memory group (<c>MoodOffsetOfGroup</c>'s
 /// stacking over the memories alone). A trait thought is a situational non-social def whose requiredTraits the pawn has
-/// (<c>ThoughtUtility.CanGetThought</c>'s trait clause) and its traits do not disallow: a <c>ThoughtWorker_AlwaysActive</c> one is
-/// in <see cref="Traits"/> at its unattached thought's MoodOffset (stage 0, nullification included); one whose worker reads the
-/// pawn's situation is named in <see cref="SituationalTraits"/>. The colony's part is the colonists' (JoinerMoodRules).
+/// (<c>ThoughtUtility.CanGetThought</c>'s trait clause) and its traits do not disallow. In <see cref="Traits"/>: a
+/// <c>ThoughtWorker_AlwaysActive</c> one at its unattached thought's MoodOffset (stage 0, nullification included), and one whose
+/// worker reads the pawn's own body or the map's head count, which joining leaves as they are (<c>ThoughtWorker_Pain</c>,
+/// <c>ThoughtWorker_HasAddedBodyPart</c>, <c>ThoughtWorker_Recluse</c>), at the MoodOffset of its worker's state now (0 inactive).
+/// In <see cref="RoomTraits"/>: the own-bedroom ones (<c>ThoughtWorker_Greedy</c>, <c>ThoughtWorker_BedroomJealous</c>,
+/// <c>ThoughtWorker_Ascetic</c>, which give a non-colonist nothing), every stage priced as <see cref="NeedsForecastPawn.ThoughtStages"/>'
+/// greedy, jealous and ascetic rows. Any other is named in <see cref="SituationalTraits"/>. The colony's part is the colonists'
+/// (JoinerMoodRules).
 /// </summary>
 public sealed record JoinerMoodRead(double BaseLevel, double ColonistOffset, double Threshold)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThoughtOffsetRead>))]
     public required EquatableArray<ThoughtOffsetRead> Traits { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
+    public required EquatableArray<NeedThoughtStage> RoomTraits { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> SituationalTraits { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThoughtOffsetRead>))]
@@ -402,6 +496,8 @@ public sealed record NeedBedRoom(string Role, int Stage, bool ForPrisoners)
     public required double SurgerySuccessFactor { get; init; }
     public required double ImmunityGainSpeedFactor { get; init; }
 }
+/// <summary>A pawn's own room (#3899): its <c>RoomStatDefOf.Impressiveness</c> and that stat's score stage.</summary>
+public sealed record NeedOwnedRoom(double Impressiveness, int Stage);
 /// <summary>
 /// A food stack's deterioration inputs (#3339): its HitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now (every
 /// DeteriorationRate part applied at its cell), whether StatPart_EnvironmentalEffects applies (deteriorateFromEnvironmentalEffects),
@@ -627,6 +723,12 @@ public sealed record NeedsForecastPawn
     public required string OwnedBed { get; init; }
     /// <summary>The owned bed's room and care (#3804, <see cref="NeedBedRoom"/>); null without an owned bed.</summary>
     public required NeedBedRoom? OwnedBedRoom { get; init; }
+    /// <summary>
+    /// The pawn's own room (#3899, <c>Pawn_Ownership.OwnedRoom</c>: its owned bed's room when the room counts it among its owners),
+    /// as the own-bedroom trait thoughts read it (ThoughtWorker_Greedy, ThoughtWorker_BedroomJealous, ThoughtWorker_Ascetic); null
+    /// when it owns none.
+    /// </summary>
+    public required NeedOwnedRoom? OwnedRoom { get; init; }
     public required bool Ascetic { get; init; }
     /// <summary>
     /// The Impressiveness of each room another pawn owns, ascending, as ThoughtWorker_BedroomJealous compares the pawn's own

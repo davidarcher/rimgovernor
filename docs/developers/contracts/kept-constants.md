@@ -363,6 +363,20 @@ exposes; the rates, weights and skill count are read (`NeedsForecastRead.School`
 | --- | --- | --- |
 | `ActiveDesires` | 2: the active learning desires a child keeps, and the jobs a lesson wins (one in two, JobGiver_Learn's random order) | `Pawn_LearningTracker.AddNewLearningDesire` (`active.Count >= 2`) |
 
+## Mirrored game literals: prison recruitment (#3899)
+
+`ForecastPrison` (`brain/src/RimGovernor.Brain.Policy/ForecastPrison.cs`) mirrors the method-body literals of the chat job,
+the inspiration check and the social memory decay; the curves, rapport def, stack limits, inspiration defs and tame chance
+factors are read (`NeedsForecastRead.Prison`).
+
+| Literal | Value | Member |
+| --- | --- | --- |
+| `RapportToils` | 5: ConvinceRecruitee toils (a BuildRapport chat each) before the attempt | `JobDriver_ChatWithPrisoner.MakeNewToils` |
+| `ToilTicks` | 350: each chat toil's delay; 2,100 toil ticks a job (`ChatJobTicks`), the attempt 1,750 after the first rapport | `Toils_Interpersonal.ConvinceRecruitee`, `TryRecruit` (`defaultDuration = 350`) |
+| `Inspirations.CheckTicks` | 100: the ticks between inspiration start checks | `InspirationHandler.CheckStartInspirationIntervalTicks` |
+| Start MTB | `LerpDouble(0.5, 1, 210, 10, mood)` days, none below mood 0.5 | `InspirationHandler.StartInspirationMTBDays` |
+| Cumulative decay | 1 toward 0 for each 60,000 ticks of age | `Thought_MemorySocialCumulative.ThoughtInterval` |
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)

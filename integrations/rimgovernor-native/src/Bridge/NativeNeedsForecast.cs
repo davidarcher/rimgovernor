@@ -109,6 +109,7 @@ internal static class NativeNeedsForecast
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                 OwnedBedRoom = pawn.ownership?.OwnedBed is { } ownedBed ? BedRoomOf(ownedBed) : null,
+                OwnedRoom = OwnedRoomOf(pawn),
                 Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true, RivalRooms = RivalRoomsOf(pawn, map),
                 ThoughtStages = ThoughtStagesOf(pawn, map), Apparel = ApparelOf(pawn),
                 Consciousness = Capacity(health, PawnCapacityDefOf.Consciousness), Moving = Capacity(health, PawnCapacityDefOf.Moving),
@@ -481,22 +482,7 @@ internal static class NativeNeedsForecast
     private static EquatableArray<Obs.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
     {
         var rows = new List<Obs.NeedThoughtStage>();
-        void Rows(ThoughtDef? def, string role, bool nullStagesInactive = false)
-        {
-            if (def?.stages == null) return;
-            var can = ThoughtUtility.CanGetThought(pawn, def);
-            for (var stage = 0; stage < def.stages.Count; stage++)
-            {
-                if (def.stages[stage] == null)
-                {
-                    if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, Lasting(def)));
-                    continue;
-                }
-                var offset = can ? StageOffset(pawn, def, stage) : 0;
-                if (!double.IsFinite(offset)) continue;
-                rows.Add(new(def.defName, role, stage, offset, Lasting(def)));
-            }
-        }
+        void Rows(ThoughtDef? def, string role, bool nullStagesInactive = false) => StageRows(rows, pawn, def, role, nullStagesInactive);
         Rows(ThoughtDefOf.SleptOutside, "slept_outside");
         Rows(ThoughtDefOf.SleptOnGround, "slept_on_ground");
         Rows(ThoughtDefOf.SleptInBedroom, "slept_in_bedroom", nullStagesInactive: true);
@@ -519,16 +505,7 @@ internal static class NativeNeedsForecast
             Rows(def, "undergrounder_underground");
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_IsOutdoorsForUndergrounder)))
             Rows(def, "undergrounder_outdoors");
-        // No ThoughtDefOf field names the Ascetic thought; its worker class is the typed route (#3655).
-        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Ascetic)))
-            Rows(def, "ascetic", nullStagesInactive: true);
-        // The trait bedroom thoughts a planned suite relieves (#3826): Greedy (ThoughtWorker_Greedy, staged by the owned room's
-        // Impressiveness stage + 1, stage 0 without one; its null stages are the worker inactive, rows at 0) and Jealous
-        // (ThoughtWorker_BedroomJealous). No ThoughtDefOf field names them; their worker classes are the typed route.
-        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Greedy)))
-            Rows(def, "greedy", nullStagesInactive: true);
-        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_BedroomJealous)))
-            Rows(def, "jealous");
+        rows.AddRange(RoomTraitStages(pawn, _ => true));
         // The hospital patient's room thought (#3804): ThoughtWorker_HospitalPatientRoomStats, active in a medical bed of a
         // Hospital room at its Impressiveness stage, inactive at a null stage (rows at 0). No ThoughtDefOf field names it.
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_HospitalPatientRoomStats)))
@@ -576,6 +553,56 @@ internal static class NativeNeedsForecast
     /// each room once, ascending. The pawn's current room stays in when another pawn owns it too: the suite credit asks about
     /// the pawn moved out of it.
     /// </summary>
+    /// <summary>
+    /// One thought def's stage rows for <paramref name="pawn"/> (ThoughtStagesOf): each stage at the game's MoodOffset on an
+    /// unattached thought, 0 when ThoughtUtility.CanGetThought refuses it; a null stage a 0 row with <paramref name="nullStagesInactive"/>
+    /// (the worker inactive there), else left out, as is a stage the game cannot price.
+    /// </summary>
+    private static void StageRows(List<Obs.NeedThoughtStage> rows, Pawn pawn, ThoughtDef? def, string role, bool nullStagesInactive)
+    {
+        if (def?.stages == null) return;
+        var can = ThoughtUtility.CanGetThought(pawn, def);
+        for (var stage = 0; stage < def.stages.Count; stage++)
+        {
+            if (def.stages[stage] == null)
+            {
+                if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, Lasting(def)));
+                continue;
+            }
+            var offset = can ? StageOffset(pawn, def, stage) : 0;
+            if (!double.IsFinite(offset)) continue;
+            rows.Add(new(def.defName, role, stage, offset, Lasting(def)));
+        }
+    }
+
+    /// <summary>
+    /// The own-bedroom trait thoughts' stage rows (#3655, #3826, #3899) of the defs <paramref name="include"/> keeps: Ascetic
+    /// (ThoughtWorker_Ascetic, by the owned room's Impressiveness stage, inactive at a null stage), Greedy (ThoughtWorker_Greedy,
+    /// staged by that stage + 1, stage 0 without an owned room; its null stages are the worker inactive, rows at 0) and Jealous
+    /// (ThoughtWorker_BedroomJealous). No ThoughtDefOf field names them; their worker classes are the typed route.
+    /// </summary>
+    internal static List<Obs.NeedThoughtStage> RoomTraitStages(Pawn pawn, Func<ThoughtDef, bool> include)
+    {
+        var rows = new List<Obs.NeedThoughtStage>();
+        foreach (var (worker, role, nullStagesInactive) in RoomTraitWorkers)
+            foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker && include(d)))
+                StageRows(rows, pawn, def, role, nullStagesInactive);
+        return rows;
+    }
+
+    /// <summary>The own-bedroom trait thoughts' worker classes, their stage-row roles and whether a null stage is the worker inactive.</summary>
+    internal static readonly (Type Worker, string Role, bool NullStagesInactive)[] RoomTraitWorkers =
+    [
+        (typeof(ThoughtWorker_Ascetic), "ascetic", true), (typeof(ThoughtWorker_Greedy), "greedy", true), (typeof(ThoughtWorker_BedroomJealous), "jealous", false),
+    ];
+
+    /// <summary>The pawn's own room (Obs.NeedOwnedRoom, #3899): Pawn_Ownership.OwnedRoom's Impressiveness and its score stage; null without one.</summary>
+    private static Obs.NeedOwnedRoom? OwnedRoomOf(Pawn pawn)
+    {
+        if (pawn.ownership?.OwnedRoom is not { } room) return null;
+        var impressiveness = F(room.GetStat(RoomStatDefOf.Impressiveness), "owned room impressiveness");
+        return new(impressiveness, RoomStatDefOf.Impressiveness.GetScoreStageIndex((float)impressiveness));
+    }
     private static EquatableArray<double> RivalRoomsOf(Pawn pawn, Map map)
     {
         var rooms = new HashSet<Room>();
