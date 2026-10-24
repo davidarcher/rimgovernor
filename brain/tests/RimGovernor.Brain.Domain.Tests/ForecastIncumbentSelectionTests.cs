@@ -174,7 +174,7 @@ public sealed class ForecastIncumbentSelectionTests
         var plan = fits ? outcomes.First(a => a.Feasible == Known(true)).Plan
             : new ForecastActivityPlan([new("haul", "helper", 0, 0, 0, 20, 0, 0, 20, 0, 0), new("eat", "pawn", 0, 0, 0, 20, 0, 0, 20, 0, 0)], 20, 40);
         plan = plan with { Allocations = plan.Allocations.Where(a => a.Activity != "work").ToArray() };
-        var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(new(["both"], plan, Known(0d), [], 0, false), bindings, 1, "coupled", 100)!;
+        var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(plan, bindings, 1, "coupled", 100);
         var refusal = WorkRules.WorkResourcesRefusal(view, new(new("both"), new(1), [DomainAction.NewPawnActivitiesAction(new("both-action"), batch)]));
         Assert.Equal(fits ? null : "shared_target:rice", refusal);
     }

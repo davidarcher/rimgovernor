@@ -399,11 +399,12 @@ public static partial class ForecastCoupled
         /// <summary>
         /// The observed sleep a pawn asleep now keeps when the outcome leaves it to native (#3882), or null when the outcome wakes
         /// it at tick 0: an order interrupts the lie-down, and the binding orders the pawns
-        /// CoordinatedActivityBinding.OrderedAtStart names (#3884). Left alone, Toils_LayDown keeps it asleep until
-        /// RestUtility.ShouldWakeUp (its rest at the wake threshold, at once while a hediff blocks sleeping) or until the schedule
-        /// has it leave for its first task, gaining its lie-down's rest. No order holds it waiting at a service the schedule
-        /// departs it for at once, so it leaves for a service at its planned start less travel (the caller departs the service
-        /// then), and for other work at its departure. Deathrest, which ShouldWakeUp never ends, is a named finding (#3883).
+        /// CoordinatedActivityBinding.OrderedAtStart names for the outcome as the review dispatches it (#3884, #3889). Left alone,
+        /// Toils_LayDown keeps it asleep until RestUtility.ShouldWakeUp (its rest at the wake threshold, at once while a hediff
+        /// blocks sleeping) or until the schedule has it leave for its first task, gaining its lie-down's rest. No order holds it
+        /// waiting at a service the schedule departs it for at once, so it leaves for a service at its planned start less travel
+        /// (the caller departs the service then), and for other work at its departure. Deathrest, which ShouldWakeUp never ends,
+        /// is a named finding (#3883).
         /// </summary>
         private ForecastNeedChoice? ObservedSleep(int p, NeedsForecastPawn pawn, List<ForecastActivityAllocation> own,
             ILookup<string, ForecastNeedTask> needTasksByTask, IReadOnlySet<string> ordered, double horizon)
@@ -807,6 +808,12 @@ public static partial class ForecastCoupled
             var breakShifts = PlannedRoomCredits.BreakShifts(context);
             HashSet<string>? rejectedWork = null;
             IReadOnlySet<string>? ordered = null;
+            // Whom the binding orders at tick 0: the outcome's commitments are its selection, dispatched as the review dispatches it.
+            IReadOnlySet<string> Ordered()
+            {
+                var (selected, dispatched) = context.IncumbentHold.Dispatched(commitments.Keys, plan.Allocations, tasks);
+                return Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(selected, dispatched, context.Bindings, pawns.Unplaced);
+            }
             // Per pawn, the cached timelines are looked up by their inputs; a timeline's capacity input is built only on a miss (#3468).
             for (var p = 0; p < pawns.Pawns.Length; p++)
             {
@@ -822,7 +829,7 @@ public static partial class ForecastCoupled
                 }
                 if (!pawn.Awake && !choices.Any(c => c.Kind == "rest" && c.Start == 0)
                     && ObservedSleep(p, pawn, pawns.Allocations[p], needTasksByTask,
-                        ordered ??= Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(plan.Allocations, context.Bindings, pawns.Unplaced), horizon) is { } observedSleep)
+                        ordered ??= Ordered(), horizon) is { } observedSleep)
                 {
                     // Left asleep, the pawn departs for a service the schedule departed it for at once when the sleep ends (#3884).
                     for (var c = 0; c < choices.Count; c++)

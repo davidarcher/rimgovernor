@@ -542,7 +542,7 @@ public sealed class PlannedRoomCreditTests
         var (facts, outcomes) = SleeperRests();
         var context = facts.CoupledAlternatives!.Context;
         bool Ordered(ForecastCoupledOutcome o) => RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(
-            o.Plan.Allocations, context.Bindings, context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal)).Contains("pawn");
+            ["selected"], o.Plan.Allocations, context.Bindings, context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal)).Contains("pawn");
         var woken = outcomes.First(Ordered).Needs["pawn"].Mood!;
         Assert.NotEqual(woken.Trajectory[0].Actual, woken.Trajectory.First(p => p.Tick > 0).Actual);
         var distant = outcomes.First(o => !Ordered(o));
@@ -622,6 +622,62 @@ public sealed class PlannedRoomCreditTests
         // A rest due in 300 ticks is an order now, with the cooking bound; unbound, no one is ordered.
         Agree(true, context with { Bindings = Bindings(cookBound: true, waits: false) }, Rest(300, 300));
         Agree(false, context with { Bindings = Bindings(cookBound: false, waits: false) }, Rest(300, 300));
+    }
+
+    /// <summary>
+    /// #3889: the forecast wakes a pawn asleep now exactly when the review orders it at tick 0, the review's own steps before the
+    /// binding included. The review runs as Rounder does (ReviewCoupledExecution, then StartSelected on its dispatch); the
+    /// forecast (CoupledSearchCache.Evaluate) reads the same dispatch from the context's incumbent hold, the outcome's
+    /// commitments its selection. Each case failed while the forecast read the schedule as given.
+    /// - The sleeper is a retained incumbent's pawn: its rest due in 300 ticks is dropped, so only the helper is ordered and the
+    ///   sleeper sleeps on.
+    /// - The helper is the incumbent, its retained service unbound in the schedule: dropped, the rest due soon is ordered.
+    /// - Nothing is selected: the review orders no one, so the rest due soon leaves the sleeper asleep.
+    /// </summary>
+    [Fact]
+    public void TheForecastWakesASleeperExactlyWhenTheReviewOrdersIt()
+    {
+        var (facts, outcomes) = SleeperRests();
+        var source = outcomes.First(o => o.Plan.Allocations[0].Start > 0).Plan.Allocations[0];
+        // A rest due in 300 ticks: an order now, when the review dispatches it (TheForecastWakesASleeperExactlyWhenTheBindingOrdersIt).
+        var rest = source with { Depart = 300, Arrive = 300 + source.TravelTicks, Start = 300, End = 300 + (source.End - source.Start), WaitTicks = -source.TravelTicks };
+        var commitment = facts.CoupledAlternatives!.Alternatives.Single(c => c.ActivityCompletions.SequenceEqual([rest.Activity]));
+        var request = SleeperRequest(facts, commitment);
+        var context = request.Coupled!;
+        var cook = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("cook", "helper", [], PawnActivityKind.Work, "stove", "", "FinishFrame", 0, 90000, new(0, 0));
+        var bindings = context.Bindings.ToDictionary(b => b.Key, b => b.Value);
+        bindings[("cook", "helper")] = cook;
+        context = context with
+        {
+            Bindings = bindings,
+            Activities = context.Activities with { Activities = [.. context.Activities.Activities, new("cook", "start", "start", []),
+                new("incumbent/service", "start", "start", [])] },
+        };
+        var cooking = new ForecastActivityAllocation("cook", "helper", 0, 0, 0, 100, 0, 0, 100, 0, 0);
+        var service = new ForecastActivityAllocation("incumbent/service", "helper", 0, 0, 0, 100, 0, 0, 100, 0, 0);
+        ForecastObservedIncumbent Incumbent(string pawn) => new(new("old-plan"), new(1,
+            [new(pawn, "assignment", "method", 0, 1, false, [new(PawnActivityKind.Recreation, "pin", "", "", 0, 1000)])]), "incumbent/service",
+            new(pawn, "assignment", "method", 1, "started")) { Activities = ["incumbent/service"] };
+        void Agree(bool ordered, string[] selected, ForecastObservedIncumbent[] incumbents, ForecastCoupledContext bound, params ForecastActivityAllocation[] rows)
+        {
+            var plan = new ForecastActivityPlan(rows, rows.Max(a => a.End), 0);
+            var outcome = new ForecastCoupledOutcome(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
+            var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
+            var selection = new ForecastCoupledSelection(new(selected, plan, Known(0d), [], 0, false), outcome, outcome, vector, vector, [], 100, false);
+            var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, EquatableArray.From(incumbents), 100, bound.Activities.Activities);
+            Assert.Empty(execution.Releases);
+            var started = execution.Dispatch is { } dispatch
+                ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(dispatch.Selection, bound.Bindings, 1, "m", 100, bound.PlannedSites) : null;
+            Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
+            var held = bound with { IncumbentHold = ForecastIncumbentHold.Of(incumbents) };
+            var commitments = selected.ToDictionary(id => id, id => id == commitment.Id ? commitment : new ForecastCommitment(id, []) { ActivityCompletions = [id] });
+            var mood = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = held }, commitments, held.Activities, plan).Needs["pawn"].Mood!;
+            Assert.True(mood.BreakRisk.IsKnown);
+            Assert.Equal(ordered, mood.Trajectory[0].Actual != mood.Trajectory.First(p => p.Tick > 0).Actual);
+        }
+        Agree(false, [commitment.Id, "incumbent/service"], [Incumbent("pawn")], context, rest, cooking);
+        Agree(true, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
+        Agree(false, [], [], context, rest, cooking);
     }
 
     /// <summary>

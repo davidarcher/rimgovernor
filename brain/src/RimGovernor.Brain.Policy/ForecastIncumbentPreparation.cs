@@ -207,6 +207,7 @@ public static class ForecastIncumbentPreparation
             {
                 NeedTasks = EquatableArray.From(needTasks), Findings = EquatableArray.From(findings),
                 NonproductiveOccupancy = EquatableArray.From(waiting),
+                IncumbentHold = ForecastIncumbentHold.Of(incumbents),
                 Truncated = generated.Context.Truncated || truncated,
                 Activities = generated.Context.Activities with { Activities = activities.ToArray(), Options = options.ToArray(), Routes = routes.Values.ToArray() }
             }

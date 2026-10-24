@@ -331,9 +331,14 @@ observed state holds.
   (`NeedsForecastPawn.BedThoughts`: given already, due in some ticks, or none drawn).
   A pawn asleep now keeps that sleep only while the outcome sends it no order (#3882):
   an order interrupts the lie-down, and the forecast reads the binding's own rule for
-  whom it orders at once (`CoordinatedActivityBinding.OrderedAtStart`, #3884): no one
-  when a placed allocation has no binding, else every pawn with a placed task but one
-  whose first is a distant service left to vanilla. Left alone it sleeps on (a rest
+  whom it orders at once (`CoordinatedActivityBinding.OrderedAtStart`, #3884), on the
+  outcome as the review dispatches it (#3889): the outcome's commitments are its
+  selection, and `ForecastIncumbentHold.Dispatched` (the context's `IncumbentHold`,
+  the same step `ReviewCoupledExecution` takes) drops the incumbents' commitments,
+  their tasks, their pawns' tasks and any task waiting on those. No one is ordered
+  when nothing is left selected or a placed allocation has no binding, else every pawn
+  with a placed task but one whose first is a distant service left to vanilla. Left
+  alone it sleeps on (a rest
   from tick 0 at its `LyingIn` rate) until its rest reaches the wake threshold or the
   schedule has it leave for its first task: other work at its departure, a service at
   its planned start less travel, since no order holds it waiting there (its service

@@ -23,7 +23,7 @@ public sealed class DistantServiceDeferralTests
         CoordinatedActivityBinding.StartSelected(new(["selected"], new(rows, 0, 0), Known(0d), [], 0, false),
             tasks.ToDictionary(t => (t.Id, t.Pawn)), 1, "m", Tick);
     private static IReadOnlySet<string> Ordered(ActivityTaskCandidate[] tasks, params ForecastActivityAllocation[] rows) =>
-        CoordinatedActivityBinding.OrderedAtStart(rows, tasks.ToDictionary(t => (t.Id, t.Pawn)), new HashSet<string>());
+        CoordinatedActivityBinding.OrderedAtStart(["selected"], rows, tasks.ToDictionary(t => (t.Id, t.Pawn)), new HashSet<string>());
 
     [Fact]
     public void ADistantServiceReleasesItsPawnInsteadOfHoldingTheColonyForIt()

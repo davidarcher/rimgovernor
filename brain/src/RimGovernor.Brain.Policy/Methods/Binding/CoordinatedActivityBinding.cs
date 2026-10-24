@@ -23,34 +23,39 @@ internal static class CoordinatedActivityBinding
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
-        if (Start(selection, bindings, authority, method, tick, unplaced) is not { } active) return null;
-        var ordered = OrderedAtStart(selection.Plan!.Allocations, bindings, unplaced);
+        if (selection.Plan is not { } plan) return null;
+        var ordered = OrderedAtStart(selection.Selected, plan.Allocations, bindings, unplaced);
+        if (ordered.Count == 0) return null;
+        var active = Start(plan, bindings, authority, method, tick, unplaced);
         if (active.Orders.All(o => ordered.Contains(o.Pawn))) return active;
-        var orders = active.Orders.Where(o => ordered.Contains(o.Pawn)).ToArray();
-        return orders.Length == 0 ? null : new(active.AuthorityGeneration, orders)
+        return new(active.AuthorityGeneration, active.Orders.Where(o => ordered.Contains(o.Pawn)).ToArray())
             { Tasks = EquatableArray.From(active.Tasks.Where(t => ordered.Contains(t.Pawn))) };
     }
 
     /// <summary>
-    /// The pawns a schedule orders at once (#3884): the one rule <see cref="StartSelected"/> installs and the forecast reads for a
-    /// pawn asleep now, whose lie-down an order interrupts. <see cref="Start"/> orders each pawn with a placed task (a planned
-    /// site's work has no action template, #3278) its first, by departure then id, and orders no one when a placed allocation
-    /// has no binding. A pawn is left out, like any unselected pawn, when that first task is a distant service: an installed
-    /// Method is protected from reselection, so holding a pawn for a service far ahead would freeze the colony until the hold ends
-    /// (#3047). It runs vanilla work (#3669) and a later review starts the service once it is due. Such a service is one the pawn
+    /// The pawns a selection orders at once (#3884, #3889): the one rule <see cref="StartSelected"/> installs and the forecast reads
+    /// for a pawn asleep now, whose lie-down an order interrupts. The review dispatches the selection first
+    /// (<see cref="ForecastIncumbentHold.Dispatched"/>); the forecast passes the same dispatch. No one is ordered when no id is
+    /// selected (retaining observed baseline work requires no new orders) or when a placed allocation has no binding; a planned
+    /// site's work has no action template, so it orders no one (#3278). Otherwise <see cref="Start"/> orders each pawn with a
+    /// placed task its first, by departure then id. A pawn is left out, like any unselected pawn, when that first task is
+    /// a distant service: an installed Method is protected from reselection, so holding a pawn for a service far ahead would
+    /// freeze the colony until the hold ends (#3047). It runs vanilla work (#3669) and a later review starts the service once it is due. Such a service is one the pawn
     /// prepares for (a prerequisite, or a later departure) that it leaves for (<see cref="Leave"/>) more than
     /// DistantServiceTicks ahead, every prerequisite another pawn's task, with no other pawn's task waiting on one of its own. So
     /// is a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of a
     /// day; left out, it eats from what the work has stocked by then.
     /// </summary>
-    internal static IReadOnlySet<string> OrderedAtStart(IReadOnlyList<ForecastActivityAllocation> allocations,
+    internal static IReadOnlySet<string> OrderedAtStart(IReadOnlyCollection<string> selected, IReadOnlyList<ForecastActivityAllocation> allocations,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, IReadOnlySet<string> unplaced)
     {
+        var none = new HashSet<string>();
+        if (selected.Count == 0) return none;
         var placed = new List<(ForecastActivityAllocation Allocation, ActivityTaskCandidate Task)>();
         foreach (var a in allocations)
         {
             if (unplaced.Contains(a.Activity)) continue;
-            if (!bindings.TryGetValue((a.Activity, a.Pawn), out var task)) return new HashSet<string>();
+            if (!bindings.TryGetValue((a.Activity, a.Pawn), out var task)) return none;
             placed.Add((a, task));
         }
         var ordered = new HashSet<string>(StringComparer.Ordinal);
@@ -77,13 +82,16 @@ internal static class CoordinatedActivityBinding
     }
     private const long DistantServiceTicks = 600;
 
-    internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
+    /// <summary>The orders of a schedule <see cref="OrderedAtStart"/> orders someone of, so every placed allocation is bound: each
+    /// pawn is ordered its first task, by departure then id.</summary>
+    internal static PawnActivities Start(ForecastActivityPlan plan,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IReadOnlySet<string>? unplaced = null)
     {
-        if (selection?.Plan is not { } plan || selection.Selected.Length == 0) return null;
-        var tasks = plan.Allocations.Where(a => unplaced?.Contains(a.Activity) != true).Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
-            ? Bound(a, task, new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
+        var selected = plan.Allocations.Where(a => unplaced?.Contains(a.Activity) != true).Select(a =>
+        {
+            var task = bindings[(a.Activity, a.Pawn)];
+            return Bound(a, task, new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
@@ -91,10 +99,8 @@ internal static class CoordinatedActivityBinding
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
-                        PriorSteps = PriorSteps(task), UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) }) : null).ToArray();
-        if (tasks.Any(t => t is null)) return null;
-        var selected = tasks.Select(t => t!).ToArray();
-        if (selected.Length == 0) return null; // Retaining observed baseline work requires no new orders.
+                        PriorSteps = PriorSteps(task), UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) });
+        }).ToArray();
         var orders = selected.GroupBy(t => t.Pawn).Select(group =>
         {
             var task = group.OrderBy(t => t.DepartTick).ThenBy(t => t.Id, StringComparer.Ordinal).First();

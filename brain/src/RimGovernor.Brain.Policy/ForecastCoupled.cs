@@ -61,6 +61,9 @@ public sealed record ForecastCoupledContext
     /// <summary>The planned sites generated as construction activities (#3276), and the room alternatives they make up.</summary>
     public EquatableArray<ForecastPlannedSite> PlannedSites { get; init; }
     public EquatableArray<PlannedRoomAlternative> PlannedRooms { get; init; }
+    /// <summary>What the review's incumbents hold from a fresh order now (#3889): the forecast dispatches an outcome as the review
+    /// does before reading whom it orders at tick 0.</summary>
+    public ForecastIncumbentHold IncumbentHold { get; init; } = ForecastIncumbentHold.Nothing;
     /// <summary>Each planned room's role, from the layout plan (#3651); a room without a row counts as development.</summary>
     public IReadOnlyDictionary<int, PlannedRole> PlannedRoomRoles { get; init; } = new Dictionary<int, PlannedRole>();
     /// <summary>The credit of each priced room role (#3796): a role is priced when it has one (PlannedRoomCredits). The shipped
