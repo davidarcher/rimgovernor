@@ -49,7 +49,9 @@ public static partial class PlannedRules
     /// wall, door and swap sites in that stuff (a stuff-less ring site in every stuff) and of its placed ring sites
     /// (<see cref="PlacedRing"/>, in their own stuff), plus in every stuff the cells of its FloorIn sites with their terrain
     /// (#3797), which native counts in the room's Cleanliness only; native counts a piece in place of what stands on its
-    /// cell. Nothing is capped (#3341).
+    /// cell. Its furniture (#3840) is the anchors on its interior of its Build sites, in each site's own stuff and rotation,
+    /// in every ring stuff: native counts them standing in the closed room, so the stage is the furnished room's, not the
+    /// bare ring's. Nothing is capped (#3341).
     /// </summary>
     public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites,
         IEnumerable<ConstructionSite> placed)
@@ -58,6 +60,7 @@ public static partial class PlannedRules
         var owned = sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToList();
         var closing = owned.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp).ToLookup(s => s.Room);
         var floors = owned.Where(s => s.Op == OpKind.FloorIn).ToLookup(s => s.Room);
+        var furniture = owned.Where(s => s.Op == OpKind.Build && s.Definition.Length != 0).ToLookup(s => s.Room);
         var standing = placed.ToList();
         foreach (var room in rooms.Where(r => !r.Outdoor && r.Id > 0).OrderBy(r => r.Id))
         {
@@ -65,6 +68,9 @@ public static partial class PlannedRules
             var placedRing = PlacedRing(room, standing);
             if (ring.Count == 0 && placedRing.Count == 0 && room.Role is not (PlannedRole.Kitchen or PlannedRole.Hospital)) continue;
             var interior = EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z));
+            var inside = interior.ToHashSet();
+            var furnished = EquatableArray.From(furniture[room.Id].OrderBy(s => s.Id, StringComparer.Ordinal)
+                .SelectMany(s => s.Positions.Where(inside.Contains).Select(p => new PlannedRoomFurniture(p, s.Definition, s.Stuff, s.Rotation))));
             foreach (var stuff in RingStuffs(ring))
             {
                 var pieces = ring.Where(s => s.Stuff.Length == 0 || s.Stuff == stuff)
@@ -72,7 +78,8 @@ public static partial class PlannedRules
                     .Concat(placedRing.Select(s => new PlannedRoomPiece(s.Building!.Cell, s.Building.Definition, s.Building.Stuff)))
                     .Concat(floors[room.Id].SelectMany(s => s.Positions.Select(p => new PlannedRoomPiece(p, s.Definition, ""))))
                     .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Z);
-                shapes.Add(new PlannedRoomShape(room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stuff, interior, EquatableArray.From(pieces)));
+                shapes.Add(new PlannedRoomShape(room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stuff, interior, EquatableArray.From(pieces))
+                    { Furniture = furnished });
             }
         }
         return EquatableArray.From(shapes);

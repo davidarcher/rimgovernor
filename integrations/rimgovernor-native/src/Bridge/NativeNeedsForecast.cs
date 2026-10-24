@@ -31,7 +31,8 @@ internal static class NativeNeedsForecast
             if (pawn.needs?.rest is { } rest) needs.Add(new("rest", K(rest.CurLevelPercentage),
                 K(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor)), K(Need_Rest.ThreshTired))
                 {
-                    UnservedGainPerTick = K(Need_Rest.BaseRestGainPerTick * StatDefOf.BedRestEffectiveness.valueIfMissing * pawn.GetStatValue(StatDefOf.RestRateMultiplier)),
+                    UnservedGainPerTick = K(Need_Rest.BaseRestGainPerTick * RestEffectiveness(null) * pawn.GetStatValue(StatDefOf.RestRateMultiplier)),
+                    GainPerTickPerEffectiveness = Need_Rest.BaseRestGainPerTick * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
                     Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"],
                 });
             if (pawn.needs?.joy is { } joy)
@@ -88,7 +89,7 @@ internal static class NativeNeedsForecast
                             Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                     }
                     else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
-                        K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
+                        K(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
                             Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target) });
                     else
                     {
@@ -109,7 +110,9 @@ internal static class NativeNeedsForecast
             var conditionalMood = NativeConditionalMood.Read(pawn, unsupported);
             rows.Add(conditionalMood with { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
                 CurrentService = voluntary ? CurrentService(pawn) : null,
-                ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)), Needs = EquatableArray.From(needs),
+                ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
+                SleepComfortableMin = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMin), SleepComfortableMax = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMax),
+                Sleep = SleepOf(pawn, map), Needs = EquatableArray.From(needs),
                 Mood = pawn.needs?.mood is { } mood ? K(mood.CurLevelPercentage) : default,
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,
                 BreakThreshold = pawn.mindState?.mentalBreaker is { } breaker ? K(breaker.BreakThresholdMinor) : default,
@@ -277,6 +280,39 @@ internal static class NativeNeedsForecast
             ImmunityGainSpeedFactor = bed.GetStatValue(StatDefOf.ImmunityGainSpeedFactor),
         };
     }
+    /// <summary>
+    /// Where JobGiver_GetRest lays <paramref name="pawn"/> now and what Toils_LayDown gives it there (#3840, Obs.NeedSleep): the
+    /// bed RestUtility.FindBedFor picks, else the ground at its cell. Null for a wild man (it never rests in a bed and gets no
+    /// SleptOutside), a pawn without a rest need or one not spawned.
+    /// </summary>
+    private static Obs.NeedSleep? SleepOf(Pawn pawn, Map map)
+    {
+        if (pawn.needs?.rest == null || !pawn.Spawned || pawn.IsWildMan()) return null;
+        var bed = RestUtility.FindBedFor(pawn);
+        var cell = bed?.Position ?? pawn.Position;
+        return new(bed?.GetUniqueLoadID() ?? "", cell.GetRoom(map)?.PsychologicallyOutdoors ?? true, bed == null || bed.CostListAdjusted().Count == 0,
+            Need_Rest.BaseRestGainPerTick * RestEffectiveness(bed) * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
+            bed?.GetStatValue(StatDefOf.Comfort) ?? 0f, cell.GetTemperature(map));
+    }
+    /// <summary>
+    /// The rest effectiveness Toils_LayDown.LayDown's tick applies (#3840): the bed's BedRestEffectiveness when its def's
+    /// statBases list the stat, else the stat's valueIfMissing (a sleeping spot, or no bed). GetStatValue alone would
+    /// answer a spot the stat's minValue.
+    /// </summary>
+    private static float RestEffectiveness(Building_Bed? bed) => bed == null || !bed.def.statBases.StatListContains(StatDefOf.BedRestEffectiveness)
+        ? StatDefOf.BedRestEffectiveness.valueIfMissing : bed.GetStatValue(StatDefOf.BedRestEffectiveness);
+    /// <summary>
+    /// The comfortable bound Toils_LayDown.ApplyBedThoughts compares a sleeper's ambient temperature with (#3840): the race's
+    /// abstract stat (no apparel) plus each active gene's offset under Biotech.
+    /// </summary>
+    private static float SleepComfortable(Pawn pawn, StatDef stat)
+    {
+        var value = pawn.def.GetStatValueAbstract(stat);
+        if (ModsConfig.BiotechActive && pawn.genes != null)
+            foreach (var gene in pawn.genes.GenesListForReading)
+                if (gene.Active) value += gene.def.statOffsets.GetStatOffsetFromList(stat);
+        return value;
+    }
     /// <summary>StatPart_EnvironmentalEffects def data on the DeteriorationRate stat, read by reflection (private fields); null without the part.</summary>
     internal static Obs.NeedDeteriorationPart? DeteriorationPart()
     {
@@ -327,6 +363,15 @@ internal static class NativeNeedsForecast
         Rows(ThoughtDefOf.SleptOnGround, "slept_on_ground");
         Rows(ThoughtDefOf.SleptInBedroom, "slept_in_bedroom", nullStagesInactive: true);
         Rows(ThoughtDefOf.SleptInBarracks, "slept_in_barracks", nullStagesInactive: true);
+        // The other bed memories ApplyBedThoughts gives (#3840): on the ground or a costless bed, below and above the comfortable range.
+        Rows(ThoughtDefOf.SleptOnGround, "slept_on_ground");
+        Rows(ThoughtDefOf.SleptInCold, "slept_in_cold");
+        Rows(ThoughtDefOf.SleptInHeat, "slept_in_heat");
+        // The comfort need's thought (#3840), the comfort a bed gives over the day; no ThoughtDefOf field names it, its worker
+        // class is the typed route. A pawn without the need never has it.
+        if (pawn.needs?.comfort != null)
+            foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_NeedComfort)))
+                Rows(def, "need_comfort");
         Rows(map.weatherManager.CurWeatherLerped?.weatherThought, "weather");
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_NeedOutdoors)))
             Rows(def, "need_outdoors");

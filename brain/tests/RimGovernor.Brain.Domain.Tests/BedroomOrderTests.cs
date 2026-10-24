@@ -30,7 +30,7 @@ public sealed class BedroomOrderTests
     /// <summary>A colonist owning hall bed <paramref name="owned"/> (a barracks at stage 2) who can also sleep in bedroom bed v (stage 2).</summary>
     private static NeedsForecastPawn Pawn(PawnId id, string owned, double target, Fact<double> threshold, bool ascetic = false) => new()
     {
-        Pawn = id.Value, MoodUnclampedTarget = Known(target), BreakThreshold = threshold, Ascetic = ascetic, OwnedBed = owned,
+        Pawn = id.Value, MoodUnclampedTarget = Known(target), BreakThreshold = threshold, Ascetic = ascetic, OwnedBed = owned, Sleep = SleepFixtures.InBed(owned),
         ThoughtStages = EquatableArray.From(BedStages),
         Targets =
         [

@@ -27,7 +27,8 @@ public sealed class BedroomCreditTests
     ];
 
     /// <summary>The pawn owns a bed in a barracks at <paramref name="barracksStage"/>, or no bed when null.</summary>
-    private static NeedsForecastPawn Pawn(bool ascetic, int? barracksStage) => ForecastValueTests.Pawn() with
+    private static NeedsForecastPawn Pawn(bool ascetic, int? barracksStage) => SleepFixtures.Sleeping(ForecastValueTests.Pawn(),
+        barracksStage is null ? SleepFixtures.Ground() : SleepFixtures.InBed("bunk")) with
     {
         Ascetic = ascetic, OwnedBed = barracksStage is null ? "" : "bunk",
         ThoughtStages = EquatableArray.From(BedStages),
@@ -43,6 +44,7 @@ public sealed class BedroomCreditTests
                 new("1", "WoodLog", "Bedroom", 30d, Known(bedroomStage), 4, 0, false))],
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] },
             InvestmentHorizonDays = Horizon,
+            PlannedBeds = SleepFixtures.Beds(1, 1), Thermal = SleepFixtures.Outdoors(),
             ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known(EquatableArray.From(observed)) },
         };
 
@@ -124,6 +126,98 @@ public sealed class BedroomCreditTests
         var ledger = ForecastValue.Of(Closing(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal));
         Assert.Contains("bedroom_credit_unassessed:1", ledger.Findings);
+    }
+
+    // ----- #3840: the layout/first-bedroom-closes case, every bed term ApplyBedThoughts, the rest tick and the comfort need apply.
+
+    /// <summary>Need_Rest.BaseRestGainPerTick and the Rested category's RestFallPerTick (Need_Rest, ilspycmd).</summary>
+    private const double RestGain = 3.809524E-05, RestFall = 1.5833333E-05;
+
+    /// <summary>
+    /// A colonist of the case sleeping on its own sleeping spot outdoors at 21 °C: the spot is costless (SleptOnGround), its
+    /// room psychologically outdoors (SleptOutside), Comfort 0.4 (SleepingSpotBase) and without BedRestEffectiveness (the
+    /// stat's valueIfMissing 0.8). The rows are the vanilla defs' (Thoughts_Memory_Misc, Thoughts_Memory_RoomStats,
+    /// Thoughts_Situation_Needs), the sleep range the human's ComfyTemperatureMin/Max (16, 26).
+    /// </summary>
+    private static NeedsForecastPawn CaseColonist(string id) => ForecastValueTests.Pawn() with
+    {
+        Pawn = id, OwnedBed = "spot-" + id, SleepComfortableMin = 16, SleepComfortableMax = 26,
+        Needs = [new("rest", Known(1d), Known(RestFall), Known(.28)) { UnservedGainPerTick = Known(RestGain * .8), GainPerTickPerEffectiveness = RestGain }],
+        Sleep = new("spot-" + id, true, true, RestGain * .8, .4, 21),
+        Targets = [new("spot-" + id, "rest", "", 1, Known(0d), default, default, Known(RestGain * .8)) { Bed = new("", Known(0), false), Location = new(9, 9) }],
+        ThoughtStages =
+        [
+            Stage("SleptOutside", "slept_outside", 0, -4), Stage("SleptOnGround", "slept_on_ground", 0, -4),
+            Stage("SleptInCold", "slept_in_cold", 0, -4), Stage("SleptInHeat", "slept_in_heat", 0, -4),
+            Stage("SleptInBarracks", "slept_in_barracks", 0, -7), Stage("SleptInBarracks", "slept_in_barracks", 1, -5),
+            Stage("SleptInBedroom", "slept_in_bedroom", 0, -4),
+            Stage("NeedComfort", ForecastHousing.NeedComfortRole, 0, -3), Stage("NeedComfort", ForecastHousing.NeedComfortRole, 1, 4),
+            Stage("NeedComfort", ForecastHousing.NeedComfortRole, 2, 6), Stage("NeedComfort", ForecastHousing.NeedComfortRole, 3, 8),
+            Stage("NeedComfort", ForecastHousing.NeedComfortRole, 4, 10),
+        ],
+    };
+
+    /// <summary>
+    /// #3840 acceptance: the case (temperate 21 °C, three colonists on outdoor sleeping spots, a 5x5 WoodLog barracks with three
+    /// wood beds, Comfort 0.75 and rest effectiveness 1) credited with every term, at the awful (stage 0, −7) and dull (stage 1,
+    /// −5) barracks the vanilla def gives. Per colonist the move is worth slept_in_barracks + 4 (slept_outside lost) + 4
+    /// (slept_on_ground lost) + the comfort need over the day in the bed less on the spot, no temperature memory at either
+    /// (21 °C), plus the capability-days the faster rest frees. With every term the barracks credit is positive: it wins
+    /// against the spots it replaces, by the values asserted below; against its charged wood it wins while a WoodLog is worth
+    /// less than the break-even this test states, which only the live colony model prices.
+    /// </summary>
+    [Theory]
+    [InlineData(0, -7, 1.5869)]
+    [InlineData(1, -5, 1.6469)]
+    public void TheCaseBarracksIsCreditedEveryBedTermAndBeatsTheSpots(int stage, double barracks, double expected)
+    {
+        string[] ids = ["c1", "c2", "c3"];
+        var pawns = ids.Select(CaseColonist).ToArray();
+        var curve = new NeedCurve(.5, .6, .04, false);
+        var context = ForecastValueTests.Context(pawns[0]) with
+        {
+            Needs = new() { Pawns = EquatableArray.From(pawns) },
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Barracks },
+            Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], new("1", "WoodLog", "Barracks", 30d, Known(stage), 25, 0, false))],
+            BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = EquatableArray.From(ids) },
+            PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [1] = [.. ids.Select(_ => new SleepingBedFacts("Bed", "WoodLog", false, 1, .75))] },
+            ComfortCurve = curve, Thermal = SleepFixtures.Outdoors(), InvestmentHorizonDays = Horizon,
+            ObservedThoughts = ids.ToDictionary(id => id, _ => Known(EquatableArray.From(Array.Empty<MoodThought>())), StringComparer.Ordinal),
+        };
+
+        // Each term on its own, from the game's numbers.
+        var comfort = ForecastHousing.ComfortMood(pawns[0], .75, curve) - ForecastHousing.ComfortMood(pawns[0], .4, curve);
+        var rest = RestFall / (RestFall + RestGain * .8) - RestFall / (RestFall + RestGain);
+        Assert.Equal(0d, ForecastHousing.SleepTemperatureThought(pawns[0], 21));
+        Assert.Equal(3.5925, comfort, 4);
+        Assert.Equal(.0483, rest, 4);
+        var delta = barracks + 4 + 4 + comfort;
+
+        // Calm colonists (no break days either way): the credit a colonist-day is the wellbeing of the delta plus the rest.
+        var shifts = ForecastHousing.BreakShifts(context);
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), ids.ToDictionary(id => id, id => new ForecastNeedsResult([], default, default, new(new(id, "", default, default), []), [])
+        {
+            Mood = new([], default, default, default, default, default, [])
+            {
+                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0],
+                ShiftedBreakTierTicks = [.. shifts[id].Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))],
+            },
+        }, StringComparer.Ordinal), []) { ServedRooms = [new(1, "WoodLog", 0)] };
+        var rows = ForecastValue.Of(outcome, context, Day).InvestmentContributions
+            .Where(r => ids.Any(id => r.Key == PlannedRoomCredits.Key(PlannedRole.Barracks, 1, id))).ToArray();
+        Assert.Equal(3, rows.Length);
+        var perDay = context.Value.WellbeingWeight * delta / 100 + rest;
+        Assert.All(rows, r => Assert.Equal(-perDay * Horizon, r.Value, 9));
+
+        // It wins against the spots: per colonist-day the awful barracks gains +4.59 mood (0.0046 capability-days at the
+        // default WellbeingWeight 0.1) and the dull one +6.59 (0.0066), the faster rest 0.0483 more: the rest dominates.
+        Assert.True(delta > 0 && perDay > 0);
+        var credit = -rows.Sum(r => r.Value);
+        Assert.Equal(expected, credit, 4);
+        // Against its wood: 23 walls x 5 + a door's 25 + three beds x 45 = 275 WoodLog (ThingDefs Wall, Door, Bed
+        // costStuffCount). It wins while a WoodLog is worth less than 0.0058 (awful) or 0.0060 (dull) capability-days over
+        // the 10 days: the live colony model's marginal wood value decides that, not this test.
+        Assert.Equal(stage == 0 ? .00577 : .00599, credit / 275, 5);
     }
 
     [Fact]

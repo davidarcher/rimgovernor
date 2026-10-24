@@ -83,6 +83,17 @@ public sealed record NeedDeteriorationPart(double UnroofedOffset, double Outdoor
 /// UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors, as BeautyUtility does). Unknown when unread.
 /// </summary>
 public sealed record NeedCell(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof, Fact<bool> OutdoorTemperature, Fact<bool> PsychologicallyOutdoors);
+/// <summary>
+/// Where JobGiver_GetRest lays the pawn now and what Toils_LayDown gives it there (#3840): the bed RestUtility.FindBedFor
+/// picks (its rest target id, the owned bed first), else the ground at the pawn's cell (TryFindGroundSleepSpotFor's first
+/// choice). <see cref="Outside"/> is the sleeping cell's room PsychologicallyOutdoors (no room reads as outdoors) and
+/// <see cref="Ground"/> ApplyBedThoughts' SleptOnGround test (no bed, or one whose CostListAdjusted is empty: a sleeping
+/// spot). <see cref="GainPerTick"/> is the rest gained a tick lying there (Need_Rest.BaseRestGainPerTick times the rest
+/// effectiveness LayDown's tick applies, the bed's BedRestEffectiveness or the stat's valueIfMissing for a spot or the
+/// ground, times RestRateMultiplier), <see cref="Comfort"/> the comfort need's instant level lying there (the bed's Comfort
+/// stat, 0 on the ground) and <see cref="Temperature"/> the ambient temperature ApplyBedThoughts compares.
+/// </summary>
+public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double GainPerTick, double Comfort, double Temperature);
 /// <summary>A bed's room now (#3339): its RoomRoleDef ("" none), its Impressiveness score stage and ForPrisoners.</summary>
 public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners)
 {
@@ -107,7 +118,8 @@ public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners
 public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay, bool Environmental, double TerrainFactor, bool Protected);
 /// <summary>
 /// A thought this pawn can get (ThoughtUtility.CanGetThought) at one stage, priced by the game's own MoodOffset for this
-/// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, weather, need_outdoors,
+/// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, slept_on_ground,
+/// slept_in_cold and slept_in_heat (the other bed memories ApplyBedThoughts gives, #3840), weather, need_outdoors,
 /// undergrounder_indoors (constructed roof), undergrounder_underground (natural roof), undergrounder_outdoors, ascetic
 /// (ThoughtWorker_Ascetic's own-room thought by Impressiveness stage, #3655), and the title room thoughts a throne room or
 /// suite relieves (#3807): title_bedroom_unmet, title_no_bedroom, title_throne_unmet, title_no_throne; and the trait bedroom
@@ -121,7 +133,9 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// title_apparel_unmet (ThoughtWorker_RoyalTitleApparelRequirementNotMet) and role_apparel_unmet
 /// (ThoughtDefOf.IdeoRoleApparelRequirementNotMet), each active while one of the pawn's <see cref="NeedApparel.Requirements"/>
 /// of its role is unmet; and title_apparel_quality_unmet (ThoughtWorker_RoyalTitleApparelMinQualityNotMet, #3841), active while
-/// a worn garment that has a quality is below <see cref="NeedApparel.MinimumQuality"/>. A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
+/// a worn garment that has a quality is below <see cref="NeedApparel.MinimumQuality"/>. Then need_comfort (ThoughtWorker_NeedComfort,
+/// read only for a pawn with a comfort need, #3840), the comfort a bed gives over the day. A stage the game cannot price is left out.
+/// Memories carry their duration; situational thoughts none.
 /// </summary>
 public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);
@@ -169,6 +183,11 @@ public sealed record NeedRate(string Kind,
     /// </summary>
     [JsonConverter(typeof(ObservedNumberJsonConverter))]
     public Fact<double> UnservedGainPerTick { get; init; }
+    /// <summary>
+    /// The rest need's gain per tick per unit of rest effectiveness (#3840): <c>Need_Rest.BaseRestGainPerTick</c> times the pawn's
+    /// <c>StatDefOf.RestRateMultiplier</c>, which <c>Need_Rest.TickResting</c> multiplies by the bed's effectiveness. 0 for any other need.
+    /// </summary>
+    public double GainPerTickPerEffectiveness { get; init; }
     /// <summary>Current-rate approximation; observed threshold crossings require fresh native rates.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Unsupported { get; init; }
@@ -222,6 +241,15 @@ public sealed record NeedsForecastPawn
     public Fact<bool> MoodFreezesWhileAsleep { get; init; }
     public Fact<double> ComfortableMin { get; init; }
     public Fact<double> ComfortableMax { get; init; }
+    /// <summary>
+    /// The comfortable range ApplyBedThoughts compares the sleeping ambient temperature with (#3840): the race's
+    /// <c>ComfyTemperatureMin</c>/<c>Max</c> (<c>def.GetStatValueAbstract</c>, no apparel) plus each active gene's offsets under Biotech;
+    /// below it the pawn gains SleptInCold, above it SleptInHeat.
+    /// </summary>
+    public double SleepComfortableMin { get; init; }
+    public double SleepComfortableMax { get; init; }
+    /// <summary>Where the pawn sleeps now (#3840); null for a pawn without a rest need, a wild man or one not spawned.</summary>
+    public NeedSleep? Sleep { get; init; }
     [JsonConverter(typeof(ObservedNumberJsonConverter))]
     public Fact<double> Mood { get; init; }
     [JsonConverter(typeof(ObservedNumberJsonConverter))]

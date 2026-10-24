@@ -30,8 +30,18 @@ public sealed record ConstructionActivityRequest(Identity Identity,
 /// </summary>
 public sealed record PlannedRoomShape(string Room, string Stuff,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Interior,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPiece>))] EquatableArray<PlannedRoomPiece> Pieces);
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPiece>))] EquatableArray<PlannedRoomPiece> Pieces)
+{
+    /// <summary>
+    /// The planned furniture the room would hold (#3840): its Build sites (beds, end tables, heaters) in their own stuff, each
+    /// counted as standing in the closed room's Wealth, Beauty, Space and Cleanliness, so the stage is the furnished room's.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomFurniture>))]
+    public EquatableArray<PlannedRoomFurniture> Furniture { get; init; }
+}
 public sealed record PlannedRoomPiece(Cell Cell, string Definition, string Stuff);
+/// <summary>One planned furniture piece (#3840): its anchor cell, def, stuff ("" for a def made from none) and rotation, the occupied rect native derives.</summary>
+public sealed record PlannedRoomFurniture(Cell Cell, string Definition, string Stuff, RimGovernor.Brain.Domain.Rotation Rotation);
 /// <summary>
 /// The predicted closed room (#3339): the game's RoomRoleWorkers' role ("None" when not a proper room or over 60 regions)
 /// and RoomStatWorker_Impressiveness over the predicted base stats, with its RoomStatDef stage; the closed room's

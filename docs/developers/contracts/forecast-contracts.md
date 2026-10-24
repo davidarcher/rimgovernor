@@ -272,6 +272,19 @@ Every field is unknown, or null, when unread; nothing is capped.
   title room thoughts (#3807) and the trait bedroom thoughts a suite relieves (#3826):
   `greedy` (`ThoughtWorker_Greedy`, staged by the owned room's Impressiveness stage
   + 1, 0 without one; null stages at 0) and `jealous` (`ThoughtWorker_BedroomJealous`).
+- `NeedsForecastPawn.Sleep` (#3840, `NeedSleep`): where the pawn sleeps now, as
+  `JobGiver_GetRest` picks it: the bed `RestUtility.FindBedFor` gives (its load id),
+  else the ground at the pawn's cell (""); whether that cell's room is
+  PsychologicallyOutdoors (`slept_outside`), whether it is the ground or a costless
+  bed (`slept_on_ground`, `CostListAdjusted` empty), the rest gained a tick there
+  (`Need_Rest.BaseRestGainPerTick` × `RestEffectiveness` × RestRateMultiplier), the
+  bed's Comfort (0 on the ground) and the cell's temperature. Null without a rest
+  need, for a wild man or unspawned. `SleepComfortableMin/Max` are the pawn's
+  ComfyTemperatureMin/Max as `ApplyBedThoughts` compares them (`slept_in_cold`,
+  `slept_in_heat`); the rest `NeedRate.GainPerTickPerEffectiveness` is the gain a tick
+  of a bed of rest effectiveness 1 (0 for other needs). `ThoughtStages` roles
+  `slept_on_ground`, `slept_in_cold`, `slept_in_heat` and `need_comfort`
+  (`ThoughtWorker_NeedComfort`, only for a pawn with the comfort need) price them.
 - `NeedsForecastPawn.RivalRooms`: the Impressiveness of each room another spawned
   player-faction pawn without a host faction owns (`OwnedRoom`), each once, ascending:
   what `ThoughtWorker_BedroomJealous` compares the pawn's own room against (#3826).
@@ -819,7 +832,10 @@ stuff, for the room as it would stand once its ring is built: a `PlannedRoomShap
 the room id, the stuff, the interior cells and the ring `PlannedRoomPiece`s (cell,
 definition, stuff) the planned wall and door sites would build, plus one piece per
 cell of the room's planned `FloorIn` sites (the floor's `TerrainDef`, no stuff, in
-every ring stuff, #3797). Rounds ask it in the
+every ring stuff, #3797), and its `Furniture` (#3840): one `PlannedRoomFurniture`
+(anchor cell, definition, stuff, rotation) per interior anchor of the room's planned
+Build sites, in every ring stuff, which native counts standing in the closed room so
+the stage is the furnished room's. Rounds ask it in the
 same read as the thermal read, for every enclosed unplaced planned room with ring
 sites, and every planned kitchen even with none (its cleanliness is priced, #3802; a
 ringless prediction owes no work), once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.

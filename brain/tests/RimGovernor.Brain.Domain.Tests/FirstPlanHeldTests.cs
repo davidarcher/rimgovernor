@@ -102,7 +102,7 @@ public sealed class FirstPlanHeldTests
         }
         Rows("SleptInBedroom", "slept_in_bedroom", BedroomOffsets);
         Rows("SleptInBarracks", "slept_in_barracks", BarracksOffsets);
-        return new NeedsForecastPawn { Pawn = id, MoodUnclampedTarget = Known(0.6), BreakThreshold = Known(0.35), ThoughtStages = EquatableArray.From(stages) };
+        return new NeedsForecastPawn { Pawn = id, MoodUnclampedTarget = Known(0.6), BreakThreshold = Known(0.35), ThoughtStages = EquatableArray.From(stages), Sleep = SleepFixtures.Ground() };
     }
 
     private static BedMergeFacts FreshSleepers(bool nullStageRow) => new BedroomGainFacts

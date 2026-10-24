@@ -144,6 +144,12 @@ public sealed record RoundsFacts
     /// <summary>The bench a planned laboratory is furnished with (RoomFurniture.BenchFor of Laboratory, #3800); "" without a catalog.</summary>
     public string LaboratoryBench { get; init; } = "";
 
+    /// <summary>Per sleeping bed def and stuff, what lying in a built one gives (DefinitionCatalog.SleepingBeds, #3840); empty without a catalog.</summary>
+    public IReadOnlyList<SleepingBedFacts> SleepingBeds { get; init; } = [];
+
+    /// <summary>The comfort need's NeedDef curve (StationCatalog.Comfort.Comfort, #3840) the bedroom credit's comfort term runs; unknown without a catalog.</summary>
+    public NeedCurve ComfortCurve { get; init; }
+
     /// <summary>The bed a planned hospital is furnished with (RoomFurniture.HospitalBed, #3804); no def without a catalog.</summary>
     public FurnitureBed HospitalBed { get; init; } = new();
 

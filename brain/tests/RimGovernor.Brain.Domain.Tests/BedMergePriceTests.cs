@@ -174,7 +174,7 @@ public sealed class BedMergePriceTests
 
     private static NeedsForecastPawn Pawn(string id, double target) => new()
     {
-        Pawn = id, MoodUnclampedTarget = Known(target), BreakThreshold = Known(0.35),
+        Pawn = id, MoodUnclampedTarget = Known(target), BreakThreshold = Known(0.35), Sleep = SleepFixtures.Ground(),
         ThoughtStages = [.. Enumerable.Range(0, Levels.StageCount).SelectMany(s => new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2, s), Stage("SleptInBarracks", "slept_in_barracks", -2, s) })],
     };
 
@@ -356,7 +356,7 @@ public sealed class BedMergePriceTests
     {
         // A non-ascetic gains slept_in_barracks over the bed thought it has; an ascetic gains nothing and loses its Ascetic thought.
         var stages = EquatableArray.From(new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2), Stage("SleptInBarracks", "slept_in_barracks", -2), new NeedThoughtStage("Ascetic", "ascetic", 0, 3, Known((double)GameTime.TicksPerDay), false) });
-        var plain = new NeedsForecastPawn { Pawn = "a", ThoughtStages = stages };
+        var plain = new NeedsForecastPawn { Pawn = "a", ThoughtStages = stages, Sleep = SleepFixtures.Ground() };
         var ascetic = plain with { Pawn = "b", Ascetic = true };
         Assert.Equal(Known(-2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default, barracks: true));
         Assert.Equal(Known(2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default));

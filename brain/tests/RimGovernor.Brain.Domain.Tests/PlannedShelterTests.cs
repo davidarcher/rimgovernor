@@ -162,7 +162,7 @@ public sealed class PlannedShelterTests
         // The barracks credit (#3658): the sleeper's spot is outdoors in no room (slept_outside -10), the barracks it is booked to
         // at stage 0 gives slept_in_barracks -2.
         var outdoors = new NeedCell(Known(false), Known(false), Known(false), Known(true), Known(true));
-        var sleeper = facts.ForecastObserved.Needs!.Pawns[0] with
+        var sleeper = SleepFixtures.Sleeping(facts.ForecastObserved.Needs!.Pawns[0], SleepFixtures.InBed("bed", outside: true) with { Temperature = 20 }) with
         {
             ThoughtStages = [new("SleptOutside", "slept_outside", 0, -10, Known((double)GameTime.TicksPerDay), false),
                 new("SleptInBarracks", "slept_in_barracks", 0, -2, Known((double)GameTime.TicksPerDay), false)],
@@ -178,7 +178,7 @@ public sealed class PlannedShelterTests
         };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced();
         barracks = AlternativeOnly(barracks with { CoupledAlternatives = generated with { Context = generated.Context with
-            { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, InvestmentHorizonDays = 10d } } });
+            { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, PlannedBeds = SleepFixtures.Beds(1, 1), InvestmentHorizonDays = 10d } } });
         Assert.True(barracks.CoupledAlternatives!.Context.Priced(1));
         var result = Select(barracks);
         Assert.True(result.Selection.Selected.Any(id => id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal)), Reasons(result));
@@ -205,7 +205,7 @@ public sealed class PlannedShelterTests
             e => Assert.Equal(unpriced.BaselineVector.Development, e.Consequences!.Development));
 
         var outdoors = new NeedCell(Known(false), Known(false), Known(false), Known(true), Known(true));
-        var sleeper = facts.ForecastObserved.Needs!.Pawns[0] with
+        var sleeper = SleepFixtures.Sleeping(facts.ForecastObserved.Needs!.Pawns[0], SleepFixtures.InBed("bed", outside: true) with { Temperature = 20 }) with
         {
             ThoughtStages = [new("SleptOutside", "slept_outside", 0, -4, Known((double)GameTime.TicksPerDay), false),
                 new("SleptInBarracks", "slept_in_barracks", 0, -2, Known((double)GameTime.TicksPerDay), false)],
@@ -221,7 +221,7 @@ public sealed class PlannedShelterTests
         };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced();
         barracks = barracks with { CoupledAlternatives = generated with { Context = generated.Context with
-            { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, InvestmentHorizonDays = 10d } } };
+            { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, PlannedBeds = SleepFixtures.Beds(1, 1), InvestmentHorizonDays = 10d } } };
         Assert.True(barracks.CoupledAlternatives!.Context.Priced(1));
         var result = Select(barracks);
         Assert.True(Room1(result), Why(barracks, result));

@@ -364,6 +364,8 @@ public sealed partial record ForecastCoupledCandidates
             Filth = facts.Filth,
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             LaboratoryBench = facts.LaboratoryBench,
+            PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),
+            ComfortCurve = facts.ComfortCurve,
             HospitalBed = facts.HospitalBed,
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,

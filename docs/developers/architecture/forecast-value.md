@@ -517,14 +517,28 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
   current bed thought (`slept_in_bedroom` or `slept_in_barracks` at the owned bed's room stage, none for a prisoner bed, plus
   `slept_outside` when that room is psychologically outdoors; none without a bed). For an ascetic, the `ascetic` thought at the
   predicted stage less the one observed now (the stage of a room it owns alone; nothing in a shared barracks). Every offset is the
-  game's own `NeedsForecast` thought-stage read.
+  game's own `NeedsForecast` thought-stage read. Where the pawn sleeps now is `NeedsForecastPawn.Sleep` (#3840, `NeedSleep`:
+  the bed `RestUtility.FindBedFor` gives it, else the ground at its cell, read natively with the cell's room, the bed's costs,
+  Comfort, rest gain a tick and the cell's temperature).
+- *Bed terms* (#3840, `BedMoodDelta`, `SleeperOf`), every one `Toils_LayDown.ApplyBedThoughts` and the rest tick apply, against
+  the occupant's planned bed (`ForecastCoupledContext.PlannedBeds`, the Build sites of a sleeping bed def in the room in id order,
+  each `SleepingBedFacts` read from the catalog: costless, `BedRestEffectiveness` with the stat's valueIfMissing, `Comfort`):
+  `slept_on_ground` lost (or gained) as the planned bed is costed against where it sleeps now; the comfort need's thought
+  (`need_comfort` rows, `ThoughtWorker_NeedComfort`) over the layout occupancy day at the planned bed's Comfort less the current
+  one's (`ComfortMood`, the NeedDef curve `ForecastCoupledContext.ComfortCurve`); the sleep temperature memory (`slept_in_cold`,
+  `slept_in_heat` against the pawn's `SleepComfortableMin/Max`) relieved now and taken at the room's temperature (its shelter
+  plan's forecast at the horizon, else the outdoors; `PlannedSleepTemperature`), both shifts integrated as break shifts; and the
+  capability-days the faster rest frees (`RestDaysFreed`: the steady day spends fall / (fall + gain) asleep). A pawn without a
+  rest need never lies down and changes none of them. Darkness and rain give no sleeping thought, so they are no term.
 - *Gain per day* (`GainPerDay`): `WellbeingWeight × delta / 100`, plus the break days a day the tier-1 target mood shifted by
   `delta / 100` saves against the unshifted one (`MoodBreaks.DaysLost` on `BreakTierTicks` and `ShiftedBreakTierTicks`, the
-  timeline integrating each shift with its own clamp at 0 and 1).
+  timeline integrating each shift with its own clamp at 0 and 1), plus the rest's freed capability-days.
 - *Credit*: the gain × (H − service day), H tier 2's `HorizonDays` (`ForecastCoupledContext.InvestmentHorizonDays`); a gain, so negative.
 
 A room any of whose occupants' stage, bed, observed thoughts or mood is unread, or whose service day is unknown, is named
-`bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. A bedroom with no occupant, or one
+`bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. An unread bed term (an occupant's
+planned bed, a memory or comfort row, the comfort curve, the rest fall, the room's temperature) throws `RequiredFactException`
+(#3840, rule 9: no new unassessed path). A bedroom with no occupant, or one
 not served before tier 2's horizon, pays its material with no credit and waits.
 
 *Storage credit (#3798, epic #3650).* A served planned storage room, meal closet or yard is credited the stock it keeps from

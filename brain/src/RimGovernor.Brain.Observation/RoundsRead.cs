@@ -144,6 +144,8 @@ public static class RoundsReads
                 MoodBreak = p.Stations.Mood.Break,
                 ResearchBenchSpeeds = catalog.ResearchBenchSpeeds(),
                 LaboratoryBench = p.Shapes.Furniture.BenchFor(RoomRole.Laboratory),
+                SleepingBeds = catalog.SleepingBeds(),
+                ComfortCurve = p.Stations.Comfort.Comfort,
                 HospitalBed = p.Shapes.Furniture.HospitalBed(),
                 Filth = p.Stations.Filth,
                 Crafts = catalog.CraftRecipes(finished),

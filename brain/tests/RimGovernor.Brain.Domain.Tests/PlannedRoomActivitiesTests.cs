@@ -911,7 +911,7 @@ public sealed class PlannedRoomActivitiesTests
     {
         var facts = Review(planned);
         var indoors = new NeedCell(Known(true), Known(false), Known(false), Known(false), Known(false));
-        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p.Pawn != Pawn ? p : p with
+        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p.Pawn != Pawn ? p : SleepFixtures.Sleeping(p, SleepFixtures.InBed("bed")) with
         {
             ThoughtStages = EquatableArray.From(BedroomStages),
             OwnedBed = "bed",
@@ -934,6 +934,7 @@ public sealed class PlannedRoomActivitiesTests
                 Context = generated.Context with
                 {
                     BedroomOccupants = inside ? new Dictionary<int, EquatableArray<string>>() : new Dictionary<int, EquatableArray<string>> { [1] = [Pawn] },
+                    PlannedBeds = SleepFixtures.Beds(1, 1), Thermal = generated.Context.Thermal ?? SleepFixtures.Outdoors(),
                     InvestmentHorizonDays = 10d,
                     MaterialValues = material.ToDictionary(m => new Resource(m.Key), m => new ConstructionMaterialValue(MaterialValueBasis.Labor, m.Value)),
                 },
@@ -1103,7 +1104,7 @@ public sealed class PlannedRoomActivitiesTests
     {
         var facts = Review(planned, horizon: Day, colonists: colonists);
         var indoors = new NeedCell(Known(true), Known(false), Known(false), Known(false), Known(false));
-        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p with
+        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => SleepFixtures.Sleeping(p, SleepFixtures.InBed("bed-" + p.Pawn)) with
         {
             ThoughtStages = EquatableArray.From(BedroomStages),
             OwnedBed = "bed-" + p.Pawn,
@@ -1127,6 +1128,7 @@ public sealed class PlannedRoomActivitiesTests
                 Context = generated.Context with
                 {
                     BedroomOccupants = occupants.ToDictionary(o => o.Key, o => EquatableArray.From([o.Value])),
+                    PlannedBeds = SleepFixtures.Beds(1, [.. occupants.Keys]), Thermal = generated.Context.Thermal ?? SleepFixtures.Outdoors(),
                     InvestmentHorizonDays = 10d,
                     PlannedBuilders = builders ?? 0,
                     OpenRooms = open.ToHashSet(),

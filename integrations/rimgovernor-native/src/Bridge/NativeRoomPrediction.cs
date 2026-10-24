@@ -20,7 +20,9 @@ namespace HomeBridge.BridgeTools;
 /// Impressiveness score is the game's worker over those stats and the stage RoomStatDef.GetScoreStageIndex. A piece
 /// naming a TerrainDef is a planned floor (#3797): it replaces its room cell's terrain in the reported Cleanliness only,
 /// not in the stats Impressiveness reads, and in the reported Terrains (the distinct interior terrains with their tags,
-/// #3808). An unassessed row (empty role) reports impressiveness 0, the map-edge row the stat's roomlessScore. The
+/// #3808). The planned furniture (#3840) stands in the closed room: counted once in Wealth, Beauty and Cleanliness, its
+/// cells walkable only in Space unless it is standable, and an impassable piece's cells out of the room; the role
+/// workers still list only observed things. An unassessed row (empty role) reports impressiveness 0, the map-edge row the stat's roomlessScore. The
 /// unregistered room is never added to the map's room lookup and touches no game state.
 /// </summary>
 internal static class NativeRoomPrediction
@@ -76,9 +78,28 @@ internal static class NativeRoomPrediction
             if (def.MadeFromStuff && stuff == null) { unknown = true; continue; }
             pieces[cell] = new(cell, def, stuff);
         }
+        // The planned furniture (#3840), standing in the closed room: its occupied rect from its anchor, size and rotation.
+        // An impassable piece's cells leave the room as a ring piece's do; a piece a pawn cannot stand on (a bed) makes its
+        // cells walkable only, which Space counts at SpaceWalkable.
+        var furniture = new List<Piece>();
+        var furnitureBlocked = new HashSet<IntVec3>();
+        var furnitureUnstandable = new HashSet<IntVec3>();
+        foreach (var f in shape.Furniture)
+        {
+            if (DefDatabase<ThingDef>.GetNamedSilentFail(f.Definition) is not { } def) { unknown = true; continue; }
+            var stuff = string.IsNullOrEmpty(f.Stuff) ? null : DefDatabase<ThingDef>.GetNamedSilentFail(f.Stuff);
+            if (def.MadeFromStuff && stuff == null) { unknown = true; continue; }
+            var anchor = new IntVec3(f.Cell.X, 0, f.Cell.Z);
+            furniture.Add(new(anchor, def, stuff));
+            foreach (var c in GenAdj.OccupiedRect(anchor, new Rot4((int)f.Rotation), def.size))
+            {
+                if (def.passability == Traversability.Impassable) furnitureBlocked.Add(c);
+                else if (def.passability != Traversability.Standable) furnitureUnstandable.Add(c);
+            }
+        }
         // Room cells: the interior a region would cover (passable now; a planned piece cell is never interior).
         var cells = shape.Interior.Select(c => new IntVec3(c.X, 0, c.Z))
-            .Where(c => c.InBounds(map) && !pieces.ContainsKey(c) && !c.Impassable(map)).Distinct().ToList();
+            .Where(c => c.InBounds(map) && !pieces.ContainsKey(c) && !furnitureBlocked.Contains(c) && !c.Impassable(map)).Distinct().ToList();
         var cellSet = new HashSet<IntVec3>(cells);
         var edge = cells.Any(c => c.OnEdge(map));
         var openRoof = cells.Count(c => !map.roofGrid.Roofed(c));
@@ -138,11 +159,17 @@ internal static class NativeRoomPrediction
         if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, RoomStatDefOf.Impressiveness.roomlessScore, default, RoomStatDefOf.Cleanliness.roomlessScore);
         if (BeautyCellCurve?.GetValue(null) is not SimpleCurve curve) return Row("", 0, default, 0);
 
-        var wealth = Wealth(map, cells, things, touching);
-        var beauty = Beauty(map, cells, cellSet, adjacent, touching, psychOutdoors, curve);
-        var space = psychOutdoors ? SpaceCap : Math.Min(cells.Sum(c => c.Standable(map) ? SpaceStandable : c.WalkableByNormal(map) ? SpaceWalkable : 0f), SpaceCap);
-        var cleanliness = Cleanliness(map, cells, things, touching, NoFloors);
-        var floored = Cleanliness(map, cells, things, touching, floors);
+        // The furniture counts as contained buildings: once each in Wealth and Cleanliness, and in Beauty once, on its cell
+        // over the terrain (CellBeauty counts a thing once, at the first of its cells).
+        var furnished = touching.Concat(furniture).ToList();
+        var wealth = Wealth(map, cells, things, furnished);
+        var beauty = Beauty(map, cells, cellSet, adjacent, touching, psychOutdoors, curve)
+            + (cells.Count == 0 ? 0 : furniture.Sum(p => p.Def.GetStatValueAbstract(psychOutdoors && p.Def.StatBaseDefined(StatDefOf.BeautyOutdoors)
+                ? StatDefOf.BeautyOutdoors : StatDefOf.Beauty, p.Stuff)) / curve.Evaluate(cells.Count));
+        var space = psychOutdoors ? SpaceCap : Math.Min(cells.Sum(c => !furnitureUnstandable.Contains(c) && c.Standable(map) ? SpaceStandable
+            : c.WalkableByNormal(map) ? SpaceWalkable : 0f), SpaceCap);
+        var cleanliness = Cleanliness(map, cells, things, furnished, NoFloors);
+        var floored = Cleanliness(map, cells, things, furnished, floors);
 
         var room = Unregistered(map, things, edge);
         if (room == null) return Row("", 0, default, 0);

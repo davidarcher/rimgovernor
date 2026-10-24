@@ -123,6 +123,13 @@ public sealed record ForecastCoupledContext
     public IReadOnlyList<PenRoamer>? Roamers { get; init; }
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
+    /// <summary>
+    /// Per planned room, its planned beds in site id order, one per anchor (#3840): the sleeping facts of each Build site whose
+    /// def is a sleeping bed (RoundsFacts.SleepingBeds), null for a bed def whose stuff has no row. A room without a row plans no bed.
+    /// </summary>
+    public IReadOnlyDictionary<int, IReadOnlyList<SleepingBedFacts?>> PlannedBeds { get; init; } = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>();
+    /// <summary>The comfort need's NeedDef curve (RoundsFacts.ComfortCurve, #3840) the bedroom credit's comfort term runs; unknown by default.</summary>
+    public NeedCurve ComfortCurve { get; init; }
     /// <summary>The planned deathrest chamber's caskets and other deathrest buildings as the staging resolves them (#3810,
     /// RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf); none while no deathrester owes a chamber. Set by the round beside
     /// <see cref="RoyalRooms"/>.</summary>

@@ -3,6 +3,7 @@ using System.Text.Json;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
 using PlannedRoomPrediction = RimGovernor.Contracts.Wire.Observations.PlannedRoomPrediction;
+using PlannedRoomFurniture = RimGovernor.Contracts.Wire.Observations.PlannedRoomFurniture;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 
@@ -55,6 +56,27 @@ public sealed class PlannedRoomCleanlinessTests
         Assert.Empty(PlannedRules.PlannedRoomPredictionRequestOf([workshop], sites.Skip(2), []));
         var floorOnly = Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen], sites.Skip(2), []));
         Assert.Equal(("", 9), (floorOnly.Stuff, floorOnly.Pieces.Count));
+    }
+
+    [Fact]
+    public void ThePlannedFurnitureIsAskedInItsOwnStuffInEveryRingStuffSoTheStageIsTheFurnishedRooms()
+    {
+        // #3840: a barracks' planned beds stand in the predicted room (its Wealth, Beauty, Space, Cleanliness), the anchors
+        // on its interior only, in the bed's own stuff and rotation, whatever the ring's stuff.
+        var barracks = Kitchen with { Role = PlannedRole.Barracks };
+        PlannedBuildSite[] sites =
+        [
+            new("planned/room1/wall/WoodLog", 1, OpKind.WallIn, "Wall", "WoodLog", Rotation.North, [new Cell(9, 9)]),
+            new("planned/room1/wall/Steel", 1, OpKind.WallIn, "Wall", "Steel", Rotation.North, [new Cell(9, 9)]),
+            new("planned/room1/bed", 1, OpKind.Build, "Bed", "WoodLog", Rotation.South, [new Cell(10, 12), new Cell(11, 12), new Cell(30, 30)]),
+        ];
+
+        var shapes = PlannedRules.PlannedRoomPredictionRequestOf([barracks], sites, []);
+
+        Assert.Equal(["WoodLog", "Steel"], shapes.Select(s => s.Stuff));
+        Assert.All(shapes, s => Assert.Equal(
+            [new PlannedRoomFurniture(new Cell(10, 12), "Bed", "WoodLog", Rotation.South), new PlannedRoomFurniture(new Cell(11, 12), "Bed", "WoodLog", Rotation.South)],
+            s.Furniture));
     }
 
     [Fact]
