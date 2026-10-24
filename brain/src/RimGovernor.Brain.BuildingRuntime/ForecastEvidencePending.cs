@@ -19,7 +19,7 @@ internal sealed class ForecastEvidencePending
     private sealed class Pending(ForecastPrediction prediction)
     {
         internal readonly ForecastPrediction Prediction = prediction;
-        internal ForecastExecution Execution = prediction.Admission == ForecastAdmission.Refused ? ForecastExecution.NotExecuted : ForecastExecution.Unknown;
+        internal ForecastExecution Execution = prediction.Admission == ForecastAdmission.Refused ? ForecastExecution.NotExecuted : ForecastExecution.Unconfirmed;
         internal long? Unfinished;
         internal long LastTaskTick = -1;
         internal bool Seen;
@@ -30,8 +30,8 @@ internal sealed class ForecastEvidencePending
         _prediction = prediction ?? (p => Tel.Decide(new Decision { Kind = TelemetryKinds.ForecastPrediction.Name,
             Component = "rounds", Target = p.Key.Sample, Verdict = "captured", Reason = "selected_forecast", Attrs = ForecastEvidenceReader.Fields(p) }));
         _observation = observation ?? (o => Tel.Decide(new Decision { Kind = TelemetryKinds.ForecastObservation.Name,
-            Component = "rounds", Target = o.Key.Sample, Verdict = o.Value.IsKnown || o.Completion == ForecastCompletion.Interval ? "observed" : "unknown",
-            Reason = o.UnknownReason.Length == 0 ? "native_observation" : o.UnknownReason, Attrs = ForecastEvidenceReader.Fields(o) }));
+            Component = "rounds", Target = o.Key.Sample, Verdict = o.Value is EvidenceValue.Valued || o.Completion is ForecastCompletion.Interval ? "observed" : "unknown",
+            Reason = o.Value is EvidenceValue.Unavailable { Reason: { Length: > 0 } reason } ? reason : "native_observation", Attrs = ForecastEvidenceReader.Fields(o) }));
     }
     internal int Count { get { lock (_gate) return _pending.Count; } }
 
@@ -75,10 +75,10 @@ internal sealed class ForecastEvidencePending
             foreach (var p in ForecastLiveEvidence.Predictions(_run, _load, _map, review, tick, selection, context, admission, batches, proposalMethod))
             {
                 predictions.Add(p);
-                if (!p.Value.IsKnown || p.Key.Metric == ForecastMetric.TaskCompletion && p.Key.Method.Length == 0)
+                if (p.Value is EvidenceValue.Unavailable || p.Key.Metric == ForecastMetric.TaskCompletion && p.Key.Method.Length == 0)
                 {
-                    gaps.Add(ForecastLiveEvidence.Gap(p, tick, !p.Value.IsKnown ? p.UnknownReason : "task_execution_identity_unavailable",
-                        admission == ForecastAdmission.Refused ? ForecastExecution.NotExecuted : ForecastExecution.Unknown));
+                    gaps.Add(ForecastLiveEvidence.Gap(p, tick, p.Value is EvidenceValue.Unavailable(var unavailable) ? unavailable : "task_execution_identity_unavailable",
+                        admission == ForecastAdmission.Refused ? ForecastExecution.NotExecuted : ForecastExecution.Unconfirmed));
                     continue;
                 }
                 if (_pending.Count == Capacity)

@@ -119,9 +119,9 @@ public sealed class ForecastStockHandoffTests
         pending.Review(scope, 60000, null, null, actual);
         var predicted = Assert.Single(predictions, p => p.Key.Metric == ForecastMetric.FoodStock);
         var observed = Assert.Single(observations, p => p.Key.Metric == ForecastMetric.FoodStock);
-        Assert.Equal(8, predicted.Value.Value);
-        Assert.Equal(7, observed.Value.Value);
-        Assert.Equal(-1, ForecastResiduals.Match(predicted, observed).Scalar);
+        Assert.Equal(new EvidenceValue.Valued(8), predicted.Value);
+        Assert.Equal(new EvidenceValue.Valued(7), observed.Value);
+        Assert.Equal(new ResidualError.Scalar(-1), ForecastResiduals.Match(predicted, observed).Error);
         Assert.Equal(0, pending.Count);
     }
 
@@ -130,8 +130,8 @@ public sealed class ForecastStockHandoffTests
     {
         var supply = Request(Stock("food", 5)).Facts.Food;
         var key = new ForecastEvidenceKey("r", "l", "m", "review", "sample", ForecastMetric.FoodStock, Meal.Value, "total", "items", "", "", 0);
-        var prediction = new ForecastPrediction(key, 0, 1, Known(5d), "", ForecastAdmission.Continued);
-        Assert.Equal("food_stock_scope_mismatch", ForecastLiveEvidence.Observe(prediction, 1, null, null, ForecastExecution.Unknown, supply).UnknownReason);
+        var prediction = new ForecastPrediction(key, 0, 1, new EvidenceValue.Valued(5d), ForecastAdmission.Continued);
+        Assert.Equal("food_stock_scope_mismatch", ForecastLiveEvidence.Observe(prediction, 1, null, null, ForecastExecution.Unconfirmed, supply).Value is EvidenceValue.Unavailable(var reason) ? reason : "");
     }
 
     [Fact]

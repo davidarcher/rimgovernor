@@ -77,21 +77,33 @@ public static class ForecastEvidenceReader
                     && number >= 0 ? number : throw new FormatException(key);
                 T EnumValue<T>(string key) where T : struct, Enum => Enum.TryParse<T>(Text(key), out var value)
                     && Enum.IsDefined(value) ? value : throw new FormatException(key);
-                Fact<double> Number(string key) => !p.TryGetValue(key, out var value) || value is null ? default
+                double? Number(string key) => !p.TryGetValue(key, out var value) || value is null ? null
                     : double.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, out var number)
-                      && double.IsFinite(number) ? Fact.Known(number) : throw new FormatException(key);
+                      && double.IsFinite(number) ? number : throw new FormatException(key);
+                double Bound(string key) => Number(key) ?? throw new FormatException(key);
                 var key = new ForecastEvidenceKey(Required("run"), Required("load"), Required("map"), Required("review"),
                     Required("sample"), EnumValue<ForecastMetric>("metric"), Required("subject"), Required("scope"),
                     Required("unit"), Text("method"), Text("task"), Tick("revision"));
-                var value = Number("value");
                 var unknown = Text("unknown_reason");
-                if (!value.IsKnown && unknown.Length == 0) throw new FormatException("unknown_reason");
+                EvidenceValue value = Number("value") is { } number ? new EvidenceValue.Valued(number)
+                    : unknown.Length > 0 ? new EvidenceValue.Unavailable(unknown) : throw new FormatException("unknown_reason");
                 if (row.Kind == TelemetryKinds.ForecastPrediction.Name)
-                    predictions.Add(new(key, Tick("origin_tick"), Tick("target_tick"), value, unknown,
-                        EnumValue<ForecastAdmission>("admission")));
-                else observations.Add(new(key, Tick("observation_tick"), value, unknown,
-                    EnumValue<ForecastExecution>("execution"), EnumValue<ForecastCompletion>("completion"),
-                    Number("lower_tick"), Number("upper_tick"), Required("provenance")));
+                    predictions.Add(new(key, Tick("origin_tick"), Tick("target_tick"), value, EnumValue<ForecastAdmission>("admission")));
+                else
+                {
+                    ForecastCompletion completion = Text("completion") switch
+                    {
+                        nameof(ForecastCompletion.NotApplicable) => new ForecastCompletion.NotApplicable(),
+                        nameof(ForecastCompletion.Exact) => new ForecastCompletion.Exact(),
+                        nameof(ForecastCompletion.Interval) => new ForecastCompletion.Interval(Bound("lower_tick"), Bound("upper_tick")),
+                        nameof(ForecastCompletion.CompletedBy) => new ForecastCompletion.CompletedBy(Bound("upper_tick")),
+                        nameof(ForecastCompletion.Unfinished) => new ForecastCompletion.Unfinished(),
+                        nameof(ForecastCompletion.Unobserved) => new ForecastCompletion.Unobserved(),
+                        _ => throw new FormatException("completion"),
+                    };
+                    observations.Add(new(key, Tick("observation_tick"), value, EnumValue<ForecastExecution>("execution"),
+                        completion, Required("provenance")));
+                }
             }
             catch (Exception ex) when (ex is FormatException or OverflowException)
             { gaps.Add($"invalid_evidence:{ex.Message}"); }
@@ -122,8 +134,7 @@ public static class ForecastEvidenceReader
         var fields = Fields(prediction.Key);
         fields["origin_tick"] = prediction.OriginTick;
         fields["target_tick"] = prediction.TargetTick;
-        fields["value"] = prediction.Value.TryGetValue(out var value) ? value : null;
-        fields["unknown_reason"] = prediction.UnknownReason;
+        Value(fields, prediction.Value);
         fields["admission"] = prediction.Admission.ToString();
         return fields;
     }
@@ -133,14 +144,23 @@ public static class ForecastEvidenceReader
         ArgumentNullException.ThrowIfNull(observation);
         var fields = Fields(observation.Key);
         fields["observation_tick"] = observation.Tick;
-        fields["value"] = observation.Value.TryGetValue(out var value) ? value : null;
-        fields["unknown_reason"] = observation.UnknownReason;
+        Value(fields, observation.Value);
         fields["execution"] = observation.Execution.ToString();
-        fields["completion"] = observation.Completion.ToString();
-        fields["lower_tick"] = observation.LowerTick.TryGetValue(out var lo) ? lo : null;
-        fields["upper_tick"] = observation.UpperTick.TryGetValue(out var hi) ? hi : null;
+        fields["completion"] = CompletionName(observation.Completion);
+        fields["lower_tick"] = observation.Completion is ForecastCompletion.Interval(var lo, _) ? lo : null;
+        fields["upper_tick"] = observation.Completion is ForecastCompletion.Interval(_, var hi) ? hi
+            : observation.Completion is ForecastCompletion.CompletedBy(var by) ? by : null;
         fields["provenance"] = observation.Provenance;
         return fields;
+    }
+
+    /// <summary>The <c>completion</c> attribute: the completion case's name.</summary>
+    public static string CompletionName(ForecastCompletion completion) => completion.GetType().Name;
+
+    private static void Value(Dictionary<string, object?> fields, EvidenceValue value)
+    {
+        fields["value"] = value is EvidenceValue.Valued(var number) ? number : null;
+        fields["unknown_reason"] = value is EvidenceValue.Unavailable(var reason) ? reason : "";
     }
 
     private static Dictionary<string, object?> Fields(ForecastEvidenceKey k) => new(StringComparer.Ordinal)

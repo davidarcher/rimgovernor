@@ -64,7 +64,6 @@ BuildingRuntime/Colony/ColonyStatus.cs|Unknown|7
 BuildingRuntime/Combat/CombatRestoration.cs|Fact|1
 BuildingRuntime/DraftNeeds.cs|Fact|2
 BuildingRuntime/DraftNeeds.cs|Unknown|1
-BuildingRuntime/ForecastEvidencePending.cs|Fact|3
 BuildingRuntime/HerdPlan.cs|Fact|1
 BuildingRuntime/Layout/LayoutFields.cs|Fact|15
 BuildingRuntime/Layout/LayoutFieldsShrink.cs|Fact|4
@@ -331,8 +330,6 @@ Domain/CreatedZones.cs|Fact|1
 Domain/DomainAction.cs|Fact|7
 Domain/EncounterPrediction.cs|NullableValue|6
 Domain/Foundation/Fact.cs|Fact|6
-Domain/Foundation/ForecastEvidence.cs|Fact|4
-Domain/Foundation/ForecastEvidence.cs|UnknownMember|2
 Domain/PlanSpec.cs|Fact|1
 Domain/Progress.cs|Discard|1
 Domain/Progress.cs|Fact|26
@@ -674,7 +671,7 @@ Policy/ForecastHandoff.cs|Fact|66
 Policy/ForecastHandoffProjects.cs|Fact|14
 Policy/ForecastHousing.cs|Fact|29
 Policy/ForecastIncumbentPreparation.cs|Fact|19
-Policy/ForecastLiveEvidence.cs|Fact|9
+Policy/ForecastLiveEvidence.cs|Fact|3
 Policy/ForecastMaintenance.cs|Fact|7
 Policy/ForecastMaterialChoices.cs|Fact|8
 Policy/ForecastMaterialValue.cs|Fact|8
@@ -683,14 +680,12 @@ Policy/ForecastNeeds.cs|Fact|40
 Policy/ForecastProductiveWork.cs|Fact|9
 Policy/ForecastRequirements.cs|Fact|4
 Policy/ForecastResearchWork.cs|Fact|4
-Policy/ForecastResiduals.cs|Fact|4
-Policy/ForecastResiduals.cs|NullableValue|8
 Policy/ForecastRoofConsequences.cs|Fact|6
 Policy/ForecastServiceInvestments.cs|Fact|22
 Policy/ForecastShelter.cs|Fact|26
 Policy/ForecastSupport.cs|Fact|11
 Policy/ForecastSurvivalNeeds.cs|Fact|19
-Policy/ForecastTerminalStock.cs|Fact|19
+Policy/ForecastTerminalStock.cs|Fact|17
 Policy/ForecastThermalExposure.cs|Fact|7
 Policy/ForecastValue.cs|Fact|69
 Policy/ForecastWorkInputs.cs|Fact|5
@@ -1112,7 +1107,6 @@ Store/Rounds/RoundsMood.cs|Fact|8
 Store/Rounds/RoundsMood.cs|Unknown|2
 Store/Rounds/RoundsRecovery.cs|Fact|6
 Store/Rounds/RoundsReview.cs|Fact|10
-Telemetry/Otlp/ForecastEvidenceReader.cs|Fact|7
 Telemetry/Otlp/ForecastHandoffReader.cs|Fact|7
 Telemetry/Otlp/MetricAggregator.cs|Discard|1
 Telemetry/Otlp/OtlpConfig.cs|Discard|1

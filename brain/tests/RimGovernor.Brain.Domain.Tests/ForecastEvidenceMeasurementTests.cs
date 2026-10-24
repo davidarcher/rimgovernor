@@ -42,8 +42,8 @@ public sealed class ForecastEvidenceMeasurementTests
                     p => emitter.Decide(new() { Kind = TelemetryKinds.ForecastPrediction.Name, Component = "rounds", Target = p.Key.Sample,
                         Verdict = "captured", Reason = "selected_forecast", Attrs = ForecastEvidenceReader.Fields(p) }),
                     o => emitter.Decide(new() { Kind = TelemetryKinds.ForecastObservation.Name, Component = "rounds", Target = o.Key.Sample,
-                        Verdict = o.Value.IsKnown || o.Completion == ForecastCompletion.Interval ? "observed" : "unknown",
-                        Reason = o.UnknownReason.Length == 0 ? "native_observation" : o.UnknownReason, Attrs = ForecastEvidenceReader.Fields(o) }));
+                        Verdict = o.Value is EvidenceValue.Valued || o.Completion is ForecastCompletion.Interval ? "observed" : "unknown",
+                        Reason = o.Value is EvidenceValue.Unavailable { Reason: { Length: > 0 } reason } ? reason : "native_observation", Attrs = ForecastEvidenceReader.Fields(o) }));
                 var owner = Owner();
                 owner.Review(Scope, 100, context.Needs, context);
                 ulong revision = 0;

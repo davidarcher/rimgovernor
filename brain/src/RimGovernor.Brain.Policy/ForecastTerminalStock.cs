@@ -31,8 +31,8 @@ public static class ForecastStockScope
         return false;
     }
 
-    public static Fact<double> Count(FoodSupply supply, Resource resource) =>
-        Known(supply.Stocks.Where(s => s.DefName == resource && Eligible(s, supply)).Sum(s => (double)s.Count));
+    public static double Count(FoodSupply supply, Resource resource) =>
+        supply.Stocks.Where(s => s.DefName == resource && Eligible(s, supply)).Sum(s => (double)s.Count);
 
     public static Fact<double> Nutrition(FoodSupply supply) =>
         Known(supply.Stocks.Where(s => Eligible(s, supply)).Sum(s => s.Nutrition));

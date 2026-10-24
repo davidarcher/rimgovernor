@@ -31,6 +31,9 @@ public sealed class ForecastLiveEvidenceTests
         Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 }, Tick = tick },
         Pawns = [new("pawn", new("assignment", method, revision, 0, state, "", tick))] };
 
+    private static string Reason(ForecastObservation o) => (o.Value as EvidenceValue.Unavailable)?.Reason ?? "";
+    private static double? Scalar(ForecastResidual row) => (row.Error as ResidualError.Scalar)?.Error;
+
     [Fact]
     public void ProductionOwnerUsesSelectedValuesAndFreshActualMoodOnceAcrossOverlappingReviews()
     {
@@ -45,11 +48,11 @@ public sealed class ForecastLiveEvidenceTests
         owner.Review(Scope, 200, Needs(200), Context(200));
         var rows = ForecastResiduals.Compare(predictions, observations);
         Assert.Equal(2, rows.Count(r => r.Prediction.Key.Metric == ForecastMetric.FoodLevel));
-        Assert.All(rows.Where(r => r.Prediction.Key.Metric == ForecastMetric.FoodLevel), r => Assert.Equal(.2, r.Scalar!.Value, 10));
-        Assert.All(rows.Where(r => r.Prediction.Key.Metric == ForecastMetric.Mood), r => Assert.Equal(.1, r.Scalar!.Value, 10));
+        Assert.All(rows.Where(r => r.Prediction.Key.Metric == ForecastMetric.FoodLevel), r => Assert.Equal(.2, Scalar(r)!.Value, 10));
+        Assert.All(rows.Where(r => r.Prediction.Key.Metric == ForecastMetric.Mood), r => Assert.Equal(.1, Scalar(r)!.Value, 10));
         Assert.All(rows, r => Assert.NotEqual(ForecastExecution.Consistent, r.Cohort));
         Assert.Same(comparison, selected.Selection);
-        Assert.Contains(observations, o => o.UnknownReason == "food_stock_prediction_unavailable");
+        Assert.Contains(observations, o => Reason(o) == "food_stock_prediction_unavailable");
         Assert.NotNull(ForecastResidualReport.Build(new(predictions, observations, [])));
     }
 
@@ -65,10 +68,9 @@ public sealed class ForecastLiveEvidenceTests
         owner.Tasks(Scope, Batch, Read(160, "completed"));
         owner.Tasks(Scope, Batch, Read(160, "completed"));
         var observation = Assert.Single(observations, o => o.Key.Metric == ForecastMetric.TaskCompletion);
-        Assert.Equal(ForecastCompletion.Interval, observation.Completion);
-        Assert.Equal(120, observation.LowerTick.Value); Assert.Equal(160, observation.UpperTick.Value);
+        Assert.Equal(new ForecastCompletion.Interval(120, 160), observation.Completion);
         var residual = ForecastResiduals.Match(predictions.Single(p => p.Key.Metric == ForecastMetric.TaskCompletion), observation);
-        Assert.Null(residual.Scalar); Assert.Equal(-30, residual.Lower); Assert.Equal(10, residual.Upper);
+        Assert.Equal(new ResidualError.Interval(-30, 10), residual.Error);
     }
 
     [Theory]
@@ -96,8 +98,8 @@ public sealed class ForecastLiveEvidenceTests
         owner.Review(Scope, 201, Needs(201), Context(201));
         var rows = ForecastResiduals.Compare(predictions, observations).Where(r => r.Prediction.Key.Metric == ForecastMetric.FoodLevel).ToArray();
         Assert.Equal(ForecastExecution.NotExecuted, rows[0].Cohort);
-        Assert.Equal(ForecastExecution.Unknown, rows[1].Cohort);
-        Assert.All(rows, r => { Assert.Equal("tick_mismatch", r.Reason); Assert.Null(r.Scalar); });
+        Assert.Equal(ForecastExecution.Unconfirmed, rows[1].Cohort);
+        Assert.All(rows, r => { Assert.Equal("tick_mismatch", r.Reason); Assert.Null(Scalar(r)); });
     }
 
     [Theory]
@@ -111,8 +113,8 @@ public sealed class ForecastLiveEvidenceTests
         owner.Capture(Scope, 100, 1, Selection(), Context(100), ForecastAdmission.Admitted, [Batch], "method");
         var next = load ? Scope with { Load = new("next") } : map ? Scope with { Map = new(2) } : Scope;
         owner.Review(next, load || map ? 100 : 99, null, null);
-        Assert.Equal(0, owner.Count); Assert.Contains(observations, o => o.UnknownReason == reason);
-        owner.Tasks(Scope, Batch, Read(150, "completed")); Assert.DoesNotContain(observations, o => o.Completion == ForecastCompletion.Interval);
+        Assert.Equal(0, owner.Count); Assert.Contains(observations, o => Reason(o) == reason);
+        owner.Tasks(Scope, Batch, Read(150, "completed")); Assert.DoesNotContain(observations, o => o.Completion is ForecastCompletion.Interval);
     }
 
     [Fact]
@@ -122,11 +124,11 @@ public sealed class ForecastLiveEvidenceTests
         owner.Review(Scope, 100, Needs(100), Context(100));
         for (ulong i = 1; i <= 1100; i++) owner.Capture(Scope, 100, i, Selection(), Context(100), ForecastAdmission.Admitted, [Batch], "method");
         Assert.Equal(ForecastEvidencePending.Capacity, owner.Count);
-        Assert.Contains(observations, o => o.UnknownReason == "pending_capacity");
+        Assert.Contains(observations, o => Reason(o) == "pending_capacity");
         owner.Review(Scope, 201, null, null);
-        Assert.Contains(observations, o => o.UnknownReason == "fresh_needs_unavailable");
+        Assert.Contains(observations, o => Reason(o) == "fresh_needs_unavailable");
         owner.Review(Scope, 201 + ForecastEvidencePending.ExpiryTicks, null, null);
-        Assert.Equal(0, owner.Count); Assert.Contains(observations, o => o.UnknownReason == "pending_expired");
+        Assert.Equal(0, owner.Count); Assert.Contains(observations, o => Reason(o) == "pending_expired");
     }
     [Fact]
     public void FirstCompletedReadDoesNotInventAnAdmissionBasedLowerBound()
@@ -136,8 +138,8 @@ public sealed class ForecastLiveEvidenceTests
         owner.Capture(Scope, 100, 1, Selection(), Context(100), ForecastAdmission.Admitted, [Batch], "method");
         owner.Tasks(Scope, Batch, Read(160, "completed"));
         var row = Assert.Single(observations, o => o.Key.Metric == ForecastMetric.TaskCompletion);
-        Assert.Equal("completion_lower_bound_unavailable", row.UnknownReason);
-        Assert.False(row.LowerTick.IsKnown); Assert.Equal(ForecastCompletion.Unknown, row.Completion);
+        Assert.Equal("completion_lower_bound_unavailable", Reason(row));
+        Assert.Equal(new ForecastCompletion.CompletedBy(160), row.Completion);
     }
 
     [Fact]
@@ -152,11 +154,11 @@ public sealed class ForecastLiveEvidenceTests
             ForecastAdmission.Admitted, [Batch], "method").Single(p => p.Key.Metric == ForecastMetric.ShelterTemperature);
         ThermalCell Cell(int z) => new(new(1, z), 23d, "roof", false, false, "", false, false, 0, false);
         var observed = context with { Needs = Needs(200), Thermal = CoupledThermalTests.NoThermal with { Cells = [Cell(1), Cell(2)] } };
-        Assert.Equal(23, ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed, ForecastExecution.Unknown).Value.Value);
-        var partial = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Thermal = CoupledThermalTests.NoThermal with { Cells = [Cell(1)] } }, ForecastExecution.Unknown);
-        Assert.Equal("temperature_coverage_incomplete", partial.UnknownReason); Assert.False(partial.Value.IsKnown);
-        var changed = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Shelters = [geometry with { Interior = [new(9, 9)] }] }, ForecastExecution.Unknown);
-        Assert.Equal("shelter_geometry_unobserved", changed.UnknownReason); Assert.False(changed.Value.IsKnown);
+        Assert.Equal(new EvidenceValue.Valued(23), ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed, ForecastExecution.Unconfirmed).Value);
+        var partial = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Thermal = CoupledThermalTests.NoThermal with { Cells = [Cell(1)] } }, ForecastExecution.Unconfirmed);
+        Assert.Equal("temperature_coverage_incomplete", Reason(partial));
+        var changed = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Shelters = [geometry with { Interior = [new(9, 9)] }] }, ForecastExecution.Unconfirmed);
+        Assert.Equal("shelter_geometry_unobserved", Reason(changed));
     }
     [Fact]
     public void OldCompletedRevisionCannotFinishCurrentTaskAndChangedRevisionCannotClaimConsistency()
@@ -171,8 +173,8 @@ public sealed class ForecastLiveEvidenceTests
         owner.Tasks(Scope, revised, Read(130, "started", revision: 2));
         owner.Tasks(Scope, revised, Read(160, "completed", revision: 2));
         var row = Assert.Single(observations, o => o.Key.Metric == ForecastMetric.TaskCompletion);
-        Assert.Equal(ForecastCompletion.Interval, row.Completion);
-        Assert.Equal(ForecastExecution.Unknown, row.Execution);
+        Assert.IsType<ForecastCompletion.Interval>(row.Completion);
+        Assert.Equal(ForecastExecution.Unconfirmed, row.Execution);
     }
 
     [Fact]
@@ -188,7 +190,7 @@ public sealed class ForecastLiveEvidenceTests
         owner.Review(Scope, 200, Needs(200), Context(200));
         var pairs = ForecastResiduals.Compare(predictions, observations).Where(r => r.Prediction.Key.Metric == ForecastMetric.FoodLevel).ToArray();
         Assert.Equal(2, pairs.Length); Assert.NotEqual(pairs[0].Prediction.Key, pairs[1].Prediction.Key);
-        Assert.Equal("tick_rewind", pairs[0].Observation!.UnknownReason); Assert.Null(pairs[0].Scalar);
-        Assert.Equal(.2, pairs[1].Scalar!.Value, 10);
+        Assert.Equal("tick_rewind", Reason(pairs[0].Observation!)); Assert.Null(Scalar(pairs[0]));
+        Assert.Equal(.2, Scalar(pairs[1])!.Value, 10);
     }
 }

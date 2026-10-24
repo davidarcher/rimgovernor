@@ -18,13 +18,17 @@ public static class ForecastResidualReport
             {
                 Metric = s.Metric.ToString(), s.Unit, s.Resource, s.Scope, Cohort = s.Cohort.ToString(),
                 Admission = s.Admission.ToString(), s.Samples, s.Matched, s.Scalars, s.Intervals,
-                s.Mean, s.MeanAbsolute, s.PopulationDeviation, s.MeanLag, s.Reasons,
+                Mean = (s.Moments as ResidualMoments.Measured)?.Mean, MeanAbsolute = (s.Moments as ResidualMoments.Measured)?.MeanAbsolute,
+                PopulationDeviation = (s.Moments as ResidualMoments.Measured)?.PopulationDeviation,
+                MeanLag = (s.Lag as ResidualLag.Mean)?.Ticks, s.Reasons,
             }),
             Rows = rows.Select(r => new
             {
                 Prediction = ForecastEvidenceReader.Fields(r.Prediction),
                 Observation = r.Observation is null ? null : ForecastEvidenceReader.Fields(r.Observation),
-                Cohort = r.Cohort.ToString(), r.Reason, r.Scalar, r.Lower, r.Upper, r.Lag,
+                Cohort = r.Cohort.ToString(), r.Reason, Scalar = (r.Error as ResidualError.Scalar)?.Error,
+                Lower = (r.Error as ResidualError.Interval)?.Lower, Upper = (r.Error as ResidualError.Interval)?.Upper,
+                Lag = r.Observation is { } o ? o.Tick - r.Prediction.TargetTick : (long?)null,
             }),
         };
     }

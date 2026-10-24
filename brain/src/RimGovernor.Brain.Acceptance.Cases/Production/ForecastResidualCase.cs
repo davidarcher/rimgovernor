@@ -61,12 +61,13 @@ internal static class ForecastResidualCase
             s.Record("forecast_residuals", OutputJson.Fields(
                 ("history", "retained_log_window_only"),
                 ("reader_gaps", OutputJson.Array(evidence.Gaps)),
-                ("coverage_gaps", OutputJson.Array(evidence.Predictions.Where(p => !p.Value.IsKnown).Select(p => p.UnknownReason)
-                    .Concat(evidence.Observations.Where(o => !o.Value.IsKnown && o.Completion != ForecastCompletion.Interval).Select(o => o.UnknownReason))
+                ("coverage_gaps", OutputJson.Array(evidence.Predictions.Select(p => p.Value).OfType<EvidenceValue.Unavailable>().Select(v => v.Reason)
+                    .Concat(evidence.Observations.Where(o => o.Completion is not ForecastCompletion.Interval).Select(o => o.Value)
+                        .OfType<EvidenceValue.Unavailable>().Select(v => v.Reason))
                     .Concat(evidence.Predictions.Any(p => p.Key.Metric == ForecastMetric.ShelterTemperature) ? [] : NoShelterPrediction).Distinct())),
                 ("summary", OutputJson.Array(ForecastResiduals.Summarize(residuals), r => OutputJson.Fields(
                     ("metric", r.Metric.ToString()), ("cohort", r.Cohort.ToString()), ("admission", r.Admission.ToString()),
-                    ("samples", r.Samples), ("scalars", r.Scalars), ("intervals", r.Intervals), ("mean_lag", r.MeanLag),
+                    ("samples", r.Samples), ("scalars", r.Scalars), ("intervals", r.Intervals), ("mean_lag", (r.Lag as ResidualLag.Mean)?.Ticks),
                     ("reasons", OutputJson.Array(r.Reasons, reason => OutputJson.Fields(("reason", reason.Key), ("count", reason.Value))))))),
                 ("rows", OutputJson.Array(residuals, r => OutputJson.Fields(
                     ("run", r.Prediction.Key.Run), ("load", r.Prediction.Key.Load), ("map", r.Prediction.Key.Map),
@@ -74,12 +75,14 @@ internal static class ForecastResidualCase
                     ("subject", r.Prediction.Key.Subject), ("scope", r.Prediction.Key.Scope), ("unit", r.Prediction.Key.Unit),
                     ("method", r.Prediction.Key.Method), ("task", r.Prediction.Key.Task), ("revision", r.Prediction.Key.Revision),
                     ("origin_tick", r.Prediction.OriginTick), ("target_tick", r.Prediction.TargetTick), ("observation_tick", r.Observation?.Tick),
-                    ("prediction", r.Prediction.Value.TryGetValue(out var predicted) ? predicted : null),
-                    ("observation", r.Observation?.Value.TryGetValue(out var observed) == true ? observed : null),
-                    ("prediction_unknown", r.Prediction.UnknownReason), ("observation_unknown", r.Observation?.UnknownReason),
-                    ("provenance", r.Observation?.Provenance), ("completion", r.Observation?.Completion.ToString()),
-                    ("cohort", r.Cohort.ToString()), ("reason", r.Reason), ("scalar", r.Scalar),
-                    ("lower_residual", r.Lower), ("upper_residual", r.Upper), ("lag", r.Lag))))));
+                    ("prediction", (r.Prediction.Value as EvidenceValue.Valued)?.Value),
+                    ("observation", (r.Observation?.Value as EvidenceValue.Valued)?.Value),
+                    ("prediction_unknown", (r.Prediction.Value as EvidenceValue.Unavailable)?.Reason ?? ""),
+                    ("observation_unknown", r.Observation is null ? null : (r.Observation.Value as EvidenceValue.Unavailable)?.Reason ?? ""),
+                    ("provenance", r.Observation?.Provenance), ("completion", r.Observation is null ? null : ForecastEvidenceReader.CompletionName(r.Observation.Completion)),
+                    ("cohort", r.Cohort.ToString()), ("reason", r.Reason), ("scalar", (r.Error as ResidualError.Scalar)?.Error),
+                    ("lower_residual", (r.Error as ResidualError.Interval)?.Lower), ("upper_residual", (r.Error as ResidualError.Interval)?.Upper),
+                    ("lag", r.Observation is { } o ? o.Tick - r.Prediction.TargetTick : (long?)null))))));
             var lastTick = evidence.Observations.Select(o => o.Tick).Concat(evidence.Predictions.Select(p => p.OriginTick)).DefaultIfEmpty().Max();
             return Task.FromResult((lastTick.ToString(CultureInfo.InvariantCulture), Complete(residuals)));
         }, cancellationToken).ConfigureAwait(false);
@@ -87,7 +90,7 @@ internal static class ForecastResidualCase
 
     internal static bool Complete(IReadOnlyList<ForecastResidual> rows) =>
         new[] { ForecastMetric.FoodStock, ForecastMetric.FoodLevel, ForecastMetric.RestLevel, ForecastMetric.Mood }.All(metric =>
-            rows.Any(r => r.Prediction.Key.Metric == metric && r.Observation is { Value.IsKnown: true, Provenance: "rounds_native_observation" }
+            rows.Any(r => r.Prediction.Key.Metric == metric && r.Observation is { Value: EvidenceValue.Valued, Provenance: "rounds_native_observation" }
                 && r.Reason is "aligned" or "tick_mismatch"))
         && rows.Any(r => r.Prediction.Key.Metric == ForecastMetric.TaskCompletion
             && r.Observation?.Provenance == "native_task_read" && r.Reason is "interval" or "aligned");

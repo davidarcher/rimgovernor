@@ -352,9 +352,10 @@ identity through generic JSON-number readers. The enum spelling below is exact.
 - `metric`: `FoodStock`, `FoodLevel`, `RestLevel`, `Mood`,
   `ShelterTemperature`, `TaskCompletion`.
 - `admission`: `Selected`, `Admitted`, `Continued`, `Refused`, `Counterfactual`.
-- `execution`: `Unknown`, `Consistent`, `Interrupted`, `Replaced`, `NotExecuted`.
+- `execution`: `Unconfirmed`, `Consistent`, `Interrupted`, `Replaced`, `NotExecuted`.
 - `completion`: `NotApplicable` for state metrics; `Exact`, `Interval`,
-  `Unfinished`, or `Unknown` for tasks.
+  `CompletedBy` (completed with no earlier unfinished read; `upper_tick` only),
+  `Unfinished`, or `Unobserved` for tasks.
 
 `value` is a finite number or absent/null with a nonempty `unknown_reason`.
 Unknown never means zero. For a task, predicted/exact observed values are absolute

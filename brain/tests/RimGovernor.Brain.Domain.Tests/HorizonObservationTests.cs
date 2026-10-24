@@ -55,10 +55,9 @@ public sealed class HorizonObservationTests
         ForecastResidual Row(ForecastMetric metric)
         {
             var key = new ForecastEvidenceKey("run", "load", "map", "review", metric.ToString(), metric, "pawn", "scope", "level", "method", "task", 1);
-            var prediction = new ForecastPrediction(key, 0, 60000, Fact.Known(metric == ForecastMetric.TaskCompletion ? 100d : .5), "", ForecastAdmission.Admitted);
-            var observation = new ForecastObservation(key, 60100, Fact.Known(.6), "", ForecastExecution.Unknown,
-                metric == ForecastMetric.TaskCompletion ? ForecastCompletion.Interval : ForecastCompletion.NotApplicable,
-                Fact.Known(90d), Fact.Known(120d), metric == ForecastMetric.TaskCompletion ? "native_task_read" : "rounds_native_observation");
+            var prediction = new ForecastPrediction(key, 0, 60000, new EvidenceValue.Valued(metric == ForecastMetric.TaskCompletion ? 100d : .5), ForecastAdmission.Admitted);
+            var observation = new ForecastObservation(key, 60100, new EvidenceValue.Valued(.6), ForecastExecution.Unconfirmed,
+                metric == ForecastMetric.TaskCompletion ? new ForecastCompletion.Interval(90, 120) : new ForecastCompletion.NotApplicable(), metric == ForecastMetric.TaskCompletion ? "native_task_read" : "rounds_native_observation");
             return ForecastResiduals.Match(prediction, observation);
         }
         var rows = new[] { ForecastMetric.FoodStock, ForecastMetric.FoodLevel, ForecastMetric.RestLevel, ForecastMetric.Mood, ForecastMetric.TaskCompletion }.Select(Row).ToArray();
