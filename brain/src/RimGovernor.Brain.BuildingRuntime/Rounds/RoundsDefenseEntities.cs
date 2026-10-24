@@ -58,7 +58,7 @@ partial class RoundsDefensePlanner
             {
                 continue;
             }
-            if (AnomalyFactsRules.PawnAnomaly(detail.Anomaly).TryGetValue(out var a) && RoundsBuildingPlanner.PositiveFact(a.Entity))
+            if (detail.Anomaly is RimGovernor.Contracts.Wire.Observations.PawnAnomalyState.Active { Facts.Entity: true })
             {
                 output.Add(row);
             }

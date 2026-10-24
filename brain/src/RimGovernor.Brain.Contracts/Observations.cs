@@ -285,8 +285,6 @@ public enum FoodEaterKind
 [JsonConverter(typeof(WireEnumConverter<EntityContainmentModeKind>))]
 public enum EntityContainmentModeKind
 {
-    [WireName("ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY")]
     MaintainOnly = 1,
     [WireName("ENTITY_CONTAINMENT_MODE_KIND_STUDY")]
@@ -6598,9 +6596,9 @@ public sealed record ColonyFactsSnapshot
     public required BiotechSection? Biotech { get; init; }
 
     /// <summary>
-    /// Anomaly containment, knowledge and incident state; null without Anomaly.
+    /// Anomaly incident and monolith state, or inactive without Anomaly.
     /// </summary>
-    public required AnomalySection? Anomaly { get; init; }
+    public required AnomalySection Anomaly { get; init; }
 
     /// <summary>
     /// Royalty neuroformer stock, bestowing ceremonies and thrones, or inactive without Royalty.
@@ -6615,176 +6613,79 @@ public sealed record ColonyFactsSnapshot
 }
 
 /// <summary>
-/// Anomaly colony facts, a keyed colony section. Per-thing
-/// state (an entity's hold and study, a platform's containment strength)
-/// rides the pawn and building rows; this section carries what no
-/// row holds. A scalar absent is unknown, never zero.
-/// knowledge: one row per KnowledgeCategoryDef. codex: one row per
-/// EntityCategoryDef; discovered_entries are the EntityCodexEntryDef names
-/// the colony has discovered. held_entities: each pawn a holding
-/// platform holds on the colony map, by id, joining the pawn and building
-/// rows. holding_platform_available: StudyUtility.HoldingPlatformAvailableOnCurrentMap.
+/// The Anomaly colony section: the colony facts, or <see cref="Inactive"/> without Anomaly. Per-thing state (an
+/// entity's hold and study, a platform's containment strength) rides the pawn and building rows; this section carries
+/// what no row holds. A failed read fails the colony read.
 /// </summary>
-public sealed record AnomalySection
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AnomalySection.Active), "active")]
+[JsonDerivedType(typeof(AnomalySection.Inactive), "inactive")]
+public abstract record AnomalySection
 {
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public AnomalyColonyFacts? Observed { get; init; }
+    private protected AnomalySection() { }
+
+    public sealed record Active(AnomalyColonyFacts Facts) : AnomalySection;
+
+    public sealed record Inactive : AnomalySection;
 }
 
+/// <summary>GameComponent_Anomaly's level state and the void monolith (null unless it is spawned).</summary>
 public sealed record AnomalyColonyFacts
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<KnowledgeProgress>))]
-    public EquatableArray<KnowledgeProgress> Knowledge { get; init; }
+    public required AnomalyIncidentState Incidents { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CodexProgress>))]
-    public EquatableArray<CodexProgress> Codex { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> DiscoveredEntries { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HeldEntity>))]
-    public EquatableArray<HeldEntity> HeldEntities { get; init; }
-
-    public bool? HoldingPlatformAvailable { get; init; }
-
-    public AnomalyIncidentState? Incidents { get; init; }
-
-    public MonolithState? Monolith { get; init; }
+    public required MonolithState? Monolith { get; init; }
 }
 
 /// <summary>
-/// current_project is the ResearchProjectDef the research manager funds from
-/// this category (absent when none is set); knowledge the amount stored for
-/// it (ResearchManager.GetKnowledge); projects_available whether any project
-/// of the category can still be researched.
-/// </summary>
-public sealed record KnowledgeProgress
-{
-    public string? Category { get; init; }
-
-    public string? CurrentProject { get; init; }
-
-    public double? Knowledge { get; init; }
-
-    public bool? ProjectsAvailable { get; init; }
-}
-
-/// <summary>
-/// entries: the codex entries in the category, discovered: those discovered.
-/// </summary>
-public sealed record CodexProgress
-{
-    public string? Category { get; init; }
-
-    public uint? Entries { get; init; }
-
-    public uint? Discovered { get; init; }
-}
-
-public sealed record HeldEntity
-{
-    public string? PawnId { get; init; }
-
-    public string? PlatformId { get; init; }
-}
-
-/// <summary>
-/// GameComponent_Anomaly: the state that gates and times the Anomaly
-/// threats. level_def and level are the monolith's current MonolithLevelDef
-/// and its number; highest_level_reached the highest it has reached.
-/// anomaly_threat_fraction_now is the share of threat points the game
-/// currently gives Anomaly incidents. awoken_corpse_active: an unnatural
-/// corpse has awoken; metalhorror_implant_possible: the game would allow a
-/// new metalhorror biosignature implant now.
+/// GameComponent_Anomaly: the state that gates the monolith. monolith_spawned is MonolithSpawned, level the
+/// monolith's current level number and ambient_horror_mode AmbientHorrorMode (the Anomaly threats run without the
+/// monolith).
 /// </summary>
 public sealed record AnomalyIncidentState
 {
-    public bool? MonolithSpawned { get; init; }
+    public required bool MonolithSpawned { get; init; }
 
-    public string? LevelDef { get; init; }
+    public required int Level { get; init; }
 
-    public int? Level { get; init; }
-
-    public int? HighestLevelReached { get; init; }
-
-    public bool? QuestlineEnded { get; init; }
-
-    public int? TicksSinceLevelChange { get; init; }
-
-    public bool? AmbientHorrorMode { get; init; }
-
-    public bool? AnomalyStudyEnabled { get; init; }
-
-    public double? AnomalyThreatFractionNow { get; init; }
-
-    public bool? VoidAwakeningActive { get; init; }
-
-    public bool? AwokenCorpseActive { get; init; }
-
-    public bool? MetalhorrorImplantPossible { get; init; }
+    public required bool AmbientHorrorMode { get; init; }
 }
 
 /// <summary>
-/// The void monolith and the endgame it gates, present only while the
-/// monolith is spawned (absent otherwise: unknown). can_activate is
-/// Building_VoidMonolith.CanActivate. next_level_def is
-/// GameComponent_Anomaly.NextLevelDef (absent when the current level does not
-/// advance through activation or none follows); next_level_codex_category and
-/// next_level_codex_required are that def's entityCatagoryCompletionRequired and
-/// entityCountCompletionRequired (both absent when it requires none), and
-/// codex_shortfall the entries still undiscovered in that category (0 when met;
-/// present with them). blocking_conditions are the active GameConditionDef names
-/// on the monolith's map that the next level lists as unreachableDuringConditions
-/// (UnnaturalDarkness blocks VoidAwakened). gleaming_interaction_available is
-/// CompGleamingMonolith.CanInteract() (true only at the Gleaming level).
-/// void_structures counts the spawned VoidStructure things on the monolith's map
-/// and void_structures_activated those whose CompVoidStructure is active.
-/// void_node_exists: a VoidNode thing is spawned on any loaded map (the node
-/// stands in the metal hell pocket map once the Gleaming monolith is used).
-/// void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
-/// structure spawned yet, else one more than the highest stageStructure.N quest
-/// tag on a spawned structure; absent when the quest is not running.
-/// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets.
-/// pending_void_structure_ids are the spawned VoidStructures on the
-/// monolith's map whose CompInteractable.CanInteract() accepts (not yet
-/// activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts
-/// and void_node_pawn_ids the free colonists spawned on the node's map (the
-/// pawn skipped into the pocket map), sorted.
+/// The void monolith and the endgame it gates, read only while the monolith is spawned. can_activate is
+/// Building_VoidMonolith.CanActivate. next_level_def is GameComponent_Anomaly.NextLevelDef (null when the current
+/// level does not advance through activation or none follows); codex_shortfall the entries of the next level's
+/// entityCatagoryCompletionRequired still undiscovered (0 when met or when it requires none). blocking_conditions are
+/// the active GameConditionDef names on the monolith's map that the next level lists as unreachableDuringConditions
+/// (UnnaturalDarkness blocks VoidAwakened). gleaming_interaction_available is CompGleamingMonolith.CanInteract() (true
+/// only at the Gleaming level). monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets.
+/// pending_void_structure_ids are the spawned VoidStructures on the monolith's map whose CompInteractable.CanInteract()
+/// accepts (not yet activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts (null for none) and
+/// void_node_pawn_ids the free colonists spawned on the node's map (the pawn skipped into the pocket map) that can
+/// touch it, sorted.
 /// </summary>
 public sealed record MonolithState
 {
-    public string? MonolithId { get; init; }
+    public required string MonolithId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PendingVoidStructureIds { get; init; }
+    public required EquatableArray<string> PendingVoidStructureIds { get; init; }
 
-    public string? VoidNodeId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> VoidNodePawnIds { get; init; }
-
-    public bool? CanActivate { get; init; }
-
-    public string? NextLevelDef { get; init; }
-
-    public string? NextLevelCodexCategory { get; init; }
-
-    public uint? NextLevelCodexRequired { get; init; }
-
-    public uint? CodexShortfall { get; init; }
+    public required string? VoidNodeId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> BlockingConditions { get; init; }
+    public required EquatableArray<string> VoidNodePawnIds { get; init; }
 
-    public bool? GleamingInteractionAvailable { get; init; }
+    public required bool CanActivate { get; init; }
 
-    public uint? VoidStructures { get; init; }
+    public required string? NextLevelDef { get; init; }
 
-    public uint? VoidStructuresActivated { get; init; }
+    public required int CodexShortfall { get; init; }
 
-    public bool? VoidNodeExists { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> BlockingConditions { get; init; }
 
-    public int? VoidAwakeningStage { get; init; }
+    public required bool GleamingInteractionAvailable { get; init; }
 }
 
 /// <summary>
@@ -7737,53 +7638,43 @@ public sealed record IdeoThingCount(string Def, int Count);
 
 
 /// <summary>
-/// Anomaly facts of one pawn row. entity is Pawn.IsEntity, mutant
-/// Pawn.IsMutant and shambler Pawn.IsShambler (hostility is PawnState.hostile).
-/// min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
-/// held is set for a pawn with a CompHoldingPlatformTarget, study for one with
-/// a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
-/// block absent and adds a ReadIssue named entity, held or study; a failed threat fact is absent with a ReadIssue named for it.
-/// Threat facts for defense tactics, the combat group: hidden_from_player
-/// is InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the
-/// pawn); psychic_ritual_invoker is a pawn whose role in its lord's psychic ritual
-/// is the ritual def's invoker role (the caster); melee_only is a pawn whose
-/// CurrentEffectiveVerb is a melee attack and who has no ability its def marks
-/// ai_IsOffensive.
+/// Anomaly facts of one pawn row. entity is Pawn.IsEntity and mutant Pawn.IsMutant (hostility is PawnState.hostile).
+/// min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength. held is the pawn's
+/// CompHoldingPlatformTarget block (null for a pawn without one), study its CompStudiable block (null for a pawn
+/// without one) and creepjoiner its creepjoiner tracker block (null for a pawn without one). A failed read fails
+/// the pawn read. Threat facts for defense tactics, the combat group: hidden_from_player is
+/// InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the pawn); psychic_ritual_invoker is a pawn
+/// whose role in its lord's psychic ritual is the ritual def's invoker role (the caster); melee_only is a pawn whose
+/// CurrentEffectiveVerb is a melee attack and who has no ability its def marks ai_IsOffensive.
 /// </summary>
 public sealed record PawnAnomaly
 {
-    public bool? Entity { get; init; }
+    public required bool Entity { get; init; }
 
-    public bool? Mutant { get; init; }
+    public required bool Mutant { get; init; }
 
-    public double? MinContainmentStrength { get; init; }
+    public required double MinContainmentStrength { get; init; }
 
-    public HeldState? Held { get; init; }
+    public required HeldState? Held { get; init; }
 
-    public StudyState? Study { get; init; }
+    public required StudyState? Study { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public required bool HiddenFromPlayer { get; init; }
 
-    public bool? HiddenFromPlayer { get; init; }
+    public required bool PsychicRitualInvoker { get; init; }
 
-    public bool? PsychicRitualInvoker { get; init; }
+    public required bool MeleeOnly { get; init; }
 
-    public bool? MeleeOnly { get; init; }
-
-    public CreepJoinerState? Creepjoiner { get; init; }
+    public required CreepJoinerState? Creepjoiner { get; init; }
 }
 
 /// <summary>
-/// A creepjoiner's facts, set for a pawn with a creepjoiner tracker
-/// (a failed read leaves it absent with a ReadIssue named creepjoiner).
-/// downside_triggered is the tracker's
-/// triggeredDownside, true once the game has shown the downside; the downside
-/// def itself is hidden information and is never read.
+/// A creepjoiner's facts. downside_triggered is the tracker's triggeredDownside, true once the game has shown the
+/// downside; the downside def itself is hidden information and is never read.
 /// </summary>
 public sealed record CreepJoinerState
 {
-    public bool? DownsideTriggered { get; init; }
+    public required bool DownsideTriggered { get; init; }
 }
 
 /// <summary>
@@ -7792,34 +7683,34 @@ public sealed record CreepJoinerState
 /// game lets the player capture it. needs_tend is Pawn.health
 /// HasHediffsNeedingTend and bleeding a positive BleedRateTotal: a
 /// held entity is tended like any patient or bleeds out. harvester_attached is
-/// Building_HoldingPlatform.HasAttachedBioferriteHarvester (a powered harvester
-/// linked to the platform, which forces extract_bioferrite false) and
+/// Building_HoldingPlatform.HasAttachedBioferriteHarvester of the platform holding it (false off a platform: a
+/// powered harvester linked to the platform forces extract_bioferrite false) and
 /// bioferrite_per_day CompProducesBioferrite.BioferritePerDay: body size
 /// times the comp's density, 0 for an entity that produces none and while the
 /// BioferriteExtracted hediff stands (8 days after an extraction).
 /// </summary>
 public sealed record HeldState
 {
-    public bool? Held { get; init; }
+    public required bool Held { get; init; }
 
-    public EntityContainmentModeKind? Mode { get; init; }
+    public required EntityContainmentModeKind Mode { get; init; }
 
-    public bool? Escaping { get; init; }
+    public required bool Escaping { get; init; }
 
-    public bool? ExtractBioferrite { get; init; }
+    public required bool ExtractBioferrite { get; init; }
 
-    public bool? CanBeCaptured { get; init; }
+    public required bool CanBeCaptured { get; init; }
 
-    public bool? NeedsTend { get; init; }
+    public required bool NeedsTend { get; init; }
 
-    public bool? Bleeding { get; init; }
+    public required bool Bleeding { get; init; }
 
-    public bool? HarvesterAttached { get; init; }
+    public required bool HarvesterAttached { get; init; }
 
-    public double? BioferritePerDay { get; init; }
+    public required double BioferritePerDay { get; init; }
 
     /// <summary>The ContainmentUtility.InitiateEscapeMtbDays inputs (#3811), read with the rest of the block.</summary>
-    public EntityEscapeState? Escape { get; init; }
+    public required EntityEscapeState Escape { get; init; }
 }
 
 /// <summary>
@@ -7831,80 +7722,74 @@ public sealed record HeldState
 /// </summary>
 public sealed record EntityEscapeState
 {
-    public double BaseMtbDays { get; init; }
+    public required double BaseMtbDays { get; init; }
 
-    public double MovingFactor { get; init; }
+    public required double MovingFactor { get; init; }
 
-    public double DaysInCaptivity { get; init; }
+    public required double DaysInCaptivity { get; init; }
 
-    public double ColdFactor { get; init; }
+    public required double ColdFactor { get; init; }
 
-    public double CombatPower { get; init; }
+    public required double CombatPower { get; init; }
 
-    public bool CanEscape { get; init; }
+    public required bool CanEscape { get; init; }
 }
 
 /// <summary>
-/// CompStudiable: completed, the study interactions so far and whether the
-/// thing can be studied now.
+/// CompStudiable: whether the thing can be studied now and what one study gives.
 /// </summary>
 public sealed record StudyState
 {
-    public bool? CurrentlyStudiable { get; init; }
+    public required bool CurrentlyStudiable { get; init; }
 
     /// <summary>What one study gives (#3811), read with the rest of the block.</summary>
-    public StudyYieldState? Yield { get; init; }
+    public required StudyYieldState Yield { get; init; }
 }
 
 /// <summary>
 /// A study's yield (#3811): knowledge is CompStudiable.AnomalyKnowledge (before the containment strength
-/// curve and the ÷ 5 per study), category its KnowledgeCategory's defName ("" none) and frequency_ticks
+/// curve and the ÷ 5 per study), category its KnowledgeCategory's defName (null for none) and frequency_ticks
 /// Props.frequencyTicks, the least interval between studies.
 /// </summary>
 public sealed record StudyYieldState
 {
-    public double Knowledge { get; init; }
+    public required double Knowledge { get; init; }
 
-    public string Category { get; init; } = "";
+    public required string? Category { get; init; }
 
-    public int FrequencyTicks { get; init; }
+    public required int FrequencyTicks { get; init; }
 }
 
 /// <summary>
-/// Anomaly facts of one building row: holder is a CompEntityHolder
-/// (a holding platform). A failed sub-read leaves its block absent and adds
-/// a ReadIssue named holder or doors.
+/// Anomaly facts of one building row: holder is its CompEntityHolder (a holding platform). A building that is no
+/// entity holder, or any building without Anomaly, has no block (BuildingState.anomaly is null).
 /// </summary>
 public sealed record AnomalyBuilding
 {
-    public EntityHolderState? Holder { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public required EntityHolderState Holder { get; init; }
 }
 
 /// <summary>
 /// CompEntityHolder: containment_strength is the strength the holder's room
 /// provides now (CompEntityHolder.ContainmentStrength), available whether it can take
-/// a pawn, held_pawn the pawn it holds. doors are the Building_Door things the
+/// a pawn, held_pawn the pawn it holds (null for none). doors are the Building_Door things the
 /// game counts for the holder's room (StatWorker_ContainmentStrength
-/// CalculateDoorStats: the doors in its boundary), read in their own try: a
-/// failed read leaves them empty with a ReadIssue named doors.
+/// CalculateDoorStats: the doors in its boundary; none for a holder in no room or an outdoors one).
 /// </summary>
 public sealed record EntityHolderState
 {
-    public double? ContainmentStrength { get; init; }
+    public required double ContainmentStrength { get; init; }
 
-    public bool? Available { get; init; }
+    public required bool Available { get; init; }
 
-    public Common.Ref? HeldPawn { get; init; }
+    public required Common.Ref? HeldPawn { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<AnomalyDoor>))]
-    public EquatableArray<AnomalyDoor> Doors { get; init; }
+    public required EquatableArray<AnomalyDoor> Doors { get; init; }
 }
 
 /// <summary>
-/// One door of a holder's room: its cell, Building_Door.Open and HoldOpen,
+/// One door of a holder's room: its cell, Building_Door.HoldOpen,
 /// ContainmentBreached (open for 600 or more ticks, Building_Door
 /// TicksOpenToBreach, which zeroes the room's door strength) and
 /// BlockedOpenMomentary (a thing or pawn stands in the doorway, or the door is
@@ -7912,13 +7797,13 @@ public sealed record EntityHolderState
 /// </summary>
 public sealed record AnomalyDoor
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool? HoldOpen { get; init; }
+    public required bool HoldOpen { get; init; }
 
-    public bool? ContainmentBreached { get; init; }
+    public required bool ContainmentBreached { get; init; }
 
-    public bool? BlockedOpen { get; init; }
+    public required bool BlockedOpen { get; init; }
 }
 
 public sealed record DefinitionCatalogRequest

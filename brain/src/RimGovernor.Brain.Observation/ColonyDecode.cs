@@ -208,7 +208,6 @@ public static class ColonyDecodeReads
         r = r with
         {
             Biotech = BiotechColonyReads.ColonyBiotech(v.Biotech),
-            Anomaly = AnomalyColonyReads.ColonyAnomaly(v.Anomaly),
         };
         // No eligible indoor bed (SleepingTemperature.NoIndoorBed) leaves the rounds' indoor sleeping range unknown.
         var (indoor, sleepingMin, sleepingMax) = v.SleepingTemperature is O.SleepingTemperature.Indoor(var min, var max) ? (true, min, max) : (false, 0d, 0d);
@@ -236,7 +235,7 @@ public static class ColonyDecodeReads
             DaysPassed = Known(r.Threat.DaysPassed),
             Wealth = Known(new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal)),
             Disease = r.Threat.Disease,
-            Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
+            Monolith = AnomalyColonyReads.MonolithFacts(v.Anomaly),
         };
         r = r with { Raids = DefenseSiteRules.DecodeRaidTracks(r.Threat.Raids) };
         f = f with { PenGrazing = Known(r.FoodChannels.Grazing), Pasture = Known(r.FoodChannels.Pasture) };

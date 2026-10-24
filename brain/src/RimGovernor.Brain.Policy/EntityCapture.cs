@@ -37,7 +37,7 @@ public sealed record CapturableEntity
     public Fact<bool> CurrentlyStudiable { get; init; }
 
     /// <summary>The held entity's bioferrite harvest fact.</summary>
-    public Fact<ContainmentMode> Mode { get; init; }
+    public Fact<EntityContainmentModeKind> Mode { get; init; }
 
     /// <summary>The held entity's bioferrite harvest fact.</summary>
     public Fact<bool> ExtractBioferrite { get; init; }

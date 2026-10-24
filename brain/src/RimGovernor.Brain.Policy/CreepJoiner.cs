@@ -26,7 +26,7 @@ public sealed record CreepJoinerDownsides
         {
             return Unknown<bool>();
         }
-        if (joiner.DownsideTriggered.TryGetValue(out var triggered) && triggered)
+        if (joiner.DownsideTriggered)
         {
             return Known(true);
         }
@@ -36,7 +36,7 @@ public sealed record CreepJoinerDownsides
         {
             return Known(true);
         }
-        if (!joiner.DownsideTriggered.IsKnown || !tk || !hk)
+        if (!tk || !hk)
         {
             return Unknown<bool>();
         }
@@ -278,7 +278,7 @@ public sealed record CreepJoinerDownsides
 /// </summary>
 public sealed record CreepJoinerPawn
 {
-    public Fact<CreepJoiner?> CreepJoiner { get; init; }
+    public Fact<CreepJoinerState?> CreepJoiner { get; init; }
 
     public Fact<EquatableArray<string>> Traits { get; init; }
 

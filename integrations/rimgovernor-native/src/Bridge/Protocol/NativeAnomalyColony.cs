@@ -1,113 +1,70 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Anomaly colony facts: the knowledge the research manager holds
-    // per category, codex discovery, the entities held on the colony map and
-    // the GameComponent_Anomaly state that gates and times Anomaly threats.
-    // Per-thing facts ride the pawn and building rows (NativeAnomalyFacts).
-    // Every verdict is the game's own; the section is absent without Anomaly.
+    // Anomaly colony facts: the GameComponent_Anomaly level state and the
+    // void monolith it gates. Per-thing facts ride the pawn and building rows
+    // (NativeAnomalyFacts). Every verdict is the game's own; the section is
+    // inactive without Anomaly, and a failed read throws and fails the colony
+    // read.
     internal static class NativeAnomalyColony
     {
-        private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
-        private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
-
-        internal static Obs.AnomalySection? Read(Map map)
+        internal static Obs.AnomalySection Read()
         {
-            if (!ModsConfig.AnomalyActive) return null;
-            try {
-                var facts = new Obs.AnomalyColonyFacts();
-                var research = Find.ResearchManager;
-                foreach (var category in DefDatabase<KnowledgeCategoryDef>.AllDefsListForReading.Where(d => Id(d.defName) != null).OrderBy(d => d.defName, StringComparer.Ordinal)) {
-                    var row = new Obs.KnowledgeProgress { Category = category.defName, ProjectsAvailable = research.AnyProjectsAvailableWithKnowledgeCategory(category) };
-                    if (research.GetProject(category) is ResearchProjectDef project) {
-                        row = row with { CurrentProject = Id(project.defName) };
-                        var knowledge = research.GetKnowledge(project);
-                        if (Finite(knowledge)) row = row with { Knowledge = knowledge };
-                    }
-                    facts = facts with { Knowledge = [.. facts.Knowledge, row] };
-                }
-                var codex = Find.EntityCodex;
-                foreach (var category in DefDatabase<EntityCategoryDef>.AllDefsListForReading.Where(d => Id(d.defName) != null).OrderBy(d => d.defName, StringComparer.Ordinal))
-                    facts = facts with { Codex = [.. facts.Codex, new Obs.CodexProgress { Category = category.defName, Entries = (uint)EntityCodex.EntryCountInCategory(category), Discovered = (uint)codex.DiscoveredCount(category) }] };
-                foreach (var entry in DefDatabase<EntityCodexEntryDef>.AllDefsListForReading.Where(d => Id(d.defName) != null && codex.Discovered(d)).OrderBy(d => d.defName, StringComparer.Ordinal))
-                    facts = facts with { DiscoveredEntries = [.. facts.DiscoveredEntries, entry.defName] };
-                foreach (var building in map.listerBuildings.allBuildingsColonist.OrderBy(b => b.thingIDNumber))
-                    if (building.GetComp<CompEntityHolder>()?.HeldPawn is Pawn held)
-                        facts = facts with { HeldEntities = [.. facts.HeldEntities, new Obs.HeldEntity { PawnId = Id(held.GetUniqueLoadID()), PlatformId = Id(building.GetUniqueLoadID()) }] };
-                facts = facts with { HoldingPlatformAvailable = StudyUtility.HoldingPlatformAvailableOnCurrentMap() };
-                facts = facts with { Incidents = Incidents(Find.Anomaly) };
-                facts = facts with { Monolith = Monolith(Find.Anomaly) };
-                return new Obs.AnomalySection { Observed = facts };
-            } catch (Exception ex) {
-                ReadFailureLog.Note("anomaly", ex);
-                return new Obs.AnomalySection();
-            }
+            if (!ModsConfig.AnomalyActive) return new Obs.AnomalySection.Inactive();
+            var anomaly = Find.Anomaly;
+            return new Obs.AnomalySection.Active(new Obs.AnomalyColonyFacts
+            {
+                Incidents = new Obs.AnomalyIncidentState { MonolithSpawned = anomaly.MonolithSpawned, Level = anomaly.Level, AmbientHorrorMode = anomaly.AmbientHorrorMode },
+                Monolith = Monolith(anomaly),
+            });
         }
 
-        // The monolith and the endgame it gates; null (unknown) unless
-        // it is spawned. Every verdict is the game's own: CanActivate, the next
-        // level def's requirement, the Gleaming comp's CanInteract and the
-        // spawned void things on the monolith's map. The block reasons repeat
-        // CanActivate's two checks so a consumer reads which one holds.
+        // The monolith and the endgame it gates; null unless it is spawned.
+        // Every verdict is the game's own: CanActivate, the next level def's
+        // requirement, the Gleaming comp's CanInteract and the spawned void
+        // things on the monolith's map.
         private static Obs.MonolithState? Monolith(GameComponent_Anomaly anomaly)
         {
             if (!anomaly.MonolithSpawned || anomaly.monolith is not Building_VoidMonolith monolith || monolith.Map is not Map map) return null;
-            var row = new Obs.MonolithState { CanActivate = monolith.CanActivate(out _, out _) };
-            if (Id(monolith.GetUniqueLoadID()) is string monolithId) row = row with { MonolithId = monolithId };
-            if (anomaly.NextLevelDef is MonolithLevelDef next) {
-                if (Id(next.defName) is string name) row = row with { NextLevelDef = name };
-                if (next.entityCatagoryCompletionRequired is EntityCategoryDef category && Id(category.defName) is string categoryName) {
-                    row = row with { NextLevelCodexCategory = categoryName };
-                    row = row with { NextLevelCodexRequired = (uint)Math.Max(0, next.entityCountCompletionRequired) };
-                    row = row with { CodexShortfall = (uint)Math.Max(0, next.entityCountCompletionRequired - Find.EntityCodex.DiscoveredCount(category)) };
-                }
-                if (next.unreachableDuringConditions != null)
-                    foreach (var condition in map.GameConditionManager.ActiveConditions.Select(c => c.def).Distinct().Where(next.unreachableDuringConditions.Contains).OrderBy(d => d.defName, StringComparer.Ordinal))
-                        if (Id(condition.defName) is string conditionName) row = row with { BlockingConditions = [.. row.BlockingConditions, conditionName] };
-            }
-            row = row with { GleamingInteractionAvailable = monolith.GetComp<CompGleamingMonolith>()?.CanInteract().Accepted ?? false };
+            var next = anomaly.NextLevelDef;
             var structures = map.listerThings.ThingsOfDef(ThingDefOf.VoidStructure);
-            row = row with { VoidStructures = (uint)structures.Count };
-            row = row with { VoidStructuresActivated = (uint)structures.Count(t => t.TryGetComp<CompVoidStructure>()?.Active ?? false) };
-            foreach (var structure in structures.OrderBy(t => t.thingIDNumber))
-                if (structure.TryGetComp<CompVoidStructure>()?.CanInteract().Accepted == true && Id(structure.GetUniqueLoadID()) is string structureId) row = row with { PendingVoidStructureIds = [.. row.PendingVoidStructureIds, structureId] };
             // The node stands on the pocket map the Gleaming monolith skips a pawn into, so every loaded map is searched.
             var node = Find.Maps.SelectMany(m => m.listerThings.ThingsOfDef(ThingDefOf.VoidNode)).OrderBy(t => t.thingIDNumber).FirstOrDefault();
-            row = row with { VoidNodeExists = node != null };
-            if (node?.TryGetComp<CompVoidNode>() is CompVoidNode nodeComp && node.Map is Map nodeMap && nodeComp.CanInteract().Accepted && Id(node.GetUniqueLoadID()) is string nodeId) {
-                row = row with { VoidNodeId = nodeId };
-                foreach (var pawn in nodeMap.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
-                    if (nodeComp.CanInteract(pawn).Accepted && Id(pawn.GetUniqueLoadID()) is string pawnId) row = row with { VoidNodePawnIds = [.. row.VoidNodePawnIds, pawnId] };
-            }
-            var quest = Find.QuestManager.questsInDisplayOrder.FirstOrDefault(q => !q.Historical && q.root == QuestScriptDefOf.EndGame_VoidAwakening);
-            if (quest != null) {
-                var prefix = "Quest" + quest.id + ".";
-                var stage = 0;
-                foreach (var tag in structures.Where(t => t.questTags != null).SelectMany(t => t.questTags))
-                    if (tag.StartsWith(prefix, StringComparison.Ordinal) && Regex.Match(tag, @"\.stageStructure\.(\d+)") is { Success: true } m && int.TryParse(m.Groups[1].Value, out var index))
-                        stage = Math.Max(stage, index + 1);
-                row = row with { VoidAwakeningStage = stage };
-            }
-            return row;
+            var nodeComp = node?.TryGetComp<CompVoidNode>();
+            var touchable = node != null && nodeComp != null && node.Map != null && nodeComp.CanInteract().Accepted;
+            return new Obs.MonolithState
+            {
+                MonolithId = monolith.GetUniqueLoadID(),
+                CanActivate = monolith.CanActivate(out _, out _),
+                NextLevelDef = next?.defName,
+                CodexShortfall = next?.entityCatagoryCompletionRequired is EntityCategoryDef category
+                    ? Math.Max(0, next.entityCountCompletionRequired - Find.EntityCodex.DiscoveredCount(category))
+                    : 0,
+                BlockingConditions = [.. Blocking(map, next)],
+                GleamingInteractionAvailable = monolith.GetComp<CompGleamingMonolith>()?.CanInteract().Accepted ?? false,
+                PendingVoidStructureIds = [.. structures.OrderBy(t => t.thingIDNumber)
+                    .Where(t => t.TryGetComp<CompVoidStructure>()?.CanInteract().Accepted == true).Select(t => t.GetUniqueLoadID())],
+                VoidNodeId = touchable ? node!.GetUniqueLoadID() : null,
+                VoidNodePawnIds = touchable
+                    ? [.. node!.Map!.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Where(p => nodeComp!.CanInteract(p).Accepted).Select(p => p.GetUniqueLoadID())]
+                    : [],
+            };
         }
 
-        private static Obs.AnomalyIncidentState Incidents(GameComponent_Anomaly anomaly)
+        // The active conditions on the monolith's map that the next level
+        // lists as unreachableDuringConditions, sorted.
+        private static IEnumerable<string> Blocking(Map map, MonolithLevelDef? next)
         {
-            var row = new Obs.AnomalyIncidentState { MonolithSpawned = anomaly.MonolithSpawned, Level = anomaly.Level, HighestLevelReached = anomaly.HighestLevelReached,
-                QuestlineEnded = anomaly.QuestlineEnded, TicksSinceLevelChange = anomaly.TicksSinceLastLevelChange, AmbientHorrorMode = anomaly.AmbientHorrorMode,
-                AnomalyStudyEnabled = anomaly.AnomalyStudyEnabled, VoidAwakeningActive = anomaly.VoidAwakeningActive(), AwokenCorpseActive = anomaly.HasActiveAwokenCorpse(),
-                MetalhorrorImplantPossible = anomaly.CanNewMetalhorrorBiosignatureImplantOccur };
-            if (Id(anomaly.LevelDef?.defName) is string level) row = row with { LevelDef = level };
-            if (Finite(anomaly.AnomalyThreatFractionNow)) row = row with { AnomalyThreatFractionNow = anomaly.AnomalyThreatFractionNow };
-            return row;
+            if (next?.unreachableDuringConditions == null) return [];
+            return map.GameConditionManager.ActiveConditions.Select(c => c.def).Distinct().Where(next.unreachableDuringConditions.Contains)
+                .Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal);
         }
     }
 }

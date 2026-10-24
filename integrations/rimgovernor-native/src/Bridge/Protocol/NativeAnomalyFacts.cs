@@ -3,113 +3,96 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
+using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Anomaly facts: the pawn, building and thing row blocks (entity state,
-    // held state, study state, containment strength). Everything is read from
-    // the game objects, never from name lists, and is absent without Anomaly.
-    // The static defs are rows of the definition catalog's def mirror.
+    // Anomaly facts: the pawn and building row blocks (entity state, held
+    // state, study state, containment strength). Everything is read from the
+    // game objects, never from name lists; the pawn block is inactive and the
+    // building block absent without Anomaly. A failed read throws and fails
+    // the row's read. The static defs are rows of the definition catalog's
+    // def mirror.
     internal static class NativeAnomalyFacts
     {
-        private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
-
-        private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,
-            Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
+        private static double Finite(double value, string what) =>
+            !double.IsNaN(value) && !double.IsInfinity(value) ? value : throw new InvalidOperationException("a non-finite " + what);
 
         // The study block of a pawn or building with a CompStudiable; null for
         // one without.
         internal static Obs.StudyState? Study(Thing thing)
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
-            var state = new Obs.StudyState {
+            return new Obs.StudyState
+            {
                 CurrentlyStudiable = study.CurrentlyStudiable(),
-                Yield = new Obs.StudyYieldState { Knowledge = study.AnomalyKnowledge, Category = study.KnowledgeCategory?.defName ?? "",
-                    FrequencyTicks = study.Props.frequencyTicks } };
-            return state;
+                Yield = new Obs.StudyYieldState { Knowledge = Finite(study.AnomalyKnowledge, "study knowledge"), Category = study.KnowledgeCategory?.defName,
+                    FrequencyTicks = study.Props.frequencyTicks },
+            };
         }
 
         // The pawn row block; inactive without Anomaly.
         internal static Obs.PawnAnomalyState State(Pawn pawn) =>
             ModsConfig.AnomalyActive ? new Obs.PawnAnomalyState.Active(Pawn(pawn)) : new Obs.PawnAnomalyState.Inactive();
 
-        // A sub-read that throws leaves its block absent and adds a ReadIssue.
-        private static Obs.PawnAnomaly Pawn(Pawn pawn)
+        private static Obs.PawnAnomaly Pawn(Pawn pawn) => new Obs.PawnAnomaly
         {
-            var row = new Obs.PawnAnomaly();
-            try
-            {
-                // Read everything before setting anything: a failed read
-                // leaves the whole group absent next to its ReadIssue.
-                var entity = pawn.IsEntity;
-                var mutant = pawn.IsMutant;
-                var minimum = entity ? pawn.GetStatValue(StatDefOf.MinimumContainmentStrength) : float.NaN;
-                row = row with { Entity = entity };
-                row = row with { Mutant = mutant };
-                if (entity && Finite(minimum)) row = row with { MinContainmentStrength = minimum };
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("entity", ex)] }; }
-            try { row = row with { HiddenFromPlayer = InvisibilityUtility.IsHiddenFromPlayer(pawn) }; }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("hidden_from_player", ex)] }; }
+            Entity = pawn.IsEntity,
+            Mutant = pawn.IsMutant,
+            MinContainmentStrength = Finite(pawn.GetStatValue(StatDefOf.MinimumContainmentStrength), "minimum containment strength"),
+            HiddenFromPlayer = InvisibilityUtility.IsHiddenFromPlayer(pawn),
             // The invoker is the pawn whose role in its lord's psychic ritual
             // is the ritual def's invoker role.
-            try
+            PsychicRitualInvoker = pawn.GetLord()?.LordJob is LordJob_PsychicRitual ritual
+                && ritual.def is PsychicRitualDef_InvocationCircle circle
+                && ritual.assignments.RoleForPawn(pawn, true) == circle.InvokerRole,
+            MeleeOnly = pawn.CurrentEffectiveVerb is Verb verb && verb.IsMeleeAttack
+                && !(pawn.abilities?.AllAbilitiesForReading.Any(a => a.def.ai_IsOffensive) ?? false),
+            Held = Held(pawn),
+            Study = Study(pawn),
+            Creepjoiner = CreepJoiner(pawn),
+        };
+
+        // The holding-platform target block; null for a pawn without the comp.
+        private static Obs.HeldState? Held(Pawn pawn)
+        {
+            if (pawn.GetComp<CompHoldingPlatformTarget>() is not CompHoldingPlatformTarget target) return null;
+            return new Obs.HeldState
             {
-                row = row with { PsychicRitualInvoker = pawn.GetLord()?.LordJob is LordJob_PsychicRitual ritual
-                    && ritual.def is PsychicRitualDef_InvocationCircle circle
-                    && ritual.assignments.RoleForPawn(pawn, true) == circle.InvokerRole };
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("psychic_ritual_invoker", ex)] }; }
-            try
-            {
-                row = row with { MeleeOnly = pawn.CurrentEffectiveVerb is Verb verb && verb.IsMeleeAttack
-                    && !(pawn.abilities?.AllAbilitiesForReading.Any(a => a.def.ai_IsOffensive) ?? false) };
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("melee_only", ex)] }; }
-            try
-            {
-                if (pawn.GetComp<CompHoldingPlatformTarget>() is CompHoldingPlatformTarget target)
-                {
-                    var held = new Obs.HeldState { Held = target.CurrentlyHeldOnPlatform, Mode = NativeEnums.ContainmentMode(target.containmentMode),
-                        Escaping = target.isEscaping, ExtractBioferrite = target.extractBioferrite, CanBeCaptured = target.CanBeCaptured,
-                        NeedsTend = pawn.health.HasHediffsNeedingTend(false), Bleeding = Finite(pawn.health.hediffSet.BleedRateTotal) && pawn.health.hediffSet.BleedRateTotal > 0 };
-                    if (target.HeldPlatform is Building_HoldingPlatform platform)
-                    {
-                        held = held with { HarvesterAttached = platform.HasAttachedBioferriteHarvester };
-                    }
-                    var perDay = CompProducesBioferrite.BioferritePerDay(pawn);
-                    if (Finite(perDay)) held = held with { BioferritePerDay = perDay };
-                    held = held with { Escape = Escape(pawn, target) };
-                    row = row with { Held = held };
-                }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("held", ex)] }; }
-            try { row = row with { Study = Study(pawn) }; }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("study", ex)] }; }
-            try { row = row with { Creepjoiner = CreepJoiner(pawn) }; }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("creepjoiner", ex)] }; }
-            return row;
+                Held = target.CurrentlyHeldOnPlatform,
+                Mode = NativeEnums.ContainmentMode(target.containmentMode),
+                Escaping = target.isEscaping,
+                ExtractBioferrite = target.extractBioferrite,
+                CanBeCaptured = target.CanBeCaptured,
+                NeedsTend = pawn.health.HasHediffsNeedingTend(false),
+                Bleeding = Finite(pawn.health.hediffSet.BleedRateTotal, "bleed rate") > 0,
+                HarvesterAttached = target.HeldPlatform is Building_HoldingPlatform platform && platform.HasAttachedBioferriteHarvester,
+                BioferritePerDay = Finite(CompProducesBioferrite.BioferritePerDay(pawn), "bioferrite per day"),
+                Escape = Escape(pawn, target),
+            };
         }
 
         // The inputs of ContainmentUtility.InitiateEscapeMtbDays other than the
         // platform's strength, each as that method reads it (#3811); the
         // brain applies the captivity and strength curves. A non-finite
-        // factor throws, which drops the held block next to its ReadIssue.
+        // factor throws.
         private static Obs.EntityEscapeState Escape(Pawn pawn, CompHoldingPlatformTarget target)
         {
             var moving = 1f / UnityEngine.Mathf.Clamp(pawn.health.capacities.GetLevel(PawnCapacityDefOf.Moving), 0.01f, 1f);
             var cold = ContainmentUtility.TryGetColdContainmentBonus(pawn, out var modifier) ? modifier : 1f;
-            var escape = new Obs.EntityEscapeState { BaseMtbDays = target.Props.baseEscapeIntervalMtbDays, MovingFactor = moving,
-                DaysInCaptivity = pawn.mindState.entityTicksInCaptivity / (double)GenDate.TicksPerDay, ColdFactor = cold,
-                CombatPower = pawn.kindDef.combatPower, CanEscape = ContainmentUtility.CanParticipateInEscape(pawn) };
-            if (!Finite(escape.BaseMtbDays) || !Finite(escape.MovingFactor) || !Finite(escape.ColdFactor) || !Finite(escape.CombatPower))
-                throw new InvalidOperationException("a non-finite escape factor");
-            return escape;
+            return new Obs.EntityEscapeState
+            {
+                BaseMtbDays = Finite(target.Props.baseEscapeIntervalMtbDays, "escape interval"),
+                MovingFactor = Finite(moving, "moving factor"),
+                DaysInCaptivity = pawn.mindState.entityTicksInCaptivity / (double)GenDate.TicksPerDay,
+                ColdFactor = Finite(cold, "cold factor"),
+                CombatPower = Finite(pawn.kindDef.combatPower, "combat power"),
+                CanEscape = ContainmentUtility.CanParticipateInEscape(pawn),
+            };
         }
 
         // The tracker keeps triggeredDownside private: true once the game has
@@ -123,12 +106,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // The creepjoiner block; null for a pawn with no tracker.
-        private static Obs.CreepJoinerState? CreepJoiner(Pawn pawn)
-        {
-            if (pawn.creepjoiner is not Pawn_CreepJoinerTracker tracker) return null;
-            var state = new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker) };
-            return state;
-        }
+        private static Obs.CreepJoinerState? CreepJoiner(Pawn pawn) =>
+            pawn.creepjoiner is Pawn_CreepJoinerTracker tracker ? new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker) } : null;
 
         // The doors the game counts for a holder's room: the Building_Door
         // things among the room's contained and adjacent things, which is
@@ -140,7 +119,7 @@ namespace HomeBridge.BridgeTools
             var room = holder.GetRoom();
             if (room == null || room.PsychologicallyOutdoors) yield break;
             foreach (var door in room.ContainedAndAdjacentThings.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
-                yield return new Obs.AnomalyDoor { Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HoldOpen = door.HoldOpen,
+                yield return new Obs.AnomalyDoor { Cell = new Cell(door.Position.x, door.Position.z), HoldOpen = door.HoldOpen,
                     ContainmentBreached = door.ContainmentBreached, BlockedOpen = door.BlockedOpenMomentary };
         }
 
@@ -148,23 +127,17 @@ namespace HomeBridge.BridgeTools
         // is no entity holder.
         internal static Obs.AnomalyBuilding? Building(Thing thing)
         {
-            if (!ModsConfig.AnomalyActive) return null;
-            var row = new Obs.AnomalyBuilding();
-            try
+            if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompEntityHolder>() is not CompEntityHolder holder) return null;
+            return new Obs.AnomalyBuilding
             {
-                if ((thing as ThingWithComps)?.GetComp<CompEntityHolder>() is CompEntityHolder holder)
+                Holder = new Obs.EntityHolderState
                 {
-                    var state = new Obs.EntityHolderState { Available = holder.Available };
-                    var strength = holder.ContainmentStrength;
-                    if (Finite(strength)) state = state with { ContainmentStrength = strength };
-                    if (holder.HeldPawn is Pawn held) state = state with { HeldPawn = NativeRef.Thing(held) };
-                    row = row with { Holder = state };
-                    try { state = state with { Doors = [.. Doors(thing)] }; row = row with { Holder = state }; }
-                    catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("doors", ex)] }; }
-                }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("holder", ex)] }; }
-            return row.Holder == null && row.Issues.Count == 0 ? null : row;
+                    ContainmentStrength = Finite(holder.ContainmentStrength, "containment strength"),
+                    Available = holder.Available,
+                    HeldPawn = holder.HeldPawn is Pawn held ? NativeRef.Thing(held) : null,
+                    Doors = [.. Doors(thing)],
+                },
+            };
         }
     }
 }

@@ -27,7 +27,7 @@ public static class EntityUpkeepRules
     /// <summary>
     /// Reads every holder that holds a pawn. A door held open is closed; a
     /// door that is breached but is not held open and is blocked open is an issue (an order cannot clear what
-    /// stands in it); an unread door fact is an issue. A door open and not held open closes by itself and is
+    /// stands in it); a holder whose doors are unknown is an issue. A door open and not held open closes by itself and is
     /// left alone.
     /// </summary>
     public static ContainmentUpkeep ContainmentDoorUpkeep(ContainmentPlanning p)
@@ -56,26 +56,11 @@ public static class EntityUpkeepRules
                 {
                     continue;
                 }
-                var hk = d.HoldOpen.TryGetValue(out var hold);
-                var bk = d.Breached.TryGetValue(out var breached);
-                var ek = d.BlockedOpen.TryGetValue(out var blocked);
-                if (!hk)
-                {
-                    issues.Add(new UpkeepIssue("whether the cell door is held open is unread", d.Cell));
-                }
-                else if (hold)
+                if (d.HoldOpen)
                 {
                     close.Add(d.Cell);
                 }
-                else if (!bk)
-                {
-                    issues.Add(new UpkeepIssue("whether the cell door is breached is unread", d.Cell));
-                }
-                else if (breached && !ek)
-                {
-                    issues.Add(new UpkeepIssue("the cell door is breached and whether it is blocked open is unread", d.Cell));
-                }
-                else if (breached && blocked)
+                else if (d.ContainmentBreached && d.BlockedOpen)
                 {
                     issues.Add(new UpkeepIssue("the cell door is breached and blocked open by a thing in the doorway; no order clears that", d.Cell));
                 }

@@ -107,7 +107,7 @@ public static class EntityBioferriteRules
         {
             return Unread("the bioferrite production");
         }
-        if (mode == ContainmentMode.Release || flag || harvester)
+        if (mode == EntityContainmentModeKind.Release || flag || harvester)
         {
             return (false, "");
         }

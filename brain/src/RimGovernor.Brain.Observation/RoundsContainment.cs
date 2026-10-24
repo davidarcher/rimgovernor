@@ -74,46 +74,22 @@ public static class RoundsContainmentReads
 
     /// <summary>
     /// Counts the living entities the game lets the colony capture that no platform holds, and the strength the
-    /// most demanding needs. A pawn row whose entity, held or strength fact is unread leaves the demand unknown;
-    /// a pawn that is no entity, or an entity with no holding-platform target, asks nothing.
+    /// most demanding needs. A pawn that is no entity, or an entity with no holding-platform target, asks nothing.
     /// </summary>
     private static Fact<ContainmentDemand> ContainmentDemandOf(IEnumerable<O.PawnState> rows)
     {
         var demand = new ContainmentDemand();
         foreach (var row in rows)
         {
-            if (!AnomalyFactsRules.PawnAnomaly(row.Anomaly).TryGetValue(out var a))
+            if (row.Dead || row.Anomaly is not O.PawnAnomalyState.Active { Facts: { Entity: true, Held: { } held } a })
             {
                 continue;
             }
-            if (!a.Entity.TryGetValue(out var entity))
-            {
-                return Unknown<ContainmentDemand>();
-            }
-            if (!entity || row.Dead)
+            if (held.Held || !held.CanBeCaptured)
             {
                 continue;
             }
-            if (!a.Held.TryGetValue(out var held))
-            {
-                return Unknown<ContainmentDemand>();
-            }
-            if (held is null)
-            {
-                continue;
-            }
-            var hk = held.Held.TryGetValue(out var isHeld);
-            var ck = held.CanBeCaptured.TryGetValue(out var capturable);
-            var sk = a.MinContainmentStrength.TryGetValue(out var strength);
-            if (!hk || !ck || !sk)
-            {
-                return Unknown<ContainmentDemand>();
-            }
-            if (isHeld || !capturable)
-            {
-                continue;
-            }
-            demand = demand with { Entities = demand.Entities + 1, Required = Math.Max(demand.Required, strength) };
+            demand = demand with { Entities = demand.Entities + 1, Required = Math.Max(demand.Required, a.MinContainmentStrength) };
         }
         return Known(demand);
     }
@@ -144,7 +120,7 @@ public static class RoundsContainmentReads
         var platforms = new Dictionary<string, EntityPlatform>(StringComparer.Ordinal);
         foreach (var row in buildings)
         {
-            if (row.Anomaly?.Holder is { HeldPawn.Id: { Length: > 0 } held, ContainmentStrength: { } strength } && row.Building.Place is O.EntityPlace.OnMap { Cell: var at })
+            if (row.Anomaly?.Holder is { HeldPawn.Id: { Length: > 0 } held, ContainmentStrength: var strength } && row.Building.Place is O.EntityPlace.OnMap { Cell: var at })
             {
                 platforms[held] = new EntityPlatform(new Cell(at.X, at.Z), strength);
             }
@@ -156,82 +132,52 @@ public static class RoundsContainmentReads
             {
                 continue;
             }
-            if (a.Issues.Any(i => i.Field == "held"))
-            {
-                return Unread(row.Pawn.Id, "the held block failed");
-            }
-            if (a.Held is not { } h || a.Entity == false)
+            if (a.Held is not { } h || !a.Entity)
             {
                 continue;
             }
-            if (h.Held is not { } isHeld || h.CanBeCaptured is not { } capturable || a.Entity is null)
-            {
-                return Unread(row.Pawn.Id, "its entity, held or capturable fact is unread");
-            }
-            if (!isHeld && !capturable)
+            if (!h.Held && !h.CanBeCaptured)
             {
                 continue;
-            }
-            if (a.MinContainmentStrength is not { } need || h.Escape is not { } e || a.Issues.Any(i => i.Field == "study") || a.Study is { Yield: null })
-            {
-                return Unread(row.Pawn.Id, "its containment need, escape or study facts are unread");
             }
             EntityPlatform? platform = null;
-            if (isHeld && !platforms.TryGetValue(row.Pawn.Id, out platform))
+            if (h.Held && !platforms.TryGetValue(row.Pawn.Id, out platform))
             {
                 return Unread(row.Pawn.Id, "no platform with a read strength and cell holds it");
             }
-            var study = a.Study?.Yield is { } y ? new StudyKnowledge(y.Knowledge, y.Category, y.FrequencyTicks) : null;
-            entities.Add(new ContainedEntity(row.Pawn.Id, need, new EntityEscape(e.BaseMtbDays, e.MovingFactor, e.DaysInCaptivity, e.ColdFactor, e.CombatPower, e.CanEscape), study, platform));
+            var e = h.Escape;
+            var study = a.Study?.Yield is { } y ? new StudyKnowledge(y.Knowledge, y.Category ?? "", y.FrequencyTicks) : null;
+            entities.Add(new ContainedEntity(row.Pawn.Id, a.MinContainmentStrength, new EntityEscape(e.BaseMtbDays, e.MovingFactor, e.DaysInCaptivity, e.ColdFactor, e.CombatPower, e.CanEscape), study, platform));
         }
         return new ContainmentForecast { Entities = EquatableArray.From(entities), Curves = curves };
     }
 
-    /// <summary>The standing holding platforms' native strength and availability; a holder whose facts are unread makes the list unknown.</summary>
+    /// <summary>The standing holding platforms' native strength, availability, held pawn and room doors.</summary>
     private static Fact<EquatableArray<BuiltHolder>> BuiltHolders(IEnumerable<O.BuildingState> rows)
     {
         var holders = new List<BuiltHolder>();
         foreach (var row in rows)
         {
-            if (!AnomalyFactsRules.BuildingAnomaly(row).TryGetValue(out var b))
+            if (row.Anomaly is { Holder: var h })
             {
-                continue;
+                holders.Add(new BuiltHolder { Strength = h.ContainmentStrength, Available = h.Available, HeldPawn = h.HeldPawn?.Id ?? "", Doors = Known(h.Doors) });
             }
-            if (!b.Holder.TryGetValue(out var holder))
-            {
-                return Unknown<EquatableArray<BuiltHolder>>();
-            }
-            if (holder is null)
-            {
-                continue;
-            }
-            var sk = holder.ContainmentStrength.TryGetValue(out var strength);
-            var ak = holder.Available.TryGetValue(out var available);
-            if (!sk || !ak)
-            {
-                return Unknown<EquatableArray<BuiltHolder>>();
-            }
-            holders.Add(new BuiltHolder { Strength = strength, Available = available, HeldPawn = holder.HeldPawn, Doors = holder.Doors });
         }
         return Known(EquatableArray.From(holders));
     }
 
 
     /// <summary>
-    /// The entity pawn rows the capture rule decides: every row the game marks an entity, or whose entity fact is
-    /// unread, with the facts the rule reads. A pawn with no holding-platform target block is one the colony
-    /// cannot capture, a known absence.
+    /// The entity pawn rows the capture rule decides: every row the game marks an entity, with the facts the rule
+    /// reads. A pawn with no holding-platform target block is one the colony cannot capture; its held entity's facts
+    /// do not apply.
     /// </summary>
     private static Fact<EquatableArray<CapturableEntity>> CapturableEntities(IEnumerable<O.PawnState> rows)
     {
         var output = new List<CapturableEntity>();
         foreach (var row in rows)
         {
-            if (!AnomalyFactsRules.PawnAnomaly(row.Anomaly).TryGetValue(out var a))
-            {
-                continue;
-            }
-            if (a.Entity.TryGetValue(out var isEntity) && !isEntity)
+            if (row.Anomaly is not O.PawnAnomalyState.Active { Facts: { Entity: true } a })
             {
                 continue;
             }
@@ -240,48 +186,32 @@ public static class RoundsContainmentReads
                 Pawn = new RimGovernor.Brain.Domain.PawnId(row.Pawn.Id ?? ""),
                 Dead = Known(row.Dead),
                 Downed = Known(row.Downed),
-                CanBeCaptured = Unknown<bool>(),
-                Held = Unknown<bool>(),
-                Need = a.MinContainmentStrength,
-                CurrentlyStudiable = Unknown<bool>(),
+                CanBeCaptured = Known(false),
+                Held = Known(false),
+                Need = Known(a.MinContainmentStrength),
+                CurrentlyStudiable = Known(a.Study is { CurrentlyStudiable: true }),
                 NeedsTend = Unknown<bool>(),
                 Bleeding = Unknown<bool>(),
                 Escaping = Unknown<bool>(),
-                Mode = Unknown<ContainmentMode>(),
+                Mode = Unknown<O.EntityContainmentModeKind>(),
                 ExtractBioferrite = Unknown<bool>(),
                 HarvesterAttached = Unknown<bool>(),
                 BioferritePerDay = Unknown<double>(),
             };
-            if (a.Study.TryGetValue(out var study))
+            if (a.Held is { } held)
             {
-                e = e with { CurrentlyStudiable = study is null ? Known(false) : study.CurrentlyStudiable };
-            }
-            if (a.Held.TryGetValue(out var held))
-            {
-                a.Entity.TryGetValue(out var entity);
-                if (held is null)
+                e = e with
                 {
-                    // No block proves "cannot be captured" only for a pawn read as an entity.
-                    if (entity)
-                    {
-                        e = e with { CanBeCaptured = Known(false), Held = Known(false) };
-                    }
-                }
-                else
-                {
-                    e = e with
-                    {
-                        CanBeCaptured = held.CanBeCaptured,
-                        Held = held.Held,
-                        NeedsTend = held.NeedsTend,
-                        Bleeding = held.Bleeding,
-                        Escaping = held.Escaping,
-                        Mode = held.Mode,
-                        ExtractBioferrite = held.ExtractBioferrite,
-                        HarvesterAttached = held.HarvesterAttached,
-                        BioferritePerDay = held.BioferritePerDay,
-                    };
-                }
+                    CanBeCaptured = Known(held.CanBeCaptured),
+                    Held = Known(held.Held),
+                    NeedsTend = Known(held.NeedsTend),
+                    Bleeding = Known(held.Bleeding),
+                    Escaping = Known(held.Escaping),
+                    Mode = Known(held.Mode),
+                    ExtractBioferrite = Known(held.ExtractBioferrite),
+                    HarvesterAttached = Known(held.HarvesterAttached),
+                    BioferritePerDay = Known(held.BioferritePerDay),
+                };
             }
             output.Add(e);
         }

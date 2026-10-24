@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
             var policies = NativePolicyFacts.Read(map);
             var biotech = NativeBiotechColony.Read(map);
             var royalty = NativeRoyaltyColony.Read();
-            var anomaly = NativeAnomalyColony.Read(map);
+            var anomaly = NativeAnomalyColony.Read();
             Span("cf.deep");
             var issues = new List<Obs.ReadIssue>();
             if (demand <= 0) issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));

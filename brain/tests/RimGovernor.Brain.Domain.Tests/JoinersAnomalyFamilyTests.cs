@@ -77,9 +77,9 @@ public sealed class JoinersAnomalyFamilyTests
     private static BuiltHolder Holder(string pawn, int x, bool holdOpen) => new()
     {
         HeldPawn = pawn,
-        Doors = Known<EquatableArray<ContainmentDoor>>([new ContainmentDoor
+        Doors = Known<EquatableArray<AnomalyDoor>>([new AnomalyDoor
         {
-            Cell = new(x, 1), HoldOpen = Known(holdOpen), Breached = Known(false), BlockedOpen = Known(false),
+            Cell = new(x, 1), HoldOpen = holdOpen, ContainmentBreached = false, BlockedOpen = false,
         }]),
     };
 
@@ -95,7 +95,7 @@ public sealed class JoinersAnomalyFamilyTests
         Bleeding = Known(false),
         Escaping = Known(false),
         CurrentlyStudiable = Known(false),
-        Mode = Known(ContainmentMode.Study),
+        Mode = Known(EntityContainmentModeKind.Study),
         ExtractBioferrite = Known(flag),
         HarvesterAttached = Known(false),
         BioferritePerDay = Known(1.0),

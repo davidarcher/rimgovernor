@@ -183,7 +183,6 @@ public sealed partial record ColonyProjection
 
     public Fact<BiotechColony> Biotech { get; init; }
 
-    public Fact<AnomalyColony> Anomaly { get; init; }
 
     /// <summary>The Royalty colony section; inactive without Royalty.</summary>
     public required O.RoyaltySection RoyaltySection { get; init; }

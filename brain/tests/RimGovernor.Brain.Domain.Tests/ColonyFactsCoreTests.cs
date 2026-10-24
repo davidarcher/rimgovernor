@@ -48,7 +48,7 @@ public sealed class ColonyFactsCoreTests
         FermentingBarrels = 0,
         Policies = PoliciesTests.NoPolicies,
         Biotech = null,
-        Anomaly = null,
+        Anomaly = AnomalySectionTests.NoAnomaly,
         Royalty = RoyaltySectionTests.NoRoyalty,
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
         HuntCensus = new() { Hunters = [] },

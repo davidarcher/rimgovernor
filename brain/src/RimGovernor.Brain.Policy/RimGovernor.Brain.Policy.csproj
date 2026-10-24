@@ -40,6 +40,12 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPsylink" Alias="PawnPsylink" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.BestowingCeremony" Alias="BestowingCeremony" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoyalThrone" Alias="RoyalThrone" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnAnomaly" Alias="PawnAnomaly" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.CreepJoinerState" Alias="CreepJoinerState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.HeldState" Alias="HeldState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.StudyState" Alias="StudyState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.AnomalyDoor" Alias="AnomalyDoor" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.EntityContainmentModeKind" Alias="EntityContainmentModeKind" />
     <!-- The gear census's climate and option source (#3777). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class CombatAnomalyRules
 {
     /// <summary>A hostile that is an Anomaly entity or a mutant (a shambler is a humanlike mutant, so Humanlike alone cannot place it).</summary>
-    internal static bool Anomalous(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && (RoundsRules.Positive(a.Entity) || RoundsRules.Positive(a.Mutant));
+    internal static bool Anomalous(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && (a.Entity || a.Mutant);
 
     /// <summary>
     /// An entity or mutant whose attack is melee with no offensive ability. It charges in, so a choke blocks
@@ -16,20 +16,20 @@ public static partial class CombatAnomalyRules
     /// offensive-ability attack shoots over the block and is not.
     /// </summary>
     public static bool MeleeEntity(SquadThreatFacts t) =>
-        t.Anomaly.TryGetValue(out var a) && (RoundsRules.Positive(a.Entity) || RoundsRules.Positive(a.Mutant)) && RoundsRules.Positive(a.MeleeOnly);
+        t.Anomaly.TryGetValue(out var a) && (a.Entity || a.Mutant) && a.MeleeOnly;
 
     /// <summary>
     /// The pawn casting its lord's psychic ritual. A cultist psychic ritual siege only needs its caster to
     /// finish the ritual, and damage or interruption to the caster makes every cultist attack directly, so the
     /// caster is the one to hurt: https://rimworldwiki.com/wiki/Psychic_ritual_siege
     /// </summary>
-    internal static bool RitualCaster(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && RoundsRules.Positive(a.PsychicRitualInvoker);
+    internal static bool RitualCaster(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && a.PsychicRitualInvoker;
 
     /// <summary>
     /// A pawn the player cannot see or target (an unrevealed sightstealer): an attack order naming it is
     /// refused, so it is never a target until it shows itself.
     /// </summary>
-    internal static bool HiddenFromPlayer(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && RoundsRules.Positive(a.HiddenFromPlayer);
+    internal static bool HiddenFromPlayer(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && a.HiddenFromPlayer;
 
     /// <summary>
     /// The live ritual casters' known cells, not within MortarSafeRadius of a colonist: shelled while they

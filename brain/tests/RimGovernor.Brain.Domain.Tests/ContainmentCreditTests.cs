@@ -150,9 +150,8 @@ public sealed class ContainmentCreditTests
             [Platform("entity1", 5, 5, Now)], curves);
         Assert.Equal("", forecast.Unread);
         Assert.Equal([Entity(), Entity("entity2", held: false)], forecast.Entities);
-        // A held entity whose platform row is missing, or whose escape facts were not read, is unread.
+        // A held entity whose platform row is missing is unread.
         Assert.StartsWith("entity1: ", RoundsContainmentReads.ContainmentForecastOf([Row("entity1", held: true)], [], curves).Unread);
-        Assert.StartsWith("entity1: ", RoundsContainmentReads.ContainmentForecastOf([EscapeUnread("entity1")], [Platform("entity1", 5, 5, Now)], curves).Unread);
 
         var facts = ForecastCoupledTests.ConstructionReview() with { Containment = new() { Forecast = forecast } };
         Assert.Equal(forecast, ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context.Harm.Containment);
@@ -179,23 +178,18 @@ public sealed class ContainmentCreditTests
     {
         Anomaly = new O.PawnAnomalyState.Active(new O.PawnAnomaly
         {
-            Entity = entity, MinContainmentStrength = entity ? Need : null,
+            Entity = entity, Mutant = false, MinContainmentStrength = entity ? Need : 0,
+            HiddenFromPlayer = false, PsychicRitualInvoker = false, MeleeOnly = false, Creepjoiner = null,
             Held = entity ? new O.HeldState
             {
-                Held = held, CanBeCaptured = capturable,
+                Held = held, CanBeCaptured = capturable, Mode = O.EntityContainmentModeKind.Study, Escaping = false, ExtractBioferrite = false,
+                NeedsTend = false, Bleeding = false, HarvesterAttached = false, BioferritePerDay = 0,
                 Escape = new O.EntityEscapeState { BaseMtbDays = MtbDays, MovingFactor = 1, DaysInCaptivity = 0, ColdFactor = 1, CombatPower = 1000, CanEscape = held },
             } : null,
             Study = entity ? new O.StudyState { CurrentlyStudiable = true, Yield = new O.StudyYieldState { Knowledge = Knowledge, Category = "Basic", FrequencyTicks = (int)Day } } : null,
         }),
     };
 
-    /// <summary>A held entity's row whose escape facts were not read.</summary>
-    private static O.PawnState EscapeUnread(string id)
-    {
-        var row = Row(id, held: true);
-        var facts = ((O.PawnAnomalyState.Active)row.Anomaly).Facts;
-        return row with { Anomaly = new O.PawnAnomalyState.Active(facts with { Held = facts.Held! with { Escape = null } }) };
-    }
 
     private static O.BuildingState Platform(string held, int x, int z, double strength) => new()
     {
@@ -210,7 +204,7 @@ public sealed class ContainmentCreditTests
         Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
         Occupied = new O.Rectangle { Minimum = new C.Cell { X = x, Z = z }, Maximum = new C.Cell { X = x, Z = z } },
-        Anomaly = new O.AnomalyBuilding { Holder = new O.EntityHolderState { ContainmentStrength = strength, Available = false, HeldPawn = new C.Ref { Id = held } } },
+        Anomaly = new O.AnomalyBuilding { Holder = new O.EntityHolderState { ContainmentStrength = strength, Available = false, HeldPawn = new C.Ref { Id = held }, Doors = [] } },
         Door = null,
     };
 }

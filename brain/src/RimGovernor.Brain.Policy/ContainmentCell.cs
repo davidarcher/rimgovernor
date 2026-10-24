@@ -34,7 +34,7 @@ public sealed record BuiltHolder
     public string HeldPawn { get; init; } = "";
 
     /// <summary>The doors of the platform's room.</summary>
-    public Fact<EquatableArray<ContainmentDoor>> Doors { get; init; }
+    public Fact<EquatableArray<AnomalyDoor>> Doors { get; init; }
 }
 
 /// <summary>The projection's containment inputs. Each unknown fact stops the cell with its own reason.</summary>

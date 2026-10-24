@@ -460,8 +460,9 @@ condition) and projects them into `observation.OdysseyColony`
 
 Anomaly follows the shared wire pattern: static defs ride the
 definition catalog and per-pawn and per-building facts ride the canonical rows.
-There is no separate read tool and no Anomaly intent. All of it is absent
-without Anomaly (`ModsConfig.AnomalyActive`).
+There is no separate read tool and no Anomaly intent. Without Anomaly
+(`ModsConfig.AnomalyActive`) the colony section and the pawn block are
+`inactive` and no building carries a block.
 
 The Anomaly static defs (EntityCategoryDef, KnowledgeCategoryDef, EntityCodexEntryDef, the entity thing
 rows and the anomaly IncidentDef rows, Creepjoiner form, benefit and downside rows) are read from the game's
@@ -469,88 +470,73 @@ Def objects by the brain's catalog, never from brain name lists; the wire catalo
 are the def values verbatim and are only checked for being finite: vanilla defs carry -1 (Alligator
 `studyAmountToComplete`, a holding target escape interval), whose meaning the consuming goal sources before it reads the field.
 
-`PawnState.anomaly` carries `Pawn.IsEntity` and `IsMutant`, an
-entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
-(held on a platform, the ordered `EntityContainmentMode`, escaping,
-the extract-bioferrite flag, whether the platform has an attached bioferrite
-harvester (`harvester_attached`), `bioferrite_per_day`
-(`CompProducesBioferrite.BioferritePerDay`, 0 while BioferriteExtracted stands),
-whether it can be captured) and its `CompStudiable`
-state (completed, progress, points, knowledge gained, the knowledge
-category and amount the game resolves). Three threat facts feed the
+`PawnState.anomaly` (`PawnAnomalyState`) is `inactive` without Anomaly, else
+`active` with a `PawnAnomaly` whose every member is required (#3773):
+`Pawn.IsEntity` and `IsMutant`, the pawn's `MinimumContainmentStrength`, its
+`CompHoldingPlatformTarget` block `held` (null for a pawn without the comp: held
+on a platform, the ordered `EntityContainmentMode`, escaping, the
+extract-bioferrite flag, whether the holding platform has an attached
+bioferrite harvester (`harvester_attached`, false off a platform),
+`bioferrite_per_day` (`CompProducesBioferrite.BioferritePerDay`, 0 while
+BioferriteExtracted stands), whether it can be captured, and the escape inputs)
+and its `CompStudiable` block `study` (null for a pawn without one: whether it
+can be studied now and what one study yields, its knowledge category null for
+none). Three threat facts feed the
 defense tactics: `hidden_from_player` (`InvisibilityUtility.IsHiddenFromPlayer`:
 the player cannot see or target the pawn, so no attack order names it),
 `psychic_ritual_invoker` (the pawn's role in its lord's psychic ritual is the
 ritual def's invoker role: the caster, who is focus-fired and shelled) and
 `melee_only` (its `CurrentEffectiveVerb` is a melee attack and none of its
 abilities is `ai_IsOffensive`; an entity or mutant that is melee only fights
-as a charging pack, so squad defense and the manhunter tactic apply). Each is
-read alone: a failed read is absent with a `ReadIssue` named for it.
+as a charging pack, so squad defense and the manhunter tactic apply).
 Hostility stays `PawnState.hostile`.
-A pawn with a creepjoiner tracker carries `anomaly.creepjoiner`:
+`anomaly.creepjoiner` is the creepjoiner tracker block (null for a pawn without one):
 `downside_triggered`, the tracker's private `triggeredDownside`, read natively
 and true only once a timed downside has fired. The downside def is hidden
 information: no pawn row carries it and nothing reads it (the catalog's
 downside rows are static defs). Trait-only downsides and no downside never set
 the flag, so "downside revealed" for the bot is what a player sees: the pawn's
-visible traits and hediffs, or the flag. A failed read is absent with a
-`ReadIssue` named `creepjoiner`. Creepjoiner offer letters
+visible traits and hediffs, or the flag. Creepjoiner offer letters
 (`ChoiceLetter_AcceptCreepJoiner`) ride the colony census's `joiner_letters`
 with `creepjoiner` true and a negative `expires_tick` when the letter has no
 timeout (the game's sentinel, mirrored);
 accepting sends the letter's own accept signal (`signalAccept`, then removes
 the letter) through the same `DialogIntent`, guarded on the pawn being
 spawned, and never by option index or label.
-`BuildingState.anomaly` carries a holding platform's `CompEntityHolder` state
+`BuildingState.anomaly` (`AnomalyBuilding`) is null for a building that is no
+entity holder; a holding platform carries its `CompEntityHolder` block `holder`
 (the containment strength its room provides now, whether it is available, the
-pawn it holds) and a studiable building's `CompStudiable` state. An absent
-scalar is unknown;
-a failed sub-read leaves its block absent and adds a `ReadIssue` named
-`entity`, `held`, `holder`, `study` or a threat fact's name. The brain lifts the blocks into
-`policy.PawnAnomaly` and `policy.BuildingAnomaly` (`bridge.PawnAnomaly`,
-`BuildingAnomaly`); all of it is derived state held in memory
-(persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry
-no study state.
+pawn it holds, null for none, and the doors the game counts for its room).
+A failed read fails the pawn or building read; non-finite numbers throw. Policy
+reads the Contracts records directly (`bridge.AnomalyFactsRules.PawnAnomaly`
+lifts the pawn block into the squad facts); all of it is derived state held in
+memory (persistence-contracts.md) and adds no store. Thing rows (items, corpses)
+carry no study state.
 
-`ColonyFactsSnapshot.anomaly` (`AnomalySection`) is the colony-wide
-Anomaly read, one keyed section with the snapshot's seq/tick; it is
-absent without Anomaly and without `observed` when the read failed. It carries what
-no row holds: `knowledge` (per `KnowledgeCategoryDef`: the project the research
-manager funds from it, the knowledge stored for that project, whether any
-project of the category can still be researched), `codex` (per
-`EntityCategoryDef`: entries and discovered count) with `discovered_entries`
-(the discovered `EntityCodexEntryDef` names), `held_entities` (each pawn a
-holding platform holds on the colony map with its platform id, the join keys
-into the pawn and building rows), `holding_platform_available` (the game's own
-`StudyUtility.HoldingPlatformAvailableOnCurrentMap`) and `incidents`
-(`GameComponent_Anomaly`: monolith spawned, level def and number, highest level
-reached, questline ended, ticks since the last level change, ambient horror
-mode, anomaly study enabled, the threat fraction the game gives Anomaly
-incidents now, void awakening, an awoken corpse, whether a new metalhorror
-implant can occur) and `monolith` (#2436, absent unless the monolith is
-spawned: the monolith's `monolith_id` (#2437, the thing a give-job targets);
-`can_activate` from `Building_VoidMonolith.CanActivate`; the next level
-def from `GameComponent_Anomaly.NextLevelDef` with the codex category and count
-its def requires and the entries still undiscovered; the active game conditions
-the next level lists as unreachable, e.g. `UnnaturalDarkness` for VoidAwakened;
-whether the Gleaming interaction (`CompGleamingMonolith.CanInteract`) is
-available; spawned and activated `VoidStructure` counts, the ids of the structures
-still interactable, and whether a `VoidNode` exists on any loaded map (it stands in
-the pocket map once the Gleaming monolith is used) with its id and the free
-colonists spawned there; and the void awakening stage, derived from the
-`stageStructure.N` quest tags of the spawned structures and absent while the
-`EndGame_VoidAwakening` quest is not running). Level effects and requirements
-come from the game defs through the native read, not the brain tables. A held entity's strength and need stay on its rows
-(`HeldState`, `EntityHolderState`, `PawnAnomaly.min_containment_strength`).
-Selection is by the game's own types, never name lists; an absent scalar is
-unknown, never zero. The brain validates the rows (`bridge.validateAnomalyColony`:
-unique names and ids, discovered at most entries, nonnegative finite knowledge
-and threat fraction, nonnegative levels) and projects them into
-`observation.AnomalyColony` (`ColonyProjection.Anomaly`). Derived state held in
-memory (persistence-contracts.md); it adds no store. Active game conditions
-(for example the gray pall) are not here: the shared condition read lives in
-the Odyssey section today.
-
+`ColonyFactsSnapshot.anomaly` (`AnomalySection`) is the colony-wide Anomaly
+read: `inactive` without Anomaly, else `active` with `AnomalyColonyFacts`
+(#3773). It carries what no row holds: `incidents` (`GameComponent_Anomaly`:
+monolith spawned, the level number and ambient horror mode) and `monolith`
+(#2436, null unless the monolith is spawned: the monolith's `monolith_id`
+(#2437, the thing a give-job targets); `can_activate` from
+`Building_VoidMonolith.CanActivate`; the next level def from
+`GameComponent_Anomaly.NextLevelDef` (null when none follows through activation)
+and the entries of its required codex category still undiscovered; the active
+game conditions the next level lists as unreachable, e.g. `UnnaturalDarkness`
+for VoidAwakened; whether the Gleaming interaction
+(`CompGleamingMonolith.CanInteract`) is available; the ids of the
+`VoidStructure`s still interactable; and the touchable `VoidNode` on any loaded
+map (it stands in the pocket map once the Gleaming monolith is used, null for
+none) with the free colonists spawned there who can touch it). Level effects and
+requirements come from the game defs through the native read, not the brain
+tables. A held entity's strength and need stay on its rows (`HeldState`,
+`EntityHolderState`, `PawnAnomaly.min_containment_strength`). Selection is by
+the game's own types, never name lists. A failed read fails the colony read.
+The brain lifts the section into the monolith rule's facts
+(`observation.AnomalyColonyReads.MonolithFacts`). Derived state held in memory
+(persistence-contracts.md); it adds no store. Active game conditions (for
+example the gray pall) are not here: the shared condition read lives in the
+Odyssey section today.
 ## Room-role furniture
 
 The brain catalog lists the roles the game's code

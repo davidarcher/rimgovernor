@@ -14,6 +14,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnRoyalHolding" Alias="PawnRoyalHolding" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.BestowingCeremony" Alias="BestowingCeremony" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.AnomalyDoor" Alias="AnomalyDoor" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.EntityContainmentModeKind" Alias="EntityContainmentModeKind" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
