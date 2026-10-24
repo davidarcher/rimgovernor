@@ -47,7 +47,7 @@ public static class LedgerMaterialChoicesRules
                 if (variants.ContainsKey(id)) return;
                 var batch = ProductionRules.Priced(new ProductionBatch(new ProductionBill(placement.Bench, spec.Recipe, spec.Mode, spec.Target, [.. narrowed.Ingredients]),
                     new ProgressView { Action = new ActionId(id), Stage = Stage.Pending }), recipe);
-                var promise = ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), default);
+                var promise = ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch]), default);
                 // Native bills have one global filter. A union that reopens a slot is not a pinned assignment.
                 if (!promise.TryGetValue(out var claims) || claims.Any(c => c.MaterialClaims.Any(m => !m.Units.IsKnown)))
                 { findings.Add("unrepresentable_or_unknown_filter:" + id); return; }

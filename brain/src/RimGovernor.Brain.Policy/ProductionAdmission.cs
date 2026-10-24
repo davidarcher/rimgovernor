@@ -44,17 +44,17 @@ public sealed record WorkAdmissionEvidence
 
 public static partial class ProductionRules
 {
-    public static Fact<EquatableArray<ProductionBatch>> PriceProductionBatches(
+    public static Fact<EquatableArray<BatchPricing>> PriceProductionBatches(
         Fact<EquatableArray<ProductionBatch>> batches, Fact<EquatableArray<ProductionRecipeInput>> recipes)
     {
         if (!batches.TryGetValue(out var rows)) return default;
         var catalog = recipes.TryGetValue(out var inputs) ? inputs.ToDictionary(r => r.Recipe, StringComparer.Ordinal) : [];
-        return Known(EquatableArray.From(rows.Select(b => catalog.TryGetValue(b.Order.Recipe, out var r) ? Priced(b, r) : b)));
+        return Known(EquatableArray.From(rows.Select(b => catalog.TryGetValue(b.Order.Recipe, out var r) ? Priced(b, r) : new BatchPricing.Unpriced(b))));
     }
 
     /// <summary>The batch with the recipe's catalog slots and unfinished-item flag.</summary>
-    public static ProductionBatch Priced(ProductionBatch batch, ProductionRecipeInput recipe) =>
-        batch with { Slots = Known(recipe.Slots), UsesUnfinishedItem = Known(recipe.UsesUnfinishedItem) };
+    public static BatchPricing Priced(ProductionBatch batch, ProductionRecipeInput recipe) =>
+        new BatchPricing.Priced(batch, recipe.Slots, recipe.UsesUnfinishedItem);
 
     public static WorkAdmissionEvidence WorkAdmissionEvidenceOf(RoundsFacts facts,
         Fact<EquatableArray<ProductionBatch>> batches)

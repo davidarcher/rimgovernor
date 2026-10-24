@@ -211,7 +211,7 @@ BuildingRuntime/Rounds/RoundsMaintainShelter.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsMeals.cs|Fact|3
 BuildingRuntime/Rounds/RoundsMech.cs|Fact|2
 BuildingRuntime/Rounds/RoundsMedical.cs|Discard|1
-BuildingRuntime/Rounds/RoundsMedical.cs|Fact|9
+BuildingRuntime/Rounds/RoundsMedical.cs|Fact|7
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsMilitary.cs|Fact|11
@@ -668,7 +668,7 @@ Policy/FoodAnimalProducts.cs|Unknown|1
 Policy/FoodForecast.cs|Fact|5
 Policy/FoodForecast.cs|Unknown|2
 Policy/FoodOrders.cs|Discard|1
-Policy/FoodOrders.cs|Fact|20
+Policy/FoodOrders.cs|Fact|19
 Policy/FoodPlan.cs|Fact|54
 Policy/FoodPlan.cs|Unknown|6
 Policy/FoodPolicy.cs|Discard|1
@@ -886,7 +886,7 @@ Policy/Medical.cs|Unknown|1
 Policy/MedicalCare.cs|Fact|5
 Policy/MedicalCare.cs|Unknown|1
 Policy/MedicalCareCap.cs|Fact|8
-Policy/MedicalReserve.cs|Fact|17
+Policy/MedicalReserve.cs|Fact|15
 Policy/MedicalReserve.cs|UnknownMember|1
 Policy/MedicineCarry.cs|Fact|21
 Policy/MedicineCarry.cs|Unknown|1
@@ -959,8 +959,8 @@ Policy/Preferences.cs|Fact|4
 Policy/PrisonerMedicine.cs|Fact|5
 Policy/PrisonerMedicine.cs|Unknown|1
 Policy/Prisoners.cs|Fact|4
-Policy/ProductionAdmission.cs|Fact|53
-Policy/ProductionPromises.cs|Fact|62
+Policy/ProductionAdmission.cs|Fact|51
+Policy/ProductionPromises.cs|Fact|58
 Policy/Psylink.cs|Fact|33
 Policy/Psylink.cs|Unknown|4
 Policy/QuestCapacity.cs|Fact|24

@@ -107,7 +107,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         var seen = owner.Methods.Select(m => m.Method).ToList();
         var census = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
-        var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
+        var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = [.. benches] });
         if (choice.Kind == MedicineMethodKind.Blocked)
         {
             return await HarvestMedicineAsync(work, observed, tables, medicalReview, facts, medicineResource, stalledSources, started, call).ConfigureAwait(false);
@@ -169,7 +169,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
             return WorkRules.Abstaining(Cause.UnreadMedicine);
         }
 
-        var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
+        var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = [.. benches] });
         return CareOrdersRules.DeclareMedicine(choice, benches);
     }
 
@@ -364,7 +364,7 @@ partial class RoundsMedicalPlanner
     internal static Verdict MedicineChoiceVerdict(MedicineMethodKind kind, Resource resource) => kind switch
     {
         MedicineMethodKind.Recovered => BuildingReasonNoDeficit,
-        MedicineMethodKind.Unknown => FieldUnavailable("bench_recipes"),
+        MedicineMethodKind.Unknown => FieldUnavailable("medicine_target"),
         MedicineMethodKind.Blocked => AwaitingPlan("production_bench", resource.Value),
         _ => WaitFor(Cause.MethodUsed, "medicine_method"),
     };

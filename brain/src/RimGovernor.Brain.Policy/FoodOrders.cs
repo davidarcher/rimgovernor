@@ -326,7 +326,7 @@ public static class FoodOrdersRules
     /// <summary>
     /// The food-stores/storage Need's produce fallback as an order: the stock-target bill
     /// of the choice's resource on the first bench (by id) whose recipe makes it, chosen as if no bill stood.
-    /// Unknown while the bench recipes are unread; Ok is false when no bench can make the resource.
+    /// Unknown for an invalid resource; Ok is false when no bench can make the resource.
     /// </summary>
     public static (OrderSpec Spec, MedicineMethodKind Kind, bool Ok) FoodStorageMealOrder(FoodStorageMethod choice, IReadOnlyList<GearBench> benches)
     {
@@ -336,7 +336,7 @@ public static class FoodOrdersRules
             {
                 Review = new MedicalReserveReview { Active = true, Target = Known(choice.Target) },
                 Resource = choice.Resource,
-                Benches = Known(EquatableArray.From(bare)),
+                Benches = EquatableArray.From(bare),
             }
         );
         if (picked.Kind != MedicineMethodKind.Produce)

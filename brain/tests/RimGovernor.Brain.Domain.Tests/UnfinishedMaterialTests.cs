@@ -14,12 +14,13 @@ public sealed class UnfinishedMaterialTests
     private static readonly Resource Material = new("TestMaterial");
     private static readonly Resource Alternate = new("TestAlternate");
     private static ProductionBatch Batch => new(new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 3, Material.Value),
-        new ProgressView { Action = new ActionId("batch"), Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") })
-    { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)]]), UsesUnfinishedItem = Known(true) };
+        new ProgressView { Action = new ActionId("batch"), Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") });
+    private static BatchPricing.Priced Priced(ProductionBatch batch, EquatableArray<EquatableArray<Amount>>? slots = null) =>
+        new BatchPricing.Priced(batch, slots ?? [[new(Material, 10)]], true);
     private static ProductionBatchState State(int remaining, string item = "unfinished") => new("bill", true, BillRepeat.Count, remaining, false, false,
         new ProductionUnfinishedWork(item, item.Length == 0 ? [] : [new(Material, 10)]));
-    private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatchState state, ProductionBatch? batch = null) =>
-        ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch ?? Batch]), Known<EquatableArray<ProductionBatchState>>([state]));
+    private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatchState state, BatchPricing? batch = null) =>
+        ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch ?? Priced(Batch)]), Known<EquatableArray<ProductionBatchState>>([state]));
     private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) => new()
     {
         ProductionPromises = Promises(state), BillReservations = [],
@@ -55,11 +56,11 @@ public sealed class UnfinishedMaterialTests
     public void CancellationDoesNotInventRefundsOrReleaseAnAppliedNativeBill()
     {
         var cancelled = Batch with { Progress = Batch.Progress with { Stage = Stage.Cancelled } };
-        Assert.Equal(20, Promises(State(3), cancelled).Value[0].MaterialClaims[0].Units.Value);
+        Assert.Equal(20, Promises(State(3), Priced(cancelled)).Value[0].MaterialClaims[0].Units.Value);
         // Destroying only the unfinished item restores the full remaining obligation; recovery is observed stock only.
         var lost = ResourceRules.ResourceDemandOf(Facts(State(3, "")), RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(20, lost.MaterialAvailability.Value[Material].Value);
-        var removed = ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([cancelled]), Known(default(EquatableArray<ProductionBatchState>)));
+        var removed = ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([Priced(cancelled)]), Known(default(EquatableArray<ProductionBatchState>)));
         var demand = ResourceRules.ResourceDemandOf(Facts(State(3)) with { ProductionPromises = removed }, RoundsRules.DefaultRoundsPolicy(), new());
         Assert.Equal(50, demand.MaterialAvailability.Value[Material].Value);
     }
@@ -71,11 +72,8 @@ public sealed class UnfinishedMaterialTests
         var claims = Promises(state).Value;
         Assert.Equal(20, claims[0].MaterialClaims[0].Units.Value);
         Assert.DoesNotContain(claims[0].MaterialClaims, c => c.Resource == Alternate);
-        var ambiguous = Batch with
-        {
-            Order = new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 3),
-            Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10), new(Alternate, 5)]]),
-        };
+        var ambiguous = Priced(Batch with { Order = new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 3) },
+            [[new(Material, 10), new(Alternate, 5)]]);
         Assert.All(Promises(state, ambiguous).Value[0].MaterialClaims, c => Assert.False(c.Units.IsKnown));
         Assert.All(Promises(state with { RepeatCount = 1 }, ambiguous).Value[0].MaterialClaims, c => Assert.Equal(0, c.Units.Value));
     }
@@ -94,7 +92,7 @@ public sealed class UnfinishedMaterialTests
     public void DuplicateOwnershipAndMalformedBindingThrow()
     {
         var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second"), Bill = Known("second-bill") } };
-        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]),
+        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([Priced(Batch), Priced(second)]),
             Known<EquatableArray<ProductionBatchState>>([State(3), State(3) with { Id = "second-bill" }])));
         var malformed = State(3) with { UnfinishedWork = new ProductionUnfinishedWork("", [new(Material, 10)]) };
         Assert.Throws<DomainException>(() => Promises(malformed));

@@ -1,11 +1,19 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A journal-owned fixed batch. Slots come from the current definition catalog, not a stock-floor estimate.</summary>
-public sealed record ProductionBatch(ProductionBill Order, ProgressView Progress)
+/// <summary>A journal-owned fixed batch, before the current definition catalog prices it (<see cref="BatchPricing"/>).</summary>
+public sealed record ProductionBatch(ProductionBill Order, ProgressView Progress);
+
+/// <summary>A batch joined with the current definition catalog: its slots come from the catalog, not a stock-floor estimate.</summary>
+public abstract record BatchPricing(ProductionBatch Batch)
 {
-    public Fact<EquatableArray<EquatableArray<Amount>>> Slots { get; init; }
-    /// <summary>Recipes with reusable unfinished items need native embedded-ingredient evidence before exact claims.</summary>
-    public Fact<bool> UsesUnfinishedItem { get; init; }
+    /// <summary>
+    /// The recipe's ingredient slots and whether it makes a reusable unfinished item; such a recipe needs native
+    /// embedded-ingredient evidence before exact claims.
+    /// </summary>
+    public sealed record Priced(ProductionBatch Batch, EquatableArray<EquatableArray<Amount>> Slots, bool UsesUnfinishedItem) : BatchPricing(Batch);
+
+    /// <summary>The catalog has no recipe of this batch's, so its material claims cannot be read.</summary>
+    public sealed record Unpriced(ProductionBatch Batch) : BatchPricing(Batch);
 }
 
 /// <summary>
@@ -22,16 +30,16 @@ public static partial class ProductionRules
 {
     /// <summary>Project existing Method intent into the forecast's claims. No extra reservation owner or ledger.</summary>
     public static Fact<EquatableArray<ForecastCommitment>> ProductionPromisesOf(
-        Fact<EquatableArray<ProductionBatch>> batches, Fact<EquatableArray<ProductionBatchState>> census)
+        Fact<EquatableArray<BatchPricing>> batches, Fact<EquatableArray<ProductionBatchState>> census)
     {
         if (!batches.TryGetValue(out var orders)) return default;
         var output = new List<ForecastCommitment>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var unfinishedItems = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var batch in orders.OrderBy(b => b.Progress.Action.Value, StringComparer.Ordinal))
+        foreach (var pricing in orders.OrderBy(b => b.Batch.Progress.Action.Value, StringComparer.Ordinal))
         {
-            var order = batch.Order;
-            var progress = batch.Progress;
+            var order = pricing.Batch.Order;
+            var progress = pricing.Batch.Progress;
             if (order.Mode != BillMode.GearBatch) continue;
             var unplaced = progress.Attempt.Value == 0
                 || !progress.Unresolved && progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent;
@@ -58,8 +66,9 @@ public static partial class ProductionRules
                     unfinishedWork = native.UnfinishedWork;
                 }
             }
-            if (!batch.UsesUnfinishedItem.TryGetValue(out var usesUnfinished)) remaining = default;
-            else if (usesUnfinished)
+            // A batch whose recipe the catalog does not price leaves every promise unread.
+            if (pricing is not BatchPricing.Priced batch) return default;
+            if (batch.UsesUnfinishedItem)
             {
                 if (unfinishedWork is not { } work) remaining = default;
                 else if (work.Item.Length != 0)
@@ -74,9 +83,8 @@ public static partial class ProductionRules
                 }
                 else if (work.Ingredients.Count != 0) throw new DomainException("embedded ingredients without an unfinished item");
             }
-            if (!batch.Slots.TryGetValue(out var slots)) return default;
             var amounts = new Dictionary<Resource, Fact<double>>();
-            foreach (var slot in slots)
+            foreach (var slot in batch.Slots)
             {
                 var alternatives = slot.Where(a => order.Ingredients.Count == 0 || order.Ingredients.Contains(a.Resource.Value)).ToArray();
                 if (alternatives.Length == 0) return default;

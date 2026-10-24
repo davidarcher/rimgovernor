@@ -70,7 +70,7 @@ public sealed record MedicinePlanningRequest
     public MedicalReserveReview Review { get; init; } = new();
     public Resource Resource { get; init; }
     public IReadOnlyList<MethodId> Seen { get; init; } = [];
-    public Fact<EquatableArray<GearBench>> Benches { get; init; }
+    public required EquatableArray<GearBench> Benches { get; init; }
 }
 
 public static partial class MedicalRules
@@ -200,12 +200,8 @@ public static partial class MedicalRules
             }
             seen.Add(id);
         }
-        if (!r.Benches.TryGetValue(out var benchRows))
-        {
-            return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
-        }
-        GearRules.ValidateGearProduction(benchRows);
-        var benches = benchRows.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
+        GearRules.ValidateGearProduction(r.Benches);
+        var benches = r.Benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         foreach (var b in benches)
         {
             foreach (var bill in b.Bills)

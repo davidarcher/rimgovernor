@@ -15,15 +15,19 @@ public sealed class ProductionPromisesTests
     private static readonly Resource Material = new("TestMaterial");
     private static readonly Resource Other = new("TestOther");
     private static ProductionBatch Batch => new(new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 5, Material.Value),
-        new ProgressView { Action = new ActionId("batch"), Stage = Stage.Pending })
-    { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)]]), UsesUnfinishedItem = Known(false) };
+        new ProgressView { Action = new ActionId("batch"), Stage = Stage.Pending });
+    private static readonly EquatableArray<EquatableArray<Amount>> Slots = [[new(Material, 10)]];
+    private static BatchPricing.Priced Priced(ProductionBatch batch, EquatableArray<EquatableArray<Amount>>? slots = null, bool unfinished = false) =>
+        new BatchPricing.Priced(batch, slots ?? Slots, unfinished);
     private static EquatableArray<IngredientReservation> EmptyReservations => [];
     private static Fact<EquatableArray<ProductionBatchState>> Census(int remaining = 5) => Known<EquatableArray<ProductionBatchState>>([
         new("bill", true, BillRepeat.Count, remaining, false, false, new ProductionUnfinishedWork("", default))]);
     private static ProductionBatch Placed => Batch with
     { Progress = Batch.Progress with { Attempt = new AttemptId(1), Stage = Stage.Completed, Bill = Known("bill") } };
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatch batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
-        ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), census);
+        Promises(Priced(batch), census);
+    private static Fact<EquatableArray<ForecastCommitment>> Promises(BatchPricing batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
+        ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch]), census);
     private static EquatableArray<IngredientReservation> Reserved(string bill) => [
         new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = bill, Items = [new(Material, 10)] }];
     private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) => new()
@@ -90,15 +94,14 @@ public sealed class ProductionPromisesTests
         Assert.False(ProductionRules.MaterialBudgetCovers(unread.MaterialAvailability.Value, [new(Material, 1)], 1));
         Assert.Equal(20, unread.MaterialAvailability.Value[Other].Value);
         Assert.False(unread.Retained.IsKnown);
-        var ambiguous = Batch with
-        {
-            Order = new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 5),
-            Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10), new(Other, 6)]]),
-        };
+        var ambiguous = Priced(Batch with { Order = new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 5) },
+            [[new(Material, 10), new(Other, 6)]]);
         Assert.All(Promises(ambiguous).Value[0].MaterialClaims, c => Assert.False(c.Units.IsKnown));
-        Assert.False(Promises(Batch with { Slots = default }).IsKnown);
-        Assert.Equal(50, Promises(Batch with { UsesUnfinishedItem = Known(true) }).Value[0].MaterialClaims[0].Units.Value);
-        Assert.False(Promises(Batch with { UsesUnfinishedItem = default }).Value[0].MaterialClaims[0].Units.IsKnown);
+        // A batch the catalog does not price leaves every promise unread, even beside a priced one.
+        Assert.False(Promises(new BatchPricing.Unpriced(Batch)).IsKnown);
+        var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second") } };
+        Assert.False(ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([Priced(Batch), new BatchPricing.Unpriced(second)]), default).IsKnown);
+        Assert.Equal(50, Promises(Priced(Batch, unfinished: true)).Value[0].MaterialClaims[0].Units.Value);
         Assert.False(ProductionRules.ProductionPromisesOf(default, Census()).IsKnown);
         Assert.False(ResourceRules.ResourceDemandOf(Facts(default), RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.IsKnown);
     }
@@ -106,12 +109,12 @@ public sealed class ProductionPromisesTests
     [Fact]
     public void RepeatedSlotsSumAndIndependentMethodsCompete()
     {
-        var batch = Batch with { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)], [new(Material, 2)]]) };
+        var batch = Priced(Batch, [[new(Material, 10)], [new(Material, 2)]]);
         Assert.Equal(60, Promises(batch).Value[0].MaterialClaims[0].Units.Value);
         var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second") } };
-        var promises = ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]), default);
+        var promises = ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([Priced(Batch), Priced(second)]), default);
         Assert.Equal(100, ProductionRules.ProductionMaterialHoldsOf(promises, EmptyReservations).Value[Material].Value);
-        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Placed, Placed]), Census()));
+        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([Priced(Placed), Priced(Placed)]), Census()));
     }
 
     [Fact]
@@ -145,7 +148,7 @@ public sealed class ProductionPromisesTests
             Tick = new Tick(100), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
             ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
-            WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots.Value, false) { Products = [], WorkAmount = 0 }]),
+            WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Slots, false) { Products = [], WorkAmount = 0 }]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },
         };
         var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);
@@ -157,10 +160,10 @@ public sealed class ProductionPromisesTests
         var committed = Assert.Single(journal.ProductionBatches(world, facts.Tick, lifetime.Token).Value);
         Assert.Equal(action.Id, committed.Progress.Action);
         Assert.Equal(Batch.Order, committed.Order);
-        Assert.Equal(50, Promises(committed with { Slots = Batch.Slots, UsesUnfinishedItem = Known(false) }).Value[0].MaterialClaims[0].Units.Value);
+        Assert.Equal(50, Promises(committed).Value[0].MaterialClaims[0].Units.Value);
         Assert.Empty(journal.ProductionBatches(world with { Load = new LoadId("different-load") }, facts.Tick, lifetime.Token).Value);
         journal.Cancel(plan.Id, action.Id, lifetime.Token);
         var cancelled = Assert.Single(journal.ProductionBatches(world, facts.Tick, lifetime.Token).Value);
-        Assert.Empty(Promises(cancelled with { Slots = Batch.Slots, UsesUnfinishedItem = Known(false) }).Value);
+        Assert.Empty(Promises(cancelled).Value);
     }
 }

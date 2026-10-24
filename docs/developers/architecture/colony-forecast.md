@@ -920,7 +920,9 @@ Before dispatch, the action's count and ingredient filter constrain catalog reci
 slots. After placement, the receipt's exact native bill ID joins the current bill
 census. Its remaining repeat count replaces the original count. Only a slot with
 one allowed resource has an exact quantity; alternative resources stay individually
-unknown. Missing slots, an unread owner census, or an edited bill whose filter may
+unknown. Pricing joins each batch with the catalog: a priced batch carries its
+recipe's slots and unfinished-item flag, and an unpriced batch (its recipe absent from
+the catalog), an unread owner census, or an edited bill whose filter may
 have changed make the promise set unknown. No cheapest-ingredient demand estimate
 is promoted to a reservation. Quantities use the catalog's per-iteration counts,
 with exact bound unfinished work handled below; no future production output is credited.
