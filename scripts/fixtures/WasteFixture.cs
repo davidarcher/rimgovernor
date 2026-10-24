@@ -278,7 +278,7 @@ namespace HomeBridge.BridgeTools
                 var on = Capture(true);
                 var offBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(off);
                 var onBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(on);
-                var upkeep = on.Upkeep?.Outcome;
+                var upkeep = on.Upkeep;
                 // ResourceSources: each resource's reply with the
                 // cheap census and support shortcut off and on. Plant yields
                 // round at random per read, so non-mine yields are blanked.
@@ -309,8 +309,8 @@ namespace HomeBridge.BridgeTools
                     }
                 return (object)new { equal = offBytes.SequenceEqual(onBytes) && resourcesEqual, resourcesEqual, resourceRows,
                     resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,
-                    upkeepItems = upkeep?.Items.Count ?? 0, upkeepStructures = upkeep?.Structures.Count ?? 0,
-                    upkeepBeds = upkeep?.Beds.Count ?? 0,
+                    upkeepItems = upkeep.Items.Count, upkeepStructures = upkeep.Structures.Count,
+                    upkeepBeds = upkeep.Beds.Count,
                     wasteRows = on.Waste?.Outcome?.Items.Count ?? 0 };
             }
         }

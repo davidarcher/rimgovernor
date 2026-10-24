@@ -117,7 +117,7 @@ public static class ColonyFramesReads
         {
             return Known(new ComfortObservation
             {
-                Census = v.Upkeep.Outcome.Comfort,
+                Census = v.Upkeep.Comfort,
                 JoyMethods = EquatableArray.From(required.JoyBuildings()),
                 RecreationFoothold = required.RecreationFoothold(),
                 WatchBuildings = EquatableArray.From(required.WatchBuildings()),
@@ -230,19 +230,14 @@ public static class ColonyFramesReads
                 r = r with { Resources = Known(EquatableArray.From(rows)) };
             }
         }
-        var u = v.Upkeep?.Outcome;
-        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "items") || !ColonyDecodeReads.Headed(tables, u.Items, item => item.Item))
-        {
-            return r;
-        }
         var stacks = new List<MedicineStackRow>();
-        foreach (var item in u.Items)
+        foreach (var item in v.Upkeep.Items)
         {
             // Whether the def is medicine is the catalog's.
             bool medicine;
             try
             {
-                medicine = ColonyDecodeReads.RequireCatalog(catalog).Medicine(tables.Entity(item.Item)?.DefName ?? "");
+                medicine = ColonyDecodeReads.RequireCatalog(catalog).Medicine(item.Definition);
             }
             catch (DomainException e)
             {
@@ -254,12 +249,12 @@ public static class ColonyFramesReads
             }
             stacks.Add(new MedicineStackRow
             {
-                Id = item.Item.Id ?? "",
-                Definition = new Resource(tables.Entity(item.Item)?.DefName ?? ""),
+                Id = item.Id,
+                Definition = new Resource(item.Definition),
                 Count = item.Count,
                 Forbidden = item.Forbidden,
-                Perishable = Known(item.RotTicks is not null),
-                RotTicks = ColonyDecodeReads.Optional(item.RotTicks is not null, item.RotTicks.GetValueOrDefault()),
+                Perishable = Known(item.Rot is O.ItemRot.Rotting),
+                RotTicks = ColonyDecodeReads.Optional(item.Rot is O.ItemRot.Rotting, item.Rot is O.ItemRot.Rotting rot ? rot.Ticks : 0),
             });
         }
         return r with { Items = Known(EquatableArray.From(stacks)) };

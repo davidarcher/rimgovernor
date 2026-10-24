@@ -35,7 +35,7 @@ public sealed class ColonyFactsCoreTests
         OutdoorTemperatureC = 0,
         FoodSupply = new(),
         Forecast = new(),
-        Upkeep = new(),
+        Upkeep = UpkeepFactsTests.NoUpkeep,
         Development = new(),
         Planning = new Planning.NotRequested(),
         Recovery = new(),

@@ -25,7 +25,7 @@ internal static class UpkeepAutoHomeArea
         async Task<bool> ReadAsync(string label)
         {
             var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-            var upkeep = facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable");
+            var upkeep = facts.Upkeep;
             return upkeep.HomeCoverage.AutoHomeArea;
         }
 

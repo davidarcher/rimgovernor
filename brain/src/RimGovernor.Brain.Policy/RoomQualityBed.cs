@@ -1,3 +1,5 @@
+using BedQuality = RimGovernor.Contracts.Wire.Observations.BedQuality;
+
 namespace RimGovernor.Brain.Policy;
 
 // Bed replacement: a solo bedroom below its RoomTarget whose owned bed is of poor quality (Awful or Poor)
@@ -121,7 +123,7 @@ public static partial class RoomQualityRules
         {
             return true;
         }
-        if (!x.Quality.TryGetValue(out var xr) || !b.Quality.TryGetValue(out var br))
+        if (x.Quality is not BedQuality.Graded { Category: var xr } || b.Quality is not BedQuality.Graded { Category: var br })
         {
             return false;
         }
@@ -139,7 +141,7 @@ public static partial class RoomQualityRules
     /// <summary>The bed's stuff score, -1 when unknown.</summary>
     internal static double BedScore(ItemFacts items, SleepingBed b)
     {
-        if (!b.Stuff.TryGetValue(out var stuff))
+        if (b.Stuff is not { } stuff)
         {
             return -1;
         }
@@ -257,7 +259,7 @@ public static partial class RoomQualityRules
 
             Resource stuff = default;
             var weakest = WeakestRoomStat(q);
-            if (owned.Quality.TryGetValue(out var rank) && rank < NormalQuality)
+            if (owned.Quality is BedQuality.Graded { Category: var rank } && (int)rank < NormalQuality)
             {
                 // Quality: never in a worse stuff than the owned bed's.
                 if (owns >= 0)

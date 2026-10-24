@@ -3,39 +3,28 @@ namespace RimGovernor.Brain.Observation;
 public static class ColonyUpkeepReads
 {
     /// <summary>
-    /// Decodes the upkeep censuses. A census whose frame lacks a field is unknown; one that needs a def the
-    /// catalog cannot answer for throws naming the census and the def, never an unknown.
+    /// Decodes the upkeep censuses, each read whole. One that needs a def the catalog cannot answer for throws naming
+    /// the census and the def, never an unknown.
     /// </summary>
     internal static UpkeepObservation ColonyUpkeep(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
-        var buildings = tables.Buildings;
-        var r = new UpkeepObservation();
-        var u = v.Upkeep?.Outcome;
-        if (u is null)
+        var u = v.Upkeep;
+        var r = new UpkeepObservation
         {
-            return r;
-        }
-        r = r with { Structures = Known(RepairStructures(u, ColonyDecodeReads.RequireCatalog(catalog))) };
-        r = r with { Lighting = Known(ColonyLighting(u.Lighting, buildings, catalog)) };
-        if (!ColonyDecodeReads.HasIssue(u.Issues, "routes"))
+            Structures = Known(RepairStructures(u, ColonyDecodeReads.RequireCatalog(catalog))),
+            Lighting = Known(ColonyLighting(u.Lighting, tables.Buildings, catalog)),
+            Routes = ColonyRoutes(u.Routes),
+        };
+        try
         {
-            r = r with { Routes = ColonyRoutes(u.Routes) };
+            // The flooring census joins the routes census's traffic evidence, so an unread routes census leaves
+            // flooring unknown too rather than judging the traffic tier from nothing.
+            return r with { Flooring = ColonyFlooring(u.Flooring, u.Routes, catalog) };
         }
-        if (!ColonyDecodeReads.HasIssue(u.Issues, "flooring"))
+        catch (DomainException e)
         {
-            // The flooring census joins the routes census's traffic evidence, so a routes issue leaves flooring
-            // unknown too rather than judging the traffic tier from nothing.
-            var routes = ColonyDecodeReads.HasIssue(u.Issues, "routes") ? new O.RoutesSection() : u.Routes;
-            try
-            {
-                r = r with { Flooring = ColonyFlooring(u.Flooring, routes, catalog) };
-            }
-            catch (DomainException e)
-            {
-                throw new DomainException($"flooring census: {e.Message}");
-            }
+            throw new DomainException($"flooring census: {e.Message}");
         }
-        return r;
     }
 
     /// <summary>
@@ -49,7 +38,7 @@ public static class ColonyUpkeepReads
         {
             if (bed.Medical)
             {
-                medical.Add(bed.Bed.Id ?? "");
+                medical.Add(bed.Id);
             }
         }
         var rows = new List<RepairStructure>(u.Structures.Count);
@@ -69,29 +58,20 @@ public static class ColonyUpkeepReads
     }
 
     /// <summary>
-    /// Decodes the flooring section; a cell missing its terrain leaves the whole census unknown so the
-    /// rooms/flooring Need reads unknown, and a terrain the catalog has no stat or def row for throws.
+    /// Decodes the flooring census; a terrain the catalog has no stat or def row for throws.
     /// </summary>
-    private static Fact<FlooringObservation> ColonyFlooring(O.FlooringSection? section, O.RoutesSection? routes, DefinitionCatalog? catalog)
+    private static Fact<FlooringObservation> ColonyFlooring(O.FlooringFacts f, O.RoutesSection? routes, DefinitionCatalog? catalog)
     {
-        var f = section?.Outcome;
-        if (f is null)
+        var terrains = ColonyDecodeReads.RequireCatalog(catalog).FloorTerrains();
+        var r = new FlooringObservation { Terrains = new Dictionary<string, FloorTerrain>(terrains, StringComparer.Ordinal) };
+        // The traffic tier reads the routes census's observed travel; an unread routes census leaves the whole
+        // flooring census unknown rather than silently dropping the tier. Traffic cells whose terrain the
+        // flooring table does not name are unmeasured and left out.
+        if (!ColonyRoutes(routes).TryGetValue(out var routed))
         {
             return default;
         }
-        var terrains = ColonyDecodeReads.RequireCatalog(catalog).FloorTerrains();
-        var r = new FlooringObservation { Terrains = new Dictionary<string, FloorTerrain>(terrains, StringComparer.Ordinal) };
-        // The traffic tier reads the routes census's observed travel; an unknown routes census leaves the whole
-        // flooring census unknown rather than silently dropping the tier. Traffic cells whose terrain the
-        // flooring table does not name are unmeasured and left out.
-        if (routes is not null)
-        {
-            if (!ColonyRoutes(routes).TryGetValue(out var t))
-            {
-                return default;
-            }
-            r = r with { TrafficSamples = t.TrafficSamples, Traffic = t.Traffic };
-        }
+        r = r with { TrafficSamples = routed.TrafficSamples, Traffic = routed.Traffic };
         if (r.Traffic.Count > 0)
         {
             var kept = new List<TrafficCell>();
@@ -107,25 +87,16 @@ public static class ColonyUpkeepReads
         var rooms = new List<FloorRoom>();
         foreach (var room in f.Rooms)
         {
-            var output = new FloorRoom { Id = room.Room?.Id ?? "" };
-            if (room.Role is not null)
-            {
-                output = output with { Role = Known(ColonyDecodeReads.WireParseOpen(room.Role, RoomRole.Unrecognized)) };
-            }
             var cells = new List<FloorCell>();
             foreach (var cell in room.Cells)
             {
-                if (cell.Terrain is null)
-                {
-                    return default;
-                }
                 if (!r.Terrains.ContainsKey(cell.Terrain))
                 {
                     throw new ObservationContractException($"flooring cell stands on terrain {cell.Terrain}, which the catalog has no row for");
                 }
-                cells.Add(new FloorCell { Cell = ColonyDecodeReads.CellOf(cell.Cell), Terrain = cell.Terrain, Pending = cell.Pending ?? "" });
+                cells.Add(new FloorCell { Cell = cell.Cell, Terrain = cell.Terrain, Pending = cell.Pending ?? "" });
             }
-            rooms.Add(output with { Cells = [.. cells] });
+            rooms.Add(new FloorRoom { Id = room.Room, Role = Known(room.Role), Cells = [.. cells] });
         }
         return Known(r with { Rooms = rooms });
     }

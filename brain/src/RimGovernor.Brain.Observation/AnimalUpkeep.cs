@@ -4,19 +4,12 @@ public static class AnimalUpkeepReads
 {
     /// <summary>
     /// Decodes the player herd, each animal joined to its pawn table row; an animal the table does not hold, or
-    /// holds without its animal state, leaves the herd unknown until a later frame.
+    /// holds without its animal state, throws.
     /// </summary>
     internal static Fact<EquatableArray<UpkeepAnimal>> ColonyAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
-        var u = v.Upkeep?.Outcome;
-        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "animals"))
-        {
-            return Unknown<EquatableArray<UpkeepAnimal>>();
-        }
-        if (!AnimalRows(u.Animals, pawns, out var resolved))
-        {
-            return Unknown<EquatableArray<UpkeepAnimal>>();
-        }
+        var u = v.Upkeep;
+        var resolved = AnimalRows(u.Animals.Select(a => a.Pawn), pawns);
         var rows = new List<UpkeepAnimal>();
         for (var i = 0; i < u.Animals.Count; i++)
         {
@@ -47,12 +40,12 @@ public static class AnimalUpkeepReads
                 Label = pawn.Pawn.Label ?? "",
                 Gender = state.Gender,
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
-                RequiresPen = ColonyDecodeReads.Optional(a.RequiresPen is not null, a.RequiresPen.GetValueOrDefault()),
+                RequiresPen = a.Roping is O.AnimalRoping.Roped,
                 Contained = ColonyDecodeReads.Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
                 Release = Known(state.Release),
                 Slaughter = Known(state.Slaughter),
                 Pen = Known((state.PenId ?? "")),
-                SuitablePen = Known(a.SuitablePen?.Id ?? ""),
+                SuitablePen = Known(a.Roping is O.AnimalRoping.Roped { SuitablePen: { } suitable } ? suitable : ""),
                 SlaughterFacts = new SlaughterFacts
                 {
                     Downed = Known(state.Downed),
@@ -85,18 +78,10 @@ public static class AnimalUpkeepReads
         return Known(EquatableArray.From(rows));
     }
 
-    /// <summary>Decodes the factionless census the herd Need tames from. A native section issue (bound exceeded, read failed) leaves it unknown.</summary>
+    /// <summary>Decodes the factionless census the herd Need tames from; a row the pawn table does not hold as an animal throws.</summary>
     internal static Fact<EquatableArray<UpkeepAnimal>> ColonyWildAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
-        var u = v.Upkeep?.Outcome;
-        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "wild_animals"))
-        {
-            return Unknown<EquatableArray<UpkeepAnimal>>();
-        }
-        if (!AnimalRows(u.WildAnimals, pawns, out var resolved))
-        {
-            return Unknown<EquatableArray<UpkeepAnimal>>();
-        }
+        var resolved = AnimalRows(v.Upkeep.WildAnimals, pawns);
         var rows = new List<UpkeepAnimal>();
         foreach (var pawn in resolved)
         {
@@ -106,7 +91,7 @@ public static class AnimalUpkeepReads
             {
                 Id = new PawnId(pawn.Pawn.Id ?? ""),
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
-                RequiresPen = Known(false),
+                RequiresPen = false,
                 Contained = Known(false),
                 Release = Known(false),
                 Slaughter = Known(false),
@@ -124,32 +109,34 @@ public static class AnimalUpkeepReads
     }
 
     /// <summary>
-    /// The player's roamers (#3812): each census row with Roam, in census order. Null when native could not read the census
-    /// (an "animals" section issue), which a pen credit raises as a required fact.
+    /// The player's roamers (#3812): each roped census row with its roam, in census order.
     /// </summary>
-    internal static IReadOnlyList<PenRoamer>? ColonyRoamers(O.ColonyFactsSnapshot v)
+    internal static IReadOnlyList<PenRoamer> ColonyRoamers(O.ColonyFactsSnapshot v)
     {
-        var u = v.Upkeep?.Outcome;
-        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "animals"))
+        var roamers = new List<PenRoamer>();
+        foreach (var a in v.Upkeep.Animals)
         {
-            return null;
+            if (a.Roping is O.AnimalRoping.Roped { Roam: var roam })
+            {
+                roamers.Add(new PenRoamer(a.Pawn.Value, roam.Race, roam.MtbDays, roam.MarketValue, roam.ReachesMapEdge));
+            }
         }
-        return [.. u.Animals.Where(a => a.Roam is not null).Select(a => new PenRoamer(a.Pawn?.Id ?? "", a.Roam!.Race, a.Roam.MtbDays, a.Roam.MarketValue, a.Roam.ReachesMapEdge))];
+        return roamers;
     }
 
-    /// <summary>Resolves each feed row's animal against the pawn table, false when one is missing or carries no animal state.</summary>
-    private static bool AnimalRows(EquatableArray<O.AnimalFeed> feed, Pawns pawns, out List<O.PawnState> output)
+    /// <summary>Resolves each census animal against the pawn table; one missing or carrying no animal state throws.</summary>
+    private static List<O.PawnState> AnimalRows(IEnumerable<PawnId> ids, Pawns pawns)
     {
-        output = new List<O.PawnState>(feed.Count);
-        foreach (var a in feed)
+        var output = new List<O.PawnState>();
+        foreach (var id in ids)
         {
-            if (!pawns.TryGetRow(a.Pawn, out var row) || row.AnimalState is not O.PawnAnimalState.Animal)
+            if (!pawns.TryRow(new C.Ref { Id = id.Value }, out var row) || row.AnimalState is not O.PawnAnimalState.Animal)
             {
-                return false;
+                throw new ObservationContractException($"upkeep animal {id.Value} has no animal row in the pawn table");
             }
             output.Add(row);
         }
-        return true;
+        return output;
     }
 
     /// <summary>The animal block of a row the upkeep read resolved as an animal; any other row is a contract break.</summary>

@@ -2,41 +2,27 @@ namespace RimGovernor.Brain.Observation;
 
 public static class SleepingUpkeepReads
 {
+    /// <summary>
+    /// The sleeping census: the upkeep people, slaves, guests and beds, each bed joined to its building table row and
+    /// its def's catalog rows. A bed the building table does not hold, or a def the catalog cannot answer for, throws.
+    /// </summary>
     internal static Fact<SleepingObservation> ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var u = v.Upkeep?.Outcome;
-        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "people") || ColonyDecodeReads.HasIssue(u.Issues, "beds"))
-        {
-            return Unknown<SleepingObservation>();
-        }
-        EquatableArray<PawnId> Ids(IEnumerable<string> values)
-        {
-            var rows = new List<PawnId>();
-            foreach (var value in values)
-            {
-                rows.Add(new PawnId(value));
-            }
-            return EquatableArray.From(rows);
-        }
+        var u = v.Upkeep;
         EquatableArray<SleepingPerson> People(IEnumerable<O.UpkeepPerson> rows)
         {
             var output = new List<SleepingPerson>();
             foreach (var p in rows)
             {
-                RoyalTitle? title = null;
-                if (p.RoyalTitle is not null)
-                {
-                    title = ColonyDecodeReads.RequireCatalog(catalog).RoyalTitleOf((p.RoyalTitle ?? ""), p.Ascetic.GetValueOrDefault(), p.Precepts);
-                }
                 output.Add(new SleepingPerson
                 {
-                    Id = new PawnId(p.Pawn?.Id ?? ""),
-                    OwnedBed = Known(p.OwnedBed?.Id ?? ""),
+                    Id = p.Pawn,
+                    OwnedBed = Known(p.OwnedBed ?? ""),
                     ComfortableMin = p.ComfortableMinC,
                     ComfortableMax = p.ComfortableMaxC,
-                    Partners = Ids(FactHelpers.RefIds(p.Partners)),
-                    BedSharingAllowed = ColonyDecodeReads.Optional(p.BedSharingAllowed is not null, p.BedSharingAllowed.GetValueOrDefault()),
-                    Title = title,
+                    Partners = p.Partners,
+                    BedSharingAllowed = p.BedSharingAllowed,
+                    Title = p.Title is O.RoyalStanding.Titled t ? ColonyDecodeReads.RequireCatalog(catalog).RoyalTitleOf(t.Title, t.Ascetic, t.Precepts) : null,
                 });
             }
             return EquatableArray.From(output);
@@ -51,11 +37,11 @@ public static class SleepingUpkeepReads
         var beds = new List<SleepingBed>();
         foreach (var b in u.Beds)
         {
-            var head = buildings.Entity(b.Bed);
-            if (head is null)
+            if (!buildings.TryGetValue(b.Id, out var row))
             {
-                return Unknown<SleepingObservation>();
+                throw new ObservationContractException($"sleeping bed {b.Id} has no building row");
             }
+            var head = row.Building;
             if (catalog is null)
             {
                 throw new BridgeContractException("sleeping beds: no definition catalog was loaded");
@@ -71,11 +57,11 @@ public static class SleepingUpkeepReads
             }
             catch (DomainException e)
             {
-                throw new BridgeContractException($"sleeping bed {b.Bed.Id}: {e.Message}");
+                throw new BridgeContractException($"sleeping bed {b.Id}: {e.Message}");
             }
             beds.Add(new SleepingBed
             {
-                Id = b.Bed.Id ?? "",
+                Id = b.Id,
                 Definition = new Resource((head.DefName ?? "")),
                 Humanlike = humanlike,
                 Crib = crib,
@@ -85,12 +71,12 @@ public static class SleepingUpkeepReads
                 Roofed = b.Roofed,
                 RestEffectiveness = (float)rest,
                 Temperature = b.TemperatureC,
-                Owners = Ids(FactHelpers.RefIds(b.Owners)),
-                Users = Ids(FactHelpers.RefIds(b.Users)),
-                AccessibleTo = Ids(FactHelpers.RefIds(b.AccessibleTo)),
+                Owners = b.Owners,
+                Users = b.Users,
+                AccessibleTo = b.AccessibleTo,
                 Room = b.Room,
-                Quality = ColonyDecodeReads.Optional(b.Quality is not null, (int)b.Quality.GetValueOrDefault()),
-                Stuff = ColonyDecodeReads.Optional(b.Stuff is not null, b.Stuff ?? ""),
+                Quality = b.Quality,
+                Stuff = b.Stuff,
                 Cell = ColonyDecodeReads.MapCellOf(head),
             });
         }

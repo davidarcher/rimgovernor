@@ -52,12 +52,12 @@ internal static class FloorKitchen
         async Task<List<Observations.FloorCell>> ReadAsync(string label)
         {
             var upkeep = await TypedApply.UpkeepAsync(s, label, cancellationToken).ConfigureAwait(false);
-            var flooring = upkeep.Flooring?.Outcome ?? throw new AcceptanceException($"{label}: flooring section unavailable: {upkeep.Flooring?.Outcome}");
+            var flooring = upkeep.Flooring;
             var room = flooring.Rooms.FirstOrDefault(r => r.Cells.Any(c => interior.Contains(Of(c))))
                 ?? throw new AcceptanceException($"{label}: no flooring row holds the staged kitchen");
             s.RecordWire(label, room);
             var cells = room.Cells.Where(c => interior.Contains(Of(c))).ToList();
-            return room.Role == "Kitchen" && cells.Count == interior.Count
+            return room.Role == Observations.RoomRole.Kitchen && cells.Count == interior.Count
                 ? cells
                 : throw new AcceptanceException($"{label}: want a Kitchen row over the {interior.Count} interior cells, got {room.Role} over {cells.Count}");
         }
@@ -82,5 +82,5 @@ internal static class FloorKitchen
         }
     }
 
-    private static Fx.StageCell Of(Observations.FloorCell cell) => cell.Cell is { } c ? new(c.X, c.Z) : new(-1, -1);
+    private static Fx.StageCell Of(Observations.FloorCell cell) => new(cell.Cell.X, cell.Cell.Z);
 }

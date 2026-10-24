@@ -6,9 +6,10 @@ Equipment and apparel are their own contracts: the [loadout model](equipment-upk
 the [apparel policy operation](apparel-policy.md) and the [weapon planner](weapon-planner.md).
 
 Upkeep uses the existing ColonyPlan, resource admission and Hands executor.
-`rimgovernor/observations_read_colony_facts` `upkeep` is versioned read-only native evidence. Each section is
-independently nullable with an error; an empty successful census differs from an
-unavailable read. The section tick must match the enclosing observation.
+`rimgovernor/observations_read_colony_facts` `upkeep` is versioned read-only native evidence, read whole:
+every census list is total and a read native cannot make fails the observation. Only the routes
+section stays nullable (#3782). An item's rot, a bed's quality, a person's royal standing and an
+animal's roping are named states.
 The repair structure census includes only native definitions with `useHitPoints`, so
 non-damageable markers such as sleeping spots are never repair targets.
 

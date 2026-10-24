@@ -22,7 +22,7 @@ public sealed record UpkeepAnimal
     /// <summary>The game Gender; null when unread.</summary>
     public Sex? Gender { get; init; }
 
-    public Fact<bool> RequiresPen { get; init; }
+    public bool RequiresPen { get; init; }
 
     public Fact<bool> Contained { get; init; }
 
@@ -360,11 +360,11 @@ public static class AnimalUpkeepRules
         foreach (var animal in animals)
         {
             DomainException.Require(FoodForecastRules.FoodId(animal.Id.Value) && seen.Add(animal.Id) && AdmissionRules.ValidResource(animal.Definition), Invalid);
-            var pk = animal.RequiresPen.TryGetValue(out var pen);
+            var pen = animal.RequiresPen;
             var ck = animal.Contained.TryGetValue(out var contained);
             var rk = animal.Release.TryGetValue(out var release);
             var sk = animal.Slaughter.TryGetValue(out var slaughter);
-            if (!pk || (pen && (!ck || !rk || !sk)))
+            if (pen && (!ck || !rk || !sk))
             {
                 containmentKnown = false;
             }
@@ -397,7 +397,7 @@ public static class AnimalUpkeepRules
         foreach (var a in animals)
         {
             DomainException.Require(FoodForecastRules.FoodId(a.Id.Value) && seen.Add(a.Id), "invalid animal containment census");
-            DomainException.Require(a.RequiresPen.TryGetValue(out var pen), "animal pen requirement unknown");
+            var pen = a.RequiresPen;
             if (!pen)
             {
                 continue;

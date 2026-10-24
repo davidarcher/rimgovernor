@@ -112,7 +112,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         foreach (var a in animals)
         {
-            if (a.RequiresPen.TryGetValue(out var pen) && pen)
+            if (a.RequiresPen)
             {
                 return true;
             }

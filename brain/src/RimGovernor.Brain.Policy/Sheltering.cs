@@ -296,7 +296,7 @@ public static partial class ShelterRules
         {
             foreach (var animal in animals)
             {
-                if (!RoundsRules.Positive(animal.SupportsAreas) || !AreaKnownFalse(animal.RequiresPen))
+                if (!RoundsRules.Positive(animal.SupportsAreas) || animal.RequiresPen)
                 {
                     continue;
                 }
@@ -306,8 +306,6 @@ public static partial class ShelterRules
         // Stable by pawn id.
         return changes.OrderBy(c => c.Pawn).ToList();
     }
-
-    internal static bool AreaKnownFalse(Fact<bool> f) => f.TryGetValue(out var v) && !v;
 
     /// <summary>
     /// Whether a threat's sheltering response is complete: a threat triggers sheltering and every living,

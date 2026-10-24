@@ -1,3 +1,5 @@
+using BedQuality = RimGovernor.Contracts.Wire.Observations.BedQuality;
+
 namespace RimGovernor.Brain.Policy;
 
 public sealed record SleepingPerson
@@ -14,7 +16,7 @@ public sealed record SleepingPerson
     public EquatableArray<PawnId> Partners { get; init; }
 
     /// <summary>The native willingness (ideo precepts) to share a bed with every partner; true without Ideology.</summary>
-    public Fact<bool> BedSharingAllowed { get; init; }
+    public bool BedSharingAllowed { get; init; }
 
     /// <summary>The most senior royal title; null without one or without Royalty.</summary>
     public RoyalTitle? Title { get; init; }
@@ -53,11 +55,11 @@ public sealed record SleepingBed
     /// <summary>The native id (Room.ID) of the room the bed stands in, outdoors included.</summary>
     public string Room { get; init; } = "";
 
-    /// <summary>The bed's QualityCategory ordinal (0 Awful .. 6 Legendary), unknown for a bed without quality.</summary>
-    public Fact<int> Quality { get; init; }
+    /// <summary>The bed's quality, ungraded for a def without CompQuality (a sleeping spot).</summary>
+    public BedQuality Quality { get; init; } = new BedQuality.Ungraded();
 
-    /// <summary>The native stuff defName, unknown for a stuffless bed.</summary>
-    public Fact<string> Stuff { get; init; }
+    /// <summary>The native stuff defName, null for a stuffless bed.</summary>
+    public string? Stuff { get; init; }
 
     /// <summary>The bed's position (its head cell).</summary>
     public Cell Cell { get; init; }
@@ -182,7 +184,7 @@ public static partial class SleepingRules
         {
             byId[p.Id] = p;
         }
-        static bool Willing(SleepingPerson p) => p.BedSharingAllowed.TryGetValue(out var w) && w;
+        static bool Willing(SleepingPerson p) => p.BedSharingAllowed;
         static bool Names(SleepingPerson p, PawnId id) => p.Partners.Contains(id);
         var couples = new Dictionary<PawnId, PawnId>();
         foreach (var p in list)

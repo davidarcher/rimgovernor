@@ -2,7 +2,6 @@ using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -72,12 +71,8 @@ public sealed class PenCreditTests
     }
 
     [Fact]
-    public void AnUnreadAnimalCensusIsARequiredFact()
+    public void AContextWithoutTheAnimalCensusIsARequiredFact()
     {
-        Assert.Null(AnimalUpkeepReads.ColonyRoamers(Census() with
-        {
-            Upkeep = new() { Outcome = Upkeep() with { Issues = [new() { Field = "animals" }] } },
-        }));
         var thrown = Assert.Throws<RequiredFactException>(() => ForecastPens.PenCredit(new(1, "", 0), default!, Context(null), 0));
         Assert.Equal("animal census", thrown.Fact);
     }
@@ -102,10 +97,12 @@ public sealed class PenCreditTests
         Assert.Empty(ForecastPens.PenCredit(new(1, "", 0), default!, fresh, 0));
     }
 
-    private static AnimalFeed Feed(string id, AnimalRoam? roam = null) => new() { Pawn = new Common.Ref { Id = id }, RequiresPen = roam is not null, Roam = roam };
+    private static ColonyAnimal Feed(string id, AnimalRoam? roam = null) => new()
+    {
+        Pawn = new PawnId(id),
+        Roping = roam is not null ? new AnimalRoping.Roped(roam, null) : new AnimalRoping.Unroped(),
+    };
 
-    private static UpkeepFacts Upkeep() => new() { Comfort = ComfortTests.NoComfort, HomeCoverage = HomeCoverageTests.NoHomeCoverage, Lighting = LightingTests.NoLighting };
-
-    private static ColonyFactsSnapshot Census(params AnimalFeed[] animals) =>
-        ColonyFactsCoreTests.Snapshot() with { Upkeep = new() { Outcome = Upkeep() with { Animals = [.. animals] } } };
+    private static ColonyFactsSnapshot Census(params ColonyAnimal[] animals) =>
+        ColonyFactsCoreTests.Snapshot() with { Upkeep = UpkeepFactsTests.NoUpkeep with { Animals = [.. animals] } };
 }

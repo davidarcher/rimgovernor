@@ -45,7 +45,7 @@ public sealed partial record HerdPlan
         var kept = new Dictionary<Resource, long>();
         foreach (var a in animals)
         {
-            if (a.RequiresPen.TryGetValue(out var pen) && pen)
+            if (a.RequiresPen)
             {
                 kept[a.Definition] = kept.GetValueOrDefault(a.Definition) + 1;
             }

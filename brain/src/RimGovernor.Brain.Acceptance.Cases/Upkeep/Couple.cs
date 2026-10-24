@@ -41,10 +41,10 @@ internal static class UpkeepCouple
         _ = await s.ServeUntilAsync("couple", s.TicksLeft, async ct =>
         {
             var facts = await s.CallAsync("beds", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, ct).ConfigureAwait(false);
-            var upkeep = facts.Upkeep?.Outcome ?? throw new AcceptanceException("beds: upkeep facts unavailable");
-            var row = upkeep.Beds.FirstOrDefault(b => b.Bed.Id == prepared.DoubleBed)
+            var upkeep = facts.Upkeep;
+            var row = upkeep.Beds.FirstOrDefault(b => b.Id == prepared.DoubleBed)
                 ?? throw new AcceptanceException($"double bed {prepared.DoubleBed} missing from the bed facts");
-            var owners = row.Owners.Select(o => o.Id ?? "").Order(StringComparer.Ordinal).ToList();
+            var owners = row.Owners.Select(o => o.Value).Order(StringComparer.Ordinal).ToList();
             var signature = string.Join(' ', owners);
             s.Record("double_bed_owners", signature);
             return (signature, owners.Count == 2 && couple.SetEquals(owners));

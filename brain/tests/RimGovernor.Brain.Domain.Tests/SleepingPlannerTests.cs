@@ -281,7 +281,7 @@ public sealed class SleepingPlannerTests
     {
         static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new()
         {
-            Id = id, OwnedBed = Known(bed), ComfortableMin = 6.0, ComfortableMax = 30.0, Partners = [other], BedSharingAllowed = Known(willing),
+            Id = id, OwnedBed = Known(bed), ComfortableMin = 6.0, ComfortableMax = 30.0, Partners = [other], BedSharingAllowed = willing,
         };
         var dbl = new SleepingBed
         {

@@ -605,7 +605,7 @@ Kept, reason recorded:
 | RoyalThrone | message | 1414 | 3 | state | Player throne and owner |  |  |
 | RoyaltySection | message | 1418 | 2 | state | Royalty colony section envelope |  |  |
 | RoyaltyColonyFacts | message | 1419 | 3 | state | Neuroformers, ceremonies, thrones |  |  |
-| AnimalFeed | message | 1422 | 4 | mixed | Animal feed diet and pen requirement | diet | RaceProperties.foodType (ThingDef.race) |
+| ColonyAnimal | message | 1422 | 2 | mixed | Player animal and its roping (roam, suitable pen) | diet | RaceProperties.foodType (ThingDef.race) |
 | DevelopmentPower | message | 1423 | 3 | state | Power consumer/battery roof and turret dps (capacity deleted, #2657; stored energy is the network's) |  | turret_dps kept: the live gun's verb output |
 | SteamGeyser | message | 1431 | 3 | state | Steam geyser cells and occupancy |  |  |
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
@@ -650,7 +650,6 @@ Kept, reason recorded:
 | FloorCell | message | 1596 | 3 | state | Terrain under a room cell and pending floor |  |  |
 | FloorRoom | message | 1598 | 3 | state | Room role and floor cells |  |  |
 | FlooringFacts | message | 1600 | 1 | state | Rooms with floor cells |  |  |
-| FlooringSection | message | 1601 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | TrafficLayer | enum | 1611 | 6 | state | Tags which pawn class a traffic sample counts |  |  |
 | RouteTravel | message | 1622 | 5 | code | Per colonist reachability and path cost to a facility |  |  |
 | RouteBreach | message | 1623 | 4 | state | Breach candidate wall cell |  |  |
@@ -660,7 +659,6 @@ Kept, reason recorded:
 | RoutesFacts | message | 1627 | 5 | state | Facility routes and traffic census |  |  |
 | RoutesSection | message | 1628 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | UpkeepFacts | message | 1629 | 20 | state | Upkeep bundle: items, beds, structures, fires, filth, people, animals, sections, home area |  |  |
-| UpkeepSection | message | 1649 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | ThreatFacts | message | 1657 | 9 | code | Colony wealth and raid points computed by the storyteller |  |  |
 | ThreatSection | message | 1658 | 1 | state | Section wrapper (observed; a failed threat read fails the census) |  |  |
 | LootItem | message | 1665 | 6 | code | Haul safety verdict, path length and storage headroom for an item |  |  |

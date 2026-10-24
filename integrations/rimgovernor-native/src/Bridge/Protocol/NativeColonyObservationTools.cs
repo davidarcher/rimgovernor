@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
             mark = System.Diagnostics.Stopwatch.GetTimestamp();
             var forecast = new Obs.ForecastSection { Outcome = Forecast(forecastFacts) with { Needs = needs, Coupled = coupled } };
             Span("cf.fc.wrap");
-            var upkeep = ReadComfort(map, things, routePathBudgetMs);
+            var upkeep = ReadUpkeep(map, things, routePathBudgetMs);
             Span("cf.upkeep");
             var threat = ReadThreat(map);
             var development = new Obs.DevelopmentSection { Outcome = ReadPower(map) };
@@ -239,7 +239,7 @@ namespace HomeBridge.BridgeTools
                 Def = f.def.defName, Player = f.IsPlayer, Defeated = f.defeated, Hostile = f.HostileTo(Faction.OfPlayer),
                 Combat = f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(maker => maker.kindDef == PawnGroupKindDefOf.Combat) });
 
-        private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
+        private static Obs.UpkeepFacts ReadUpkeep(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             var home = NativeUpkeepFacts.ReadHomeCoverage(map);
@@ -251,11 +251,7 @@ namespace HomeBridge.BridgeTools
             began = System.Diagnostics.Stopwatch.GetTimestamp();
             var lighting = NativeUpkeepFacts.ReadLighting(map, sets);
             ObservationWork.Detail("cf.upkeep.lighting", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            var result = new Obs.UpkeepFacts { HomeCoverage = home, Comfort = comfort, Lighting = lighting };
-            result = NativeUpkeepFacts.Populate(map, sets, result, routePathBudgetMs);
-            foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
-                result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected.")] };
-            return new Obs.UpkeepSection { Outcome = result };
+            return NativeUpkeepFacts.Read(map, sets, home, comfort, lighting, routePathBudgetMs);
         }
 
         private static Obs.DevelopmentFacts ReadPower(Map map)

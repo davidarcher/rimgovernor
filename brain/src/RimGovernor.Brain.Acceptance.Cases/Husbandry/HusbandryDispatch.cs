@@ -122,9 +122,8 @@ internal static class HusbandryDispatch
         var wild = await AnimalAsync("wild-before", herd.Wild).ConfigureAwait(false);
         Want(wild is { Tameable: true } && wild.Tame != true, "wild-before: want a tameable, undesignated muffalo", wild);
         var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var upkeep = factsReply.Upkeep?.Outcome
-            ?? throw new AcceptanceException("colony-facts-wild: the upkeep section is unavailable");
-        Want(upkeep.WildAnimals.Any(a => a.Pawn?.Id == herd.Wild) && !upkeep.Animals.Any(a => a.Pawn?.Id == herd.Wild), "colony-facts-wild: want the muffalo in the wild census only", herd.Wild);
+        var upkeep = factsReply.Upkeep;
+        Want(upkeep.WildAnimals.Any(a => a.Value == herd.Wild) && !upkeep.Animals.Any(a => a.Pawn.Value == herd.Wild), "colony-facts-wild: want the muffalo in the wild census only", herd.Wild);
 
         await RefusedAsync("tame-player-animal", Order(herd.Cow, Operations.HusbandryOrder.Tame), Common.FailureCode.NotFound).ConfigureAwait(false);
         foreach (var key in new[] { "apply-tame", "reapply-tame" })

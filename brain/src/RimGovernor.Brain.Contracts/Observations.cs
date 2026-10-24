@@ -5046,38 +5046,58 @@ public sealed record JoyTolerance(PawnId Pawn,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<bool>))] EquatableArray<bool> Bored);
 
 /// <summary>
-/// One loose player or unowned item an upkeep concern may haul: its stack
-/// count, roof, storage and forbidden state, and rot_ticks while it rots.
+/// One loose player or unowned item an upkeep concern may haul, read whole: its id and def, its stack count, whether it
+/// rots (and in how many ticks at the current temperature) and whether it is forbidden.
 /// </summary>
 public sealed record UpkeepItem
 {
-    public Common.Ref Item { get; init; } = new();
+    public required string Id { get; init; }
 
-    public long Count { get; init; }
+    public required string Definition { get; init; }
 
-    public long? RotTicks { get; init; }
+    public required long Count { get; init; }
 
-    public bool Forbidden { get; init; }
+    public required ItemRot Rot { get; init; }
+
+    public required bool Forbidden { get; init; }
 }
 
+/// <summary>Whether an item rots: an active CompRottable's ticks until it rots at the current temperature, or never.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ItemRot.Rotting), "rotting")]
+[JsonDerivedType(typeof(ItemRot.Never), "never")]
+public abstract record ItemRot
+{
+    private protected ItemRot() { }
+
+    public sealed record Rotting(long Ticks) : ItemRot;
+
+    public sealed record Never : ItemRot;
+}
+
+/// <summary>
+/// One player bed, read whole: its kind flags, owners, users and the census people who can reach it, its roof,
+/// ambient temperature and room, its quality and its stuff (null for a stuffless def). Its def and cell are its
+/// building table row's.
+/// </summary>
 public sealed record UpkeepBed
 {
-    public Common.Ref Bed { get; init; } = new();
+    public required string Id { get; init; }
 
-    public bool Medical { get; init; }
+    public required bool Medical { get; init; }
 
-    public bool Prisoners { get; init; }
+    public required bool Prisoners { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Owners { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Owners { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Users { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Users { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> AccessibleTo { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> AccessibleTo { get; init; }
 
-    public bool Roofed { get; init; }
+    public required bool Roofed { get; init; }
 
     /// <summary>The bed's ambient temperature (Building_Bed.AmbientTemperature).</summary>
     public required double TemperatureC { get; init; }
@@ -5085,11 +5105,24 @@ public sealed record UpkeepBed
     /// <summary>The native id (Room.ID) of the room the bed stands in, outdoors included; the room census holds its stats.</summary>
     public required string Room { get; init; }
 
-    public Defs.QualityCategory? Quality { get; init; }
+    public required BedQuality Quality { get; init; }
 
-    public string? Stuff { get; init; }
+    public required string? Stuff { get; init; }
 
-    public bool ForSlaves { get; init; }
+    public required bool ForSlaves { get; init; }
+}
+
+/// <summary>A bed's quality: its QualityCategory, or ungraded for a def without CompQuality (a sleeping spot).</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BedQuality.Graded), "graded")]
+[JsonDerivedType(typeof(BedQuality.Ungraded), "ungraded")]
+public abstract record BedQuality
+{
+    private protected BedQuality() { }
+
+    public sealed record Graded(Defs.QualityCategory Category) : BedQuality;
+
+    public sealed record Ungraded : BedQuality;
 }
 
 
@@ -5116,20 +5149,16 @@ public sealed record UpkeepStructure
 }
 
 /// <summary>
-/// partners: lover, spouse and fiance relations to living pawns on the same
-/// map (native direct relations). bed_sharing_allowed: the native willingness
-/// to share a bed with every listed partner (the SharedBed precepts; with no
-/// partner, the plain SharedBed precept), true without Ideology. royal_title:
-/// the most senior royal title's defName, absent without one or when Royalty is
-/// inactive; its seniority and bedroom requirements are the RoyalTitleDef row,
-/// less what the pawn's own state waives (ascetic trait; precepts is the
-/// ideoligion's precept defNames, whose disablingPrecepts drop a requirement).
+/// One person of the sleeping census, read whole. OwnedBed: the bed the pawn owns, null without one. Partners: lover,
+/// spouse and fiance relations to living pawns on the same map (native direct relations). BedSharingAllowed: the
+/// native willingness to share a bed with every listed partner (the SharedBed precepts; with no partner, the plain
+/// SharedBed precept), true without Ideology. Title: the most senior royal title, or untitled.
 /// </summary>
 public sealed record UpkeepPerson
 {
-    public Common.Ref? Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public Common.Ref? OwnedBed { get; init; }
+    public required string? OwnedBed { get; init; }
 
     /// <summary>StatDefOf.ComfyTemperatureMin of the pawn.</summary>
     public required double ComfortableMinC { get; init; }
@@ -5137,17 +5166,31 @@ public sealed record UpkeepPerson
     /// <summary>StatDefOf.ComfyTemperatureMax of the pawn.</summary>
     public required double ComfortableMaxC { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Partners { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Partners { get; init; }
 
-    public bool? BedSharingAllowed { get; init; }
+    public required bool BedSharingAllowed { get; init; }
 
-    public string? RoyalTitle { get; init; }
+    public required RoyalStanding Title { get; init; }
+}
 
-    public bool? Ascetic { get; init; }
+/// <summary>
+/// A person's royal standing: untitled (no title, or Royalty inactive), or the most senior title's defName, whose
+/// seniority and bedroom requirements are the RoyalTitleDef row less what the pawn's own state waives (the Ascetic trait;
+/// Precepts are the ideoligion's precept defNames, sorted, whose disablingPrecepts drop a requirement; empty without an
+/// ideoligion).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RoyalStanding.Titled), "titled")]
+[JsonDerivedType(typeof(RoyalStanding.Untitled), "untitled")]
+public abstract record RoyalStanding
+{
+    private protected RoyalStanding() { }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Precepts { get; init; }
+    public sealed record Titled(string Title, bool Ascetic,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Precepts) : RoyalStanding;
+
+    public sealed record Untitled : RoyalStanding;
 }
 
 /// <summary>
@@ -5290,16 +5333,29 @@ public sealed record RoyaltyColonyFacts
 /// pawn refers to the bundle pawn table row, whose animal_state
 /// carries the herd facts.
 /// </summary>
-public sealed record AnimalFeed
+/// <summary>One player animal of the upkeep census, read whole: its pawn (the herd facts ride its pawn table row) and whether native manages it by rope.</summary>
+public sealed record ColonyAnimal
 {
-    public Common.Ref? Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public bool? RequiresPen { get; init; }
+    public required AnimalRoping Roping { get; init; }
+}
 
-    public Common.Ref? SuitablePen { get; init; }
+/// <summary>
+/// Whether native manages an animal by rope (AnimalPenUtility.NeedsToBeManagedByRope, which tests Pawn.Roamer): a roped
+/// animal carries its roaming facts (#3812) and the closest pen that suits it (its pen comp's parent id, null when none
+/// does); an unroped one is never walked off the map.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AnimalRoping.Roped), "roped")]
+[JsonDerivedType(typeof(AnimalRoping.Unroped), "unroped")]
+public abstract record AnimalRoping
+{
+    private protected AnimalRoping() { }
 
-    /// <summary>The roaming facts of an animal native manages by rope (RequiresPen, #3812); absent for one the game never walks off the map.</summary>
-    public AnimalRoam? Roam { get; init; }
+    public sealed record Roped(AnimalRoam Roam, string? SuitablePen) : AnimalRoping;
+
+    public sealed record Unroped : AnimalRoping;
 }
 
 /// <summary>
@@ -5309,13 +5365,13 @@ public sealed record AnimalFeed
 /// </summary>
 public sealed record AnimalRoam
 {
-    public string Race { get; init; } = "";
+    public required string Race { get; init; }
 
-    public double MtbDays { get; init; }
+    public required double MtbDays { get; init; }
 
-    public double MarketValue { get; init; }
+    public required double MarketValue { get; init; }
 
-    public bool ReachesMapEdge { get; init; }
+    public required bool ReachesMapEdge { get; init; }
 }
 
 /// <summary>
@@ -5829,47 +5885,40 @@ public sealed record WorkLightCell(string Bench, Cell Cell, double Glow, bool Ro
 public sealed record LampState(string Building, bool Lit);
 
 /// <summary>
-/// Flooring facts: every proper indoor home room with the terrain under each
-/// of its cells, plus one row per distinct terrain with the native stats
-/// the rooms/flooring Need scores (cleanliness, path cost, beauty, flammability) and
-/// whether the terrain is natural ground rather than a laid floor. A cell
-/// whose floor is already ordered carries the pending floor definition so the
-/// planner never doubles an open blueprint or frame.
+/// One cell of a flooring room: the terrain under it and, when a floor blueprint or frame stands on it, the ordered
+/// floor's def (null when none is ordered), so the planner never doubles an open order.
 /// </summary>
 public sealed record FloorCell
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public string? Terrain { get; init; }
+    public required string Terrain { get; init; }
 
-    public string? Pending { get; init; }
+    public required string? Pending { get; init; }
 }
 
 /// <summary>
-/// Room stats live on the bundle rooms census (RoomState.stats), not here.
+/// One proper indoor home room (any cell in the Home area, not psychologically outdoors, off the map edge, unfogged):
+/// its native id (Room.ID), its role and its cells sorted by z then x. Room stats live on the rooms census.
 /// </summary>
 public sealed record FloorRoom
 {
-    public Common.Ref? Room { get; init; }
+    public required string Room { get; init; }
 
-    public string? Role { get; init; }
+    public required RoomRole Role { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FloorCell>))]
-    public EquatableArray<FloorCell> Cells { get; init; }
+    public required EquatableArray<FloorCell> Cells { get; init; }
 }
 
 /// <summary>
-/// Every terrain a cell can stand on is a catalog TerrainDef row; the frame names none.
+/// The flooring census, read whole: every flooring room. Every terrain a cell can stand on is a catalog TerrainDef row,
+/// which carries the stats the rooms/flooring Need scores.
 /// </summary>
 public sealed record FlooringFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<FloorRoom>))]
-    public EquatableArray<FloorRoom> Rooms { get; init; }
-}
-
-public sealed record FlooringSection
-{
-    public FlooringFacts Outcome { get; init; } = null!;
+    public required EquatableArray<FloorRoom> Rooms { get; init; }
 }
 
 /// <summary>
@@ -5952,61 +6001,53 @@ public sealed record RoutesSection
     public RoutesFacts Outcome { get; init; } = null!;
 }
 
+/// <summary>
+/// The upkeep censuses, read whole: a census native cannot read fails the colony read. Routes stays a section, null
+/// when native could not read it (#3782).
+/// </summary>
 public sealed record UpkeepFacts
 {
-    /// <summary>
-    /// storage_cells (5) and protected_cells (10) were never read.
-    /// </summary>
     public required ComfortFacts Comfort { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepItem>))]
-    public EquatableArray<UpkeepItem> Items { get; init; }
+    public required EquatableArray<UpkeepItem> Items { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepBed>))]
-    public EquatableArray<UpkeepBed> Beds { get; init; }
-
+    public required EquatableArray<UpkeepBed> Beds { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepStructure>))]
-    public EquatableArray<UpkeepStructure> Structures { get; init; }
+    public required EquatableArray<UpkeepStructure> Structures { get; init; }
 
+    /// <summary>The free colonists.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepPerson>))]
-    public EquatableArray<UpkeepPerson> People { get; init; }
+    public required EquatableArray<UpkeepPerson> People { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<AnimalFeed>))]
-    public EquatableArray<AnimalFeed> Animals { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    /// <summary>The player animals.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ColonyAnimal>))]
+    public required EquatableArray<ColonyAnimal> Animals { get; init; }
 
     public required HomeCoverageFacts HomeCoverage { get; init; }
 
     public required LightingFacts Lighting { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<AnimalFeed>))]
-    public EquatableArray<AnimalFeed> WildAnimals { get; init; }
+    /// <summary>The factionless animals an animals/herd tame write can target; their tame facts ride their pawn table rows.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> WildAnimals { get; init; }
 
-    public FlooringSection? Flooring { get; init; }
+    public required FlooringFacts Flooring { get; init; }
 
     public RoutesSection? Routes { get; init; }
 
-    /// <summary>
-    /// rooms: the bundle rooms census
-    /// </summary>
+    /// <summary>The colony's slaves: shelter/sleeping gives each a bed set for slaves.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepPerson>))]
-    public EquatableArray<UpkeepPerson> Slaves { get; init; }
-
+    public required EquatableArray<UpkeepPerson> Slaves { get; init; }
 
     /// <summary>
     /// Hosted guests (HostFaction == player, quest lodgers included):
     /// people the colony houses but does not own, in the sleeping census.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepPerson>))]
-    public EquatableArray<UpkeepPerson> Guests { get; init; }
-}
-
-public sealed record UpkeepSection
-{
-    public UpkeepFacts Outcome { get; init; } = null!;
+    public required EquatableArray<UpkeepPerson> Guests { get; init; }
 }
 
 /// <summary>
@@ -6640,7 +6681,7 @@ public sealed record ColonyFactsSnapshot
 
     public required ForecastSection Forecast { get; init; }
 
-    public required UpkeepSection Upkeep { get; init; }
+    public required UpkeepFacts Upkeep { get; init; }
 
     public required DevelopmentSection Development { get; init; }
 

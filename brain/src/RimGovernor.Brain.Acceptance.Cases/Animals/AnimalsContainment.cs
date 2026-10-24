@@ -21,7 +21,7 @@ internal static class AnimalsContainment
         Scope = "Over a staged finished 6x6 WoodLog Fence ring with a FenceGate and a PenMarker, a colonist on Handling ropes a "
             + "staged uncontained player Cow into the pen: observations_list_pawns animal details read it Contained with a pen id and no "
             + "release or slaughter designation, and observations_read_colony_facts' upkeep animals read the staged Husky "
-            + "RequiresPen=false with no pen.",
+            + "unroped, with no pen.",
         Ticks = 15000,
         Tier = CaseTier.Nightly,
         Stage = new Fx.StageSpec
@@ -92,12 +92,10 @@ internal static class AnimalsContainment
         }
 
         var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var upkeep = facts.Upkeep?.Outcome
-            ?? throw new AcceptanceException("pet-upkeep: the upkeep section is unavailable");
-        var pet = upkeep.Animals.FirstOrDefault(a => a.Pawn?.Id == petId)
+        var pet = facts.Upkeep.Animals.FirstOrDefault(a => a.Pawn.Value == petId)
             ?? throw new AcceptanceException($"pet-upkeep: the staged pet {petId} is not in the upkeep census");
         s.RecordWire("pet", pet);
-        if (pet.RequiresPen != false || pet.SuitablePen is not null)
+        if (pet.Roping is not Observations.AnimalRoping.Unroped)
         {
             throw new AcceptanceException($"pet-upkeep: the pet should need no pen and have none: {pet}");
         }

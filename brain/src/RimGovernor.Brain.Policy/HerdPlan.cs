@@ -558,7 +558,7 @@ public static class HerdPlanRules
             var penned = new Dictionary<Resource, long>();
             foreach (var a in rows)
             {
-                if (a.RequiresPen.TryGetValue(out var pen) && pen && !a.Herd.Predator)
+                if (a.RequiresPen && !a.Herd.Predator)
                 {
                     penned[a.Definition] = penned.GetValueOrDefault(a.Definition) + 1;
                 }

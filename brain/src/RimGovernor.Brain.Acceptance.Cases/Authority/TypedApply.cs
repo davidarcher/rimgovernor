@@ -48,11 +48,11 @@ internal static class TypedApply
         return pawns is [var pawn] ? pawn : throw new AcceptanceException($"{label}: want pawn {id}, got {pawns.Count} rows");
     }
 
-    /// <summary>The colony facts' upkeep section (observations_read_colony_facts, planning off); an unread section fails the case.</summary>
+    /// <summary>The colony facts' upkeep census (observations_read_colony_facts, planning off).</summary>
     internal static async Task<Observations.UpkeepFacts> UpkeepAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        return facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable: {facts.Upkeep?.Outcome}");
+        return facts.Upkeep;
     }
 
     /// <summary>The observations_get_cells grid over the inclusive staged-site rectangle <paramref name="rect"/> (absolute cells).</summary>

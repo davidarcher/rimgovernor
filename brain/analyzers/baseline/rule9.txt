@@ -170,7 +170,7 @@ BuildingRuntime/Rounds/RoundsDefenseCover.cs|Fact|3
 BuildingRuntime/Rounds/RoundsDefenseCover.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDefenseEntities.cs|Fact|1
 BuildingRuntime/Rounds/RoundsDefenseEntities.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsDefenseLayout.cs|Fact|16
+BuildingRuntime/Rounds/RoundsDefenseLayout.cs|Fact|15
 BuildingRuntime/Rounds/RoundsDefenseLayout.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDefenseLayoutAdmit.cs|Fact|21
 BuildingRuntime/Rounds/RoundsDefenseLayoutAdmit.cs|Unknown|1
@@ -367,7 +367,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|580
+Contracts/Observations.cs|NullableValue|575
 Contracts/Observations.cs|UnknownMember|10
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -430,8 +430,8 @@ Host/HostSnapshots.cs|Unknown|2
 Host/SchedulerLoop.cs|Discard|1
 Observation/Acquisition.cs|Fact|8
 Observation/Acquisition.cs|Unknown|1
-Observation/AnimalUpkeep.cs|Fact|34
-Observation/AnimalUpkeep.cs|Unknown|6
+Observation/AnimalUpkeep.cs|Fact|33
+Observation/AnimalUpkeep.cs|Unknown|2
 Observation/AnomalyColony.cs|Fact|39
 Observation/AnomalyColony.cs|Unknown|8
 Observation/BiotechColony.cs|Fact|78
@@ -484,7 +484,6 @@ Observation/RoundsWork.cs|Unknown|6
 Observation/RoyaltyColonyProjection.cs|Fact|6
 Observation/RoyaltyColonyProjection.cs|Unknown|1
 Observation/SleepingUpkeep.cs|Fact|5
-Observation/SleepingUpkeep.cs|Unknown|2
 Observation/StuffChoice.cs|Discard|1
 Observation/StuffChoice.cs|Fact|7
 Observation/StuffChoice.cs|Unknown|1
@@ -510,7 +509,7 @@ Policy/AnimalFeedRunway.cs|Fact|30
 Policy/AnimalFeedRunway.cs|Unknown|1
 Policy/AnimalFood.cs|Fact|61
 Policy/AnimalFood.cs|Unknown|5
-Policy/AnimalUpkeep.cs|Fact|67
+Policy/AnimalUpkeep.cs|Fact|64
 Policy/AnimalUpkeep.cs|NullableValue|1
 Policy/AnimalsFamily.cs|Fact|19
 Policy/Anomaly.cs|Fact|27
@@ -859,9 +858,9 @@ Policy/Harm/RaidThreat.cs|ValueOrDefault|1
 Policy/Harm/ThreatSchedule.cs|Fact|8
 Policy/HerdCompanion.cs|ValueOrDefault|2
 Policy/HerdMaster.cs|Fact|11
-Policy/HerdPen.cs|Fact|3
+Policy/HerdPen.cs|Fact|2
 Policy/HerdPlan.cs|Discard|1
-Policy/HerdPlan.cs|Fact|32
+Policy/HerdPlan.cs|Fact|31
 Policy/HerdPlan.cs|ValueOrDefault|1
 Policy/HerdPrecepts.cs|Discard|1
 Policy/HerdPrecepts.cs|Fact|12
@@ -1147,7 +1146,7 @@ Policy/Ritual.cs|Unknown|2
 Policy/RockStep.cs|Fact|4
 Policy/RoofSupport.cs|Fact|1
 Policy/RoomQualityBeauty.cs|Fact|6
-Policy/RoomQualityBed.cs|Fact|6
+Policy/RoomQualityBed.cs|Fact|2
 Policy/RoomQualitySuite.cs|Fact|1
 Policy/RoomQualitySwap.cs|Fact|1
 Policy/RoomQualityTarget.cs|Fact|2
@@ -1167,7 +1166,7 @@ Policy/RoyaltyFamily.cs|Fact|5
 Policy/SafetyOverlay.cs|Fact|2
 Policy/Shelter.cs|Fact|11
 Policy/Shelter.cs|Unknown|1
-Policy/Sheltering.cs|Fact|34
+Policy/Sheltering.cs|Fact|32
 Policy/Sheltering.cs|Unknown|3
 Policy/SilverGap.cs|Fact|22
 Policy/SilverGap.cs|Unknown|6
@@ -1179,7 +1178,7 @@ Policy/SleepingBedroom.cs|Unknown|1
 Policy/SleepingMethod.cs|Fact|11
 Policy/SleepingMethod.cs|UnknownMember|1
 Policy/SleepingMigrate.cs|Fact|7
-Policy/SleepingUpkeep.cs|Fact|20
+Policy/SleepingUpkeep.cs|Fact|16
 Policy/SleepingUpkeep.cs|Unknown|1
 Policy/SocialCrops.cs|Fact|8
 Policy/SoldierSquad.cs|Fact|3

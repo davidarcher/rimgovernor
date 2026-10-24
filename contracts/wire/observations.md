@@ -212,9 +212,8 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   power_w, glow_radius, sow_tag and grower_fertility for buildings. An
   `environment` section issue withholds the census; row counts are bounded.
 - The colony upkeep projection includes independent complete visible item,
-  structure, fire and filth censuses, each returning every row. A section issue
-  requires no rows and prevents recovery; missing required row fields remain
-  unknown. Item deterioration uses the native base rate, so covered items still
+  structure, fire and filth censuses, each returning every row whole; a read
+  native cannot make fails the observation rather than leaving a field unknown. Item deterioration uses the native base rate, so covered items still
   need valid storage. Home flags limit fire, repair and cleaning needs. Native
   playing clearance is required before recreation capacity is accepted.
 
