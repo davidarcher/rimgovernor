@@ -63,23 +63,16 @@ public sealed record PawnCycle
         var recreation = Split(pawn, "joy", findings);
         var eating = Eating(pawn, findings);
         var daylight = Daylight(input, twelfth, findings);
-        var free = Unknown<double>();
-        if (sleep.TryGetValue(out var asleep) && eating.TryGetValue(out var eats) && recreation.TryGetValue(out var plays))
+        var left = Left(pawn, findings);
+        if (left < 0)
         {
-            var left = HoursPerDay - asleep - eats - plays;
-            if (left < 0)
-            {
-                findings.Add($"overheads_exceed_day:{pawn.Pawn}");
-            }
-            else
-            {
-                free = Known(left);
-            }
+            findings.Add($"overheads_exceed_day:{pawn.Pawn}");
         }
 
+        var free = left is double known && known >= 0 ? Known(known) : Unknown<double>();
         var outdoor = Unknown<double>();
         var indoor = Unknown<double>();
-        if (free.TryGetValue(out var hours) && daylight.TryGetValue(out var sun))
+        if (left is double hours && hours >= 0 && daylight.TryGetValue(out var sun))
         {
             outdoor = Known(Math.Min(hours, sun));
             indoor = Known(hours - outdoor.Value);
@@ -136,7 +129,8 @@ public sealed record PawnCycle
     }
 
     // Sleep and recreation: while the pawn is served the level rises at Gain, otherwise it falls at Fall; the day is spent
-    // Fall : Fall + Gain on the service once the level cycles between its thresholds.
+    // Fall : Fall + Gain on the service once the level cycles between its thresholds. A gain read as 0 is a need nothing serves
+    // now (joy with no recreation building while JoyUtility.EnjoyableOutsideNow rules out a walk, #3825): no hours go to it, named.
     private static Fact<double> Split(ModelPawn pawn, string kind, SortedSet<string> findings)
     {
         var need = Need(pawn, kind);
@@ -146,13 +140,18 @@ public sealed record PawnCycle
             return Unknown<double>();
         }
 
-        if (!need.Gain.TryGetValue(out var gain) || !(gain > 0))
+        if (!need.Gain.TryGetValue(out var gain) || !(gain >= 0))
         {
             findings.Add($"{kind}_gain_unknown:{pawn.Pawn}");
             return Unknown<double>();
         }
 
-        return Known(HoursPerDay * fall / (fall + gain));
+        if (gain == 0)
+        {
+            findings.Add($"{kind}_unserved:{pawn.Pawn}");
+        }
+
+        return Known(gain == 0 ? 0 : HoursPerDay * fall / (fall + gain));
     }
 
     private static Fact<double> Eating(ModelPawn pawn, SortedSet<string> findings)
@@ -175,6 +174,36 @@ public sealed record PawnCycle
     }
 
     private static ModelNeed? Need(ModelPawn pawn, string kind) => pawn.Needs.FirstOrDefault(n => n.Kind == kind);
+
+    /// <summary>
+    /// Per pawn of the input, the hours of its day its sleep, meals and recreation leave free (<see cref="FreeHours"/>, which depends on
+    /// no twelfth), the time a pawn's value fills with work (#3825). A pawn whose overheads are unread or exceed the day has no row:
+    /// its cycle's findings name why.
+    /// </summary>
+    public static IReadOnlyDictionary<string, double> FreeHoursByPawn(ColonyModelInput input)
+    {
+        var output = new Dictionary<string, double>(StringComparer.Ordinal);
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        if (!input.Pawns.TryGetValue(out var pawns))
+        {
+            return output;
+        }
+
+        foreach (var pawn in pawns)
+        {
+            if (Left(pawn, findings) is double free && free >= 0)
+            {
+                output[pawn.Pawn] = free;
+            }
+        }
+
+        return output;
+    }
+
+    // The hours sleep, meals and recreation leave of the pawn's day; null while any is unread (findings name it).
+    private static double? Left(ModelPawn pawn, SortedSet<string> findings) =>
+        Split(pawn, "rest", findings).TryGetValue(out var asleep) && Eating(pawn, findings).TryGetValue(out var eats)
+            && Split(pawn, "joy", findings).TryGetValue(out var plays) ? HoursPerDay - asleep - eats - plays : null;
 
     private static Fact<double> Daylight(ColonyModelInput input, int twelfth, SortedSet<string> findings)
     {

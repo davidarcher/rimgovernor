@@ -77,6 +77,21 @@ public sealed class PawnCycleTests
     }
 
     [Fact]
+    public void AJoyNeedNothingServesNowTakesNoHoursAndIsNamed()
+    {
+        // #3825: no recreation building and a walk ruled out (JoyUtility.EnjoyableOutsideNow): the read's joy gain is 0, a real state.
+        var pawn = Pawn();
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { Gain = Known(0d) } : n)) };
+
+        var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
+
+        Assert.Equal(0, cycle.RecreationHours.Value);
+        Assert.Equal(15.5, cycle.FreeHours.Value, 9);
+        Assert.True(cycle.Valid());
+        Assert.Contains("joy_unserved:Anna", cycle.Findings);
+    }
+
+    [Fact]
     public void EveryUnknownRateIsNamed()
     {
         var pawn = Pawn() with { Needs = default, Skills = default, ComfortableMin = default };

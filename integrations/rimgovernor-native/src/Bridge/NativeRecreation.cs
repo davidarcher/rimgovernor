@@ -49,6 +49,26 @@ internal static class NativeRecreation
         * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
 
     /// <summary>
+    /// The joy a pawn gains a tick with no recreation building (#3825): the best of the outdoor givers every colony has,
+    /// JoyGiver_GoForWalk and JoyGiver_Skygaze, whose drivers call JoyTickCheckEnd with no building (decompiled 1.7):
+    /// joyGainRate × 0.36 / 2500 × the pawn's tolerance factor for the job's joy kind (Need_Joy.GainJoy). Both givers and both
+    /// drivers require JoyUtility.EnjoyableOutsideNow, so the gain is 0 while the rain, a game condition, the outdoor temperature
+    /// or a vacuum rules them out, and 0 when the giver's own CanBeGivenTo (capacities, outdoors preference, joy kind) refuses
+    /// both. Skygaze's game-condition gain factor (aurora, eclipse) is not applied.
+    /// </summary>
+    internal static double UnservedGainPerTick(Pawn pawn)
+    {
+        outdoorGivers ??= DefDatabase<JoyGiverDef>.AllDefsListForReading
+            .Where(g => g.jobDef != null && (g.giverClass == typeof(JoyGiver_GoForWalk) || g.giverClass == typeof(JoyGiver_Skygaze))).ToArray();
+        if (pawn.needs?.joy is not { } joy || !JoyUtility.EnjoyableOutsideNow(pawn)) return 0;
+        return outdoorGivers.Where(g => g.Worker.CanBeGivenTo(pawn))
+            .Select(g => g.jobDef.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * joy.tolerances.JoyFactorFromTolerance(g.jobDef.joyKind))
+            .DefaultIfEmpty(0).Max();
+    }
+
+    private static JoyGiverDef[]? outdoorGivers;
+
+    /// <summary>
     /// Vanilla drivers whose play is one stationary final Delay toil of joyDuration (the watch and sit-facing families),
     /// so ticksLeftThisToil is the session's remainder. Billiards re-walks between shots and is not one.
     /// </summary>

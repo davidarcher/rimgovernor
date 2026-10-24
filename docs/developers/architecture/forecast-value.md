@@ -225,6 +225,54 @@ sacrifice and a Low one does not.
 - Labor-hours: misprices armor.
 - Days to a goal: a possible later layer when the player sets a goal.
 
+### Pawn value
+
+A colonist's value (#3825, `PawnValueRules`) is in capability-days per day: the work it adds less its upkeep. It
+can be negative. The review computes it for every colonist once tier 2 has run (`RoundsFindings.PawnValues`, the
+`pawn_values` attr of `rounds_review`).
+
+**Work shortfall.** The work the tier-1 selection could not schedule is a shared model (`WorkShortfallRules`,
+`RoundsFindings.WorkShortfall`, the `work_shortfall` attr), per work type and speed stat, in ticks per day at speed 1.
+Every candidate root belongs to one outcome, the roots sharing its `ExclusiveOutcome`. An outcome the selection serves
+with none of its roots is unserved. It costs its cheapest root's unallocated work activities: the root's completions
+and their prerequisites, each counted once over all outcomes. An activity's work type comes from its binding:
+
+- a delivery or supply is hauling at no stat;
+- a recipe is its giver's work type at the recipe's `workSpeedStat`;
+- other work is its giver's work type at the stat its job driver applies (`DefinitionCatalog.WorkSpeedFacts`).
+
+Its work is the cheapest option's ticks times that pawn's speed. The plan's idle pawn time over the horizon first takes
+the work it has an option on. The rest is short. So work that waits on material is not short while a builder stands
+idle. #3805 and #3809 build on this model.
+
+**Work added.** A colonist's free hours (`PawnCycle.FreeHoursByPawn`: the day less sleep, meals and recreation, known on a
+colony with no recreation building through the walk's joy gain) fill
+the shortfall rows of the work types it is capable of. Its fastest stat goes first, and each row is capped at its
+size. One work tick is one capability-tick, the same price as `MaterialValueOf`. The rest of its time adds nothing.
+The native needs read carries each colonist's side (`NeedsForecastPawn.Upkeep`): its value of every work speed stat (0
+where the stat is disabled for it), the work types it is incapable of, the nutrition it eats a day and its mood target and
+break threshold. A stat the game has not loaded makes the read throw.
+
+**Upkeep.**
+
+- Food: the nutrition it eats a day (`Need_Food.FoodFallPerTickAssumingCategory(Fed)`) times the work a nutrition
+  costs. That is the cheapest researched meal recipe's work per nutrition made, plus its ingredients' growing at the
+  cheapest researched human-edible crop's sow and harvest work (`DefinitionCatalog.FoodWork`). Without a meal recipe it
+  is the crop's growing alone.
+- Breaks: `MoodBreakModel.DaysLost` of a day held at its observed mood target under its minor break threshold.
+- Bed: nothing while a colonist bed stands vacant (`SleepingRules.VacantColonistBed`). Otherwise it is the primary
+  bed's build (`LayoutClusterRules.PiecePrice`, cheapest common stuff) over tier 2's horizon.
+
+A fact the value needs and lacks throws `RequiredFactException`. That covers a stat the shortfall needs but the pawn's
+read lacks, a giver, job or recipe the defs do not map, a colonist tier 2 gives no free hours, an unpriced break curve
+or an unread bed. The value never falls back to nothing.
+
+**Not modelled**, named on every value: `comparative_advantage` (a newcomer freeing an existing pawn for other work),
+`food_hauling` (carrying the food from field to kitchen to table: its trips' distances are no read the colony has),
+`effects_on_others` (Abrasive and other traits'
+mood effects on the colony), `skill_growth` (passion's learning over the horizon, #3809) and, when the colony can
+sow no human-edible crop, `food_source_not_crop`.
+
 ## Two-tier horizon
 
 ### Tier 1: exact near-term schedule
@@ -240,7 +288,12 @@ Its cost grows with the number of events, not with ticks.
 
 - **Pawns.** Each pawn has a daily cycle derived per twelfth of the year
   (`PawnCycle.Year`, twelve entries) from its need rates: sleep and recreation
-  hours are the day split `fall : fall + gain` on the rest or joy need, eating
+  hours are the day split `fall : fall + gain` on the rest or joy need, at the
+  best target's gain or, with none, the need's `NeedRate.UnservedGainPerTick`:
+  sleeping on the ground, and for joy the better of a walk and skygazing
+  (`joyGainRate × 0.36 / 2500 ×` the tolerance factor, #3825), which reads 0
+  while `JoyUtility.EnjoyableOutsideNow` rules both out; a gain of 0 gives the
+  need no hours and names it (`joy_unserved:<pawn>`). Eating
   hours are meals a day (food fall over the nutrition of a meal) times the
   meal's service plus the mean approach, and the free labor hours are what
   remains. Daylight hours per twelfth (the gear census's seasonal read) split the

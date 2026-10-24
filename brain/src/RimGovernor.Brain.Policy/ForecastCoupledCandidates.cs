@@ -286,8 +286,8 @@ public sealed partial record ForecastCoupledCandidates
         {
             var of = activities.ToHashSet(StringComparer.Ordinal);
             var least = double.PositiveInfinity;
-            foreach (var option in options.Where(o => of.Contains(o.Activity)))
-                if (option.WorkTicks.TryGetValue(out var ticks)) least = Math.Min(least, ticks);
+            foreach (var (_, ticks) in Worked(options.Where(o => of.Contains(o.Activity))))
+                least = Math.Min(least, ticks);
             return least;
         }
         var owedWork = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -359,6 +359,7 @@ public sealed partial record ForecastCoupledCandidates
             PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
                 pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,
             OwedWork = owedWork,
+            OptionWork = Worked(options).GroupBy(w => (w.Option.Activity, w.Option.Pawn)).ToDictionary(g => g.Key, g => g.Min(w => w.Ticks)),
             LayoutRooms = LayoutRoomsOf(facts),
             Filth = facts.Filth,
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
@@ -410,6 +411,13 @@ public sealed partial record ForecastCoupledCandidates
         }
 
         // The same root reached by two generation paths is one alternative; different roots cannot share an id.
+        // The options whose work the generation read, with that work in ticks: read once here, carried plain.
+        static IEnumerable<(ForecastActivityOption Option, double Ticks)> Worked(IEnumerable<ForecastActivityOption> rows)
+        {
+            foreach (var option in rows)
+                if (option.WorkTicks.TryGetValue(out var ticks)) yield return (option, ticks);
+        }
+
         static List<ForecastCommitment> DistinctAlternatives(List<ForecastCommitment> roots)
         {
             var distinct = new List<ForecastCommitment>();

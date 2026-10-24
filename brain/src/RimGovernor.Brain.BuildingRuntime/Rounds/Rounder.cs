@@ -728,6 +728,8 @@ public sealed partial class Rounder
             var model = RoundsColonyModel.Review(reading.Projection, coupled.Context, goalFacts);
             goalEtas = model.Etas;
             var materials = await MaterialValuesAsync(state.Snapshot, coupled.Context, reading.Projection.Stations, reading.Projection.Facts.Items, ct).ConfigureAwait(false);
+            // A pawn's bed (#3825, V6), which its value charges unless one stands vacant.
+            var bed = await PawnBedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
             var occupantFindings = new SortedSet<string>(coupled.Context.Findings, StringComparer.Ordinal);
             var (occupants, royal) = RoundsSleepingUpkeepPlanner.PlannedOccupantsOf(reading.Projection, occupantFindings);
             // The open planned rooms, whose rings close first in the ring-closure projection (#3744, #3754): started and not
@@ -752,7 +754,7 @@ public sealed partial class Rounder
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, BedroomOccupants = occupants, RoyalRooms = royal, DeathrestFurniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(reading.Projection), OpenRooms = open, BlockedItems = blocked, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, Bed = bed, BedroomOccupants = occupants, RoyalRooms = royal, DeathrestFurniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(reading.Projection), OpenRooms = open, BlockedItems = blocked, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);
@@ -792,6 +794,7 @@ public sealed partial class Rounder
         };
         // The search's accounting (#3722) and per-phase expansions and profile (#3563, #3556).
         attrs.AddRange(ReviewSearchAttrs(result.Needs.CoupledSelection));
+        attrs.AddRange(PawnValueAttrs(result.Needs));
         // Per lap, the properties of the reading it entered on that differ from the previous review's; the laps
         // that entered on the same reading; what the comparison cost (#3564).
         if (LapInputs.Changed() is { } lapsChanged)

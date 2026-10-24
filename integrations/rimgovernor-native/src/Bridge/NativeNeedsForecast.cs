@@ -41,7 +41,10 @@ internal static class NativeNeedsForecast
                 needs.Add(new("joy", K(joy.CurLevelPercentage), decay is float fall
                     ? K(fall / 150.0 * pawn.GetStatValue(StatDefOf.JoyFallRateFactor)) : default,
                     thresholds is { Count: > 1 } ? K(thresholds[1]) : default)
-                    { Unsupported = ["joy_category_rate_changes", "future_tolerance_changes"] });
+                    {
+                        UnservedGainPerTick = K(NativeRecreation.UnservedGainPerTick(pawn)),
+                        Unsupported = ["joy_category_rate_changes", "future_tolerance_changes", "skygaze_condition_gain"],
+                    });
             }
             var state = pawn.Dead ? "dead" : pawn.Downed ? "downed" : pawn.InMentalState ? "mental_state"
                 : pawn.Drafted ? "drafted" : !pawn.IsColonistPlayerControlled ? "player_authority"
@@ -127,7 +130,7 @@ internal static class NativeNeedsForecast
                 ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
                 PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)), Disease = NativeDiseaseFacts.ReadPawn(pawn),
                 CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0,
-                Deathrest = DeathresterOf(pawn) });
+                Upkeep = UpkeepOf(pawn, conditionalMood.MoodUnclampedTarget), Deathrest = DeathresterOf(pawn) });
         }
         var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
             .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
@@ -167,6 +170,30 @@ internal static class NativeNeedsForecast
     }
     /// <summary>PawnObserver.ObservationRadius (a private const in 1.7): the observer sees a thing within this many cells (InHorDistOf).</summary>
     internal const float ObservationRadius = 5f;
+    /// <summary>
+    /// The pawn's value reads (#3825, Obs.PawnUpkeepRead): its speed at each work speed stat the catalog maps, 0 where the stat is
+    /// disabled for it; the work types it is incapable of; its food fall at the Fed category over a day; its mood target and minor
+    /// break threshold, null without a mood need or a mental breaker. A mood need whose target was not read is a broken read.
+    /// </summary>
+    private static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Fact<double> moodTarget)
+    {
+        var names = RimGovernor.Brain.Bridge.DefinitionCatalog.WorkSpeedStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
+        var speeds = new List<Obs.WorkSpeedRead>();
+        foreach (var name in names)
+        {
+            var stat = DefDatabase<StatDef>.GetNamedSilentFail(name) ?? throw new InvalidOperationException("work speed stat not loaded: " + name);
+            speeds.Add(new(stat.defName, stat.Worker.IsDisabledFor(pawn) ? 0 : pawn.GetStatValue(stat)));
+        }
+        var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
+        var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
+        Obs.PawnMoodRead? mood = null;
+        if (pawn.needs?.mood != null && pawn.mindState?.mentalBreaker is { } breaker)
+        {
+            if (!moodTarget.TryGetValue(out var target)) throw new InvalidOperationException("mood target unread for " + pawn.GetUniqueLoadID());
+            mood = new(target, breaker.BreakThresholdMinor);
+        }
+        return new() { Speeds = EquatableArray.From(speeds), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
+    }
     /// <summary>
     /// The corpses a sighting raises an observed-corpse event for (#3806), each with every colonist's sightings of it: the
     /// colonist's recorded observer passes (<see cref="SightingLog"/>) from whose cell PawnObserver.PossibleToObserve sees the

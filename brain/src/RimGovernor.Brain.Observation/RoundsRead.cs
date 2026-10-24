@@ -130,6 +130,7 @@ public static class RoundsReads
         {
             Facts = p.Facts with { Items = catalog.ItemFacts() },
         };
+        var finished = new HashSet<string>(ResearchSection(frame).Finished, StringComparer.Ordinal);
         p = p with
         {
             Facts = p.Facts with
@@ -144,14 +145,16 @@ public static class RoundsReads
                 ResearchBenchSpeeds = catalog.ResearchBenchSpeeds(),
                 LaboratoryBench = p.Shapes.Furniture.BenchFor(RoomRole.Laboratory),
                 Filth = p.Stations.Filth,
-                Crafts = catalog.CraftRecipes(new HashSet<string>(ResearchSection(frame).Finished, StringComparer.Ordinal)),
+                Crafts = catalog.CraftRecipes(finished),
+                WorkSpeeds = catalog.WorkSpeedFacts(),
+                FoodWork = catalog.FoodWork(finished),
             },
         };
         p = p with { Facts = p.Facts with { Containment = RoundsContainmentReads.ContainmentPlanningOf(frame, catalog, p.Definitions) } };
         if (p.Facts.Sleeping.TryGetValue(out var sleeping))
         {
             sleeping = sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()) };
-            p = p with { Facts = p.Facts with { Sleeping = Known(sleeping) } };
+            p = p with { Facts = p.Facts with { Sleeping = Known(sleeping), VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
         }
         p = p with { Facts = p.Facts with { CurrentConstruction = Unknown<CurrentConstruction>(), ConstructionDeficit = Unknown<IReadOnlyDictionary<Resource, long>>() } };
         if (frame.Buildings is { } census)

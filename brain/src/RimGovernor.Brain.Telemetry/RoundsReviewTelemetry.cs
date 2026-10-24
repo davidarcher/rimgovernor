@@ -20,6 +20,12 @@ public static class RoundsReviewTelemetry
     /// <summary>The coupled search's scheduler expansions, against <see cref="CoupledTraversalBoundKey"/>; -1 when nothing was compared.</summary>
     public const string CoupledSearchExpansionsKey = "coupled_search_expansions";
 
+    /// <summary>The work the selection left unscheduled (#3825): per work type and stat, its ticks a day at speed 1; null when tier 2 did not run.</summary>
+    public const string WorkShortfallKey = "work_shortfall";
+
+    /// <summary>Per colonist its value in capability-days a day (#3825) and the parts: work added, food, break and bed upkeep; null when tier 2 did not run.</summary>
+    public const string PawnValuesKey = "pawn_values";
+
     /// <summary>The coupled search's outcome evaluations (#3722), the baseline's included, against <see cref="CoupledEvaluationBudgetKey"/>; -1 when nothing was compared.</summary>
     public const string CoupledSearchEvaluationsKey = "coupled_search_evaluations";
 

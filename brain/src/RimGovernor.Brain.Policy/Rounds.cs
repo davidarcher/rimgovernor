@@ -129,6 +129,15 @@ public sealed record RoundsFacts
     /// <summary>The catalog's mood-break curve: the mean days each tier's break takes its colonist out of work, which prices break risk in capability-days (#3520); unknown (empty tiers) without a catalog.</summary>
     public MoodBreakModel MoodBreak { get; init; } = new();
 
+    /// <summary>The defs' map from a coupled task to the work it is and the speed stat it runs at (DefinitionCatalog.WorkSpeedFacts, #3825), which the work shortfall reads; empty without a catalog.</summary>
+    public WorkSpeedFacts WorkSpeeds { get; init; } = new();
+
+    /// <summary>The work a unit of nutrition costs over the research finished (DefinitionCatalog.FoodWork, #3825), a pawn's food upkeep; no crop and no meal without a catalog.</summary>
+    public FoodWorkFacts FoodWork { get; init; } = new();
+
+    /// <summary>The colonist beds no one owns (SleepingRules.VacantColonistBed) by id, which make a pawn's bed free (#3825, V6); null while the sleeping census is unread.</summary>
+    public IReadOnlyList<string>? VacantColonistBeds { get; init; }
+
     /// <summary>Per research bench def, its ResearchSpeedFactor as the def data states it (DefinitionCatalog.ResearchBenchSpeeds, #3800); empty without a catalog.</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
 
@@ -676,6 +685,14 @@ public sealed record RoundsFindings
     /// <summary>How many ids of the previous selection named a planned room re-tiled under a new id and were pointed at its successor (#3556); derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public int CoupledWarmStartTranslated { get; set; }
+
+    /// <summary>The work the selection left unscheduled, per work type and stat (#3825); null when tier 2 did not run; derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public WorkShortfall? WorkShortfall { get; set; }
+
+    /// <summary>Every colonist's value in capability-days a day (#3825), in pawn order; empty when tier 2 did not run; derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public EquatableArray<PawnValue> PawnValues { get; set; }
     public DisasterHistory? Disaster { get; set; }
 
     public RoundsLatches Latches { get; set; } = new();
@@ -910,6 +927,10 @@ public static partial class RoundsRules
         if (f.CoupledAlternatives is { } coupled)
             r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
                 ForecastCoupled.TierOneHorizonDays, f, demand, [], new()), coupled, warmStart: warm, clockMs: clockMs);
+        // Each colonist's value against the work the selection left short (#3825), once tier 2 has given the pawns' free hours.
+        if (r.CoupledSelection is { } selected && f.CoupledAlternatives is { Context.ModelBasis: { } basis } candidates)
+            (r.WorkShortfall, r.PawnValues) = PawnValueRules.Review(candidates, selected, f.ForecastObserved.Needs ?? throw new RequiredFactException("needs read"),
+                f.WorkSpeeds, f.FoodWork, basis);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         r.Trade = TradeReviewOf(f, p, medicine, demand);

@@ -75,6 +75,12 @@ public sealed record ForecastCoupledContext
     /// roof's RoofCellWorkTicks per cell, plus the least delivery haul and clearing it was generated with) and of each placed
     /// site and standing removal (by its id: the least work of its finishes). A room owing an item without a row is not projected.</summary>
     public IReadOnlyDictionary<string, double> OwedWork { get; init; } = new Dictionary<string, double>(StringComparer.Ordinal);
+    /// <summary>Per option's (activity, pawn), the least work in ticks its generation read (#3825), which the work shortfall
+    /// (<see cref="WorkShortfallRules"/>) measures unscheduled work by; an option whose work was not read has no row.</summary>
+    public IReadOnlyDictionary<(string Activity, string Pawn), double> OptionWork { get; init; } = new Dictionary<(string, string), double>();
+    /// <summary>What a pawn's bed costs the colony (#3825, <see cref="PawnValueRules"/>), set by the review beside <see cref="MaterialValues"/>;
+    /// null before the review priced it.</summary>
+    public PawnBedFacts? Bed { get; init; }
     /// <summary>The placed sites and standing removals the planned rooms hold (#3796, epic #3650 P4), by the rooms whose
     /// interior or ring cells hold them: part of those rooms' owed work.</summary>
     public EquatableArray<ForecastRoomItem> RoomItems { get; init; }

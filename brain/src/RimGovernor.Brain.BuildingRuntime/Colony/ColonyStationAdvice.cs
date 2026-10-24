@@ -100,6 +100,30 @@ public sealed partial class Rounder
         return output;
     }
 
+    /// <summary>
+    /// The colony's side of a pawn's bed (#3825, V6): free while a colonist bed stands vacant, else the capability-days of building
+    /// the primary bed (its work and cost list in its cheapest common stuff, LayoutClusterRules.PiecePrice). Null while the sleeping
+    /// census is unread or the catalog shows the bed no work or cost list, which the pawn value requires.
+    /// </summary>
+    internal async Task<PawnBedFacts?> PawnBedAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    {
+        var name = projection.Shapes.Furniture.PrimaryBed();
+        if (projection.Facts.VacantColonistBeds is not { } vacant)
+        {
+            return null;
+        }
+        if (vacant.Count > 0)
+        {
+            return new(true, 0);
+        }
+        if (HostPiece(projection, name) is not { } piece)
+        {
+            return null;
+        }
+        var values = await MaterialValuesAsync(snapshot, piece.Costs.Select(a => a.Resource), projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        return new(false, LayoutClusterRules.PiecePrice(piece, values));
+    }
+
     /// <summary>A work station's work to build and cost list: its own for a def made from no stuff, else its cheapest common stuff's (by cost value).</summary>
     private static (double Work, IReadOnlyList<Amount> Costs)? HostPiece(ColonyProjection colony, string name)
     {

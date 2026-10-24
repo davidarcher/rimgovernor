@@ -160,25 +160,37 @@ public sealed class ColonyModelInputTests
     }
 
     [Fact]
-    public void ARestingPawnWithNoBedStillHasARestGainSoItsCycleIsADay()
+    public void APawnWithNoBedAndNoRecreationBuildingStillRecoversSoItsCycleIsADay()
     {
-        var projection = ColonyModelFixtures.Projection();
-        var review = projection.Facts.NeedsAlternatives!;
-        var pawn = review.Observation.Pawns[0];
-        // No bed and no recreation target; the rest need carries the ground recovery the game applies to a pawn lying down without a bed.
-        pawn = pawn with
-        {
-            Targets = [.. pawn.Targets.Where(t => t.Kind == "food")],
-            Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "rest" ? n with { UnservedGainPerTick = Known(0.00002) } : n)),
-        };
-        projection = projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = review.Observation with { Pawns = [pawn] } } } };
-
-        var (input, unknowns) = RoundsColonyModel.InputOf(projection);
+        // No bed and no recreation target: the rest need carries the ground recovery the game applies to a pawn lying down
+        // without a bed, the joy need the walk a pawn takes without a building (#3825).
+        var (input, unknowns) = RoundsColonyModel.InputOf(NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk));
 
         var needs = input.Pawns.Value[0].Needs;
         Assert.Equal(0.00002, needs.Single(n => n.Kind == "rest").Gain.Value);
-        Assert.False(needs.Single(n => n.Kind == "joy").Gain.IsKnown);
-        Assert.DoesNotContain(unknowns, u => u.Contains("rest_gain_unknown", StringComparison.Ordinal));
-        Assert.Contains(unknowns, u => u.Contains("joy_gain_unknown", StringComparison.Ordinal));
+        Assert.Equal(Walk, needs.Single(n => n.Kind == "joy").Gain.Value);
+        Assert.Empty(unknowns);
+        Assert.True(input.Valid());
+    }
+
+    /// <summary>GoForWalk's gain a tick at tolerance factor 1: joyGainRate 1 × 0.36 / 2500 (JoyUtility.JoyTickCheckEnd).</summary>
+    internal const double Walk = 0.36 / GameTime.TicksPerHour;
+
+    /// <summary>The projection with its colonist's bed and recreation targets gone and the needs' unserved recoveries read.</summary>
+    internal static ColonyProjection NoBedNoRecreation(ColonyProjection projection, double walk)
+    {
+        var review = projection.Facts.NeedsAlternatives!;
+        var pawn = review.Observation.Pawns[0];
+        pawn = pawn with
+        {
+            Targets = [.. pawn.Targets.Where(t => t.Kind == "food")],
+            Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind switch
+            {
+                "rest" => n with { UnservedGainPerTick = Known(0.00002) },
+                "joy" => n with { UnservedGainPerTick = Known(walk) },
+                _ => n,
+            })),
+        };
+        return projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = review.Observation with { Pawns = [pawn] } } } };
     }
 }

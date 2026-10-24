@@ -108,6 +108,18 @@ public sealed partial class Rounder
         }));
     }
 
+    /// <summary>The rounds_review row's work shortfall and pawn values (#3825): per "work type/stat" its ticks a day, per colonist its
+    /// value and parts in capability-days a day; both null when tier 2 did not run.</summary>
+    internal static IEnumerable<(string Key, object? Value)> PawnValueAttrs(RoundsFindings findings)
+    {
+        yield return (RoundsReviewTelemetry.WorkShortfallKey, findings.WorkShortfall?.Rows.ToDictionary(r => r.WorkType + "/" + r.Stat, r => (object?)r.TicksPerDay));
+        yield return (RoundsReviewTelemetry.PawnValuesKey, findings.WorkShortfall is null ? null : findings.PawnValues.ToDictionary(v => v.Pawn, v => (object?)new Dictionary<string, object?>
+        {
+            ["per_day"] = v.PerDay, ["work"] = v.WorkAdded, ["food"] = v.FoodUpkeep, ["breaks"] = v.BreakUpkeep, ["bed"] = v.BedUpkeep,
+            ["shares"] = v.Work.ToDictionary(s => s.WorkType + "/" + s.Stat, s => (object?)s.TicksPerDay), ["not_modelled"] = v.NotModelled.ToArray(),
+        }));
+    }
+
     /// <summary>The <c>coupled_selection</c> row's attrs (docs/developers/contracts/otel-signals.md); the acceptance reader
     /// <c>CoupledSelections.Row</c> reads them back, the search accounting (#3722) included.</summary>
     internal static Dictionary<string, object?> CoupledSelectionAttrs(ForecastCoupledSelection selection, long tick, bool protectedContinuation, string? admissionFailure) => new()

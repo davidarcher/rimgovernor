@@ -87,7 +87,11 @@ public static partial class LayoutClusterRules
     /// the materials' values (ForecastValue.MaterialValueOf); unknown when the piece's work or cost list is unread.
     /// </summary>
     public static Fact<double> ShellPiecePrice((double Work, IReadOnlyList<Amount> Costs)? piece, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values) =>
-        piece is { } p ? Known((p.Work / GameTime.TicksPerDay) + p.Costs.Sum(a => a.Count * values[a.Resource].PerUnit)) : default;
+        piece is { } p ? Known(PiecePrice(p, values)) : default;
+
+    /// <summary>The capability-days of building a piece whose work and cost list are read (<see cref="ShellPiecePrice"/>).</summary>
+    public static double PiecePrice((double Work, IReadOnlyList<Amount> Costs) piece, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values) =>
+        (piece.Work / GameTime.TicksPerDay) + piece.Costs.Sum(a => a.Count * values[a.Resource].PerUnit);
 
     /// <summary>
     /// The colonists able to build (#3748): each available pawn with an enabled Construction work row it is capable of.

@@ -143,7 +143,8 @@ public sealed record NeedRate(string Kind,
 {
     /// <summary>
     /// The need's gain per tick with no service object: resting on the ground when the colony has no usable bed
-    /// (<c>StatDefOf.BedRestEffectiveness.valueIfMissing</c>, as <c>Toils_LayDown</c> applies it). Unknown for a need that has no such recovery.
+    /// (<c>StatDefOf.BedRestEffectiveness.valueIfMissing</c>, as <c>Toils_LayDown</c> applies it), and for joy the best of going for a walk
+    /// and skygazing (#3825; 0 while <c>JoyUtility.EnjoyableOutsideNow</c> rules both out). Unknown for a need that has no such recovery.
     /// </summary>
     [JsonConverter(typeof(ObservedNumberJsonConverter))]
     public Fact<double> UnservedGainPerTick { get; init; }
@@ -261,9 +262,30 @@ public sealed record NeedsForecastPawn
     public EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
     /// <summary>The ticks before the read the pawn's sighting record covers (#3806): since its first observer pass, at most two days; 0 with no record.</summary>
     public int SightingTicks { get; init; }
+    /// <summary>What the pawn's value reads of it (#3825), every number plain.</summary>
+    public PawnUpkeepRead Upkeep { get; init; } = new();
     /// <summary>The pawn's deathrest (#3810); null when it has no deathrest gene.</summary>
     public DeathresterRead? Deathrest { get; init; }
 }
+/// <summary>
+/// What a pawn's value (<c>PawnValueRules</c>, #3825) reads of one pawn: its work speed at each stat a job driver or recipe the
+/// catalog maps applies (<c>DefinitionCatalog.WorkSpeedStatNames</c>; 0 where <c>StatWorker.IsDisabledFor</c> the pawn), the work types it
+/// is incapable of (<c>Pawn.WorkTypeIsDisabled</c>), the nutrition it eats a day (<c>Need_Food.FoodFallPerTickAssumingCategory</c> at
+/// Fed, a day of ticks; 0 without a food need) and its mood (null without a mood need or a mental breaker: it never breaks).
+/// </summary>
+public sealed record PawnUpkeepRead
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSpeedRead>))]
+    public EquatableArray<WorkSpeedRead> Speeds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> IncapableWork { get; init; }
+    public double FoodPerDay { get; init; }
+    public PawnMoodRead? Mood { get; init; }
+}
+/// <summary>A pawn's value of one work speed stat (<c>Pawn.GetStatValue</c>).</summary>
+public sealed record WorkSpeedRead(string Stat, double Value);
+/// <summary>The pawn's unclamped mood target (as <see cref="NeedsForecastPawn.MoodUnclampedTarget"/>) and its minor break threshold (<c>MentalBreaker.BreakThresholdMinor</c>).</summary>
+public sealed record PawnMoodRead(double Target, double Threshold);
 /// <summary>
 /// What a disease incident's course and victim draw read of one pawn (#3824): <c>StatDefOf.ImmunityGainSpeed</c>, and per DiseaseHuman
 /// incident the chance it takes hold: <c>immunity.DiseaseContractChanceFactor</c> of its hediff for a potential victim, 0 for a pawn
