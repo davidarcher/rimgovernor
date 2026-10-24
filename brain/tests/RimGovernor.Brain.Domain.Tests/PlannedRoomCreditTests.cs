@@ -17,6 +17,8 @@ public sealed class PlannedRoomCreditTests
     private const double Horizon = 10;
     private const string Wall = "planned/room1/wall/WoodLog", Shelf = "planned/room1/shelf", Roof = "planned/room1/roof";
     private const string Delivery = "planned/room1/wall/WoodLog/delivery";
+    /// <summary>An unplaced shelf candidate's unit (room 0): no planned room's, so it counts as development (#3828).</summary>
+    private const string ZoneShelf = "planned/shelf/zone-1/4/4";
 
     /// <summary>The test-only storage credit: one capability-day a served day, booked to no pawn.</summary>
     private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> StorageCredit = new Dictionary<PlannedRole, RoomCredit>
@@ -54,7 +56,7 @@ public sealed class PlannedRoomCreditTests
         return new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
         {
             ServedRooms = service.Served, UnassessedRooms = service.Unassessed,
-            RequestedDevelopment = [Wall, Shelf, Roof, "planned/room2/wall/WoodLog"],
+            RequestedDevelopment = [Wall, Shelf, Roof, ZoneShelf],
         };
     }
 
@@ -88,21 +90,22 @@ public sealed class PlannedRoomCreditTests
     }
 
     [Fact]
-    public void APricedRoomsSitesRoofFloorAndRemovalsLeaveTheDevelopmentCount()
+    public void NoPlannedRoomsSitesOrRoofCountAsDevelopmentAndAPricedRoomsFloorAndRemovalsLeaveIt()
     {
-        // Unpriced: its three units, room 2's wall and the four reliefs count. Priced: room 2's wall and the floor elsewhere,
-        // the shared wall's removal leaving with the priced room.
-        Assert.Equal(8, Development(Context(new Dictionary<PlannedRole, RoomCredit>())));
+        // #3828: room 1's three units count in neither, the shelf of no room in both. Unpriced: the four reliefs count too.
+        // Priced: only the floor elsewhere, the shared wall's removal leaving with the priced room.
+        Assert.Equal(5, Development(Context(new Dictionary<PlannedRole, RoomCredit>())));
         Assert.Equal(2, Development(Context(StorageCredit)));
-        Assert.Contains("removal/shared-1", PlannedRoomCredits.PricedUnits(Context(StorageCredit)));
+        Assert.Contains("removal/shared-1", PlannedRoomCredits.PricedRelief(Context(StorageCredit)));
+        Assert.Equal([Roof, Shelf, Wall], PlannedRoomCredits.PlannedUnits(Context(StorageCredit)).Order(StringComparer.Ordinal));
     }
 
     [Fact]
-    public void ARoleWithNoCreditCountsAsDevelopmentAndIsChargedNoMaterial()
+    public void ARoleWithNoCreditKeepsItsReliefAsDevelopmentAndIsChargedNoMaterial()
     {
         var unpriced = Context(new Dictionary<PlannedRole, RoomCredit>());
         Assert.False(unpriced.Priced(1));
-        Assert.Empty(PlannedRoomCredits.PricedUnits(unpriced));
+        Assert.Empty(PlannedRoomCredits.PricedRelief(unpriced));
         Assert.Empty(ForecastValue.ChargedMaterials(unpriced));
         Assert.Empty(Credits(unpriced, Outcome(unpriced)));
         var priced = Context(StorageCredit);
@@ -178,12 +181,12 @@ public sealed class PlannedRoomCreditTests
         // Both rooms' sites and the corridor's floor leave the count with the priced bedroom; the corridor earns no credit.
         Assert.True(context.Priced(2));
         Assert.Equal(0, ConnectedDevelopment(context));
-        Assert.Contains(CorridorWall, PlannedRoomCredits.PricedUnits(context));
-        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedUnits(context));
-        // A corridor serving no priced room counts toward nothing: it stays development like any unpriced room.
+        Assert.Contains(CorridorWall, PlannedRoomCredits.PlannedUnits(context));
+        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedRelief(context));
+        // A corridor serving no priced room keeps its floor's relief as development; no room's walls count (#3828).
         var unpriced = Connected(PlannedRole.Circulation, new Dictionary<PlannedRole, RoomCredit>());
         Assert.False(unpriced.Priced(2));
-        Assert.Equal(3, ConnectedDevelopment(unpriced));
+        Assert.Equal(1, ConnectedDevelopment(unpriced));
     }
 
     [Fact]
@@ -196,7 +199,7 @@ public sealed class PlannedRoomCreditTests
         var finished = new Dictionary<string, double> { [BedWall + "/finish"] = 300, ["site-9-finish"] = 700 };
         Assert.Equal(700, Assert.Single(PlannedRoomCredits.ServiceDays(context, finished, Day).Served, s => s.Room == 1).ServedAt);
         Assert.True(context.Priced(2));
-        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedUnits(context));
+        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedRelief(context));
         Assert.Equal(1, ConnectedDevelopment(context)); // the corridor wall of no room left
     }
 

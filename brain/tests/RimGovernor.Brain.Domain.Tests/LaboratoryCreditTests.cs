@@ -112,11 +112,10 @@ public sealed class LaboratoryCreditTests
     }
 
     [Fact]
-    public void ALabIsPricedSoItsSitesLeaveTheDevelopmentCount()
+    public void ALabIsPriced()
     {
         var context = Context(InRoom, Unroofed);
         Assert.True(context.Priced(1));
-        Assert.Contains("planned/room1/roof", PlannedRoomCredits.PricedUnits(context));
     }
 
     [Fact]

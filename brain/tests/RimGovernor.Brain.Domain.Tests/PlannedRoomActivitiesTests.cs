@@ -135,6 +135,26 @@ public sealed class PlannedRoomActivitiesTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
 
+    /// <summary>The test-only workshop credit: one capability-day a served day, booked to no pawn.</summary>
+    private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> WorkshopCredit = new Dictionary<PlannedRole, RoomCredit>
+    {
+        [PlannedRole.Workshop] = (_, _, _, _) => [new("bench", "", 1)],
+    };
+
+    /// <summary>
+    /// Room 1 as a workshop priced by <see cref="WorkshopCredit"/>, one builder and tier 2's horizon 10 days. No planned room's
+    /// sites count as development (#3828), so a room the schedule builds is selected only on its credit: the cases that read
+    /// what a selected room's activities and orders are price it this way.
+    /// </summary>
+    private static RoundsFacts Credited(RoundsFacts facts) => facts with { CoupledAlternatives = facts.CoupledAlternatives! with
+    {
+        Context = facts.CoupledAlternatives.Context with
+        {
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Workshop },
+            RoomCredits = WorkshopCredit, PlannedBuilders = 1, InvestmentHorizonDays = 10d,
+        },
+    } };
+
     private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
@@ -152,7 +172,7 @@ public sealed class PlannedRoomActivitiesTests
     [Fact]
     public void AnIdleBuilderBuildsTheRoomAndTheRoomCompletesInTheHorizon()
     {
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], candidates.Context.PlannedSites.Select(s => s.Site).Order(StringComparer.Ordinal));
         Assert.Equal(["planned/room1/WoodLog/Shell"], candidates.Context.PlannedRooms.Select(r => r.Id));
@@ -162,7 +182,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.True(PlannedSelected(result, "planned/room1/door/WoodLog"), Why(facts, result));
         var room = Assert.Single(result.Selected.PlannedRooms);
         Assert.Equal(["planned/room1/WoodLog/Shell"], room.Complete);
-        Assert.True(result.SelectedVector.Development > result.BaselineVector.Development);
+        Assert.Contains(result.SelectedVector.Value.Ledger.InvestmentContributions, c => c.Key == "workshop/1/bench" && c.Value < 0);
 
         // Nothing binds a planned site before placement (#3278): the selection starts no order.
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100));
@@ -185,7 +205,7 @@ public sealed class PlannedRoomActivitiesTests
             Roof(),
         ];
         const double day = GameTime.TicksPerDay;
-        var facts = Review(room, horizon: day, roofCellWork: 65);
+        var facts = Credited(Review(room, horizon: day, roofCellWork: 65));
         var result = Select(facts, day);
         var outcome = Assert.Single(result.Selected.PlannedRooms);
         Assert.Equal(room.Select(s => s.Id).Order(StringComparer.Ordinal), outcome.CompletedSites.Order(StringComparer.Ordinal));
@@ -198,7 +218,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.All(planned.Zip(planned.Skip(1)), p => Assert.True(p.Second.Depart >= p.First.End, p.First.Activity + " overlaps " + p.Second.Activity));
         Assert.True(planned[^1].End <= day, Why(facts, result));
 
-        var unrouted = Review(room, horizon: day, routes: false, roofCellWork: 65);
+        var unrouted = Credited(Review(room, horizon: day, routes: false, roofCellWork: 65));
         Assert.DoesNotContain(Select(unrouted, day).Selected.PlannedRooms, r => r.Complete.Count > 0);
     }
 
@@ -209,7 +229,7 @@ public sealed class PlannedRoomActivitiesTests
     [Fact]
     public void TheTwentiethColonistBuildsThePlannedRoom()
     {
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)], colonists: 20);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)], colonists: 20));
         var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p.Pawn).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(20, pawns.Length);
         Assert.Equal(Pawn, pawns[^1]);
@@ -235,9 +255,9 @@ public sealed class PlannedRoomActivitiesTests
     [Fact]
     public void ScarceWoodLeavesTheRoomToPlentifulStone()
     {
-        var facts = Review([
+        var facts = Credited(Review([
             Ring(OpKind.WallIn, "WoodLog", 60, count: 10, available: 4), Ring(OpKind.DoorIn, "WoodLog", 30, count: 5, available: 4),
-            Ring(OpKind.WallIn, "BlocksGranite", 90, count: 10, available: 50), Ring(OpKind.DoorIn, "BlocksGranite", 40, count: 5, available: 50)]);
+            Ring(OpKind.WallIn, "BlocksGranite", 90, count: 10, available: 50), Ring(OpKind.DoorIn, "BlocksGranite", 40, count: 5, available: 50)]));
         var result = Select(facts);
         Assert.True(PlannedSelected(result, "planned/room1/wall/BlocksGranite"), Why(facts, result));
         Assert.False(PlannedSelected(result, "planned/room1/wall/WoodLog"));
@@ -252,9 +272,9 @@ public sealed class PlannedRoomActivitiesTests
     public void AWallNoOneStackCoversIsDeliveredFromBothStacks()
     {
         (string, Cell, double)[] set = [("wood-a", new(10, 2), 50), ("wood-b", new(10, 7), 40)];
-        var facts = Review([
+        var facts = Credited(Review([
             Site("planned/room1/wall/WoodLog", OpKind.WallIn, "Wall", "WoodLog", WallCells, 60, 75, set),
-            Site("planned/room1/door/WoodLog", OpKind.DoorIn, "Door", "WoodLog", [DoorCell], 30, 25, [("wood-c", new(10, 4), 30)])]);
+            Site("planned/room1/door/WoodLog", OpKind.DoorIn, "Door", "WoodLog", [DoorCell], 30, 25, [("wood-c", new(10, 4), 30)])]));
         var result = Select(facts);
         Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
         string[] deliveries = ["planned/room1/wall/WoodLog/delivery/wood-a", "planned/room1/wall/WoodLog/delivery/wood-b"];
@@ -264,11 +284,11 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     [Fact]
-    public void EqualDevelopmentForLessLaborPicksTheCheaperStuff()
+    public void TheStuffThatServesTheRoomSoonerIsPicked()
     {
-        var facts = Review([
+        var facts = Credited(Review([
             Ring(OpKind.WallIn, "WoodLog", 60, count: 10, available: 50), Ring(OpKind.DoorIn, "WoodLog", 30, count: 5, available: 50),
-            Ring(OpKind.WallIn, "BlocksGranite", 120, count: 10, available: 50), Ring(OpKind.DoorIn, "BlocksGranite", 60, count: 5, available: 50)]);
+            Ring(OpKind.WallIn, "BlocksGranite", 120, count: 10, available: 50), Ring(OpKind.DoorIn, "BlocksGranite", 60, count: 5, available: 50)]));
         var result = Select(facts);
         Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), Why(facts, result));
         Assert.False(PlannedSelected(result, "planned/room1/wall/BlocksGranite"));
@@ -387,7 +407,7 @@ public sealed class PlannedRoomActivitiesTests
                 { SiteApproachTicks = Known(Ticks(Start, cells[0])) }],
             Cells = EquatableArray.From(cells),
         };
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
@@ -424,7 +444,7 @@ public sealed class PlannedRoomActivitiesTests
             Options = [new ConstructionActivityOption(clearingId, "Wall", at, Pawn, "Door", ruin, at, 0, 0, "Deconstruct", default, default, Known(50d))
                 { SiteApproachTicks = Known(Ticks(Start, at)) }],
         };
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
@@ -466,7 +486,7 @@ public sealed class PlannedRoomActivitiesTests
                 { SiteApproachTicks = Known(Ticks(Start, at)) }],
             Targets = EquatableArray.From(trees),
         };
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "CutPlant");
         Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "PlantsCut", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
@@ -508,7 +528,7 @@ public sealed class PlannedRoomActivitiesTests
                 { SiteApproachTicks = Known(Ticks(Start, at)) }],
             Targets = EquatableArray.From(rocks),
         };
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Mine");
         Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "Mine", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
@@ -549,7 +569,7 @@ public sealed class PlannedRoomActivitiesTests
             Options = [new ConstructionActivityOption(clearingId, "Wall", store, Pawn, "Steel", stack, at, count, 75, "HaulGeneral", Known(Ticks(Start, at)),
                 Known(Ticks(at, store)), Known(0d)) { SiteApproachTicks = Known(Ticks(Start, at)), AvailableInput = Known((double)count) }],
         };
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Target == stack);
@@ -580,7 +600,7 @@ public sealed class PlannedRoomActivitiesTests
     [InlineData(true)]
     public void UrgentHungerHoldsTheRequestedRoomThatRoundAndWithoutHungerItIsStarted(bool hungry)
     {
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 270), Ring(OpKind.DoorIn, "WoodLog", 270)], level: hungry ? .2 : 1, fall: hungry ? .003 : 0);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 270), Ring(OpKind.DoorIn, "WoodLog", 270)], level: hungry ? .2 : 1, fall: hungry ? .003 : 0));
         var result = Select(facts);
         var record = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites);
         Assert.NotNull(record);
@@ -608,7 +628,7 @@ public sealed class PlannedRoomActivitiesTests
     [Fact]
     public void ASelectedAlternativeRootSelectsAllItsSitesAndAnUnassessedRoomIsHeld()
     {
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
         var result = Select(facts);
@@ -645,7 +665,7 @@ public sealed class PlannedRoomActivitiesTests
                 { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
+        facts = Credited(facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() });
         var candidates = facts.CoupledAlternatives!;
         var result = Select(facts);
         var why = Why(facts, result) + " selected=" + string.Join(",", result.Selection.Selected);
@@ -689,17 +709,28 @@ public sealed class PlannedRoomActivitiesTests
         Assert.DoesNotContain(unplaced, id => id == order.Task);
     }
 
+    /// <summary>
+    /// The wall alone fits the horizon; the door does not. With a builder the priced room's service day is projected past the
+    /// horizon, which assesses its whole-room effect (#3796), and its credit selects the wall. With no builder nothing projects
+    /// it: its effect and its credit are unassessed, never zero, and with no development (#3828) the wall is not selected.
+    /// </summary>
     [Fact]
-    public void ARoomLeftPartialInTheHorizonIsNamedUnassessed()
+    public void ARoomLeftPartialInTheHorizonIsProjectedOrNamedUnassessed()
     {
-        // The wall alone fits the horizon; the door does not, so the room's whole-room effect is unassessed, not zero.
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 400)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 400)]));
         var result = Select(facts);
         Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), Why(facts, result));
         var room = Assert.Single(result.Selected.PlannedRooms);
         Assert.Equal(["planned/room1/wall/WoodLog"], room.CompletedSites);
         Assert.Empty(room.Complete);
-        Assert.Contains(result.Selected.Findings, f => f.Reason == "planned_room_effect_unassessed" && f.Commitment == "planned/room1");
+        Assert.True(ClosureOf(result.Selected, 1).ServedAt >= Horizon);
+        Assert.DoesNotContain(result.Selected.Findings, f => f.Reason == "planned_room_effect_unassessed");
+
+        var unbuilt = facts with { CoupledAlternatives = facts.CoupledAlternatives! with
+            { Context = facts.CoupledAlternatives.Context with { PlannedBuilders = 0 } } };
+        var held = Select(unbuilt);
+        Assert.False(PlannedSelected(held, "planned/room1/wall/WoodLog"), Why(unbuilt, held));
+        Assert.Contains(held.Rejected, e => e.Consequences?.Value.Ledger.Findings.Contains("workshop_credit_unassessed:1") == true);
     }
 
     /// <summary>
@@ -710,7 +741,7 @@ public sealed class PlannedRoomActivitiesTests
     [Fact]
     public void ASiteTheScheduleDoesNotStartIsNotPlacedByTheSelection()
     {
-        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 400, count: 5, available: 50)]);
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 400, count: 5, available: 50)]));
         var result = Select(facts);
         var candidates = facts.CoupledAlternatives!;
         var door = candidates.Context.PlannedSites.Single(s => s.Site == "planned/room1/door/WoodLog");
@@ -779,14 +810,17 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// #3651: a room whose role carries a priced value leaves the development tiebreak. Its completed sites add nothing to
     /// the count, yet the selection still exempts its site roots from the thermal-relief gate and the record still places
-    /// its sites when they are selected. #3655: a bedroom is priced in production.
+    /// its sites when they are selected. #3655: a bedroom is priced in production. #3828: an unpriced room's sites count
+    /// nothing either, so with no credit the room ties the baseline and is not selected.
     /// </summary>
     [Fact]
-    public void APricedRoomsSitesCountNoDevelopmentYetAreEmittedAndNotRefused()
+    public void APlannedRoomsSitesCountNoDevelopmentYetAPricedRoomsAreEmittedAndNotRefused()
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
-        var counted = Select(facts);
-        Assert.Equal(2, counted.SelectedVector.Development);
+        var unpriced = Select(facts);
+        Assert.Equal(0, unpriced.SelectedVector.Development);
+        Assert.DoesNotContain(unpriced.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
+        var counted = Select(Credited(facts));
         var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
         Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
@@ -799,8 +833,9 @@ public sealed class PlannedRoomActivitiesTests
         Assert.DoesNotContain(planned, e => e.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
         Assert.All(planned, e => Assert.Equal(0, e.Consequences!.Development));
 
-        var roots = counted.Selection.Selected.Where(id => roomSites.Any(s => id.StartsWith(s + "/composition/", StringComparison.Ordinal))).ToArray();
-        Assert.Equal(2, roots.Length);
+        // The credited room's selected roots (its site roots or its alternative root, whichever the search kept).
+        var roots = counted.Selection.Selected.Where(id => id.StartsWith("planned/room1/", StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(roots);
         var record = PlannedRules.PlannedSelectionOf(priced.CoupledAlternatives, result with
             { Selection = result.Selection with { Selected = roots }, Selected = counted.Selected }, priced.PlannedSites)!;
         var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, new PlannedRoom { Id = 1 }, started: false);
@@ -810,7 +845,7 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3815: generated the production way, from the round's planned rooms and the layout's doors, a corridor (room 1) that
-    /// a planned bedroom (room 2) opens on is that bedroom's connector, priced with it: its sites leave the development
+    /// a planned bedroom (room 2) opens on is that bedroom's connector, priced with it: its floors and removals leave the development
     /// count. With no layout read (a fresh colony) there are no connectors and nothing is required.
     /// </summary>
     [Fact]
@@ -827,7 +862,6 @@ public sealed class PlannedRoomActivitiesTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(joined, Horizon)!.Priced();
         Assert.Equal([2], generated.Context.Connectors[1]);
         Assert.True(generated.Context.Priced(1));
-        Assert.Contains("planned/room1/wall/WoodLog", PlannedRoomCredits.PricedUnits(generated.Context));
     }
 
     /// <summary>
@@ -1109,10 +1143,11 @@ public sealed class PlannedRoomActivitiesTests
     /// #3744 acceptance (a): one builder, bedroom ring A (room 1) started with two days of ring work left, which no
     /// schedule of the day finishes, and a workshop ring B (room 2, an unpriced role) a third of a day long. A's closure is
     /// projected past the horizon at its remaining work over the builder; opening B would push it later by B's work, which
-    /// A's credit pays, so B is not opened though its sites count development. With A closed (its ring owes nothing), B opens.
+    /// A's credit pays, so B is not opened. #3828: B's sites count no development, so unprojected (A's ring carrying no
+    /// credit for B to delay) and with A closed (its ring owes nothing) B, with no credit of its own, stays closed too.
     /// </summary>
     [Fact]
-    public void OneBuilderLeavesAnUnpricedRingClosedWhileABedroomRingIsOpenAndOpensItOnceTheBedroomCloses()
+    public void OneBuilderLeavesAnUnpricedRingClosedWhileABedroomRingIsOpenAndAfterTheBedroomCloses()
     {
         var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Workshop };
         var bedroom = new Dictionary<int, string> { [1] = Pawn };
@@ -1122,15 +1157,13 @@ public sealed class PlannedRoomActivitiesTests
         Assert.False(PlannedSelected(result, b.Id), Why(facts, result));
         Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ServedAt);
         Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
-        // The delay is what holds B: unprojected, A's ring carries no credit for B to delay and B's development opens it.
         var unprojected = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: null, open: [1]);
-        Assert.True(PlannedSelected(Select(unprojected, Day), b.Id));
+        Assert.False(PlannedSelected(Select(unprojected, Day), b.Id));
 
         var closed = Rings([b], roles, bedroom, builders: 1, open: [1]);
-        var opened = Select(closed, Day);
-        Assert.True(PlannedSelected(opened, b.Id), Why(closed, opened));
-        Assert.Contains("planned/room2/wall/WoodLog", PlannedRules.PlannedSelectionOf(closed.CoupledAlternatives, opened, closed.PlannedSites)!.Sites
-            .Select(s => "planned/room" + s.Room + "/wall/" + s.Stuff));
+        var held = Select(closed, Day);
+        Assert.False(PlannedSelected(held, b.Id), Why(closed, held));
+        Assert.Equal(held.BaselineVector.Development, held.SelectedVector.Development);
     }
 
     /// <summary>
@@ -1184,5 +1217,38 @@ public sealed class PlannedRoomActivitiesTests
 
         var unknown = Rings(ring, roles, bedroom, builders: null, open: [], material: wood);
         Assert.False(PlannedSelected(Select(unknown, Day), ring[0].Id));
+    }
+
+    /// <summary>A wall run of unpriced room <paramref name="room"/> (2 to 4), east of room 1, finished in finish ticks with nothing to deliver.</summary>
+    private static PlannedBuildSite RoomWall(int room, double finish) =>
+        Site(FormattableString.Invariant($"planned/room{room}/wall/WoodLog"), OpKind.WallIn, "Wall", "WoodLog",
+            [.. Enumerable.Range(4, 3).Select(z => new Cell(4 + (10 * (room - 1)), z))], finish, 0, [], room: room);
+
+    /// <summary>
+    /// #3828 (option A): the first rounds opened three unpriced rings together over the barracks, each tying on the ledger
+    /// and winning on its sites as development. No planned room's unit is development now. One builder, a new bedroom
+    /// (room 1) whose short ring its occupant's credit pays, and three unpriced workshop rings (rooms 2 to 4) the day could
+    /// also build: the bedroom is selected and none of the three rings. Alone, the three rings do not beat the baseline.
+    /// </summary>
+    [Fact]
+    public void ThreeUnpricedRingsDoNotBeatAPricedBedroomAndAloneDoNotBeatTheBaseline()
+    {
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Workshop, [3] = PlannedRole.Workshop, [4] = PlannedRole.Workshop };
+        var bedroom = new Dictionary<int, string> { [1] = Pawn };
+        PlannedBuildSite[] rings = [RoomWall(2, Day / 16), RoomWall(3, Day / 16), RoomWall(4, Day / 16)];
+        PlannedBuildSite[] ring = [Ring(OpKind.WallIn, "WoodLog", Day / 8), Ring(OpKind.DoorIn, "WoodLog", Day / 16)];
+        var facts = Rings([.. ring, .. rings], roles, bedroom, builders: 1, open: []);
+        Assert.True(facts.CoupledAlternatives!.Context.Priced(1));
+        Assert.All(rings, s => Assert.False(facts.CoupledAlternatives.Context.Priced(s.Room)));
+        var result = Select(facts, Day);
+        Assert.True(PlannedSelected(result, ring[0].Id), Why(facts, result));
+        Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
+        Assert.All(rings, s => Assert.False(PlannedSelected(result, s.Id), Why(facts, result)));
+        Assert.Equal(result.BaselineVector.Development, result.SelectedVector.Development);
+
+        var unpriced = Rings(rings, roles, bedroom, builders: 1, open: []);
+        var alone = Select(unpriced, Day);
+        Assert.DoesNotContain(alone.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
+        Assert.Equal(alone.BaselineVector.Development, alone.SelectedVector.Development);
     }
 }

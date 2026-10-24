@@ -60,7 +60,7 @@ public sealed class ObservedShelterTests
     }
 
     [Fact]
-    public void APlannedRoomFinishesItsLastRoofCellEvenWhenTheRoomAlreadyHoldsItsHeat()
+    public void APlannedRoomsLastRoofCellIsExemptFromTheReliefGateButNotBuiltForDevelopmentWhenTheRoomHoldsItsHeat()
     {
         // One designated cell of six is open and the heater holds the room at 20°: closing it relieves no exposure.
         static RoundsFacts Warm(RoundsFacts facts) => facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
@@ -84,11 +84,14 @@ public sealed class ObservedShelterTests
 
         var planned = Warm(Facts() with { PlannedShelters = [new() { Id = 7, Region = RegionRules.RectRegion(new(1, 1, 2, 3)) }] });
         var result = Select(planned);
-        var room = Assert.Single(result.Selected.Shelters);
         Assert.Equal(7, Assert.Single(ForecastCoupledCandidates.GenerateCoupledActivities(planned, 300)!.Context.Shelters).PlannedRoom);
-        Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity.StartsWith("roof/observed/room-7/1/1", StringComparison.Ordinal));
-        Assert.Contains("planned/room7/roof", result.Selected.RequestedDevelopment);
-        Assert.True(room.CompleteAt.IsKnown);
+        // The planned room's roof cell passes the relief gate and is evaluated, but the roof unit it completes is a planned
+        // room's, which counts no development (#3828), and the unpriced room has no credit: every evaluated portfolio ties the
+        // baseline's development and the roof is not built.
+        Assert.DoesNotContain(result.Rejected, r => r.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
+        Assert.Contains(result.Rejected, r => r.Consequences is not null);
+        Assert.All(result.Rejected.Where(r => r.Consequences is not null), r => Assert.Equal(result.BaselineVector.Development, r.Consequences!.Development));
+        Assert.DoesNotContain(result.Selected.Plan.Allocations, a => a.Activity.StartsWith("roof/observed/room-7/1/1", StringComparison.Ordinal));
 
         // An observed room no planned room matches keeps the relief gate: no exposure relieved, no roof work.
         var unplanned = Select(Warm(Facts() with { PlannedShelters = [] }));

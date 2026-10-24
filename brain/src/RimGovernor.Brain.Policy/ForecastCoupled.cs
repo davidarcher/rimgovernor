@@ -32,6 +32,9 @@ public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, Eq
     /// <summary>The Need of a planned site root's outcome, which marks the root as one: the selection exempts its closure
     /// from the thermal-relief gate (#3651). The units are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
     public const string DevelopmentNeed = "requested-development";
+
+    /// <summary>Planned room <paramref name="room"/>'s per-cell native roof as one completed unit (#3334).</summary>
+    public static string RoofUnit(int room) => FormattableString.Invariant($"planned/room{room}/roof");
 }
 
 /// <summary>
@@ -182,8 +185,8 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     /// <summary>The planned rooms the schedule touches whose service day is unassessed (no builders, or owed work without a row).</summary>
     public EquatableArray<int> UnassessedRooms { get; init; }
     /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
-    /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development, except a unit
-    /// of a priced room (PlannedRoomCredits.PricedUnits, #3651, #3796), which the ranking does not count.</summary>
+    /// room's per-cell roof as its <see cref="ForecastPlannedSite.RoofUnit"/>. One unit each of requested development, except a
+    /// planned room's unit (PlannedRoomCredits.PlannedUnits, #3828), which the ranking does not count: a room wins on the ledger only.</summary>
     public EquatableArray<string> RequestedDevelopment { get; init; }
     /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
     /// Unobserved transit/idle receive no benefit.</summary>

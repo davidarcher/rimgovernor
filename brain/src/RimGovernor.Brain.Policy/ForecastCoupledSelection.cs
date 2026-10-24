@@ -651,7 +651,7 @@ public sealed partial record ForecastCoupledSelection
                 // site, #3537, or alternative, #3823; a root with its own relief) is exempt, and so is a planned room's roof cell
                 // when the schedule finishes that room's roof.
                 var roofed = candidates.Context.Shelters.Where(r => r.PlannedRoom != 0 && r.RoofCells.Count != 0
-                        && outcome.RequestedDevelopment.Contains(FormattableString.Invariant($"planned/room{r.PlannedRoom}/roof")))
+                        && outcome.RequestedDevelopment.Contains(ForecastPlannedSite.RoofUnit(r.PlannedRoom)))
                     .SelectMany(r => r.RoofCells.SelectMany(cell => cell)).ToHashSet(StringComparer.Ordinal);
                 var unsupported = false;
                 foreach (var a in outcome.Plan.Allocations)
@@ -989,19 +989,23 @@ public sealed partial record ForecastCoupledSelection
             Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
         };
         // Requested relief (a floor, a removal) is development. A garment is not: the ledger prices it by the thoughts and armor it
-        // changes (#3816). Planned development counts what the schedule completes, whichever root built it, each physical site
-        // once (#3334), but not a priced room's, its floors and removals included (#3651, #3796).
-        var priced = context is null ? null : PlannedRoomCredits.PricedUnits(context);
+        // changes (#3816), and neither is the floor or removal a priced room owes, which its credit counts (#3796). Planned
+        // development counts what the schedule completes, whichever root built it, each physical site once (#3334), but no
+        // planned room's site or roof, priced or not: a room wins a portfolio on the ledger only (#3828).
+        var pricedRelief = context is null ? null : PlannedRoomCredits.PricedRelief(context);
         Dictionary<string, double>? relief = null;
         foreach (var c in commitments)
         {
             if (c.Outcome?.Requirements is not { } requirements) continue;
             foreach (var r in requirements.Relief)
-                if (priced?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
+                if (pricedRelief?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
         }
         double delivered = 0;
         if (relief is not null) foreach (var fraction in relief.Values) delivered += Math.Min(1, fraction);
-        var development = delivered + UnpricedDevelopment(outcome.RequestedDevelopment, priced);
+        var plannedUnits = context is null ? null : PlannedRoomCredits.PlannedUnits(context);
+        var units = 0;
+        foreach (var unit in outcome.RequestedDevelopment) if (plannedUnits?.Contains(unit) != true) units++;
+        var development = delivered + units;
         var moodKnown = rows.Count > 0; var breakKnown = true;
         double exposure = 0, pressure = 0, breaks = 0;
         foreach (var needs in rows.Values)
@@ -1070,18 +1074,6 @@ public sealed partial record ForecastCoupledSelection
         }
         /// <summary>The complete vector when the ledger has been priced, else null: what evidence reports without pricing more.</summary>
         public ForecastConsequenceVector? VectorIfPriced => LedgerPriced ? Vector : null;
-    }
-
-    /// <summary>
-    /// The completed planned units the development tiebreak counts (#3651, #3647 decision 3): every unit except a priced
-    /// room's (<paramref name="priced"/>, PlannedRoomCredits.PricedUnits, #3796). Every unit counts without a context.
-    /// </summary>
-    private static int UnpricedDevelopment(EquatableArray<string> units, IReadOnlySet<string>? priced)
-    {
-        if (priced is null || priced.Count == 0) return units.Count;
-        var count = 0;
-        foreach (var unit in units) if (!priced.Contains(unit)) count++;
-        return count;
     }
 
     /// <summary>

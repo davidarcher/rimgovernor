@@ -126,11 +126,10 @@ public sealed class CorpseCreditTests
     }
 
     [Fact]
-    public void AMorgueAndATombArePricedSoTheirSitesLeaveTheDevelopmentCount()
+    public void AMorgueAndATombArePriced()
     {
         Assert.True(Context(Pawn()).Priced(1));
         Assert.True(Context(Pawn(), PlannedRole.Tomb).Priced(1));
-        Assert.Contains("planned/room1/roof", PlannedRoomCredits.PricedUnits(Context(Pawn())));
     }
 
     [Fact]

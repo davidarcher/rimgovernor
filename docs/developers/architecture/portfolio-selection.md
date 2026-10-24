@@ -53,14 +53,18 @@ A standing Deconstruct or Uninstall designation worked, a Haul designation's sta
 delivered, or a standing Cut wave of CutPlant designations cut or FloorOut wave of
 RemoveFloor designations removed as one set step, is one unit of development
 (`removal/{op}` relief, #3557, #3612, #3613, #3614, #3615), like a laid floor.
-A planned site finished inside the horizon is one unit of requested development,
-the lowest tier, whichever root built it: its own site root, a room alternative or a
-shelter. A planned room's per-cell native roof cells are together that room's one
-roof unit, earned when every cell completes. A whole planned room carries no value
-of its own. A room whose role carries a credit (a priced room, below) leaves this
-count: its sites, its roof unit and the `flooring/` and `removal/` relief of the
-floors and removals on its interior or ring cells (a shared wall's leaves when
-either room is priced); its sites are still emitted and exempt.
+A planned site finished inside the horizon is recorded as one requested-development
+unit (`RequestedDevelopment`), whichever root built it: its own site root, a room
+alternative or a shelter. A planned room's per-cell native roof cells are together
+that room's one roof unit, earned when every cell completes. No planned room's
+unit counts as development, priced or not (#3828, `PlannedRoomCredits.PlannedUnits`:
+each site of a room and each room's roof unit). A room wins a portfolio only on the
+ledger: by its credit when priced (below), by the relief or mood its closure gives
+otherwise. An unpriced ring that only ties the baseline on the ledger is not
+selected. An unplaced shelf candidate is no room's, so it still counts. A priced room
+also takes the `flooring/` and `removal/` relief of the floors and removals on its
+interior or ring cells out of the count (a shared wall's leaves when either room is
+priced), since its credit already counts them. Its sites are still emitted and exempt.
 
 *Planned-room credit seam (#3796, epic #3650 P2/P3).* A role is priced exactly when
 `ForecastCoupledContext.RoomCredits` (`PlannedRoomCredits.Shipped`: `Bedroom` and
@@ -72,8 +76,8 @@ either room is priced); its sites are still emitted and exempt.
 
 - `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`
   returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`); null is unassessed.
-- `context.Priced(room)` is the derived priced test, `PlannedRoomCredits.PricedUnits(context)`
-  the development units and relief needs a priced room takes out of the count. Material charges,
+- `context.Priced(room)` is the derived priced test, `PlannedRoomCredits.PricedRelief(context)`
+  the relief needs a priced room takes out of the development count. Material charges,
   Selection's placed-ring roots and the Rounder's wall swaps read the same derived set.
 - `PlannedRoomCredits.ServiceDays(context, finishedAt, horizon)` gives each room its service day:
   the day its one reconcile owes nothing (sites, placed ring pieces, floors and removals on its
@@ -88,9 +92,10 @@ either room is priced); its sites are still emitted and exempt.
   of the rooms they reach or seal (`Context.Connectors`, `PlannedRoomCredits.ConnectorsOf`: an
   attached airlock its parent, a corridor each non-connector room a layout door joins it to). A
   connector's owed work joins each served room's, so it delays that room's service day, and a
-  connector of a priced room is priced with it (`context.Priced`): its units leave the count and
-  its deliveries are charged. A corridor serving several rooms counts for each, as a shared wall
-  does; one serving no priced room stays in the count like any unpriced room.
+  connector of a priced room is priced with it (`context.Priced`): its floors' and removals' relief
+  leaves the count and its deliveries are charged. A corridor serving several rooms counts for each,
+  as a shared wall does; one serving no priced room keeps that relief in the count like any
+  unpriced room.
 - `PlannedRoomCredits.Credit` books each gain as one Investment row `{role}/{room}/{subject}`
   of `PerDay × RingClosure.CreditDays(InvestmentHorizonDays, serviceDay)` units. A priced room
   with no builders, an unknown owed work or a null credit is named `{role}_credit_unassessed:{room}`
@@ -326,8 +331,8 @@ read as never assessed, it would be placed whole in the default stuff.
 The selected sites are the planned sites the selected plan starts inside the
 horizon (#3744): any of a site's activities (`ForecastPlannedSite.Activities`
 and `Finishes`) allocated, whichever roots carried them (`PlannedSelectionOf`).
-They are read from the plan, not the development count, so a priced room's
-sites are placed too (#3651). A shelter root therefore selects its room's wall,
+They are read from the plan, not the development count, so a room's sites are
+placed though they count no development (#3651, #3828). A shelter root therefore selects its room's wall,
 door, roof and heater; a room alternative selects its scope's sites; and the
 equivalent root sets that share one schedule give one record, whichever the
 search reached first. A site the plan does not start is not selected: it is
@@ -371,8 +376,8 @@ no answer yet is open. The open rooms are the forecast's `OpenRooms`.
   when none did (after a restart, while reviews are urgent, or when the budget
   cut it from the candidates; #3754). Nothing is placed, not even template
   pieces, until a later comparison selects it: a ring opens only when priced.
-  A room the latest comparison did not reach keeps its earlier selection (#3676). Planned sites rank as requested
-  development, below urgent needs, so a hungry colony holds its rooms.
+  A room the latest comparison did not reach keeps its earlier selection (#3676). A room's credit ranks
+  below urgent needs, so a hungry colony holds its rooms.
 - **Selected**: the reconcile's operations narrow to the selected sites
   (`SelectedPlannedOps`: their ring, floor and roof cells, pieces at their
   anchors, and the clearing over them), and the ring is placed in the compared

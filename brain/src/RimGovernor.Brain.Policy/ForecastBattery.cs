@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Policy;
 // - Enclosure: a battery set alight explodes again (Building_Battery.PostApplyDamage, flame damage over 500 Wd), and a
 //   stone room keeps that fire from other rooms' things. That is fire harm, which the harm term does not model yet
 //   (HarmLedger's fire_unassessed).
-// So the room earns zero: priced, it leaves the development count (the issue's no-mechanic branch).
+// So the room earns zero (the issue's no-mechanic branch); like every planned room it counts no development (#3828).
 public static class ForecastBattery
 {
     /// <summary>The credit of a planned battery room (#3814): nothing, since no modelled consequence changes with it (above).</summary>

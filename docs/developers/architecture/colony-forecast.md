@@ -722,12 +722,13 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    - The planned-site routes of the free pawns join the generated routes, a `FromStart` row as the pawn's start.
 4. Roots. Each site is its own comparison root, named by its site id and shared by every alternative that
    contains it. A site root's outcome Need (`ForecastPlannedSite.DevelopmentNeed`) marks it a planned site
-   root, whose closure the thermal-relief gate exempts; it carries no relief. Development itself is counted from
-   the evaluated outcome (`RequestedDevelopment`): each planned site whose finish completes is one unit, the
-   lowest tier, whichever root built it, and a planned shelter's per-cell native roof cells together are the
-   room's one `planned/room{id}/roof` unit. The count skips the units of a room whose role
-   (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) has a credit in `Context.RoomCredits`
-   (`PlannedRoomCredits.PricedUnits`, #3796: `Bedroom` and `Barracks`, priced by their occupants' credit; `Throne` and `Suite`, #3807, by their titled colonist's; `Storage`, `MealCloset`, `Reserve` and `Yard` by the stock they keep, #3798). Each alternative is also a root,
+   root, whose closure the thermal-relief gate exempts; it carries no relief. The evaluated outcome records the
+   completed units (`RequestedDevelopment`): each planned site whose finish completes is one unit, whichever
+   root built it, and a planned shelter's per-cell native roof cells together are the room's one
+   `ForecastPlannedSite.RoofUnit` (`planned/room{id}/roof`). No planned room's unit counts as development, priced
+   or not (#3828, `PlannedRoomCredits.PlannedUnits`): a room wins a portfolio only on the ledger, by the credit of
+   a role (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) in `Context.RoomCredits` (#3796), or by the
+   relief and mood its closure gives. Each alternative is also a root,
    `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and is not exempt;
    alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
    alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production

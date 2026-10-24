@@ -913,8 +913,9 @@ public static partial class ForecastCoupled
         }
 
         /// <summary>A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).
-        /// Requested development counts each completed planned site once, whichever root built it, and a planned room's
-        /// per-cell native roof as that room's one roof unit once every cell completes (#3334).</summary>
+        /// Requested development records each completed planned site once, whichever root built it, and a planned room's
+        /// per-cell native roof as that room's one roof unit once every cell completes (#3334); the ranking counts no
+        /// planned room's unit (#3828).</summary>
         private PlannedOutcome PlannedOf(ForecastActivityPlan plan)
         {
             var builtSites = context.PlannedSites.Where(s => s.Finishes.Any(f => completed.GetValueOrDefault(f) == Known(true)))
@@ -926,7 +927,7 @@ public static partial class ForecastCoupled
             var development = new SortedSet<string>(builtSites, StringComparer.Ordinal);
             foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom != 0 && s.RoofCells.Count != 0))
                 if (shelter.RoofCells.All(cell => cell.Any(f => completed.GetValueOrDefault(f) == Known(true))))
-                    development.Add(FormattableString.Invariant($"planned/room{shelter.PlannedRoom}/roof"));
+                    development.Add(ForecastPlannedSite.RoofUnit(shelter.PlannedRoom));
             var sites = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true))
                 .Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
                 .Where(b => b is { Kind: PawnActivityKind.Work } && b.Job is "FinishFrame" or "BuildRoof")

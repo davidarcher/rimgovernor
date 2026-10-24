@@ -49,7 +49,7 @@ public sealed record PlannedSiteFacts
 
     public EquatableArray<string> Findings { get; init; }
 
-    /// <summary>The layout plan's role of each room with sites (PlannedRoom.Role, #3651): the development count skips a priced role's sites.</summary>
+    /// <summary>The layout plan's role of each room with sites (PlannedRoom.Role, #3651): a role with a credit prices the room (PlannedRoomCredits).</summary>
     public EquatableArray<(int Room, PlannedRole Role)> Roles { get; init; }
 }
 
