@@ -37,11 +37,19 @@ public sealed record PlannedRoomPiece(Cell Cell, string Definition, string Stuff
 /// and RoomStatWorker_Impressiveness over the predicted base stats, with its RoomStatDef stage; the closed room's
 /// cell count, observed open-roof cells and map-edge contact (the outdoors rules' inputs); the existing beds inside with
 /// their owners, and the work tables inside whose speed stat has StatPart_WorkTableOutdoors with their current
-/// room's PsychologicallyOutdoors. Unknown score or stage when a stat could not be read.
+/// room's PsychologicallyOutdoors. Unknown stage when a stat could not be read; Impressiveness is the score, the stat's
+/// roomlessScore for a None room and 0 when Role is "" (unread).
 /// </summary>
-public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, Fact<double> Impressiveness, Fact<int> Stage,
+public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, Fact<int> Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
+    /// <summary>
+    /// The distinct terrains of the closed room's cells with the shape's planned floors laid, each with its TerrainDef
+    /// tags (#3808: RoomRequirement_TerrainWithTags reads every cell's), in TerrainDef name order; empty when Role is "".
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomTerrain>))]
+    public EquatableArray<PlannedRoomTerrain> Terrains { get; init; }
+
     /// <summary>
     /// RoomStatWorker_Cleanliness of the closed room with the shape's planned floor pieces (TerrainDef pieces) laid in
     /// place of their cells' terrain and no filth beyond what stands now (#3797); the stat's roomlessScore for a None
@@ -55,6 +63,9 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
     public EquatableArray<PlannedRoomBench> Benches { get; init; }
 }
 public sealed record PlannedRoomBench(string Bench, bool PsychologicallyOutdoors);
+/// <summary>One terrain of a predicted closed room (#3808): its TerrainDef tags.</summary>
+public sealed record PlannedRoomTerrain(
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Tags);
 /// <summary>
 /// One route the planned read probes per free colonist (#3313): from <see cref="From"/> (or, with
 /// <see cref="FromStart"/>, from the pawn's own position) to the cell of <see cref="Reach"/> nearest that origin, or to

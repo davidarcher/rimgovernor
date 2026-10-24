@@ -70,12 +70,12 @@ public static partial class LayoutChildRoomsRules
         return Math.Max(capacity, 0);
     }
 
-    /// <summary>Reports whether a width by depth interior holds every piece.</summary>
+    /// <summary>Reports whether a width by depth interior has the shape's least area and holds every piece.</summary>
     internal static bool Holds(this ChildRoomShape s, int width, int depth) =>
-        s.Pieces.All(p => ChildCapacity(width, depth, p.Size) >= p.Count);
+        (long)width * depth >= s.MinArea && s.Pieces.All(p => ChildCapacity(width, depth, p.Size) >= p.Count);
 
     /// <summary>
-    /// The interiors (width along the spine, depth away from it) that hold the shape, best first: the fewest
+    /// The interiors (width along the spine, depth away from it) that have the shape's least area and hold its pieces, best first: the fewest
     /// cells, then the aspect nearest two thirds. Depth stays within the core's cross-section.
     /// </summary>
     public static IReadOnlyList<(int W, int D)> ChildRoomSizes(ChildRoomShape s)
@@ -91,8 +91,8 @@ public static partial class LayoutChildRoomsRules
                     break;
                 }
 
-                // Width past the whole demand in one row cannot help.
-                if (w > ChildRowDemand(s) + LayoutThroneRules.ThroneMinSide)
+                // Width past the whole demand in one row, or past the least area at this depth, cannot help.
+                if (w > Math.Max(ChildRowDemand(s), (s.MinArea + d - 1) / d) + LayoutThroneRules.ThroneMinSide)
                 {
                     break;
                 }

@@ -258,6 +258,7 @@ public static class RoundsReads
             {
                 QuestColonistsAtHome = QuestReads.FrameQuestColonistsAtHome(frame.Quests, expected.Map, emergency),
                 Ideology = FrameIdeology(frame.Ideology),
+                Worship = WorshipRules.FactsOf(frame.Ideology),
                 IdeologyInstalled = frame.IdeologyActive,
                 AnomalyInstalled = ColonyDecodeReads.RequireCatalog(catalog).HasAnomaly(),
                 BiotechInstalled = ColonyDecodeReads.RequireCatalog(catalog).HasBiotech(),

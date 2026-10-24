@@ -165,18 +165,27 @@ partial class RoundsSleepingUpkeepPlanner
         return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting!.Lamps, workers!);
     }
 
-    /// <summary>Adds the throne room's impressiveness target to the room quality targets, so the room upgrade and the beauty upgrade furnish it.</summary>
-    internal static Dictionary<string, Pol.RoomTarget>? WithThroneTargets(Observation.ColonyProjection facts, Dictionary<string, Pol.RoomTarget>? targets)
+    /// <summary>
+    /// Adds the throne room's and the worship room's impressiveness targets (the title's, the presence demands', #3808) to
+    /// the room quality targets, so the room upgrade and the beauty upgrade furnish them.
+    /// </summary>
+    internal static Dictionary<string, Pol.RoomTarget>? WithRequirementTargets(Observation.ColonyProjection facts, Dictionary<string, Pol.RoomTarget>? targets)
     {
         var (need, owed) = ThroneNeed(facts);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        if (!owed || !pk || !rk)
+        if (!pk || !rk)
+        {
+            return targets;
+        }
+        var throne = owed ? ThroneRules.ThroneRoomTargets(plan!, rooms!, need) : new Dictionary<string, Pol.RoomTarget>();
+        var worship = Pol.WorshipRules.WorshipRoomTargets(plan!, rooms!, facts.Facts.Worship);
+        if (throne.Count == 0 && worship.Count == 0)
         {
             return targets;
         }
         targets ??= new Dictionary<string, Pol.RoomTarget>(StringComparer.Ordinal);
-        foreach (var (id, t) in ThroneRules.ThroneRoomTargets(plan!, rooms!, need))
+        foreach (var (id, t) in throne.Concat(worship))
         {
             targets[id] = t;
         }

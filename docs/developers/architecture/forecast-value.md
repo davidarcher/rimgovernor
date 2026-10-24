@@ -552,6 +552,23 @@ The sighting log is bounded: one ring per free colonist of its observer passes i
 120000 / 450 + 1 = 267 entries (about 2 KB a colonist), pruned to the free colonists every game hour and not saved; a load
 starts the record afresh, so the credits read unassessed for a day.
 
+*Worship credit (#3808).* A planned worship room the outcome serves is credited through the same seam
+(`ForecastWorship.WorshipCredit`) under `worship/<room>/<pawn>`, per believer (`WorshipFacts.Believers`: the free non-slave
+colonists on the map holding the primary ideoligion), a mood delta through `GainPerDay` (registered in `BreakShifts`). The delta
+sums two parts. Each building precept's presence demand that applies (`BuildingDemand`, read natively from
+`IdeoBuildingPresenceDemand`): the thought now (`IdeoBuildingMissing` without the building, `IdeoBuildingDisrespected` while no
+room of it meets every requirement, none otherwise; `IdeologyDefs.BuildingMoods`) against none once the planned room is
+predicted to meet every requirement (`ForecastWorship.Meets`: the prediction's cells reach the area, its rounded impressiveness
+the impressiveness, every terrain it is floored with carries a demanded tag, and the room's furniture holds the counted things and
+no forbidden building) or a standing room already does, `IdeoBuildingDisrespected` otherwise. And each held ritual the room lets
+the colony hold (free start, a required building, a positive `IntervalDaysMin`): its whole expected outcome memory at the room's
+quality (`RitualOutcomeModel`, the catalog's `RitualOutcomeEffectDef` drawn from quality: startingQuality plus the participant
+count's and the room stat's curves at every believer attending and the prediction's impressiveness or steady cleanliness,
+clamped; each outcome weighted chance × quality when positive, chance otherwise), over min(duration, interval) / interval. Other
+quality comps are not modelled. No ideoligion, no believer or no worship room owed earns nothing. A room with no closure
+prediction or an unread one, a demand requirement of a kind the plan cannot predict, missing demand moods or a ritual outcome
+effect not drawn from quality is named `worship_credit_unassessed:<room>`.
+
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from
 station facts alone (`BedroomGainFacts.Of`, which the clustering's bed merge also reads): `ForecastHousing.BedroomGain` runs the

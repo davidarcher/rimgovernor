@@ -19,8 +19,9 @@ namespace HomeBridge.BridgeTools;
 /// pieces counted (Room.Cells needs a registered region grid, so they cannot run on the unregistered room); the
 /// Impressiveness score is the game's worker over those stats and the stage RoomStatDef.GetScoreStageIndex. A piece
 /// naming a TerrainDef is a planned floor (#3797): it replaces its room cell's terrain in the reported Cleanliness only,
-/// not in the stats Impressiveness reads. The unregistered room is never added to the map's room lookup and touches no
-/// game state.
+/// not in the stats Impressiveness reads, and in the reported Terrains (the distinct interior terrains with their tags,
+/// #3808). An unassessed row (empty role) reports impressiveness 0, the map-edge row the stat's roomlessScore. The
+/// unregistered room is never added to the map's room lookup and touches no game state.
 /// </summary>
 internal static class NativeRoomPrediction
 {
@@ -121,15 +122,21 @@ internal static class NativeRoomPrediction
             .Where(_ => StatDefOf.WorkTableWorkSpeedFactor.parts?.Any(p => p is StatPart_WorkTableOutdoors) == true)
             .Select(t => new Obs.PlannedRoomBench(t.GetUniqueLoadID(), StatPart_WorkTableOutdoors.Applies(t)))
             .OrderBy(b => b.Bench, StringComparer.Ordinal);
-        Obs.PlannedRoomPrediction Row(string role, Fact<double> score, Fact<int> stage, double clean) =>
+        // The closed room's terrains with the planned floors laid (RoomRequirement_TerrainWithTags reads each cell's tags, #3808).
+        var terrains = cells.Select(c => floors.TryGetValue(c, out var floor) ? floor : c.GetTerrain(map)).Distinct()
+            .OrderBy(t => t.defName, StringComparer.Ordinal)
+            .Select(t => new Obs.PlannedRoomTerrain(EquatableArray.From((t.tags ?? new List<string>()).OrderBy(s => s, StringComparer.Ordinal))))
+            .ToList();
+        Obs.PlannedRoomPrediction Row(string role, double score, Fact<int> stage, double clean) =>
             new(shape.Room, shape.Stuff, role, score, stage, cells.Count, openRoof, edge)
-                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean };
+                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean,
+                  Terrains = role.Length == 0 ? default : EquatableArray.From(terrains) };
 
-        if (cells.Count == 0 || unknown) return Row("", default, default, 0);
+        if (cells.Count == 0 || unknown) return Row("", 0, default, 0);
         // Room.ProperRoom and Room.UpdateRoomStatsAndRole: no role nor stats at the map edge or over 60 regions, where
         // Room.GetStat answers the stat's roomlessScore.
-        if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, default, default, RoomStatDefOf.Cleanliness.roomlessScore);
-        if (BeautyCellCurve?.GetValue(null) is not SimpleCurve curve) return Row("", default, default, 0);
+        if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, RoomStatDefOf.Impressiveness.roomlessScore, default, RoomStatDefOf.Cleanliness.roomlessScore);
+        if (BeautyCellCurve?.GetValue(null) is not SimpleCurve curve) return Row("", 0, default, 0);
 
         var wealth = Wealth(map, cells, things, touching);
         var beauty = Beauty(map, cells, cellSet, adjacent, touching, psychOutdoors, curve);
@@ -138,7 +145,7 @@ internal static class NativeRoomPrediction
         var floored = Cleanliness(map, cells, things, touching, floors);
 
         var room = Unregistered(map, things, edge);
-        if (room == null) return Row("", default, default, 0);
+        if (room == null) return Row("", 0, default, 0);
         var stats = new DefMap<RoomStatDef, float>();
         stats[RoomStatDefOf.Wealth] = wealth; stats[RoomStatDefOf.Beauty] = beauty;
         stats[RoomStatDefOf.Space] = space; stats[RoomStatDefOf.Cleanliness] = cleanliness;
@@ -148,7 +155,7 @@ internal static class NativeRoomPrediction
         catch (Exception) { role = ""; }
         RoomRole!.SetValue(room, DefDatabase<RoomRoleDef>.GetNamedSilentFail(role));
         var impressiveness = RoomStatDefOf.Impressiveness.Worker.GetScore(room);
-        return Row(role, Fact.Known((double)impressiveness), Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(impressiveness)), floored);
+        return Row(role, impressiveness, Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(impressiveness)), floored);
     }
 
     private static readonly Dictionary<IntVec3, TerrainDef> NoFloors = new();

@@ -65,6 +65,18 @@ public sealed record ChildRoomNeed
 
     public EquatableArray<ChildFurniture> Furniture { get; init; }
 
+    /// <summary>The least interior cell count the room must have (a presence demand's RoomRequirement_Area, #3808); 0 none.</summary>
+    public int MinArea { get; init; }
+
+    /// <summary>The impressiveness the room should reach (a presence demand's RoomRequirement_Impressiveness); 0 none.</summary>
+    public int MinImpressiveness { get; init; }
+
+    /// <summary>The terrain tags every floor cell must carry one of (RoomRequirement_TerrainWithTags); none for any floor.</summary>
+    public EquatableArray<string> FloorTags { get; init; }
+
+    /// <summary>The building definitions the room must not hold (RoomRequirement_ForbiddenBuildings).</summary>
+    public EquatableArray<string> ForbiddenDefs { get; init; }
+
     /// <summary>
     /// Picks each furniture entry's definition from the catalog: the first by name that carries the role, is
     /// available and has a known footprint. Null when a required entry has none (the room cannot be sized or
@@ -134,7 +146,7 @@ public sealed record ChildRoomNeed
             counts[i] = counts[i] with { Count = counts[i].Count + p.Count };
         }
 
-        return new ChildRoomShape { Module = Module, Pieces = EquatableArray.From(counts) };
+        return new ChildRoomShape { Module = Module, Pieces = EquatableArray.From(counts), MinArea = MinArea };
     }
 }
 
@@ -157,6 +169,9 @@ public sealed record ChildRoomShape
     public PlannedRole Module { get; init; }
 
     public EquatableArray<PieceCount> Pieces { get; init; }
+
+    /// <summary>The least interior cell count the room must have; 0 none.</summary>
+    public int MinArea { get; init; }
 }
 
 /// <summary><see cref="Count"/> pieces of one footprint.</summary>

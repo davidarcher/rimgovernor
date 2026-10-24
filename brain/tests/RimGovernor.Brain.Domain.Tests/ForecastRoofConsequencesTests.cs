@@ -89,7 +89,7 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     private static PlannedRoomPrediction Closed(string role, int stage)
-        => new("1", "WoodLog", role, Known(30d), Known(stage), 1, 1, false) { Beds = ["bed"] };
+        => new("1", "WoodLog", role, 30d, Known(stage), 1, 1, false) { Beds = ["bed"] };
 
     /// <summary>The pawn's mood targets at the horizon over the feasible schedules of the full sleep and the given sites' roots.</summary>
     private static double[] MoodAtHorizon(RoundsFacts facts, params string[] sites)
@@ -167,7 +167,7 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
-        => new([Inside],new("1", "WoodLog", "Bedroom", Known(30d), Known(2), 4, open, false), closedAt, roofedAt);
+        => new([Inside],new("1", "WoodLog", "Bedroom", 30d, Known(2), 4, open, false), closedAt, roofedAt);
 
     [Fact]
     public void ForAPawnWhoNeedsTheOutdoorsAPlannedRoofIsACost()
@@ -258,7 +258,7 @@ public sealed class ForecastRoofConsequencesTests
     public void ABenchInAnUnclosedPlannedRoomGetsAFasterClosureConditionalVariant()
     {
         var closure = new ForecastPlannedClosure(1, "WoodLog", [Inside], [Wall, Door], [],
-            new("1", "WoodLog", "Workshop", Known(10d), Known(1), 4, 4, false)
+            new("1", "WoodLog", "Workshop", 10d, Known(1), 4, 4, false)
             { Benches = [new("bench", true), new("indoor-bench", false)] });
         var realized = new[]
         {

@@ -23,6 +23,7 @@ internal static class IdeologyDecoder
             Believers = v.Believers.GetValueOrDefault(),
             StyleCategories = [.. v.StyleCategories],
             VeneratedAnimals = [.. v.VeneratedAnimals],
+            BelieverPawns = [.. v.BelieverPawns.Select(p => new Domain.PawnId(p.Id ?? ""))],
         };
         if (v.Fluid is not null || v.CanReform is not null || v.DevelopmentPoints is not null || v.ReformCount is not null || v.NextReformPoints is not null)
         {
@@ -68,7 +69,21 @@ internal static class IdeologyDecoder
         var buildings = new List<P.HeldBuilding>();
         foreach (var row in v.Buildings)
         {
-            buildings.Add(new P.HeldBuilding(row.Building ?? ""));
+            buildings.Add(new P.HeldBuilding(row.Building ?? "")
+            {
+                Demand = new P.BuildingDemand
+                {
+                    Applies = row.Applies,
+                    Present = row.Present,
+                    Satisfied = row.Satisfied,
+                    MinArea = row.MinArea,
+                    MinImpressiveness = row.MinImpressiveness,
+                    FloorTags = [.. row.FloorTags],
+                    Counts = [.. row.Things.Select(t => new P.ThingCount { Def = t.Def, Count = t.Count })],
+                    ForbiddenDefs = catalog.ThingDefsWithBuildingTags([.. row.ForbiddenBuildingTags]),
+                    Unread = [.. row.Unread],
+                },
+            });
         }
         return new P.Ideoligion(defs, facts with { Precepts = precepts, Roles = roles, Rituals = rituals, Buildings = buildings });
     }

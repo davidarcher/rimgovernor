@@ -108,7 +108,52 @@ public sealed record RitualDef
     public bool CanStartAnytime { get; init; }
 
     public bool AlwaysStartAnytime { get; init; }
+
+    /// <summary>The pattern's outcome effect (#3808); null when it has none.</summary>
+    public RitualOutcomeModel? Outcome { get; init; }
 }
+
+/// <summary>A quality input of a ritual outcome: the participant count or a room stat of the ritual's room.</summary>
+public enum RitualQualityInput
+{
+    Participants,
+    Impressiveness,
+    Cleanliness,
+}
+
+/// <summary>A RitualOutcomeComp_Quality the brain can know before the ritual: its input and the curve of its quality offset.</summary>
+public sealed record RitualQualityComp(RitualQualityInput Input, IReadOnlyList<CurvePoint> Curve);
+
+/// <summary>
+/// One RitualOutcomePossibility: its base chance, whether it is positive (positivityIndex &gt;= 0, the chance scaled by
+/// quality) and the memory each attendee gains, as its stage-0 mood over its duration (0 without a memory).
+/// </summary>
+public sealed record RitualOutcomeChance(double Chance, bool Positive, double Mood, double DurationDays);
+
+/// <summary>
+/// A RitualOutcomeEffectDef whose worker is RitualOutcomeEffectWorker_FromQuality (#3808): the quality is
+/// startingQuality plus each known comp's curve at its input, clamped to [MinQuality, MaxQuality]; the outcome is drawn
+/// with weight chance * quality for a positive outcome and chance otherwise. Comps whose input is not knowable before
+/// the ritual are left out.
+/// </summary>
+public sealed record RitualOutcomeModel
+{
+    public double StartingQuality { get; init; }
+
+    public double MinQuality { get; init; }
+
+    public double MaxQuality { get; init; }
+
+    public IReadOnlyList<RitualQualityComp> Comps { get; init; } = [];
+
+    public IReadOnlyList<RitualOutcomeChance> Chances { get; init; } = [];
+
+    /// <summary>The worker class of an outcome effect that does not draw its outcome from quality; "" when it does.</summary>
+    public string Unread { get; init; } = string.Empty;
+}
+
+/// <summary>The stage-0 mood of the game's IdeoBuildingMissing and IdeoBuildingDisrespected thoughts (#3808).</summary>
+public sealed record BuildingDemandMoods(double Missing, double Disrespected);
 
 /// <summary>The Ideology defs of one load, by def name: a view over the catalog's mirrored rows.</summary>
 public sealed record IdeologyDefs
@@ -120,6 +165,9 @@ public sealed record IdeologyDefs
     public IReadOnlyDictionary<string, RitualDef> Rituals { get; init; } = new Dictionary<string, RitualDef>();
 
     public IReadOnlyDictionary<string, MemeDef> Memes { get; init; } = new Dictionary<string, MemeDef>();
+
+    /// <summary>The moods of a building precept's presence demand; null when the catalog lacks either thought.</summary>
+    public BuildingDemandMoods? BuildingMoods { get; init; }
 
     /// <summary>
     /// The memes that gate the precepts of the named issues (game IssueDef names, such as the nudity, cannibalism and
@@ -167,8 +215,39 @@ public sealed record HeldRitual
     public bool Running { get; init; }
 }
 
-/// <summary>A building precept: the ThingDef it takes.</summary>
-public sealed record HeldBuilding(string Building);
+/// <summary>A building precept: the ThingDef it takes and its presence demand on the frame's map.</summary>
+public sealed record HeldBuilding(string Building)
+{
+    public BuildingDemand Demand { get; init; } = new();
+}
+
+/// <summary>
+/// A building precept's presence demand (#3808): whether it applies on the map (the game's AppliesTo), whether a
+/// building of the precept stands (BuildingPresent) and whether one stands in a room meeting every requirement
+/// (RequirementsSatisfied). The requirements: the room's least area and impressiveness (0 none), the terrain tags
+/// every floor cell needs (none: any), the things it must hold, the building defs it must not hold, and the class name
+/// of each requirement of a kind the plan cannot predict.
+/// </summary>
+public sealed record BuildingDemand
+{
+    public bool Applies { get; init; }
+
+    public bool Present { get; init; }
+
+    public bool Satisfied { get; init; }
+
+    public int MinArea { get; init; }
+
+    public int MinImpressiveness { get; init; }
+
+    public IReadOnlyList<string> FloorTags { get; init; } = [];
+
+    public IReadOnlyList<ThingCount> Counts { get; init; } = [];
+
+    public IReadOnlyList<string> ForbiddenDefs { get; init; } = [];
+
+    public IReadOnlyList<string> Unread { get; init; } = [];
+}
 
 /// <summary>The player faction's primary ideoligion as it stands.</summary>
 public sealed record IdeoligionFacts
@@ -186,6 +265,9 @@ public sealed record IdeoligionFacts
     public IReadOnlyList<HeldBuilding> Buildings { get; init; } = [];
 
     public int Believers { get; init; }
+
+    /// <summary>The free non-slave colonists on the frame's map holding the ideoligion, by pawn id, sorted.</summary>
+    public IReadOnlyList<PawnId> BelieverPawns { get; init; } = [];
 
     public Fact<IdeoDevelopment> Development { get; init; }
 

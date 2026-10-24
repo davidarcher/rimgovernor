@@ -16,6 +16,9 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             Room = room,
             Template = step.Template,
+            // A presence demand's floor tags and forbidden buildings (#3808): the reconcile lays a tagged floor and clears what is forbidden.
+            Tags = [.. need.FloorTags.Items],
+            Forbidden = need.ForbiddenDefs.Count == 0 ? null : need.ForbiddenDefs.Items.Contains,
             Name = string.Create(CultureInfo.InvariantCulture, $"child-room-{bounds.X}-{bounds.Z}"),
             Reason = Wire.Name(need.Role),
         }, call, epoch).ConfigureAwait(false);
@@ -28,7 +31,9 @@ public sealed partial class Rounder
     internal RoundsReading ReviewChildRooms(RoundsReading reading)
     {
         var worship = RoundsSleepingUpkeepPlanner.WorshipDefinitions(reading.Projection);
-        var projection = reading.Projection.AddDefinitions(reading.Frame, reading.Catalog, [.. worship, .. RoundsSleepingUpkeepPlanner.ContainmentDefinitions(reading.Projection)]);
+        // The worship floor's terrains (a presence demand's terrain tags, #3808) join so the flooring facts can choose among them.
+        var floors = reading.Catalog?.TerrainsWithTags([.. reading.Projection.Facts.Worship.FloorTags]) ?? [];
+        var projection = reading.Projection.AddDefinitions(reading.Frame, reading.Catalog, [.. worship, .. floors, .. RoundsSleepingUpkeepPlanner.ContainmentDefinitions(reading.Projection)]);
         Census.RememberWorship(worship);
         return reading.WithProjection(projection);
     }
@@ -36,14 +41,8 @@ public sealed partial class Rounder
 
 partial class RoundsSleepingUpkeepPlanner
 {
-    internal static IReadOnlyList<string> WorshipDefinitions(ColonyProjection facts)
-    {
-        if (!facts.Facts.Ideology.TryGetValue(out var ideology))
-        {
-            return [];
-        }
-        return ideology.RequiredBuildings();
-    }
+    /// <summary>The worship room's furniture definitions: its required buildings and the things its presence demands count.</summary>
+    internal static IReadOnlyList<string> WorshipDefinitions(ColonyProjection facts) => facts.Facts.Worship.Definitions;
 
     internal static IReadOnlyList<string> ContainmentDefinitions(ColonyProjection facts)
     {
@@ -72,13 +71,9 @@ partial class RoundsSleepingUpkeepPlanner
         {
             needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns));
         }
-        if (facts.Facts.Ideology.TryGetValue(out var ideology))
+        if (facts.Facts.Worship.Need is { } worship)
         {
-            var (need, owed) = WorshipRules.WorshipRoomNeed(ideology);
-            if (owed)
-            {
-                needs.Add(need);
-            }
+            needs.Add(worship);
         }
         // The rooms the player's goals name (#3496) join the rooms the pawns owe: layout sizes and places them, the sleeping step builds them.
         needs.AddRange(ChildRoomsRules.GoalRoomNeeds(facts.Facts.GoalBuild.Rooms, needs));

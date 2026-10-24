@@ -33,7 +33,7 @@ public sealed class LaboratoryCreditTests
     /// <summary>The clean laboratory: cleanliness 0.5 is 1.075 on the curve, indoors, in its role.</summary>
     private static readonly double InTheLab = 0.75 * 1.075;
 
-    private static PlannedRoomPrediction Prediction(string role = "Laboratory") => new("1", "WoodLog", role, Known(10d), Known(1), 9, 0, false) { Cleanliness = 0.5 };
+    private static PlannedRoomPrediction Prediction(string role = "Laboratory") => new("1", "WoodLog", role, 10d, Known(1), 9, 0, false) { Cleanliness = 0.5 };
 
     /// <summary>Planned lab 1 (interior 0..2 x 0..2) served from day 3, one researcher at bench1 with the given factor now.</summary>
     private static ForecastCoupledContext Context(Cell bench, double factorNow, PlannedRoomPrediction? prediction = null) =>

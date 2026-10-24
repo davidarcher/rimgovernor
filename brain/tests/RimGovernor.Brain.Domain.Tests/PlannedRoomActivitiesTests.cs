@@ -806,7 +806,7 @@ public sealed class PlannedRoomActivitiesTests
         {
             PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }),
             PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
-            PlannedRoomPredictions = Known(EquatableArray.From(stages.Select(s => new PlannedRoomPrediction("1", s.Key, "Bedroom", Known(30d), Known(s.Value), 9, 0, false)
+            PlannedRoomPredictions = Known(EquatableArray.From(stages.Select(s => new PlannedRoomPrediction("1", s.Key, "Bedroom", 30d, Known(s.Value), 9, 0, false)
                 { Beds = inside ? ["bed"] : [] }))),
             MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
@@ -854,7 +854,7 @@ public sealed class PlannedRoomActivitiesTests
             PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Kitchen)] }),
             PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Kitchen, Meals = 6,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
-            PlannedRoomPredictions = Known(EquatableArray.From([new PlannedRoomPrediction("1", "WoodLog", "Kitchen", Known(30d), Known(2), 9, 0, false) { Cleanliness = -1 }])),
+            PlannedRoomPredictions = Known(EquatableArray.From([new PlannedRoomPrediction("1", "WoodLog", "Kitchen", 30d, Known(2), 9, 0, false) { Cleanliness = -1 }])),
             Filth = BedStationPriceTests.Filth,
             CapacityPenalties = ForecastValueTests.Tables(),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) }, Coupled = coupled },
@@ -1000,7 +1000,7 @@ public sealed class PlannedRoomActivitiesTests
             PlannedShelters = [.. occupants.Keys.Select(room => new PlannedRoom { Id = room, Role = roles[room],
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * (room - 1)), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = Known(EquatableArray.From(occupants.Keys.Select(room => new PlannedRoomPrediction(
-                room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", Known(30d), Known(2), 9, 0, false)))),
+                room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", 30d, Known(2), 9, 0, false)))),
             MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };

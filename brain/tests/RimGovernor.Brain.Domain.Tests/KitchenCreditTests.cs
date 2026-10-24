@@ -25,7 +25,7 @@ public sealed class KitchenCreditTests
 
     private static ForecastPlannedClosure Closure(int room, double cleanliness, string role = "Kitchen") =>
         new(room, "WoodLog", [], ["planned/room" + room.ToString(CultureInfo.InvariantCulture) + "/wall/WoodLog"], [],
-            new(room.ToString(CultureInfo.InvariantCulture), "WoodLog", role, Known(30d), Known(2), 9, 0, false) { Cleanliness = cleanliness });
+            new(room.ToString(CultureInfo.InvariantCulture), "WoodLog", role, 30d, Known(2), 9, 0, false) { Cleanliness = cleanliness });
 
     private static ForecastCoupledContext Context(PlannedRoom[] rooms, ForecastPlannedClosure[] closures, bool cooking = true) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with

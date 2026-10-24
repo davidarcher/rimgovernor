@@ -23,7 +23,7 @@ public sealed class RingClosureProjectionTests
 
     private static ForecastPlannedClosure Closure(int room, params Piece[] ring) =>
         new(room, "WoodLog", [new(room, room)], EquatableArray.From(ring.Where(s => s.Planned.Stuff.Length > 0).Select(s => s.Planned.Site)),
-            EquatableArray.From(ring.Where(s => s.Planned.Stuff.Length == 0).Select(s => s.Planned.Site)), new(room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", Known(30d), Known(2), 1, 0, false));
+            EquatableArray.From(ring.Where(s => s.Planned.Stuff.Length == 0).Select(s => s.Planned.Site)), new(room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", 30d, Known(2), 1, 0, false));
 
     private static ForecastCoupledContext Context(int builders, int[] open, Piece[] sites, params ForecastPlannedClosure[] closures) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with

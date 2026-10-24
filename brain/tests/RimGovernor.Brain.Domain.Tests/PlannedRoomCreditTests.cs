@@ -37,7 +37,7 @@ public sealed class PlannedRoomCreditTests
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Storage, [2] = PlannedRole.Workshop },
             RoomCredits = credits,
             PlannedSites = [Site(Wall, "WoodLog"), Site(Roof), Site(Shelf)],
-            Closures = [new(1, "WoodLog", [new(1, 1)], [Wall], [Roof], new("1", "WoodLog", "Storage", Known(10d), Known(1), 4, 0, false))],
+            Closures = [new(1, "WoodLog", [new(1, 1)], [Wall], [Roof], new("1", "WoodLog", "Storage", 10d, Known(1), 4, 0, false))],
             RoomItems = [new("floor-1", [1], ["site-0-finish"]), new("rubble-1", [1], ["removal-1"]), new("shared-1", [1, 2], ["removal-2"])],
             OwedWork = new Dictionary<string, double>
             {
@@ -144,7 +144,7 @@ public sealed class PlannedRoomCreditTests
             RoomCredits = credits,
             PlannedSites = corridor ? [new(BedWall, 1, "WoodLog", [], [BedWall + "/finish"]), new(CorridorWall, 2, "WoodLog", [], [CorridorWall + "/finish"])]
                 : [new(BedWall, 1, "WoodLog", [], [BedWall + "/finish"])],
-            Closures = [new(1, "WoodLog", [new(1, 1)], [BedWall], [], new("1", "WoodLog", "Bedroom", Known(10d), Known(1), 4, 0, false))],
+            Closures = [new(1, "WoodLog", [new(1, 1)], [BedWall], [], new("1", "WoodLog", "Bedroom", 10d, Known(1), 4, 0, false))],
             RoomItems = [new("connector-floor", [2], ["site-9-finish"])],
             OwedWork = new Dictionary<string, double> { [BedWall] = 2 * Day, [CorridorWall] = Day, ["connector-floor"] = Day / 2 },
             Connectors = new Dictionary<int, EquatableArray<int>> { [2] = [1] },

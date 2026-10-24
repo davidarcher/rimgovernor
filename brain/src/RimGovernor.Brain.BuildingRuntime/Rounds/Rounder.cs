@@ -1150,7 +1150,7 @@ partial class Rounder
                 Rows = rows,
                 Floors = floors,
                 Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
-                WantedFloor = WantedFloorRules.WantedFloors(room, [], flooringFacts, flooring),
+                WantedFloor = WantedFloorRules.WantedFloors(room, room.Role == PlannedRole.Worship ? colony.Facts.Worship.FloorTags : [], flooringFacts, flooring),
             };
             var now = ReconcileRules.Reconcile(input).Owed;
             owed.Add((room, now));

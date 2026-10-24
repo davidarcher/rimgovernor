@@ -337,6 +337,9 @@ public sealed record RoundsFacts
     /// <summary>The royalty facts from the pawn rows, the def mirror and the colony section; unknown when Royalty is not applicable or a read failed.</summary>
     public Fact<RoyaltyFacts> Royalty { get; init; }
 
+    /// <summary>The worship room, believers, presence demands and rituals of the frame's ideoligion (#3808); empty without one.</summary>
+    public WorshipFacts Worship { get; init; } = new();
+
     /// <summary>The primary ideoligion from the frame's ideology section with the catalog's defs; unknown when the frame carries no section (no Ideology, or no primary ideoligion).</summary>
     public Fact<Ideoligion> Ideology { get; init; }
 

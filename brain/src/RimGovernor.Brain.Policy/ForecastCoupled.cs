@@ -99,6 +99,8 @@ public sealed record ForecastCoupledContext
     public FilthModel Filth { get; init; } = new();
     /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (RoundsFacts.ResearchBenchSpeeds, #3800).</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+    /// <summary>The worship room's believers, presence demands and rituals (RoundsFacts.Worship, #3808).</summary>
+    public WorshipFacts Worship { get; init; } = new();
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
     /// <summary>The benches the colony cooks at now (the coupled food read's conversion benches, #3802): the kitchen credit's

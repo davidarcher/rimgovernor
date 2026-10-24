@@ -156,7 +156,9 @@ per load, and a row a def names that the catalog lacks is an error.
   (`ritualFreeStartIntervalDaysRange`), when it may start, the obligation
   target filter's `thingDefs` (`RequiredBuildings`) and the role slots of its
   `RitualBehaviorDef.roles` (`RitualRole`: id, role precept, `maxCount`,
-  `required`). The generator mirrors `RitualRole` although it implements
+  `required`), and its outcome effect (`RitualOutcomeModel`, #3808: a `RitualOutcomeEffectDef` drawn from quality, its
+  starting quality and bounds, its participant-count and Impressiveness/Cleanliness room-stat curves, and each outcome's
+  chance, positivity and memory mood and duration). The generator mirrors `RitualRole` although it implements
   `ILoadReferenceable` (its `DataClasses` table): XML builds it.
   Required buildings also come from `PreceptDef.buildingDefChances` and
   `MemeDef.requiredRituals`.
@@ -168,7 +170,10 @@ per load, and a row a def names that the catalog lacks is an error.
 rituals and building precepts held apart), each role's holders as pawn row
 refs, each ritual's raw `lastFinishedTick`, active obligation count, repeat
 penalty flag and whether a lord job of it runs (`running`), and each
-building precept's ThingDef, the style category names, the venerated animals'
+building precept's ThingDef with its presence demand on the frame's map (#3808: `applies`, `present` and `satisfied`, the
+game's `AppliesTo`, `BuildingPresent` and `RequirementsSatisfied` computed without the demand's cache; the requirements by kind,
+and the class name of any kind the brain cannot predict in `unread`; `policy.BuildingDemand`), the free non-slave colonists on
+the map holding it (`believer_pawns`, `WorshipFacts.Believers`), the style category names, the venerated animals'
 ThingDef names, and the reform state (`fluid`, `can_reform`, development
 points, reform count, next reform points; `policy.IdeoDevelopment`). The
 believers are not a second read: `Ideoligion.BelieverList` projects the pawn

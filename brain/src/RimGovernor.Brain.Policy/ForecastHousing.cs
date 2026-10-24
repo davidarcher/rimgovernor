@@ -287,8 +287,8 @@ public static class ForecastHousing
             var relieved = -pawn.ThoughtStages.Where(r => r.Stage == 0 && roles.Contains(r.Role, StringComparer.Ordinal) && thoughts.Any(t => t.Def == r.Thought))
                 .DistinctBy(r => r.Thought).Sum(r => r.Offset);
             if (relieved == 0) { royal[(closure.Room, closure.Stuff)] = (need.Pawn, 0); continue; }
-            if (!closure.Prediction.Impressiveness.TryGetValue(out var impressiveness)) continue;
-            var meets = closure.Prediction.Cells >= need.MinArea && Math.Round(impressiveness) >= need.MinImpressiveness;
+            if (closure.Prediction.Role.Length == 0) continue;
+            var meets = closure.Prediction.Cells >= need.MinArea && Math.Round(closure.Prediction.Impressiveness) >= need.MinImpressiveness;
             royal[(closure.Room, closure.Stuff)] = (need.Pawn, meets ? relieved : 0);
         }
         return royal;

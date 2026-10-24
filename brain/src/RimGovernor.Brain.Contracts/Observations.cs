@@ -7992,6 +7992,10 @@ public sealed record IdeologySnapshot
     /// <summary>Ideo.ColonistBelieverCountCached.</summary>
     public int? Believers { get; init; }
 
+    /// <summary>The free non-slave colonists on the frame's map holding the ideoligion (#3808), each a pawn row ref, by load id.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
+    public EquatableArray<Common.Ref> BelieverPawns { get; init; }
+
     public bool? Fluid { get; init; }
 
     public bool? CanReform { get; init; }
@@ -8065,12 +8069,43 @@ public sealed record IdeoRitual
 }
 
 /// <summary>
-/// A building precept: the ThingDef it takes.
+/// A building precept: the ThingDef it takes and its presence demand (Precept_Building.presenceDemand, #3808) on the
+/// frame's map, as the game's own checks read it: Applies is IdeoBuildingPresenceDemand.AppliesTo, Present its
+/// BuildingPresent, Satisfied its RequirementsSatisfied (every requirement MetOrDisabled in the effective room of one
+/// of the precept's buildings, computed without the demand's caches). The requirements are its roomRequirements by
+/// kind: the largest RoomRequirement_Area and RoomRequirement_Impressiveness (0 none), the
+/// RoomRequirement_TerrainWithTags tags, the RoomRequirement_ThingCount and RoomRequirement_Thing counts, the
+/// RoomRequirement_ForbiddenBuildings building tags, and the class name of any requirement of another kind.
 /// </summary>
 public sealed record IdeoBuilding
 {
     public string? Building { get; init; }
+
+    public bool Applies { get; init; }
+
+    public bool Present { get; init; }
+
+    public bool Satisfied { get; init; }
+
+    public int MinArea { get; init; }
+
+    public int MinImpressiveness { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> FloorTags { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoThingCount>))]
+    public EquatableArray<IdeoThingCount> Things { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> ForbiddenBuildingTags { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Unread { get; init; }
 }
+
+/// <summary>A room requirement's thing count: at least Count of the ThingDef Def in the room.</summary>
+public sealed record IdeoThingCount(string Def, int Count);
 
 
 

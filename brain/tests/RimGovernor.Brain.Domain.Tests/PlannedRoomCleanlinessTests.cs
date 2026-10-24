@@ -23,7 +23,7 @@ public sealed class PlannedRoomCleanlinessTests
     };
 
     private static PlannedRoomPrediction Predicted(double cleanliness, string role = "Kitchen") =>
-        new("1", "WoodLog", role, Known(10d), Known(2), 9, 0, false) { Cleanliness = cleanliness };
+        new("1", "WoodLog", role, 10d, Known(2), 9, 0, false) { Cleanliness = cleanliness };
 
     private static double Dirty(PlannedRoomPrediction prediction, PlannedRoom room, FilthModel filth) =>
         PlannedRoomCleanlinessRules.Steady(prediction, room.FilthRuns.Values, filth).Dirty;

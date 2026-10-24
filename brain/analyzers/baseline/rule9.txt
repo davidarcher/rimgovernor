@@ -158,7 +158,7 @@ BuildingRuntime/Rounds/RoundsBurialFacts.cs|Fact|25
 BuildingRuntime/Rounds/RoundsBurialFacts.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsCensus.cs|Fact|27
 BuildingRuntime/Rounds/RoundsCensus.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|7
+BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|5
 BuildingRuntime/Rounds/RoundsClearance.cs|Fact|12
 BuildingRuntime/Rounds/RoundsClearance.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|67
@@ -364,7 +364,7 @@ Contracts/Clock.cs|NullableValue|32
 Contracts/Clock.cs|UnknownMember|7
 Contracts/Common.cs|NullableValue|6
 Contracts/Common.cs|UnknownMember|6
-Contracts/ConstructionActivities.cs|Fact|8
+Contracts/ConstructionActivities.cs|Fact|7
 Contracts/ConstructionActivities.cs|UnknownMember|2
 Contracts/CoupledFood.cs|Fact|11
 Contracts/CoupledForecast.cs|Fact|1
@@ -820,7 +820,7 @@ Policy/ForecastGoalValue.cs|Discard|1
 Policy/ForecastGoalValue.cs|NullableValue|1
 Policy/ForecastHandoff.cs|Fact|78
 Policy/ForecastHandoffProjects.cs|Fact|14
-Policy/ForecastHousing.cs|Fact|35
+Policy/ForecastHousing.cs|Fact|34
 Policy/ForecastIncumbentPreparation.cs|Fact|35
 Policy/ForecastLiveEvidence.cs|Fact|12
 Policy/ForecastMaintenance.cs|Fact|26

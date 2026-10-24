@@ -45,7 +45,8 @@ public static partial class WantedFloorRules
         return c => inside.Contains(c) ? name : "";
     }
 
-    // The floor requirement a PlannedRoom's whole interior carries: the tier its role asks for, the throne room's title tags.
+    // The floor requirement a PlannedRoom's whole interior carries: the tier its role asks for, or the terrain tags its
+    // floor must carry (the throne room's title tags, the worship room's presence demand tags, #3808).
     private static (FloorDeficit Deficit, bool Ok) RoomFloorDeficit(PlannedRoom room, IReadOnlyList<string> tags)
     {
         // A planned role with no census role (morgue, ...) asks for no floor.
@@ -56,7 +57,7 @@ public static partial class WantedFloorRules
         var roleTier = FlooringRules.RoleFloorTier(role);
         var tier = roleTier ?? default;
         var ok = roleTier is not null;
-        if (tags.Count > 0 && role == RoomRole.ThroneRoom)
+        if (tags.Count > 0 && role is RoomRole.ThroneRoom or RoomRole.WorshipRoom)
         {
             (tier, ok) = (FloorTier.Throne, true);
         }
@@ -70,8 +71,8 @@ public static partial class WantedFloorRules
 
     /// <summary>
     /// Whether the constructed floor "have" stands in for the wanted floor "want" of a PlannedRoom: any floor that
-    /// meets the room's tier does, so a different adequate floor is never torn up. The throne room's title tags are
-    /// the exception: the floor must carry one. A floor the mirror does not describe is kept, never torn up on a
+    /// meets the room's tier does, so a different adequate floor is never torn up. The throne room's title tags and the
+    /// worship room's presence demand tags are the exception: the floor must carry one. A floor the mirror does not describe is kept, never torn up on a
     /// missing fact.
     /// </summary>
     public static Func<string, string, bool> FloorKept(PlannedRoom room, IReadOnlyList<string> tags, FlooringFacts facts, FlooringPolicy p)

@@ -39,7 +39,7 @@ public sealed class RoyalRoomCreditTests
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = role },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
-                new("1", "WoodLog", "Bedroom", Known(impressiveness), Known(3), cells, 0, false))],
+                new("1", "WoodLog", "Bedroom", impressiveness, Known(3), cells, 0, false))],
             RoyalRooms = need is null ? new Dictionary<int, RoyalRoomNeed>() : new Dictionary<int, RoyalRoomNeed> { [1] = need },
             InvestmentHorizonDays = Horizon,
             ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = observed },

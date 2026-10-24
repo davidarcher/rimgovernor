@@ -40,7 +40,7 @@ public sealed class BedroomCreditTests
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
-                new("1", "WoodLog", "Bedroom", Known(30d), Known(bedroomStage), 4, 0, false))],
+                new("1", "WoodLog", "Bedroom", 30d, Known(bedroomStage), 4, 0, false))],
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] },
             InvestmentHorizonDays = Horizon,
             ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known(EquatableArray.From(observed)) },

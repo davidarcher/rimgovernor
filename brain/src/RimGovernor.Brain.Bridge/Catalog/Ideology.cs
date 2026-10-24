@@ -53,6 +53,75 @@ public sealed partial class DefinitionCatalog
             Roles = roles,
             Memes = memes,
             Rituals = patternRows.ToDictionary(pair => pair.Key, pair => RitualDef(pair.Value), StringComparer.Ordinal),
+            BuildingMoods = BuildingDemandMoods(),
+        };
+    }
+
+    // The stage-0 moods of the thoughts a building precept's presence demand gives (Precept_Building.SituationThoughtsToAdd:
+    // ThoughtDefOf.IdeoBuildingMissing without the building, ThoughtDefOf.IdeoBuildingDisrespected when its room fails a
+    // requirement); null when the catalog lacks either. The DefOf fields are null outside the game, so the rows are looked
+    // up by their nameof.
+    private P.BuildingDemandMoods? BuildingDemandMoods() =>
+        DefRow<ThoughtDef>(nameof(ThoughtDefOf.IdeoBuildingMissing))?.stages.Seq().FirstOrDefault() is { } missing
+        && DefRow<ThoughtDef>(nameof(ThoughtDefOf.IdeoBuildingDisrespected))?.stages.Seq().FirstOrDefault() is { } disrespected
+            ? new(Decimal32(missing.baseMoodEffect), Decimal32(disrespected.baseMoodEffect))
+            : null;
+
+    // A ritual pattern's outcome effect, null for none; one whose worker does not draw the outcome from quality
+    // (RitualOutcomeEffectWorker_FromQuality or a class deriving from it) is named by its worker class. Otherwise: startingQuality, the quality bounds, the RitualOutcomeComp_ParticipantCount and
+    // RitualOutcomeComp_RoomStat (Impressiveness or Cleanliness) curves, and each outcome's chance, positivity and memory.
+    // Other comps take inputs the plan cannot know before the ritual and are left out.
+    private P.RitualOutcomeModel? RitualOutcome(RitualPatternDef row)
+    {
+        if (row.ritualOutcomeEffect is not { } named)
+        {
+            return null;
+        }
+        var effect = DefRow<RitualOutcomeEffectDef>(named.defName)
+            ?? throw new CatalogException($"ritual {row.defName}: catalog has no outcome effect {named.defName}");
+        if (effect.workerClass is not { } worker || !typeof(RitualOutcomeEffectWorker_FromQuality).IsAssignableFrom(worker))
+        {
+            return new P.RitualOutcomeModel { Unread = effect.workerClass?.Name ?? "null" };
+        }
+        static List<P.CurvePoint> Curve(SimpleCurve? curve) => [.. curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []];
+        var comps = new List<P.RitualQualityComp>();
+        foreach (var comp in effect.comps.Seq())
+        {
+            if (comp?.GetType() == typeof(RitualOutcomeComp_ParticipantCount))
+            {
+                comps.Add(new(P.RitualQualityInput.Participants, Curve(((RitualOutcomeComp_ParticipantCount)comp).curve)));
+            }
+            else if (comp is RitualOutcomeComp_RoomStat stat && stat.GetType() == typeof(RitualOutcomeComp_RoomStat))
+            {
+                var name = stat.statDef?.defName;
+                if (name == nameof(RoomStatDefOf.Impressiveness))
+                {
+                    comps.Add(new(P.RitualQualityInput.Impressiveness, Curve(stat.curve)));
+                }
+                else if (name == nameof(RoomStatDefOf.Cleanliness))
+                {
+                    comps.Add(new(P.RitualQualityInput.Cleanliness, Curve(stat.curve)));
+                }
+            }
+        }
+        var chances = new List<P.RitualOutcomeChance>();
+        foreach (var outcome in effect.outcomeChances.Seq())
+        {
+            _ = outcome ?? throw new CatalogException($"ritual outcome effect {effect.defName} has a null outcome");
+            var memory = outcome.memory is { } thought ? RequireRow<ThoughtDef>(thought.defName) : null;
+            chances.Add(new(
+                Decimal32(outcome.chance),
+                outcome.Positive,
+                memory?.stages.Seq().FirstOrDefault() is { } stage ? Decimal32(stage.baseMoodEffect) : 0,
+                memory is null ? 0 : Decimal32(memory.durationDays)));
+        }
+        return new P.RitualOutcomeModel
+        {
+            StartingQuality = Decimal32(effect.startingQuality),
+            MinQuality = Decimal32(effect.minQuality),
+            MaxQuality = Decimal32(effect.maxQuality),
+            Comps = comps,
+            Chances = chances,
         };
     }
 
@@ -173,6 +242,7 @@ public sealed partial class DefinitionCatalog
             AlwaysStartAnytime = row.alwaysStartAnytime,
             RequiredBuildings = buildings,
             Roles = slots,
+            Outcome = RitualOutcome(row),
         };
     }
 

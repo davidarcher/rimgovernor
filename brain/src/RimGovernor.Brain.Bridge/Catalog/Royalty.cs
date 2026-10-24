@@ -356,7 +356,17 @@ public sealed partial class DefinitionCatalog
         req.ForbiddenBuildingTags.Count == 0 && !req.ForbidAltars
             ? default
             : EquatableArray.From(_thingDefs.Values
-                .Where(def => (req.ForbidAltars && IsAltar(def)) || def.building?.buildingTags.Seq().Any(tag => req.ForbiddenBuildingTags.Contains(tag)) == true)
+                .Where(def => (req.ForbidAltars && IsAltar(def)) || HasBuildingTag(def, req.ForbiddenBuildingTags))
                 .Select(def => def.defName)
                 .Order(StringComparer.Ordinal));
+
+    /// <summary>
+    /// The building defs a RoomRequirement_ForbiddenBuildings over <paramref name="tags"/> forbids: those whose
+    /// building.buildingTags meet one of them, sorted; none for no tags.
+    /// </summary>
+    public IReadOnlyList<string> ThingDefsWithBuildingTags(IReadOnlyCollection<string> tags) =>
+        tags.Count == 0 ? [] : [.. _thingDefs.Values.Where(def => HasBuildingTag(def, tags)).Select(def => def.defName).Order(StringComparer.Ordinal)];
+
+    private static bool HasBuildingTag(ThingDef def, IReadOnlyCollection<string> tags) =>
+        def.building?.buildingTags.Seq().Any(tags.Contains) == true;
 }

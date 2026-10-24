@@ -363,6 +363,7 @@ public sealed partial record ForecastCoupledCandidates
             Filth = facts.Filth,
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             LaboratoryBench = facts.LaboratoryBench,
+            Worship = facts.Worship,
             InitialLots = EquatableArray.From(lots),
             FoodUses = read.FoodUses,
             Bindings = bindings,
