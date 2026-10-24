@@ -1,6 +1,9 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
+using RimGovernor.Brain.Store.Codec;
+using System.Buffers;
+using System.Text.Json;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
@@ -23,7 +26,7 @@ public sealed class ProductionAdmissionTests
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),
         Resources = Known<EquatableArray<Amount>>([new(Wood, 60), new(Other, 100)]),
-        ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Wood] = 40 }),
+        CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
         BillReservations = [],
         WorkAdmission = new()
         {
@@ -37,6 +40,29 @@ public sealed class ProductionAdmissionTests
         ProductionRules.ProductionAdmissionFits(evidence, Known(EquatableArray.From(committed)), EquatableArray.From(proposed));
     private static PlanSpec Plan(string id) => new(new PlanId(id), new PlanRevision(1),
         [DomainAction.NewProductionBillAction(new ActionId(id), Batch(id).Order)]);
+
+    private static WorkAdmissionEvidence RoundTrip(WorkAdmissionEvidence evidence)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            Codecs.Default.Write(writer, evidence);
+        }
+        using var doc = JsonDocument.Parse(buffer.WrittenMemory);
+        return Codecs.Default.Read<WorkAdmissionEvidence>(doc.RootElement);
+    }
+
+    [Fact]
+    public void TheFrozenCensusSurvivesTheJournalCodecReadOrUnread()
+    {
+        var standing = RoundTrip(new WorkAdmissionEvidence { Standing = new([], new Dictionary<Resource, long> { [Wood] = 3 }) }).Standing;
+        Assert.NotNull(standing);
+        Assert.Empty(standing.Buildings);
+        Assert.Equal(3, standing.Owed[Wood]);
+        Assert.NotNull(Evidence().Standing);
+        Assert.Null(Evidence(Facts with { CurrentConstruction = null }).Standing);
+        Assert.Null(RoundTrip(new WorkAdmissionEvidence()).Standing);
+    }
 
     [Fact]
     public void TwoAffordableBatchesCannotSpendTheSameRemainderOrHideInOneBundle()

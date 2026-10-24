@@ -83,7 +83,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     {
         facts.Resources.TryGetValue(out var known);
         IReadOnlyDictionary<Resource, long> stock = known ?? new Dictionary<Resource, long>();
-        if (!facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.CurrentConstruction.TryGetValue(out var census) || !facts.Facts.Sleeping.TryGetValue(out var obs) || !census.Colony || RoundsSleepingUpkeepPlanner.SleepingTraits(facts) is not { } traits)
+        if (!facts.Rooms.TryGetValue(out var rooms) || facts.Facts.CurrentConstruction is not { } census || !facts.Facts.Sleeping.TryGetValue(out var obs) || RoundsSleepingUpkeepPlanner.SleepingTraits(facts) is not { } traits)
         {
             return ArtRules.NewArtDemand(Unknown<SleepingObservation>(), new Dictionary<string, RoomTarget>(), [], stock, profiles, facts.Facts.Items);
         }

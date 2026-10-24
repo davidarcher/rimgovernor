@@ -63,8 +63,8 @@ internal static class RoundsHerdRooms
     {
         var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!ak || !pk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!ak || !pk || census is null)
         {
             return (default!, false);
         }
@@ -93,9 +93,9 @@ internal static class RoundsHerdRooms
         var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!ak || !pk || !rk || !ck || !sk || !census!.Colony)
+        if (!ak || !pk || !rk || census is null || !sk)
         {
             return (default!, false);
         }
@@ -120,9 +120,9 @@ internal static class RoundsHerdRooms
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!pk || !rk || !ck || !sk || !census!.Colony)
+        if (!pk || !rk || census is null || !sk)
         {
             return false;
         }

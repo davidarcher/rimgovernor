@@ -43,7 +43,7 @@ public sealed partial class Store
         StoreTransaction tx,
         GenerationSnapshot current,
         Tick tick,
-        Fact<CurrentConstruction> census,
+        CurrentConstruction? census,
         Dictionary<(ColonyId Colony, MapId Map), Tick> floors
     )
     {

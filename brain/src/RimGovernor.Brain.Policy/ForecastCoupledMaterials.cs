@@ -10,7 +10,7 @@ public static class ForecastCoupledMaterials
     internal static MaterialHolds? MaterialHoldsOf(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments)
     {
         var context = request.Coupled!; var evidence = context.Resources.Evidence;
-        if (!evidence.Construction.TryGetValue(out var construction) || !evidence.ForecastPromises.TryGetValue(out var production)) return null;
+        if (evidence.Standing is not { Owed: var construction } || !evidence.ForecastPromises.TryGetValue(out var production)) return null;
         var held = WorkRules.MergeWorkMaterialPromises(production).ToDictionary(c => c.Id, StringComparer.Ordinal);
         // The delta addresses declared identities. Native holds still enter through the shared owner's reservations.
         foreach (var original in request.Commitments.Where(c => !commitments.ContainsKey(c.Id))) held.Remove(original.Id);
@@ -55,6 +55,6 @@ public static class ForecastCoupledMaterials
                 var credit = Math.Min(resource.Sum(i => i.Units.Value), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
                 adjusted[resource.Key] = Known(Math.Max(0, before.Value - credit));
             }
-        return ProductionRules.SharedMaterialBudgetOf(evidence.Stock, Known<IReadOnlyDictionary<Resource, long>>(owed), Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));
+        return ProductionRules.SharedMaterialBudgetOf(evidence.Stock, owed, Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));
     }
 }

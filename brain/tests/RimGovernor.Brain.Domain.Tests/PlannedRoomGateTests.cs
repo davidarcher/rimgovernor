@@ -124,7 +124,7 @@ public sealed class PlannedRoomGateTests
         public required FamilyRunner<bool> Runner { get; init; }
 
         /// <summary>The construction census the reconcile reads: an empty colony census until a test places something.</summary>
-        public Fact<CurrentConstruction> Census { get; set; } = Known(new CurrentConstruction { Colony = true });
+        public CurrentConstruction? Census { get; set; } = CurrentConstruction.Empty;
 
         /// <summary>The verdict the reconcile itself returned to its step, unset when it threw past the step.</summary>
         public Verdict? Reconciled { get; set; }
@@ -258,15 +258,14 @@ public sealed class PlannedRoomGateTests
     {
         using var colony = Open();
         var ring = Room.WallRing().Cells().Where(c => c != Room.Door).ToList();
-        colony.Census = Known(new CurrentConstruction { Colony = true, Buildings = [Built(ContainmentCellRules.ShellWallDefinition, ring[0])] });
+        colony.Census = CurrentConstruction.Empty with { Buildings = [Built(ContainmentCellRules.ShellWallDefinition, ring[0])] };
         await colony.RunAsync();
         Assert.DoesNotContain(Room.Id, colony.Planner.Reviewer.DoneRooms.Get(World));
 
-        colony.Census = Known(new CurrentConstruction
+        colony.Census = CurrentConstruction.Empty with
         {
-            Colony = true,
             Buildings = [.. ring.Select(c => Built(ContainmentCellRules.ShellWallDefinition, c)), Built(ContainmentCellRules.ShellDoorDefinition, Room.Door)],
-        });
+        };
         var done = await colony.RunAsync();
         Assert.Empty(done.Methods);
         Assert.Contains(Room.Id, colony.Planner.Reviewer.DoneRooms.Get(World));
@@ -470,7 +469,7 @@ public sealed class PlannedRoomGateTests
         Assert.All(placed, b => Assert.Equal((ContainmentCellRules.ShellWallDefinition, "BlocksGranite"), (b.Definition, b.Stuff)));
 
         // Its blueprints stand on the room's own ring: the room is started, so the rest is placed as before, whatever the record says.
-        colony.Census = Known(new CurrentConstruction { Colony = true, Sites = [.. placed.Select(b => new ConstructionSite { Building = b, Stage = "blueprint" })] });
+        colony.Census = CurrentConstruction.Empty with { Sites = [.. placed.Select(b => new ConstructionSite { Building = b, Stage = "blueprint" })] };
         colony.Blueprints.UnionWith(south);
         Select(colony);
         var next = await colony.RunAsync();
@@ -488,7 +487,7 @@ public sealed class PlannedRoomGateTests
         // #3743: owed rooms [1, 2]; the comparison assessed room 1 and selected none of it, so it is held. The step
         // does not stop there: room 2, started by a wall on its own ring, is reconciled instead.
         using var colony = Open(owed: [Room, Next]);
-        colony.Census = Known(new CurrentConstruction { Colony = true, Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(19, 8))] });
+        colony.Census = CurrentConstruction.Empty with { Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(19, 8))] };
         Select(colony);
         var run = await colony.RunAsync();
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
@@ -515,11 +514,10 @@ public sealed class PlannedRoomGateTests
     {
         using var colony = Open();
         // A colony-built wall on the room's own ring starts it.
-        colony.Census = Known(new CurrentConstruction
+        colony.Census = CurrentConstruction.Empty with
         {
-            Colony = true,
             Buildings = [new CurrentBuilding { Id = "w", Building = new Building(ContainmentCellRules.ShellWallDefinition, new(4, 8), Rotation.North, "WoodLog"), Cells = [new(4, 8)] }],
-        });
+        };
         Select(colony);
         var run = await colony.RunAsync();
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
@@ -532,7 +530,7 @@ public sealed class PlannedRoomGateTests
         // Shared admission refused the storage room's ring by throwing past the stockpile step, so the step never reached
         // its zone edits. A refusal is an outcome: the reconcile returns it, and the step decides what goes on.
         using var colony = Open(f => f with { WorkAdmission = f.WorkAdmission with { Buildings = Known<EquatableArray<WorkBuildingCost>>([]) } });
-        colony.Census = Known(new CurrentConstruction { Colony = true, Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(4, 8))] });
+        colony.Census = CurrentConstruction.Empty with { Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(4, 8))] };
         var run = await colony.RunAsync();
         Assert.Empty(run.Methods);
         var verdict = Assert.IsType<Verdict>(colony.Reconciled);

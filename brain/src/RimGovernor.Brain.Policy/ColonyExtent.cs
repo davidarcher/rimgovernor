@@ -59,7 +59,7 @@ public sealed record ColonyExtentRequest
 {
     public Fact<Bounds> Bounds { get; init; }
 
-    public Fact<CurrentConstruction> Construction { get; init; }
+    public CurrentConstruction? Construction { get; init; }
 
     public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
 
@@ -84,14 +84,14 @@ public static class ColonyExtentRules
         static DomainException Invalid() => new("invalid colony extent geometry or bounds");
 
         var bk = r.Bounds.TryGetValue(out var bounds);
-        var ck = r.Construction.TryGetValue(out var census);
+        var census = r.Construction;
         var home = r.Home;
         if (r.Margin < 0 || r.Margin > 8)
         {
             throw Invalid();
         }
 
-        if (!bk || !ck || home is null || !census!.Colony)
+        if (!bk || census is null || home is null)
         {
             return unknown;
         }

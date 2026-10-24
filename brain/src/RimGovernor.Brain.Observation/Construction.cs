@@ -19,12 +19,10 @@ internal sealed class ConstructionState
     // Dirty marks a changed built or site projection since the outputs.
     private bool _dirty = true;
 
-    // Outputs.
-    public Fact<CurrentConstruction> Census { get; private set; }
+    // Outputs: the census as last rebuilt, and the error that failed the rebuild.
+    public CurrentConstruction Census { get; private set; } = CurrentConstruction.Empty;
 
     public DomainException? Error { get; private set; }
-
-    public Fact<IReadOnlyDictionary<Resource, long>> DeficitFact { get; private set; }
 
     /// <summary>
     /// Applies <paramref name="rows"/> to the state derived from the previous version (null derives from scratch)
@@ -170,7 +168,6 @@ internal sealed class ConstructionState
     {
         _dirty = false;
         Error = null;
-        Census = Unknown<CurrentConstruction>();
         var buildings = new List<CurrentBuilding>();
         foreach (var id in _built.Keys.Order(StringComparer.Ordinal))
         {
@@ -189,21 +186,14 @@ internal sealed class ConstructionState
             if (e.Error is not null)
             {
                 Error = e.Error;
-                Census = Unknown<CurrentConstruction>();
                 return;
             }
             sites.Add(e.Site);
         }
-        Census = Known(new CurrentConstruction
-        {
-            Colony = true,
-            Requested = EquatableArray.From(new List<string>()),
-            Buildings = EquatableArray.From(buildings),
-            Sites = EquatableArray.From(sites),
-        });
+        Census = Census with { Buildings = EquatableArray.From(buildings), Sites = EquatableArray.From(sites) };
     }
 
-    private void RebuildDeficit() => DeficitFact = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>(_deficit));
+    private void RebuildDeficit() => Census = Census with { Deficit = new Dictionary<Resource, long>(_deficit) };
 
     private sealed record BuiltEntry(CurrentBuilding Building, DomainException? Error);
 
@@ -309,11 +299,11 @@ public static class ConstructionReads
     }
 
     /// <summary>
-    /// The colony construction census with its standing sites, and the construction deficit, of a frame's
-    /// building table. With the stream's memo it applies only the rows changed since the last frame; without one
-    /// (a recording) it projects the whole table. A built row the domain refuses fails the census with its error.
+    /// The colony construction census with its standing sites and what they are owed, of a frame's building
+    /// table. With the stream's memo it applies only the rows changed since the last frame; without one (a
+    /// recording) it projects the whole table. A row the domain refuses fails the census with its error.
     /// </summary>
-    public static (Fact<CurrentConstruction> Construction, Fact<IReadOnlyDictionary<Resource, long>> Deficit) ConstructionFromCensus(BuildingCensus census)
+    public static CurrentConstruction ConstructionFromCensus(BuildingCensus census)
     {
         object? Update(object? last) => ConstructionState.Next(last as ConstructionState, census.Rows);
         var state = (ConstructionState)(census.Memo is { } memo ? memo.Update(Update) : Update(null))!;
@@ -321,7 +311,7 @@ public static class ConstructionReads
         {
             throw error;
         }
-        return (state.Census, state.DeficitFact);
+        return state.Census;
     }
 
     /// <summary>Bill lifecycle from the same census as ingredient reservations.</summary>

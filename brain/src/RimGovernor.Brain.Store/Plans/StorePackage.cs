@@ -14,7 +14,7 @@ public static class StorePackage
     /// journal, but its plan stays open while the census still shows its blueprint or frame (or cannot say). Only
     /// census-aware retirement ends it; a retired plan's applied buildings are done or gone.
     /// </summary>
-    public static bool PlanWorkOpen(PlanState p, Fact<CurrentConstruction> census) =>
+    public static bool PlanWorkOpen(PlanState p, CurrentConstruction? census) =>
         p.Retired ? WorkProgress.Open(p.Progress) : BuildingWorkRules.PlanWorkOpen(p.Progress, census);
 
     /// <summary>

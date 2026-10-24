@@ -72,7 +72,8 @@ public sealed record ConstructionDemandInput
     public StockReader Stock { get; init; }
 
     /// <summary>The material standing blueprints and frames are still owed.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Owed { get; init; }
+    /// <summary>Null while the census is unread.</summary>
+    public IReadOnlyDictionary<Resource, long>? Owed { get; init; }
 
     /// <summary>The open costs of admitted-but-unplaced methods.</summary>
     public EquatableArray<AdmittedCost> Admitted { get; init; }
@@ -102,7 +103,7 @@ public static class ConstructionDemandRules
             result[resource] = need;
         }
         bool Short(Resource resource, long need) => input.Stock.Count(resource).TryGetValue(out var have) && need > have;
-        if (input.Owed.TryGetValue(out var owed))
+        if (input.Owed is { } owed)
         {
             foreach (var (resource, n) in owed)
             {
@@ -162,7 +163,7 @@ public static class ConstructionDemandRules
         ConstructionDemand(new ConstructionDemandInput
         {
             Stock = new StockReader(f.Resources, f.Wood),
-            Owed = f.ConstructionDeficit,
+            Owed = f.CurrentConstruction?.Deficit,
             Admitted = f.Admitted,
             Planned = f.PlannedConstruction.TryGetValue(out var rooms)
                 ? Known<IReadOnlyDictionary<Resource, long>>(PlannedRules.PlannedTotal(rooms.Values))

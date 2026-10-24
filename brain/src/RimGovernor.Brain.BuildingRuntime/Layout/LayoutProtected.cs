@@ -46,7 +46,7 @@ internal static class LayoutProtected
             cells[c.Cell] = c;
         }
         var built = new HashSet<Cell>();
-        if (facts.Facts.CurrentConstruction.TryGetValue(out var census) && census.Colony)
+        if (facts.Facts.CurrentConstruction is { } census)
         {
             foreach (var b in census.Buildings)
             {

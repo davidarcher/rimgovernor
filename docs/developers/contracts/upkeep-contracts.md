@@ -60,8 +60,10 @@ exclusion beyond the margin, and restoration of a removed corridor cell.
 - `policy.CurrentConstruction` is the planning-ownership view: a complete bounded census
   of built artificial player-faction buildings with identity, definition, material,
   rotation, anchor and cells. Home coverage, stone-shell planning and extent consumers
-  share it ([colony extent contract](colony-extent.md#consumer-contract)). Unknown or
-  incomplete observations do not establish eligibility; missing history does not exclude
+  share it ([colony extent contract](colony-extent.md#consumer-contract)). The same record
+  carries the standing blueprints and frames and the material they are still owed. Every
+  routine frame reads it whole (a frame without its building table is a contract error);
+  it is absent only from a projection no routine frame built. Missing history does not exclude
   a player-built facility; replacement geometry never inherits causal history.
 - `policy.DeriveColonyExtent` is a pure current-territory model joining
   `CurrentConstruction`, optional provenance and census stockpile footprints into sorted

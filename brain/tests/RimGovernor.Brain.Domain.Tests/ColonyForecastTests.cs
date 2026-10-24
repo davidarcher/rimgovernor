@@ -128,7 +128,7 @@ public sealed class ColonyForecastTests
                 Stock = Known(EquatableArray.From(new[] { new Amount(other, 100) })),
                 Construction = new ConstructionInputs
                 {
-                    Deficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Material] = 15 }),
+                    Deficit = new Dictionary<Resource, long> { [Material] = 15 },
                 },
             },
         });
@@ -175,7 +175,7 @@ public sealed class ColonyForecastTests
                 },
                 Construction = new ConstructionInputs
                 {
-                    Deficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Material] = 15 }),
+                    Deficit = new Dictionary<Resource, long> { [Material] = 15 },
                     Admitted = EquatableArray.From(new[]
                     {
                         new AdmittedCost { Resource = Material, Action = new ActionId("build"), Count = 20 },

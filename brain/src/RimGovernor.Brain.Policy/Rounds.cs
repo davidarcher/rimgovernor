@@ -207,10 +207,8 @@ public sealed record RoundsFacts
 
     public Fact<EquatableArray<ConstructionClaim>> ConstructionClaims { get; init; }
 
-    public Fact<CurrentConstruction> CurrentConstruction { get; init; }
-
-    /// <summary>The material standing blueprints and frames are still owed, per resource.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> ConstructionDeficit { get; init; }
+    /// <summary>The construction census (#3879); null only on a projection that no routine frame read built.</summary>
+    public CurrentConstruction? CurrentConstruction { get; init; }
 
     /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); unknown while the plan or the construction census is.</summary>
     public Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstruction { get; init; }

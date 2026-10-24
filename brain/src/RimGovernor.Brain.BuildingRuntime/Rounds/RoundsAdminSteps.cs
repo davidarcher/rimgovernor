@@ -164,7 +164,7 @@ public sealed partial class AdminRounds
     {
         var p = _reviewer.Player;
         var state = work.State;
-        if (!f.Facts.CurrentConstruction.TryGetValue(out var census))
+        if (f.Facts.CurrentConstruction is not { } census)
         {
             return FieldUnavailable("construction");
         }

@@ -1278,7 +1278,7 @@ public sealed partial class RoundsBuildingPlanner
     /// building gone from the census (a campfire that burnt out, a bed that disappeared) and one never built both
     /// mean try again.
     /// </summary>
-    internal MethodId NextSleepingBedMethod(Sto.NeedOwner goal, MethodId method, Fact<Pol.CurrentConstruction> census, CancellationToken call)
+    internal MethodId NextSleepingBedMethod(Sto.NeedOwner goal, MethodId method, Pol.CurrentConstruction? census, CancellationToken call)
     {
         var p = Reviewer.Player;
         var baseMethod = method;

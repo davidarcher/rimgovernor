@@ -95,8 +95,8 @@ partial class RoundsSleepingUpkeepPlanner
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!rok || !sk || !pk || !rk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!rok || !sk || !pk || !rk || census is null)
         {
             return [];
         }
@@ -127,8 +127,8 @@ partial class RoundsSleepingUpkeepPlanner
         var (need, owed) = ThroneNeed(facts);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!owed || !pk || !rk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!owed || !pk || !rk || census is null)
         {
             return new Pol.ThroneStep();
         }

@@ -223,7 +223,7 @@ public static class QuestMonumentPolicy
         {
             return "deadline_unknown";
         }
-        if (!f.ConstructionDeficit.TryGetValue(out var deficits))
+        if (f.CurrentConstruction is not { Deficit: var deficits })
         {
             return "materials_unknown";
         }

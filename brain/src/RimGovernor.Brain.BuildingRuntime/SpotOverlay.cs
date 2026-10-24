@@ -14,7 +14,7 @@ public sealed partial class Rounder
             return;
         }
         var layer = new Pol.LayoutOverlay();
-        if (projection.Facts.CurrentConstruction.TryGetValue(out var census) && LayoutOverlay)
+        if (projection.Facts.CurrentConstruction is { } census && LayoutOverlay)
         {
             layer = Pol.SpotOverlayRules.SpotOverlay(census, projection.Bounds);
         }

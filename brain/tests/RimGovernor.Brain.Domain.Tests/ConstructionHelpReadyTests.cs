@@ -15,13 +15,13 @@ public sealed class ConstructionHelpReadyTests
         ResourcesComplete = true, QualitySensitive = false, NativeFinishingSkill = 0,
     };
 
-    private static ConstructionHelp Demand(ReadyWorkReport? report, Fact<CurrentConstruction> census) => ConstructionHelpersRules.ConstructionHelpDemand(
+    private static ConstructionHelp Demand(ReadyWorkReport? report, CurrentConstruction? census) => ConstructionHelpersRules.ConstructionHelpDemand(
         report, World, new Tick(10), [new HelpDefinition { Name = "Wall", Skill = Known(0) }], null, census);
 
     [Fact]
     public void NoReportAndNoCensusLeaveTheReadyCountUnreportedAndAuthorizeNoHelp()
     {
-        var help = Demand(null, Unknown<CurrentConstruction>());
+        var help = Demand(null, null);
         Assert.IsType<HelpReady.Unreported>(help.Ready);
         Assert.Equal(ConstructionHelpersRules.HelpDemandUnknown, ConstructionHelpersRules.PlanConstructionHelp(help, [], [], _ => true).Reason);
     }
@@ -29,7 +29,7 @@ public sealed class ConstructionHelpReadyTests
     [Fact]
     public void TheCensusCountsTheRunnableHelperWork()
     {
-        var census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { FilledWall }) });
+        var census = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { FilledWall }) };
         Assert.Equal(new HelpReady.Counted(1), Demand(null, census).Ready);
     }
 }

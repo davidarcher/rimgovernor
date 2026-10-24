@@ -7,10 +7,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static Fact<bool> SculptureRoomsOwedOf(Observation.ColonyProjection facts)
     {
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var traits = SleepingTraits(facts);
-        if (!rk || !ck || !sk || !census!.Colony || traits is null)
+        if (!rk || census is null || !sk || traits is null)
         {
             return Unknown<bool>();
         }
@@ -39,9 +39,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || !ck || !census!.Colony || traits is null)
+        if (!sk || !rk || census is null || traits is null)
         {
             return null;
         }
@@ -88,9 +88,9 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var facts = reading.Projection;
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || !ck || !census!.Colony || traits is null)
+        if (!sk || !rk || census is null || traits is null)
         {
             return none;
         }

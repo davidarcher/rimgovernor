@@ -43,7 +43,7 @@ public static partial class ResourceRules
         var clothing = f.ClothingRunway();
         var works = ConstructionDemandRules.ConstructionDemandOf(f, p, l);
         var holds = ProductionRules.ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
-        var material = ProductionRules.SharedMaterialBudgetOf(f.Resources, f.ConstructionDeficit, holds);
+        var material = ProductionRules.SharedMaterialBudgetOf(f.Resources, f.CurrentConstruction?.Deficit, holds);
         if (holds.TryGetValue(out var held))
         {
             works = new Dictionary<Resource, long>(works);
@@ -52,7 +52,7 @@ public static partial class ResourceRules
                 if (amount.TryGetValue(out var units))
                 {
                     // ConstructionDemand drops already funded lines; two individually funded promises can still compete.
-                    var construction = f.ConstructionDeficit.TryGetValue(out var owed) ? owed.GetValueOrDefault(resource) : 0;
+                    var construction = f.CurrentConstruction?.Deficit.GetValueOrDefault(resource) ?? 0;
                     var floor = Math.Max(works.GetValueOrDefault(resource), Math.Max(construction, admitted.GetValueOrDefault(resource)));
                     works[resource] = checked(floor + (long)Math.Ceiling(units));
                 }

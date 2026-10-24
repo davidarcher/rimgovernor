@@ -46,8 +46,7 @@ internal static class WorkResourceTestFacts
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
         Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 10)]),
-        ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
-        CurrentConstruction = Known(new CurrentConstruction { Colony = true }),
+        CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
         ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(pawns.Select(p => new WorkPawn

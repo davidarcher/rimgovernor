@@ -434,7 +434,7 @@ public sealed partial class Rounder
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         // A room whose need has ended and that is in use stays.
-        if (projection.Facts.CurrentConstruction.TryGetValue(out var construction) && construction.Colony)
+        if (projection.Facts.CurrentConstruction is { } construction)
         {
             var ended = LayoutRoomsRules.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
             if (LayoutPlan.RoomsOfRoles(plan, ended) > 0)

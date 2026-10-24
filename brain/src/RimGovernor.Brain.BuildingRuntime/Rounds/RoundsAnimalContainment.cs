@@ -90,12 +90,12 @@ internal static class RoundsAnimalContainment
     internal static bool PensStand(ColonyProjection facts)
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!pk || !ck || !gk)
+        if (!pk || census is null || !gk)
         {
             return false;
         }
-        return HerdPenRules.PensStand(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census!.Buildings);
+        return HerdPenRules.PensStand(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings);
     }
 }

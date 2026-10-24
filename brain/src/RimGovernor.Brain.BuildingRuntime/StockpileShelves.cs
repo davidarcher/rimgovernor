@@ -103,7 +103,7 @@ partial class RoundsStockpilePlanner
     /// Reads back the zone's shelf plans in index order: the shelves built or in flight, and the next free index.
     /// A shelf is the admin/stockpiles Need's latest attempt of its MethodId.
     /// </summary>
-    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, Sto.NeedOwner need, string zone, Fact<Pol.CurrentConstruction> census, CancellationToken ct)
+    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, Sto.NeedOwner need, string zone, Pol.CurrentConstruction? census, CancellationToken ct)
     {
         var output = new List<Pol.ShelfRecord>();
         for (var index = 0; index < MaxShelvesPerZone; index++)
@@ -142,10 +142,9 @@ partial class RoundsStockpilePlanner
             {
                 continue;
             }
-            census.TryGetValue(out var current);
             foreach (var progress in plan.Progress)
             {
-                if (progress.Action.Building is { } b && current is not null && current.Built(b) is { } builtId)
+                if (progress.Action.Building is { } b && census is not null && census.Built(b) is { } builtId)
                 {
                     record = record with { Building = builtId };
                 }

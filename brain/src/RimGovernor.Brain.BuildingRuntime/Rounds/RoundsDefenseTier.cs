@@ -15,7 +15,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
-        if (!read.Projection.Facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
+        if (read.Projection.Facts.CurrentConstruction is not { } census)
         {
             return (new RoundsDefenseLayoutResult(), false);
         }

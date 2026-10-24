@@ -100,7 +100,7 @@ internal static class ColonyModelFixtures
                     },
                 })),
             },
-            CurrentConstruction = Known(new CurrentConstruction()),
+            CurrentConstruction = CurrentConstruction.Empty,
             PlannedSites = Known(new PlannedSiteFacts()),
         },
         CombinedFoodSupply = Known(new FoodSupply { Larder = new(), Consumers = [new() { Id = new("Anna"), NutritionPerDay = 1d }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = 12.5, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(), Eaters = [new("Anna")] }] }),

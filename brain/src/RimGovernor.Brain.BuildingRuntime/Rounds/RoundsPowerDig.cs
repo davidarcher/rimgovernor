@@ -63,7 +63,7 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var taken = protectedCells.ToHashSet();
-        if (s.Facts.Facts.CurrentConstruction.TryGetValue(out var census) && census.Colony)
+        if (s.Facts.Facts.CurrentConstruction is { } census)
         {
             foreach (var b in census.Buildings)
             {

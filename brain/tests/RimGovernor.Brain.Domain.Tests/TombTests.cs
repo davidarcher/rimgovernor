@@ -43,7 +43,7 @@ public sealed class TombTests
     };
 
     private static Fact<bool> Owed(params WasteItem[] waste) =>
-        TombRules.TombOwed(Shapes, Known(true), Known(Plan), Known(RoomObservation.NoRooms), Known<EquatableArray<WasteItem>>([.. waste]), Known(new CurrentConstruction { Colony = true }));
+        TombRules.TombOwed(Shapes, Known(true), Known(Plan), Known(RoomObservation.NoRooms), Known<EquatableArray<WasteItem>>([.. waste]), CurrentConstruction.Empty);
 
     [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()

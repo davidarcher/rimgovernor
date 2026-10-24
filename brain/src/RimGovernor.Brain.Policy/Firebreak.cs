@@ -41,7 +41,7 @@ public sealed record FirebreakRequest
 {
     public Fact<Bounds> Bounds { get; init; }
 
-    public Fact<CurrentConstruction> Construction { get; init; }
+    public CurrentConstruction? Construction { get; init; }
 
     public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
 

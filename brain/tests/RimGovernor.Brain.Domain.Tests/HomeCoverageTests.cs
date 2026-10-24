@@ -52,7 +52,7 @@ public sealed class HomeCoverageTests
         var request = new ColonyExtentRequest
         {
             Bounds = Known(new Bounds(10, 10)),
-            Construction = Known(new CurrentConstruction { Colony = true }),
+            Construction = CurrentConstruction.Empty,
             Claims = Known<EquatableArray<ConstructionClaim>>([]),
             Home = NoHomeCoverage with
             {

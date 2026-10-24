@@ -11,9 +11,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || !ck || !census!.Colony || traits is null)
+        if (!sk || !rk || census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -32,9 +32,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || !ck || !census!.Colony || traits is null)
+        if (!sk || !rk || census is null || traits is null)
         {
             return (new Pol.BedReplacement(), false);
         }
@@ -74,8 +74,8 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!sk || !rk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!sk || !rk || census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -87,9 +87,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
-        if (!sk || !rk || !ck || !ak || !census!.Colony)
+        if (!sk || !rk || census is null || !ak)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -112,9 +112,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || !ck || !census!.Colony || traits is null)
+        if (!sk || !rk || census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -158,7 +158,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>The colony's standing buildings, as the room furnishing counts them; none while the census is unknown.</summary>
     internal static IReadOnlyList<Pol.CurrentBuilding> StandingBuildings(Observation.ColonyProjection facts) =>
-        facts.Facts.CurrentConstruction.TryGetValue(out var census) ? census.Buildings : [];
+        facts.Facts.CurrentConstruction is { } census ? census.Buildings : [];
 
     /// <summary>
     /// Places one lever piece (title furniture, companion bed, room upgrade, plant pot) through the room's one
@@ -169,8 +169,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     {
         var facts = reading.Projection;
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!rk || !ck || !facts.LayoutPlan.TryGetValue(out var plan))
+        var census = facts.Facts.CurrentConstruction;
+        if (!rk || census is null || !facts.LayoutPlan.TryGetValue(out var plan))
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
@@ -180,7 +180,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_upgrade_site") };
         }
-        var furnishing = SleepingRules.BedroomFurnishing(planned, rooms!.Shapes, "", census!.Buildings, u);
+        var furnishing = SleepingRules.BedroomFurnishing(planned, rooms!.Shapes, "", census.Buildings, u);
         if (!furnishing.Absent)
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_upgrade_site") };

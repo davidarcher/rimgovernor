@@ -126,7 +126,7 @@ internal static class RoundsColonyModel
             OtherNutritionPerDay = ForecastStockScope.OtherDemand(colony.CombinedFoodSupply,
                 facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []),
             Recipes = facts.WorkAdmission.Recipes,
-            Sites = facts.CurrentConstruction.TryGetValue(out var construction) ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
+            Sites = facts.CurrentConstruction is { } construction ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
             PlannedSites = facts.PlannedSites.TryGetValue(out var planned) ? Known(planned.Sites) : Unknown<EquatableArray<PlannedBuildSite>>(),
             Wildlife = colony.Acquisition.TryGetValue(out var sources) ? Known(HuntSquadRules.Herds(sources)) : Unknown<EquatableArray<ModelHerd>>(),
         };

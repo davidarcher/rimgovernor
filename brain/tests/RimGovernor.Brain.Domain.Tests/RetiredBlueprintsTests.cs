@@ -35,7 +35,7 @@ public sealed class RetiredBlueprintsTests
     {
         LayoutPlan = Known(Plan),
         Rooms = Known(RoomObservation.NoRooms),
-        Facts = new() { CurrentConstruction = Known(new CurrentConstruction { Colony = true, Sites = [.. sites] }) },
+        Facts = new() { CurrentConstruction = CurrentConstruction.Empty with { Sites = [.. sites] } },
     };
 
     private static DomainAction RoundTrip(DomainAction action)

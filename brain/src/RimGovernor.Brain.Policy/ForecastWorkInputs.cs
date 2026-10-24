@@ -5,7 +5,7 @@ public sealed partial record ForecastWorkInputs
 {
     public Tick Tick { get; init; }
     public Fact<EquatableArray<ForecastCommitment>> ConstructionCommitments { get; init; }
-    public Fact<CurrentConstruction> Construction { get; init; }
+    public CurrentConstruction? Construction { get; init; }
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
     public EquatableArray<IngredientReservation> IngredientReservations { get; init; }
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
@@ -26,7 +26,7 @@ public sealed partial record ForecastWorkInputs
             Claims = facts.WorkClaims,
             Resources = facts.WorkView,
         };
-        if (!facts.ConstructionClaims.TryGetValue(out var claims) || !facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
+        if (!facts.ConstructionClaims.TryGetValue(out var claims) || facts.CurrentConstruction is not { } census)
             return input;
         var commitments = new List<ForecastCommitment>();
         foreach (var group in claims.Where(c => c.Building is not null).GroupBy(c => c.Building!))

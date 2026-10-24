@@ -41,8 +41,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var facts = reading.Projection;
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!sk || !rk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!sk || !rk || census is null)
         {
             return none;
         }
@@ -111,8 +111,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!rk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!rk || census is null)
         {
             return none;
         }

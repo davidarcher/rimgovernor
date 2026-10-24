@@ -17,11 +17,10 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
     {
         Tick = e.Get<Tick>("Tick", o),
         Buildings = e.Get<Fact<EquatableArray<WorkBuildingCost>>>("Buildings", o),
-        Standing = e.Get<Fact<EquatableArray<Building>>>("Standing", o),
+        Standing = e.Has("Standing") ? new(e.Get<EquatableArray<Building>>("Standing", o), e.Get<IReadOnlyDictionary<Resource, long>>("Construction", o)) : null,
         Pawns = e.Get<Fact<EquatableArray<WorkPawnAvailability>>>("Pawns", o),
         WorkResources = e.Get<Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>>>("WorkResources", o),
         Stock = e.Get<Fact<EquatableArray<Amount>>>("Stock", o),
-        Construction = e.Get<Fact<IReadOnlyDictionary<Resource, long>>>("Construction", o),
         Reservations = e.Get<EquatableArray<IngredientReservation>>("Reservations", o),
         Recipes = e.Get<Fact<EquatableArray<ProductionRecipeInput>>>("Recipes", o),
         Promises = e.Get<Fact<EquatableArray<ProductionMaterialPromise>>>("Promises", o),
@@ -30,9 +29,9 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
     };
     protected override void WriteFields(Utf8JsonWriter w, WorkAdmissionEvidence v, Codecs o)
     {
-        w.Put("Tick", v.Tick, o); w.Put("Buildings", v.Buildings, o); w.Put("Standing", v.Standing, o);
+        w.Put("Tick", v.Tick, o); w.Put("Buildings", v.Buildings, o); if (v.Standing is { } standing) { w.Put("Standing", standing.Buildings, o); w.Put("Construction", standing.Owed, o); } else { w.WriteNull("Standing"); w.WriteNull("Construction"); }
         w.Put("Pawns", v.Pawns, o); w.Put("WorkResources", v.WorkResources, o);
-        w.Put("Stock", v.Stock, o); w.Put("Construction", v.Construction, o);
+        w.Put("Stock", v.Stock, o);
         w.Put("Reservations", v.Reservations, o); w.Put("Recipes", v.Recipes, o);
         w.Put("Promises", v.Promises, o); w.Put("Reviewed", v.Reviewed, o); w.Put("NeedTargets", v.NeedTargets, o);
     }

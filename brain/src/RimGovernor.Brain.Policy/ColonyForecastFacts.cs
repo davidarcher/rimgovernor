@@ -21,7 +21,7 @@ public static class ColonyForecastFactsRules
             Stock = f.Resources,
             ResourceThings = f.ResourceThings,
             Power = f.ForecastObserved.Power,
-            Construction = new ConstructionInputs { Deficit = f.ConstructionDeficit, Admitted = f.Admitted },
+            Construction = new ConstructionInputs { Deficit = f.CurrentConstruction?.Deficit, Admitted = f.Admitted },
             Items = f.Items,
             Medicine = f.MedicalReserve,
         };

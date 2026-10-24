@@ -246,9 +246,9 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Whether a campfire intent already stands: an unheated campfire in the census or an open campfire claim.</summary>
-    internal static bool CampfireIntentStanding(Fact<EquatableArray<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
+    internal static bool CampfireIntentStanding(Fact<EquatableArray<ConstructionClaim>> claims, CurrentConstruction? observed)
     {
-        if (!observed.TryGetValue(out var census) || !census.Colony)
+        if (observed is not { } census)
         {
             return false;
         }
@@ -314,7 +314,7 @@ partial class RoundsBuildingPlanner
 
     internal static (CurrentBuilding Building, bool Retire) StandingButcherSpot(ColonyProjection facts)
     {
-        if (!facts.ButcheringBenches.TryGetValue(out var benches) || !facts.Facts.CurrentConstruction.TryGetValue(out var census))
+        if (!facts.ButcheringBenches.TryGetValue(out var benches) || facts.Facts.CurrentConstruction is not { } census)
         {
             return (new CurrentBuilding(), false);
         }

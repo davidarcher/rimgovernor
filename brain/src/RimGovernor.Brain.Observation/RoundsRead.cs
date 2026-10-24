@@ -159,12 +159,8 @@ public static class RoundsReads
             sleeping = sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()) };
             p = p with { Facts = p.Facts with { Sleeping = Known(sleeping), VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
         }
-        p = p with { Facts = p.Facts with { CurrentConstruction = Unknown<CurrentConstruction>(), ConstructionDeficit = Unknown<IReadOnlyDictionary<Resource, long>>() } };
-        if (frame.Buildings is { } census)
-        {
-            var (current, deficit) = ConstructionReads.ConstructionFromCensus(census);
-            p = p with { Facts = p.Facts with { CurrentConstruction = current, ConstructionDeficit = deficit } };
-        }
+        var census = frame.Buildings ?? throw new ObservationContractException("a routine frame carries no building census");
+        p = p with { Facts = p.Facts with { CurrentConstruction = ConstructionReads.ConstructionFromCensus(census) } };
         p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
         if (p.PowerPlanning.TryGetValue(out var topology))
         {

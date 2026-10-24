@@ -191,7 +191,7 @@ public sealed class RoomsRounds
 
     /// <summary>Whether a standing bench's chosen work chair is missing; unknown while the plan or the census is unread.</summary>
     internal static Fact<bool> WorkChairsOwed(ColonyProjection projection) =>
-        projection.LayoutPlan.TryGetValue(out var plan) && WorkChairRules.OwedSeats(plan, projection.Facts.CurrentConstruction, projection.Shapes).TryGetValue(out var seats)
-            ? Known(seats.Count > 0)
+        projection.LayoutPlan.TryGetValue(out var plan) && projection.Facts.CurrentConstruction is { } census
+            ? Known(WorkChairRules.OwedSeats(plan, census, projection.Shapes).Count > 0)
             : Unknown<bool>();
 }

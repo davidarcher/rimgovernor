@@ -160,7 +160,7 @@ partial class HomeUpkeepReader
     /// </summary>
     internal static List<ClearanceTarget>? GroundBlueprints(ColonyProjection colony)
     {
-        if (!colony.Facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
+        if (colony.Facts.CurrentConstruction is not { } census)
         {
             return null;
         }

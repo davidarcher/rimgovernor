@@ -17,14 +17,10 @@ public static class WorkChairRules
     /// <summary>
     /// The seats owed, in plan then census order: for each standing bench inside a planned room that chose a chair for
     /// its definition, the bench's interaction cell when it lies in the room and no building, blueprint or frame stands
-    /// there. A bench whose shape has no interaction cell owes none. Unknown while the colony census is unread.
+    /// there. A bench whose shape has no interaction cell owes none.
     /// </summary>
-    public static Fact<EquatableArray<WorkChairSeat>> OwedSeats(LayoutPlan plan, Fact<CurrentConstruction> census, PieceShapes shapes)
+    public static EquatableArray<WorkChairSeat> OwedSeats(LayoutPlan plan, CurrentConstruction built, PieceShapes shapes)
     {
-        if (!census.TryGetValue(out var built) || !built.Colony)
-        {
-            return Fact.Unknown<EquatableArray<WorkChairSeat>>();
-        }
         var taken = new HashSet<Cell>();
         foreach (var b in built.Buildings)
         {
@@ -70,6 +66,6 @@ public static class WorkChairRules
                 }
             }
         }
-        return Fact.Known<EquatableArray<WorkChairSeat>>([.. seats]);
+        return [.. seats];
     }
 }

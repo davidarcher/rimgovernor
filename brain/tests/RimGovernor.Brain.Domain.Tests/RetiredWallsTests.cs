@@ -36,7 +36,7 @@ public sealed class RetiredWallsTests
     {
         LayoutPlan = Known(Plan),
         Rooms = rooms,
-        Facts = new() { CurrentConstruction = Known(new CurrentConstruction { Colony = true }) },
+        Facts = new() { CurrentConstruction = CurrentConstruction.Empty },
     };
 
     [Fact]

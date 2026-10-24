@@ -77,8 +77,8 @@ partial class RoundsBuildingPlanner
     {
         var bk = facts.CookingBenches.TryGetValue(out var benches);
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!bk || !rk || !ck)
+        var census = facts.Facts.CurrentConstruction;
+        if (!bk || !rk || census is null)
         {
             return (default!, false);
         }
@@ -100,7 +100,7 @@ partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            foreach (var b in census!.Buildings)
+            foreach (var b in census.Buildings)
             {
                 if (b.Id == bench.Id && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
                 {
@@ -131,9 +131,9 @@ partial class RoundsBuildingPlanner
     {
         facts.Facts.ConstructionClaims.TryGetValue(out var claims);
         var bk = facts.CookingBenches.TryGetValue(out var benches);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        var census = facts.Facts.CurrentConstruction;
         var heat = HeatCampfireCells(claims);
-        if (!bk || !ck || heat.Count == 0)
+        if (!bk || census is null || heat.Count == 0)
         {
             return [];
         }
@@ -144,7 +144,7 @@ partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            foreach (var b in census!.Buildings)
+            foreach (var b in census.Buildings)
             {
                 if (b.Id == bench.Id && b.Cells.Count > 0 && heat.Contains(b.Cells[0]))
                 {
@@ -161,7 +161,7 @@ partial class RoundsBuildingPlanner
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {
         facts.Facts.ConstructionClaims.TryGetValue(out var claims);
-        if (!facts.CookingBenches.IsKnown || !facts.Rooms.IsKnown || !facts.Facts.CurrentConstruction.IsKnown)
+        if (!facts.CookingBenches.IsKnown || !facts.Rooms.IsKnown || facts.Facts.CurrentConstruction is null)
         {
             return Unknown<bool>();
         }

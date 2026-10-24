@@ -21,16 +21,22 @@ public sealed record WorkAdmissionObservation
     public Fact<EquatableArray<ProductionBatchState>> Bills { get; init; }
 }
 
+/// <summary>
+/// The construction census as a review froze it: the buildings standing built or as blueprints and frames, and the
+/// construction deficit admission budgets against.
+/// </summary>
+public sealed record StandingConstruction(EquatableArray<Building> Buildings, IReadOnlyDictionary<Resource, long> Owed);
+
 /// <summary>Frozen full-review evidence. Journal actions remain the sole owner of subsequent commitments.</summary>
 public sealed record WorkAdmissionEvidence
 {
     public Tick Tick { get; init; }
     public Fact<EquatableArray<WorkBuildingCost>> Buildings { get; init; }
-    public Fact<EquatableArray<Building>> Standing { get; init; }
+    /// <summary>The census when the review froze; null when no routine frame read it.</summary>
+    public StandingConstruction? Standing { get; init; }
     public Fact<EquatableArray<WorkPawnAvailability>> Pawns { get; init; }
     public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> WorkResources { get; init; }
     public Fact<EquatableArray<Amount>> Stock { get; init; }
-    public Fact<IReadOnlyDictionary<Resource, long>> Construction { get; init; }
     public EquatableArray<IngredientReservation> Reservations { get; init; }
     public Fact<EquatableArray<ProductionRecipeInput>> Recipes { get; init; }
     public Fact<EquatableArray<ProductionMaterialPromise>> Promises { get; init; }
@@ -64,19 +70,18 @@ public static partial class ProductionRules
         return new()
         {
             Tick = facts.Tick, Buildings = facts.WorkAdmission.Buildings, WorkResources = facts.WorkResources,
-            Standing = facts.CurrentConstruction.TryGetValue(out var construction) && construction.Colony
-                ? Known(EquatableArray.From(construction.Sites.Where(s => s.Building is not null).Select(s => s.Building!)
-                    .Concat(construction.Buildings.Where(b => b.Building is not null).Select(b => b.Building!)))) : default,
+            Standing = facts.CurrentConstruction is { } construction
+                ? new(EquatableArray.From(construction.Sites.Where(s => s.Building is not null).Select(s => s.Building!)
+                    .Concat(construction.Buildings.Where(b => b.Building is not null).Select(b => b.Building!))),
+                    // Standing blueprints are optional work, not reservations: admitted actions below own stock.
+                    new Dictionary<Resource, long>()) : null,
             Pawns = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
                 ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available, p.Applies,
                     ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, p.Job.TryGetValue(out var job) && job.Target.TryGetValue(out var target)
                         ? Known(target.Thing) : default)
                     { Schedule = p.Schedule, Preemptible = p.Job.TryGetValue(out var held) && held.Preemptible, LocalHour = facts.WorkResources.TryGetValue(out var native)
                         && native.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour is { } hour ? Known(hour) : default }))) : default,
-            // Standing blueprints are optional work, not reservations. Admitted actions below own stock.
-            // Keep an absent census explicit; this does not establish a zero construction deficit.
-            Stock = facts.Resources, Construction = facts.ConstructionDeficit.IsKnown
-                ? Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) : default,
+            Stock = facts.Resources,
             Reservations = facts.BillReservations,
             Recipes = facts.WorkAdmission.Recipes,
             Promises = promises.TryGetValue(out var claims)
@@ -87,6 +92,7 @@ public static partial class ProductionRules
                     .Select(g => new WorkTargetCapacity(g.Key, g.First().MaxPawns, g.First().StockCount))) : [],
         };
     }
+
 
     /// <summary>Reconcile current journal claims against frozen evidence. Dispatch alone never releases stock.</summary>
     public static bool ProductionAdmissionFits(WorkAdmissionEvidence evidence,
@@ -121,7 +127,7 @@ public static partial class ProductionRules
         if (!pending.TryGetValue(out var pendingClaims)) return default;
         held.AddRange(pendingClaims);
         held.AddRange(work);
-        return SharedMaterialBudgetOf(evidence.Stock, evidence.Construction,
+        return SharedMaterialBudgetOf(evidence.Stock, evidence.Standing?.Owed,
             ProductionMaterialHoldsOf(Known(WorkRules.MergeWorkMaterialPromises(held)), evidence.Reservations));
     }
 }

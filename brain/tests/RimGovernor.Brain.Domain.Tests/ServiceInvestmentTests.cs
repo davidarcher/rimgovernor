@@ -106,7 +106,7 @@ public sealed class ServiceInvestmentTests
         var facts = ForecastCoupledTests.ConstructionReview();
         var evidence = facts.WorkView!.Evidence;
         Assert.Equal(100, facts.WorkView.Materials.Value[new("Rice")].Value);
-        Assert.Equal(100, facts.ConstructionDeficit.Value[new("Rice")]); // Demand diagnostic remains intact.
+        Assert.Equal(100, facts.CurrentConstruction!.Deficit[new("Rice")]); // Demand diagnostic remains intact.
         var task = new SelectedActivityTask("supply", "pawn", [],
             new(PawnActivityKind.Supply, "stack", "", "", 100, 500) { Container = "frame0" }, new(1, 1), 100)
             { Resource = "Rice", SiteDefinition = "TestWall", Source = new(1, 1),

@@ -30,17 +30,19 @@ public sealed record CurrentBuilding
     public EquatableArray<Cell> Cells { get; init; }
 }
 
-/// <summary>The colony's built, player-owned buildings. Colony marks a complete census; Requested scopes an exact-ID read.</summary>
+/// <summary>The colony's construction census: its built, player-owned buildings, its standing sites and what they are owed.</summary>
 public sealed record CurrentConstruction
 {
-    public bool Colony { get; init; }
-
-    public EquatableArray<string> Requested { get; init; }
-
-    public EquatableArray<CurrentBuilding> Buildings { get; init; }
+    public required EquatableArray<CurrentBuilding> Buildings { get; init; }
 
     /// <summary>The player's blueprints and frames still standing.</summary>
-    public EquatableArray<ConstructionSite> Sites { get; init; }
+    public required EquatableArray<ConstructionSite> Sites { get; init; }
+
+    /// <summary>The material standing blueprints and frames are still owed, per resource.</summary>
+    public required IReadOnlyDictionary<Resource, long> Deficit { get; init; }
+
+    /// <summary>A census with nothing built, standing or owed.</summary>
+    public static CurrentConstruction Empty { get; } = new() { Buildings = [], Sites = [], Deficit = new Dictionary<Resource, long>() };
 
     /// <summary>The id of the built row standing as <paramref name="building"/>, or null.</summary>
     public string? Built(Building building)
@@ -112,9 +114,9 @@ public static class ConstructionOwnershipRules
     /// definition, stuff, anchor and rotation is its work, whoever placed it. A match placed by someone else
     /// is the same end state, so no lineage is kept.
     /// </summary>
-    public static BuildingWork WorkOpen(Building building, Fact<CurrentConstruction> observed)
+    public static BuildingWork WorkOpen(Building building, CurrentConstruction? census)
     {
-        if (!observed.TryGetValue(out var census) || !census.Colony)
+        if (census is null)
         {
             return BuildingWork.BuildingOpen;
         }
@@ -137,13 +139,12 @@ public static class ConstructionOwnershipRules
     /// building, annotated with the journal claim whose building stands there. History never excludes
     /// player-built facilities. Throws <see cref="DomainException"/> on a malformed census.
     /// </summary>
-    public static Fact<EquatableArray<ConstructionClaim>> OwnedConstructions(Fact<EquatableArray<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
+    public static Fact<EquatableArray<ConstructionClaim>> OwnedConstructions(Fact<EquatableArray<ConstructionClaim>> claims, CurrentConstruction? census)
     {
-        if (!observed.TryGetValue(out var census) || !census.Colony)
+        if (census is null)
         {
             return Unknown<EquatableArray<ConstructionClaim>>();
         }
-        DomainException.Require(census.Requested.Count == 0, "invalid colony construction census");
         var byBuilding = new Dictionary<Building, ConstructionClaim>();
         if (claims.TryGetValue(out var history))
         {

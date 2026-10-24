@@ -191,7 +191,7 @@ public sealed record ReadyRequest
     public ReadyBounds Bounds { get; init; }
 
     /// <summary>The building census: an applied building intent stays open, and its dependents wait, until a built row carries its key.</summary>
-    public Fact<CurrentConstruction> Construction { get; init; }
+    public CurrentConstruction? Construction { get; init; }
 
     /// <summary>Place a bill's recipe at a work type; a bill with a recipe it does not know reports eligibility_unknown.</summary>
     public RecipeFacts Recipes { get; init; } = new();
@@ -391,7 +391,7 @@ public static partial class ReadyWorkRules
     }
 
     private static (ReadyWork Work, bool Ok) ReadyAction(
-        ReadyPlan p, DomainAction a, Dictionary<ActionId, Progress> byAction, Fact<CurrentConstruction> census, RecipeFacts recipes)
+        ReadyPlan p, DomainAction a, Dictionary<ActionId, Progress> byAction, CurrentConstruction? census, RecipeFacts recipes)
     {
         var has = byAction.TryGetValue(a.Id, out var prog);
         var v = has ? prog!.View : new ProgressView();

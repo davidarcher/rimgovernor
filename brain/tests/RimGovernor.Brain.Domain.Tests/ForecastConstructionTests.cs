@@ -34,7 +34,7 @@ public sealed class ForecastConstructionTests
         Commitments = EquatableArray.From(sites.Select(Commitment)),
         Construction = new()
         {
-            Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(sites) }),
+            Census = CurrentConstruction.Empty with { Sites = EquatableArray.From(sites) },
             Workers = [Worker()], IngredientReservations = [],
             Estimates = sites.Select(s => new ForecastConstructionEstimate(s.Id, "worker", "stock", Known(true), Known(true), Known(100.0), Known(0.0))).ToArray(),
             Routes = sites.Select(s => new ForecastActivityRoute("worker", "stock", s.Id, new RouteTicks.Reachable(50.0)))
@@ -111,7 +111,7 @@ public sealed class ForecastConstructionTests
         Assert.Null(Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Workers = [Worker(skill: 5)] } }).Proposed.Construction).Comparison!.Selected);
         var high = Site("high") with { Gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Expand } };
         var low = Site("low", 2);
-        request = Request(high) with { Construction = Request(high).Construction with { Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { high, low }) }) } };
+        request = Request(high) with { Construction = Request(high).Construction with { Census = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { high, low }) } } };
         Assert.Equal("lower_tier_material_need", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
     }
 
@@ -142,14 +142,14 @@ public sealed class ForecastConstructionTests
     public void UpdatedCensusAndAvailabilityInvalidateForecastWithoutStoredPlan()
     {
         var site = Site(); var request = Request(site);
-        var complete = new CurrentConstruction { Colony = true, Buildings = EquatableArray.From(new[] { new CurrentBuilding { Id = "built", Building = site.Building } }) };
-        Assert.Equal("already_built", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(complete) } }).Proposed.Construction).Reason);
-        Assert.Equal("construction_gone", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true }) } }).Proposed.Construction).Reason);
+        var complete = CurrentConstruction.Empty with { Buildings = EquatableArray.From(new[] { new CurrentBuilding { Id = "built", Building = site.Building } }) };
+        Assert.Equal("already_built", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = complete } }).Proposed.Construction).Reason);
+        Assert.Equal("construction_gone", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = CurrentConstruction.Empty } }).Proposed.Construction).Reason);
         var worker = Worker();
         var unavailable = request with { Construction = request.Construction with { Workers = [worker with { Observed = worker.Observed with { Available = Known(false) } }] } };
         Assert.Null(Assert.Single(ColonyForecastRules.ForecastColony(unavailable).Proposed.Construction).Comparison!.Selected);
         var remaining = site with { WorkLeft = 20.0, MaterialsOwed = default, ResourcesComplete = true };
-        var revised = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { remaining }) }) } });
+        var revised = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { remaining }) } } });
         Assert.Equal(70.0 / GameTime.TicksPerDay, revised.Proposed.Construction[0].CompletedDay.Value);
         Assert.Empty(revised.Proposed.Construction[0].MaterialChanges);
     }
@@ -241,7 +241,7 @@ public sealed class ForecastConstructionTests
             Anomaly = null,
             Door = null,
         };
-        var observed = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(row))).Construction.Value;
+        var observed = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(row)));
         Assert.Equal("TestBuilding", observed.Sites[0].Building!.Definition);
         Assert.Equal(123, observed.Sites[0].WorkLeft);
         Assert.Equal(7, observed.Sites[0].MaterialsOwed[0].Count);
@@ -256,7 +256,7 @@ public sealed class ForecastConstructionTests
                 Gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Sustain },
             },
         };
-        var gatedSite = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(gated))).Construction.Value.Sites[0];
+        var gatedSite = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(gated))).Sites[0];
         Assert.Equal(new O.FinishingMinimum { Skill = 6, EligibleFinishers = 2 }, gatedSite.Minimum);
         Assert.Equal(ConstructionTier.Sustain, Assert.IsType<O.ConstructionGate.Tiered>(gatedSite.Gate).Tier);
         var missing = row with { Construction = null };

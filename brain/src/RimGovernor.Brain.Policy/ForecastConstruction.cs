@@ -13,7 +13,7 @@ public sealed record ForecastConstructionEstimate(string Site, string Pawn, stri
 
 public sealed record ForecastConstructionContext
 {
-    public Fact<CurrentConstruction> Census { get; init; }
+    public CurrentConstruction? Census { get; init; }
     public ForecastConstructionWorker[] Workers { get; init; } = [];
     public ForecastConstructionEstimate[] Estimates { get; init; } = [];
     public ForecastActivityRoute[] Routes { get; init; } = [];
@@ -52,8 +52,8 @@ public static class ForecastConstruction
         var results = new List<ForecastConstructionResult>();
         var capacity = context.Workers.ToDictionary(w => w.Capacity.Pawn, w => w.Capacity, StringComparer.Ordinal);
         var expansions = 0;
-        var complete = context.Census.TryGetValue(out var census) && census.Colony;
-        census ??= new CurrentConstruction();
+        var complete = context.Census is not null;
+        var census = context.Census ?? CurrentConstruction.Empty;
         var sites = census.Sites.Where(s => s.Building is not null).ToDictionary(s => s.Building!);
         foreach (var commitment in rows.OrderBy(c => sites.TryGetValue(c.Construction!, out var s) && s.Gate is ConstructionGate.Tiered { Tier: var tier } ? (int)tier : -1)
             .ThenBy(c => c.Id, StringComparer.Ordinal))

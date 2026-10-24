@@ -12,7 +12,7 @@ public sealed record PartySpotInput
 
     public ImpressivenessLevels Levels { get; init; } = new();
 
-    public Fact<CurrentConstruction> Census { get; init; }
+    public CurrentConstruction? Census { get; init; }
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
@@ -67,7 +67,7 @@ public static partial class PartySpotRules
     public static Fact<PartySpotNeed> ReviewPartySpot(PartySpotInput input)
     {
         if (!input.Rooms.TryGetValue(out var rooms) || !input.Qualities.TryGetValue(out var qualities)
-            || !input.Census.TryGetValue(out var census) || !census.Colony)
+            || input.Census is not { } census)
         {
             return Unknown<PartySpotNeed>();
         }

@@ -34,7 +34,7 @@ public sealed class ProductionPromisesTests
     {
         ProductionPromises = promises, BillReservations = EmptyReservations,
         Resources = Known<EquatableArray<Amount>>([new(Material, 100), new(Other, 20)]),
-        ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Material] = 60 }),
+        CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Material] = 60 } },
         ResourceConsumption = Known(new ResourceConsumption()),
     };
 

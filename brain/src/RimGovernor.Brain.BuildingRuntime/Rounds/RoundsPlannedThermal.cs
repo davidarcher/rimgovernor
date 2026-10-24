@@ -19,7 +19,7 @@ public sealed partial class Rounder
         var furniture = colony.Shapes.Furniture;
         var thermal = PlannedRules.PlannedThermalRequestOf(rooms, planned.Sites, [furniture.Heater, .. furniture.FueledHeaters]);
         var predictions = PlannedRules.PlannedRoomPredictionRequestOf(rooms, planned.Sites,
-            colony.Facts.CurrentConstruction.TryGetValue(out var construction) ? construction.Sites : []);
+            colony.Facts.CurrentConstruction is { } construction ? construction.Sites : []);
         if (thermal is null && predictions.Count == 0)
         {
             return (null, []);

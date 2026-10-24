@@ -24,7 +24,7 @@ public sealed class UnfinishedMaterialTests
     private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) => new()
     {
         ProductionPromises = Promises(state), BillReservations = [],
-        ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Material] = 40 }),
+        CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Material] = 40 } },
         Resources = Known<EquatableArray<Amount>>([new(Material, loose)]), ResourceConsumption = Known(new ResourceConsumption()),
     };
 

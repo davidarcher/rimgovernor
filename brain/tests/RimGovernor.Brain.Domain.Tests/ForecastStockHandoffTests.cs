@@ -33,7 +33,7 @@ public sealed class ForecastStockHandoffTests
         {
             Activities = new(), Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
             FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],
-            Resources = new(new() { Stock = Known(physical), Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
+            Resources = new(new() { Stock = Known(physical), Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
         } };
     }
     private static ForecastCoupledOutcome Evaluate(ColonyForecastRequest request, params ForecastCommitment[] changes) =>

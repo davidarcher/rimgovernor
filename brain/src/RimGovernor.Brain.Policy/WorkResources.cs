@@ -238,9 +238,9 @@ public static partial class WorkRules
             if (row.Action.Building is { } building && row.Action.ConstructionTarget.Length == 0)
             {
                 // Placement has become an observed optional site. Its selected supply activity owns remaining materials.
-                if (evidence.Standing.TryGetValue(out var standing) && standing.Contains(building)) continue;
+                if (evidence.Standing is { } standing && standing.Buildings.Contains(building)) continue;
                 if (!progress.Unresolved && progress.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful && progress.Tick < evidence.Tick
-                    && evidence.Standing.IsKnown) continue;
+                    && evidence.Standing is not null) continue;
                 if (footprint) foreach (var cell in MethodClaimsRules.BuildingClaimTargets(evidence, building)) Take(cell);
                 else Take(BuildingClaimTarget(building));
                 var cost = evidence.Buildings.TryGetValue(out var costs)

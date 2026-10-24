@@ -55,7 +55,7 @@ public static class HomeAreaRules
     /// <summary>Derives the home-area diff. Unknown when the extent is unknown or no Home census was read.</summary>
     public static Fact<HomeAreaPlan> PlanHomeArea(
         Fact<Bounds> bounds,
-        Fact<CurrentConstruction> construction,
+        CurrentConstruction? construction,
         Fact<EquatableArray<ConstructionClaim>> claims,
         HomeCoverageFacts? home
     )

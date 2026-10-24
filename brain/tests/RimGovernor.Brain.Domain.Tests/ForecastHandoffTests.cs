@@ -19,7 +19,7 @@ public sealed class ForecastHandoffTests
             Pawns = Known<EquatableArray<ModelPawn>>([]),
         };
         var policy = new ColonyModelPolicy { Projects = new() { Nodes = [new() { Id = ProjectGraph.ResearchId(new("Research")), Kind = ProjectKind.Research, Work = 100 }] } };
-        var evidence = new WorkAdmissionEvidence { Stock = Known(stock), Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
+        var evidence = new WorkAdmissionEvidence { Stock = Known(stock), Standing = new([], new Dictionary<Resource, long>()),
             Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
         return new() { Origin = new("map", 0), HorizonDays = 1,
             Facts = new() { Stock = Known(stock), Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
@@ -147,7 +147,7 @@ public sealed class ForecastHandoffTests
             Activities = new() { Activities = [new("research", "stock", "site", []) { Inputs = [new(Steel, Known(5d))] }] },
             Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("research", "pawn")] = binding },
             Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
-            { Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Steel] = 8 }),
+            { Standing = new([], new Dictionary<Resource, long> { [Steel] = 8 }),
               Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("other-owner", [new(Steel, Known(2d), Known(""))])]) } } } };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(15d), [Food] = Known(10d), [Medicine] = Known(3d) });
         Assert.Empty(handoff.Gaps);

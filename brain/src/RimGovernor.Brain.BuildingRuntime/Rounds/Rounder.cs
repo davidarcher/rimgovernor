@@ -1107,7 +1107,7 @@ partial class Rounder
         // template piece is a build.
         var rows = new List<ClearanceTarget>();
         var placed = new HashSet<(string, Cell)>();
-        if (colony.Facts.CurrentConstruction.TryGetValue(out var census))
+        if (colony.Facts.CurrentConstruction is { } census)
         {
             foreach (var site in census.Sites.Where(s => s.Building is not null))
             {

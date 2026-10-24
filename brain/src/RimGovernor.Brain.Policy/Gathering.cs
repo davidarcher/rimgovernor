@@ -15,7 +15,7 @@ public sealed record GatheringInput
     public Fact<bool> Calm { get; init; }
 
     /// <summary>Holds the built PartySpot.</summary>
-    public Fact<CurrentConstruction> Census { get; init; }
+    public CurrentConstruction? Census { get; init; }
 }
 
 /// <summary>One party ready to start: the organizer to name.</summary>
@@ -65,7 +65,7 @@ public static class GatheringRules
         var lk = input.Ledger.TryGetValue(out var ledger);
         var bk = input.Benefit.TryGetValue(out var benefit);
         var ck = input.Calm.TryGetValue(out var calm);
-        var sk = input.Census.TryGetValue(out var census);
+        var census = input.Census;
         // Known gates that refuse, whatever else is unread.
         if (ck && !calm)
         {
@@ -95,11 +95,11 @@ public static class GatheringRules
                 return none;
             }
         }
-        if (sk && census!.Colony && !HasPartySpot(census))
+        if (census is not null && !HasPartySpot(census))
         {
             return none;
         }
-        if (!pk || !lk || !bk || !ck || !sk || !census!.Colony)
+        if (!pk || !lk || !bk || !ck || census is null)
         {
             return Unknown<GatheringPlan>();
         }

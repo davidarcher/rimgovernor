@@ -91,7 +91,7 @@ public sealed class ClothingChoiceTests
         // is no longer a thermal relief).
         var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
         Assert.Equal("Cloth", Recipe(Start(census, read, Resources(), out _)!).Stuff);
-        var facts = Facts() with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Cloth")] = 30 }) };
+        var facts = Facts() with { CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [new("Cloth")] = 30 } } };
         var resources = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
         Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
         var evidence = ProductionRules.WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with

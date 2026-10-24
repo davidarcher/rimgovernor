@@ -8,9 +8,9 @@ public static class ConstructionSkillRules
     /// Adopts each unconfigured quality site once. Current jobs, timetable, priorities and sleep do not reduce
     /// construction capability.
     /// </summary>
-    public static IReadOnlyList<ConstructionSkillChoice> ConstructionSkillChoices(Fact<CurrentConstruction> census, Fact<EquatableArray<WorkPawn>> pawns)
+    public static IReadOnlyList<ConstructionSkillChoice> ConstructionSkillChoices(CurrentConstruction? census, Fact<EquatableArray<WorkPawn>> pawns)
     {
-        if (!census.TryGetValue(out var sites) || !sites.Colony || !pawns.TryGetValue(out var workers))
+        if (census is null || !pawns.TryGetValue(out var workers))
         {
             return [];
         }
@@ -54,7 +54,7 @@ public static class ConstructionSkillRules
             return [];
         }
         var result = new List<ConstructionSkillChoice>();
-        foreach (var site in sites.Sites)
+        foreach (var site in census.Sites)
         {
             if (site.Id.Length == 0 || !site.QualitySensitive || site.Minimum is not null || best < site.NativeFinishingSkill)
             {
@@ -69,9 +69,9 @@ public static class ConstructionSkillRules
     /// Augments action progress with native site facts. A placed blueprint is not a finished building, but a
     /// filled frame is work vanilla can offer now. Unknown/material-blocked sites never invent readiness.
     /// </summary>
-    public static ReadyWorkReport? ConstructionHelperView(ReadyWorkReport? previous, Fact<CurrentConstruction> census, GenerationSnapshot current)
+    public static ReadyWorkReport? ConstructionHelperView(ReadyWorkReport? previous, CurrentConstruction? census, GenerationSnapshot current)
     {
-        if (!census.TryGetValue(out var observed) || !observed.Colony)
+        if (census is null)
         {
             return previous;
         }
@@ -82,7 +82,7 @@ public static class ConstructionSkillRules
             report = previous;
             candidates.AddRange(previous.Candidates);
         }
-        foreach (var site in observed.Sites)
+        foreach (var site in census.Sites)
         {
             var cell = site.Building!.Cell;
             var claim = ReadyWorkRules.CellClaim(cell);

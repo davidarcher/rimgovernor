@@ -152,7 +152,7 @@ partial class RoundsBuildingPlanner
     internal static bool? PlannedRoomStartedOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
         var (ground, known) = ColonyGround(facts);
-        if (!known || !facts.Facts.CurrentConstruction.TryGetValue(out var census))
+        if (!known || facts.Facts.CurrentConstruction is not { } census)
         {
             return null;
         }
@@ -593,7 +593,7 @@ public sealed partial class RoundsBuildingPlanner
             holds = [];
         }
         IReadOnlyList<Pol.ConstructionSite> standing = [];
-        if (facts.Facts.CurrentConstruction.TryGetValue(out var census2))
+        if (facts.Facts.CurrentConstruction is { } census2)
         {
             standing = RoomStall.RoomSites(census2.Sites, rr.Room.RoomGround());
         }
@@ -680,11 +680,11 @@ public sealed partial class RoundsBuildingPlanner
     /// the next attempt. An open attempt, a product that stands, a census left unknown (the default) or an
     /// attempt that built nothing (a roof, a removal, a cancelled wave) holds it.
     /// </summary>
-    internal bool MethodOnce(Sto.NeedOwner goal, MethodId method, CancellationToken call, Fact<Pol.CurrentConstruction> product = default) =>
+    internal bool MethodOnce(Sto.NeedOwner goal, MethodId method, CancellationToken call, Pol.CurrentConstruction? product = null) =>
         MethodOnce(Reviewer.Player.Journal, goal, method, call, product);
 
     /// <summary><see cref="MethodOnce(Sto.NeedOwner, MethodId, CancellationToken, Fact{Pol.CurrentConstruction})"/> against <paramref name="journal"/>, for a step without a building planner.</summary>
-    internal static bool MethodOnce(JournalStore journal, Sto.NeedOwner goal, MethodId method, CancellationToken call, Fact<Pol.CurrentConstruction> product = default)
+    internal static bool MethodOnce(JournalStore journal, Sto.NeedOwner goal, MethodId method, CancellationToken call, Pol.CurrentConstruction? product = null)
     {
         if (journal.OwnerMethodPlan(goal, method, call) is not { } prior)
         {

@@ -118,12 +118,12 @@ public static partial class ProductionRules
                 p => p.Value.TryGetValue(out var n) ? Known(-n) : default)) : default;
     }
 
-    /// <summary>Use the same reconciled holds as acquisition and trade, plus outstanding construction.</summary>
+    /// <summary>Use the same reconciled holds as acquisition and trade, plus outstanding construction (null while the census is unread).</summary>
     public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> SharedMaterialBudgetOf(
-        Fact<EquatableArray<Amount>> stock, Fact<IReadOnlyDictionary<Resource, long>> construction,
+        Fact<EquatableArray<Amount>> stock, IReadOnlyDictionary<Resource, long>? construction,
         Fact<IReadOnlyDictionary<Resource, Fact<double>>> holds)
     {
-        if (!stock.TryGetValue(out var items) || !construction.TryGetValue(out var owed) || !holds.TryGetValue(out var promised)) return default;
+        if (!stock.TryGetValue(out var items) || construction is not { } owed || !holds.TryGetValue(out var promised)) return default;
         var output = new Dictionary<Resource, Fact<double>>();
         foreach (var item in items)
             output[item.Resource] = Known(output.GetValueOrDefault(item.Resource, Known(0.0)).Value + item.Count);

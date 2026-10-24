@@ -85,7 +85,7 @@ public sealed class PlannedShelterTests
                 .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))
                 .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, new RouteTicks.Reachable(1d)) { FromStart = true }))) }),
             PlannedThermal = plannedThermal,
-            ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
+            CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },

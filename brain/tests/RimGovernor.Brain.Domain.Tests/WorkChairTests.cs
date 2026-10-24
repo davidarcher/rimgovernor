@@ -46,13 +46,10 @@ public sealed class WorkChairTests
 
     private static readonly CurrentBuilding BenchNorth = Standing(Bench, new Cell(12, 12), Rotation.North, new(11, 12), new(12, 12), new(13, 12));
 
-    private static Fact<CurrentConstruction> Census(params CurrentBuilding[] built) => Known(new CurrentConstruction { Colony = true, Buildings = [.. built] });
+    private static CurrentConstruction Census(params CurrentBuilding[] built) => CurrentConstruction.Empty with { Buildings = [.. built] };
 
-    private static EquatableArray<WorkChairSeat> Owed(PlannedRoom room, Fact<CurrentConstruction> census)
-    {
-        Assert.True(WorkChairRules.OwedSeats(new LayoutPlan { Rooms = [room] }, census, Shapes).TryGetValue(out var seats));
-        return seats;
-    }
+    private static EquatableArray<WorkChairSeat> Owed(PlannedRoom room, CurrentConstruction census) =>
+        WorkChairRules.OwedSeats(new LayoutPlan { Rooms = [room] }, census, Shapes);
 
     [Fact]
     public void AStandingBenchOwesItsChosenChairOnItsInteractionCell()
@@ -72,21 +69,18 @@ public sealed class WorkChairTests
         Assert.Empty(Owed(Workshop(Chosen), Census(BenchNorth, Standing(Chair, new Cell(12, 11), Rotation.North))));
 
         // A blueprint on the seat is the chair's pending work.
-        var blueprint = Known(new CurrentConstruction
+        var blueprint = CurrentConstruction.Empty with
         {
-            Colony = true,
             Buildings = [BenchNorth],
             Sites = [new ConstructionSite { Building = new Building(Chair, new Cell(12, 11), Rotation.North, ""), Stage = "blueprint" }],
-        });
+        };
         Assert.Empty(Owed(Workshop(Chosen), blueprint));
 
         // A bench outside the planned room is not that room's.
         Assert.Empty(Owed(Workshop(Chosen), Census(Standing(Bench, new Cell(30, 30), Rotation.North, new(29, 30), new(30, 30), new(31, 30)))));
-
-        Assert.False(WorkChairRules.OwedSeats(new LayoutPlan { Rooms = [Workshop(Chosen)] }, Unknown<CurrentConstruction>(), Shapes).IsKnown);
     }
 
-    private static ColonyProjection Projection(PlannedRoom room, Fact<CurrentConstruction> census)
+    private static ColonyProjection Projection(PlannedRoom room, CurrentConstruction? census)
     {
         var projection = ColonyFactsCoreTests.Projection() with { LayoutPlan = Known(new LayoutPlan { Rooms = [room], NextRoomId = 2 }), Shapes = Shapes };
         return projection with { Facts = projection.Facts with { CurrentConstruction = census, Colonists = 1L } };
@@ -117,5 +111,13 @@ public sealed class WorkChairTests
         Assert.Null(resolved);
         Assert.Equal(Verdict.BuildingReasonNoDeficit, reason);
         Assert.Equal(Known(false), RoomsRounds.WorkChairsOwed(facts));
+    }
+
+    [Fact]
+    public void AnUnreadCensusOwesNoKnownChair()
+    {
+        var facts = Projection(Workshop(Chosen), null);
+        Assert.False(RoomsRounds.WorkChairsOwed(facts).IsKnown);
+        Assert.Null(Planner().SelectWorkChair(facts).Planner);
     }
 }

@@ -450,9 +450,9 @@ partial class BiotechRounds
         return true;
     }
 
-    internal static bool DefinitionIntentStanding(IReadOnlyList<PlanningDefinition> defs, Fact<EquatableArray<ConstructionClaim>> claims, Fact<CurrentConstruction> observed)
+    internal static bool DefinitionIntentStanding(IReadOnlyList<PlanningDefinition> defs, Fact<EquatableArray<ConstructionClaim>> claims, CurrentConstruction? observed)
     {
-        if (!observed.TryGetValue(out var census) || !census.Colony)
+        if (observed is null)
         {
             return false;
         }

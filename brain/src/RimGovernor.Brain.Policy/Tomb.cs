@@ -190,15 +190,14 @@ public static partial class TombRules
         Fact<LayoutPlan> plan,
         Fact<RoomObservation> rooms,
         Fact<EquatableArray<WasteItem>> waste,
-        Fact<CurrentConstruction> built
+        CurrentConstruction? built
     )
     {
         var ak = available.TryGetValue(out var a);
         var pk = plan.TryGetValue(out var p);
         var rk = rooms.TryGetValue(out _);
         var wk = waste.TryGetValue(out var w);
-        var bk = built.TryGetValue(out var b);
-        if (!wk || !bk || !b!.Colony)
+        if (!wk || built is not { } b)
         {
             return Unknown<bool>();
         }

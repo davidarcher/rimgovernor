@@ -183,8 +183,8 @@ internal static class RoundsCreepJoiner
         var (need, owed) = RoundsSleepingUpkeepPlanner.IsolationRoomNeed(facts);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        if (!owed || !pk || !gk || !ck || !census!.Colony)
+        var census = facts.Facts.CurrentConstruction;
+        if (!owed || !pk || !gk || census is null)
         {
             return false;
         }

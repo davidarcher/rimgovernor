@@ -128,7 +128,7 @@ public sealed class ForecastWorkInputsTests
         var claim = new ConstructionClaim { Plan = new PlanId("method"), Action = new ActionId("action"), Building = building };
         return new()
         {
-            Tick = new Tick(100), CurrentConstruction = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { site }) }),
+            Tick = new Tick(100), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
             ConstructionClaims = Known(EquatableArray.From(new[] { claim, claim })),
             ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(new[] { Pawn() })) },
             BillReservations = [],
@@ -156,7 +156,7 @@ public sealed class ForecastWorkInputsTests
         Assert.False(ForecastWorkInputs.ForecastWorkInputsOf(facts with { ConstructionClaims = default }).ConstructionCommitments.IsKnown);
         var cancelled = facts with { ConstructionClaims = Known(default(EquatableArray<ConstructionClaim>)) };
         Assert.Empty(ForecastWorkInputs.ForecastWorkInputsOf(cancelled).ConstructionCommitments.Value);
-        var gone = facts with { CurrentConstruction = Known(new CurrentConstruction { Colony = true }) };
+        var gone = facts with { CurrentConstruction = CurrentConstruction.Empty };
         Assert.Empty(ForecastWorkInputs.ForecastWorkInputsOf(gone).ConstructionCommitments.Value);
     }
 

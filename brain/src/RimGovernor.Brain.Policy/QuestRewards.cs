@@ -96,7 +96,7 @@ public static class QuestRewards
                 need[def] = Math.Max(0L, floor - have);
             }
         }
-        if (f.ConstructionDeficit.TryGetValue(out var deficits))
+        if (f.CurrentConstruction is { Deficit: var deficits })
         {
             foreach (var (def, count) in deficits)
             {

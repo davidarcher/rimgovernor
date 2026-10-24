@@ -65,7 +65,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                     cancellationToken).ConfigureAwait(false);
                 var extent = new ColonyExtent { Regions = EquatableArray.From(history.Select(row => row.Region)) };
                 var eligibility = new ExtentEligibilityRequest { Extent = Known(extent), Threat = threat };
-                if (f.CurrentConstruction.TryGetValue(out var buildings) && buildings.Colony && f.HomeCoverage is { } home)
+                if (f.CurrentConstruction is { } buildings && f.HomeCoverage is { } home)
                 {
                     var ids = new List<string>(buildings.Buildings.Select(b => b.Id));
 

@@ -9,7 +9,7 @@ internal static class StockpileBenchInputs
     /// </summary>
     internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<GearBenchRead> census, Observation.ColonyProjection projection)
     {
-        if (!projection.Facts.CurrentConstruction.TryGetValue(out var built) || !built.Colony
+        if (projection.Facts.CurrentConstruction is not { } built
             || !projection.ProductionBenches.TryGetValue(out var food))
         {
             return [];

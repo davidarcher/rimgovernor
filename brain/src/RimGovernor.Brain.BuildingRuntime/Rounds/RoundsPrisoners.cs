@@ -105,8 +105,8 @@ public sealed class PrisonersRounds
         var (plan, rooms, known) = RoundsBuildingPlanner.PlannedLayout(facts);
         var pk = facts.Facts.Population.TryGetValue(out var census);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        var bk = facts.Facts.CurrentConstruction.TryGetValue(out var built);
-        if (!known || !pk || !sk || !bk || !built!.Colony)
+        var built = facts.Facts.CurrentConstruction;
+        if (!known || !pk || !sk || built is null)
         {
             return new JailStep();
         }

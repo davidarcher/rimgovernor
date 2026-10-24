@@ -94,7 +94,7 @@ partial class Rounder
     /// </summary>
     public static HashSet<Cell>? OccupiedCells(ColonyProjection projection)
     {
-        if (!projection.Facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
+        if (projection.Facts.CurrentConstruction is not { } census)
         {
             return null;
         }

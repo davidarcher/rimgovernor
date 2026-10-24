@@ -128,7 +128,7 @@ public static class ConstructionHelpersRules
         Tick tick,
         IReadOnlyList<HelpDefinition> definitions,
         ConstructionHelpRecord? previous,
-        Fact<CurrentConstruction> census)
+        CurrentConstruction? census)
     {
         var help = new ConstructionHelp { Tick = tick };
         report = ConstructionSkillRules.ConstructionHelperView(report, census, current);
@@ -148,9 +148,9 @@ public static class ConstructionHelpersRules
         // Quality per definition: absent (no observed site, or no census) is unknown.
         var quality = new Dictionary<string, HelpQuality>(StringComparer.Ordinal);
         var siteSkill = new Dictionary<string, int>(StringComparer.Ordinal);
-        if (census.TryGetValue(out var observed) && observed.Colony)
+        if (census is not null)
         {
-            foreach (var site in observed.Sites)
+            foreach (var site in census.Sites)
             {
                 var name = site.Building!.Definition;
                 var q = !site.QualitySensitive ? HelpQuality.Free

@@ -37,7 +37,7 @@ public sealed class ForecastThermalPortfolioTests
         facts = facts with
         {
             PlannedShelters = demand ? [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }] : [],
-            ConstructionDeficit = demand ? facts.ConstructionDeficit : Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
+            CurrentConstruction = demand ? facts.CurrentConstruction : (facts.CurrentConstruction ?? CurrentConstruction.Empty) with { Deficit = new Dictionary<Resource, long>() },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },

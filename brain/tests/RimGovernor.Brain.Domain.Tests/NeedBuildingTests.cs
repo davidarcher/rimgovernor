@@ -143,7 +143,7 @@ public sealed class NeedBuildingTests
         public bool Overlap { get; set; }
 
         /// <summary>The construction census the work step reads; unknown until a test observes one.</summary>
-        public Fact<CurrentConstruction> Census { get; set; }
+        public CurrentConstruction? Census { get; set; }
 
         /// <summary>Applies every action of <paramref name="plan"/>: each building is placed (its blueprint accepted).</summary>
         public void Apply(PlanId plan)
@@ -164,16 +164,16 @@ public sealed class NeedBuildingTests
         }
 
         /// <summary>A colony census in which every building of <paramref name="plans"/> stands built.</summary>
-        public Fact<CurrentConstruction> Standing(params PlanId[] plans)
+        public CurrentConstruction? Standing(params PlanId[] plans)
         {
             var ct = TestContext.Current.CancellationToken;
             var built = plans.SelectMany(p => Journal.LoadPlan(p, ct).Progress).Where(p => p.Action.Building is not null)
                 .Select((p, i) => new CurrentBuilding { Id = "b" + i, Building = p.Action.Building });
-            return Known(new CurrentConstruction { Colony = true, Buildings = [.. built] });
+            return CurrentConstruction.Empty with { Buildings = [.. built] };
         }
 
         /// <summary>A colony census in which nothing stands.</summary>
-        public static Fact<CurrentConstruction> Empty => Known(new CurrentConstruction { Colony = true });
+        public static CurrentConstruction? Empty => CurrentConstruction.Empty;
 
         public void Dispose()
         {
@@ -453,10 +453,9 @@ public sealed class NeedBuildingTests
 
         Assert.True(BuildingWorkRules.PlanProductGone(applied, Colony.Empty));
         Assert.False(BuildingWorkRules.PlanProductGone(applied, default));
-        Assert.False(BuildingWorkRules.PlanProductGone(applied, Known(new CurrentConstruction())));
         // One piece standing, built or as a site, keeps the product standing.
-        Assert.False(BuildingWorkRules.PlanProductGone(applied, Known(new CurrentConstruction { Colony = true, Buildings = [new CurrentBuilding { Id = "w", Building = wall }] })));
-        Assert.False(BuildingWorkRules.PlanProductGone(applied, Known(new CurrentConstruction { Colony = true, Sites = [new ConstructionSite { Building = door }] })));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Buildings = [new CurrentBuilding { Id = "w", Building = wall }] }));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Sites = [new ConstructionSite { Building = door }] }));
         // A plan that applied nothing built nothing to lose.
         Assert.False(BuildingWorkRules.PlanProductGone([new Progress(spec, new("p-0")).Cancel(), new Progress(spec, new("p-1"))], Colony.Empty));
     }
@@ -472,7 +471,7 @@ public sealed class NeedBuildingTests
 
         // Its blueprints and frames still stand: the wave is unfinished, not gone.
         var sites = colony.Journal.LoadPlan(ring.Plan, ct).Progress.Select(p => new ConstructionSite { Building = p.Action.Building, Stage = "blueprint" });
-        colony.Census = Known(new CurrentConstruction { Colony = true, Sites = [.. sites] });
+        colony.Census = CurrentConstruction.Empty with { Sites = [.. sites] };
         Assert.DoesNotContain((await colony.RunAsync()).Methods, m => m.Method == ring.Method);
 
         colony.Census = colony.Standing(ring.Plan);

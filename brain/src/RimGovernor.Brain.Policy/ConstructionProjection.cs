@@ -3,7 +3,8 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Standing deficit and admitted costs overlap: take their maximum per exact resource.</summary>
 public sealed record ConstructionInputs
 {
-    public Fact<IReadOnlyDictionary<Resource, long>> Deficit { get; init; }
+    /// <summary>The census's deficit; null on a projection no routine frame read built.</summary>
+    public IReadOnlyDictionary<Resource, long>? Deficit { get; init; }
     public EquatableArray<AdmittedCost> Admitted { get; init; }
 }
 
@@ -16,7 +17,7 @@ public static class ConstructionProjectionRules
 {
     internal static Fact<ConstructionProjection> ProjectConstruction(ConstructionInputs input, Fact<EquatableArray<Amount>> stockFacts)
     {
-        if (!input.Deficit.TryGetValue(out var owed) || !stockFacts.TryGetValue(out var rows))
+        if (input.Deficit is not { } owed || !stockFacts.TryGetValue(out var rows))
         {
             return Unknown<ConstructionProjection>();
         }

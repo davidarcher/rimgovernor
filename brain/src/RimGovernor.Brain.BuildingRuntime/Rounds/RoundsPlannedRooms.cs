@@ -94,7 +94,7 @@ partial class RoundsBuildingPlanner
 
     internal static (GroundCensus Ground, bool Known) ColonyGround(ColonyProjection facts)
     {
-        if (!facts.Facts.CurrentConstruction.TryGetValue(out var construction) || !construction.Colony)
+        if (facts.Facts.CurrentConstruction is not { } construction)
         {
             return (default!, false);
         }
@@ -217,9 +217,9 @@ partial class RoundsBuildingPlanner
     internal static IReadOnlyList<RoleMismatch> RoleMismatches(ColonyProjection facts)
     {
         var (plan, rooms, known) = PlannedLayout(facts);
-        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var construction);
+        var construction = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!known || !ck || !construction!.Colony || !sk || facts.Stations.Stations.Count == 0)
+        if (!known || construction is null || !sk || facts.Stations.Stations.Count == 0)
         {
             return [];
         }
