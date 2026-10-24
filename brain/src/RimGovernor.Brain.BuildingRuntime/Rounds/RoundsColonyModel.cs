@@ -325,6 +325,13 @@ internal static class RoundsColonyModel
                 var perUse = Unknown<double>();
                 var service = Unknown<double>();
                 var approach = new List<double>();
+                // Joy's recovery without a building is a walk, taken only while the weather allows it (#3825 D7): the read says when.
+                if (need.Kind == "joy" && need.OutdoorShareByTwelfth.Count != 12)
+                {
+                    throw new RequiredFactException("outdoor recreation share of " + pawn.Pawn);
+                }
+
+                var sheltered = 0d;
                 foreach (var target in pawn.Targets)
                 {
                     if (target.Kind != need.Kind)
@@ -332,9 +339,13 @@ internal static class RoundsColonyModel
                         continue;
                     }
 
-                    if (target.GainPerTick.TryGetValue(out var g) && (!gain.TryGetValue(out var best) || g > best))
+                    if (target.GainPerTick.TryGetValue(out var g))
                     {
-                        gain = Known(g);
+                        sheltered = Math.Max(sheltered, g);
+                        if (!gain.TryGetValue(out var best) || g > best)
+                        {
+                            gain = Known(g);
+                        }
                     }
 
                     if (target.GainPerUnit.TryGetValue(out var unit) && target.ServiceTicks.TryGetValue(out var ticks) && (!perUse.TryGetValue(out var bestUnit) || unit > bestUnit))
@@ -354,6 +365,8 @@ internal static class RoundsColonyModel
                     Kind = need.Kind,
                     Fall = need.FallPerTick,
                     Gain = gain,
+                    OutdoorShares = need.OutdoorShareByTwelfth,
+                    ShelteredGain = sheltered,
                     Threshold = need.Threshold,
                     GainPerUse = perUse,
                     ServiceTicks = service,

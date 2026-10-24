@@ -113,6 +113,12 @@ internal static class ColonyModelFixtures
     /// <summary>The model input of the worked case.</summary>
     internal static ColonyModelInput Devilstrand() => RoundsColonyModel.InputOf(Projection()).Input;
 
+    /// <summary>
+    /// A temperate year's share of each twelfth in which outdoor recreation is enjoyable (NeedRate.OutdoorShareByTwelfth, #3825 D7):
+    /// none in the two coldest twelfths, rising to 0.8 in summer, the rest of each lost to rain.
+    /// </summary>
+    internal static EquatableArray<double> OutdoorShares => EquatableArray.From(new[] { 0, 0, 0.2, 0.5, 0.7, 0.8, 0.8, 0.8, 0.7, 0.5, 0.2, 0 });
+
     private static NeedsForecastPawn Pawn() => new()
     {
         Pawn = "Anna",
@@ -120,7 +126,7 @@ internal static class ColonyModelFixtures
         [
             new NeedRate("food", Known(0.6), Known(0.00002), Known(0.3)),
             new NeedRate("rest", Known(0.8), Known(0.00001), Known(0.28)),
-            new NeedRate("joy", Known(0.5), Known(0.00001), Known(0.3)),
+            new NeedRate("joy", Known(0.5), Known(0.00001), Known(0.3)) { OutdoorShareByTwelfth = OutdoorShares },
         ],
         Targets =
         [

@@ -179,10 +179,20 @@ public sealed record NeedRate(string Kind,
     /// <summary>
     /// The need's gain per tick with no service object: resting on the ground when the colony has no usable bed
     /// (<c>StatDefOf.BedRestEffectiveness.valueIfMissing</c>, as <c>Toils_LayDown</c> applies it), and for joy the best of going for a walk
-    /// and skygazing (#3825; 0 while <c>JoyUtility.EnjoyableOutsideNow</c> rules both out). Unknown for a need that has no such recovery.
+    /// and skygazing (#3825), taken only while <c>JoyUtility.EnjoyableOutsideNow</c> holds (<see cref="OutdoorShareByTwelfth"/>).
+    /// Unknown for a need that has no such recovery.
     /// </summary>
     [JsonConverter(typeof(ObservedNumberJsonConverter))]
     public Fact<double> UnservedGainPerTick { get; init; }
+    /// <summary>
+    /// For joy, the expected share of each twelfth of the coming year, indexed by twelfth (the current one from now to its end), in
+    /// which <c>JoyUtility.EnjoyableOutsideNow</c> holds for the pawn and so a walk or skygazing can serve it (#3825 D7): the hours whose
+    /// outdoor temperature lies in the pawn's comfortable range, each at the chance that no rain of 0.25 or more (the biome's weather
+    /// commonalities at that temperature, weighted by duration) and no active game condition rules it out; all 0 on a vacuum
+    /// biome for a pawn concerned by vacuum. Twelve entries for joy, empty for any other need.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
+    public EquatableArray<double> OutdoorShareByTwelfth { get; init; }
     /// <summary>
     /// The rest need's gain per tick per unit of rest effectiveness (#3840): <c>Need_Rest.BaseRestGainPerTick</c> times the pawn's
     /// <c>StatDefOf.RestRateMultiplier</c>, which <c>Need_Rest.TickResting</c> multiplies by the bed's effectiveness. 0 for any other need.

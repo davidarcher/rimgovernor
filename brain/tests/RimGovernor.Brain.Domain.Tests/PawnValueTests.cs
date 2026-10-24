@@ -133,17 +133,30 @@ public sealed class PawnValueTests
     /// <summary>
     /// The production path on a fresh colony with no recreation building (#3822): tier 2's input built by RoundsColonyModel.InputOf
     /// from a needs read with no bed or recreation target, so the colonist's recreation is the walk the native read gives
-    /// (NeedRate.UnservedGainPerTick), its free hours are known and the review values it instead of throwing.
+    /// (NeedRate.UnservedGainPerTick), its free hours are known and the review values it instead of throwing. The walk serves only
+    /// the weather that allows it (NeedRate.OutdoorShareByTwelfth, #3825 D7): a winter twelfth with none leaves the joy unserved and
+    /// the horizon's free hours lie between a year of walks and a year without.
     /// </summary>
     [Fact]
     public void AFreshColonyWithNoRecreationBuildingValuesItsColonistOverTheHoursAWalkLeaves()
     {
         var projection = ColonyModelInputTests.NoBedNoRecreation(ColonyModelFixtures.Projection(), ColonyModelInputTests.Walk);
         var input = RimGovernor.Brain.BuildingRuntime.RoundsColonyModel.InputOf(projection).Input;
-        var free = PawnCycle.FreeHoursByPawn(input)[input.Pawns.Value[0].Pawn];
-        var joy = input.Pawns.Value[0].Needs.Single(n => n.Kind == "joy");
+        var pawn = input.Pawns.Value[0];
+        var free = PawnCycle.FreeHoursByPawn(input, 30)[pawn.Pawn];
+        var joy = pawn.Needs.Single(n => n.Kind == "joy");
         Assert.Equal(ColonyModelInputTests.Walk, joy.Gain.Value);
-        Assert.InRange(free, 0, 24 - (24 * joy.Fall.Value / (joy.Fall.Value + joy.Gain.Value)));
+        Assert.Equal(ColonyModelFixtures.OutdoorShares, joy.OutdoorShares);
+        Assert.Equal(0, joy.ShelteredGain);
+        var walk = 24 * joy.Fall.Value / (joy.Fall.Value + joy.Gain.Value);
+        Assert.Equal(0.8 * walk, PawnCycle.Of(input, pawn, 6).RecreationHours.Value, 9);
+        Assert.Contains("joy_unserved:" + pawn.Pawn, PawnCycle.Of(input, pawn, 0).Findings);
+        double Free(double share) => PawnCycle.FreeHoursByPawn(input with { Pawns = Known(EquatableArray.From(new[] { pawn with
+        {
+            Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(Enumerable.Repeat(share, 12)) } : n)),
+        } })) }, 30)[pawn.Pawn];
+        Assert.InRange(free, Free(1), Free(0));
+        Assert.Equal(walk, Free(0) - Free(1), 9);
 
         var findings = Inspected(sites: 1, stock: 100, finishTicks: 3 * Day, input);
         var value = Assert.Single(findings.PawnValues);

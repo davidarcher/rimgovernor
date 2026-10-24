@@ -22,6 +22,8 @@ internal static class NativeNeedsForecast
         var now = Find.TickManager.TicksGame;
         // The candidates, read once for every colonist; only each pawn's survivors are sorted, by id then grouped by kind.
         (Thing Thing, string Kind)[]? possible = null;
+        // The map's outdoor recreation weather, read once for every colonist with a joy need (#3825 D7).
+        NativeRecreation.OutdoorClimate? outdoorClimate = null;
         foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             var needs = new List<Obs.NeedRate>();
@@ -44,6 +46,7 @@ internal static class NativeNeedsForecast
                     thresholds is { Count: > 1 } ? K(thresholds[1]) : default)
                     {
                         UnservedGainPerTick = K(NativeRecreation.UnservedGainPerTick(pawn)),
+                        OutdoorShareByTwelfth = EquatableArray.From(NativeRecreation.OutdoorShares(pawn, map, outdoorClimate ??= new(map))),
                         Unsupported = ["joy_category_rate_changes", "future_tolerance_changes", "skygaze_condition_gain"],
                     });
             }

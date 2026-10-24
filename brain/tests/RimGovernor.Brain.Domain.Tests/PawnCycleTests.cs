@@ -79,7 +79,7 @@ public sealed class PawnCycleTests
     [Fact]
     public void AJoyNeedNothingServesNowTakesNoHoursAndIsNamed()
     {
-        // #3825: no recreation building and a walk ruled out (JoyUtility.EnjoyableOutsideNow): the read's joy gain is 0, a real state.
+        // #3825: no recreation building and no walk the giver allows (JoyGiver.CanBeGivenTo): the read's joy gain is 0, a real state.
         var pawn = Pawn();
         pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { Gain = Known(0d) } : n)) };
 
@@ -89,6 +89,68 @@ public sealed class PawnCycleTests
         Assert.Equal(15.5, cycle.FreeHours.Value, 9);
         Assert.True(cycle.Valid());
         Assert.Contains("joy_unserved:Anna", cycle.Findings);
+    }
+
+    [Fact]
+    public void AWalkServesOnlyTheTwelfthsShareOfEnjoyableWeather()
+    {
+        // #3825 D7: the walk is the only recreation; JoyUtility.EnjoyableOutsideNow holds 0.6 of twelfth 5 and none of twelfth 0.
+        var shares = new double[12];
+        shares[5] = 0.6;
+        var pawn = Pawn();
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(shares) } : n)) };
+
+        var summer = PawnCycle.Of(Input(pawn), pawn, 5);
+        var winter = PawnCycle.Of(Input(pawn), pawn, 0);
+
+        Assert.Equal(0.6 * 1.5, summer.RecreationHours.Value, 9);
+        Assert.Equal(15.5 - (0.6 * 1.5), summer.FreeHours.Value, 9);
+        Assert.DoesNotContain("joy_unserved:Anna", summer.Findings);
+        Assert.Equal(0, winter.RecreationHours.Value);
+        Assert.Contains("joy_unserved:Anna", winter.Findings);
+        Assert.True(winter.Valid());
+    }
+
+    [Fact]
+    public void InBadWeatherAPawnTakesItsBuildingsSlowerRecreation()
+    {
+        // The walk (gain 15x the fall) serves half of twelfth 5; the other half a building at 5x the fall: 1.5 h and 4 h days mixed.
+        var shares = Enumerable.Repeat(0.5, 12).ToArray();
+        var pawn = Pawn();
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(shares), ShelteredGain = 0.00005 } : n)) };
+
+        var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
+
+        Assert.Equal((0.5 * 1.5) + (0.5 * 4), cycle.RecreationHours.Value, 9);
+    }
+
+    [Fact]
+    public void ABuildingAtLeastAsGoodAsTheWalkServesInAnyWeather()
+    {
+        var pawn = Pawn();
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(new double[12]), ShelteredGain = 0.00015 } : n)) };
+
+        Assert.Equal(1.5, PawnCycle.Of(Input(pawn), pawn, 5).RecreationHours.Value, 9);
+    }
+
+    [Fact]
+    public void FreeHoursAreTheHorizonsMeanOverTheTwelfthsItReaches()
+    {
+        // The walk serves all of one twelfth and none of the others: a horizon of the current twelfth's rest and a whole next one
+        // weighs the two days by their days.
+        var pawn = Pawn();
+        var input = Input(pawn);
+        var climate = input.Climate.Value;
+        var shares = new double[12];
+        shares[climate.CurrentTwelfth] = 1;
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(shares) } : n)) };
+        input = input with { Pawns = Known(EquatableArray.From(new[] { pawn })) };
+        var first = climate.TicksToNextTwelfth / (double)GameTime.TicksPerDay;
+        var horizon = first + (CalendarRules.YearDays / 12.0);
+
+        var free = PawnCycle.FreeHoursByPawn(input, horizon)["Anna"];
+
+        Assert.Equal(((first * 14) + (CalendarRules.YearDays / 12.0 * 15.5)) / horizon, free, 9);
     }
 
     [Fact]

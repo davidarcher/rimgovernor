@@ -173,6 +173,19 @@ public sealed class ColonyModelInputTests
         Assert.True(input.Valid());
     }
 
+    [Fact]
+    public void AJoyReadWithoutItsOutdoorSharesThrows()
+    {
+        // #3825 D7, P10: when a walk can be taken is a fact the read carries; a joy row without it is a missing read, not all weather.
+        var projection = NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk);
+        var review = projection.Facts.NeedsAlternatives!;
+        var pawn = review.Observation.Pawns[0];
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShareByTwelfth = default } : n)) };
+        projection = projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = review.Observation with { Pawns = [pawn] } } } };
+
+        Assert.Throws<RequiredFactException>(() => RoundsColonyModel.InputOf(projection));
+    }
+
     /// <summary>GoForWalk's gain a tick at tolerance factor 1: joyGainRate 1 × 0.36 / 2500 (JoyUtility.JoyTickCheckEnd).</summary>
     internal const double Walk = 0.36 / GameTime.TicksPerHour;
 

@@ -230,11 +230,22 @@ namespace HomeBridge.BridgeTools
         private static Obs.ItemQuality Quality(Thing thing) => thing.TryGetQuality(out var quality)
             ? new Obs.ItemQuality.Graded((Defs.QualityCategory)(int)quality) : new Obs.ItemQuality.Qualityless();
 
-        private static Obs.GearClimate ReadClimate(Map map)
+        /// <summary>
+        /// The map's local-calendar twelfth now, the ticks to the next one and the local offset from longitude: the year the
+        /// climate read and the outdoor recreation shares (<see cref="NativeRecreation.OutdoorClimate"/>) are indexed by.
+        /// </summary>
+        internal static (int Current, int TicksToNext, long Offset) TwelfthNow(Map map)
         {
             var longitude = Find.WorldGrid.LongLatOf(map.Tile).x;
             var offset = GenDate.LocalTicksOffsetFromLongitude(longitude);
             var localTicks = (long)GenTicks.TicksAbs + offset;
+            return ((int)GenDate.Twelfth(GenTicks.TicksAbs, longitude), GenDate.TicksPerTwelfth
+                - (int)((localTicks % GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth) % GenDate.TicksPerTwelfth), offset);
+        }
+
+        private static Obs.GearClimate ReadClimate(Map map)
+        {
+            var (current, toNext, offset) = TwelfthNow(map);
             var temperatures = new List<double>();
             var daylight = new List<double>();
             // Sample the middle of each local-calendar twelfth. Seasonal
@@ -248,8 +259,8 @@ namespace HomeBridge.BridgeTools
             return new Obs.GearClimate {
                 Temperatures = [.. temperatures],
                 DaylightHours = [.. daylight],
-                CurrentTwelfth = (int)GenDate.Twelfth(GenTicks.TicksAbs, longitude),
-                TicksToNextTwelfth = GenDate.TicksPerTwelfth - (localTicks % GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth) % GenDate.TicksPerTwelfth
+                CurrentTwelfth = current,
+                TicksToNextTwelfth = toNext
             };
         }
 

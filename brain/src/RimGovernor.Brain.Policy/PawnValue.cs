@@ -152,7 +152,7 @@ public static class PawnValueRules
     /// <summary>
     /// The review's work shortfall and every colonist's value (#3825), the production way: the shortfall of the selection over the
     /// candidates at the colonists' read speeds, each colonist's facts from its needs read (NeedsForecastPawn.Upkeep) and its free hours
-    /// from tier 2's input (<see cref="PawnCycle.FreeHoursByPawn"/>), the colony's from the catalog, the break curve and the bed the
+    /// from tier 2's input over the investment horizon (<see cref="PawnCycle.FreeHoursByPawn"/>), the colony's from the catalog, the break curve and the bed the
     /// review priced. A colonist tier 2 gives no free hours throws <see cref="RequiredFactException"/>.
     /// </summary>
     public static (WorkShortfall Shortfall, EquatableArray<PawnValue> Values) Review(ForecastCoupledCandidates candidates, ForecastCoupledSelection selection,
@@ -161,7 +161,7 @@ public static class PawnValueRules
         var context = candidates.Context;
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         var shortfall = WorkShortfallRules.Of(candidates, selection, work, speeds);
-        var hours = PawnCycle.FreeHoursByPawn(basis.Input);
+        var hours = PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays);
         var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, HorizonDays = context.InvestmentHorizonDays };
         var values = needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
         {

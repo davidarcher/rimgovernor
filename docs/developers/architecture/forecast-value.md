@@ -245,8 +245,9 @@ Its work is the cheapest option's ticks times that pawn's speed. The plan's idle
 the work it has an option on. The rest is short. So work that waits on material is not short while a builder stands
 idle. #3805 and #3809 build on this model.
 
-**Work added.** A colonist's free hours (`PawnCycle.FreeHoursByPawn`: the day less sleep, meals and recreation, known on a
-colony with no recreation building through the walk's joy gain) fill
+**Work added.** A colonist's free hours (`PawnCycle.FreeHoursByPawn`: the day less sleep, meals and recreation, each
+twelfth's cycle weighted by the investment horizon's days in it, known on a colony with no recreation building through
+the walk's joy gain in the weather that allows it) fill
 the shortfall rows of the work types it is capable of. Its fastest stat goes first, and each row is capped at its
 size. One work tick is one capability-tick, the same price as `MaterialValueOf`. The rest of its time adds nothing.
 The native needs read carries each colonist's side (`NeedsForecastPawn.Upkeep`): its value of every work speed stat (0
@@ -291,9 +292,20 @@ Its cost grows with the number of events, not with ticks.
   hours are the day split `fall : fall + gain` on the rest or joy need, at the
   best target's gain or, with none, the need's `NeedRate.UnservedGainPerTick`:
   sleeping on the ground, and for joy the better of a walk and skygazing
-  (`joyGainRate × 0.36 / 2500 ×` the tolerance factor, #3825), which reads 0
-  while `JoyUtility.EnjoyableOutsideNow` rules both out; a gain of 0 gives the
-  need no hours and names it (`joy_unserved:<pawn>`). Eating
+  (`joyGainRate × 0.36 / 2500 ×` the tolerance factor, #3825). A walk needs
+  `JoyUtility.EnjoyableOutsideNow`, so when it is the best gain it serves only
+  the twelfth's `NeedRate.OutdoorShareByTwelfth` (#3825 D7) and the rest of the
+  twelfth goes at the best building's gain (`ModelNeed.ShelteredGain`, 0 with
+  none): the recreation hours are the share's mix of the two days. The share is
+  the native read's, hour by hour through the twelfth's window: the outdoor
+  temperature the game will read then (season, sun cycle and daily variation,
+  `TileTemperaturesComp.OutdoorTemperatureAt`, plus an active condition's offset
+  while it lasts) against the pawn's comfortable range, times the chance that
+  neither rain of 0.25 or more (the biome's weather commonalities at that
+  temperature as `WeatherDecider` weighs them, each held for its mean duration)
+  nor an active game condition rules it out; a vacuum biome rules it out for a
+  pawn concerned by vacuum. A day with no recreation hours names it
+  (`joy_unserved:<pawn>`). Eating
   hours are meals a day (food fall over the nutrition of a meal) times the
   meal's service plus the mean approach, and the free labor hours are what
   remains. Daylight hours per twelfth (the gear census's seasonal read) split the

@@ -59,11 +59,11 @@ public sealed record PawnCycle
     {
         DomainException.Require(twelfth >= 0 && twelfth < 12, "invalid twelfth");
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var sleep = Split(pawn, "rest", findings);
-        var recreation = Split(pawn, "joy", findings);
+        var sleep = Split(pawn, "rest", twelfth, findings);
+        var recreation = Split(pawn, "joy", twelfth, findings);
         var eating = Eating(pawn, findings);
         var daylight = Daylight(input, twelfth, findings);
-        var left = Left(pawn, findings);
+        var left = Left(pawn, twelfth, findings);
         if (left < 0)
         {
             findings.Add($"overheads_exceed_day:{pawn.Pawn}");
@@ -74,8 +74,9 @@ public sealed record PawnCycle
         var indoor = Unknown<double>();
         if (left is double hours && hours >= 0 && daylight.TryGetValue(out var sun))
         {
-            outdoor = Known(Math.Min(hours, sun));
-            indoor = Known(hours - outdoor.Value);
+            var outside = Math.Min(hours, sun);
+            outdoor = Known(outside);
+            indoor = Known(hours - outside);
         }
 
         return new PawnCycle
@@ -129,9 +130,11 @@ public sealed record PawnCycle
     }
 
     // Sleep and recreation: while the pawn is served the level rises at Gain, otherwise it falls at Fall; the day is spent
-    // Fall : Fall + Gain on the service once the level cycles between its thresholds. A gain read as 0 is a need nothing serves
-    // now (joy with no recreation building while JoyUtility.EnjoyableOutsideNow rules out a walk, #3825): no hours go to it, named.
-    private static Fact<double> Split(ModelPawn pawn, string kind, SortedSet<string> findings)
+    // Fall : Fall + Gain on the service once the level cycles between its thresholds. A gain that needs outdoor weather (joy's walk,
+    // #3825 D7) serves only the twelfth's OutdoorShares; the rest of the twelfth the pawn takes its best building's ShelteredGain
+    // instead, so the hours are the share's mix of the two days. A day with no hours on the need is one nothing serves (no
+    // recreation building and no weather for a walk): it is named.
+    private static Fact<double> Split(ModelPawn pawn, string kind, int twelfth, SortedSet<string> findings)
     {
         var need = Need(pawn, kind);
         if (need is null || !need.Fall.TryGetValue(out var fall) || fall < 0 || double.IsNaN(fall))
@@ -146,13 +149,22 @@ public sealed record PawnCycle
             return Unknown<double>();
         }
 
-        if (gain == 0)
+        var hours = Served(fall, gain);
+        if (need.OutdoorShares.Count == 12 && gain > need.ShelteredGain)
+        {
+            var share = need.OutdoorShares[twelfth];
+            hours = share * hours + (1 - share) * Served(fall, need.ShelteredGain);
+        }
+
+        if (hours == 0)
         {
             findings.Add($"{kind}_unserved:{pawn.Pawn}");
         }
 
-        return Known(gain == 0 ? 0 : HoursPerDay * fall / (fall + gain));
+        return Known(hours);
     }
+
+    private static double Served(double fall, double gain) => gain == 0 ? 0 : HoursPerDay * fall / (fall + gain);
 
     private static Fact<double> Eating(ModelPawn pawn, SortedSet<string> findings)
     {
@@ -176,34 +188,66 @@ public sealed record PawnCycle
     private static ModelNeed? Need(ModelPawn pawn, string kind) => pawn.Needs.FirstOrDefault(n => n.Kind == kind);
 
     /// <summary>
-    /// Per pawn of the input, the hours of its day its sleep, meals and recreation leave free (<see cref="FreeHours"/>, which depends on
-    /// no twelfth), the time a pawn's value fills with work (#3825). A pawn whose overheads are unread or exceed the day has no row:
-    /// its cycle's findings name why.
+    /// Per pawn of the input, the mean hours a day its sleep, meals and recreation leave free over the <paramref name="horizonDays"/>
+    /// from the review, the time a pawn's value fills with work (#3825): each twelfth's <see cref="FreeHours"/> (its recreation
+    /// depends on the twelfth's weather, #3825 D7) weighted by the horizon's days in it, from the climate read's current twelfth and
+    /// the ticks to the next. A pawn whose overheads are unread or exceed the day in a twelfth the horizon reaches has no row (its
+    /// cycle's findings name why), and no pawn has one without the climate read.
     /// </summary>
-    public static IReadOnlyDictionary<string, double> FreeHoursByPawn(ColonyModelInput input)
+    public static IReadOnlyDictionary<string, double> FreeHoursByPawn(ColonyModelInput input, double horizonDays)
     {
+        DomainException.Require(horizonDays > 0 && double.IsFinite(horizonDays), "free hours horizon");
         var output = new Dictionary<string, double>(StringComparer.Ordinal);
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        if (!input.Pawns.TryGetValue(out var pawns))
+        if (!input.Pawns.TryGetValue(out var pawns) || !input.Climate.TryGetValue(out var climate))
         {
             return output;
         }
 
+        var days = new double[12];
+        var twelfth = climate.CurrentTwelfth;
+        var span = climate.TicksToNextTwelfth / (double)GameTime.TicksPerDay;
+        for (var remaining = horizonDays; remaining > 0; twelfth = (twelfth + 1) % 12, span = ColonyModel.TwelfthDays)
+        {
+            var spent = Math.Min(remaining, span);
+            days[twelfth] += spent;
+            remaining -= spent;
+        }
+
         foreach (var pawn in pawns)
         {
-            if (Left(pawn, findings) is double free && free >= 0)
+            var total = 0d;
+            var whole = true;
+            for (var t = 0; t < 12 && whole; t++)
             {
-                output[pawn.Pawn] = free;
+                if (days[t] == 0)
+                {
+                    continue;
+                }
+
+                if (Left(pawn, t, findings) is double free && free >= 0)
+                {
+                    total += days[t] * free;
+                }
+                else
+                {
+                    whole = false;
+                }
+            }
+
+            if (whole)
+            {
+                output[pawn.Pawn] = total / horizonDays;
             }
         }
 
         return output;
     }
 
-    // The hours sleep, meals and recreation leave of the pawn's day; null while any is unread (findings name it).
-    private static double? Left(ModelPawn pawn, SortedSet<string> findings) =>
-        Split(pawn, "rest", findings).TryGetValue(out var asleep) && Eating(pawn, findings).TryGetValue(out var eats)
-            && Split(pawn, "joy", findings).TryGetValue(out var plays) ? HoursPerDay - asleep - eats - plays : null;
+    // The hours sleep, meals and recreation leave of the pawn's day in the twelfth; null while any is unread (findings name it).
+    private static double? Left(ModelPawn pawn, int twelfth, SortedSet<string> findings) =>
+        Split(pawn, "rest", twelfth, findings).TryGetValue(out var asleep) && Eating(pawn, findings).TryGetValue(out var eats)
+            && Split(pawn, "joy", twelfth, findings).TryGetValue(out var plays) ? HoursPerDay - asleep - eats - plays : null;
 
     private static Fact<double> Daylight(ColonyModelInput input, int twelfth, SortedSet<string> findings)
     {
