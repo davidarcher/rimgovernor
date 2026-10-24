@@ -91,10 +91,8 @@ public sealed partial record ColonyProjection
             var complete = true;
             foreach (var pawn in moodPawns)
             {
-                var hk = pawn.HighExpectations.TryGetValue(out var high);
-                var mk = pawn.Mood.TryGetValue(out var mood);
-                var tk = pawn.Target.TryGetValue(out var target);
-                if (hk && high && mk && tk && mood < target)
+                if (pawn.HighExpectations && pawn.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood }
+                    && pawn.Target.TryGetValue(out var target) && mood < target)
                 {
                     pressure = true;
                 }

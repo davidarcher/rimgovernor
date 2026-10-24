@@ -27,8 +27,8 @@ public static partial class MoodRules
     /// </summary>
     internal static IReadOnlyList<MoodProvision> MealMoodProvision(MoodPawn p, IReadOnlyList<MoodProvision> rows)
     {
-        if (!p.HighExpectations.TryGetValue(out var high) || !high
-            || !p.Mood.TryGetValue(out var mood) || !p.Target.TryGetValue(out var target) || mood >= target)
+        if (!p.HighExpectations
+            || p.Mood is not RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood } || !p.Target.TryGetValue(out var target) || mood >= target)
         {
             return rows;
         }

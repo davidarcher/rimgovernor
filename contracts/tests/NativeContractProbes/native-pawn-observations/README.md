@@ -16,10 +16,11 @@ directory and the directory containing
 `RimGovernor.Runtime.dll` (`Mods/RimGovernor/Assemblies`). The bridge is under
 `Mods/RimGovernor/BridgeTools/RimGovernor`.
 
-The executable loads the actual Contracts wire records. It checks
-presence-sensitive intersecting filters, exact IDs, distance boundaries, query and
-reply limits, detail defaults and opt-outs, missing tracker facts, and refusing
-work-priority initialization. Work snapshots bind pawn, priority mode, work rows,
+The executable loads the actual Contracts wire records. It checks request
+validation (exact IDs, distance and query bounds), the detail projections on
+pawns without trackers, and refusing work-priority initialization. The filter is
+a predicate over the native pawn, applied before any row is built, so its
+intersection, exact-ID and distance semantics are native acceptance's to verify. Work snapshots bind pawn, priority mode, work rows,
 world identity, allowed area (including unrestricted) and timetable contents.
 It makes no game-state or gameplay claim. Native
 acceptance must additionally verify paused tick/context invariance, actual pawn

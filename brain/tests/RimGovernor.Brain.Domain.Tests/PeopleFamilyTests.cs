@@ -4,6 +4,7 @@ using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
+using NeedLevel = RimGovernor.Contracts.Wire.Observations.NeedLevel;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -74,7 +75,7 @@ public sealed class PeopleFamilyTests
         var mood = new PeopleNeeds { Mood = true };
         Assert.Equal("mood review", Assert.Throws<RequiredFactException>(() => new PeopleFamily(mood).Derive(new PeopleFacts())).Fact);
 
-        var states = EquatableArray.From<MoodState>([AtRisk("a"), AtRisk("b") with { Active = false, Pawn = AtRisk("b").Pawn with { Mood = Known(.9) } }, AtRisk("c") with { Missing = true }]);
+        var states = EquatableArray.From<MoodState>([AtRisk("a"), AtRisk("b") with { Active = false, Pawn = AtRisk("b").Pawn with { Mood = new NeedLevel.Has(.9) } }, AtRisk("c") with { Missing = true }]);
         var needs = new PeopleFamily(mood).Derive(new PeopleFacts { Mood = Known(states) });
         Assert.Equal([PeopleFamily.Mood(new("a")), PeopleFamily.Mood(new("b")), PeopleFamily.Mood(new("c"))], needs.Select(n => n.Id));
         // A pawn no longer tracked (c is missing) owes nothing.
@@ -94,19 +95,19 @@ public sealed class PeopleFamilyTests
         Assert.Equal(MoodMethodReason.Provisioned, deferred.Reason);
         Assert.Equal(ShelterFamily.Sleeping, deferred.Provider);
         Assert.Equal(MoodMethodReason.NoCause, MoodRules.MoodNeedProposal(provisioned, [RoomsFamily.Comfort]).Reason);
-        var hungry = provisioned with { Causes = [new MoodCause { Need = MoodNeed.Food, Level = Known(.1) }] };
+        var hungry = provisioned with { Causes = [new MoodCause { Need = MoodNeed.Food, Level = .1 }] };
         Assert.Equal(MoodMethodReason.Relief, MoodRules.MoodNeedProposal(hungry, []).Reason);
         Assert.Equal(MoodMethodReason.Provisioned, MoodRules.MoodNeedProposal(hungry, [ShelterFamily.Sleeping]).Reason);
     }
 
     /// <summary>
     /// One mood bar (#3265, decision 26): a pawn within 0.15 of its threshold is owed relief whatever its prior state,
-    /// and a pawn above it is not, active before or not; an unread need keeps its earlier cause.
+    /// and a pawn above it is not, active before or not; a need the pawn lacks is never a cause (#3768).
     /// </summary>
     [Fact]
     public void MoodReliefIsOneThresholdWithNoEntryOrRecoveryBand()
     {
-        MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = Known(.15 + mood), Target = Known(.15 + mood) };
+        MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = new NeedLevel.Has(.15 + mood), Target = Known(.15 + mood) };
         bool Review(double mood, bool prior) =>
             MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([Pawn(mood)]),
                 new MoodHistory { States = prior ? [AtRisk("a")] : [] }).States.Any(s => s.Active);
@@ -116,19 +117,18 @@ public sealed class PeopleFamilyTests
         Assert.False(Review(.17, prior: true));
         Assert.False(Review(.17, prior: false));
         // A need between the cause bar and the old retained bar is no cause, even for a pawn active before.
-        var rested = Pawn(.12) with { Rest = Known(.4) };
-        var tired = new MoodHistory { States = [AtRisk("a") with { Causes = [new MoodCause { Need = MoodNeed.Rest, Level = Known(.2) }] }] };
+        var rested = Pawn(.12) with { Rest = new NeedLevel.Has(.4) };
+        var tired = new MoodHistory { States = [AtRisk("a") with { Causes = [new MoodCause { Need = MoodNeed.Rest, Level = .2 }] }] };
         Assert.Empty(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([rested]), tired).States).Causes);
-        var unread = Pawn(.12) with { Rest = Unknown<double>() };
-        Assert.Equal(MoodNeed.Rest, Assert.Single(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([unread]), tired).States).Causes).Need);
+        var lacking = Pawn(.12) with { Rest = new NeedLevel.Lacks() };
+        Assert.Empty(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([lacking]), tired).States).Causes);
     }
 
     private static MoodState AtRisk(string pawn) => new()
     {
         Pawn = new MoodPawn
         {
-            Id = new(pawn), Mood = Known(.2), Threshold = Known(.15), Target = Known(.2), Mental = Known(false), Dead = Known(false),
-            Downed = Known(false), Drafted = Known(false), PlayerForced = Known(false),
+            Id = new(pawn), Mood = new NeedLevel.Has(.2), Threshold = .15, Target = Known(.2),
         },
         Active = true,
     };

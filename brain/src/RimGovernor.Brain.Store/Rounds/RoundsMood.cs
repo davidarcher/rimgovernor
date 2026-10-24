@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using NeedLevel = RimGovernor.Contracts.Wire.Observations.NeedLevel;
 using PolicyMoodHistory = RimGovernor.Brain.Policy.MoodHistory;
 using static RimGovernor.Brain.Domain.Fact;
 
@@ -29,36 +30,36 @@ internal static class PersistedFact
 }
 
 /// <summary>One mood need's measured level in a persisted mood state.</summary>
-public sealed record RoundsMoodCause(MoodNeed Need, double? Level);
+public sealed record RoundsMoodCause(MoodNeed Need, double Level);
 
-/// <summary>A persisted pawn's mood evidence; every observation is unknown or a value.</summary>
+/// <summary>A persisted pawn's mood evidence, read whole from its pawn row (#3768); only the forecast's target can be unknown (null).</summary>
 public sealed record RoundsMoodPawn
 {
     public MentalState? Break { get; init; }
 
     public PawnId Id { get; init; }
 
-    public double? Mood { get; init; }
+    public NeedLevel Mood { get; init; } = new NeedLevel.Lacks();
 
-    public double? Threshold { get; init; }
+    public double Threshold { get; init; }
 
     public double? Target { get; init; }
 
-    public double? Food { get; init; }
+    public NeedLevel Food { get; init; } = new NeedLevel.Lacks();
 
-    public double? Rest { get; init; }
+    public NeedLevel Rest { get; init; } = new NeedLevel.Lacks();
 
-    public double? Joy { get; init; }
+    public NeedLevel Joy { get; init; } = new NeedLevel.Lacks();
 
-    public bool? Mental { get; init; }
+    public bool Mental { get; init; }
 
-    public bool? Dead { get; init; }
+    public bool Dead { get; init; }
 
-    public bool? Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public bool? Drafted { get; init; }
+    public bool Drafted { get; init; }
 
-    public bool? PlayerForced { get; init; }
+    public bool PlayerForced { get; init; }
 }
 
 /// <summary>One pawn's persisted mood state.</summary>
@@ -88,22 +89,22 @@ public sealed record RoundsMoodState
             {
                 Break = p.Break,
                 Id = p.Id,
-                Mood = PersistedFact.Value(p.Mood),
-                Threshold = PersistedFact.Value(p.Threshold),
+                Mood = p.Mood,
+                Threshold = p.Threshold,
                 Target = PersistedFact.Value(p.Target),
-                Food = PersistedFact.Value(p.Food),
-                Rest = PersistedFact.Value(p.Rest),
-                Joy = PersistedFact.Value(p.Joy),
-                Mental = PersistedFact.Value(p.Mental),
-                Dead = PersistedFact.Value(p.Dead),
-                Downed = PersistedFact.Value(p.Downed),
-                Drafted = PersistedFact.Value(p.Drafted),
-                PlayerForced = PersistedFact.Value(p.PlayerForced),
+                Food = p.Food,
+                Rest = p.Rest,
+                Joy = p.Joy,
+                Mental = p.Mental,
+                Dead = p.Dead,
+                Downed = p.Downed,
+                Drafted = p.Drafted,
+                PlayerForced = p.PlayerForced,
             },
             Active = s.Active,
             Missing = s.Missing,
             MentalRisk = s.MentalRisk,
-            Causes = EquatableArray.From(s.Causes.Select(c => new RoundsMoodCause(c.Need, PersistedFact.Value(c.Level)))),
+            Causes = EquatableArray.From(s.Causes.Select(c => new RoundsMoodCause(c.Need, c.Level))),
             Provision = EquatableArray.From(s.Provision),
             Unowned = EquatableArray.From(s.Unowned),
         };
@@ -117,22 +118,22 @@ public sealed record RoundsMoodState
             {
                 Break = Pawn.Break,
                 Id = Pawn.Id,
-                Mood = PersistedFact.Of(Pawn.Mood),
-                Threshold = PersistedFact.Of(Pawn.Threshold),
+                Mood = Pawn.Mood,
+                Threshold = Pawn.Threshold,
                 Target = PersistedFact.Of(Pawn.Target),
-                Food = PersistedFact.Of(Pawn.Food),
-                Rest = PersistedFact.Of(Pawn.Rest),
-                Joy = PersistedFact.Of(Pawn.Joy),
-                Mental = PersistedFact.Of(Pawn.Mental),
-                Dead = PersistedFact.Of(Pawn.Dead),
-                Downed = PersistedFact.Of(Pawn.Downed),
-                Drafted = PersistedFact.Of(Pawn.Drafted),
-                PlayerForced = PersistedFact.Of(Pawn.PlayerForced),
+                Food = Pawn.Food,
+                Rest = Pawn.Rest,
+                Joy = Pawn.Joy,
+                Mental = Pawn.Mental,
+                Dead = Pawn.Dead,
+                Downed = Pawn.Downed,
+                Drafted = Pawn.Drafted,
+                PlayerForced = Pawn.PlayerForced,
             },
             Active = Active,
             Missing = Missing,
             MentalRisk = MentalRisk,
-            Causes = [.. Causes.Select(c => new MoodCause { Need = c.Need, Level = PersistedFact.Of(c.Level) })],
+            Causes = [.. Causes.Select(c => new MoodCause { Need = c.Need, Level = c.Level })],
             Provision = [.. Provision],
             Unowned = [.. Unowned],
         };

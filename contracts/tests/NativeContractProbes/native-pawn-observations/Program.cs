@@ -20,9 +20,7 @@ internal static class NativePawnObservationsProbe
         return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(type).Invoke(null,new object[]{json})!;
     }
     private static object Get(object value,string name)=>value.GetType().GetProperty(name) is { } property ? property.GetValue(value)! : value.GetType().GetField(name,Flags)!.GetValue(value)!;
-    private static void Set(object value,string name,object? field)=>value.GetType().GetProperty(name)!.SetValue(value,field);
     private static bool Valid(string json)=>(bool)tools.GetMethod("Validate",Flags)!.Invoke(null,new object?[]{Wire("ListPawnsRequest",json),null})!;
-    private static bool Match(object pawn,string filter)=>(bool)tools.GetMethod("Matches",Flags)!.Invoke(null,new object?[]{pawn,Wire("PawnFilter",filter)})!;
     private static bool Throws(Action action,string name) {try {action();return false;}catch(TargetInvocationException e){return e.InnerException!.GetType().Name==name;}}
     internal static int Invoke(string[] args)
     {
@@ -50,56 +48,23 @@ internal static class NativePawnObservationsProbe
         var ids=string.Join(",",Enumerable.Range(0,256).Select(i=>"\"Pawn"+i+"\""));
         Check(Valid(request("\"filter\":{\"ids\":["+ids+"]}")),"256 exact IDs accepted");
         Check(!Valid(request("\"filter\":{\"ids\":["+ids+",\"extra\"]}")),"257 exact IDs refused");
-        var pawn=Wire("PawnState","{\"pawn\":{\"id\":\"Human123\",\"label\":\"Ada Archer\"},\"colonist\":true,\"humanlike\":true,\"dead\":false,\"nearestColonistDistance\":3}");
-        Check(Match(pawn,"{}"),"unfiltered living pawn included");
-        Check(Match(pawn,"{\"ids\":[\"Human123\"],\"nameContains\":\"aDA\",\"animal\":false,\"withinColonistDistance\":3}"),"intersection and inclusive distance");
-        Check(!Match(pawn,"{\"ids\":[\"123\"]}"),"numeric suffix is not exact ID");
-        Check(!Match(pawn,"{\"ids\":[\"human123\"]}"),"ID case is exact");
-        Check(!Match(pawn,"{\"nameContains\":\"missing\"}"),"name filter narrows");
-        Check(!Match(pawn,"{\"withinColonistDistance\":2.99}"),"distance excludes outside boundary");
-        foreach(var name in new[]{"Colonist","Prisoner","Animal","Humanlike","Mechanoid","Tame","Wild","Hostile","Downed","Drafted"}) {
-            var json=char.ToLowerInvariant(name[0])+name.Substring(1);
-            Set(pawn,name,true);Check(Match(pawn,"{\""+json+"\":true}"),"true inclusion "+name);
-            Check(!Match(pawn,"{\""+json+"\":false}"),"explicit false exclusion "+name);
-            Set(pawn,name,false);Check(Match(pawn,"{\""+json+"\":false}"),"false inclusion "+name);
-            Check(!Match(pawn,"{\""+json+"\":true}"),"true exclusion "+name);
-        }
-        Set(pawn,"Dead",true);Check(!Match(pawn,"{}"),"dead excluded by default");Check(Match(pawn,"{\"includeDead\":true}"),"dead opt-in");
-        Set(pawn,"Dead",false);Set(pawn,"NearestColonistDistance",null);
-        Check(!Match(pawn,"{\"withinColonistDistance\":0}"),"missing nearest colonist is not zero");
-        Set(pawn,"NearestColonistDistance",0d);Check(Match(pawn,"{\"withinColonistDistance\":0}"),"observed zero distance included");
-        var defaults=bridge.GetType("HomeBridge.BridgeTools.NativePawnDetails",true)!.GetMethod("Defaults",Flags)!;
-        var detail=defaults.Invoke(null,new object?[]{null})!;
-        foreach(var name in new[]{"Needs","Health","Equipment","Biography","Settings","Social","Animals"})
-            Check(Get(detail,name) is true,"useful default detail "+name);
-        foreach(var name in new[]{"Work","Schedule","Tend"}) Check(Get(detail,name) is false,"opt-in detail off by default "+name);
-        var optOut=Wire("PawnDetails","{\"needs\":false,\"health\":false,\"equipment\":false,\"biography\":false,\"settings\":false,\"social\":false,\"animals\":false}");
-        detail=defaults.Invoke(null,new[]{optOut})!;
-        foreach(var name in new[]{"Needs","Health","Equipment","Biography","Settings","Social","Animals"}) Check(Get(detail,name) is false,"explicit detail opt-out "+name);
+        // The filter is a predicate over the native pawn, applied before any row is built (#3768); it reads live
+        // Verse.Pawn facts this offline harness cannot construct, so native acceptance covers it. Every row is
+        // read whole: there are no detail flags to default or opt out of.
         var detailsType=bridge.GetType("HomeBridge.BridgeTools.NativePawnDetails",true)!;
-        var definition=detailsType.GetMethod("DefinitionLabel",Flags)!;
-        var absentLabel=definition.Invoke(null,new object?[]{"Backstory1",null})!;
-        Check((string)Get(absentLabel,"DefName")=="Backstory1"&&Get(absentLabel,"Label")==null,"missing native definition label preserves exact ID and absence");
-        var title=definition.Invoke(null,new object?[]{"Backstory1","Nurse"})!;
-        Check((string?)Get(title,"Label")=="Nurse","actual backstory title is retained");
-        var core=Wire("PawnState","{}");
-        core=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,core,optOut,null})!;
-        foreach(var block in new[]{"Needs","Health","Equipment","Biography","Settings","Social","AnimalState"})
-            Check(core.GetType().GetProperty(block)!.GetValue(core)==null,"explicit opt-out leaves the block absent without native reads "+block);
         var native=Assembly.Load("Assembly-CSharp");
         var backstory=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("RimWorld.BackstoryDef",true)!);
         backstory.GetType().GetField("defName")!.SetValue(backstory,"BackstoryWithoutGenericLabel");
         var nativeDefinition=detailsType.GetMethod("Definition",Flags)!.Invoke(null,new[]{backstory})!;
-        Check((string)Get(nativeDefinition,"DefName")=="BackstoryWithoutGenericLabel"&&Get(nativeDefinition,"Label")==null,"real native BackstoryDef with null generic label does not crash projection");
+        Check((string)Get(nativeDefinition,"DefName")=="BackstoryWithoutGenericLabel","real native BackstoryDef with null generic label does not crash projection");
         var emptyPawn=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("Verse.Pawn",true)!);
         var missingEquipment=detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{emptyPawn})!;
         Check(!(bool)Get(missingEquipment,"Armed")!&&Get(missingEquipment,"PrimaryId")==null,"a pawn without an equipment tracker carries no weapon");
         Check(((IEnumerable)Get(missingEquipment,"Equipped")).Cast<object>().Count()==0&&((IEnumerable)Get(missingEquipment,"Apparel")).Cast<object>().Count()==0,"a pawn without gear trackers has no gear rows");
-        var missingSettings=Wire("PawnSettings","{}");
-        foreach(var projection in new[]{"CarePolicy","Work","AllowedArea","Schedule"})
-            missingSettings=detailsType.GetMethod(projection,Flags)!.Invoke(null,new[]{emptyPawn,missingSettings})!;
-        Check(Get(missingSettings,"SelfTend")==null&&Get(missingSettings,"MedicalCare")==null,"a pawn without player settings has no care policy");
-        Check(Get(missingSettings,"WorkApplies") is false&&((IEnumerable)Get(missingSettings,"Work")).Cast<object>().Count()==0,"uninitialized work tracker is not queried");
+        Check(detailsType.GetMethod("Care",Flags)!.Invoke(null,new[]{emptyPawn})!.GetType().Name=="None","a pawn without player settings has no care policy");
+        Check(((IEnumerable)detailsType.GetMethod("Work",Flags)!.Invoke(null,new[]{emptyPawn})!).Cast<object>().Count()==0,"uninitialized work tracker is not queried");
+        Check(detailsType.GetMethod("Manual",Flags)!.Invoke(null,new[]{emptyPawn})==null,"a pawn without a work tracker has no manual-priorities setting");
+        Check(((IEnumerable)detailsType.GetMethod("Schedule",Flags)!.Invoke(null,new[]{emptyPawn})!).Cast<object>().Count()==0,"a pawn without a timetable has no slots");
 
         // ---- N01.03: Social fixture (present-but-empty thought trackers) ----
         // Thought/Thought_Memory/Thought_Situational cannot be constructed in this offline harness:
@@ -185,14 +150,13 @@ internal static class NativePawnObservationsProbe
         Check(ReferenceEquals(memHandlerT.GetField("memories",Flags)!.GetValue(memHandlerInst),memoriesList)&&memoriesList is IList{Count:0},"memories list reference and emptiness unchanged after Social()");
         Check(ReferenceEquals(sitHandlerT.GetField("cachedThoughts",Flags)!.GetValue(sitHandlerInst),cachedThoughtsList)&&cachedThoughtsList is IList{Count:0},"cached situational thoughts reference and emptiness unchanged after Social()");
 
-        // ---- N01.03: corpse detail fixture (Apply() on a dead pawn) ----
+        // ---- N01.03: corpse detail fixture (projections on a dead pawn) ----
         // Health()'s and Biography()'s populate branches are unreachable in this offline
         // harness for ANY pawn (dead or alive): HealthAIUtility.ShouldSeekMedicalRest and
         // Pawn.CombinedDisabledWorkTags both unconditionally touch Verse.ModsConfig's static
         // cctor -> GenFilePaths.SaveDataFolderPath -> a Unity Application.persistentDataPath
         // ECall that throws SecurityException outside the real game process. So this fixture
-        // disables health/biography/social/animals explicitly and exercises the
-        // needs/equipment/settings projection for a corpse instead.
+        // exercises the equipment and care projections for a corpse instead.
         var corpse=MakeSocialPawn(103,"Corpse");
         var healthTrackerT=native.GetType("Verse.Pawn_HealthTracker",true)!;
         var healthTrackerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(healthTrackerT);
@@ -209,17 +173,12 @@ internal static class NativePawnObservationsProbe
         billStackT.GetField("bills",Flags)!.SetValue(billStackInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("RimWorld.Bill",true)!)));
         healthTrackerT.GetField("surgeryBills",Flags)!.SetValue(healthTrackerInst,billStackInst);
         socialPawnType.GetField("health",Flags)!.SetValue(corpse,healthTrackerInst);
-        var corpseRow=Wire("PawnState","{}");
-        var corpseDetail=Wire("PawnDetails","{\"needs\":false,\"health\":false,\"equipment\":true,\"biography\":false,\"settings\":true,\"social\":false,\"animals\":false}");
-        corpseRow=detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseRow,corpseDetail,null})!;
-        Check(Get(corpseRow,"Equipment")!=null,"corpse equipment projection still populates for a dead pawn");
-        Check(Get(corpseRow,"Settings")!=null,"corpse settings projection still populates for a dead pawn");
-        Check(Get(corpseRow,"Needs")==null&&Get(corpseRow,"Health")==null&&Get(corpseRow,"Biography")==null,"corpse needs/health/biography stay disabled (Blocker: ModsConfig static cctor)");
-
+        Check(detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{corpse})!=null,"corpse equipment projection still populates for a dead pawn");
+        Check(detailsType.GetMethod("Care",Flags)!.Invoke(null,new[]{corpse})!=null,"corpse care projection still populates for a dead pawn");
         var number=tools.GetMethod("Number",Flags)!;
         Check((double)number.Invoke(null,new object[]{0d})! == 0,"observed zero retained");
         Check(Throws(()=>number.Invoke(null,new object[]{double.NaN}),"InvalidOperationException"),"nonfinite native fact fails");
         Check(Throws(()=>tools.GetMethod("Text",Flags)!.Invoke(null,new object[]{new string('x',4097)}),"ReadLimit"),"native labels are never silently truncated before matching");
-        Console.WriteLine(checks+" compiled pawn boundary/filter/default assertions passed; no gameplay assertions.");return 0;
+        Console.WriteLine(checks+" compiled pawn boundary/projection assertions passed; no gameplay assertions.");return 0;
     }
 }

@@ -16,15 +16,15 @@ public sealed record RecoveryWorker
 {
     public PawnId Pawn { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public Fact<bool> Drafted { get; init; }
+    public bool Drafted { get; init; }
 
-    public Fact<bool> Mental { get; init; }
+    public bool Mental { get; init; }
 
-    public Fact<bool> PlayerForced { get; init; }
+    public bool PlayerForced { get; init; }
 }
 
 public sealed record RecoveryPlanning
@@ -362,29 +362,18 @@ public static partial class RecoveryRules
             }
         }
         var available = new List<RecoveryWorker>();
-        var unknownWorker = false;
         foreach (var w in workers)
         {
-            bool blocked = false, known = true;
-            foreach (var f in new[] { w.Dead, w.Downed, w.Drafted, w.Mental })
-            {
-                var k = f.TryGetValue(out var v);
-                blocked = blocked || (k && v);
-                known = known && k;
-            }
-            if (!blocked && !known)
-            {
-                unknownWorker = true;
-            }
-            if (!blocked && known)
+            if (!w.Dead && !w.Downed && !w.Drafted && !w.Mental)
             {
                 available.Add(w);
             }
         }
-        available = available.OrderBy(w => OrderedWorkRules.OrderedWorkCost(w.PlayerForced)).ThenBy(w => w.Pawn).ToList();
+        // A player-forced job is costlier to interrupt than an ordinary one.
+        available = available.OrderBy(w => w.PlayerForced ? 1 : 0).ThenBy(w => w.Pawn).ToList();
         if (available.Count == 0)
         {
-            return unknownWorker ? output : output with { Reason = RecoverySelectionReason.NoWorker };
+            return output with { Reason = RecoverySelectionReason.NoWorker };
         }
         var candidates = new List<RecoveryCandidate>();
         void Add(RecoveryCandidate c)
@@ -415,7 +404,7 @@ public static partial class RecoveryRules
             }
             eligible.Add(w);
         }
-        if (areaUnknown || unknownWorker || !wk)
+        if (areaUnknown || !wk)
         {
             return output;
         }

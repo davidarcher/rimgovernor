@@ -108,21 +108,21 @@ public sealed class RoundsRecoveryWorkerConverter : ObjectCodec<RoundsRecoveryWo
         new()
         {
             Pawn = new PawnId(e.Str("Pawn")),
-            Dead = e.GetNullable<bool>("Dead", o),
-            Downed = e.GetNullable<bool>("Downed", o),
-            Drafted = e.GetNullable<bool>("Drafted", o),
-            Mental = e.GetNullable<bool>("Mental", o),
-            PlayerForced = e.GetNullable<bool>("PlayerForced", o),
+            Dead = e.Bool("Dead"),
+            Downed = e.Bool("Downed"),
+            Drafted = e.Bool("Drafted"),
+            Mental = e.Bool("Mental"),
+            PlayerForced = e.Bool("PlayerForced"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsRecoveryWorker v, Codecs o)
     {
         w.WriteString("Pawn", v.Pawn.Value);
-        w.PutNullable("Dead", v.Dead, o);
-        w.PutNullable("Downed", v.Downed, o);
-        w.PutNullable("Drafted", v.Drafted, o);
-        w.PutNullable("Mental", v.Mental, o);
-        w.PutNullable("PlayerForced", v.PlayerForced, o);
+        w.WriteBoolean("Dead", v.Dead);
+        w.WriteBoolean("Downed", v.Downed);
+        w.WriteBoolean("Drafted", v.Drafted);
+        w.WriteBoolean("Mental", v.Mental);
+        w.WriteBoolean("PlayerForced", v.PlayerForced);
     }
 }
 
@@ -241,12 +241,12 @@ public sealed class RoundsRecoveryConverter : ObjectCodec<RoundsRecovery>
 
 public sealed class RoundsMoodCauseConverter : ObjectCodec<RoundsMoodCause>
 {
-    protected override RoundsMoodCause Read(JsonElement e, Codecs o) => new(e.Get<MoodNeed>("Need", o), e.GetNullable<double>("Level", o));
+    protected override RoundsMoodCause Read(JsonElement e, Codecs o) => new(e.Get<MoodNeed>("Need", o), e.Dbl("Level"));
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsMoodCause v, Codecs o)
     {
         w.Put("Need", v.Need, o);
-        w.PutNullable("Level", v.Level, o);
+        w.WriteNum("Level", v.Level);
     }
 }
 
@@ -257,17 +257,17 @@ public sealed class RoundsMoodPawnConverter : ObjectCodec<RoundsMoodPawn>
         {
             Break = e.GetNullableRef<MentalState>("Break", o),
             Id = new PawnId(e.Str("ID")),
-            Mood = e.GetNullable<double>("Mood", o),
-            Threshold = e.GetNullable<double>("Threshold", o),
+            Mood = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Mood", o),
+            Threshold = e.Dbl("Threshold"),
             Target = e.GetNullable<double>("Target", o),
-            Food = e.GetNullable<double>("Food", o),
-            Rest = e.GetNullable<double>("Rest", o),
-            Joy = e.GetNullable<double>("Joy", o),
-            Mental = e.GetNullable<bool>("Mental", o),
-            Dead = e.GetNullable<bool>("Dead", o),
-            Downed = e.GetNullable<bool>("Downed", o),
-            Drafted = e.GetNullable<bool>("Drafted", o),
-            PlayerForced = e.GetNullable<bool>("PlayerForced", o),
+            Food = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Food", o),
+            Rest = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Rest", o),
+            Joy = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Joy", o),
+            Mental = e.Bool("Mental"),
+            Dead = e.Bool("Dead"),
+            Downed = e.Bool("Downed"),
+            Drafted = e.Bool("Drafted"),
+            PlayerForced = e.Bool("PlayerForced"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsMoodPawn v, Codecs o)
@@ -277,17 +277,17 @@ public sealed class RoundsMoodPawnConverter : ObjectCodec<RoundsMoodPawn>
             w.Put("Break", brk, o);
         }
         w.WriteString("ID", v.Id.Value);
-        w.PutNullable("Mood", v.Mood, o);
-        w.PutNullable("Threshold", v.Threshold, o);
+        w.Put("Mood", v.Mood, o);
+        w.WriteNum("Threshold", v.Threshold);
         w.PutNullable("Target", v.Target, o);
-        w.PutNullable("Food", v.Food, o);
-        w.PutNullable("Rest", v.Rest, o);
-        w.PutNullable("Joy", v.Joy, o);
-        w.PutNullable("Mental", v.Mental, o);
-        w.PutNullable("Dead", v.Dead, o);
-        w.PutNullable("Downed", v.Downed, o);
-        w.PutNullable("Drafted", v.Drafted, o);
-        w.PutNullable("PlayerForced", v.PlayerForced, o);
+        w.Put("Food", v.Food, o);
+        w.Put("Rest", v.Rest, o);
+        w.Put("Joy", v.Joy, o);
+        w.WriteBoolean("Mental", v.Mental);
+        w.WriteBoolean("Dead", v.Dead);
+        w.WriteBoolean("Downed", v.Downed);
+        w.WriteBoolean("Drafted", v.Drafted);
+        w.WriteBoolean("PlayerForced", v.PlayerForced);
     }
 }
 

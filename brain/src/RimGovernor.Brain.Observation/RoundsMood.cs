@@ -183,20 +183,20 @@ public static class RoundsMoodReads
             {
                 Break = pawn.MentalState,
                 Id = pawn.Id,
-                Dead = Known(r.Dead),
-                Downed = Known(r.Downed),
-                Drafted = Known(r.Drafted),
-                Mental = Known(r.MentalState is not null),
+                Dead = r.Dead,
+                Downed = r.Downed,
+                Drafted = r.Drafted,
+                Mental = r.MentalState is not null,
             };
             var n = r.Needs;
             p = p with
             {
-                PlayerForced = Known(r.Job.PlayerForced),
-                Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
-                Threshold = Known(n.BreakThresholdMinor),
-                Food = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Level : 0),
-                Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
-                Joy = ColonyDecodeReads.Optional(n.Joy is O.NeedLevel.Has, n.Joy is O.NeedLevel.Has joy ? joy.Level : 0),
+                PlayerForced = r.Job.PlayerForced,
+                Mood = n.Mood,
+                Threshold = n.BreakThresholdMinor,
+                Food = n.Food is O.FoodNeed.Has food ? new O.NeedLevel.Has(food.Level) : new O.NeedLevel.Lacks(),
+                Rest = n.Rest,
+                Joy = n.Joy,
             };
             if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !ColonyDecodeReads.HasIssue(f.Issues, "mood_target"))
             {
@@ -205,7 +205,7 @@ public static class RoundsMoodReads
             p = p with
             {
                 Thoughts = MoodThoughts(r),
-                HighExpectations = ColonyDecodeReads.Optional(r.Social is not null, r.Social is { HighExpectations: true }),
+                HighExpectations = r.Social.HighExpectations,
             };
             rows.Add(p);
         }

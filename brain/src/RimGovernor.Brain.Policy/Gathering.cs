@@ -76,12 +76,12 @@ public static class GatheringRules
             var alive = 0;
             foreach (var p in pawns!)
             {
-                if (p.Dead.TryGetValue(out var dead) && dead)
+                if (p.Dead)
                 {
                     continue;
                 }
                 alive++;
-                if (p.Mental.TryGetValue(out var mental) && mental)
+                if (p.Mental)
                 {
                     return none;
                 }
@@ -161,31 +161,19 @@ public static class GatheringRules
     /// </summary>
     private static (PawnId Organizer, bool Ok) GatheringOrganizer(IReadOnlyList<MoodPawn> pawns)
     {
-        var able = new List<MoodPawn>();
+        var able = new List<(MoodPawn Pawn, double Mood)>();
         foreach (var p in pawns)
         {
-            if (!p.Mood.IsKnown)
+            if (p.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood } && !p.Dead && !p.Downed && !p.Drafted && !p.Mental)
             {
-                continue;
-            }
-            var ok = true;
-            foreach (var f in new[] { p.Dead, p.Downed, p.Drafted, p.Mental })
-            {
-                if (!f.TryGetValue(out var v) || v)
-                {
-                    ok = false;
-                }
-            }
-            if (ok)
-            {
-                able.Add(p);
+                able.Add((p, mood));
             }
         }
         if (able.Count == 0)
         {
             return (default, false);
         }
-        var best = able.OrderByDescending(p => p.Mood.ValueOrDefault).ThenBy(p => p.Id).First();
+        var best = able.OrderByDescending(a => a.Mood).ThenBy(a => a.Pawn.Id).First().Pawn;
         return (best.Id, true);
     }
 

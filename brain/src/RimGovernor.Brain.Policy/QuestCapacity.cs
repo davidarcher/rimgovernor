@@ -244,11 +244,11 @@ public static class QuestCapacity
             {
                 continue;
             }
-            if (!status.TryGetValue(pawn.Id, out var state) || !EmergencyRules.AllKnown(state.Dead, state.Downed, state.Drafted, state.Mental))
+            if (!status.TryGetValue(pawn.Id, out var state))
             {
                 return ([], 0, false);
             }
-            if (RoundsRules.Positive(state.Dead) || RoundsRules.Positive(state.Downed) || RoundsRules.Positive(state.Drafted) || RoundsRules.Positive(state.Mental))
+            if (state.Dead || state.Downed || state.Drafted || state.Mental)
             {
                 continue;
             }

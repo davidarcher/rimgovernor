@@ -1120,13 +1120,13 @@ internal sealed class MoodCauseConverter : ObjectCodec<MoodCause>
         new()
         {
             Need = e.Get<MoodNeed>("Need", o),
-            Level = e.Get<Fact<double>>("Level", o),
+            Level = e.Dbl("Level"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, MoodCause v, Codecs o)
     {
         w.Put("Need", v.Need, o);
-        w.Put("Level", v.Level, o);
+        w.WriteNum("Level", v.Level);
     }
 }
 
@@ -1150,39 +1150,68 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
         new()
         {
             Break = e.GetOr<MentalState?>("Break", null, o),
-            HighExpectations = e.Get<Fact<bool>>("HighExpectations", o),
+            HighExpectations = e.Bool("HighExpectations"),
             Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
-            Mood = e.Get<Fact<double>>("Mood", o),
-            Threshold = e.Get<Fact<double>>("Threshold", o),
+            Mood = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Mood", o),
+            Threshold = e.Dbl("Threshold"),
             Target = e.Get<Fact<double>>("Target", o),
-            Food = e.Get<Fact<double>>("Food", o),
-            Rest = e.Get<Fact<double>>("Rest", o),
-            Joy = e.Get<Fact<double>>("Joy", o),
-            Mental = e.Get<Fact<bool>>("Mental", o),
-            Dead = e.Get<Fact<bool>>("Dead", o),
-            Downed = e.Get<Fact<bool>>("Downed", o),
-            Drafted = e.Get<Fact<bool>>("Drafted", o),
-            PlayerForced = e.Get<Fact<bool>>("PlayerForced", o),
+            Food = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Food", o),
+            Rest = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Rest", o),
+            Joy = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Joy", o),
+            Mental = e.Bool("Mental"),
+            Dead = e.Bool("Dead"),
+            Downed = e.Bool("Downed"),
+            Drafted = e.Bool("Drafted"),
+            PlayerForced = e.Bool("PlayerForced"),
             Thoughts = e.Get<Fact<EquatableArray<MoodThought>>>("Thoughts", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, MoodPawn v, Codecs o)
     {
         w.Put("Break", v.Break, o);
-        w.Put("HighExpectations", v.HighExpectations, o);
+        w.WriteBoolean("HighExpectations", v.HighExpectations);
         w.Put("Id", v.Id, o);
         w.Put("Mood", v.Mood, o);
-        w.Put("Threshold", v.Threshold, o);
+        w.WriteNum("Threshold", v.Threshold);
         w.Put("Target", v.Target, o);
         w.Put("Food", v.Food, o);
         w.Put("Rest", v.Rest, o);
         w.Put("Joy", v.Joy, o);
-        w.Put("Mental", v.Mental, o);
-        w.Put("Dead", v.Dead, o);
-        w.Put("Downed", v.Downed, o);
-        w.Put("Drafted", v.Drafted, o);
-        w.Put("PlayerForced", v.PlayerForced, o);
+        w.WriteBoolean("Mental", v.Mental);
+        w.WriteBoolean("Dead", v.Dead);
+        w.WriteBoolean("Downed", v.Downed);
+        w.WriteBoolean("Drafted", v.Drafted);
+        w.WriteBoolean("PlayerForced", v.PlayerForced);
         w.Put("Thoughts", v.Thoughts, o);
+    }
+}
+
+/// <summary>A pawn's need level as a persisted state: <c>has</c> with its level, or <c>lacks</c> (#3768).</summary>
+internal sealed class NeedLevelConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.NeedLevel>
+{
+    protected override RimGovernor.Contracts.Wire.Observations.NeedLevel Read(JsonElement e, Codecs o) =>
+        e.Str("Kind") switch
+        {
+            "has" => new RimGovernor.Contracts.Wire.Observations.NeedLevel.Has(e.Dbl("Level")),
+            "lacks" => new RimGovernor.Contracts.Wire.Observations.NeedLevel.Lacks(),
+            var kind => throw new JsonException($"unknown need level {kind}"),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.NeedLevel v, Codecs o)
+    {
+        if (v is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has has)
+        {
+            w.WriteString("Kind", "has");
+            w.WriteNum("Level", has.Level);
+        }
+        else if (v is RimGovernor.Contracts.Wire.Observations.NeedLevel.Lacks)
+        {
+            w.WriteString("Kind", "lacks");
+        }
+        else
+        {
+            throw new JsonException($"unknown need level {v.GetType().Name}");
+        }
     }
 }
 

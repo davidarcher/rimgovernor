@@ -13,20 +13,20 @@ public sealed record RoundsRecoverySafety
     public EquatableArray<RoundsRecoveryRestriction> Restrictions { get; init; }
 }
 
-/// <summary>A persisted worker's observed state; every observation is unknown (null) or a value.</summary>
+/// <summary>A persisted worker's observed state, read whole from its pawn row (#3768).</summary>
 public sealed record RoundsRecoveryWorker
 {
     public PawnId Pawn { get; init; }
 
-    public bool? Dead { get; init; }
+    public bool Dead { get; init; }
 
-    public bool? Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public bool? Drafted { get; init; }
+    public bool Drafted { get; init; }
 
-    public bool? Mental { get; init; }
+    public bool Mental { get; init; }
 
-    public bool? PlayerForced { get; init; }
+    public bool PlayerForced { get; init; }
 }
 
 /// <summary>A persisted building's observed state; every observation is unknown (null) or a value.</summary>
@@ -102,11 +102,11 @@ public sealed record RoundsRecovery
                         workers.Select(v => new RecoveryWorker
                         {
                             Pawn = v.Pawn,
-                            Dead = PersistedFact.Of(v.Dead),
-                            Downed = PersistedFact.Of(v.Downed),
-                            Drafted = PersistedFact.Of(v.Drafted),
-                            Mental = PersistedFact.Of(v.Mental),
-                            PlayerForced = PersistedFact.Of(v.PlayerForced),
+                            Dead = v.Dead,
+                            Downed = v.Downed,
+                            Drafted = v.Drafted,
+                            Mental = v.Mental,
+                            PlayerForced = v.PlayerForced,
                         })
                     )
                 ),
@@ -163,11 +163,11 @@ public sealed partial class Store
                     workers.Select(v => new RoundsRecoveryWorker
                     {
                         Pawn = v.Pawn,
-                        Dead = PersistedFact.Value(v.Dead),
-                        Downed = PersistedFact.Value(v.Downed),
-                        Drafted = PersistedFact.Value(v.Drafted),
-                        Mental = PersistedFact.Value(v.Mental),
-                        PlayerForced = PersistedFact.Value(v.PlayerForced),
+                        Dead = v.Dead,
+                        Downed = v.Downed,
+                        Drafted = v.Drafted,
+                        Mental = v.Mental,
+                        PlayerForced = v.PlayerForced,
                     })
                 ),
             };

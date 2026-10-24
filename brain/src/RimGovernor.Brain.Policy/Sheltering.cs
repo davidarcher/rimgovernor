@@ -276,7 +276,7 @@ public static partial class ShelterRules
         {
             foreach (var worker in workers)
             {
-                if (!AreaKnownFalse(worker.Dead) || !AreaKnownFalse(worker.Downed) || !AreaKnownFalse(worker.Drafted) || !AreaKnownFalse(worker.Mental))
+                if (worker.Dead || worker.Downed || worker.Drafted || worker.Mental)
                 {
                     continue;
                 }
@@ -327,15 +327,7 @@ public static partial class ShelterRules
         var held = 0;
         foreach (var worker in workers)
         {
-            if (!AreaKnownFalse(worker.Dead) || !AreaKnownFalse(worker.Downed) || !AreaKnownFalse(worker.Mental))
-            {
-                continue;
-            }
-            if (!worker.Drafted.TryGetValue(out var drafted))
-            {
-                return false;
-            }
-            if (drafted)
+            if (worker.Dead || worker.Downed || worker.Mental || worker.Drafted)
             {
                 continue;
             }

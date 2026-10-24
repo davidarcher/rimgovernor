@@ -1,3 +1,5 @@
+using NeedLevel = RimGovernor.Contracts.Wire.Observations.NeedLevel;
+
 namespace RimGovernor.Brain.Policy;
 
 public enum MoodNeed
@@ -9,25 +11,34 @@ public enum MoodNeed
     Joy,
 }
 
+/// <summary>
+/// One colonist's mood evidence, read whole from its pawn row (#3768). A need the pawn does not have is
+/// <see cref="NeedLevel.Lacks"/>, never an absent number.
+/// </summary>
 public sealed record MoodPawn
 {
     /// <summary>The active native break; null when the pawn is in none.</summary>
     public MentalState? Break { get; init; }
-    public Fact<bool> HighExpectations { get; init; }
+    public bool HighExpectations { get; init; }
     public PawnId Id { get; init; }
-    public Fact<double> Mood { get; init; }
-    public Fact<double> Threshold { get; init; }
-    public Fact<double> Target { get; init; }
-    public Fact<double> Food { get; init; }
-    public Fact<double> Rest { get; init; }
-    public Fact<double> Joy { get; init; }
-    public Fact<bool> Mental { get; init; }
-    public Fact<bool> Dead { get; init; }
-    public Fact<bool> Downed { get; init; }
-    public Fact<bool> Drafted { get; init; }
-    public Fact<bool> PlayerForced { get; init; }
+    public NeedLevel Mood { get; init; } = new NeedLevel.Lacks();
+    public double Threshold { get; init; }
 
-    /// <summary>The pawn's observed thought rows, negative and positive, most negative first; unknown when the native social block was unreadable. Consumers must be sign-aware.</summary>
+    /// <summary>The forecast's mood target; its uncertainty belongs to the forecast family (#3783).</summary>
+    public Fact<double> Target { get; init; }
+    public NeedLevel Food { get; init; } = new NeedLevel.Lacks();
+    public NeedLevel Rest { get; init; } = new NeedLevel.Lacks();
+    public NeedLevel Joy { get; init; } = new NeedLevel.Lacks();
+    public bool Mental { get; init; }
+    public bool Dead { get; init; }
+    public bool Downed { get; init; }
+    public bool Drafted { get; init; }
+    public bool PlayerForced { get; init; }
+
+    /// <summary>
+    /// The pawn's observed thought rows, negative and positive, most negative first. Consumers must be sign-aware.
+    /// The forecasts' thought copies are Fact-typed, so this stays a fact until the forecast family hardens them (#3783).
+    /// </summary>
     public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
 
     public void Validate()
@@ -36,9 +47,13 @@ public sealed record MoodPawn
         {
             throw new DomainException("invalid mood pawn");
         }
-        foreach (var f in new[] { Mood, Threshold, Target, Food, Rest, Joy })
+        if (!double.IsFinite(Threshold) || !MoodRules.MoodNumber(Target))
         {
-            if (!MoodRules.MoodNumber(f))
+            throw new DomainException("nonfinite mood evidence");
+        }
+        foreach (var level in new[] { Mood, Food, Rest, Joy })
+        {
+            if (level is NeedLevel.Has { Level: var v } && !double.IsFinite(v))
             {
                 throw new DomainException("nonfinite mood evidence");
             }
@@ -50,7 +65,7 @@ public sealed record MoodPawn
 public sealed record MoodCause
 {
     public MoodNeed Need { get; init; }
-    public Fact<double> Level { get; init; }
+    public double Level { get; init; }
 }
 
 public sealed record MoodState
@@ -69,11 +84,7 @@ public sealed record MoodState
 
     public int Priority()
     {
-        if (MentalRisk)
-        {
-            return 1;
-        }
-        if (Pawn.Mental.TryGetValue(out var mental) && mental)
+        if (MentalRisk || Pawn.Mental)
         {
             return 1;
         }
@@ -86,15 +97,11 @@ public sealed record MoodState
         {
             return Finding.Unclear;
         }
-        var dk = Pawn.Dead.TryGetValue(out var dead);
-        var mk = Pawn.Mood.IsKnown;
-        var tk = Pawn.Threshold.IsKnown;
-        var mentalKnown = Pawn.Mental.TryGetValue(out var mental);
-        if (mentalKnown && mental)
+        if (Pawn.Mental)
         {
             return Finding.Unmet;
         }
-        if (!dk || dead || !mk || !tk || !mentalKnown)
+        if (Pawn.Dead || Pawn.Mood is not NeedLevel.Has)
         {
             return Finding.Unclear;
         }
@@ -131,22 +138,21 @@ public sealed record MoodHistory
                 throw new DomainException("mood state both provisioned and unowned");
             }
             seen.Add(s.Pawn.Id);
-            var mk = s.Pawn.Mood.TryGetValue(out var m);
-            var tk = s.Pawn.Threshold.TryGetValue(out var threshold);
-            var nk = s.Pawn.Mental.TryGetValue(out var mental);
+            var threshold = s.Pawn.Threshold;
             var pk = s.Pawn.Target.TryGetValue(out var target);
-            if (!s.Active && (s.Missing || s.MentalRisk || (nk && mental) || (mk && tk && (m <= threshold || (pk && target < m && target <= threshold)))))
+            if (!s.Active && (s.Missing || s.MentalRisk || s.Pawn.Mental
+                || (s.Pawn.Mood is NeedLevel.Has { Level: var m } && (m <= threshold || (pk && target < m && target <= threshold)))))
             {
                 throw new DomainException("observed mood risk marked inactive");
             }
             var causes = new HashSet<MoodNeed>();
             foreach (var c in s.Causes)
             {
-                if ((c.Need != MoodNeed.Food && c.Need != MoodNeed.Rest && c.Need != MoodNeed.Joy) || causes.Contains(c.Need) || !MoodRules.MoodNumber(c.Level))
+                if ((c.Need != MoodNeed.Food && c.Need != MoodNeed.Rest && c.Need != MoodNeed.Joy) || causes.Contains(c.Need) || !double.IsFinite(c.Level))
                 {
                     throw new DomainException("invalid mood cause");
                 }
-                if (c.Level.TryGetValue(out var level) && level >= .5)
+                if (c.Level >= .5)
                 {
                     throw new DomainException("recovered mood cause retained");
                 }
@@ -267,54 +273,31 @@ public static partial class MoodRules
                 }
                 seen.Add(p.Id);
                 var prior = old.GetValueOrDefault(p.Id) ?? new MoodState();
-                var mk = p.Mood.TryGetValue(out var m);
-                var tk = p.Threshold.TryGetValue(out var threshold);
-                var mentalKnown = p.Mental.TryGetValue(out var mental);
-                var mentalRisk = mentalKnown ? mental : prior.MentalRisk;
+                var threshold = p.Threshold;
+                var mentalRisk = p.Mental;
                 var active = prior.Active;
                 var drone = PsychicDroneMargin(p.Thoughts);
-                if (mk && tk)
+                // A pawn without a mood need keeps its prior activity: nothing measures it recovered.
+                if (p.Mood is NeedLevel.Has { Level: var m })
                 {
-                    var margin = Math.Max(MoodReliefMargin, drone);
-                    if (mentalKnown)
-                    {
-                        active = mental || m <= threshold + margin;
-                    }
-                    else if (m <= threshold + margin)
+                    active = p.Mental || m <= threshold + Math.Max(MoodReliefMargin, drone);
+                    if (p.Target.TryGetValue(out var target) && target < m && target <= threshold)
                     {
                         active = true;
                     }
                 }
-                if (mentalKnown && mental)
-                {
-                    active = true;
-                }
                 active = active || mentalRisk;
-                if (p.Target.TryGetValue(out var target) && mk && tk && target < m && target <= threshold)
-                {
-                    active = true;
-                }
                 var causes = new List<MoodCause>();
-                foreach (var (name, levelFact) in new[] { (MoodNeed.Food, p.Food), (MoodNeed.Rest, p.Rest), (MoodNeed.Joy, p.Joy) })
+                foreach (var (name, need) in new[] { (MoodNeed.Food, p.Food), (MoodNeed.Rest, p.Rest), (MoodNeed.Joy, p.Joy) })
                 {
-                    var retained = false;
-                    foreach (var c in prior.Causes)
-                    {
-                        retained = retained || c.Need == name;
-                    }
                     // Under a drone every need short of the relief target is a cause, so the early entry has a method to act on.
                     var limit = drone > 0 ? .5 : .3;
-                    var k = levelFact.TryGetValue(out var level);
-                    if ((k && level < limit) || (!k && retained))
+                    if (need is NeedLevel.Has { Level: var level } && level < limit)
                     {
-                        causes.Add(new MoodCause { Need = name, Level = levelFact });
+                        causes.Add(new MoodCause { Need = name, Level = level });
                     }
                 }
-                var sortedCauses = causes
-                    .OrderByDescending(c => c.Level.IsKnown)
-                    .ThenBy(c => c.Level.IsKnown ? c.Level.Value : 0)
-                    .ThenBy(c => c.Need)
-                    .ToList();
+                var sortedCauses = causes.OrderBy(c => c.Level).ThenBy(c => c.Need).ToList();
                 IReadOnlyList<MoodProvision> provision = MealMoodProvision(p, MoodProvisioning(p.Thoughts));
                 IReadOnlyList<MoodThought> unowned = [];
                 if (provision.Count == 0)
@@ -326,8 +309,8 @@ public static partial class MoodRules
                     provision = prior.Provision;
                     unowned = prior.Unowned;
                 }
-                // Death or unreadable availability cannot certify an active need recovered.
-                if (prior.Active && (!p.Dead.TryGetValue(out var dead) || dead))
+                // Death cannot certify an active need recovered.
+                if (prior.Active && p.Dead)
                 {
                     active = true;
                 }
@@ -371,7 +354,7 @@ public static partial class MoodRules
         {
             return r with { Reason = MoodMethodReason.Unavailable };
         }
-        if (s.Pawn.Mental.TryGetValue(out var mental) && mental)
+        if (s.Pawn.Mental)
         {
             return r with { Reason = MoodMethodReason.MentalBreak };
         }
@@ -379,12 +362,9 @@ public static partial class MoodRules
         {
             return r with { Reason = MoodMethodReason.Recovered };
         }
-        foreach (var f in new[] { s.Pawn.Dead, s.Pawn.Downed, s.Pawn.Drafted })
+        if (s.Pawn.Dead || s.Pawn.Downed || s.Pawn.Drafted)
         {
-            if (!f.TryGetValue(out var value) || value)
-            {
-                return r with { Reason = MoodMethodReason.PlayerWork };
-            }
+            return r with { Reason = MoodMethodReason.PlayerWork };
         }
         if (s.Provision.Count > 0)
         {
@@ -397,11 +377,11 @@ public static partial class MoodRules
         }
         foreach (var cause in s.Causes)
         {
-            if (!cause.Level.TryGetValue(out var level) || seen.Contains(cause.Need))
+            if (seen.Contains(cause.Need))
             {
                 continue;
             }
-            return r with { Need = cause.Need, Reason = MoodMethodReason.Relief, Target = .5, NeedBenefit = Known(.5 - level) };
+            return r with { Need = cause.Need, Reason = MoodMethodReason.Relief, Target = .5, NeedBenefit = Known(.5 - cause.Level) };
         }
         return r;
     }

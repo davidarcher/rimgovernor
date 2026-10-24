@@ -88,7 +88,7 @@ BuildingRuntime/Colony/ColonyExtent.cs|Fact|2
 BuildingRuntime/Colony/ColonyPlan.cs|Fact|11
 BuildingRuntime/Colony/ColonyPlanCut.cs|Fact|3
 BuildingRuntime/Colony/ColonyPlanCut.cs|Unknown|2
-BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|21
+BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|20
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Unknown|4
 BuildingRuntime/Colony/ColonyStatus.cs|Fact|24
 BuildingRuntime/Colony/ColonyStatus.cs|Unknown|7
@@ -464,7 +464,7 @@ Observation/FoodChannels.cs|Unknown|1
 Observation/FoodSupply.cs|Fact|7
 Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
-Observation/MealTier.cs|Fact|20
+Observation/MealTier.cs|Fact|18
 Observation/Observation.cs|Fact|4
 Observation/PlanningView.cs|Fact|29
 Observation/PlanningView.cs|Unknown|2
@@ -475,7 +475,7 @@ Observation/RitualSites.cs|Fact|7
 Observation/RitualSites.cs|Unknown|2
 Observation/RoundsContainment.cs|Fact|41
 Observation/RoundsContainment.cs|Unknown|20
-Observation/RoundsMood.cs|Fact|42
+Observation/RoundsMood.cs|Fact|36
 Observation/RoundsMood.cs|Unknown|8
 Observation/RoundsRead.cs|Fact|51
 Observation/RoundsRead.cs|Unknown|16
@@ -823,9 +823,8 @@ Policy/ForecastValueThermal.cs|Fact|2
 Policy/ForecastWorkInputs.cs|Fact|8
 Policy/FuelRunway.cs|Fact|19
 Policy/FuelRunway.cs|Unknown|3
-Policy/Gathering.cs|Fact|23
+Policy/Gathering.cs|Fact|19
 Policy/Gathering.cs|Unknown|2
-Policy/Gathering.cs|ValueOrDefault|1
 Policy/Gear.cs|Fact|49
 Policy/Gear.cs|NullableValue|2
 Policy/Gear.cs|UnknownMember|1
@@ -1022,10 +1021,10 @@ Policy/Military.cs|Fact|36
 Policy/Military.cs|Unknown|2
 Policy/Military.cs|ValueOrDefault|1
 Policy/Monolith.cs|Fact|33
-Policy/Mood.cs|Fact|47
+Policy/Mood.cs|Fact|15
 Policy/MoodLedger.cs|Fact|13
 Policy/MoodLedger.cs|Unknown|1
-Policy/MoodProvision.cs|Fact|7
+Policy/MoodProvision.cs|Fact|5
 Policy/Needs.cs|Fact|2
 Policy/OrderedWork.cs|Fact|4
 Policy/OrganHarvest.cs|Fact|62
@@ -1110,7 +1109,7 @@ Policy/ReadyWork.cs|Unknown|1
 Policy/Reconcile.cs|Discard|2
 Policy/RecoveryBatch.cs|Fact|2
 Policy/RecoveryMethod.cs|Discard|1
-Policy/RecoveryMethod.cs|Fact|36
+Policy/RecoveryMethod.cs|Fact|30
 Policy/RecoveryMethod.cs|NullableValue|2
 Policy/RecoveryMethod.cs|Unknown|6
 Policy/RecoveryQueue.cs|Fact|18
@@ -1168,7 +1167,7 @@ Policy/RoyaltyFamily.cs|Fact|5
 Policy/SafetyOverlay.cs|Fact|2
 Policy/Shelter.cs|Fact|11
 Policy/Shelter.cs|Unknown|1
-Policy/Sheltering.cs|Fact|35
+Policy/Sheltering.cs|Fact|34
 Policy/Sheltering.cs|Unknown|3
 Policy/SilverGap.cs|Fact|22
 Policy/SilverGap.cs|Unknown|6
@@ -1279,7 +1278,7 @@ Store/Codec/DomainActionConverter.cs|Discard|1
 Store/Codec/DomainActionConverter.cs|Fact|4
 Store/Codec/JsonKit.cs|Fact|7
 Store/Codec/PawnActivitiesConverter.cs|Fact|2
-Store/Codec/PolicyConverters.cs|Fact|53
+Store/Codec/PolicyConverters.cs|Fact|41
 Store/Codec/ProductionAdmissionCodecs.cs|Fact|25
 Store/Owners/ActivityContinuation.cs|Fact|6
 Store/Owners/Combat.cs|Fact|1

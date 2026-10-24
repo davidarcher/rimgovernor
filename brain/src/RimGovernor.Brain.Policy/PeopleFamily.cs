@@ -120,7 +120,7 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
     private static bool MoodMet(MoodState s)
     {
         var finding = s.Need();
-        if (finding == Finding.Unclear && !s.Missing && !RoundsRules.Positive(s.Pawn.Dead))
+        if (finding == Finding.Unclear && !s.Missing && !s.Pawn.Dead)
         {
             throw new RequiredFactException("mood of " + s.Pawn.Id.Value);
         }

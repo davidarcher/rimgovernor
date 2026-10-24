@@ -557,11 +557,18 @@ internal static class StationFactsBuilder
         var sum = 0.0;
         foreach (var p in rows)
         {
-            if (!p.Target.TryGetValue(out var level) && !p.Mood.TryGetValue(out level))
+            if (p.Target.TryGetValue(out var target))
+            {
+                sum += target;
+            }
+            else if (p.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood })
+            {
+                sum += mood;
+            }
+            else
             {
                 return Unknown<double>();
             }
-            sum += level;
         }
         return Known(sum / rows.Count);
     }
