@@ -1600,129 +1600,80 @@ public sealed record PawnMentalState
 }
 
 /// <summary>
-/// Biotech facts of one pawn. Each scalar is absent when native could
-/// not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
-/// for its field (genes, mechanitor, mech, deathrest). Defs are the
-/// DefinitionCatalog.biotech rows' names.
-/// life_stage is the pawn's LifeStageDef (Pawn_AgeTracker.CurLifeStage) and
-/// developmental_stage the DevelopmentalStage (Newborn, Baby, Child,
-/// Adult; None for a race with no stages). learning is Need_Learning's level
-/// (0-1) with its LearningCategory; absent for a pawn with no learning
-/// need. genes: every gene of Pawn_GeneTracker (endogenes and xenogenes).
-/// xenotype is the XenotypeDef name, absent for a custom xenotype or none;
-/// xenotype_name is the pawn's xenotype label (named custom xenotypes
-/// included) and hybrid the Pawn_GeneTracker.hybrid flag. mechanitor is set
-/// for a pawn with a Pawn_MechanitorTracker; mech for a mechanoid the player
-/// can ever control. deathrest is set for a pawn with a deathrest gene.
+/// Biotech facts of one pawn, read whole: a failed read fails the pawn read. developmental_stage is the
+/// DevelopmentalStage (Newborn, Baby, Child, Adult; None for a race with no stages). genes: every gene of the
+/// Pawn_GeneTracker (endogenes and xenogenes), empty for a pawn without one. mechanitor is set for a pawn with a
+/// Pawn_MechanitorTracker, mech for a mechanoid the player can ever control and deathrest for a pawn with a
+/// deathrest gene; each is null for none. Defs are the DefinitionCatalog.biotech rows' names.
 /// </summary>
-public sealed record PawnGene
+public sealed record PawnBiotech
 {
-    public string DefName { get; init; } = "";
+    public required Defs.DevelopmentalStage DevelopmentalStage { get; init; }
 
-    public bool Xenogene { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnGene>))]
+    public required EquatableArray<PawnGene> Genes { get; init; }
 
-    public bool Active { get; init; }
+    public required PawnMechanitor? Mechanitor { get; init; }
+
+    public required PawnMech? Mech { get; init; }
+
+    public required PawnDeathrest? Deathrest { get; init; }
 }
 
+/// <summary>One gene: its GeneDef name and whether it is active (false while another gene overrides it).</summary>
+public sealed record PawnGene
+{
+    public required string DefName { get; init; }
+
+    public required bool Active { get; init; }
+}
+
+/// <summary>A mechanitor's bandwidth (used, total, used by gestation), control group count and controlled mechs.</summary>
 public sealed record PawnMechanitor
 {
-    public int? UsedBandwidth { get; init; }
+    public required int UsedBandwidth { get; init; }
 
-    public int? TotalBandwidth { get; init; }
+    public required int TotalBandwidth { get; init; }
 
-    public int? UsedBandwidthFromGestation { get; init; }
+    public required int UsedBandwidthFromGestation { get; init; }
 
-    public int? ControlGroups { get; init; }
+    public required int ControlGroups { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> ControlledMechs { get; init; }
+    public required EquatableArray<Common.Ref> ControlledMechs { get; init; }
 }
 
 /// <summary>
-/// energy is the mech's Need_MechEnergy level (0-1); recharge_below and
-/// recharge_above are its control group's mechRechargeThresholds (0-1), the
-/// band the game itself recharges within; each is absent when not read.
+/// A controllable mech: its overseer (null without one), MechWorkModeDef (null without one), Need_MechEnergy level
+/// (0-1; null for a mech with no energy need) and control group (null outside one).
 /// </summary>
 public sealed record PawnMech
 {
-    public Common.Ref? Overseer { get; init; }
+    public required Common.Ref? Overseer { get; init; }
 
-    public string? WorkMode { get; init; }
+    public required string? WorkMode { get; init; }
 
-    public int? ControlGroup { get; init; }
+    public required double? Energy { get; init; }
 
-    public double? Energy { get; init; }
-
-    public double? RechargeBelow { get; init; }
-
-    public double? RechargeAbove { get; init; }
+    public required PawnMechGroup? Group { get; init; }
 }
 
+/// <summary>A mech's control group: its index and the group's mechRechargeThresholds band (0-1), within which the game recharges.</summary>
+public sealed record PawnMechGroup
+{
+    public required int Index { get; init; }
+
+    public required double RechargeBelow { get; init; }
+
+    public required double RechargeAbove { get; init; }
+}
+
+/// <summary>A deathrester: Need_Deathrest.Deathresting (false without the need) and Gene_Deathrest.DeathrestCapacity.</summary>
 public sealed record PawnDeathrest
 {
-    public bool? Deathresting { get; init; }
+    public required bool Deathresting { get; init; }
 
-    public double? Level { get; init; }
-
-    public int? LastDeathrestTick { get; init; }
-
-    public double? DeathrestPercent { get; init; }
-
-    public int? Capacity { get; init; }
-
-    public int? BoundBuildings { get; init; }
-
-    public bool? AutoWake { get; init; }
-}
-
-public sealed record PawnBiotech
-{
-    public string? LifeStage { get; init; }
-
-    public Defs.DevelopmentalStage? DevelopmentalStage { get; init; }
-
-    public double? Learning { get; init; }
-
-    public Defs.LearningCategory? LearningCategory { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnGene>))]
-    public EquatableArray<PawnGene> Genes { get; init; }
-
-    public string? Xenotype { get; init; }
-
-    public string? XenotypeName { get; init; }
-
-    public bool? Hybrid { get; init; }
-
-    public PawnMechanitor? Mechanitor { get; init; }
-
-    public PawnMech? Mech { get; init; }
-
-    public PawnDeathrest? Deathrest { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
-    /// <summary>
-    /// Gene lifecycle. xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
-    /// HediffComp_Disappears.ticksToDisappear of XenogermReplicating and
-    /// XenogerminationComa, 0 with no such hediff; in_extractor is a pawn held by a
-    /// Building_GeneExtractor (all three failed together: ReadIssue gene_lifecycle).
-    /// extractable is Building_GeneExtractor.CanAcceptPawn(pawn).Accepted on a spawned
-    /// humanlike pawn of a map with an owned extractor (true if any accepts) and
-    /// extractable_reason the game's refusal text, absent when no extractor gave one;
-    /// the whole verdict is absent with no extractor, an unspawned pawn or a ReadIssue
-    /// named extractable.
-    /// </summary>
-    public int? XenogermRegrowTicksLeft { get; init; }
-
-    public int? XenogermComaTicksLeft { get; init; }
-
-    public bool? InExtractor { get; init; }
-
-    public bool? Extractable { get; init; }
-
-    public string? ExtractableReason { get; init; }
+    public required int Capacity { get; init; }
 }
 
 public sealed record PawnFilter

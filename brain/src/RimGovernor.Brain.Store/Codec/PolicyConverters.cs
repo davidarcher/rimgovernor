@@ -1333,46 +1333,24 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
     protected override PawnBiotech Read(JsonElement e, Codecs o) =>
         new()
         {
-            LifeStage = e.Get<Fact<string>>("LifeStage", o),
             DevelopmentalStage = e.Get<Fact<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>>("DevelopmentalStage", o),
-            Learning = e.Get<Fact<double>>("Learning", o),
-            LearningCategory = e.Get<Fact<RimGovernor.Contracts.Wire.Defs.LearningCategory>>("LearningCategory", o),
             Genes = e.Get<Fact<EquatableArray<PawnGene>>>("Genes", o),
-            Xenotype = e.Get<Fact<string>>("Xenotype", o),
-            XenotypeName = e.Get<Fact<string>>("XenotypeName", o),
-            Hybrid = e.Get<Fact<bool>>("Hybrid", o),
             Effects = e.Get<Fact<GeneEffects>>("Effects", o),
             WorkMinAges = e.Get<Fact<IReadOnlyDictionary<WorkType, int>>>("WorkMinAges", o),
             Mechanitor = e.Get<Fact<PawnMechanitor?>>("Mechanitor", o),
             Mech = e.Get<Fact<PawnMech?>>("Mech", o),
             Deathrest = e.Get<Fact<PawnDeathrest?>>("Deathrest", o),
-            XenogermRegrowTicksLeft = e.Get<Fact<int>>("XenogermRegrowTicksLeft", o),
-            XenogermComaTicksLeft = e.Get<Fact<int>>("XenogermComaTicksLeft", o),
-            InExtractor = e.Get<Fact<bool>>("InExtractor", o),
-            Extractable = e.Get<Fact<bool>>("Extractable", o),
-            ExtractableReason = e.Get<Fact<string>>("ExtractableReason", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnBiotech v, Codecs o)
     {
-        w.Put("LifeStage", v.LifeStage, o);
         w.Put("DevelopmentalStage", v.DevelopmentalStage, o);
-        w.Put("Learning", v.Learning, o);
-        w.Put("LearningCategory", v.LearningCategory, o);
         w.Put("Genes", v.Genes, o);
-        w.Put("Xenotype", v.Xenotype, o);
-        w.Put("XenotypeName", v.XenotypeName, o);
-        w.Put("Hybrid", v.Hybrid, o);
         w.Put("Effects", v.Effects, o);
         w.Put("WorkMinAges", v.WorkMinAges, o);
         w.Put("Mechanitor", v.Mechanitor, o);
         w.Put("Mech", v.Mech, o);
         w.Put("Deathrest", v.Deathrest, o);
-        w.Put("XenogermRegrowTicksLeft", v.XenogermRegrowTicksLeft, o);
-        w.Put("XenogermComaTicksLeft", v.XenogermComaTicksLeft, o);
-        w.Put("InExtractor", v.InExtractor, o);
-        w.Put("Extractable", v.Extractable, o);
-        w.Put("ExtractableReason", v.ExtractableReason, o);
     }
 }
 
@@ -1382,23 +1360,13 @@ internal sealed class PawnDeathrestConverter : ObjectCodec<PawnDeathrest>
         new()
         {
             Deathresting = e.Get<Fact<bool>>("Deathresting", o),
-            Level = e.Get<Fact<double>>("Level", o),
-            LastDeathrestTick = e.Get<Fact<int>>("LastDeathrestTick", o),
-            DeathrestPercent = e.Get<Fact<double>>("DeathrestPercent", o),
             Capacity = e.Get<Fact<int>>("Capacity", o),
-            BoundBuildings = e.Get<Fact<int>>("BoundBuildings", o),
-            AutoWake = e.Get<Fact<bool>>("AutoWake", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnDeathrest v, Codecs o)
     {
         w.Put("Deathresting", v.Deathresting, o);
-        w.Put("Level", v.Level, o);
-        w.Put("LastDeathrestTick", v.LastDeathrestTick, o);
-        w.Put("DeathrestPercent", v.DeathrestPercent, o);
         w.Put("Capacity", v.Capacity, o);
-        w.Put("BoundBuildings", v.BoundBuildings, o);
-        w.Put("AutoWake", v.AutoWake, o);
     }
 }
 
@@ -1408,14 +1376,12 @@ internal sealed class PawnGeneConverter : ObjectCodec<PawnGene>
         new()
         {
             Name = e.Str("Name"),
-            Xenogene = e.Get<Fact<bool>>("Xenogene", o),
             Active = e.Get<Fact<bool>>("Active", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnGene v, Codecs o)
     {
         w.WriteString("Name", v.Name);
-        w.Put("Xenogene", v.Xenogene, o);
         w.Put("Active", v.Active, o);
     }
 }

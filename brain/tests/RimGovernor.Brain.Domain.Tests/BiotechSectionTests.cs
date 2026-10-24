@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
@@ -44,6 +45,38 @@ public sealed class BiotechSectionTests
         Assert.Equal(section, WireJson.Deserialize<O.BiotechSection>(json));
         Assert.Equal("""{"type":"inactive"}""", WireJson.Serialize(NoBiotech));
         Assert.Equal(NoBiotech, WireJson.Deserialize<O.BiotechSection>("""{"type":"inactive"}"""));
+    }
+
+    [Fact]
+    public void PawnBlockJsonRoundTripIsExact()
+    {
+        O.PawnBiotechState state = new O.PawnBiotechState.Active(new O.PawnBiotech
+        {
+            DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult,
+            Genes = [new O.PawnGene { DefName = "Hair_Black", Active = true }],
+            Mechanitor = null,
+            Mech = new O.PawnMech
+            {
+                Overseer = null,
+                WorkMode = "Work",
+                Energy = 0.5,
+                Group = new O.PawnMechGroup { Index = 1, RechargeBelow = 0.1, RechargeAbove = 1 },
+            },
+            Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 2 },
+        });
+
+        var json = WireJson.Serialize(state);
+
+        Assert.Equal(
+            """{"type":"active","facts":{"developmentalStage":"DEVELOPMENTAL_STAGE_ADULT","genes":[{"defName":"Hair_Black","active":true}],"mechanitor":null,"mech":{"overseer":null,"workMode":"Work","energy":0.5,"group":{"index":1,"rechargeBelow":0.1,"rechargeAbove":1}},"deathrest":{"deathresting":false,"capacity":2}}}""",
+            json);
+        Assert.Equal(state, WireJson.Deserialize<O.PawnBiotechState>(json));
+
+        var lifted = BiotechFactsRules.PawnBiotech(state).Value;
+        Assert.Equal((Fact.Known(1), Fact.Known(0.1)), (lifted.Mech.Value!.ControlGroup, lifted.Mech.Value.RechargeBelow));
+        Assert.Null(lifted.Mechanitor.Value);
+        Assert.Equal(Fact.Known(2), lifted.Deathrest.Value!.Capacity);
+        Assert.False(BiotechFactsRules.PawnBiotech(new O.PawnBiotechState.Inactive()).IsKnown);
     }
 
     [Fact]

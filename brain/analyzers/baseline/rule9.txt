@@ -8,7 +8,7 @@ Bridge.Contracts/Actions/Trade.cs|Discard|2
 Bridge.Contracts/Actions/Zones.cs|Discard|3
 Bridge.Contracts/Facts/AnomalyFacts.cs|Fact|2
 Bridge.Contracts/Facts/AnomalyFacts.cs|Unknown|1
-Bridge.Contracts/Facts/BiotechFacts.cs|Fact|12
+Bridge.Contracts/Facts/BiotechFacts.cs|Fact|2
 Bridge.Contracts/Facts/BiotechFacts.cs|Unknown|1
 Bridge.Contracts/Facts/CareConditions.cs|Fact|11
 Bridge.Contracts/Facts/CareConditions.cs|Unknown|2
@@ -350,7 +350,7 @@ Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|290
+Contracts/Observations.cs|NullableValue|268
 Contracts/Observations.cs|UnknownMember|3
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -1222,7 +1222,7 @@ Store/Codec/ActionPayloadConverters2.cs|Discard|5
 Store/Codec/DomainActionConverter.cs|Discard|1
 Store/Codec/DomainActionConverter.cs|Fact|4
 Store/Codec/JsonKit.cs|Fact|7
-Store/Codec/PolicyConverters.cs|Fact|41
+Store/Codec/PolicyConverters.cs|Fact|24
 Store/Codec/ProductionAdmissionCodecs.cs|Fact|25
 Store/Owners/ActivityContinuation.cs|Fact|6
 Store/Owners/Combat.cs|Fact|1

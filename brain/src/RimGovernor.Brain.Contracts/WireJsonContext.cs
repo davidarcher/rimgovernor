@@ -355,6 +355,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.PawnMechanitor), TypeInfoPropertyName = "ObservationsPawnMechanitor")]
 [JsonSerializable(typeof(EquatableArray<Common.Ref>), TypeInfoPropertyName = "EquatableArrayCommonRef")]
 [JsonSerializable(typeof(Observations.PawnMech), TypeInfoPropertyName = "ObservationsPawnMech")]
+[JsonSerializable(typeof(Observations.PawnMechGroup), TypeInfoPropertyName = "ObservationsPawnMechGroup")]
 [JsonSerializable(typeof(Observations.PawnDeathrest), TypeInfoPropertyName = "ObservationsPawnDeathrest")]
 [JsonSerializable(typeof(Observations.PawnBiotech), TypeInfoPropertyName = "ObservationsPawnBiotech")]
 [JsonSerializable(typeof(EquatableArray<Observations.PawnGene>), TypeInfoPropertyName = "EquatableArrayObservationsPawnGene")]

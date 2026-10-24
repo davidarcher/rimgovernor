@@ -1,164 +1,60 @@
 #nullable enable
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Biotech facts: the catalog's Biotech section (the game's role picks of
-    // mech work modes and the gene tuning constants; every other Biotech def
-    // is a row of the def mirror) and the per-pawn row block. Everything is
-    // absent without Biotech.
+    // The per-pawn Biotech row block: the developmental stage, the genes, and
+    // the mechanitor, mech and deathrest state. Inactive without Biotech; the
+    // block is read whole and a failed read throws and fails the pawn read.
     internal static class NativeBiotechFacts
     {
-        private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
-        private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+        private static double Finite(double value, string what) =>
+            double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException(what + " is not finite.") : value;
 
-        private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,
-            Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
-
-        // The pawn row block; inactive without Biotech.
         internal static Obs.PawnBiotechState State(Pawn pawn) =>
             ModsConfig.BiotechActive ? new Obs.PawnBiotechState.Active(Pawn(pawn)) : new Obs.PawnBiotechState.Inactive();
 
-        // A sub-read that throws leaves its fields absent and adds a ReadIssue named for it.
-        private static Obs.PawnBiotech Pawn(Pawn pawn)
+        private static Obs.PawnBiotech Pawn(Pawn pawn) => new Obs.PawnBiotech
         {
-            var row = new Obs.PawnBiotech();
-            try { if (Id(pawn.ageTracker?.CurLifeStage?.defName) is string stage) row = row with { LifeStage = stage }; }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("life_stage", ex)] }; }
-            try { row = row with { DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage }; }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("developmental_stage", ex)] }; }
-            try
-            {
-                if (pawn.needs?.learning is Need_Learning learning)
+            DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage,
+            Genes = pawn.genes is Pawn_GeneTracker genes
+                ? [.. genes.GenesListForReading.Select(g => new Obs.PawnGene { DefName = g.def.defName, Active = g.Active })]
+                : [],
+            Mechanitor = pawn.mechanitor is Pawn_MechanitorTracker tracker
+                ? new Obs.PawnMechanitor
                 {
-                    var level = learning.CurLevelPercentage;
-                    var category = (Defs.LearningCategory)(int)learning.CurCategory;
-                    if (Finite(level)) { row = row with { Learning = level }; row = row with { LearningCategory = category }; }
+                    UsedBandwidth = tracker.UsedBandwidth, TotalBandwidth = tracker.TotalBandwidth,
+                    UsedBandwidthFromGestation = tracker.UsedBandwidthFromGestation, ControlGroups = tracker.controlGroups.Count,
+                    ControlledMechs = [.. tracker.ControlledPawns.OrderBy(m => m.thingIDNumber).Select(m => NativeRef.Thing(m))],
                 }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("learning", ex)] }; }
-            try
-            {
-                if (pawn.genes is Pawn_GeneTracker genes)
-                {
-                    var list = new List<Obs.PawnGene>();
-                    foreach (var gene in genes.GenesListForReading)
-                        if (Id(gene.def?.defName) is string name)
-                            list.Add(new Obs.PawnGene { DefName = name, Xenogene = genes.IsXenogene(gene), Active = gene.Active });
-                    var xenotype = Id(genes.Xenotype?.defName);
-                    var label = PlacementPreviewOperation.Diagnostic(genes.XenotypeLabel ?? "");
-                    var hybrid = genes.hybrid;
-                    row = row with { Genes = [.. list] };
-                    if (xenotype != null) row = row with { Xenotype = xenotype };
-                    row = row with { XenotypeName = label };
-                    row = row with { Hybrid = hybrid };
-                }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("genes", ex)] }; }
-            try
-            {
-                if (pawn.mechanitor is Pawn_MechanitorTracker tracker)
-                {
-                    var mechanitor = new Obs.PawnMechanitor { UsedBandwidth = tracker.UsedBandwidth, TotalBandwidth = tracker.TotalBandwidth,
-                        UsedBandwidthFromGestation = tracker.UsedBandwidthFromGestation, ControlGroups = tracker.controlGroups.Count };
-                    foreach (var mech in tracker.ControlledPawns.OrderBy(m => m.thingIDNumber)) mechanitor = mechanitor with { ControlledMechs = [.. mechanitor.ControlledMechs, NativeRef.Thing(mech)] };
-                    row = row with { Mechanitor = mechanitor };
-                }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("mechanitor", ex)] }; }
-            try
-            {
-                if (pawn.RaceProps.IsMechanoid && MechanitorUtility.EverControllable(pawn))
-                {
-                    var mech = new Obs.PawnMech();
-                    if (MechanitorUtility.GetOverseer(pawn) is Pawn overseer) mech = mech with { Overseer = NativeRef.Thing(overseer) };
-                    if (Id(MechanitorUtility.GetMechWorkMode(pawn)?.defName) is string mode) mech = mech with { WorkMode = mode };
-                    if (MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup group) mech = mech with { ControlGroup = group.Index };
-                    if (pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy && Finite(energy.CurLevelPercentage)) mech = mech with { Energy = energy.CurLevelPercentage };
-                    row = row with { Mech = mech };
-                    // The group's own recharge band; a game without the field fails
-                    // this read loudly instead of inventing a threshold.
-                    try
-                    {
-                        if (MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup thresholdGroup)
-                        {
-                            var thresholds = BridgeCommon.PrivateInstanceField(typeof(MechanitorControlGroup), "mechRechargeThresholds")
-                                ?? throw new InvalidOperationException("MechanitorControlGroup.mechRechargeThresholds not found");
-                            var band = (FloatRange)thresholds.GetValue(thresholdGroup)!;
-                            if (Finite(band.min) && Finite(band.max)) { mech = mech with { RechargeBelow = band.min }; mech = mech with { RechargeAbove = band.max }; }
-                        }
-                    }
-                    catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("mech_thresholds", ex)] }; }
-                }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("mech", ex)] }; }
-            try
-            {
-                if (pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is Gene_Deathrest gene)
-                {
-                    var deathrest = new Obs.PawnDeathrest { Capacity = gene.DeathrestCapacity, BoundBuildings = gene.BoundBuildings.Count, AutoWake = gene.autoWake };
-                    if (gene.DeathrestNeed is Need_Deathrest need)
-                    {
-                        deathrest = deathrest with { Deathresting = need.Deathresting };
-                        if (Finite(need.CurLevelPercentage)) deathrest = deathrest with { Level = need.CurLevelPercentage };
-                        deathrest = deathrest with { LastDeathrestTick = need.lastDeathrestTick };
-                    }
-                    if (Finite(gene.DeathrestPercent)) deathrest = deathrest with { DeathrestPercent = gene.DeathrestPercent };
-                    row = row with { Deathrest = deathrest };
-                }
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("deathrest", ex)] }; }
-            try
-            {
-                var regrow = TicksLeft(pawn, HediffDefOf.XenogermReplicating);
-                var coma = TicksLeft(pawn, HediffDefOf.XenogerminationComa);
-                var inExtractor = pawn.ParentHolder is Building_GeneExtractor;
-                row = row with { XenogermRegrowTicksLeft = regrow };
-                row = row with { XenogermComaTicksLeft = coma };
-                row = row with { InExtractor = inExtractor };
-            }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("gene_lifecycle", ex)] }; }
-            try { row = Extractable(pawn, row); }
-            catch (Exception ex) { row = row with { Extractable = null, ExtractableReason = null, Issues = [.. row.Issues, Failed("extractable", ex)] }; }
-            return row;
-        }
+                : null,
+            Mech = pawn.RaceProps.IsMechanoid && MechanitorUtility.EverControllable(pawn) ? Mech(pawn) : null,
+            Deathrest = pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is Gene_Deathrest gene
+                ? new Obs.PawnDeathrest { Deathresting = gene.DeathrestNeed?.Deathresting ?? false, Capacity = gene.DeathrestCapacity }
+                : null,
+        };
 
-        // The hediff's HediffComp_Disappears.ticksToDisappear, 0 without the
-        // hediff; a hediff with no timer throws so the read is an issue, not 0.
-        private static int TicksLeft(Pawn pawn, HediffDef def)
+        private static Obs.PawnMech Mech(Pawn pawn) => new Obs.PawnMech
         {
-            var hediff = pawn.health?.hediffSet?.GetFirstHediffOfDef(def);
-            if (hediff == null) return 0;
-            var disappears = hediff.TryGetComp<HediffComp_Disappears>() ?? throw new InvalidOperationException(def.defName + " has no disappear timer");
-            return Math.Max(0, disappears.ticksToDisappear);
-        }
+            Overseer = MechanitorUtility.GetOverseer(pawn) is Pawn overseer ? NativeRef.Thing(overseer) : null,
+            WorkMode = MechanitorUtility.GetMechWorkMode(pawn)?.defName,
+            Energy = pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy ? Finite(energy.CurLevelPercentage, "mech energy") : null,
+            Group = MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup group ? Group(group) : null,
+        };
 
-        // The game's own Building_GeneExtractor.CanAcceptPawn verdict: true when
-        // any owned extractor of the pawn's map accepts, else the first refusal
-        // text. Absent for an unspawned or non-humanlike pawn or a map with no
-        // extractor.
-        private static Obs.PawnBiotech Extractable(Pawn pawn, Obs.PawnBiotech row)
+        // The group's own recharge band; a game without the field fails the
+        // read loudly instead of inventing a threshold.
+        private static Obs.PawnMechGroup Group(MechanitorControlGroup group)
         {
-            if (!pawn.Spawned || pawn.Map == null || !pawn.RaceProps.Humanlike || pawn.genes == null) return row;
-            var extractors = pawn.Map.listerBuildings.AllBuildingsColonistOfClass<Building_GeneExtractor>().OrderBy(e => e.thingIDNumber).ToList();
-            if (extractors.Count == 0) return row;
-            string? reason = null;
-            foreach (var extractor in extractors)
-            {
-                var verdict = extractor.CanAcceptPawn(pawn);
-                if (verdict.Accepted) return row with { Extractable = true };
-                if (reason == null && !string.IsNullOrEmpty(verdict.Reason)) reason = verdict.Reason;
-            }
-            row = row with { Extractable = false };
-            if (reason != null) row = row with { ExtractableReason = PlacementPreviewOperation.Diagnostic(reason) };
-            return row;
+            var thresholds = BridgeCommon.PrivateInstanceField(typeof(MechanitorControlGroup), "mechRechargeThresholds")
+                ?? throw new InvalidOperationException("MechanitorControlGroup.mechRechargeThresholds not found");
+            var band = (FloatRange)thresholds.GetValue(group)!;
+            return new Obs.PawnMechGroup { Index = group.Index, RechargeBelow = Finite(band.min, "recharge below"), RechargeAbove = Finite(band.max, "recharge above") };
         }
     }
 }

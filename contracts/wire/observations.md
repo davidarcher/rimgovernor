@@ -393,28 +393,22 @@ mechanoid race with an overseer-subject comp; its bandwidth cost is the race's
 `BandwidthCost` stat value) and the role modes, with `GeneTuning` carried
 through.
 
-`PawnState.biotech` (`PawnBiotech`) carries a pawn's life stage and
-developmental stage, learning need level and category, genes (endogene or
-xenogene, active or overridden), xenotype, mechanitor bandwidth and controlled
-mechs, a mech's overseer, work mode and control group index, and deathrest
-state. An absent scalar is unknown, never zero; a failed sub-read leaves its
-fields absent and adds a `ReadIssue` named `life_stage`, `developmental_stage`,
-`learning`, `genes`, `mechanitor`, `mech`, `deathrest`, `gene_lifecycle` or
-`extractable`. Gene-lifecycle fields: `xenogerm_regrow_ticks_left` and
-`xenogerm_coma_ticks_left` are the `HediffComp_Disappears` timers of
-`XenogermReplicating` and `XenogerminationComa` (known 0 with no such hediff;
-a pawn with regrow ticks left dies if extracted again), `in_extractor` a pawn
-held by a gene extractor, and `extractable` the game's own
-`Building_GeneExtractor.CanAcceptPawn` verdict (true when any owned extractor of
-the pawn's map accepts) with `extractable_reason`, the first refusal text (ASCII,
-absent when the game gave none). `extractable` is absent for an unspawned or
-non-humanlike pawn and on a map with no extractor, so the brain never reimplements the
-passOnDirectly, archite or coma rules. The brain lifts the block into
-`policy.PawnBiotech` on the work pawn (`WorkPawn.Biotech`) and the pawn
-profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
-Child) the Biotech block names; a colony without Biotech has no block and no
-child pawns, and a Biotech block without the stage fails the lift. Both are derived state held
-in memory (persistence-contracts.md); they add no store.
+`PawnState.biotech` (`PawnBiotechState`) is `inactive` without Biotech and
+otherwise `active` with the whole `PawnBiotech`: the developmental stage
+(Newborn, Baby, Child, Adult; None for a race with no stages), every gene of
+the gene tracker with its def and whether it is active (empty without a
+tracker), the mechanitor's bandwidth (used, total, used by gestation), control
+group count and controlled mechs, a controllable mech's overseer, work mode,
+energy level and control group (index and the group's recharge band), and a
+deathrester's deathresting flag and capacity. The mechanitor, mech and
+deathrest blocks are null for none, as are a mech's overseer, work mode,
+energy (no energy need) and group. Native reads the block whole; a failed read
+throws and fails the pawn read. The brain lifts the block into
+`policy.PawnBiotech` (`PawnBiotech.Of`) on the work pawn (`WorkPawn.Biotech`)
+and the pawn profile. `PawnProfile.Child` follows the developmental stage
+(Newborn, Baby, Child) the block names; a colony without Biotech has no block
+and no child pawns. The lifted block is journaled through the store codec
+(store schema 40).
 
 ## Odyssey defs and facts
 

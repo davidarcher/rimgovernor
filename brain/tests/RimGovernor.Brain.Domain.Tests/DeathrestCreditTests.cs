@@ -217,7 +217,7 @@ public sealed class DeathrestCreditTests
         // defs on ForecastObserved and the catalog's role rows, through DeathrestFurnitureOf as the round sets the credit's context.
         Obs.PlanningDefinition Row(string name, FurnitureRole role) =>
             new() { Name = name, Available = Known(true), Size = Known(new P.Bounds(1, 2)), RoomRoles = [role.Value] };
-        var worker = new WorkPawn { Id = new("pawn"), Biotech = BiotechFactsRules.PawnBiotech(new O.PawnBiotechState.Active(new O.PawnBiotech { Deathrest = new O.PawnDeathrest { Capacity = 1 } })) };
+        var worker = new WorkPawn { Id = new("pawn"), Biotech = BiotechFactsRules.PawnBiotech(new O.PawnBiotechState.Active(new O.PawnBiotech { DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null, Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 1 } })) };
         var colony = ColonyFactsCoreTests.Projection() with
         {
             WorkPawns = Known(EquatableArray.From([worker])),

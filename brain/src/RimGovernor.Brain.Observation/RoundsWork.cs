@@ -90,12 +90,6 @@ public static class RoundsWorkReads
     public static WorkPawn WorkPawnRow(O.PawnState row, DefinitionCatalog? catalog, Things things)
     {
         var defs = ColonyDecodeReads.RequireCatalog(catalog);
-        // Native always names an active Biotech pawn's developmental stage; a row without one is a contract break,
-        // not an adult.
-        if (row.Biotech is O.PawnBiotechState.Active { Facts.DevelopmentalStage: null })
-        {
-            throw new ObservationContractException($"pawn {(row.Pawn.Id ?? "")} has a Biotech block without a developmental stage");
-        }
         var w = WorkPawnRowFrom(row, defs);
         if (PrimaryWeapon(defs, row.Equipment, things, out var weapon))
         {

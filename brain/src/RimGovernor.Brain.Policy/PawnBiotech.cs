@@ -1,38 +1,22 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using Wire = RimGovernor.Contracts.Wire.Defs;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One pawn's Biotech facts as the row carries them. Every field is unknown when native did not read it; a
-/// null inside a known fact is a known absence (a pawn that is no mechanitor, no mech, no deathrester). The
-/// defs are the catalog's (bridge.BiotechCatalog).
+/// One pawn's Biotech facts as the row carries them. The row is read whole; a null inside a known fact is a known
+/// absence (a pawn that is no mechanitor, no mech, no deathrester). Effects and WorkMinAges are resolved from the
+/// catalog (bridge.BiotechCatalog) by the caller.
 /// </summary>
 public sealed record PawnBiotech
 {
-    /// <summary>The LifeStageDef name.</summary>
-    public Fact<string> LifeStage { get; init; }
-
     /// <summary>The game's DevelopmentalStage (Newborn, Baby, Child, Adult, None).</summary>
     public Fact<DevelopmentalStage> DevelopmentalStage { get; init; }
 
-    /// <summary>The learning need level (0-1); unknown for a pawn with no learning need.</summary>
-    public Fact<double> Learning { get; init; }
-
-    /// <summary>The learning need's LearningCategory.</summary>
-    public Fact<LearningCategory> LearningCategory { get; init; }
-
-    /// <summary>Every gene, endogene and xenogene.</summary>
+    /// <summary>Every gene, endogene and xenogene; empty for a pawn without a gene tracker.</summary>
     public Fact<EquatableArray<PawnGene>> Genes { get; init; }
-
-    /// <summary>The XenotypeDef name, known "" for a custom or no xenotype.</summary>
-    public Fact<string> Xenotype { get; init; }
-
-    /// <summary>The xenotype label.</summary>
-    public Fact<string> XenotypeName { get; init; }
-
-    public Fact<bool> Hybrid { get; init; }
 
     /// <summary>The active genes' combined typed effects, resolved from the catalog; known whenever Genes is.</summary>
     public Fact<GeneEffects> Effects { get; init; }
@@ -46,26 +30,15 @@ public sealed record PawnBiotech
 
     public Fact<PawnDeathrest?> Deathrest { get; init; }
 
-    /// <summary>
-    /// The ticks left on the pawn's XenogermReplicating hediff, known 0 with none. A pawn with regrow ticks
-    /// left dies if extracted again.
-    /// </summary>
-    public Fact<int> XenogermRegrowTicksLeft { get; init; }
-
-    /// <summary>The ticks left on the pawn's XenogerminationComa hediff, known 0 with none.</summary>
-    public Fact<int> XenogermComaTicksLeft { get; init; }
-
-    /// <summary>A pawn held by a gene extractor.</summary>
-    public Fact<bool> InExtractor { get; init; }
-
-    /// <summary>
-    /// The game's Building_GeneExtractor.CanAcceptPawn verdict (true when any owned extractor of the map
-    /// accepts). Unknown with no extractor, off the map or when the read failed.
-    /// </summary>
-    public Fact<bool> Extractable { get; init; }
-
-    /// <summary>The first refusal text, known "" when the game gave none.</summary>
-    public Fact<string> ExtractableReason { get; init; }
+    /// <summary>The pawn row's Biotech block as the policy reads it.</summary>
+    public static PawnBiotech Of(O.PawnBiotech b) => new()
+    {
+        DevelopmentalStage = Known(b.DevelopmentalStage),
+        Genes = Known(EquatableArray.From(b.Genes.Select(g => new PawnGene { Name = g.DefName, Active = Known(g.Active) }))),
+        Mechanitor = Known(b.Mechanitor is { } m ? PawnMechanitor.Of(m) : null),
+        Mech = Known(b.Mech is { } mech ? PawnMech.Of(mech) : null),
+        Deathrest = Known(b.Deathrest is { } d ? new PawnDeathrest { Deathresting = Known(d.Deathresting), Capacity = Known(d.Capacity) } : null),
+    };
 
     /// <summary>Reports whether the developmental stage is known and is a pre-adult one (Newborn, Baby, Child).</summary>
     public (bool Child, bool Known) IsChild()
@@ -90,8 +63,6 @@ public sealed record PawnGene
 {
     public string Name { get; init; } = "";
 
-    public Fact<bool> Xenogene { get; init; }
-
     public Fact<bool> Active { get; init; }
 }
 
@@ -108,12 +79,22 @@ public sealed record PawnMechanitor
 
     /// <summary>The mechs under the pawn's control.</summary>
     public IReadOnlyList<string> ControlledMechs { get; init; } = [];
+
+    internal static PawnMechanitor Of(O.PawnMechanitor m) => new()
+    {
+        UsedBandwidth = Known(m.UsedBandwidth),
+        TotalBandwidth = Known(m.TotalBandwidth),
+        GestationBandwidth = Known(m.UsedBandwidthFromGestation),
+        ControlGroups = Known(m.ControlGroups),
+        ControlledMechs = [.. m.ControlledMechs.Select(r => r.Id ?? "")],
+    };
 }
 
 /// <summary>
 /// A controllable mech's overseer (known "" when it has none), work mode (MechWorkModeDef name) and control
 /// group index. Energy is the Need_MechEnergy level (0-1); RechargeBelow and RechargeAbove are the control
-/// group's own recharge band (mechRechargeThresholds, 0-1).
+/// group's own recharge band (mechRechargeThresholds, 0-1). A mech with no work mode, energy need or control group
+/// leaves that fact unknown.
 /// </summary>
 public sealed record PawnMech
 {
@@ -128,22 +109,22 @@ public sealed record PawnMech
     public Fact<double> RechargeBelow { get; init; }
 
     public Fact<double> RechargeAbove { get; init; }
+
+    internal static PawnMech Of(O.PawnMech m) => new()
+    {
+        Overseer = m.Overseer?.Id ?? "",
+        WorkMode = m.WorkMode is { } mode ? Known(mode) : default,
+        Energy = m.Energy is { } energy ? Known(energy) : default,
+        ControlGroup = m.Group is { } g ? Known(g.Index) : default,
+        RechargeBelow = m.Group is { } below ? Known(below.RechargeBelow) : default,
+        RechargeAbove = m.Group is { } above ? Known(above.RechargeAbove) : default,
+    };
 }
 
-/// <summary>A deathrester's state.</summary>
+/// <summary>A deathrester's state: whether it deathrests now and its deathrest capacity.</summary>
 public sealed record PawnDeathrest
 {
     public Fact<bool> Deathresting { get; init; }
 
-    public Fact<double> Level { get; init; }
-
-    public Fact<int> LastDeathrestTick { get; init; }
-
-    public Fact<double> DeathrestPercent { get; init; }
-
     public Fact<int> Capacity { get; init; }
-
-    public Fact<int> BoundBuildings { get; init; }
-
-    public Fact<bool> AutoWake { get; init; }
 }
