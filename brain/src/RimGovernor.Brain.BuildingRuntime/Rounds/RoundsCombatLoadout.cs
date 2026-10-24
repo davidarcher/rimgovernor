@@ -37,10 +37,10 @@ public sealed partial class RoundsDefensePlanner
             var d = new LoadoutDefender { Candidate = facts, Primary = PrimaryDef(row, things) };
             if (live.TryGetValue(pawn, out var lp))
             {
-                d = d with { ShieldBelt = lp.ShieldBelt };
-                if (lp.Weapon != "")
+                d = d with { ShieldBelt = lp.Presence is CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } };
+                if (lp.Weapon is { } wielded)
                 {
-                    d = d with { Primary = lp.Weapon };
+                    d = d with { Primary = wielded };
                 }
             }
             try

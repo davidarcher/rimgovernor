@@ -42,16 +42,16 @@ public sealed class DefenseTierNodesTests
     [Fact]
     public void CombatFightsFromThePlansFiringAndLaneNodes()
     {
-        Assert.True(RoundsDefensePlanner.CombatLayoutOf(Staged()).TryGetValue(out var layout));
+        var layout = Assert.IsType<CombatLayout>(RoundsDefensePlanner.CombatLayoutOf(Staged()));
         Assert.Equal(Firing.Select(f => f.Cell), layout.Firing.ToArray());
         Assert.Equal(Firing.Select(f => f.Retreat), layout.Retreat.ToArray());
-        Assert.Equal(Known(Lane[^1]), layout.Choke);
+        Assert.Equal(new CombatChoke.Corridor(Lane[^1]), layout.Choke);
         Assert.Equal(Rotation.South, layout.Toward);
 
         // A plan without tier nodes gives combat no firing line and no choke.
-        Assert.True(RoundsDefensePlanner.CombatLayoutOf(LayoutPlan.OpeningPlan(Rotation.South)).TryGetValue(out var bare));
+        var bare = Assert.IsType<CombatLayout>(RoundsDefensePlanner.CombatLayoutOf(LayoutPlan.OpeningPlan(Rotation.South)));
         Assert.Empty(bare.Firing);
-        Assert.False(bare.Choke.TryGetValue(out _));
+        Assert.IsType<CombatChoke.NoCorridor>(bare.Choke);
     }
 
     [Fact]
@@ -229,10 +229,10 @@ public sealed class DefenseTierNodesTests
         l.Firing.Add(new LabCell(52, 53));
         l.Retreat.Add(new LabCell(48, 45));
         l.Retreat.Add(new LabCell(52, 45));
-        Assert.True(RoundsDefensePlanner.CombatLayoutOf(CombatLabLayout.Plan(l)).TryGetValue(out var layout));
+        var layout = Assert.IsType<CombatLayout>(RoundsDefensePlanner.CombatLayoutOf(CombatLabLayout.Plan(l)));
         Assert.Equal(new[] { new Cell(48, 53), new Cell(52, 53) }, layout.Firing.ToArray());
         Assert.Equal(new[] { new Cell(48, 45), new Cell(52, 45) }, layout.Retreat.ToArray());
-        Assert.Equal(Known(new Cell(50, 57)), layout.Choke);
+        Assert.Equal(new CombatChoke.Corridor(new Cell(50, 57)), layout.Choke);
         Assert.Equal(Rotation.South, layout.Toward);
     }
 }

@@ -25,26 +25,30 @@ public static partial class CombatHuntRules
             state[p.Id] = p;
         }
 
-        CombatPawnState S(PawnId id) => state.GetValueOrDefault(id) ?? new CombatPawnState();
-
         // A gunner whose weapon is outranged by any prey stays out of the squad.
         double preyRange = 0;
         foreach (var p in prey)
         {
-            preyRange = Math.Max(preyRange, p.WeaponRange);
+            preyRange = Math.Max(preyRange, p.WeaponFacts.Reach);
         }
 
         var roster = new HashSet<PawnId>(view.HuntHunters.Items);
         var gunners = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders.Items)
         {
-            var r = S(d.Id).WeaponRange;
+            // A defender with no pawn state in the view is not placed to hunt.
+            if (!state.TryGetValue(d.Id, out var s))
+            {
+                continue;
+            }
+
+            var r = s.WeaponFacts.Reach;
             if (r > 0 && r < preyRange)
             {
                 continue;
             }
 
-            if (roster.Contains(d.Id) && SquadDefenseRules.SquadDefenderEligible(d) && S(d.Id).WeaponFacts.Hunts())
+            if (roster.Contains(d.Id) && SquadDefenseRules.SquadDefenderEligible(d) && s.WeaponFacts.Hunts())
             {
                 gunners.Add(d);
             }
@@ -56,39 +60,20 @@ public static partial class CombatHuntRules
         }
 
         var top = prey[0].Id;
-        int sumX = 0, sumZ = 0, known = 0;
+        int sumX = 0, sumZ = 0;
         foreach (var p in prey)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                sumX += c.X;
-                sumZ += c.Z;
-                known++;
-            }
+            sumX += p.Cell.X;
+            sumZ += p.Cell.Z;
         }
 
         var roles = new List<CombatRole>(gunners.Count);
-        if (known == 0)
-        {
-            foreach (var g in gunners)
-            {
-                roles.Add(new CombatRole { Pawn = g.Id, Target = top, Ranged = true });
-            }
-
-            return CombatDecideRules.SortRoles(roles);
-        }
-
-        var centre = new Cell(sumX / known, sumZ / known);
+        var centre = new Cell(sumX / prey.Count, sumZ / prey.Count);
         var spread = PreySpread(prey, centre);
         foreach (var g in gunners)
         {
-            if (!S(g.Id).Cell.TryGetValue(out var at))
-            {
-                roles.Add(new CombatRole { Pawn = g.Id, Target = top, Ranged = true });
-                continue;
-            }
-
-            var cell = StageCell(at, centre, StageDistance(S(g.Id).WeaponRange, spread));
+            var s = state[g.Id];
+            var cell = StageCell(s.Cell, centre, StageDistance(s.WeaponFacts.Reach, spread));
             if (unreachable.Contains(cell))
             {
                 continue;
@@ -130,16 +115,13 @@ public static partial class CombatHuntRules
         );
     }
 
-    /// <summary>The farthest any placed prey stands from the group's centre.</summary>
+    /// <summary>The farthest any prey stands from the group's centre.</summary>
     private static double PreySpread(IReadOnlyList<CombatPawnState> prey, Cell centre)
     {
         var spread = 0.0;
         foreach (var p in prey)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                spread = Math.Max(spread, Distance(c, centre));
-            }
+            spread = Math.Max(spread, Distance(p.Cell, centre));
         }
 
         return spread;
@@ -165,7 +147,7 @@ public static partial class CombatHuntRules
         double preyRange = 0;
         foreach (var p in prey)
         {
-            preyRange = Math.Max(preyRange, p.WeaponRange);
+            preyRange = Math.Max(preyRange, p.WeaponFacts.Reach);
         }
 
         var states = view.Pawns.Items.ToDictionary(p => p.Id);
@@ -179,8 +161,14 @@ public static partial class CombatHuntRules
             }
 
             var reasons = SquadDefenseRules.SquadDefenderReasons(d);
-            var state = states.GetValueOrDefault(id) ?? new CombatPawnState();
-            if (state.WeaponRange > 0 && state.WeaponRange < preyRange)
+            if (!states.TryGetValue(id, out var state))
+            {
+                reasons.Add("not_in_view");
+                output.Add(id + ":" + string.Join("|", reasons));
+                continue;
+            }
+
+            if (state.WeaponFacts.Reach > 0 && state.WeaponFacts.Reach < preyRange)
             {
                 reasons.Add("outranged");
             }
@@ -225,12 +213,12 @@ public static partial class CombatHuntRules
     /// </summary>
     internal static bool PreyOutOfReach(CombatView view, CombatMemory m)
     {
-        var cells = new Dictionary<PawnId, Fact<Cell>>();
+        var cells = new Dictionary<PawnId, Cell>();
         var ranges = new Dictionary<PawnId, double>();
         foreach (var p in view.Pawns.Items)
         {
             cells[p.Id] = p.Cell;
-            ranges[p.Id] = p.WeaponRange;
+            ranges[p.Id] = p.WeaponFacts.Reach;
         }
 
         var prey = CombatThreatRules.RankThreats(view).Select(p => p.Id).ToHashSet();
@@ -246,9 +234,13 @@ public static partial class CombatHuntRules
                 return true;
             }
 
-            var from = r.Cell is { } c ? Known(c) : cells.GetValueOrDefault(r.Pawn);
+            if (!cells.TryGetValue(r.Target, out var target))
+            {
+                continue;
+            }
+
             var range = ranges.GetValueOrDefault(r.Pawn);
-            if (range > 0 && from.TryGetValue(out var at) && cells.GetValueOrDefault(r.Target).TryGetValue(out var target) && Distance(at, target) > range)
+            if (range > 0 && (r.Cell is { } c ? c : cells.TryGetValue(r.Pawn, out var own) ? own : (Cell?)null) is { } at && Distance(at, target) > range)
             {
                 return true;
             }

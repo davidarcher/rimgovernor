@@ -45,14 +45,14 @@ public sealed partial class RoundsDefensePlanner
             {
                 strip = StripStateOf(p.Journal, plan, call);
             }
-            switch (CombatThreatRules.PostFightNext(ApparelWorn(combat.Detail.TryGetValue(id.Value, out var worn) ? worn : null), strip))
+            switch (CombatThreatRules.PostFightNext(ApparelOf(combat.Detail, id), strip))
             {
                 case PostFightStep.Wait:
                     return (new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan }, true);
                 case PostFightStep.Strip:
                     return (CommitStrip(state.Snapshot, id, call, epoch), true);
             }
-            if (CombatThreatRules.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted }))
+            if (CombatThreatRules.CaptureWorthy(raider.LuciferiumAddicted))
             {
                 continue; // stripped; the custody capture takes it
             }
@@ -99,7 +99,7 @@ public sealed partial class RoundsDefensePlanner
         var batch = CombatBatchPlan(fightPlan, label, drafts, orders);
         var (results, sent) = await SendCombatBatchAsync(state, fightPlan, label, drafts, orders, call).ConfigureAwait(false);
         (results, memory) = RecordDrafts(fightPlan, drafts, results, memory, call);
-        var next = CombatStopMemory(new CombatView { Tick = tick }, sent, results, memory);
+        var next = CombatStopMemory([], sent, results, memory);
         if (sent.Count > 0)
         {
             p.Journal.RecordCombatStop(fightPlan, batch.Id, sent.Count, next, call);
@@ -133,13 +133,14 @@ partial class RoundsDefensePlanner
         return output;
     }
 
-    internal static Fact<bool> ApparelWorn(O.PawnState? row)
+    /// <summary>What the frame's pawn table shows the raider wearing.</summary>
+    internal static RaiderApparel ApparelOf(Pawns detail, PawnId raider)
     {
-        if (row is null)
+        if (!detail.TryGetValue(raider.Value, out var row))
         {
-            return Unknown<bool>();
+            return RaiderApparel.NotInFrame;
         }
-        return Known(row.Equipment.Apparel.Count > 0);
+        return row.Equipment.Apparel.Count > 0 ? RaiderApparel.Wearing : RaiderApparel.Bare;
     }
 
     internal static StripState StripStateOf(StoreJournal journal, PlanId id, CancellationToken call)

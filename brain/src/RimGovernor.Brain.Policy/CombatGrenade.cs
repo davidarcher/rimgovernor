@@ -11,13 +11,13 @@ public static partial class CombatGrenadeRules
     /// Candidates are the live hostiles' cells in the carrier's range; each scores the hostiles inside the
     /// blast (EMP: only shielded or mech hostiles), and a cell within the scatter clearance of a colonist is
     /// rejected. Most hits wins, then the nearer cell, then the lower x, z. A carrier whose primary is not an
-    /// area weapon, or with no cell, gets none.
+    /// area weapon gets none.
     /// </summary>
     public static Cell? GrenadeTarget(CombatPawnState carrier, IReadOnlyList<CombatPawnState> hostiles, IReadOnlyList<Cell> colonists)
     {
         var blast = carrier.WeaponFacts.Blast;
-        var known = carrier.Cell.TryGetValue(out var from);
-        if (blast <= 0 || !known)
+        var from = carrier.Cell;
+        if (blast <= 0)
         {
             return null;
         }
@@ -29,7 +29,8 @@ public static partial class CombatGrenadeRules
         var worth = new List<Cell>();
         foreach (var h in hostiles)
         {
-            if (!h.Cell.TryGetValue(out var c) || h.Dead || h.Downed)
+            var c = h.Cell;
+            if (h.Dead || h.Downed)
             {
                 continue;
             }
@@ -47,7 +48,7 @@ public static partial class CombatGrenadeRules
     }
 
     /// <summary>The carrier's range: its weapon range, else the def's.</summary>
-    internal static double GrenadeReach(CombatPawnState carrier) => carrier.WeaponRange > 0 ? carrier.WeaponRange : carrier.WeaponFacts.Range;
+    internal static double GrenadeReach(CombatPawnState carrier) => carrier.WeaponFacts.Reach > 0 ? carrier.WeaponFacts.Reach : carrier.WeaponFacts.Range;
 
     /// <summary>The candidate cell in reach, clear of colonists, whose blast covers the most worth cells: then the nearer, then the lower x, z.</summary>
     internal static Cell? BestGround(Cell from, double reach, double blast, IReadOnlyList<Cell> cells, IReadOnlyList<Cell> worth, IReadOnlyList<Cell> colonists)
@@ -89,7 +90,7 @@ public static partial class CombatGrenadeRules
     }
 
     /// <summary>A hostile an EMP disables: a worn shield or a mechanoid.</summary>
-    private static bool EmpWorth(CombatPawnState h) => h.Shield.IsKnown || IsMech(h);
+    private static bool EmpWorth(CombatPawnState h) => h.Presence is CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } || IsMech(h);
 
     /// <summary>A mechanoid pawn.</summary>
     internal static bool IsMech(CombatPawnState h) => h.Mech;
@@ -119,9 +120,9 @@ public static partial class CombatGrenadeRules
         var colonists = new List<Cell>();
         foreach (var d in view.Defenders.Items)
         {
-            if (state.TryGetValue(d.Id, out var s) && !s.Dead && s.Cell.TryGetValue(out var c))
+            if (state.TryGetValue(d.Id, out var s) && !s.Dead)
             {
-                colonists.Add(c);
+                colonists.Add(s.Cell);
             }
         }
 
@@ -132,14 +133,11 @@ public static partial class CombatGrenadeRules
                 continue;
             }
 
-            var carrier = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
-            if (r.Cell is { } held)
+            // A role whose pawn is not in the view throws nothing; one with a held cell aims from it, so the
+            // throw waits until the pawn is there.
+            if (!state.TryGetValue(r.Pawn, out var carrier) || (r.Cell is { } held && carrier.Cell != held))
             {
-                // Aim from the held cell: the throw waits until the pawn is there.
-                if (!carrier.Cell.TryGetValue(out var at) || at != held)
-                {
-                    continue;
-                }
+                continue;
             }
 
             if (CombatMechRules.GrenadeAim(view, m, carrier, hostiles, colonists) is { } c2)

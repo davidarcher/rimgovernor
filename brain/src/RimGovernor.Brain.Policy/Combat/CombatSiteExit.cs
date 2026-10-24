@@ -17,7 +17,7 @@ public static partial class CombatSiteExitRules
         IReadOnlyDictionary<PawnId, CombatPawnState> state,
         IReadOnlySet<PawnId> orderable)
     {
-        if (!view.SiteExit.TryGetValue(out var exit) || exit.Cells.Count == 0)
+        if (view.SiteExit is not { } exit || exit.Cells.Count == 0)
         {
             return (m, [], false);
         }
@@ -53,7 +53,8 @@ public static partial class CombatSiteExitRules
                     available = true;
                     continue;
                 }
-                if (pawn.Cell.TryGetValue(out var at) && CombatManhunterRules.Distance2(at, candidate) < CombatManhunterRules.Distance2(at, cell))
+                var at = pawn.Cell;
+                if (CombatManhunterRules.Distance2(at, candidate) < CombatManhunterRules.Distance2(at, cell))
                 {
                     cell = candidate;
                 }

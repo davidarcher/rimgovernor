@@ -50,17 +50,15 @@ public static partial class CombatBlockingRules
     /// </summary>
     internal static BlockingChokeCells? BlockingChoke(CombatView view)
     {
-        if (!view.Layout.TryGetValue(out var layout))
+        if (view.Layout is not { } layout)
         {
             return null;
         }
 
-        var ok = layout.Choke.TryGetValue(out var choke);
-        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         var (rest, _) = CombatTankRules.SplitTanks(view);
 
         // A manhunter pack with an exploder is never melee-blocked.
-        if (!ok || !vok || Brawlers(rest).Count == 0 || (CombatManhunterRules.ManhunterPack(view) && CombatManhunterRules.LiveExploders(view).Count > 0))
+        if (layout.Choke is not CombatChoke.Corridor { Cell: var choke } || !DefensePositions.TowardVector(layout.Toward, out var v) || Brawlers(rest).Count == 0 || (CombatManhunterRules.ManhunterPack(view) && CombatManhunterRules.LiveExploders(view).Count > 0))
         {
             return null;
         }
@@ -92,9 +90,7 @@ public static partial class CombatBlockingRules
     /// </summary>
     internal static Func<Cell, bool>? ChokeHeld(CombatView view, CombatLayout layout)
     {
-        var ok = layout.Choke.TryGetValue(out var choke);
-        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
-        if (!ok || !vok)
+        if (layout.Choke is not CombatChoke.Corridor { Cell: var choke } || !DefensePositions.TowardVector(layout.Toward, out var v))
         {
             return null;
         }
@@ -106,8 +102,8 @@ public static partial class CombatBlockingRules
         var blocked = false;
         foreach (var p in view.Pawns.Items)
         {
-            var known = p.Cell.TryGetValue(out var at);
-            if (colonist.Contains(p.Id) && !p.Dead && !p.Downed && known && Near(at, 1) && Project(at) == 1)
+            var at = p.Cell;
+            if (colonist.Contains(p.Id) && !p.Dead && !p.Downed && Near(at, 1) && Project(at) == 1)
             {
                 blocked = true;
             }
@@ -261,7 +257,8 @@ public static partial class CombatBlockingRules
         var back = m.Roles[reserve].Cell;
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var at) && p.Id == m.Roles[reserve].Pawn)
+            var at = p.Cell;
+            if (p.Id == m.Roles[reserve].Pawn)
             {
                 back = at;
             }

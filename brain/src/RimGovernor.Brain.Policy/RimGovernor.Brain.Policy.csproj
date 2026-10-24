@@ -52,6 +52,7 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
     <!-- The native health and surgery rows the care planners read (#3788). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.Hediff" Alias="Hediff" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BleedOut" Alias="BleedOut" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnConditions" Alias="PawnConditions" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.HediffTend" Alias="HediffTend" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.HediffImmunity" Alias="HediffImmunity" />

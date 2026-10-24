@@ -21,7 +21,7 @@ public static partial class CombatExplosivesRules
     /// </summary>
     internal static List<Cell> ExplosiveCells(CombatView view, List<Cell> cells, IReadOnlyList<CombatPawnState> explosive)
     {
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             foreach (var c in layout.Retreat.Items)
             {
@@ -33,7 +33,7 @@ public static partial class CombatExplosivesRules
         }
 
         bool Reached(Cell c) =>
-            explosive.Any(h => h.Cell.TryGetValue(out var at) && h.WeaponRange > 0 && Math.Sqrt((((double)c.X - at.X) * ((double)c.X - at.X)) + (((double)c.Z - at.Z) * ((double)c.Z - at.Z))) <= h.WeaponRange);
+            explosive.Any(h => h.Cell is var at && h.WeaponFacts.Reach > 0 && Math.Sqrt((((double)c.X - at.X) * ((double)c.X - at.X)) + (((double)c.Z - at.Z) * ((double)c.Z - at.Z))) <= h.WeaponFacts.Reach);
 
         var output = cells.Where(c => !Reached(c)).ToList();
         foreach (var c in cells)
@@ -67,23 +67,20 @@ public static partial class CombatExplosivesRules
 
         foreach (var r in m.Roles)
         {
-            state.TryGetValue(r.Pawn, out var s);
-            if (s is null || !s.ShieldBelt || r.Ranged || r.Mortar is not null)
+            if (!state.TryGetValue(r.Pawn, out var s) || s.Presence is not CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } || r.Ranged || r.Mortar is not null)
             {
                 continue;
             }
 
             var target = rockets[0].Id;
-            if (s.Cell.TryGetValue(out var at))
+            var at = s.Cell;
+            long best = -1;
+            foreach (var h in rockets)
             {
-                long best = -1;
-                foreach (var h in rockets)
+                if (best < 0 || CombatManhunterRules.Distance2(at, h.Cell) < best)
                 {
-                    if (h.Cell.TryGetValue(out var c) && (best < 0 || CombatManhunterRules.Distance2(at, c) < best))
-                    {
-                        target = h.Id;
-                        best = CombatManhunterRules.Distance2(at, c);
-                    }
+                    target = h.Id;
+                    best = CombatManhunterRules.Distance2(at, h.Cell);
                 }
             }
 

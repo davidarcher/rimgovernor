@@ -59,9 +59,9 @@ public static partial class CombatAnimalsRules
     /// <summary>... and beyond 20 of every live colonist is shot.</summary>
     private const int EnrageFar = 20 * 20;
 
-    /// <summary>The live colony animals with a known cell, by id.</summary>
+    /// <summary>The live colony animals, by id.</summary>
     private static List<CombatPawnState> ColonyAnimals(CombatView view) =>
-        [.. view.Pawns.Items.Where(p => p.Cell.IsKnown && p.Animal && !p.Dead && !p.Downed)];
+        [.. view.Pawns.Items.Where(p => p.Animal && !p.Dead && !p.Downed)];
 
     /// <summary>What each colony animal should be doing this stop.</summary>
     private static Dictionary<PawnId, AnimalOrder> AnimalWants(CombatView view, CombatMemory m)
@@ -78,8 +78,7 @@ public static partial class CombatAnimalsRules
         {
             foreach (var p in animals)
             {
-                p.Cell.TryGetValue(out var at);
-                Zone(p, OffDoor(view, at));
+                Zone(p, OffDoor(view, p.Cell));
             }
         }
         else if (CombatExplosivesRules.ExplosiveHostiles(view).Count > 0)
@@ -112,8 +111,7 @@ public static partial class CombatAnimalsRules
                         continue;
                     }
 
-                    p.Cell.TryGetValue(out var at);
-                    want[p.Id] = new AnimalOrder { Pawn = p.Id, Kind = CombatOrderKind.Release, Target = ids[CombatManhunterRules.NearestIndex(at, cells)] };
+                    want[p.Id] = new AnimalOrder { Pawn = p.Id, Kind = CombatOrderKind.Release, Target = ids[CombatManhunterRules.NearestIndex(p.Cell, cells)] };
                 }
             }
         }
@@ -149,7 +147,7 @@ public static partial class CombatAnimalsRules
                 output.Add(new CombatOrder { Pawn = had.Pawn, Kind = CombatOrderKind.AnimalClear, Reason = CombatOrderReason.Animal });
                 want.Remove(had.Pawn);
             }
-            else if (wanted && w == had && (w!.Kind == CombatOrderKind.AnimalArea || s.Target == w.Target || s.Stance != CombatStance.Idle))
+            else if (wanted && w == had && (w!.Kind == CombatOrderKind.AnimalArea || s.Presence is not CombatPresence.Engaged { Row.Stance: CombatStance.Idle } || s.Presence is CombatPresence.Engaged { Row.Target: var target } && target == w.Target))
             {
                 // Already doing it.
                 kept.Add(had);
@@ -223,9 +221,9 @@ public static partial class CombatAnimalsRules
 
             foreach (var p in view.Pawns.Items)
             {
-                if (p.Cell.TryGetValue(out var c) && p.Id == d.Id && !p.Dead && !p.Downed)
+                if (p.Id == d.Id && !p.Dead && !p.Downed)
                 {
-                    ours.Add(c);
+                    ours.Add(p.Cell);
                 }
             }
         }
@@ -233,7 +231,8 @@ public static partial class CombatAnimalsRules
         var output = new List<Cell>();
         foreach (var h in explosive)
         {
-            if (!h.Cell.TryGetValue(out var at) || ours.Count == 0)
+            var at = h.Cell;
+            if (ours.Count == 0)
             {
                 continue;
             }
@@ -255,7 +254,7 @@ public static partial class CombatAnimalsRules
     /// </summary>
     private static Cell? AnimalChoke(CombatView view)
     {
-        if (!view.Layout.TryGetValue(out var layout) || !layout.Choke.TryGetValue(out var choke))
+        if (view.Layout is not { } layout || layout.Choke is not CombatChoke.Corridor { Cell: var choke })
         {
             return null;
         }
@@ -344,9 +343,9 @@ public static partial class CombatAnimalsRules
         {
             foreach (var p in view.Pawns.Items)
             {
-                if (p.Cell.TryGetValue(out var c) && p.Id == d.Id && !p.Dead && !p.Downed)
+                if (p.Id == d.Id && !p.Dead && !p.Downed)
                 {
-                    ours.Add(c);
+                    ours.Add(p.Cell);
                 }
             }
         }
@@ -354,9 +353,8 @@ public static partial class CombatAnimalsRules
         CombatPawnState? best = null;
         foreach (var p in view.Pawns.Items)
         {
-            var atKnown = p.Cell.TryGetValue(out var at);
-            var healthKnown = p.Health.TryGetValue(out var h);
-            if (!atKnown || !p.Wild || p.Dead || p.Downed || (healthKnown && h < 1))
+            var at = p.Cell;
+            if (!p.Wild || p.Dead || p.Downed || p.Health < 1)
             {
                 continue;
             }
@@ -394,19 +392,17 @@ public static partial class CombatAnimalsRules
             return orders;
         }
 
-        wild.Cell.TryGetValue(out var at);
+        var at = wild.Cell;
         PawnId gunner = default;
         var bestD = -1L;
         foreach (var r in roles)
         {
-            var s = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
-            var known = s.Cell.TryGetValue(out var c);
-            if (!r.Ranged || !orderable.Contains(r.Pawn) || !known || s.Dead || s.Downed)
+            if (!r.Ranged || !orderable.Contains(r.Pawn) || !state.TryGetValue(r.Pawn, out var s) || s.Dead || s.Downed)
             {
                 continue;
             }
 
-            var d = CombatManhunterRules.Distance2(at, c);
+            var d = CombatManhunterRules.Distance2(at, s.Cell);
             if (bestD < 0 || d < bestD)
             {
                 gunner = r.Pawn;
@@ -414,7 +410,7 @@ public static partial class CombatAnimalsRules
             }
         }
 
-        if (gunner == default || (state.GetValueOrDefault(gunner)?.Target ?? default) == wild.Id)
+        if (gunner == default || state[gunner].Presence is CombatPresence.Engaged { Row.Target: var target } && target == wild.Id)
         {
             return orders;
         }

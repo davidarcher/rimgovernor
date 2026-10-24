@@ -12,7 +12,7 @@ public static partial class CombatTankRules
         var charged = new HashSet<PawnId>();
         foreach (var p in view.Pawns)
         {
-            if (p.Shield.TryGetValue(out var s) && s > 0)
+            if (p.Presence is CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn { Energy: > 0 } })
             {
                 charged.Add(p.Id);
             }

@@ -16,21 +16,19 @@ public static partial class CombatSiegeRules
     /// HarassReach of <paramref name="reach"/>. With <paramref name="back"/>, a gunner already closer than that
     /// falls back along the same line to the stand-off.
     /// </summary>
-    internal static CombatRole HarassTarget(CombatRole r, Cell at, double reach, IReadOnlyList<CombatPawnState> targets, bool back)
+    internal static CombatRole HarassTarget(CombatRole r, Cell at, double reach, IReadOnlyList<(PawnId Id, Cell Cell)> targets, bool back)
     {
         var target = targets[0];
         foreach (var h in targets.Skip(1))
         {
-            h.Cell.TryGetValue(out var c);
-            target.Cell.TryGetValue(out var b);
-            if (CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(b, at))
+            if (CombatManhunterRules.Distance2(h.Cell, at) < CombatManhunterRules.Distance2(target.Cell, at))
             {
                 target = h;
             }
         }
         var want = HarassReach * reach;
-        var cell = CombatSapperRules.StandOffAt(target, at, want);
-        target.Cell.TryGetValue(out var t);
+        var cell = CombatSapperRules.StandOffAt(target.Cell, at, want);
+        var t = target.Cell;
         if (back && cell == at && at != t)
         {
             double dx = at.X - t.X;
@@ -50,16 +48,16 @@ public static partial class CombatSiegeRules
     internal static List<CombatRole> HarassRoles(CombatView view, IReadOnlyList<CombatRole> roles)
     {
         var besiegers = LiveBesiegers(view);
-        var camp = new List<CombatPawnState>();
+        var camp = new List<(PawnId Id, Cell Cell)>();
         var theirs = 0.0;
         var state = new Dictionary<PawnId, CombatPawnState>();
         foreach (var p in view.Pawns)
         {
             state[p.Id] = p;
-            if (besiegers.ContainsKey(p.Id) && p.Cell.IsKnown)
+            if (besiegers.ContainsKey(p.Id))
             {
-                camp.Add(p);
-                theirs = Math.Max(theirs, p.WeaponRange);
+                camp.Add((p.Id, p.Cell));
+                theirs = Math.Max(theirs, p.WeaponFacts.Reach);
             }
         }
         var result = roles.ToList();
@@ -70,38 +68,33 @@ public static partial class CombatSiegeRules
         for (var i = 0; i < result.Count; i++)
         {
             var r = result[i];
-            state.TryGetValue(r.Pawn, out var s);
-            if (s is null || !s.Cell.TryGetValue(out var at) || !r.Ranged || s.WeaponRange <= 0 || HarassReach * s.WeaponRange <= theirs)
+            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || s.WeaponFacts.Reach <= 0 || HarassReach * s.WeaponFacts.Reach <= theirs)
             {
                 continue;
             }
-            result[i] = HarassTarget(r, at, s.WeaponRange, camp, false);
+            result[i] = HarassTarget(r, s.Cell, s.WeaponFacts.Reach, camp, false);
         }
         return result;
     }
 
     /// <summary>
-    /// The siege stand-off generalized to tribals: while every live hostile with a known cell is a Tribal_
+    /// The siege stand-off generalized to tribals: while every live hostile is a Tribal_
     /// pawn, each free gunner whose gun reaches the loadout tribal range and, at HarassReach, still clears
     /// every tribal's range stands off its nearest tribal and shoots it. A gunner that does not outrange the
     /// bows and pila keeps its formation role.
     /// </summary>
     internal static CombatMemory TribalStandoff(CombatView view, CombatMemory m)
     {
-        var tribals = new List<CombatPawnState>();
+        var tribals = new List<(PawnId Id, Cell Cell)>();
         var theirs = 0.0;
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (!h.Cell.IsKnown)
-            {
-                continue;
-            }
             if (!h.Kind.StartsWith("Tribal_", StringComparison.Ordinal))
             {
                 return m;
             }
-            tribals.Add(h);
-            var reach = h.WeaponRange;
+            tribals.Add((h.Id, h.Cell));
+            var reach = h.WeaponFacts.Reach;
             if (reach <= 0)
             {
                 reach = TribalBowRange;
@@ -121,12 +114,11 @@ public static partial class CombatSiegeRules
         for (var i = 0; i < roles.Count; i++)
         {
             var r = roles[i];
-            state.TryGetValue(r.Pawn, out var s);
-            if (s is null || !s.Cell.TryGetValue(out var at) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponRange < CombatLoadoutRules.LoadoutTribalRange || HarassReach * s.WeaponRange <= theirs)
+            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponFacts.Reach < CombatLoadoutRules.LoadoutTribalRange || HarassReach * s.WeaponFacts.Reach <= theirs)
             {
                 continue;
             }
-            roles[i] = HarassTarget(r, at, s.WeaponRange, tribals, true) with { Retreat = false };
+            roles[i] = HarassTarget(r, s.Cell, s.WeaponFacts.Reach, tribals, true) with { Retreat = false };
         }
         return m with { Roles = EquatableArray.From(roles) };
     }
@@ -138,12 +130,12 @@ public static partial class CombatSiegeRules
     /// </summary>
     internal static CombatMemory ShipPartHitAndRun(CombatView view, CombatMemory m)
     {
-        var parts = new List<CombatPawnState>();
+        var parts = new List<(PawnId Id, Cell Cell)>();
         foreach (var s in view.Structures)
         {
             if (EmergencyThreat.ShipPart(s.Def))
             {
-                parts.Add(new CombatPawnState { Id = s.Id, Cell = Known(s.Cell) });
+                parts.Add((s.Id, s.Cell));
             }
         }
         if (parts.Count == 0)
@@ -166,12 +158,11 @@ public static partial class CombatSiegeRules
         for (var i = 0; i < roles.Count; i++)
         {
             var r = roles[i];
-            state.TryGetValue(r.Pawn, out var s);
-            if (s is null || !s.Cell.TryGetValue(out var at) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponRange <= 0)
+            if (!state.TryGetValue(r.Pawn, out var s) || !r.Ranged || r.Duty != CombatDuty.None || r.Mortar is not null || s.WeaponFacts.Reach <= 0)
             {
                 continue;
             }
-            roles[i] = HarassTarget(r, at, s.WeaponRange, parts, false) with { Retreat = false };
+            roles[i] = HarassTarget(r, s.Cell, s.WeaponFacts.Reach, parts, false) with { Retreat = false };
         }
         return m with { Roles = EquatableArray.From(roles) };
     }

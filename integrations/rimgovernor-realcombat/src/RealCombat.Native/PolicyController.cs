@@ -33,7 +33,7 @@ public sealed class PolicyController : IFightController
     public Action<string>? Log { get; set; }
 
     /// <summary>The defense layout the colony holds for the fight (unknown when it holds none, so only the squad fallback forms).</summary>
-    public RimGovernor.Brain.Domain.Fact<CombatLayout> Layout { get; set; } = RimGovernor.Brain.Domain.Fact.Unknown<CombatLayout>();
+    public CombatLayout? Layout { get; set; }
 
     /// <summary>Decisions that sent a batch.</summary>
     public int Decisions { get; private set; }
@@ -131,7 +131,7 @@ public sealed class PolicyController : IFightController
             {
                 foreach (var v in step.View.Pawns.Items)
                 {
-                    Log($"   view {v.Id.Value} dead={v.Dead} downed={v.Downed} bloodLoss={v.BloodLoss} bleed/day={v.BleedRatePerDay} hoursToDeath={v.HoursUntilBleedDeath}");
+                    Log($"   view {v.Id.Value} dead={v.Dead} downed={v.Downed} bloodLoss={v.BloodLoss} bleed/day={v.BleedRatePerDay} bleedOut={v.BleedOut}");
                 }
 
                 foreach (var p in map.mapPawns.AllPawnsSpawned)
@@ -187,7 +187,7 @@ public sealed class PolicyController : IFightController
     }
 
     private static string BurnTrace(CombatStep step) =>
-        (step.View.DoorStates.TryGetValue(out var doors) ? "doors=" + string.Join(";", doors.Items.Select(d => $"{d.Cell.X},{d.Cell.Z}:open={d.Open} hold={d.HoldOpen}")) : "doors=unknown")
+        "doors=" + string.Join(";", step.View.DoorStates.Items.Select(d => $"{d.Cell.X},{d.Cell.Z}:open={d.Open} hold={d.HoldOpen}"))
         + $" defenders=[{string.Join(" ", step.View.Defenders.Items.Select(d => d.Id + ":dead=" + d.Dead + ",down=" + d.Downed))}] orderable=[{string.Join(" ", step.View.Orderable.Items)}] roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}";
 
     private static string Casters(CombatView view) =>

@@ -29,7 +29,7 @@ public static partial class CombatSapperRules
         var diggers = new List<CombatPawnState>();
         foreach (var h in LiveSappers(view))
         {
-            if (h.Job == "Mine" && humanlike.GetValueOrDefault(h.Id) && h.Cell.IsKnown)
+            if (h.Job == "Mine" && humanlike.GetValueOrDefault(h.Id))
             {
                 diggers.Add(h);
             }
@@ -61,26 +61,21 @@ public static partial class CombatSapperRules
             {
                 continue;
             }
-            state.TryGetValue(r.Pawn, out var s);
-            var known = s is not null && s.Cell.TryGetValue(out var at);
-            at = known ? s!.Cell.Value : default;
+            // A gunner not in the view targets the first digger and keeps no stand-off cell.
+            var known = state.TryGetValue(r.Pawn, out var s);
             var digger = diggers[0];
+            Cell? cell = null;
             if (known)
             {
+                var at = s!.Cell;
                 foreach (var d in diggers.Skip(1))
                 {
-                    d.Cell.TryGetValue(out var c);
-                    digger.Cell.TryGetValue(out var b);
-                    if (CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(b, at))
+                    if (CombatManhunterRules.Distance2(d.Cell, at) < CombatManhunterRules.Distance2(digger.Cell, at))
                     {
                         digger = d;
                     }
                 }
-            }
-            Cell? cell = null;
-            if (known)
-            {
-                cell = StandOff(digger, at, s!.WeaponRange);
+                cell = StandOff(digger, at, s.WeaponFacts.Reach);
             }
             roles[i] = r with { Duty = CombatDuty.Interceptor, Target = digger.Id, Cell = cell, Retreat = false };
         }
@@ -95,13 +90,13 @@ public static partial class CombatSapperRules
         {
             want = InterceptReach * reach;
         }
-        return StandOffAt(digger, from, want);
+        return StandOffAt(digger.Cell, from, want);
     }
 
     /// <summary>The cell on the line from <paramref name="target"/> toward <paramref name="from"/>, <paramref name="want"/> cells from target, or <paramref name="from"/> itself when it is already that close.</summary>
-    internal static Cell StandOffAt(CombatPawnState target, Cell from, double want)
+    internal static Cell StandOffAt(Cell target, Cell from, double want)
     {
-        target.Cell.TryGetValue(out var d);
+        var d = target;
         double dx = from.X - d.X;
         double dz = from.Z - d.Z;
         var dist = Math.Sqrt((dx * dx) + (dz * dz));

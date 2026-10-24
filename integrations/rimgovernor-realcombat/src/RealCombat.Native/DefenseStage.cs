@@ -19,8 +19,8 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
 {
     private static readonly Cell[] Directions = [new(0, 1), new(1, 0), new(0, -1), new(-1, 0)];
 
-    /// <summary>The layout the policy holds, or unknown when the planner refused the site.</summary>
-    public Fact<CombatLayout> Layout { get; private set; }
+    /// <summary>The layout the policy holds, or none when the planner refused the site.</summary>
+    public CombatLayout? Layout { get; private set; }
 
     /// <summary>False leaves the planner's spike traps unplaced, so the fight reaches the firing line.</summary>
     public bool Traps { get; init; } = true;
@@ -127,18 +127,13 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         }
 
         Bed(map);
-        var layout = new CombatLayout
+        Layout = new CombatLayout
         {
             Firing = [.. Planned.Firing.Select(f => f.Cell)],
             Retreat = [.. Planned.Firing.Select(f => f.Retreat)],
             Toward = Planned.Toward,
+            Choke = Planned.TrapLane.Count > 0 ? new CombatChoke.Corridor(Planned.TrapLane[^1]) : new CombatChoke.NoCorridor(),
         };
-        if (Planned.TrapLane.Count > 0)
-        {
-            layout = layout with { Choke = Fact.Known(Planned.TrapLane[^1]) };
-        }
-
-        Layout = Fact.Known(layout);
     }
 
     // The colony's bed, behind the back wall: a rescue carries a downed colonist to one, and the order refuses without.

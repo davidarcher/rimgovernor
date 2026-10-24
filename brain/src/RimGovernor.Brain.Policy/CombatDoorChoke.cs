@@ -14,7 +14,7 @@ public static partial class CombatDoorRules
             return null;
         }
 
-        if (view.Layout.TryGetValue(out var layout) && layout.Choke.IsKnown)
+        if (view.Layout is { } layout && layout.Choke is CombatChoke.Corridor)
         {
             return null;
         }
@@ -38,12 +38,7 @@ public static partial class CombatDoorRules
             }
         }
 
-        if (!view.DoorStates.TryGetValue(out var doorArray))
-        {
-            return null;
-        }
-
-        var doors = doorArray.Items;
+        var doors = view.DoorStates.Items;
         var choices = new List<RoomDoor>();
         foreach (var room in view.Rooms.Items)
         {
@@ -91,8 +86,8 @@ public static partial class CombatDoorRules
 
                 foreach (var hostile in CombatThreatRules.RankThreats(view))
                 {
-                    var known = hostile.Cell.TryGetValue(out var hostileAt);
-                    if (!known || room.Contains(hostileAt) || (((hostileAt.X - cell.X) * direction.X) + ((hostileAt.Z - cell.Z) * direction.Z)) <= 0)
+                    var hostileAt = hostile.Cell;
+                    if (room.Contains(hostileAt) || (((hostileAt.X - cell.X) * direction.X) + ((hostileAt.Z - cell.Z) * direction.Z)) <= 0)
                     {
                         safe = false;
                     }
@@ -144,11 +139,7 @@ public static partial class CombatDoorRules
             return ([], []);
         }
 
-        if (!ranked[0].Cell.TryGetValue(out var from))
-        {
-            return ([], []);
-        }
-
+        var from = ranked[0].Cell;
         var blockers = CombatManhunterRules.InsideDoor(view, door.Cell, from);
         var inward = new Cell(door.Cell.X - door.Outside.X, door.Cell.Z - door.Outside.Z);
         var support = new List<Cell>();
@@ -234,10 +225,9 @@ public static partial class CombatDoorRules
             return;
         }
 
-        var known = view.DoorStates.TryGetValue(out var statesArray);
-        IReadOnlyList<RoomDoor> states = known ? statesArray.Items : Array.Empty<RoomDoor>();
+        var states = view.DoorStates.Items;
         var index = IndexOfDoor(states, door.Cell);
-        if (!known || index < 0 || !CombatDoorExists(view, door.Cell))
+        if (index < 0 || !CombatDoorExists(view, door.Cell))
         {
             memory.ChokeDoor = null;
             return;
@@ -262,13 +252,12 @@ public static partial class CombatDoorRules
                 continue;
             }
 
-            var cellKnown = pawn.Cell.TryGetValue(out var at);
             if (role.Duty == CombatDuty.Blocker)
             {
                 blockers++;
             }
 
-            if (role.Pawn != door.Opener && (!cellKnown || at != role.Cell.Value))
+            if (role.Pawn != door.Opener && pawn.Cell != role.Cell)
             {
                 ready = false;
             }

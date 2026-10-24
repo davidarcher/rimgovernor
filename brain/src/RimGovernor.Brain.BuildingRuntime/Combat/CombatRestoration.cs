@@ -30,7 +30,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var kept = loaded ?? new CombatRestoration(world, fight, [], []);
         var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        var known = combat.DoorStates.TryGetValue(out var doors);
+        var doors = combat.DoorStates;
         var sendable = new List<CombatOrder>(orders.Count);
         var keptDoors = kept.Doors.ToList();
         var keptAnimals = kept.Animals.ToList();
@@ -38,12 +38,12 @@ public sealed partial class RoundsDefensePlanner
         {
             if (o.Kind == CombatOrderKind.Door && !keptDoors.Any(d => d.Cell == o.Cell))
             {
-                var i = known ? doors!.ToList().FindIndex(d => d.Cell == o.Cell) : -1;
+                var i = doors.ToList().FindIndex(d => d.Cell == o.Cell);
                 if (i < 0)
                 {
                     continue;
                 }
-                keptDoors.Add(new CombatDoorRestoration(o.Cell, doors![i].HoldOpen, doors[i].Forbidden));
+                keptDoors.Add(new CombatDoorRestoration(o.Cell, doors[i].HoldOpen, doors[i].Forbidden));
             }
             else if (o.Kind == CombatOrderKind.AnimalArea && !keptAnimals.Any(a => a.Pawn == (Domain.PawnId)o.Pawn))
             {

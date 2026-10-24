@@ -80,7 +80,7 @@ public static partial class PopulationRules
         }
         if (!row.QuestProtected && !row.Guest && !row.Admitted && !row.Prisoner && row.Hostile)
         {
-            if (!CombatThreatRules.CaptureWorthy(new CombatPawnState { Luciferium = row.Luciferium }) || row.WearingApparel)
+            if (!CombatThreatRules.CaptureWorthy(row.Luciferium) || row.WearingApparel)
             {
                 return null;
             }

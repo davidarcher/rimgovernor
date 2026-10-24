@@ -24,8 +24,7 @@ public static partial class CombatMechRules
 
         foreach (var r in m.Roles)
         {
-            var s = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
-            if (!s.ShieldBelt)
+            if (!state.TryGetValue(r.Pawn, out var s) || s.Presence is not CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn })
             {
                 continue;
             }
@@ -34,13 +33,10 @@ public static partial class CombatMechRules
             r.Home = null;
             r.Ranged = false;
             r.Target = pikemen[0].Id;
-            if (s.Cell.TryGetValue(out var at))
+            var id = NearestHostile(view, s.Cell);
+            if (!id.IsEmpty)
             {
-                var id = NearestHostile(view, at);
-                if (!id.IsEmpty)
-                {
-                    r.Target = id;
-                }
+                r.Target = id;
             }
         }
     }

@@ -76,11 +76,10 @@ public static partial class CombatKiteRules
             for (var j = 0; j < m.Roles.Count; j++)
             {
                 var r = m.Roles[j];
-                var s = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
-                if (r.Duty == CombatDuty.None && KiterEligible(r, s, armor.GetValueOrDefault(r.Pawn), lead.Need) && s.MoveSpeed > best)
+                if (r.Duty == CombatDuty.None && state.TryGetValue(r.Pawn, out var s) && KiterEligible(r, s, armor.GetValueOrDefault(r.Pawn), lead.Need) is { } speed && speed > best)
                 {
                     i = j;
-                    best = s.MoveSpeed;
+                    best = speed;
                 }
             }
 
@@ -92,19 +91,30 @@ public static partial class CombatKiteRules
             m.Kiter = m.Roles[i].Pawn;
         }
 
-        var known = (state.GetValueOrDefault(m.Kiter) ?? new CombatPawnState()).Cell.TryGetValue(out var at);
+        var known = state.TryGetValue(m.Kiter, out var kiter);
         PawnId chaser = default;
         long near = -1;
         long leadRange = m.EffectiveTuning().KiteLeadRange;
         foreach (var h in ranked)
         {
-            var ok = h.Cell.TryGetValue(out var c);
-            if (h.Target == m.Kiter || (ok && known && CombatManhunterRules.Distance2(c, at) <= leadRange * leadRange))
+            var c = h.Cell;
+            if (h.Presence is CombatPresence.Engaged { Row.Target: var target } && target == m.Kiter)
             {
                 m.Leading = true;
             }
 
-            if (ok && known && (near < 0 || CombatManhunterRules.Distance2(c, at) < near))
+            if (!known)
+            {
+                continue;
+            }
+
+            var at = kiter!.Cell;
+            if (CombatManhunterRules.Distance2(c, at) <= leadRange * leadRange)
+            {
+                m.Leading = true;
+            }
+
+            if (near < 0 || CombatManhunterRules.Distance2(c, at) < near)
             {
                 chaser = h.Id;
                 near = CombatManhunterRules.Distance2(c, at);
@@ -128,15 +138,19 @@ public static partial class CombatKiteRules
         }
     }
 
-    /// <summary>The wiki's kiter: a gunner with a long-range gun, no more than light armor, and a MoveSpeed of at least <paramref name="need"/>.</summary>
-    private static bool KiterEligible(CombatRole r, CombatPawnState s, DefenderArmor? armor, double need)
+    /// <summary>
+    /// The wiki's kiter: a gunner with a long-range gun, no more than light armor, and a MoveSpeed of at least
+    /// <paramref name="need"/>; its MoveSpeed, or null when it is not one. A pawn with no combat row shows no
+    /// MoveSpeed and is not a kiter.
+    /// </summary>
+    private static double? KiterEligible(CombatRole r, CombatPawnState s, DefenderArmor? armor, double need)
     {
         if (armor is DefenderArmor.Rated { Sharp: > KiteMaxArmor })
         {
-            return false;
+            return null;
         }
 
-        return r.Ranged && s.WeaponRange >= KiteMinRange && s.MoveSpeed > 0 && s.MoveSpeed >= need;
+        return r.Ranged && s.WeaponFacts.Reach >= KiteMinRange && s.Presence is CombatPresence.Engaged { Row.MoveSpeed: var speed } && speed > 0 && speed >= need ? speed : null;
     }
 
     /// <summary>
@@ -161,7 +175,8 @@ public static partial class CombatKiteRules
         var ratio = m.EffectiveTuning().KiteSpeedRatio;
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.MoveSpeed <= 0)
+            // A pack with a hostile of no seen speed is not kited.
+            if (h.Presence is not CombatPresence.Engaged { Row.MoveSpeed: var speed } || speed <= 0)
             {
                 return null;
             }
@@ -171,7 +186,7 @@ public static partial class CombatKiteRules
                 ratio = KiteFastRatio;
             }
 
-            fastest = Math.Max(fastest, h.MoveSpeed);
+            fastest = Math.Max(fastest, speed);
         }
 
         return (lure, ratio * fastest);
@@ -193,12 +208,12 @@ public static partial class CombatKiteRules
         var fastest = 0.0;
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.MoveSpeed <= 0 || h.MoveSpeed >= CombatManhunterRules.ColonistMoveSpeed)
+            if (h.Presence is not CombatPresence.Engaged { Row.MoveSpeed: var speed } || speed <= 0 || speed >= CombatManhunterRules.ColonistMoveSpeed)
             {
                 return null;
             }
 
-            fastest = Math.Max(fastest, h.MoveSpeed);
+            fastest = Math.Max(fastest, speed);
         }
 
         var need = m.EffectiveTuning().KiteSpeedRatio * fastest;
@@ -224,13 +239,12 @@ public static partial class CombatKiteRules
     /// <summary>The layout's inner-line cell farthest behind the firing line; null without a layout, a direction or an inner line.</summary>
     internal static Cell? RearmostRetreat(CombatView view)
     {
-        var ok = view.Layout.TryGetValue(out var layout);
-        if (!ok)
+        if (view.Layout is not { } layout)
         {
             return null;
         }
 
-        var vok = DefensePositions.TowardVector(layout!.Toward, out var v);
+        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         if (!vok || layout.Retreat.Count == 0)
         {
             return null;

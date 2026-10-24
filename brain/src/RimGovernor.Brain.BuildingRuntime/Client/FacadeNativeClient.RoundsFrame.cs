@@ -250,6 +250,11 @@ public sealed partial class FacadeNativeClient
                 ids.Add(row.Pawn.Id ?? "");
             }
         }
+        // Every combat row's pawn rides with the census: its race, health and sapper facts are read off its row.
+        foreach (var row in v.CombatPawns)
+        {
+            ids.Add(row.Id.Value);
+        }
         var output = new List<PbObservations.PawnState>();
         var table = default(Table<PbObservations.PawnState>);
         foreach (var id in ids)
@@ -322,9 +327,11 @@ public sealed partial class FacadeNativeClient
         {
             output = output with { OutdoorTemperature = new RimGovernor.Brain.Policy.OutdoorTemperature.Measured(colony.OutdoorTemperatureC) };
         }
+        // Every frame carries its rooms census: the native capture fails the frame whole when the rooms read fails.
+        var roomRows = v.Rooms ?? throw BridgeContractException.Contract("combat frame without its rooms section");
         var doorStates = new List<PbObservations.RoomDoor>();
         var rooms = new List<P.CombatRoom>();
-        foreach (var row in v.Rooms?.Rooms ?? default)
+        foreach (var row in roomRows.Rooms)
         {
             foreach (var door in row.Doors)
             {
@@ -335,12 +342,7 @@ public sealed partial class FacadeNativeClient
                 rooms.Add(room);
             }
         }
-        output = output with { Rooms = rooms };
-        if (v.Rooms is not null)
-        {
-            output = output with { DoorStates = Fact.Known(EquatableArray.From(doorStates)) };
-        }
-        return output;
+        return output with { Rooms = rooms, DoorStates = EquatableArray.From(doorStates) };
     }
 
     /// <summary>

@@ -64,7 +64,7 @@ public static partial class CombatSiegeRules
         }
         foreach (var p in view.Pawns)
         {
-            if (besiegers.ContainsKey(p.Id) && p.Job == "FinishFrame" && p.TargetMortar)
+            if (besiegers.ContainsKey(p.Id) && p.Job == "FinishFrame" && p.Presence is CombatPresence.Engaged { Row.TargetMortar: true })
             {
                 return m with { SiegeMortar = true };
             }
@@ -122,7 +122,7 @@ public static partial class CombatSiegeRules
             }
         }
         EquatableArray<Cell> firing = [];
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             firing = layout.Firing;
         }

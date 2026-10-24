@@ -20,8 +20,8 @@ public static partial class CombatBleedRules
             state[p.Id] = p;
         }
 
-        var s = state.GetValueOrDefault(id) ?? new CombatPawnState();
-        if (colonists.Contains(s.Target))
+        // A hostile with no pawn state in the view is not one the fight can judge contained.
+        if (!state.TryGetValue(id, out var s) || (s.Presence is CombatPresence.Engaged { Row.Target: var target } && colonists.Contains(target)))
         {
             return false;
         }
@@ -51,7 +51,7 @@ public static partial class CombatBleedRules
                 continue;
             }
 
-            if (t.NearestColonistDistance.TryGetValue(out var d) && s.WeaponRange > 0 && d > s.WeaponRange)
+            if (t.NearestColonistDistance.TryGetValue(out var d) && s.WeaponFacts.Reach > 0 && d > s.WeaponFacts.Reach)
             {
                 return true;
             }
@@ -77,14 +77,13 @@ public static partial class CombatBleedRules
 
     /// <summary>
     /// A hostile whose blood loss crosses the downing point before it kills: the game's death-on-downed roll
-    /// does not run on a blood-loss downing, so it survives to be captured. Unknown health is false.
+    /// does not run on a blood-loss downing, so it survives to be captured. A pawn not bleeding out is false.
     /// </summary>
     private static bool WillBleedDown(CombatPawnState s)
     {
-        var lk = s.BloodLoss.TryGetValue(out var loss);
-        var rk = s.BleedRatePerDay.TryGetValue(out var rate);
-        var dk = s.HoursUntilBleedDeath.TryGetValue(out var death);
-        if (!lk || !rk || !dk || rate <= 0 || loss >= 1)
+        var loss = s.BloodLoss;
+        var rate = s.BleedRatePerDay;
+        if (s.BleedOut is not BleedOut.Within { Hours: var death } || rate <= 0 || loss >= 1)
         {
             return false;
         }
@@ -96,7 +95,7 @@ public static partial class CombatBleedRules
     internal static HashSet<PawnId> SparedBleeders(CombatView view)
     {
         var output = new HashSet<PawnId>();
-        if (!view.Population.TryGetValue(out var pop) || pop >= FindingConstants.PopulationTarget)
+        if (view.Population >= FindingConstants.PopulationTarget)
         {
             return output;
         }
@@ -134,7 +133,7 @@ public static partial class CombatBleedRules
     /// </summary>
     internal static void FinishContained(CombatView view, CombatMemory next)
     {
-        if (!view.Population.TryGetValue(out var pop) || pop >= FindingConstants.PopulationTarget)
+        if (view.Population >= FindingConstants.PopulationTarget)
         {
             return;
         }

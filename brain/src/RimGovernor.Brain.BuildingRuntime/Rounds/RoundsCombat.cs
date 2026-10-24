@@ -9,7 +9,7 @@ internal sealed class FightAdmission
 {
     public BridgeCombat Combat = null!;
     public CombatInputs In = null!;
-    public Fact<CombatLayout> Held;
+    public CombatLayout? Held;
     public GeometryReply Reply = null!;
     public CombatMemory Memory = null!;
 }
@@ -110,7 +110,7 @@ public sealed partial class RoundsDefensePlanner
             return admitted;
         }
         (results, next) = RecordDrafts(id, drafts, results, next, call);
-        next = RoundsDefensePlanner.CombatStopMemory(view, orders, results, next);
+        next = RoundsDefensePlanner.CombatStopMemory(view.Pawns, orders, results, next);
         if (orders.Count == 0)
         {
             p.Journal.SaveCombatMemory(id, next, call);
@@ -165,7 +165,7 @@ public sealed partial class RoundsDefensePlanner
         var label = $"{plan}-stop-{view.Tick}";
         var (results, sent) = await SendCombatBatchAsync(state, plan, label, drafts, orders, call).ConfigureAwait(false);
         (results, memory) = RecordDrafts(plan, drafts, results, memory, call);
-        var next = RoundsDefensePlanner.CombatStopMemory(view, sent, results, memory);
+        var next = RoundsDefensePlanner.CombatStopMemory(view.Pawns, sent, results, memory);
         var batchPlan = CombatBatchPlan(plan, label, drafts, sent);
         return (batchPlan.Id, sent.Count, next);
     }
@@ -350,50 +350,39 @@ partial class RoundsDefensePlanner
         return reply with { Route = [.. route] };
     }
 
-    /// <summary>The rows of a combat read as policy pawn states; falls back to the observation rows when the combat read lists no pawns.</summary>
+    /// <summary>
+    /// The rows of a combat read as policy pawn states; falls back to the observation rows when the combat read lists no pawns.
+    /// A combat row whose pawn the frame's pawn table does not hold waits for the next frame: it is not in the view. An
+    /// observation row off the map stands nowhere and is not in the view either.
+    /// </summary>
     internal static List<CombatPawnState> CombatPawnStates(BridgeCombat combat, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyDictionary<string, WeaponDef> weapons)
     {
+        var catalog = combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog");
         var output = new List<CombatPawnState>();
         if (combat.Pawns.Count > 0)
         {
             foreach (var row in combat.Pawns)
             {
-                weapons.TryGetValue((row.Weapon ?? ""), out var facts);
-                var s = new CombatPawnState
+                if (!combat.Detail.TryGetValue(row.Id.Value, out var pawnRow))
                 {
-                    Id = row.Id,
-                    Downed = row.Downed,
-                    Dead = row.Dead,
-                    Target = new PawnId((row.TargetId ?? "")),
+                    continue;
+                }
+                var facts = row.Weapon is { } def && weapons.TryGetValue(def, out var read) ? read : new WeaponDef();
+                var engaged = new CombatRow
+                {
                     Stance = CombatStance(row.Stance),
-                    Weapon = (row.Weapon ?? ""),
-                    WeaponFacts = facts ?? new(),
-                    WeaponRange = facts?.Reach ?? 0,
-                    FireMode = row.Draft is { } draft ? WireEnums.FireModeName(draft.FireMode) : "",
-                    Job = row.Job ?? "",
+                    Target = new PawnId(row.TargetId ?? ""),
+                    FireMode = row.Draft is { } draft ? DraftFireMode(draft.FireMode) : Pol.DraftFireMode.Undrafted,
                     TargetMortar = row.TargetMortar,
-                    ShieldBelt = row.Shield is not null,
+                    Shield = row.Shield is { } shield ? new ShieldBelt.Worn(shield.Energy) : new ShieldBelt.NoBelt(),
                     MedicalSkill = row.MedicalSkill,
                     MoveSpeed = row.MoveSpeed,
                     StunTicks = row.StunTicksLeft,
                     GoJuice = row.GoJuiceHigh,
-                    Luciferium = row.LuciferiumAddicted,
-                    Animal = row.Side == M.CombatSide.ColonyAnimal,
-                    Prisoner = row.Side == M.CombatSide.Prisoner,
-                    Wild = row.Side == M.CombatSide.WildAnimal,
-                    Cell = Known(new Cell(row.Cell.X, row.Cell.Z)),
-                    Health = Known(row.Health),
+                    CarriedDrugs = row.CarriedDrugs is { } drugs ? new DrugInventory.Scanned([.. drugs.Defs]) : new DrugInventory.NotScanned(),
                 };
-                if (row.CarriedDrugs is { } drugs)
-                {
-                    s = s with { CarriedDrugs = Known<EquatableArray<string>>([.. drugs.Defs]) };
-                }
-                if (row.Shield is { } shield)
-                {
-                    s = s with { Shield = Known(shield.Energy) };
-                }
-                rows.TryGetValue(row.Id.Value, out var pawnRow);
-                output.Add(ThreatFacts(s, pawnRow, combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog")));
+                var side = (Animal: row.Side == M.CombatSide.ColonyAnimal, Prisoner: row.Side == M.CombatSide.Prisoner, Wild: row.Side == M.CombatSide.WildAnimal);
+                output.Add(PawnState(row.Id, new Cell(row.Cell.X, row.Cell.Z), row.Downed, row.Dead, new CombatPresence.Engaged(engaged), row.Weapon, facts, row.Job ?? "", side, row.Health, pawnRow, catalog));
             }
             return output;
         }
@@ -401,15 +390,54 @@ partial class RoundsDefensePlanner
         ids.Sort(StringComparer.Ordinal);
         foreach (var id in ids)
         {
-            var row = rows[id];
-            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead };
-            if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var position })
+            if (ObservedPawnState(rows[id], wild: false, catalog) is { } s)
             {
-                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
+                output.Add(s);
             }
-            output.Add(ThreatFacts(s, row, combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog")));
         }
         return output;
+    }
+
+    /// <summary>
+    /// A pawn the combat read does not list, from its observation row alone: no combat row, unarmed until its equipment
+    /// arms it. Null when the pawn is off the map.
+    /// </summary>
+    internal static CombatPawnState? ObservedPawnState(O.PawnState row, bool wild, DefinitionCatalog catalog)
+    {
+        if (row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var position })
+        {
+            return null;
+        }
+        return PawnState(new PawnId(row.Pawn.Id), new Cell(position.X, position.Z), row.Downed, row.Dead, new CombatPresence.NoCombatRow(), null, new WeaponDef(), row.Job.DefName ?? "", (false, false, wild), row.Health.SummaryFraction, row, catalog);
+    }
+
+    /// <summary>A combat pawn state: the combat facts given, with the race, health and sapper facts of the pawn's observation row.</summary>
+    internal static CombatPawnState PawnState(PawnId id, Cell cell, bool downed, bool dead, CombatPresence presence, string? weapon, WeaponDef facts, string job, (bool Animal, bool Prisoner, bool Wild) side, double health, O.PawnState row, DefinitionCatalog catalog)
+    {
+        var (mech, insect) = catalog.RaceFlags(row.Pawn.DefName ?? "");
+        var toil = row.LordToilClass ?? "";
+        return new CombatPawnState
+        {
+            Id = id,
+            Cell = cell,
+            Downed = downed,
+            Dead = dead,
+            Presence = presence,
+            Weapon = weapon,
+            WeaponFacts = facts,
+            Kind = row.KindDefName,
+            Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || (row.Job.DefName ?? "") == "Mine",
+            Job = job,
+            Animal = side.Animal,
+            BloodLoss = row.Health.BloodLoss,
+            BleedRatePerDay = row.Health.BleedRatePerDay,
+            BleedOut = row.Health.BleedOut,
+            Prisoner = side.Prisoner,
+            Health = health,
+            Wild = side.Wild,
+            Mech = mech,
+            Insect = insect,
+        };
     }
 
     internal static void RecordCombatStop(BridgeCombat combat, SnapshotCombatStop s, CancellationToken ct)
@@ -429,37 +457,38 @@ partial class RoundsDefensePlanner
         }
     }
 
-    /// <summary>Adds the race, health and sapper facts of an observation row to a combat pawn state.</summary>
-    internal static CombatPawnState ThreatFacts(CombatPawnState s, O.PawnState? row, DefinitionCatalog catalog)
+    internal static CombatStance CombatStance(M.CombatStance s)
     {
-        if (row is null)
+        switch (s)
         {
-            return s;
+            case M.CombatStance.Idle:
+                return Pol.CombatStance.Idle;
+            case M.CombatStance.Warmup:
+                return Pol.CombatStance.Warmup;
+            case M.CombatStance.Cooldown:
+                return Pol.CombatStance.Cooldown;
+            case M.CombatStance.Moving:
+                return Pol.CombatStance.Moving;
+            case M.CombatStance.Melee:
+                return Pol.CombatStance.Melee;
         }
-        s = s with { Kind = row.KindDefName };
-        var (mech, insect) = catalog.RaceFlags(row.Pawn.DefName ?? "");
-        s = s with { Mech = mech, Insect = insect };
-        var h = row.Health;
-        s = s with { BloodLoss = Known(h.BloodLoss), BleedRatePerDay = Known(h.BleedRatePerDay) };
-        if (h.BleedOut is PbObservations.BleedOut.Within bleedOut)
-        {
-            s = s with { HoursUntilBleedDeath = Known(bleedOut.Hours) };
-        }
-        var toil = row.LordToilClass ?? "";
-        s = s with { Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || (row.Job.DefName ?? "") == "Mine" };
-        return s;
+        throw new ControlException("combat stance: " + s);
     }
 
-    internal static CombatStance CombatStance(M.CombatStance s) => s switch
+    /// <summary>A drafted combat row's fire mode; a draft without one breaks the combat row contract.</summary>
+    internal static DraftFireMode DraftFireMode(PbOperations.CombatFireMode mode)
     {
-        M.CombatStance.Idle => Pol.CombatStance.Idle,
-        M.CombatStance.Warmup => Pol.CombatStance.Warmup,
-        M.CombatStance.Cooldown => Pol.CombatStance.Cooldown,
-        M.CombatStance.Moving => Pol.CombatStance.Moving,
-        M.CombatStance.Melee => Pol.CombatStance.Melee,
-        _ => throw new ArgumentOutOfRangeException(nameof(s), s, "combat stance"),
-    };
-
+        switch (mode)
+        {
+            case PbOperations.CombatFireMode.AtWill:
+                return Pol.DraftFireMode.FireAtWill;
+            case PbOperations.CombatFireMode.Hold:
+                return Pol.DraftFireMode.HoldFire;
+            case PbOperations.CombatFireMode.Unspecified:
+                break;
+        }
+        throw new ControlException("combat draft without a fire mode: " + mode);
+    }
     /// <summary>The newest stop event of the combat read after the tick, or the empty event.</summary>
     internal static StopEvent CombatStop(BridgeCombat combat, Tick since)
     {
@@ -483,19 +512,16 @@ partial class RoundsDefensePlanner
     }
 
     /// <summary>The memory after a stop's order results: each refused order is remembered by its refusal. Unknown results change nothing.</summary>
-    internal static CombatMemory CombatStopMemory(CombatView view, IReadOnlyList<CombatOrder> orders, IReadOnlyList<BridgeCombatOrderResult>? results, CombatMemory memory)
+    internal static CombatMemory CombatStopMemory(IReadOnlyList<CombatPawnState> pawns, IReadOnlyList<CombatOrder> orders, IReadOnlyList<BridgeCombatOrderResult>? results, CombatMemory memory)
     {
         if (results is null)
         {
             return memory;
         }
         var cells = new Dictionary<PawnId, Cell>();
-        foreach (var p in view.Pawns)
+        foreach (var p in pawns)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                cells[p.Id] = c;
-            }
+            cells[p.Id] = p.Cell;
         }
         for (var i = 0; i < orders.Count; i++)
         {

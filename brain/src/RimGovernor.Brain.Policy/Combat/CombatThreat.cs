@@ -23,6 +23,17 @@ public enum PostFightStep
     Done,
 }
 
+/// <summary>
+/// What the frame shows a downed raider wearing: some apparel, none, or the raider is not in the frame's pawn
+/// table (gone from the map, or not yet held).
+/// </summary>
+public enum RaiderApparel
+{
+    Wearing,
+    Bare,
+    NotInFrame,
+}
+
 public static partial class CombatThreatRules
 {
     // Threat tiers, most urgent first: the caster of a psychic ritual, rocketeers and grenadiers, then
@@ -73,7 +84,7 @@ public static partial class CombatThreatRules
         {
             return ThreatExplosive;
         }
-        if (h.Stance == CombatStance.Melee && colonists.Contains(h.Target))
+        if (h.Presence is CombatPresence.Engaged { Row: { Stance: CombatStance.Melee, Target: var target } } && colonists.Contains(target))
         {
             return ThreatMeleeColonist;
         }
@@ -81,7 +92,7 @@ public static partial class CombatThreatRules
         {
             return ThreatSapper;
         }
-        if (h.GoJuice)
+        if (h.Presence is CombatPresence.Engaged { Row.GoJuice: true })
         {
             return ThreatGoJuice;
         }
@@ -92,7 +103,7 @@ public static partial class CombatThreatRules
         {
             named = tier;
         }
-        if (ThreatWeapons.TryGetValue(h.Weapon, out tier))
+        if (h.Weapon is { } weapon && ThreatWeapons.TryGetValue(weapon, out tier))
         {
             named = Math.Min(named, tier);
         }
@@ -111,21 +122,20 @@ public static partial class CombatThreatRules
     /// Says a downed hostile is worth taking prisoner: a luciferium addict dies without a supply we would have
     /// to keep up, so the after-combat step strips or finishes it instead.
     /// </summary>
-    public static bool CaptureWorthy(CombatPawnState h) => !h.Luciferium;
+    public static bool CaptureWorthy(bool luciferiumAddicted) => !luciferiumAddicted;
 
     /// <summary>
     /// Strips a downed raider still wearing apparel (or of unknown apparel) and waits until its apparel is
     /// gone. A refused strip, or a placed one whose apparel the frame no longer shows, is done rather than
     /// holding the fight on a missing row.
     /// </summary>
-    public static PostFightStep PostFightNext(Fact<bool> worn, StripState strip)
+    public static PostFightStep PostFightNext(RaiderApparel apparel, StripState strip)
     {
-        var known = worn.TryGetValue(out var w);
         if (strip == StripState.StripOpen)
         {
             return PostFightStep.Wait;
         }
-        if (known && !w)
+        if (apparel == RaiderApparel.Bare)
         {
             return PostFightStep.Done;
         }
@@ -133,7 +143,7 @@ public static partial class CombatThreatRules
         {
             return PostFightStep.Strip;
         }
-        if (strip == StripState.StripPlaced && known && w)
+        if (strip == StripState.StripPlaced && apparel == RaiderApparel.Wearing)
         {
             return PostFightStep.Wait;
         }
@@ -158,7 +168,12 @@ public static partial class CombatThreatRules
         foreach (var t in view.Threats)
         {
             var id = t.Id;
-            var s = state.TryGetValue(id, out var index) ? view.Pawns[index] : new CombatPawnState { Id = id };
+            // A threat row with no pawn state in the view is not one a gunner can be ordered at.
+            if (!state.TryGetValue(id, out var index))
+            {
+                continue;
+            }
+            var s = view.Pawns[index];
             if (t.Building || t.Dead || t.Downed || s.Dead || s.Downed || CombatAnomalyRules.HiddenFromPlayer(t))
             {
                 continue;
@@ -173,13 +188,14 @@ public static partial class CombatThreatRules
         return [.. result.OrderBy(p => tier[p.Id]).ThenBy(p => p.Id)];
     }
 
-    /// <summary>Says a shooter at <paramref name="from"/> with weapon range <paramref name="reach"/> can reach <paramref name="h"/>; an unknown cell or range counts as in range.</summary>
-    internal static bool InRange(Fact<Cell> from, double reach, CombatPawnState h)
+    /// <summary>Says a shooter at <paramref name="from"/> with weapon range <paramref name="reach"/> can reach <paramref name="h"/>; a shooter with no cell (no role cell and not in the view) or no range counts as in range.</summary>
+    internal static bool InRange(Cell? from, double reach, CombatPawnState h)
     {
-        if (!from.TryGetValue(out var a) || !h.Cell.TryGetValue(out var b) || reach <= 0)
+        if (from is not { } a || reach <= 0)
         {
             return true;
         }
+        var b = h.Cell;
         double dx = a.X - b.X;
         double dz = a.Z - b.Z;
         return Math.Sqrt((dx * dx) + (dz * dz)) <= reach;
@@ -219,18 +235,15 @@ public static partial class CombatThreatRules
             {
                 continue;
             }
-            state.TryGetValue(r.Pawn, out var s);
-            s ??= new CombatPawnState();
-            var from = s.Cell;
-            if (r.Cell is { } roleCell)
-            {
-                from = Known(roleCell);
-            }
+            // A gunner not in the view has no cell and no seen weapon: every hostile counts as in its range.
+            var seen = state.TryGetValue(r.Pawn, out var s);
+            var from = r.Cell ?? (seen ? s!.Cell : null);
+            var reach = seen ? s!.WeaponFacts.Reach : 0;
             // A hostile locked with our blocker is passed over while another is in range.
-            Func<CombatPawnState, bool> pick = h => InRange(from, s.WeaponRange, h) && !locked.Contains(h.Id);
+            Func<CombatPawnState, bool> pick = h => InRange(from, reach, h) && !locked.Contains(h.Id);
             if (!ranked.Any(pick))
             {
-                pick = h => InRange(from, s.WeaponRange, h);
+                pick = h => InRange(from, reach, h);
             }
             if (live.TryGetValue(was.GetValueOrDefault(r.Pawn), out var kept) && pick(kept))
             {

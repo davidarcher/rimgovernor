@@ -37,7 +37,7 @@ public static partial class CombatShelterRules
             .OrderByDescending(c => CombatPodsRules.NearestDistance(c, hostiles))
             .ThenBy(c => c, Comparer<Cell>.Create((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : (CombatManhunterRules.CellLess(b, a) ? 1 : 0)))
             .ToList();
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             safe = [.. layout.Retreat, .. safe];
         }
@@ -45,10 +45,8 @@ public static partial class CombatShelterRules
         var at = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                at[p.Id] = c;
-            }
+            var c = p.Cell;
+            at[p.Id] = c;
         }
         var roles = new List<CombatRole>();
         var taken = new List<Cell>();
@@ -112,10 +110,11 @@ public static partial class CombatShelterRules
             }
             foreach (var pawn in view.Pawns)
             {
-                if (pawn.Id != role.Pawn || !pawn.Cell.TryGetValue(out var at) || at != roleCell)
+                if (pawn.Id != role.Pawn || pawn.Cell != roleCell)
                 {
                     continue;
                 }
+                var at = pawn.Cell;
                 foreach (var hostile in view.Positional)
                 {
                     if (!hostile.Position.TryGetValue(out var cell) || RoundsRules.Positive(hostile.Dead) || RoundsRules.Positive(hostile.Downed))
@@ -125,9 +124,9 @@ public static partial class CombatShelterRules
                     var reach = 1.5;
                     foreach (var state in view.Pawns)
                     {
-                        if (state.Id == hostile.Id && state.WeaponRange > reach)
+                        if (state.Id == hostile.Id && state.WeaponFacts.Reach > reach)
                         {
-                            reach = state.WeaponRange;
+                            reach = state.WeaponFacts.Reach;
                         }
                     }
                     double dx = at.X - cell.X;
@@ -153,7 +152,7 @@ public static partial class CombatShelterRules
                 cells.Add(c);
             }
         }
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             foreach (var c in layout.Retreat)
             {
@@ -172,10 +171,7 @@ public static partial class CombatShelterRules
         }
         foreach (var pawn in view.Pawns)
         {
-            if (!pawn.Cell.TryGetValue(out var from))
-            {
-                continue;
-            }
+            var from = pawn.Cell;
             var hostiles = new List<Cell>();
             foreach (var h in view.Positional)
             {
@@ -226,7 +222,7 @@ public static partial class CombatShelterRules
                 Math.Min(Math.Max(to.X, interior.X), interior.X + interior.Width - 1),
                 Math.Min(Math.Max(to.Z, interior.Z), interior.Z + interior.Height - 1));
         }
-        if (!view.Layout.TryGetValue(out var layout) || !DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, from) || DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, to))
+        if (view.Layout is not { } layout || !DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, from) || DefensePositions.BehindFiringLine(layout.Firing, layout.Toward, to))
         {
             return to;
         }

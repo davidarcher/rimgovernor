@@ -15,11 +15,11 @@ public sealed class CounterBatteryTests
     private static readonly PawnId Far = new("Colonist_far");
     private static readonly Cell MortarCell = new(50, 50);
 
-    private static CombatView View(string toil, params (string Id, Cell Cell)[] besiegers) => new()
+    private static CombatView View(string toil, params (string Id, Cell Cell)[] besiegers) => CombatPawnFixtures.View() with
     {
         Pawns = EquatableArray.From(
-            new[] { new CombatPawnState { Id = Near, Cell = Known(new Cell(52, 50)) }, new CombatPawnState { Id = Far, Cell = Known(new Cell(40, 40)) } }
-                .Concat(besiegers.Select(b => new CombatPawnState { Id = new(b.Id), Cell = Known(b.Cell), Kind = "Mercenary_Gunner" }))),
+            new[] { CombatPawnFixtures.Pawn(Near, new Cell(52, 50)), CombatPawnFixtures.Pawn(Far, new Cell(40, 40)) }
+                .Concat(besiegers.Select(b => CombatPawnFixtures.Pawn(new(b.Id), b.Cell) with { Kind = "Mercenary_Gunner" }))),
         Defenders = EquatableArray.From(new[] { Near, Far }.Select(id => new SquadDefenderFacts { Id = id, Dead = false, Downed = false, Armor = new DefenderArmor.Unmirrored() })),
         Positional = EquatableArray.From(besiegers.Select(b => new DefensiveThreatFacts
         {

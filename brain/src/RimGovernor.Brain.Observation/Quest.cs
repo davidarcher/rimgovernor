@@ -38,18 +38,19 @@ public static class QuestReads
 
 
     /// <summary>Preserves the native exact exit cells from the same combat frame. No remote map selection or additional observation is performed.</summary>
-    public static Fact<CombatSiteExit> CombatSiteExitOf(WorldProgressionRead? read, MapId mapId)
+    /// <summary>The loaded quest site's exit on this map: its crew and exit cells, empty without a crew extraction; none when the map is no loaded site.</summary>
+    public static CombatSiteExit? CombatSiteExitOf(WorldProgressionRead? read, MapId mapId)
     {
         foreach (var site in read?.Sites ?? [])
         {
             if (site.Place is O.SitePlace.Loaded loaded && loaded.Map.Id == mapId)
             {
-                return Known(loaded.Map.Extraction is O.QuestSiteExtraction.Crew crew
+                return loaded.Map.Extraction is O.QuestSiteExtraction.Crew crew
                     ? new CombatSiteExit { Crew = crew.Value.Crew, Cells = crew.Value.ExitCells }
-                    : new CombatSiteExit { Crew = [], Cells = [] });
+                    : new CombatSiteExit { Crew = [], Cells = [] };
             }
         }
-        return Unknown<CombatSiteExit>();
+        return null;
     }
 
 

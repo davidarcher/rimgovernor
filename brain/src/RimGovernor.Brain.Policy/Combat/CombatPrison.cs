@@ -13,7 +13,7 @@ public static partial class CombatPrisonRules
         view.Pawns.Where(p => p.Prisoner && !p.Dead && !p.Downed).ToList();
 
     /// <summary>An escapee below full summary health.</summary>
-    internal static bool Injured(CombatPawnState p) => p.Health.TryGetValue(out var h) && h < 1;
+    internal static bool Injured(CombatPawnState p) => p.Health < 1;
 
     /// <summary>
     /// Runs the prison-break tactic when the view has a live escapee: it reports false otherwise and leaves
@@ -54,7 +54,7 @@ public static partial class CombatPrisonRules
             }
             if (role.Ranged)
             {
-                var held = s.FireMode == CombatFireRules.HoldFire || (s.FireMode.Length == 0 && lastHold.GetValueOrDefault(role.Pawn));
+                var held = CombatFireRules.Held(s, lastHold.GetValueOrDefault(role.Pawn));
                 var target = FirstBlocked(escapees, blocked);
                 roles[i] = role with { Target = target };
                 if (target.IsEmpty && !held)
@@ -101,10 +101,7 @@ public static partial class CombatPrisonRules
         var cells = new Dictionary<PawnId, Cell>();
         foreach (var e in escapees)
         {
-            if (e.Cell.TryGetValue(out var c))
-            {
-                cells[e.Id] = c;
-            }
+            cells[e.Id] = e.Cell;
         }
         var blocked = new Dictionary<PawnId, bool>();
         foreach (var r in roles)
@@ -113,10 +110,12 @@ public static partial class CombatPrisonRules
             {
                 continue;
             }
-            state.TryGetValue(r.Pawn, out var s);
-            var ok = s is not null && s.Cell.TryGetValue(out var at);
-            var known = cells.TryGetValue(r.Target, out var escapee);
-            if (s is not null && ((s.Target == r.Target && s.Stance == CombatStance.Melee) || (ok && known && CombatFireRules.Adjacent8(s.Cell.Value, escapee))))
+            if (!state.TryGetValue(r.Pawn, out var s))
+            {
+                continue;
+            }
+            var meleeOnIt = s.Presence is CombatPresence.Engaged { Row: { Stance: CombatStance.Melee, Target: var target } } && target == r.Target;
+            if (meleeOnIt || (cells.TryGetValue(r.Target, out var escapee) && CombatFireRules.Adjacent8(s.Cell, escapee)))
             {
                 blocked[r.Target] = true;
             }
@@ -133,7 +132,7 @@ public static partial class CombatPrisonRules
     /// </summary>
     internal static List<CombatRole> PrisonFormation(CombatView view, IReadOnlyList<CombatPawnState> escapees)
     {
-        var weapon = new Dictionary<PawnId, string>();
+        var weapon = new Dictionary<PawnId, string?>();
         var facts = new Dictionary<PawnId, WeaponDef>();
         foreach (var p in view.Pawns)
         {

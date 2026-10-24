@@ -630,6 +630,18 @@ other work for that pawn. Checkbox mode enables only those rest work types.
 
 ## Combat extensions
 
+**The combat pawn state** (`CombatPawnState`, #3886). Every pawn in a fight's view stands on a
+cell and carries its race, health and bleed facts from its pawn-table row. A pawn the combat read lists
+is `CombatPresence.Engaged`: its row's stance, target, fire mode (`Undrafted`, `FireAtWill`,
+`HoldFire`), shield belt (`Worn(energy)` or `NoBelt`) and drug scan (`Scanned(defs)` or `NotScanned`).
+A pawn only the pawn table holds (no hostile stands, so the read lists none) is `NoCombatRow`.
+Planners read its last order as still standing, and it carries no stun, speed or belt. A combat row
+whose pawn the frame's table does not hold waits for the next frame, and a table row off the map is not
+in the view. A wire stance outside the five, or a draft without a fire mode, fails the stop. The
+view's stored layout (with its choke `Corridor(cell)` or `NoCorridor`), quest-site exit and newest
+pod arrival are present or absent. The door states are the frame's rooms census, which every frame
+carries. A downed raider's strip reads its apparel as `Wearing`, `Bare` or `NotInFrame`.
+
 **Combat drugs.** A threatened defender receives a dose order only for a combat
 drug in its observed carried inventory, with catalog preference breaking ties.
 The combat pawn row carries a complete drug definition set; absent inventory

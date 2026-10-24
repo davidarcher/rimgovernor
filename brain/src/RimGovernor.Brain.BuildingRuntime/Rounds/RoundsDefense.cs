@@ -200,7 +200,7 @@ public sealed partial class RoundsDefensePlanner
             orderable = FightOrderable(fight, rows);
         }
         var layout = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map }, call);
-        var held = Unknown<CombatLayout>();
+        CombatLayout? held = null;
         if (layout is not null && layout.CombatReady() && p.Journal.LayoutPlan(state.Snapshot, new Tick(combat.Context?.Tick ?? 0), call) is { Plan: { } layoutPlan })
         {
             held = CombatLayoutOf(layoutPlan);
@@ -214,7 +214,7 @@ public sealed partial class RoundsDefensePlanner
         await ReconcileCombatBatchesAsync(state, owner, view, call).ConfigureAwait(false);
         var (orders, ask, next) = CombatDecideRules.DecideCombat(view, new GeometryReply(), stop, memory);
         var recorded = new SnapshotCombatStop { Tick = tick, Stop = stop, Orderable = [.. orderable.Select(o => (Domain.PawnId)o)], Ask = ask, MemoryIn = memory };
-        if (held.TryGetValue(out var layoutKnown))
+        if (held is { } layoutKnown)
         {
             recorded.Layout = layoutKnown;
         }
@@ -441,22 +441,23 @@ partial class RoundsDefensePlanner
     /// <summary>
     /// The layout combat fights from: the direction toward home from the plan's killbox opening, and the firing line,
     /// its retreat cells and the choke (the trap lane's last cell) from the plan's DefFiring and DefLane nodes (#3583).
-    /// Unknown while the plan has no opening.
+    /// None while the plan has no opening; a plan without a trap lane has no corridor.
     /// </summary>
-    internal static Fact<CombatLayout> CombatLayoutOf(LayoutPlan plan)
+    internal static CombatLayout? CombatLayoutOf(LayoutPlan plan)
     {
         var opening = LayoutPlan.KillboxOpening(plan);
         if (!opening.Ok)
         {
-            return Unknown<CombatLayout>();
+            return null;
         }
         var tiers = plan.DefenseTierGeometry();
-        var layout = new CombatLayout { Firing = [.. tiers.Firing.Select(f => f.Cell)], Retreat = [.. tiers.Firing.Select(f => f.Retreat)], Toward = opening.Killbox.Toward };
-        if (tiers.TrapLane.Count > 0)
+        return new CombatLayout
         {
-            layout = layout with { Choke = Known(tiers.TrapLane[^1]) };
-        }
-        return Known(layout);
+            Firing = [.. tiers.Firing.Select(f => f.Cell)],
+            Retreat = [.. tiers.Firing.Select(f => f.Retreat)],
+            Toward = opening.Killbox.Toward,
+            Choke = tiers.TrapLane.Count > 0 ? new CombatChoke.Corridor(tiers.TrapLane[^1]) : new CombatChoke.NoCorridor(),
+        };
     }
 
     /// <summary>The inputs of the combat step; a null inputs value carries the wait verdict when the census is incomplete or there is no fight.</summary>
@@ -534,7 +535,7 @@ partial class RoundsDefensePlanner
     }
 
     /// <summary>The policy view of the fight: the defenders, the threats, the structures and the combat read's rooms, doors and mortars.</summary>
-    internal static CombatView CombatView(BridgeCombat combat, CombatInputs inp, IReadOnlyList<PawnId> orderable, Fact<CombatLayout> layout)
+    internal static CombatView CombatView(BridgeCombat combat, CombatInputs inp, IReadOnlyList<PawnId> orderable, CombatLayout? layout)
     {
         var catalog = combat.Catalog ?? throw new ControlException("combatView: no definition catalog");
         var needed = inp.Needed.Select(n => (Domain.PawnId)n).ToHashSet();
@@ -618,7 +619,7 @@ partial class RoundsDefensePlanner
             Shells = combat.Shells,
             Structures = [.. structures],
             OutdoorTemperature = combat.OutdoorTemperature,
-            Population = Known(combat.Emergency.Facts.Colonists.Count),
+            Population = combat.Emergency.Facts.Colonists.Count,
         };
     }
 
@@ -629,9 +630,9 @@ partial class RoundsDefensePlanner
         // A hunt has no hostile, so the combat read lists no pawns and the states come from the observation rows: arm them from their equipment.
         for (var i = 0; i < states.Count; i++)
         {
-            if (states[i].Weapon.Length == 0 && inp.Primary.TryGetValue(states[i].Id.Value, out var def) && def.Length > 0 && inp.Weapons.TryGetValue(def, out var facts))
+            if (states[i].Weapon is null && inp.Primary.TryGetValue(states[i].Id.Value, out var def) && def.Length > 0 && inp.Weapons.TryGetValue(def, out var facts))
             {
-                states[i] = states[i] with { Weapon = def, WeaponFacts = facts, WeaponRange = facts.Reach };
+                states[i] = states[i] with { Weapon = def, WeaponFacts = facts };
             }
         }
 
@@ -642,18 +643,16 @@ partial class RoundsDefensePlanner
             {
                 continue;
             }
-            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead, Wild = true };
-            if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var position })
+            if (ObservedPawnState(row, wild: true, catalog) is { } s)
             {
-                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
+                states.Add(s);
             }
-            states.Add(ThreatFacts(s, row, catalog));
         }
         return states;
     }
 
-    /// <summary>The newest drop pod arrival of the combat events, with its open tick and landing cells; unknown without one.</summary>
-    internal static Fact<PodArrival> PodArrival(BridgeCombat combat)
+    /// <summary>The newest drop pod arrival of the combat events, with its open tick and landing cells; none without one.</summary>
+    internal static PodArrival? PodArrival(BridgeCombat combat)
     {
         M.CombatEventRow? newest = null;
         foreach (var row in combat.Events)
@@ -665,14 +664,14 @@ partial class RoundsDefensePlanner
         }
         if (newest?.Pods is not { } pods)
         {
-            return Unknown<PodArrival>();
+            return null;
         }
         var landing = new List<Cell>();
         foreach (var c in pods.LandingCells)
         {
             landing.Add(new Cell(c.X, c.Z));
         }
-        return Known(new PodArrival { Open = new Tick(pods.OpenTick), Landing = [.. landing] });
+        return new PodArrival { Open = new Tick(pods.OpenTick), Landing = [.. landing] };
     }
 
     /// <summary>The shooters with a line of fire to each threatening building: for every known line within the weapon reach, the shooters standing at its origin.</summary>

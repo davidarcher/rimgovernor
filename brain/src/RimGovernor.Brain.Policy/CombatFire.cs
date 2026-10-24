@@ -83,9 +83,9 @@ public static partial class CombatFireRules
         var output = new List<Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c) && orderable.Contains(p.Id) && live.GetValueOrDefault(p.Id) && !output.Contains(c))
+            if (orderable.Contains(p.Id) && live.GetValueOrDefault(p.Id) && !output.Contains(p.Cell))
             {
-                output.Add(c);
+                output.Add(p.Cell);
             }
         }
 
@@ -111,9 +111,9 @@ public static partial class CombatFireRules
             if (ask.Hostiles.Count < CombatDecideRules.MaxGeometryHostiles)
             {
                 ask.Hostiles.Add(h.Id);
-                if (h.Cell.TryGetValue(out var c) && !targets.Contains(c))
+                if (!targets.Contains(h.Cell))
                 {
-                    targets.Add(c);
+                    targets.Add(h.Cell);
                 }
             }
         }
@@ -131,10 +131,7 @@ public static partial class CombatFireRules
         var cells = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                cells[p.Id] = c;
-            }
+            cells[p.Id] = p.Cell;
         }
 
         foreach (var o in orders)
@@ -183,11 +180,8 @@ public static partial class CombatFireRules
         var taken = new HashSet<Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                cells[p.Id] = c;
-                taken.Add(c);
-            }
+            cells[p.Id] = p.Cell;
+            taken.Add(p.Cell);
         }
 
         var refused = new List<HitRefusal>(m.CannotHit);
@@ -336,24 +330,48 @@ public static partial class CombatFireRules
         return target.IsEmpty ? null : (best, target);
     }
 
+    /// <summary>The fire-mode order's name of a drafted pawn's mode; an undrafted pawn has none ("").</summary>
+    internal static string FireModeName(DraftFireMode mode)
+    {
+        switch (mode)
+        {
+            case DraftFireMode.Undrafted:
+                return "";
+            case DraftFireMode.FireAtWill:
+                return FireAtWill;
+            case DraftFireMode.HoldFire:
+                return HoldFire;
+        }
+
+        throw new DomainException($"undefined fire mode {(int)mode}");
+    }
+
+    /// <summary>
+    /// Whether the pawn holds fire: its draft says so, or it shows no draft mode (undrafted, or no combat row)
+    /// and its last fire-mode order held it.
+    /// </summary>
+    internal static bool Held(CombatPawnState s, bool lastHeld) => s.Presence is CombatPresence.Engaged { Row.FireMode: var mode }
+        ? mode == DraftFireMode.HoldFire || (mode == DraftFireMode.Undrafted && lastHeld)
+        : lastHeld;
+
     /// <summary>
     /// Reports <paramref name="p"/> fighting its target hand to hand: in the melee stance, or between swings
     /// (warmup, cooldown) standing next to it. A melee attacker reports cooldown after each swing; reading that
     /// as the melee's end flipped hold fire every other stop.
     /// </summary>
-    private static bool InMelee(CombatPawnState p, CombatPawnState target)
+    private static bool InMelee(CombatPawnState p, CombatRow row, CombatPawnState target)
     {
-        if (p.Stance == CombatStance.Melee)
+        if (row.Stance == CombatStance.Melee)
         {
             return true;
         }
 
-        if (p.Target.IsEmpty || !CombatDecideRules.InterruptsAim(p))
+        if (row.Target.IsEmpty || !CombatDecideRules.InterruptsAim(p))
         {
             return false;
         }
 
-        return p.Cell.TryGetValue(out var a) && target.Cell.TryGetValue(out var b) && Adjacent8(a, b);
+        return Adjacent8(p.Cell, target.Cell);
     }
 
     /// <summary>The hostiles in melee with one of our blockers (a blocker or melee role), either side swinging.</summary>
@@ -377,19 +395,20 @@ public static partial class CombatFireRules
         var locked = new HashSet<PawnId>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Dead || p.Downed || !InMelee(p, state.GetValueOrDefault(p.Target) ?? new CombatPawnState()))
+            // A pawn with no combat row shows no melee; one whose target left the view fights no one in it.
+            if (p.Dead || p.Downed || p.Presence is not CombatPresence.Engaged { Row: var row } || !state.TryGetValue(row.Target, out var target) || !InMelee(p, row, target))
             {
                 continue;
             }
 
-            if (blockers.Contains(p.Target))
+            if (blockers.Contains(row.Target))
             {
                 locked.Add(p.Id); // a hostile on a blocker
             }
 
-            if (blockers.Contains(p.Id) && !p.Target.IsEmpty)
+            if (blockers.Contains(p.Id))
             {
-                locked.Add(p.Target); // a blocker on a hostile
+                locked.Add(row.Target); // a blocker on a hostile
             }
         }
 
@@ -432,26 +451,28 @@ public static partial class CombatFireRules
 
         foreach (var r in roles)
         {
-            var s = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
             var quietPawn = quiet || suppressNativeFire.Contains(r.Pawn);
-            if (!r.Ranged || r.Duty == CombatDuty.Blocker || !orderable.Contains(r.Pawn) || s.Dead || s.Downed)
+            if (!r.Ranged || r.Duty == CombatDuty.Blocker || !orderable.Contains(r.Pawn) || !state.TryGetValue(r.Pawn, out var s) || s.Dead || s.Downed)
             {
                 continue;
             }
 
-            var held = s.FireMode == HoldFire || (s.FireMode.Length == 0 && lastHold.GetValueOrDefault(r.Pawn));
+            var held = Held(s, lastHold.GetValueOrDefault(r.Pawn));
             var pawn = r.Pawn;
 
+            // A pawn with no combat row shows no target and no stance: it is not seen shooting anyone.
+            var (shooting, busy) = s.Presence is CombatPresence.Engaged { Row: var row } ? (row.Target, row.Stance != CombatStance.Idle) : (default(PawnId), false);
+
             // A pawn mid-aim keeps its fire mode unless its shot is at the hostile our blocker is fighting.
-            if (CombatDecideRules.InterruptsAim(s) && !locked.Contains(s.Target) && !quietPawn)
+            if (CombatDecideRules.InterruptsAim(s) && !locked.Contains(shooting) && !quietPawn)
             {
                 continue;
             }
 
-            if (quietPawn || locked.Contains(r.Target) || (locked.Contains(s.Target) && (r.Target.IsEmpty || s.Stance != CombatStance.Idle)))
+            if (quietPawn || locked.Contains(r.Target) || (locked.Contains(shooting) && (r.Target.IsEmpty || busy)))
             {
                 orders.RemoveAll(o => o.Pawn == pawn);
-                if (((quietPawn && !s.Target.IsEmpty) || locked.Contains(s.Target)) && s.Stance != CombatStance.Idle)
+                if (((quietPawn && !shooting.IsEmpty) || locked.Contains(shooting)) && busy)
                 {
                     orders.Add(new CombatOrder { Pawn = r.Pawn, Kind = CombatOrderKind.Stop, Reason = CombatOrderReason.HoldFire });
                 }

@@ -90,7 +90,7 @@ public static partial class CombatPermitRules
         var cells = new List<Cell>();
         foreach (var p in CombatCastRules.LiveHostiles(view))
         {
-            p.Cell.TryGetValue(out var c);
+            var c = p.Cell;
             cells.Add(c);
         }
         return cells;

@@ -17,9 +17,9 @@ public static partial class CombatManhunterRules
     /// <summary>How close to a colonist an exploder is never shot, in cells: a boomalope's death blast and fire.</summary>
     internal const double ExploderRadius = 6.0;
 
-    /// <summary>Sorts one animal by speed and by its death explosion.</summary>
+    /// <summary>Sorts one animal by speed and by its death explosion; an animal with no combat row shows no speed and is not slow.</summary>
     internal static AnimalClass ClassifyAnimal(CombatPawnState s) => new(
-        s.MoveSpeed > 0 && s.MoveSpeed < ColonistMoveSpeed,
+        s.Presence is CombatPresence.Engaged { Row.MoveSpeed: > 0 and < ColonistMoveSpeed },
         s.Kind.Contains("Boomalope", StringComparison.Ordinal) || s.Kind.Contains("Boomrat", StringComparison.Ordinal));
 
     /// <summary>
@@ -92,16 +92,11 @@ public static partial class CombatManhunterRules
         var down = DownPawns(view);
         foreach (var (id, h) in exploders)
         {
-            if (!h.Cell.TryGetValue(out var at))
-            {
-                output.Add(id);
-                continue;
-            }
-
+            var at = h.Cell;
             foreach (var p in view.Pawns.Items)
             {
-                var known = p.Cell.TryGetValue(out var c);
-                if (colonists.Contains(p.Id) && !down.Contains(p.Id) && known
+                var c = p.Cell;
+                if (colonists.Contains(p.Id) && !down.Contains(p.Id)
                     && Math.Sqrt(((double)(c.X - at.X) * (c.X - at.X)) + ((double)(c.Z - at.Z) * (c.Z - at.Z))) <= ExploderRadius)
                 {
                     output.Add(id);
@@ -158,7 +153,7 @@ public static partial class CombatManhunterRules
 
         var blocking = CombatBlockingRules.BlockingChoke(view) is not null;
         var cells = new List<Cell>();
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             cells = [.. layout.Firing.Items];
             IEnumerable<Cell> candidates = geometry.Proposals.Items;

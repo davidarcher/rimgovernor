@@ -90,7 +90,7 @@ public static partial class CombatManhunterRules
     internal static List<WaveChoke> ChargeChokes(CombatView view)
     {
         var ranked = CombatThreatRules.RankThreats(view);
-        var shielded = ranked.Count(h => h.Shield.IsKnown && MeleeHostile(h));
+        var shielded = ranked.Count(h => h.Presence is CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } && MeleeHostile(h));
         if (2 * shielded <= ranked.Count)
         {
             return [];
@@ -102,7 +102,7 @@ public static partial class CombatManhunterRules
     /// <summary>A hostile whose weapon reaches about one cell: the known range, else the weapon def's.</summary>
     internal static bool MeleeHostile(CombatPawnState h)
     {
-        var reach = h.WeaponRange;
+        var reach = h.WeaponFacts.Reach;
         if (reach <= 0)
         {
             reach = h.WeaponFacts.Range;
@@ -138,11 +138,7 @@ public static partial class CombatManhunterRules
         var best = new Dictionary<Cell, long>();
         foreach (var h in ranked)
         {
-            if (!h.Cell.TryGetValue(out var at))
-            {
-                continue;
-            }
-
+            var at = h.Cell;
             var door = doors[NearestIndex(at, doors)];
             if (!byDoor.TryGetValue(door, out var c))
             {

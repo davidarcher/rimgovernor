@@ -55,7 +55,7 @@ public static partial class CombatGroupsRules
     /// </summary>
     private static List<RaidGroup> RaidGroups(CombatView view, CombatTuning t)
     {
-        var hs = CombatThreatRules.RankThreats(view).Where(h => h.Cell.IsKnown).ToList();
+        var hs = CombatThreatRules.RankThreats(view);
         hs = PolicySort.ByLess(hs, (a, b) => a.Id < b.Id);
         var group = new int[hs.Count];
         for (var i = 0; i < group.Length; i++)
@@ -77,8 +77,8 @@ public static partial class CombatGroupsRules
         {
             for (var j = i + 1; j < hs.Count; j++)
             {
-                hs[i].Cell.TryGetValue(out var a);
-                hs[j].Cell.TryGetValue(out var b);
+                var a = hs[i].Cell;
+                var b = hs[j].Cell;
                 if (CombatFireRules.Within(a, b, t.GroupGap))
                 {
                     int ri = Find(i), rj = Find(j);
@@ -99,7 +99,7 @@ public static partial class CombatGroupsRules
                 output.Add(new RaidGroup());
             }
 
-            hs[i].Cell.TryGetValue(out var c);
+            var c = hs[i].Cell;
             output[k].Hostiles.Add(hs[i].Id);
             output[k].Cells.Add(c);
         }
@@ -124,7 +124,7 @@ public static partial class CombatGroupsRules
     /// <summary>The layout line's middle cell, and its choke (or that middle again without one).</summary>
     private static (Cell Home, Cell Choke)? GroupHome(CombatView view)
     {
-        if (!view.Layout.TryGetValue(out var layout) || layout.Firing.Count == 0)
+        if (view.Layout is not { } layout || layout.Firing.Count == 0)
         {
             return null;
         }
@@ -138,7 +138,7 @@ public static partial class CombatGroupsRules
 
         long n = layout.Firing.Count;
         var home = new Cell((int)(x / n), (int)(z / n));
-        if (layout.Choke.TryGetValue(out var choke))
+        if (layout.Choke is CombatChoke.Corridor { Cell: var choke })
         {
             return (home, choke);
         }
@@ -304,7 +304,8 @@ public static partial class CombatGroupsRules
                     target = h.Id;
                 }
 
-                if (h.Cell.TryGetValue(out var c) && g.Cells.Any(s => CombatFireRules.Within(s, c, GroupFallbackRange)))
+                var c = h.Cell;
+                if (g.Cells.Any(s => CombatFireRules.Within(s, c, GroupFallbackRange)))
                 {
                     g.FellBack = true;
                 }

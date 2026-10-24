@@ -12,9 +12,9 @@ public static partial class CombatSiegeRules
         PawnId frame = default;
         foreach (var p in view.Pawns)
         {
-            if (besiegers.ContainsKey(p.Id) && p.Job == "FinishFrame" && !p.Target.IsEmpty && (frame.IsEmpty || p.Target < frame))
+            if (besiegers.ContainsKey(p.Id) && p.Job == "FinishFrame" && p.Presence is CombatPresence.Engaged { Row.Target: var target } && !target.IsEmpty && (frame.IsEmpty || target < frame))
             {
-                frame = p.Target;
+                frame = target;
             }
         }
         return frame;

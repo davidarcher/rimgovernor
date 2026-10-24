@@ -98,7 +98,7 @@ public sealed partial class RoundsDefensePlanner
         {
             d.Layout = layout;
             var recorded = p.Journal.LayoutPlan(current, tick, ct);
-            if (recorded?.Plan is { } plan && RoundsDefensePlanner.CombatLayoutOf(plan).TryGetValue(out var combat))
+            if (recorded?.Plan is { } plan && RoundsDefensePlanner.CombatLayoutOf(plan) is { } combat)
             {
                 d.Combat = combat;
             }

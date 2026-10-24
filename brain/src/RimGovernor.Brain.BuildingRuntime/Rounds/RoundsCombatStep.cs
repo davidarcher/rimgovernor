@@ -31,7 +31,7 @@ partial record CombatReads
     /// so a fight there is decided by the code that decides one live. A geometry ask is answered from the game through <paramref name="read"/>; the layout and the reads are the
     /// caller's (unknown when it holds none). Null when there is no fight to decide.
     /// </summary>
-    internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, Fact<CombatLayout> layout, CombatReads reads)
+    internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, CombatLayout? layout, CombatReads reads)
     {
         var (inputs, _) = RoundsDefensePlanner.CombatFrameInputs(combat, [], []);
         if (inputs is null)
@@ -82,6 +82,6 @@ partial record CombatReads
         {
             shaped.Add(new BridgeCombatOrderResult { Index = (int)(r.Index ?? 0), PawnId = r.PawnId ?? "", Applied = r.Applied == true, Refusal = r.Refusal ?? "" });
         }
-        return RoundsDefensePlanner.CombatStopMemory(step.View, step.Orders, shaped, step.Memory);
+        return RoundsDefensePlanner.CombatStopMemory(step.View.Pawns, step.Orders, shaped, step.Memory);
     }
 }

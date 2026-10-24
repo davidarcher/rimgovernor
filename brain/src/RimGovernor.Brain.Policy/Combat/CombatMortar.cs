@@ -38,13 +38,21 @@ public sealed record MortarShells
     public string EMP { get; init; } = "";
 
     /// <summary>The shell def of <paramref name="kind"/>, empty when the load has none.</summary>
-    public string Def(ShellKind kind) => kind switch
+    public string Def(ShellKind kind)
     {
-        ShellKind.HE => HE,
-        ShellKind.Incendiary => Incendiary,
-        ShellKind.EMP => EMP,
-        _ => "",
-    };
+        switch (kind)
+        {
+            case ShellKind.None:
+                return "";
+            case ShellKind.HE:
+                return HE;
+            case ShellKind.Incendiary:
+                return Incendiary;
+            case ShellKind.EMP:
+                return EMP;
+        }
+        throw new DomainException("mortar shell kind " + kind);
+    }
 }
 
 /// <summary>
@@ -129,10 +137,8 @@ public static partial class CombatMortarRules
         var cells = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                cells[p.Id] = c;
-            }
+            var c = p.Cell;
+            cells[p.Id] = c;
         }
         var busy = new HashSet<PawnId>();
         var mortars = view.Mortars.OrderBy(x => x.Id, StringComparer.Ordinal).ToList();
@@ -295,7 +301,8 @@ public static partial class CombatMortarRules
         var result = new List<Cell>();
         foreach (var p in view.Pawns)
         {
-            if (p.Cell.TryGetValue(out var c) && besiegers.TryGetValue(p.Id, out var toil) && toil == CombatSiegeRules.SiegeCampToil && !NearAny(ours, c))
+            var c = p.Cell;
+            if (besiegers.TryGetValue(p.Id, out var toil) && toil == CombatSiegeRules.SiegeCampToil && !NearAny(ours, c))
             {
                 result.Add(c);
             }
@@ -347,7 +354,8 @@ public static partial class CombatMortarRules
         var result = new List<Cell>();
         foreach (var p in view.Pawns)
         {
-            if (!p.Cell.TryGetValue(out var c) || !hostile.GetValueOrDefault(p.Id) || p.Dead || p.Downed || !p.Kind.StartsWith("Mech_Centipede", StringComparison.Ordinal))
+            var c = p.Cell;
+            if (!hostile.GetValueOrDefault(p.Id) || p.Dead || p.Downed || !p.Kind.StartsWith("Mech_Centipede", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -367,7 +375,8 @@ public static partial class CombatMortarRules
         {
             foreach (var p in view.Pawns)
             {
-                if (p.Cell.TryGetValue(out var c) && p.Id == d.Id)
+                var c = p.Cell;
+                if (p.Id == d.Id)
                 {
                     ours.Add(c);
                 }
@@ -380,7 +389,7 @@ public static partial class CombatMortarRules
     internal static bool NearAny(IReadOnlyList<Cell> ours, Cell c) => ours.Any(o => Dist(o, c) <= MortarSafeRadius);
 
     /// <summary>Reports a mechanoid standing on <paramref name="c"/>: EMP, not HE, on a camp of mechs.</summary>
-    internal static bool MechAt(CombatView view, Cell c) => view.Pawns.Any(p => p.Cell.TryGetValue(out var at) && at == c && p.Mech);
+    internal static bool MechAt(CombatView view, Cell c) => view.Pawns.Any(p => p.Cell == c && p.Mech);
 
     internal static double Dist(Cell a, Cell b) => Math.Sqrt(((double)(a.X - b.X) * (a.X - b.X)) + ((double)(a.Z - b.Z) * (a.Z - b.Z)));
 }

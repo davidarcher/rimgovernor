@@ -36,12 +36,10 @@ public static partial class CombatSapperRules
         var n = 0;
         foreach (var h in LiveSappers(view))
         {
-            if (h.Cell.TryGetValue(out var c))
-            {
-                sx += c.X;
-                sz += c.Z;
-                n++;
-            }
+            var c = h.Cell;
+            sx += c.X;
+            sz += c.Z;
+            n++;
         }
         if (n == 0 || view.Rooms.Count == 0)
         {

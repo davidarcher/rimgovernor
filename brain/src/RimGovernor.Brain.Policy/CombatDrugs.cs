@@ -32,8 +32,7 @@ public static partial class CombatDrugsRules
                 continue;
             }
 
-            state.TryGetValue(CombatDecideRules.ThreatPawn(t), out var s);
-            if (t.Mech || (s is not null && s.GoJuice && !s.Downed && !s.Dead))
+            if (t.Mech || (state.TryGetValue(CombatDecideRules.ThreatPawn(t), out var s) && s.Presence is CombatPresence.Engaged { Row.GoJuice: true } && !s.Downed && !s.Dead))
             {
                 return true;
             }
@@ -73,17 +72,13 @@ public static partial class CombatDrugsRules
 
         foreach (var id in view.Orderable.Items)
         {
-            if (!state.TryGetValue(id, out var s) || orders.Any(o => o.Pawn == id) || !orderable.Contains(id) || s.Dead || s.Downed || s.GoJuice || CombatDecideRules.InterruptsAim(s) || m.Dosed.Contains(id) || m.Rescue?.Carrying(id) == true)
+            // Only a pawn whose combat row lists its carried drugs is dosed: no row, no scan, no dose.
+            if (!state.TryGetValue(id, out var s) || s.Presence is not CombatPresence.Engaged { Row: { GoJuice: false, CarriedDrugs: DrugInventory.Scanned { Defs: var carried } } } || orders.Any(o => o.Pawn == id) || !orderable.Contains(id) || s.Dead || s.Downed || CombatDecideRules.InterruptsAim(s) || m.Dosed.Contains(id) || m.Rescue?.Carrying(id) == true)
             {
                 continue;
             }
 
             if (!hostiles.Any(h => WithinDose(s, h, m.EffectiveTuning().DoseMargin)))
-            {
-                continue;
-            }
-
-            if (!s.CarriedDrugs.TryGetValue(out var carried))
             {
                 continue;
             }
@@ -110,14 +105,9 @@ public static partial class CombatDrugsRules
         return doses;
     }
 
-    /// <summary>Reports h within the defender's weapon range plus the dose margin; an unknown cell counts as out of reach (a dose waits for the facts).</summary>
+    /// <summary>Reports h within the defender's weapon range plus the dose margin.</summary>
     private static bool WithinDose(CombatPawnState d, CombatPawnState h, double margin)
     {
-        if (!d.Cell.IsKnown || !h.Cell.IsKnown)
-        {
-            return false;
-        }
-
-        return CombatThreatRules.InRange(d.Cell, Math.Max(d.WeaponRange, 1) + margin, h);
+        return CombatThreatRules.InRange(d.Cell, Math.Max(d.WeaponFacts.Reach, 1) + margin, h);
     }
 }

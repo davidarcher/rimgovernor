@@ -218,15 +218,14 @@ public static partial class CombatCastRules
         {
             if (p.Id == id)
             {
-                var known = p.Cell.TryGetValue(out var c);
-                return (c, known);
+                return (p.Cell, true);
             }
         }
 
         return (default, false);
     }
 
-    /// <summary>The live hostile pawns with a known cell, in view order.</summary>
+    /// <summary>The live hostile pawns, in view order.</summary>
     internal static List<CombatPawnState> LiveHostiles(CombatView view)
     {
         var hostile = new Dictionary<PawnId, bool>();
@@ -235,7 +234,7 @@ public static partial class CombatCastRules
             hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !t.Dead && !t.Downed;
         }
 
-        return [.. view.Pawns.Items.Where(p => p.Cell.IsKnown && hostile.GetValueOrDefault(p.Id) && !p.Dead && !p.Downed)];
+        return [.. view.Pawns.Items.Where(p => hostile.GetValueOrDefault(p.Id) && !p.Dead && !p.Downed)];
     }
 
     /// <summary>The live hostile nearest from within CastReach.</summary>
@@ -245,7 +244,7 @@ public static partial class CombatCastRules
         var nearest = CastReach;
         foreach (var p in LiveHostiles(view))
         {
-            p.Cell.TryGetValue(out var c);
+            var c = p.Cell;
             var d = CombatMortarRules.Dist(from, c);
             if (d <= nearest && (best is null || d < nearest))
             {

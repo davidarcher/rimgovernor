@@ -71,11 +71,11 @@ public static partial class CombatWaitRules
     /// </summary>
     internal static bool HumanoidRaid(CombatView view, CombatMemory m)
     {
-        if (view.Layout.IsKnown)
+        if (view.Layout is not null)
         {
             return false;
         }
-        if (view.Pods.IsKnown || m.Pods is not null || CombatSiegeRules.LiveBesiegers(view).Count > 0)
+        if (view.Pods is not null || m.Pods is not null || CombatSiegeRules.LiveBesiegers(view).Count > 0)
         {
             return false;
         }
@@ -149,17 +149,15 @@ public static partial class CombatWaitRules
         }
         m = m with { Kiter = default, Leading = false, PotshotDoor = null, Intercept = false, Rushing = false, MechLure = false };
         var inner = new List<Cell>();
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             inner = layout.Retreat.ToList();
         }
         var at = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                at[p.Id] = c;
-            }
+            var c = p.Cell;
+            at[p.Id] = c;
         }
         var roles = m.Roles.ToList();
         for (var i = 0; i < roles.Count; i++)

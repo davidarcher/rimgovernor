@@ -52,14 +52,6 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>Policy's fire mode ("fire_at_will", "hold_fire").</summary>
-    public static string FireModeName(CombatFireMode mode) =>
-        mode switch
-        {
-            CombatFireMode.AtWill => "fire_at_will",
-            CombatFireMode.Hold => "hold_fire",
-            _ => "",
-        };
 
     /// <summary>Policy's route facility kind ("bed", "bench", ...).</summary>
     public static string RouteKindName(RouteFacilityKind kind) =>

@@ -30,12 +30,12 @@ public static partial class CombatMechRules
         m.EmpAdapted.RemoveAll(a => a.Until.Value <= view.Tick.Value);
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (!CombatGrenadeRules.IsMech(h) || h.StunTicks <= 0 || EmpAdapted(m, h.Id))
+            if (!CombatGrenadeRules.IsMech(h) || h.Presence is not CombatPresence.Engaged { Row.StunTicks: var stun and > 0 } || EmpAdapted(m, h.Id))
             {
                 continue;
             }
 
-            m.EmpAdapted.Add(new EmpAdaptation(h.Id, new Tick(view.Tick.Value + h.StunTicks + EmpAdaptAfterStun)));
+            m.EmpAdapted.Add(new EmpAdaptation(h.Id, new Tick(view.Tick.Value + stun + EmpAdaptAfterStun)));
         }
 
         m.EmpAdapted = PolicySort.ByLess(m.EmpAdapted, (a, b) => string.CompareOrdinal(a.Pawn.Value, b.Pawn.Value) < 0);
@@ -55,21 +55,20 @@ public static partial class CombatMechRules
             return CombatGrenadeRules.GrenadeTarget(carrier, hostiles, colonists);
         }
 
-        var ok = view.Layout.TryGetValue(out var layout);
-        Cell choke = default;
-        var cok = ok && layout!.Choke.TryGetValue(out choke);
-        var fok = carrier.Cell.TryGetValue(out var from);
+        var from = carrier.Cell;
         var blast = carrier.WeaponFacts.Blast;
-        if (!ok || !cok || !fok || blast <= 0)
+        if (view.Layout is not { Choke: CombatChoke.Corridor { Cell: var choke } } || blast <= 0)
         {
             return null;
         }
 
+        // Only a scyther whose combat row shows it awake is worth the stun.
         var scythers = new List<Cell>();
         foreach (var h in hostiles)
         {
-            if (h.Cell.TryGetValue(out var c) && !h.Dead && !h.Downed && h.Kind.StartsWith("Mech_Scyther", StringComparison.Ordinal)
-                && h.StunTicks == 0 && !EmpAdapted(m, h.Id) && LightingRules.Chebyshev(c, choke) <= EmpChokeReach)
+            var c = h.Cell;
+            if (!h.Dead && !h.Downed && h.Kind.StartsWith("Mech_Scyther", StringComparison.Ordinal)
+                && h.Presence is CombatPresence.Engaged { Row.StunTicks: 0 } && !EmpAdapted(m, h.Id) && LightingRules.Chebyshev(c, choke) <= EmpChokeReach)
             {
                 scythers.Add(c);
             }
@@ -109,7 +108,7 @@ public static partial class CombatMechRules
     /// </summary>
     internal static void MechDisengage(CombatView view, CombatMemory m)
     {
-        if (!view.Layout.TryGetValue(out var layout) || layout.Retreat.Count == 0 || m.EmpAdapted.Count == 0)
+        if (view.Layout is not { } layout || layout.Retreat.Count == 0 || m.EmpAdapted.Count == 0)
         {
             return;
         }
@@ -117,9 +116,10 @@ public static partial class CombatMechRules
         var waking = new List<Cell>();
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Cell.TryGetValue(out var c) && CombatGrenadeRules.IsMech(h) && EmpAdapted(m, h.Id) && h.StunTicks <= EmpDisengageTicks)
+            // A mech with no combat row shows no stun left: it counts as waking, and the blocker pulls back.
+            if (CombatGrenadeRules.IsMech(h) && EmpAdapted(m, h.Id) && h.Presence is not CombatPresence.Engaged { Row.StunTicks: > EmpDisengageTicks })
             {
-                waking.Add(c);
+                waking.Add(h.Cell);
             }
         }
 

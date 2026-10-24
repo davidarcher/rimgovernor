@@ -168,7 +168,7 @@ using var arena = new Arena(request, hive is not null ? hive.Raise : stage is nu
 if (stage is not null)
 {
     live.Layout = stage.Layout;
-    Console.Error.WriteLine($"stage: layout {(stage.Layout.IsKnown ? "held" : "none")} refusal={(stage.Failure.Length == 0 ? "none" : stage.Failure)} home={stage.Home.X},{stage.Home.Z} bed={stage.BedCell?.X},{stage.BedCell?.Z} firing={string.Join(" ", stage.Planned?.Firing.Select(f => f.Cell.X + "," + f.Cell.Z) ?? [])} tiers={stage.Planned?.Tiers.Count}");
+    Console.Error.WriteLine($"stage: layout {(stage.Layout is not null ? "held" : "none")} refusal={(stage.Failure.Length == 0 ? "none" : stage.Failure)} home={stage.Home.X},{stage.Home.Z} bed={stage.BedCell?.X},{stage.BedCell?.Z} firing={string.Join(" ", stage.Planned?.Firing.Select(f => f.Cell.X + "," + f.Cell.Z) ?? [])} tiers={stage.Planned?.Tiers.Count}");
 }
 var result = arena.Fight(1);
 Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : policy ? "policy " + live.Summary : controller.Summary)}");

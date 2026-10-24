@@ -21,15 +21,13 @@ public static partial class CombatFallbackRules
         var at = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                at[p.Id] = c;
-            }
+            var c = p.Cell;
+            at[p.Id] = c;
         }
 
         if (!m.Scattered)
         {
-            if (!view.Layout.TryGetValue(out var layout) || m.Tactic != CombatTactic.Hold)
+            if (view.Layout is not { } layout || m.Tactic != CombatTactic.Hold)
             {
                 QueueRepairs(view, m, at);
                 return;
@@ -179,8 +177,7 @@ public static partial class CombatFallbackRules
     /// </summary>
     internal static bool FallBack(CombatView view, StopEvent stop, CombatMemory m)
     {
-        var ok = view.Layout.TryGetValue(out var layout);
-        if (m.Tactic != CombatTactic.Hold || !ok || layout!.Retreat.Count == 0 || layout.Retreat.Count != layout.Firing.Count || FellBack(m))
+        if (m.Tactic != CombatTactic.Hold || view.Layout is not { } layout || layout.Retreat.Count == 0 || layout.Retreat.Count != layout.Firing.Count || FellBack(m))
         {
             return false;
         }

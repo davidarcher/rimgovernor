@@ -70,12 +70,10 @@ public static partial class CombatPodsRules
         var reach = new Dictionary<PawnId, double>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                at[p.Id] = c;
-            }
+            var c = p.Cell;
+            at[p.Id] = c;
 
-            reach[p.Id] = p.WeaponRange;
+            reach[p.Id] = p.WeaponFacts.Reach;
         }
 
         var armed = new List<SquadDefenderFacts>();
@@ -135,7 +133,7 @@ public static partial class CombatPodsRules
         }
 
         var inner = new List<Cell>();
-        if (view.Layout.TryGetValue(out var layout) && layout.Retreat.Count > 0 && PodsInside(layout, pods))
+        if (view.Layout is { } layout && layout.Retreat.Count > 0 && PodsInside(layout, pods))
         {
             inner = [.. layout.Retreat.Items];
         }
@@ -321,7 +319,7 @@ public static partial class CombatPodsRules
             if (d.Mode == DoorMode.Open)
             {
                 // A pawn-driven open is an instant trigger: it stands until the door reads open, then is done.
-                var read = view.DoorStates.TryGetValue(out var seen) ? seen.Items.FirstOrDefault(s => s.Cell == d.Cell) : null;
+                var read = view.DoorStates.Items.FirstOrDefault(s => s.Cell == d.Cell);
                 var isOpen = read is not null && read.Open;
                 if (isOpen)
                 {
@@ -332,7 +330,7 @@ public static partial class CombatPodsRules
                 return d with { Sent = true };
             }
 
-            if (view.DoorStates.TryGetValue(out var states))
+            var states = view.DoorStates;
             {
                 var index = states.Items.ToList().FindIndex(s => s.Cell == d.Cell);
                 if (index >= 0)
@@ -381,7 +379,7 @@ public static partial class CombatPodsRules
 
         // A formation that releases a door closes it until a fresh read confirms the latch is clear. Retained
         // intent supplies ownership; observed state supplies reconciliation, including uncertain receipts.
-        if (view.DoorStates.TryGetValue(out var observed))
+        var observed = view.DoorStates;
         {
             bool Active(Cell cell) =>
                 m.PodDoors.Concat(m.WaitDoors.Items).Any(d => d.Cell == cell && d.Mode == DoorMode.HoldOpen)

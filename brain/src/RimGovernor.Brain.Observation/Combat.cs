@@ -36,7 +36,8 @@ public sealed record Combat
     /// <summary>The map's standing rectangular rooms.</summary>
     public IReadOnlyList<P.CombatRoom> Rooms { get; init; } = [];
 
-    public Fact<EquatableArray<O.RoomDoor>> DoorStates { get; init; }
+    /// <summary>The doors of the frame's rooms census, every frame's (a frame without its rooms section fails whole).</summary>
+    public EquatableArray<O.RoomDoor> DoorStates { get; init; }
 
     /// <summary>The damaged player doors.</summary>
     public IReadOnlyList<CombatDoorRow> Doors { get; init; } = [];

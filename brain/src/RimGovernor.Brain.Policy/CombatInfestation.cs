@@ -106,9 +106,9 @@ public static partial class CombatInfestationRules
         var colonists = new List<Cell>();
         foreach (var d in view.Defenders.Items)
         {
-            if (state.TryGetValue(d.Id, out var s) && !s.Dead && s.Cell.TryGetValue(out var c))
+            if (state.TryGetValue(d.Id, out var s) && !s.Dead)
             {
-                colonists.Add(c);
+                colonists.Add(s.Cell);
             }
         }
 
@@ -122,7 +122,11 @@ public static partial class CombatInfestationRules
                 continue;
             }
 
-            var carrier = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
+            if (!state.TryGetValue(r.Pawn, out var carrier))
+            {
+                continue;
+            }
+
             if (carrier.WeaponFacts.Burner())
             {
                 // Never a molotov at an insect: flame on one may send the hive to assault.
@@ -135,12 +139,13 @@ public static partial class CombatInfestationRules
                 continue;
             }
 
-            if (!carrier.Cell.TryGetValue(out var from) || (r.Cell is { } held && from != held))
+            var from = carrier.Cell;
+            if (r.Cell is { } held && from != held)
             {
                 continue;
             }
 
-            var reach = carrier.WeaponRange;
+            var reach = carrier.WeaponFacts.Reach;
             if (reach <= 0)
             {
                 reach = carrier.WeaponFacts.Range;
@@ -191,8 +196,7 @@ public static partial class CombatInfestationRules
         {
             foreach (var d in view.Defenders.Items)
             {
-                var ds = state.GetValueOrDefault(d.Id) ?? new CombatPawnState();
-                if (ds.Job == DeepDrillJob && !ds.Dead && !ds.Downed)
+                if (state.TryGetValue(d.Id, out var ds) && ds.Job == DeepDrillJob && !ds.Dead && !ds.Downed)
                 {
                     m.Driller = d.Id;
                     break;
@@ -200,8 +204,7 @@ public static partial class CombatInfestationRules
             }
         }
 
-        var s = state.GetValueOrDefault(m.Driller) ?? new CombatPawnState();
-        if (m.Driller.IsEmpty || s.Dead || s.Downed)
+        if (m.Driller.IsEmpty || !state.TryGetValue(m.Driller, out var s) || s.Dead || s.Downed)
         {
             return;
         }
@@ -213,11 +216,12 @@ public static partial class CombatInfestationRules
         }
         else
         {
-            var known = s.Cell.TryGetValue(out var at);
+            var at = s.Cell;
             Cell? near = null;
             foreach (var h in CombatThreatRules.RankThreats(view))
             {
-                if (h.Cell.TryGetValue(out var c) && known && (near is not { } n || CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(n, at)))
+                var c = h.Cell;
+                if (near is not { } n || CombatManhunterRules.Distance2(c, at) < CombatManhunterRules.Distance2(n, at))
                 {
                     near = c;
                 }

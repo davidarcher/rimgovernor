@@ -96,12 +96,7 @@ public static partial class CombatDoorRules
     /// <summary>Uses the current native room boundary, never the saved layout or a door retained by an earlier combat stop.</summary>
     internal static bool CombatDoorExists(CombatView view, Cell cell)
     {
-        if (view.DoorStates.TryGetValue(out var doors))
-        {
-            return doors.Items.Any(d => d.Cell == cell);
-        }
-
-        return view.Rooms.Items.Any(room => room.Doors.Items.Contains(cell));
+        return view.DoorStates.Items.Any(d => d.Cell == cell);
     }
 
     /// <summary>A live prey that turned manhunter or is hunting a colonist: the hunt falls back to the door loop.</summary>
@@ -123,7 +118,8 @@ public static partial class CombatDoorRules
         long bestD = 0;
         foreach (var p in view.Pawns.Items)
         {
-            if (!p.Cell.TryGetValue(out var c) || !roles.Any(r => r.Pawn == p.Id && r.Duty == CombatDuty.Doorway))
+            var c = p.Cell;
+            if (!roles.Any(r => r.Pawn == p.Id && r.Duty == CombatDuty.Doorway))
             {
                 continue;
             }
@@ -156,10 +152,8 @@ public static partial class CombatDoorRules
         var pack = new List<Cell>();
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Cell.TryGetValue(out var c))
-            {
-                pack.Add(c);
-            }
+            var c = h.Cell;
+            pack.Add(c);
         }
 
         if (doors.Count == 0 || pack.Count == 0)
@@ -173,10 +167,8 @@ public static partial class CombatDoorRules
         var at = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                at[p.Id] = c;
-            }
+            var c = p.Cell;
+            at[p.Id] = c;
         }
 
         // A gunner is a ranged role or, on squad defense against melee raiders, a defender carrying a ranged
@@ -234,10 +226,8 @@ public static partial class CombatDoorRules
         var cells = new List<Cell>();
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Cell.TryGetValue(out var at))
-            {
-                cells.Add(at);
-            }
+            var at = h.Cell;
+            cells.Add(at);
         }
 
         return CombatPodsRules.NearestDistance(c, cells);

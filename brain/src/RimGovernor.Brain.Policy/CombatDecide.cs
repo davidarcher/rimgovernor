@@ -10,9 +10,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A combatant's stance (mirror CombatStance).</summary>
 public enum CombatStance
 {
-    [WireName("")]
-    Unknown,
-
     [WireName("idle")]
     Idle,
 
@@ -29,105 +26,156 @@ public enum CombatStance
     Melee,
 }
 
+/// <summary>A pawn's fire mode on its combat row: undrafted, or drafted firing at will or holding fire.</summary>
+public enum DraftFireMode
+{
+    Undrafted,
+
+    FireAtWill,
+
+    HoldFire,
+}
+
+/// <summary>A worn shield belt and its energy as a fraction of max, or no belt.</summary>
+public abstract record ShieldBelt
+{
+    private ShieldBelt() { }
+
+    public sealed record Worn(double Energy) : ShieldBelt;
+
+    public sealed record NoBelt : ShieldBelt;
+}
+
+/// <summary>A pawn's inventory drug scan: native scans colonists' inventories only.</summary>
+public abstract record DrugInventory
+{
+    private DrugInventory() { }
+
+    /// <summary>The distinct drug definitions the pawn carries; empty when it carries none.</summary>
+    public sealed record Scanned(EquatableArray<string> Defs) : DrugInventory;
+
+    /// <summary>Not a colonist: native does not scan the inventory, so no dose is authorized from it.</summary>
+    public sealed record NotScanned : DrugInventory;
+}
+
+/// <summary>The facts only a combat row carries: what the pawn is doing in the fight right now.</summary>
+public sealed record CombatRow
+{
+    public required CombatStance Stance { get; init; }
+
+    /// <summary>The job target, else the busy stance's focus; empty with neither.</summary>
+    public required PawnId Target { get; init; }
+
+    public required DraftFireMode FireMode { get; init; }
+
+    /// <summary>The native fact that the job target is a mortar, or a frame that will build one.</summary>
+    public required bool TargetMortar { get; init; }
+
+    public required ShieldBelt Shield { get; init; }
+
+    public required int MedicalSkill { get; init; }
+
+    /// <summary>The pawn's MoveSpeed stat in cells/s.</summary>
+    public required double MoveSpeed { get; init; }
+
+    /// <summary>A stunned pawn's ticks left, 0 awake.</summary>
+    public required int StunTicks { get; init; }
+
+    public required bool GoJuice { get; init; }
+
+    public required DrugInventory CarriedDrugs { get; init; }
+}
+
+/// <summary>Whether the combat read listed the pawn: a hunt with no hostile on the map has no combat rows.</summary>
+public abstract record CombatPresence
+{
+    private CombatPresence() { }
+
+    /// <summary>The pawn's combat row: its stance, target, fire mode and the other live fight facts.</summary>
+    public sealed record Engaged(CombatRow Row) : CombatPresence;
+
+    /// <summary>The combat read listed no pawns (no hostile on the map); the state is the pawn table row's alone.</summary>
+    public sealed record NoCombatRow : CombatPresence;
+}
+
 /// <summary>
-/// One combatant's live state at the stop (the combat geometry SECTION_COMBAT_PAWNS row). Unknown fields stay
-/// default; a default stance never guards an order and a default cell never proves arrival.
+/// One combatant's live state at the stop: the combat row when the read lists one, and the pawn table row's race,
+/// health, bleeding and job facts.
 /// </summary>
 public sealed partial record CombatPawnState
 {
-    public PawnId Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public Fact<Cell> Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public bool Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public PawnId Target { get; init; }
+    public required CombatPresence Presence { get; init; }
 
-    public CombatStance Stance { get; init; }
+    /// <summary>The equipped weapon def; null when unarmed.</summary>
+    public required string? Weapon { get; init; }
 
-    /// <summary>FireAtWill or HoldFire for a drafted colonist, else empty.</summary>
-    public string FireMode { get; init; } = "";
-
-    /// <summary>The equipped weapon def (empty unknown).</summary>
-    public string Weapon { get; init; } = "";
-
-    /// <summary>The equipped weapon's range (0 unknown).</summary>
-    public double WeaponRange { get; init; }
-
-    /// <summary>The weapon def's rows: its blast, EMP, fire and rocket facts.</summary>
-    public WeaponDef WeaponFacts { get; init; } = new();
+    /// <summary>The weapon def's rows: its reach, blast, EMP, fire and rocket facts; the empty WeaponDef when unarmed.</summary>
+    public required WeaponDef WeaponFacts { get; init; }
 
     /// <summary>The pawn kind def.</summary>
-    public string Kind { get; init; } = "";
+    public required string Kind { get; init; }
 
     /// <summary>A sapper or breacher at work.</summary>
-    public bool Sapper { get; init; }
+    public required bool Sapper { get; init; }
 
-    /// <summary>The current job def.</summary>
-    public string Job { get; init; } = "";
-
-    /// <summary>The native fact that the job target is a mortar, or a frame that will build one.</summary>
-    public bool TargetMortar { get; init; }
-
-    public bool ShieldBelt { get; init; }
-
-    public int MedicalSkill { get; init; }
-
-    /// <summary>The worn shield's charge, a fraction of max; unknown without a shield.</summary>
-    public Fact<double> Shield { get; init; }
-
-    /// <summary>The pawn's MoveSpeed stat in cells/s, 0 unknown.</summary>
-    public double MoveSpeed { get; init; }
-
-    public bool GoJuice { get; init; }
-
-    public bool Luciferium { get; init; }
-
-    /// <summary>The complete observed inventory drug definition set. Unknown inventory cannot authorize a dose.</summary>
-    public Fact<EquatableArray<string>> CarriedDrugs { get; init; }
+    /// <summary>The current job def; empty without a job.</summary>
+    public required string Job { get; init; }
 
     /// <summary>A colony animal (mirror side colony_animal).</summary>
-    public bool Animal { get; init; }
+    public required bool Animal { get; init; }
 
-    public Fact<double> BloodLoss { get; init; }
+    public required double BloodLoss { get; init; }
 
-    public Fact<double> BleedRatePerDay { get; init; }
+    public required double BleedRatePerDay { get; init; }
 
-    public Fact<double> HoursUntilBleedDeath { get; init; }
+    /// <summary>The hours until the bleeding kills the pawn, or not bleeding out.</summary>
+    public required BleedOut BleedOut { get; init; }
 
     /// <summary>A prison-breaking prisoner (COMBAT_SIDE_PRISONER).</summary>
-    public bool Prisoner { get; init; }
+    public required bool Prisoner { get; init; }
 
     /// <summary>The summary health fraction.</summary>
-    public Fact<double> Health { get; init; }
+    public required double Health { get; init; }
 
-    /// <summary>A wild animal near hostiles (COMBAT_SIDE_WILD_ANIMAL).</summary>
-    public bool Wild { get; init; }
-
-    /// <summary>A stunned pawn's ticks left, 0 awake.</summary>
-    public int StunTicks { get; init; }
+    /// <summary>A wild animal near hostiles (COMBAT_SIDE_WILD_ANIMAL), or hunted prey.</summary>
+    public required bool Wild { get; init; }
 
     /// <summary>The game's own flag of the pawn's race (RaceProperties.IsMechanoid).</summary>
-    public bool Mech { get; init; }
+    public required bool Mech { get; init; }
 
     /// <summary>The game's own flag of the pawn's race (RaceProperties.Insect).</summary>
-    public bool Insect { get; init; }
+    public required bool Insect { get; init; }
+}
+
+/// <summary>The killbox corridor's exit cell on our side, where blockers hold, or a layout without a corridor.</summary>
+public abstract record CombatChoke
+{
+    private CombatChoke() { }
+
+    public sealed record Corridor(Cell Cell) : CombatChoke;
+
+    public sealed record NoCorridor : CombatChoke;
 }
 
 /// <summary>The stored, complete defense layout's line.</summary>
 public sealed record CombatLayout
 {
-    public EquatableArray<Cell> Firing { get; init; }
+    public required EquatableArray<Cell> Firing { get; init; }
 
     /// <summary>The inner line: Retreat[i] is Firing[i]'s fall-back cell, one step further toward Home.</summary>
-    public EquatableArray<Cell> Retreat { get; init; }
+    public required EquatableArray<Cell> Retreat { get; init; }
 
-    public Rotation Toward { get; init; }
+    public required Rotation Toward { get; init; }
 
-    /// <summary>The corridor's exit cell on our side, where blockers hold; unknown without a corridor.</summary>
-    public Fact<Cell> Choke { get; init; }
+    public required CombatChoke Choke { get; init; }
 }
 
 /// <summary>
@@ -148,7 +196,8 @@ public abstract record OutdoorTemperature
 
 public sealed partial record CombatView
 {
-    public Fact<CombatSiteExit> SiteExit { get; init; }
+    /// <summary>The quest site's exit when the fight's map is a loaded quest site; null on any other map.</summary>
+    public required CombatSiteExit? SiteExit { get; init; }
 
     public Tick Tick { get; init; }
 
@@ -160,17 +209,19 @@ public sealed partial record CombatView
 
     public EquatableArray<DefensiveThreatFacts> Positional { get; init; }
 
-    public Fact<CombatLayout> Layout { get; init; }
+    /// <summary>The plan's defense layout; null while the plan has no killbox opening.</summary>
+    public required CombatLayout? Layout { get; init; }
 
     public EquatableArray<PawnId> Orderable { get; init; }
 
-    /// <summary>The frame's drop-pod arrival.</summary>
-    public Fact<PodArrival> Pods { get; init; }
+    /// <summary>The frame's newest drop-pod arrival; null without one.</summary>
+    public required PodArrival? Pods { get; init; }
 
     /// <summary>The map's standing rectangular rooms from the frame.</summary>
     public EquatableArray<CombatRoom> Rooms { get; init; }
 
-    public Fact<EquatableArray<RoomDoor>> DoorStates { get; init; }
+    /// <summary>The frame's room census doors.</summary>
+    public required EquatableArray<RoomDoor> DoorStates { get; init; }
 
     /// <summary>The frame's player doors below max hit points.</summary>
     public EquatableArray<Cell> DamagedDoors { get; init; }
@@ -185,7 +236,7 @@ public sealed partial record CombatView
     public MortarShells Shells { get; init; } = new();
 
     /// <summary>The colony's colonist count; below the population target the fight spares contained bleeders.</summary>
-    public Fact<int> Population { get; init; }
+    public required int Population { get; init; }
 
     /// <summary>The map outdoor temperature from the frame; extreme cold or heat waits indoors.</summary>
     public OutdoorTemperature OutdoorTemperature { get; init; } = new OutdoorTemperature.NoColonyFacts();
@@ -424,7 +475,7 @@ public sealed partial record CombatRole
 
         if (Cell is { } cell)
         {
-            if (!s.Cell.TryGetValue(out var at) || at != cell)
+            if (s.Cell != cell)
             {
                 var reason = Retreat ? CombatOrderReason.Retreat : CombatOrderReason.Formation;
                 return (new CombatOrder { Pawn = Pawn, Kind = CombatOrderKind.Move, Cell = cell, Reason = reason }, true);
@@ -823,19 +874,19 @@ public sealed partial record CombatMemory
     {
         if (want.Kind == CombatOrderKind.HoldPosition)
         {
-            return s.Cell.TryGetValue(out var at) && at == want.Cell && s.Job == "Wait_Combat";
+            return s.Cell == want.Cell && s.Job == "Wait_Combat";
         }
 
         if (want.Kind == CombatOrderKind.Attack)
         {
-            if (s.Target == want.Target)
+            if (s.Presence is CombatPresence.Engaged { Row.Target: var target } && target == want.Target)
             {
                 return true;
             }
         }
         else if (want.Kind == CombatOrderKind.Move)
         {
-            if (s.Cell.TryGetValue(out var at) && at == want.Cell)
+            if (s.Cell == want.Cell)
             {
                 return true;
             }
@@ -858,9 +909,9 @@ public sealed partial record CombatMemory
         {
             if (o.Pawn == want.Pawn && o.CombatOrder == want)
             {
-                // A live stance that contradicts the order (idle away from the cell) re-issues it; an unknown
-                // stance trusts the last order.
-                return s.Stance != CombatStance.Idle;
+                // A live stance that contradicts the order (idle away from the cell) re-issues it; a pawn with
+                // no combat row trusts the last order.
+                return s.Presence is not CombatPresence.Engaged { Row.Stance: CombatStance.Idle };
             }
         }
 
@@ -947,7 +998,7 @@ public static partial class CombatDecideRules
         var formed = false; // a formation this stop picks the potshot door
         CombatWaitRules.WaitTurn(view, next);
         CombatSiegeRules.SiegeTurn(view, next);
-        if (view.Pods.TryGetValue(out var pods) && next.Pods is null)
+        if (view.Pods is { } pods && next.Pods is null)
         {
             // The arrival row may leave a later frame; the fight keeps it.
             next.Pods = pods;
@@ -1167,7 +1218,11 @@ public static partial class CombatDecideRules
         for (var i = 0; i < next.Roles.Count; i++)
         {
             var role = next.Roles[i] with { };
-            var rs = state.GetValueOrDefault(role.Pawn) ?? new CombatPawnState();
+            // A role names a live pawn of the view; a role whose pawn left the view gets no order.
+            if (!state.TryGetValue(role.Pawn, out var rs))
+            {
+                continue;
+            }
 
             // A defender still ingesting its combat drug finishes it.
             if (!orderable.Contains(role.Pawn) || next.Rescue?.Carrying(role.Pawn) == true || rs.Job == "Ingest")
@@ -1175,21 +1230,15 @@ public static partial class CombatDecideRules
                 continue;
             }
 
-            var cellKnown = rs.Cell.TryGetValue(out var at);
-            if (next.Tactic == CombatTactic.Shelter && !cellKnown)
-            {
-                continue;
-            }
-
             var (want, ok) = role.Want(rs);
             var ordinaryHolder = CombatNativeHoldRules.StationaryRangedHold(next, role, rs);
-            if (ordinaryHolder && targetExcluded && role.Target == default && (rs.Job == "Wait_Combat" || rs.FireMode == CombatFireRules.HoldFire))
+            if (ordinaryHolder && targetExcluded && role.Target == default && (rs.Job == "Wait_Combat" || rs.Presence is CombatPresence.Engaged { Row.FireMode: DraftFireMode.HoldFire }))
             {
                 suppressNativeFire.Add(role.Pawn);
             }
 
             var nativeHold = ordinaryHolder && !targetExcluded;
-            var atCell = role.Cell is { } rc && cellKnown && at == rc;
+            var atCell = role.Cell is { } rc && rs.Cell == rc;
             if (nativeHold)
             {
                 // Native acquires targets; no stale policy target participates in the observed-target
@@ -1300,7 +1349,7 @@ public static partial class CombatDecideRules
     }
 
     /// <summary>Whether a pawn is aiming or cooling down: an order now would throw the shot away.</summary>
-    internal static bool InterruptsAim(CombatPawnState s) => s.Stance == CombatStance.Warmup || s.Stance == CombatStance.Cooldown;
+    internal static bool InterruptsAim(CombatPawnState s) => s.Presence is CombatPresence.Engaged { Row.Stance: CombatStance.Warmup or CombatStance.Cooldown };
 
     /// <summary>
     /// The reaction table's formation row: no formation yet, a raid phase change or breach, a hold the raid
@@ -1340,7 +1389,7 @@ public static partial class CombatDecideRules
 
         if (m.Tactic == CombatTactic.Hold)
         {
-            return !view.Layout.TryGetValue(out var layout) || DefensePositions.HoldCompromised(CombatFallbackRules.HoldLine(layout, m), layout.Toward, CombatPeelRules.Unpeeled(view, stop, m));
+            return view.Layout is not { } layout || DefensePositions.HoldCompromised(CombatFallbackRules.HoldLine(layout, m), layout.Toward, CombatPeelRules.Unpeeled(view, stop, m));
         }
 
         if (m.Tactic == CombatTactic.Pods)
@@ -1431,7 +1480,7 @@ public static partial class CombatDecideRules
             retreat = CombatShelterRules.ShelterChecks(view);
         }
 
-        if (!view.Layout.TryGetValue(out var layout) || layout.Firing.Count == 0)
+        if (view.Layout is not { } layout || layout.Firing.Count == 0)
         {
             return retreat.Count > 0 ? new GeometryRequest { Cells = retreat } : null;
         }
@@ -1497,7 +1546,7 @@ public static partial class CombatDecideRules
             Add(home);
         }
 
-        var belted = view.Pawns.Items.Any(p => p.Shield.IsKnown);
+        var belted = view.Pawns.Items.Any(p => p.Presence is CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn });
         var vok = DefensePositions.TowardVector(layout.Toward, out var v);
         if (vok)
         {
@@ -1539,7 +1588,7 @@ public static partial class CombatDecideRules
     )
     {
         var refusal = "no complete defense layout";
-        if (view.Layout.TryGetValue(out var layout))
+        if (view.Layout is { } layout)
         {
             var cells = new List<Cell>(layout.Firing.Items);
             var blocking = CombatBlockingRules.BlockingChoke(view) is not null;
@@ -1661,10 +1710,7 @@ public static partial class CombatDecideRules
         var cells = new Dictionary<PawnId, Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c))
-            {
-                cells[p.Id] = c;
-            }
+            cells[p.Id] = p.Cell;
         }
 
         var present = new HashSet<PawnId>(view.Threats.Items.Select(t => ThreatPawn(t)));

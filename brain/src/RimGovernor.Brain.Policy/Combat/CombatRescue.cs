@@ -104,9 +104,9 @@ public static partial class CombatRescueRules
                 return (m, [], null);
             }
         }
-        var toKnown = patient.Cell.TryGetValue(out var to);
-        var rescuer = PickRescuer(view, m, orderable, state, to, toKnown);
-        if (rescuer.IsEmpty || !toKnown)
+        var to = patient.Cell;
+        var rescuer = PickRescuer(view, m, orderable, state, to);
+        if (rescuer.IsEmpty)
         {
             return (m, [], null);
         }
@@ -190,7 +190,7 @@ public static partial class CombatRescueRules
     /// blocker. A non-combatant doctor with a shield belt comes first, the best Medicine first; otherwise the
     /// nearest to the patient. Ties go by id.
     /// </summary>
-    internal static PawnId PickRescuer(CombatView view, CombatMemory m, IReadOnlySet<PawnId> orderable, IReadOnlyDictionary<PawnId, CombatPawnState> state, Cell to, bool known)
+    internal static PawnId PickRescuer(CombatView view, CombatMemory m, IReadOnlySet<PawnId> orderable, IReadOnlyDictionary<PawnId, CombatPawnState> state, Cell to)
     {
         var roles = new Dictionary<PawnId, CombatRole>();
         foreach (var r in m.Roles)
@@ -208,15 +208,14 @@ public static partial class CombatRescueRules
             {
                 continue;
             }
-            var shielded = s.ShieldBelt && s.MedicalSkill >= RescueDoctorSkill && (s.Weapon.Length == 0 || (role?.Target ?? default).IsEmpty);
-            var distance = 1L << 62;
-            if (s.Cell.TryGetValue(out var at) && known)
-            {
-                long dx = at.X - to.X;
-                long dz = at.Z - to.Z;
-                distance = (dx * dx) + (dz * dz);
-            }
-            var c = new RescueCandidate(id, shielded, s.MedicalSkill, distance);
+            // A pawn with no combat row shows no belt and no medicine: it ranks below every seen doctor.
+            var (belted, medicine) = s.Presence is CombatPresence.Engaged { Row: var row } ? (row.Shield is ShieldBelt.Worn, row.MedicalSkill) : (false, 0);
+            var shielded = belted && medicine >= RescueDoctorSkill && (s.Weapon is null || (role?.Target ?? default).IsEmpty);
+            var at = s.Cell;
+            long dx = at.X - to.X;
+            long dz = at.Z - to.Z;
+            var distance = (dx * dx) + (dz * dz);
+            var c = new RescueCandidate(id, shielded, medicine, distance);
             if (best is null || BetterRescuer(c, best.Value))
             {
                 best = c;

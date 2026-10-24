@@ -22,7 +22,8 @@ public static partial class CombatSapperRules
         var near = -1L;
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            if (h.Cell.TryGetValue(out var c) && (near < 0 || CombatManhunterRules.Distance2(c, breach) < near))
+            var c = h.Cell;
+            if ((near < 0 || CombatManhunterRules.Distance2(c, breach) < near))
             {
                 nearest = h.Id;
                 near = CombatManhunterRules.Distance2(c, breach);

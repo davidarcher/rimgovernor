@@ -26,16 +26,16 @@ public sealed class CombatHuntTests
     private const string SwordDef = "MeleeWeapon_LongSword";
     private const string PistolDef = "Gun_Autopistol";
 
-    private static readonly WeaponDef Rifle = new() { Ranged = true, Range = 37 };
-    private static readonly WeaponDef ShortRifle = new() { Ranged = true, Range = 25 };
-    private static readonly WeaponDef Pistol = new() { Ranged = true, Range = 12 };
+    private static readonly WeaponDef Rifle = new() { Ranged = true, Range = 37, Reach = 37 };
+    private static readonly WeaponDef ShortRifle = new() { Ranged = true, Range = 25, Reach = 25 };
+    private static readonly WeaponDef Pistol = new() { Ranged = true, Range = 12, Reach = 12 };
     private static readonly WeaponDef Sword = new() { Melee = true, Reach = 1 };
 
     private static CombatPawnState Gunner(PawnId id, Cell cell, string weapon, WeaponDef facts) =>
-        new() { Id = id, Cell = Known(cell), Weapon = weapon, WeaponRange = facts.Range, WeaponFacts = facts };
+        CombatPawnFixtures.Pawn(id, cell) with { Weapon = weapon, WeaponFacts = facts };
 
     private static CombatPawnState Animal(PawnId id, Cell cell, double weaponRange = 0) =>
-        new() { Id = id, Cell = Known(cell), Kind = id.Value.Split('_')[0], WeaponRange = weaponRange };
+        CombatPawnFixtures.Pawn(id, cell) with { Kind = id.Value.Split('_')[0], WeaponFacts = new WeaponDef { Reach = weaponRange } };
 
     /// <summary>A defender every shared squad gate admits: alive, up, undrafted, violence-capable, untended, whole.</summary>
     private static SquadDefenderFacts Defender(PawnId id) => new()
@@ -55,7 +55,7 @@ public sealed class CombatHuntTests
     private static CombatView View(IEnumerable<CombatPawnState> pawns, IEnumerable<PawnId> defenders, IEnumerable<PawnId> prey, IEnumerable<PawnId> roster)
     {
         var ids = defenders.ToArray();
-        return new CombatView
+        return CombatPawnFixtures.View() with
         {
             Pawns = EquatableArray.From(pawns),
             Defenders = EquatableArray.From(ids.Select(Defender)),
@@ -133,7 +133,7 @@ public sealed class CombatHuntTests
         var role = Assert.Single(roles);
         Assert.Equal(Rifleman, role.Pawn);
         Assert.Contains(Rifleman.Value + ":eligible", refusals);
-        Assert.Contains(Swordsman.Value + ":weapon_does_not_hunt(" + SwordDef + ",not_ranged)", refusals);
+        Assert.Contains(Swordsman.Value + ":outranged|weapon_does_not_hunt(" + SwordDef + ",not_ranged)", refusals);
         Assert.Contains(Pistoleer.Value + ":outranged", refusals);
     }
 

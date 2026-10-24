@@ -72,7 +72,7 @@ public static partial class CombatLoadoutRules
             return LoadoutThreat.PrisonBreak;
         }
 
-        if (view.Pods.IsKnown)
+        if (view.Pods is not null)
         {
             return LoadoutThreat.Pods;
         }
@@ -96,7 +96,7 @@ public static partial class CombatLoadoutRules
                 return LoadoutThreat.Emp;
             }
 
-            if (p.Shield.IsKnown && !p.WeaponFacts.Ranged)
+            if (p.Presence is CombatPresence.Engaged { Row.Shield: ShieldBelt.Worn } && !p.WeaponFacts.Ranged)
             {
                 return LoadoutThreat.Emp;
             }

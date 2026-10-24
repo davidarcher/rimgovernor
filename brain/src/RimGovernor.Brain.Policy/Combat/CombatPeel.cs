@@ -9,7 +9,7 @@ public static partial class CombatPeelRules
     /// </summary>
     internal static Cell? PeelerHome(CombatView view)
     {
-        if (!view.Layout.TryGetValue(out var layout) || layout.Retreat.Count == 0 || layout.Firing.Count == 0)
+        if (view.Layout is not { } layout || layout.Retreat.Count == 0 || layout.Firing.Count == 0)
         {
             return null;
         }
@@ -97,7 +97,7 @@ public static partial class CombatPeelRules
         }
         foreach (var p in view.Pawns)
         {
-            if (p.Stance == CombatStance.Melee && gunners.Contains(p.Target) && !gunners.Contains(p.Id) && !p.Dead && !p.Downed)
+            if (p.Presence is CombatPresence.Engaged { Row: { Stance: CombatStance.Melee, Target: var target } } && gunners.Contains(target) && !gunners.Contains(p.Id) && !p.Dead && !p.Downed)
             {
                 return p.Id;
             }
@@ -135,7 +135,8 @@ public static partial class CombatPeelRules
             }
             foreach (var p in view.Pawns)
             {
-                if (p.Cell.TryGetValue(out var at) && p.Id == d.Id && !p.Dead && !p.Downed && gunner is null)
+                var at = p.Cell;
+                if (p.Id == d.Id && !p.Dead && !p.Downed && gunner is null)
                 {
                     gunner = at;
                 }

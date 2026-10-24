@@ -52,92 +52,95 @@ public static class CombatOrdersRules
                 Check(() => OptionalTokenEntity(order.Pawn), $"combat order {i} pawn");
             }
             var pawn = order.Pawn?.EntityId ?? "";
-            switch (order.Order)
-            {
-                case Op.CombatOrderOrder.MoveCase { Value: var move }:
-                    Check(() => BuildingsRules.MovementCell(move), $"combat order {i} move");
-                    break;
-                case Op.CombatOrderOrder.AttackGroundCase { Value: var ground }:
-                    Check(() => BuildingsRules.MovementCell(ground), $"combat order {i} attack_ground");
-                    break;
-                case Op.CombatOrderOrder.AttackCase { Value: var attack }:
-                    Check(() => OptionalTokenEntity(attack), $"combat order {i} target");
-                    if ((attack.EntityId ?? "") == pawn)
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} attacks its own pawn");
-                    }
-                    break;
-                case Op.CombatOrderOrder.FireModeCase { Value: var fireMode }:
-                    if (fireMode is not (Op.CombatFireMode.AtWill or Op.CombatFireMode.Hold))
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} fire mode unsupported");
-                    }
-                    break;
-                case Op.CombatOrderOrder.DoorCase { Value: var doorOrder }:
-                    if (!Valid(() => BuildingsRules.MovementCell(doorOrder.Cell)))
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} door cell missing or invalid");
-                    }
-                    if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Shut)
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} door mode unsupported");
-                    }
-                    break;
-                case Op.CombatOrderOrder.RescueCase { Value: var rescue }:
-                    Check(() => OptionalTokenEntity(rescue.Downed), $"combat order {i} downed");
-                    if ((rescue.Downed?.EntityId ?? "") == pawn)
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} rescues its own pawn");
-                    }
-                    if (rescue.Dest is not null && !Valid(() => BuildingsRules.MovementCell(rescue.Dest)))
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} rescue dest invalid");
-                    }
-                    break;
-                case Op.CombatOrderOrder.RepairCase { Value: var repair }:
-                    if (!Valid(() => BuildingsRules.MovementCell(repair.Cell)))
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} repair cell missing or invalid");
-                    }
-                    break;
-                case Op.CombatOrderOrder.ManMortarCase { Value: var manMortar }:
-                    Check(() => BuildingsRules.MovementCell(manMortar), $"combat order {i} man_mortar");
-                    break;
-                case Op.CombatOrderOrder.MortarFireCase { Value: var mortar }:
-                    // No target clears the forced target, and names no shell.
-                    if (!Valid(() => BuildingsRules.MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => BuildingsRules.MovementCell(mortar.Target))) || (mortar.Target is null && mortar.Shell is not null))
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} mortar_fire mortar or target cell missing or invalid");
-                    }
-                    break;
-                case Op.CombatOrderOrder.ReleaseCase { Value: var release }:
-                    Check(() => OptionalTokenEntity(release), $"combat order {i} release target");
-                    if ((release.EntityId ?? "") == pawn)
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} releases its animal on itself");
-                    }
-                    break;
-                case Op.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
-                    switch (animalArea.Area)
-                    {
-                        case Op.CombatAnimalAreaArea.CellCase { Value: var areaCell }:
-                            Check(() => BuildingsRules.MovementCell(areaCell), $"combat order {i} animal_area");
-                            break;
-                        case Op.CombatAnimalAreaArea.ClearCase:
-                            break;
-                        default:
-                            throw BridgeContractException.Contract($"combat order {i} animal_area needs a cell or clear");
-                    }
-                    break;
-                case Op.CombatOrderOrder.HoldPositionCase:
-                case Op.CombatOrderOrder.StopCase:
-                case Op.CombatOrderOrder.DraftCase:
-                case Op.CombatOrderOrder.CombatDrugCase:
-                    break;
-                default:
-                    throw BridgeContractException.Contract($"combat order {i} has no order");
-            }
+            ValidateCombatOrder(i, pawn, order.Order);
         }
+    }
+
+    /// <summary>The order-specific rules of combat order <paramref name="i"/>, whose pawn is <paramref name="pawn"/> (empty for none).</summary>
+    private static void ValidateCombatOrder(int i, string pawn, Op.CombatOrderOrder? order)
+    {
+        switch (order)
+        {
+            case Op.CombatOrderOrder.MoveCase { Value: var move }:
+                Check(() => BuildingsRules.MovementCell(move), $"combat order {i} move");
+                return;
+            case Op.CombatOrderOrder.AttackGroundCase { Value: var ground }:
+                Check(() => BuildingsRules.MovementCell(ground), $"combat order {i} attack_ground");
+                return;
+            case Op.CombatOrderOrder.AttackCase { Value: var attack }:
+                Check(() => OptionalTokenEntity(attack), $"combat order {i} target");
+                if ((attack.EntityId ?? "") == pawn)
+                {
+                    throw BridgeContractException.Contract($"combat order {i} attacks its own pawn");
+                }
+                return;
+            case Op.CombatOrderOrder.FireModeCase { Value: var fireMode }:
+                if (fireMode is not (Op.CombatFireMode.AtWill or Op.CombatFireMode.Hold))
+                {
+                    throw BridgeContractException.Contract($"combat order {i} fire mode unsupported");
+                }
+                return;
+            case Op.CombatOrderOrder.DoorCase { Value: var doorOrder }:
+                if (!Valid(() => BuildingsRules.MovementCell(doorOrder.Cell)))
+                {
+                    throw BridgeContractException.Contract($"combat order {i} door cell missing or invalid");
+                }
+                if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Shut)
+                {
+                    throw BridgeContractException.Contract($"combat order {i} door mode unsupported");
+                }
+                return;
+            case Op.CombatOrderOrder.RescueCase { Value: var rescue }:
+                Check(() => OptionalTokenEntity(rescue.Downed), $"combat order {i} downed");
+                if ((rescue.Downed?.EntityId ?? "") == pawn)
+                {
+                    throw BridgeContractException.Contract($"combat order {i} rescues its own pawn");
+                }
+                if (rescue.Dest is not null && !Valid(() => BuildingsRules.MovementCell(rescue.Dest)))
+                {
+                    throw BridgeContractException.Contract($"combat order {i} rescue dest invalid");
+                }
+                return;
+            case Op.CombatOrderOrder.RepairCase { Value: var repair }:
+                if (!Valid(() => BuildingsRules.MovementCell(repair.Cell)))
+                {
+                    throw BridgeContractException.Contract($"combat order {i} repair cell missing or invalid");
+                }
+                return;
+            case Op.CombatOrderOrder.ManMortarCase { Value: var manMortar }:
+                Check(() => BuildingsRules.MovementCell(manMortar), $"combat order {i} man_mortar");
+                return;
+            case Op.CombatOrderOrder.MortarFireCase { Value: var mortar }:
+                // No target clears the forced target, and names no shell.
+                if (!Valid(() => BuildingsRules.MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => BuildingsRules.MovementCell(mortar.Target))) || (mortar.Target is null && mortar.Shell is not null))
+                {
+                    throw BridgeContractException.Contract($"combat order {i} mortar_fire mortar or target cell missing or invalid");
+                }
+                return;
+            case Op.CombatOrderOrder.ReleaseCase { Value: var release }:
+                Check(() => OptionalTokenEntity(release), $"combat order {i} release target");
+                if ((release.EntityId ?? "") == pawn)
+                {
+                    throw BridgeContractException.Contract($"combat order {i} releases its animal on itself");
+                }
+                return;
+            case Op.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
+                switch (animalArea.Area)
+                {
+                    case Op.CombatAnimalAreaArea.CellCase { Value: var areaCell }:
+                        Check(() => BuildingsRules.MovementCell(areaCell), $"combat order {i} animal_area");
+                        return;
+                    case Op.CombatAnimalAreaArea.ClearCase:
+                        return;
+                }
+                throw BridgeContractException.Contract($"combat order {i} animal_area needs a cell or clear");
+            case Op.CombatOrderOrder.HoldPositionCase:
+            case Op.CombatOrderOrder.StopCase:
+            case Op.CombatOrderOrder.DraftCase:
+            case Op.CombatOrderOrder.CombatDrugCase:
+                return;
+        }
+        throw BridgeContractException.Contract($"combat order {i} has no order");
     }
 
     private static bool Valid(Action check)

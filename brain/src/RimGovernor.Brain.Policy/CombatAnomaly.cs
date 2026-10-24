@@ -46,7 +46,8 @@ public static partial class CombatAnomalyRules
         var output = new List<Cell>();
         foreach (var p in view.Pawns.Items)
         {
-            if (p.Cell.TryGetValue(out var c) && caster.GetValueOrDefault(p.Id) && !p.Dead && !p.Downed && !CombatMortarRules.NearAny(ours, c))
+            var c = p.Cell;
+            if (caster.GetValueOrDefault(p.Id) && !p.Dead && !p.Downed && !CombatMortarRules.NearAny(ours, c))
             {
                 output.Add(c);
             }

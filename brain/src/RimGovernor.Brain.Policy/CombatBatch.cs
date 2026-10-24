@@ -15,7 +15,7 @@ public static partial class CombatBatchRules
             pawns[p.Id] = p;
         }
 
-        var doorsKnown = view.DoorStates.TryGetValue(out var doors);
+        var doors = view.DoorStates;
         foreach (var order in batch.Orders.Items)
         {
             var present = pawns.TryGetValue((PawnId)order.Pawn, out var p);
@@ -29,14 +29,14 @@ public static partial class CombatBatchRules
 
                     break;
                 case "move":
-                    if (!present || !p!.Cell.TryGetValue(out var cell) || cell != order.Cell)
+                    if (!present || p!.Cell != order.Cell)
                     {
                         return false;
                     }
 
                     break;
                 case "fire_mode":
-                    if (!present || p!.FireMode.Length == 0 || p.FireMode != order.FireMode)
+                    if (!present || p!.Presence is not CombatPresence.Engaged { Row.FireMode: var mode } || mode == DraftFireMode.Undrafted || CombatFireRules.FireModeName(mode) != order.FireMode)
                     {
                         return false;
                     }
@@ -44,11 +44,6 @@ public static partial class CombatBatchRules
                     break;
                 case "door":
                     {
-                        if (!doorsKnown)
-                        {
-                            return false;
-                        }
-
                         var found = false;
                         foreach (var d in doors.Items)
                         {

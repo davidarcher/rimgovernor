@@ -13,7 +13,7 @@ public static partial class CombatLureRules
     /// </summary>
     internal static void Lure(CombatView view, CombatMemory m)
     {
-        if (m.Tactic != CombatTactic.Hold || !view.Layout.TryGetValue(out var layout)
+        if (m.Tactic != CombatTactic.Hold || view.Layout is not { } layout
             || layout.Retreat.Count != layout.Firing.Count || layout.Retreat.Count == 0)
         {
             m.MechLure = false;
@@ -31,18 +31,18 @@ public static partial class CombatLureRules
         {
             if (r.Ranged)
             {
-                ours = Math.Max(ours, state.GetValueOrDefault(r.Pawn)?.WeaponRange ?? 0);
+                ours = Math.Max(ours, state.GetValueOrDefault(r.Pawn)?.WeaponFacts.Reach ?? 0);
             }
         }
 
         bool outranged = false, near = false;
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            outranged = outranged || (ours > 0 && h.WeaponRange > ours);
-            var known = h.Cell.TryGetValue(out var c);
+            outranged = outranged || (ours > 0 && h.WeaponFacts.Reach > ours);
+            var c = h.Cell;
             foreach (var f in layout.Firing.Items)
             {
-                near = near || (known && Math.Sqrt(((double)(c.X - f.X) * (c.X - f.X)) + ((double)(c.Z - f.Z) * (c.Z - f.Z))) <= ours);
+                near = near || (Math.Sqrt(((double)(c.X - f.X) * (c.X - f.X)) + ((double)(c.Z - f.Z) * (c.Z - f.Z))) <= ours);
             }
         }
 

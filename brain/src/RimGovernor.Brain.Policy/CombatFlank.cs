@@ -73,14 +73,12 @@ public static partial class CombatFlankRules
     /// <summary>The firing_cells ask's from cell beside the approach, and the choke the flankers need a line to.</summary>
     private static (Cell From, Cell Choke)? FlankAnchor(CombatView view, CombatTuning t)
     {
-        if (!view.Layout.TryGetValue(out var layout))
+        if (view.Layout is not { } layout)
         {
             return null;
         }
 
-        var ok = layout.Choke.TryGetValue(out var choke);
-        var vok = DefensePositions.TowardVector(layout.Toward, out var v);
-        if (!ok || !vok)
+        if (layout.Choke is not CombatChoke.Corridor { Cell: var choke } || !DefensePositions.TowardVector(layout.Toward, out var v))
         {
             return null;
         }
@@ -202,21 +200,24 @@ public static partial class CombatFlankRules
             return;
         }
 
-        view.Layout.TryGetValue(out var layout);
-        layout ??= new CombatLayout();
-        layout.Choke.TryGetValue(out var choke);
-        _ = DefensePositions.TowardVector(layout.Toward, out var v);
-        int Project(Cell c) => ((c.X - choke.X) * v.X) + ((c.Z - choke.Z) * v.Z);
-        var deepest = Project(f.Cells[0]);
-        foreach (var c in f.Cells.Skip(1))
+        // The approach is measured from the layout's corridor; without one only a hostile targeting a flanker
+        // opens the detachment.
+        Func<Cell, bool> passed = _ => false;
+        if (view.Layout is { Choke: CombatChoke.Corridor { Cell: var choke } } layout && DefensePositions.TowardVector(layout.Toward, out var v))
         {
-            deepest = Math.Max(deepest, Project(c));
+            int Project(Cell c) => ((c.X - choke.X) * v.X) + ((c.Z - choke.Z) * v.Z);
+            var deepest = Project(f.Cells[0]);
+            foreach (var c in f.Cells.Skip(1))
+            {
+                deepest = Math.Max(deepest, Project(c));
+            }
+
+            passed = c => Project(c) >= deepest;
         }
 
         foreach (var h in CombatThreatRules.RankThreats(view))
         {
-            var ok = h.Cell.TryGetValue(out var c);
-            if ((ok && Project(c) >= deepest) || f.Pawns.Contains(h.Target))
+            if (passed(h.Cell) || (h.Presence is CombatPresence.Engaged { Row.Target: var target } && f.Pawns.Contains(target)))
             {
                 f.Open = true;
             }
@@ -256,8 +257,7 @@ public static partial class CombatFlankRules
 
         foreach (var id in f.Pawns)
         {
-            var s = state.GetValueOrDefault(id) ?? new CombatPawnState();
-            if (!orderable.Contains(id) || s.Dead || s.Downed || s.FireMode == CombatFireRules.HoldFire || (s.FireMode.Length == 0 && f.Held.Contains(id)))
+            if (!state.TryGetValue(id, out var s) || !orderable.Contains(id) || s.Dead || s.Downed || CombatFireRules.Held(s, f.Held.Contains(id)))
             {
                 continue;
             }

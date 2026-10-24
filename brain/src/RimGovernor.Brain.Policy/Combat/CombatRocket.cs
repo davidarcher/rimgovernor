@@ -33,7 +33,8 @@ public static partial class CombatRocketRules
         var friends = new List<Cell>();
         foreach (var p in view.Pawns)
         {
-            if (!p.Cell.TryGetValue(out var c) || p.Dead || p.Downed)
+            var c = p.Cell;
+            if (p.Dead || p.Downed)
             {
                 continue;
             }
@@ -48,11 +49,12 @@ public static partial class CombatRocketRules
         }
         foreach (var p in view.Pawns)
         {
-            if (!p.Cell.TryGetValue(out var from) || !RocketLauncher(p.WeaponFacts) || !view.Orderable.Contains(p.Id) || !live.GetValueOrDefault(p.Id) || (m.Rescue?.Carrying(p.Id) ?? false))
+            var from = p.Cell;
+            if (!RocketLauncher(p.WeaponFacts) || !view.Orderable.Contains(p.Id) || !live.GetValueOrDefault(p.Id) || (m.Rescue?.Carrying(p.Id) ?? false))
             {
                 continue;
             }
-            var reach = p.WeaponRange;
+            var reach = p.WeaponFacts.Reach;
             if (reach <= 0)
             {
                 reach = p.WeaponFacts.Range;
