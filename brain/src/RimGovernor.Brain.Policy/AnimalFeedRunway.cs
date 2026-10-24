@@ -120,10 +120,14 @@ public static class AnimalFeedRunwayRules
             return true;
         }
 
-        var lk = race.LitterSize.TryGetValue(out var litter);
-        var ak = race.AdultFeedPerDay.TryGetValue(out var adult);
+        // A race without a food need bears young that eat nothing.
+        if (race.AdultFeed is not RaceFeed.Eats { PerDay: var adult })
+        {
+            return true;
+        }
+
         var last = stages[^1].HungerRateFactor;
-        if (!lk || !ak || !(last > 0))
+        if (race.LitterSize is not RaceLitter.Mean { Children: var litter } || !(last > 0))
         {
             return false;
         }

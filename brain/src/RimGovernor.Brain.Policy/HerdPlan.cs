@@ -244,13 +244,13 @@ public static class HerdPlanRules
         {
             case HerdJob.Haul:
             {
-                var ok = r.CarryingCapacity.TryGetValue(out var v);
-                return (v, r.Trainables.Contains(HerdHaulTraining), ok && v > 0);
+                var v = r.CarryingCapacity;
+                return (v, r.Trainables.Contains(HerdHaulTraining), v > 0);
             }
             case HerdJob.War:
             {
-                var ok = r.CombatPower.TryGetValue(out var v);
-                return (v, r.Trainables.Contains(HerdWarTraining), ok && v > 0);
+                var v = r.CombatPower is RaceCombat.Rated { Power: var power } ? power : 0;
+                return (v, r.Trainables.Contains(HerdWarTraining), v > 0);
             }
         }
         var known = true;
@@ -633,8 +633,8 @@ public static class HerdPlanRules
         var gap = false;
         foreach (var (def, heads) in targets)
         {
-            _ = input.Races.Race(def, out var race);
-            var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
+            var known = input.Races.Race(def, out var race);
+            var minimum = race.MinimumHandlingSkill;
             if (!known || (stats.TryGetValue(def, out var owned) && owned.N >= heads))
             {
                 continue;
@@ -659,17 +659,14 @@ public static class HerdPlanRules
             {
                 continue;
             }
-            _ = input.Races.Race(a.Definition, out var race);
-            var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
+            var known = input.Races.Race(a.Definition, out var race);
+            var minimum = race.MinimumHandlingSkill;
             var handled = PawnRules.TamerFor(profiles, minimum) is not null;
             if (!known || !handled)
             {
                 continue;
             }
-            if (!race.Wildness.TryGetValue(out var wildness))
-            {
-                wildness = double.MaxValue;
-            }
+            var wildness = race.Wildness;
             if (
                 best.Value.Length == 0
                 || minimum < bestSkill
@@ -764,8 +761,8 @@ public static class HerdPlanRules
         var @out = new HashSet<Resource>();
         foreach (var def in obtainable)
         {
-            _ = input.Races.Race(def, out var race);
-            var known = race.MinimumHandlingSkill.TryGetValue(out var minimum);
+            var known = input.Races.Race(def, out var race);
+            var minimum = race.MinimumHandlingSkill;
             var handled = PawnRules.TamerFor(profiles, minimum) is not null;
             if (owned.ContainsKey(def) || (known && handled))
             {
@@ -801,11 +798,7 @@ public static class HerdPlanRules
                 // A war animal is chosen for the fight it wins, not its feed.
                 (score, _, _) = HerdPerAdult(job, race);
             }
-            if (!race.MinimumHandlingSkill.TryGetValue(out var skill))
-            {
-                skill = int.MaxValue;
-            }
-            rows.Add((def, score, skill));
+            rows.Add((def, score, race.MinimumHandlingSkill));
         }
         // The score comparison is a tolerance, not a total order, so sort the stable input (by name) with an insertion sort.
         var sorted = rows.OrderBy(r => r.Def).ToList();

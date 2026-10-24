@@ -59,7 +59,7 @@ public sealed record UpkeepAnimal
     public bool Tame { get; init; }
 
     /// <summary>The Animals level taming the wild animal needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor answers whether the roster has it.</summary>
-    public Fact<int> MinimumHandlingSkill { get; init; }
+    public int MinimumHandlingSkill { get; init; }
 
     /// <summary>The sizing facts the herd Need culls and tames by.</summary>
     public HerdFacts Herd { get; init; } = new();
@@ -182,10 +182,10 @@ public sealed record RaceProduct
 
     public double IntervalDays { get; init; }
 
-    /// <summary>The Nutrition stat of Def (catalog def stat table); unknown for a def the game shows none for, wool.</summary>
-    public Fact<double> NutritionPerUnit { get; init; }
+    /// <summary>Whether Def feeds an eater: its Nutrition stat, or inedible (wool, chemfuel).</summary>
+    public RaceProductFood Food { get; init; } = new RaceProductFood.Inedible();
 
-    /// <summary>Eggs only, from the egg layer and hatcher comp defs: the egg a fertilized hen lays (empty when the layer cannot be fertilized).</summary>
+    /// <summary>Eggs only, from the egg layer comp def: the egg a fertilized hen lays (empty when the layer cannot be fertilized).</summary>
     public Resource FertilizedDef { get; init; }
 
     /// <summary>The eggs one mating fertilizes.</summary>
@@ -193,34 +193,90 @@ public sealed record RaceProduct
 
     /// <summary>Whether only females lay.</summary>
     public bool FemaleOnly { get; init; }
-
-    /// <summary>The fertilized egg's hatcherDaystoHatch.</summary>
-    public Fact<double> HatchDays { get; init; }
-
-    /// <summary>The fertilized egg's hatcherPawn.</summary>
-    public Resource HatchPawn { get; init; }
 }
+
+/// <summary>Whether a race product feeds an eater: Feeds with its Nutrition stat per unit, or Inedible (wool, chemfuel).</summary>
+public abstract record RaceProductFood
+{
+    private protected RaceProductFood() { }
+
+    public sealed record Inedible : RaceProductFood;
+
+    public sealed record Feeds(double PerUnit) : RaceProductFood;
+}
+
+/// <summary>What butchering a race yields in meat: None for a race without a meat def, else its MeatAmount stat (before butcher efficiency) and the meat's Nutrition stat per unit.</summary>
+public abstract record RaceMeat
+{
+    private protected RaceMeat() { }
+
+    public sealed record None : RaceMeat;
+
+    public sealed record Yields(double Amount, double NutritionPerUnit) : RaceMeat;
+}
+
+/// <summary>A race's adult nutrition demand (matching Herd.FeedPerDay): Eats so much a day, or NoNeed for a race without a food need.</summary>
+public abstract record RaceFeed
+{
+    private protected RaceFeed() { }
+
+    public sealed record NoNeed : RaceFeed;
+
+    public sealed record Eats(double PerDay) : RaceFeed;
+}
+
+/// <summary>The first life stage that has an ability (breeding, milk): Reaches it at an age in ticks, or Never when no stage does.</summary>
+public abstract record RaceStage
+{
+    private protected RaceStage() { }
+
+    public sealed record Never : RaceStage;
+
+    public sealed record Reaches(long Ticks) : RaceStage;
+}
+
+/// <summary>The mean litter of a birth: Mean children, or Unrollable for a litter curve the game cannot roll (fewer than three points).</summary>
+public abstract record RaceLitter
+{
+    private protected RaceLitter() { }
+
+    public sealed record Unrollable : RaceLitter;
+
+    public sealed record Mean(double Children) : RaceLitter;
+}
+
+/// <summary>A race's combat power: Rated with the highest PawnKindDef.combatPower of the race, or Unrated when no pawn kind is of it.</summary>
+public abstract record RaceCombat
+{
+    private protected RaceCombat() { }
+
+    public sealed record Unrated : RaceCombat;
+
+    public sealed record Rated(double Power) : RaceCombat;
+}
+
 
 /// <summary>A good a source yields beside its main one, in units (leather from a hunted deer).</summary>
 public sealed record SourceProduct(Resource Def, double Amount);
 
 /// <summary>
-/// The static facts of one animal race, the same for every animal of it and fixed for a map load. A value the
-/// stat table does not show is unknown, never zero.
+/// The static facts of one animal race, the same for every animal of it and fixed for a map load. A fact some
+/// races lack is a named state; a race the catalog does not know reads as one with every such fact absent.
 /// </summary>
 public sealed record AnimalRace
 {
     public Resource Def { get; init; }
 
-    public Fact<double> CarryingCapacity { get; init; }
+    public double CarryingCapacity { get; init; }
 
-    public Fact<double> Wildness { get; init; }
+    public double Wildness { get; init; }
 
     public Fact<double> BodySize { get; init; }
 
-    public Fact<double> CombatPower { get; init; }
+    public RaceCombat CombatPower { get; init; } = new RaceCombat.Unrated();
 
-    public Fact<int> MinimumHandlingSkill { get; init; }
+    /// <summary>The Animals level handling the race needs (native's TrainableUtility.MinimumHandlingSkill).</summary>
+    public int MinimumHandlingSkill { get; init; }
 
     /// <summary>The training the race can ever learn (sorted).</summary>
     public EquatableArray<string> Trainables { get; init; }
@@ -262,11 +318,11 @@ public sealed record AnimalRace
     /// <summary>Pawn_AgeTracker.AdultMinAgeTicks: the lead of a young animal before it is adult.</summary>
     public long AdultMinAgeTicks { get; init; }
 
-    /// <summary>The first life stage that breeds (unknown when no stage does).</summary>
-    public Fact<long> ReproductiveMinAgeTicks { get; init; }
+    /// <summary>The first life stage that breeds.</summary>
+    public RaceStage Reproductive { get; init; } = new RaceStage.Never();
 
-    /// <summary>The first life stage that gives milk (unknown when no stage does).</summary>
-    public Fact<long> MilkableMinAgeTicks { get; init; }
+    /// <summary>The first life stage that gives milk.</summary>
+    public RaceStage Milkable { get; init; } = new RaceStage.Never();
 
     /// <summary>
     /// The game's wildness curve at the race's Wildness: what a tame attempt's chance is multiplied by, before
@@ -274,14 +330,11 @@ public sealed record AnimalRace
     /// </summary>
     public double TameChanceFactor { get; init; }
 
-    /// <summary>The MeatAmount stat of the race def, before butcher efficiency.</summary>
-    public Fact<double> MeatAmount { get; init; }
+    /// <summary>The meat butchering one adult yields (the catalog's def stat table, no native read).</summary>
+    public RaceMeat Meat { get; init; } = new RaceMeat.None();
 
     /// <summary>Native adult nutrition demand, matching Herd.FeedPerDay.</summary>
-    public Fact<double> AdultFeedPerDay { get; init; }
-
-    /// <summary>The Nutrition stat of the race's meat (the catalog's def stat table, no native read).</summary>
-    public Fact<double> MeatNutritionPerUnit { get; init; }
+    public RaceFeed AdultFeed { get; init; } = new RaceFeed.NoNeed();
 
     /// <summary>
     /// RaceProperties.lifeStageAges in order, each with the tick it begins and its LifeStageDef's
@@ -291,10 +344,9 @@ public sealed record AnimalRace
 
     /// <summary>
     /// The mean litter of a birth: Rand.ByCurveAverage of RaceProperties.litterSizeCurve, one child without a
-    /// curve, never below the one child a birth always gives. Unknown for a curve the game cannot roll (fewer
-    /// than three points).
+    /// curve, never below the one child a birth always gives.
     /// </summary>
-    public Fact<double> LitterSize { get; init; }
+    public RaceLitter LitterSize { get; init; } = new RaceLitter.Unrollable();
 }
 
 /// <summary>

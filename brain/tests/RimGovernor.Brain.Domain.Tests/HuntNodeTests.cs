@@ -15,9 +15,10 @@ public sealed class HuntNodeTests
     {
         Def = new Resource("Deer"),
         Butchery = EquatableArray.From(new[] { new SourceProduct(new Resource(Leather), 39.6) }),
-        MeatAmount = Known(82.0),
-        MeatNutritionPerUnit = Known(0.05),
+        Meat = new RaceMeat.Yields(82.0, 0.05),
     };
+
+    private static double MeatNutrition(AnimalRace race) => race.Meat is RaceMeat.Yields { Amount: var amount, NutritionPerUnit: var per } ? amount * per : 0;
 
     // A census row as the acquisition decode makes it from the race row: the meat's nutrition and the race's butchery products.
     private static AcquisitionSource Animal(AnimalRace race, int i) => new()
@@ -26,7 +27,7 @@ public sealed class HuntNodeTests
         Definition = race.Def.Value,
         Hunt = true,
         Food = true,
-        NutritionYield = race.MeatAmount.Value * race.MeatNutritionPerUnit.Value,
+        NutritionYield = MeatNutrition(race),
         Products = race.Butchery,
     };
 
@@ -106,7 +107,7 @@ public sealed class HuntNodeTests
     {
         var herd = Assert.Single(HuntSquadRules.Herds(Herd(3)));
         Assert.Equal(3, herd.Animals);
-        Assert.Equal(3 * Deer.MeatAmount.Value * Deer.MeatNutritionPerUnit.Value, herd.Nutrition, 9);
+        Assert.Equal(3 * MeatNutrition(Deer), herd.Nutrition, 9);
         var leather = Assert.Single(herd.Products);
         Assert.Equal((Deer.Butchery[0].Def, 3 * Deer.Butchery[0].Amount), (leather.Def, leather.Amount));
 

@@ -73,10 +73,8 @@ public static class AcquisitionReads
                 offered = offered with { RevengeChance = race.ManhunterOnDamage };
                 if (!race.Pest)
                 {
-                    if (!race.MeatNutritionPerUnit.TryGetValue(out var perUnit))
-                    {
-                        return unknown;
-                    }
+                    // A race without meat yields no food.
+                    var perUnit = race.Meat is RaceMeat.Yields { NutritionPerUnit: var per } ? per : 0;
                     offered = offered with { NutritionYield = Math.Max(0, hunt.MeatAmount) * perUnit };
                 }
                 offered = offered with { MeleeOnly = Meleeable(row.Source, hunt, tables.Pawns, race, offered) };
@@ -128,7 +126,7 @@ public static class AcquisitionReads
     /// </summary>
     private static bool Meleeable(C.Ref source, O.AcquisitionKind.Hunt row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
     {
-        if (row.InMentalState || race.Predator || !race.MeatNutritionPerUnit.TryGetValue(out var nutrition) || !(nutrition > 0))
+        if (row.InMentalState || race.Predator || race.Meat is not RaceMeat.Yields)
         {
             return false;
         }

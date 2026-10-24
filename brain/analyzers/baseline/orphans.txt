@@ -200,8 +200,6 @@ Policy|PowerProjection.Nets
 Policy|PowerProjection.ShortfallDays
 Policy|QuestGravInspectionWork.Service
 Policy|QuestMonumentMethod.Haul
-Policy|RaceProduct.HatchDays
-Policy|RaceProduct.HatchPawn
 Policy|RoundsFindings.EssentialServices
 Policy|ServiceAssessment.MissingEvidence
 Policy|ServiceStressAssessment.MissingEvidence

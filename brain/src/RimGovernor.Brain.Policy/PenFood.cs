@@ -65,7 +65,7 @@ public static partial class PenFoodRules
 
     /// <summary>
     /// The nutrition per day the animals of ceilings eat: the adult feed of each race (the figure
-    /// PenFoodCalculator's example animals use) times its count. Ok is false when a race's feed is unread.
+    /// PenFoodCalculator's example animals use) times its count; a race without a food need eats nothing. Ok is false when a race is unknown.
     /// </summary>
     public static (double Total, bool Ok) PenDemand(AnimalRaceCatalog races, IReadOnlyDictionary<Resource, long> ceilings)
     {
@@ -81,11 +81,19 @@ public static partial class PenFoodRules
             {
                 return (0, false);
             }
-            if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodForecastRules.FoodNumber(feed))
+            switch (race.AdultFeed)
             {
-                return (0, false);
+                case RaceFeed.NoNeed:
+                    continue;
+                case RaceFeed.Eats { PerDay: var feed }:
+                    if (!FoodForecastRules.FoodNumber(feed))
+                    {
+                        return (0, false);
+                    }
+
+                    total += feed * n;
+                    break;
             }
-            total += feed * n;
         }
         return (total, true);
     }

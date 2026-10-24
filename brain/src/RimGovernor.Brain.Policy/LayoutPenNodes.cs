@@ -76,9 +76,14 @@ partial class GraphBuilder
                 continue;
             }
             var node = new PenNode { Id = Resource.PenId(h.Race), Hunger = Unknown<double>() };
-            if (race.AdultFeedPerDay.TryGetValue(out var feed) && FoodForecastRules.FoodNumber(feed))
+            switch (race.AdultFeed)
             {
-                node = node with { Hunger = Known(feed * h.Animals) };
+                case RaceFeed.Eats { PerDay: var feed } when FoodForecastRules.FoodNumber(feed):
+                    node = node with { Hunger = Known(feed * h.Animals) };
+                    break;
+                case RaceFeed.NoNeed:
+                    node = node with { Hunger = Known(0.0) };
+                    break;
             }
             foreach (var p in race.Products)
             {

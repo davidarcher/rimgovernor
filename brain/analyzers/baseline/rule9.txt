@@ -29,8 +29,7 @@ Bridge/Catalog/Items.cs|Unknown|1
 Bridge/Catalog/MapSurvey.cs|ValueOrDefault|5
 Bridge/Catalog/Power.cs|Fact|9
 Bridge/Catalog/Power.cs|Unknown|3
-Bridge/Catalog/Races.cs|Fact|15
-Bridge/Catalog/Races.cs|Unknown|4
+Bridge/Catalog/Races.cs|Fact|1
 Bridge/Catalog/RecipeLearning.cs|Fact|1
 Bridge/Catalog/Royalty.cs|Fact|11
 Bridge/Catalog/SurgeryParts.cs|Fact|2
@@ -375,7 +374,7 @@ Host/HostProviders.cs|Unknown|2
 Host/HostSnapshots.cs|Fact|8
 Host/HostSnapshots.cs|Unknown|2
 Host/SchedulerLoop.cs|Discard|1
-Observation/Acquisition.cs|Fact|6
+Observation/Acquisition.cs|Fact|4
 Observation/Acquisition.cs|Unknown|1
 Observation/AnimalUpkeep.cs|Fact|8
 Observation/AnomalyColony.cs|Fact|2
@@ -404,7 +403,7 @@ Observation/Construction.cs|Unknown|2
 Observation/Decode.cs|Fact|3
 Observation/Definitions.cs|Fact|8
 Observation/Facts/Store.cs|Discard|2
-Observation/FoodChannels.cs|Fact|5
+Observation/FoodChannels.cs|Fact|3
 Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
 Observation/MealTier.cs|Fact|14
@@ -446,13 +445,13 @@ Policy/AcquisitionCatalog.cs|Fact|19
 Policy/AcquisitionCatalog.cs|Unknown|2
 Policy/ActivityContinuation.cs|Fact|2
 Policy/Admission.cs|Fact|25
-Policy/AnimalAcquire.cs|Fact|38
+Policy/AnimalAcquire.cs|Fact|28
 Policy/AnimalAcquire.cs|Unknown|3
-Policy/AnimalFeedRunway.cs|Fact|14
+Policy/AnimalFeedRunway.cs|Fact|12
 Policy/AnimalFeedRunway.cs|Unknown|1
 Policy/AnimalFood.cs|Fact|30
 Policy/AnimalFood.cs|Unknown|3
-Policy/AnimalUpkeep.cs|Fact|24
+Policy/AnimalUpkeep.cs|Fact|11
 Policy/AnimalsFamily.cs|Fact|18
 Policy/AnomalyFamily.cs|Fact|6
 Policy/ApparelPolicy.cs|Discard|1
@@ -763,7 +762,7 @@ Policy/Harm/ThreatSchedule.cs|Fact|6
 Policy/HerdMaster.cs|Fact|4
 Policy/HerdPen.cs|Fact|2
 Policy/HerdPlan.cs|Discard|1
-Policy/HerdPlan.cs|Fact|23
+Policy/HerdPlan.cs|Fact|16
 Policy/HerdPrecepts.cs|Discard|1
 Policy/HerdPrecepts.cs|Fact|10
 Policy/HerdPrecepts.cs|Unknown|1
@@ -797,7 +796,6 @@ Policy/HusbandryUpkeep.cs|Fact|24
 Policy/HusbandryUpkeep.cs|NullableValue|1
 Policy/HusbandryUpkeep.cs|Unknown|6
 Policy/HusbandryUpkeep.cs|UnknownMember|1
-Policy/HusbandryUpkeep.cs|ValueOrDefault|3
 Policy/IdeoligionDesign.cs|Discard|2
 Policy/IdeoligionDesign.cs|Fact|38
 Policy/IdeoligionDesign.cs|NullableValue|1
@@ -932,7 +930,6 @@ Policy/PawnNames.cs|Unknown|1
 Policy/PawnProfile.cs|Discard|1
 Policy/PawnProfile.cs|Fact|16
 Policy/PawnProfile.cs|Unknown|2
-Policy/PenFood.cs|Fact|1
 Policy/PeopleFamily.cs|Fact|8
 Policy/PerimeterCut.cs|Fact|4
 Policy/PermitChoice.cs|Discard|1

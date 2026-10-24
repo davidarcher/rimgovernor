@@ -301,8 +301,8 @@ public static class HusbandryUpkeepRules
         {
             return ra < rb;
         }
-        var sa = a.MinimumHandlingSkill.ValueOrDefault;
-        var sb = b.MinimumHandlingSkill.ValueOrDefault;
+        var sa = a.MinimumHandlingSkill;
+        var sb = b.MinimumHandlingSkill;
         if (sa != sb)
         {
             return sa < sb;
@@ -379,7 +379,7 @@ public static class HusbandryUpkeepRules
                 }
                 foreach (var a in candidates)
                 {
-                    var minimum = a.MinimumHandlingSkill.ValueOrDefault;
+                    var minimum = a.MinimumHandlingSkill;
                     var ok = PawnRules.TamerFor(profiles, minimum) is not null;
                     if (!short_ && ok)
                     {

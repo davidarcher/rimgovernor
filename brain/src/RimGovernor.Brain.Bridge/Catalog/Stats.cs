@@ -56,9 +56,10 @@ public static class CatalogStats
     public static readonly CatalogStat WorkToMake = Declare("WorkToMake", readHidden: true);
     public static readonly CatalogStat ContainmentStrength = Declare("ContainmentStrength");
     public static readonly CatalogStat BandwidthCost = Declare("BandwidthCost");
-    public static readonly CatalogStat CarryingCapacity = Declare("CarryingCapacity");
-    public static readonly CatalogStat Wildness = Declare("Wildness");
-    public static readonly CatalogStat MinimumHandlingSkill = Declare("MinimumHandlingSkill");
+    // Read for every race, as the game's carrying, taming and handling code reads them whether or not it shows them.
+    public static readonly CatalogStat CarryingCapacity = Declare("CarryingCapacity", readHidden: true);
+    public static readonly CatalogStat Wildness = Declare("Wildness", readHidden: true);
+    public static readonly CatalogStat MinimumHandlingSkill = Declare("MinimumHandlingSkill", readHidden: true);
     public static readonly CatalogStat LeatherAmount = Declare("LeatherAmount");
     public static readonly CatalogStat MeatAmount = Declare("MeatAmount");
     public static readonly CatalogStat ArmorSharp = Declare("ArmorRating_Sharp");

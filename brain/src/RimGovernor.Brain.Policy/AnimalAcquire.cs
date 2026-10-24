@@ -51,15 +51,9 @@ public sealed record AnimalAcquisition
     internal static bool Yield(AnimalRace race, bool female, double ageTicks, out AcquiredYield result)
     {
         result = default;
-        if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodForecastRules.FoodNumber(feed))
+        if (race.AdultFeed is not RaceFeed.Eats { PerDay: var feed } || !FoodForecastRules.FoodNumber(feed))
         {
             return false;
-        }
-
-        (double, bool) Lead(Fact<long> stage)
-        {
-            var known = stage.TryGetValue(out var ticks);
-            return (Math.Max(0, (ticks - ageTicks) / GameTime.TicksPerDay), known);
         }
 
         var rate = 0.0;
@@ -67,33 +61,29 @@ public sealed record AnimalAcquisition
         var products = false;
         foreach (var p in race.Products)
         {
-            var stage = race.MilkableMinAgeTicks;
+            // A hen lays from her first breeding stage, else from adulthood; a race that never gives milk yields none.
+            RaceStage stage;
             switch (p.Kind)
             {
                 case "eggs":
-                    stage = race.ReproductiveMinAgeTicks;
-                    if (!stage.IsKnown)
-                    {
-                        stage = Known(race.AdultMinAgeTicks);
-                    }
-
+                    stage = race.Reproductive is RaceStage.Reaches ? race.Reproductive : new RaceStage.Reaches(race.AdultMinAgeTicks);
                     break;
                 case "milk":
+                    stage = race.Milkable;
                     break;
                 default:
                     continue;
             }
 
-            var amount = p.Amount;
-            var interval = p.IntervalDays;
-            var nk = p.NutritionPerUnit.TryGetValue(out var nutrition);
-            var (days, sk) = Lead(stage);
-            if (!sk)
+            if (stage is not RaceStage.Reaches { Ticks: var ticks })
             {
                 continue;
             }
 
-            if (!nk || interval <= 0)
+            var amount = p.Amount;
+            var interval = p.IntervalDays;
+            var days = Math.Max(0, (ticks - ageTicks) / GameTime.TicksPerDay);
+            if (p.Food is not RaceProductFood.Feeds { PerUnit: var nutrition } || interval <= 0)
             {
                 return false;
             }
@@ -114,10 +104,8 @@ public sealed record AnimalAcquisition
             return true;
         }
 
-        var mk = race.MeatAmount.TryGetValue(out var meatAmount);
-        var pk = race.MeatNutritionPerUnit.TryGetValue(out var per);
         var leadDays = Math.Max(0, (race.AdultMinAgeTicks - ageTicks) / GameTime.TicksPerDay);
-        if (!mk || !pk)
+        if (race.Meat is not RaceMeat.Yields { Amount: var meatAmount, NutritionPerUnit: var per })
         {
             return false;
         }
@@ -228,7 +216,7 @@ public static class AnimalAcquireRules
             var rk = input.Races.Race(a.Definition, out var race);
             var factor = race.TameChanceFactor;
             var years = a.Herd.AgeYears;
-            a.MinimumHandlingSkill.TryGetValue(out var minimum);
+            var minimum = a.MinimumHandlingSkill;
             if (
                 !a.Tameable
                 || a.Tame
@@ -353,7 +341,7 @@ public static class AnimalAcquireRules
 
             foreach (var a in rows)
             {
-                a.MinimumHandlingSkill.TryGetValue(out var minimum);
+                var minimum = a.MinimumHandlingSkill;
                 if (PawnRules.TamerFor(profiles, minimum) is not null && e.Channel.Id == "tame:" + a.Id)
                 {
                     if (!a.Tame)

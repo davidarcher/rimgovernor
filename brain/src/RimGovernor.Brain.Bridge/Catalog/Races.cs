@@ -65,24 +65,20 @@ public sealed partial class DefinitionCatalog
             Pest = (props.foodType & FoodTypeFlags.Tree) != 0,
             EatsPlant = (props.foodType & FoodTypeFlags.Plant) != 0,
             GestationDays = props.gestationPeriodDays,
-            CarryingCapacity = ShownFact(name, CatalogStats.CarryingCapacity),
-            Wildness = ShownFact(name, CatalogStats.Wildness),
+            CarryingCapacity = PlannerStatValue(name, string.Empty, CatalogStats.CarryingCapacity),
+            Wildness = PlannerStatValue(name, string.Empty, CatalogStats.Wildness),
+            MinimumHandlingSkill = (int)Math.Round((double)PlannerStatValue(name, string.Empty, CatalogStats.MinimumHandlingSkill), MidpointRounding.AwayFromZero),
             MateMtbHours = props.mateMtbHours,
             AdultMinAgeTicks = ages.Adult,
-            ReproductiveMinAgeTicks = ages.Reproductive is { } r ? Known(r) : default,
-            MilkableMinAgeTicks = ages.Milkable is { } m ? Known(m) : default,
+            Reproductive = ages.Reproductive is { } r ? new P.RaceStage.Reaches(r) : new P.RaceStage.Never(),
+            Milkable = ages.Milkable is { } m ? new P.RaceStage.Reaches(m) : new P.RaceStage.Never(),
             LifeStages = new([.. RaceLifeStages(props)]),
             LitterSize = LitterSizeMean(props.litterSizeCurve),
             TameChanceFactor = facts.TameChanceFactor,
-            AdultFeedPerDay = facts.AdultFeedPerDay is > 0 and { } feed ? Known(feed) : default,
-            CombatPower = power.TryGetValue(name, out var p) ? Known(p) : default,
+            AdultFeed = facts.AdultFeedPerDay is > 0 and { } feed ? new P.RaceFeed.Eats(feed) : new P.RaceFeed.NoNeed(),
+            CombatPower = power.TryGetValue(name, out var p) ? new P.RaceCombat.Rated(p) : new P.RaceCombat.Unrated(),
         };
 
-        var (skill, skillShown) = ShownStatValue(name, string.Empty, CatalogStats.MinimumHandlingSkill);
-        if (skillShown && skill >= 0)
-        {
-            race = race with { MinimumHandlingSkill = Known((int)Math.Round((double)skill, MidpointRounding.AwayFromZero)) };
-        }
 
         var butchery = new List<P.SourceProduct>();
         if (props.leatherDef is { } leather)
@@ -112,10 +108,16 @@ public sealed partial class DefinitionCatalog
                 throw new CatalogException($"race {name} has meat {meat} but the stat table shows no {StatMeatAmount}");
             }
 
-            race = race with { MeatAmount = Known((double)amount), MeatNutritionPerUnit = NutritionFact(meat) };
+            var (nutrition, nutritionShown) = ShownStatValue(meat, string.Empty, CatalogStats.Nutrition);
+            if (!nutritionShown || !(nutrition > 0))
+            {
+                throw new CatalogException($"race {name} has meat {meat} but the stat table shows it no positive nutrition");
+            }
+
+            race = race with { Meat = new P.RaceMeat.Yields(amount, nutrition) };
         }
 
-        var products = RaceProducts(row).Select(product => product.Kind == "wool" ? product : product with { NutritionPerUnit = NutritionFact(product.Def.Value) }).ToList();
+        var products = RaceProducts(row).Select(product => product.Kind == "wool" ? product : product with { Food = ProductFoodOf(product.Def.Value) }).ToList();
         race = race with { Products = new([.. products]) };
 
         var feedItems = new List<P.RaceFeedItem>();
@@ -131,16 +133,12 @@ public sealed partial class DefinitionCatalog
         return race with { FeedItems = new([.. feedItems]) };
     }
 
-    private Fact<double> ShownFact(string def, CatalogStat stat)
-    {
-        var (value, shown) = ShownStatValue(def, string.Empty, stat);
-        return shown ? Known((double)value) : default;
-    }
 
-    private Fact<double> NutritionFact(string def)
+    // A product the stat table shows no positive nutrition for (chemfuel) feeds no one.
+    private P.RaceProductFood ProductFoodOf(string def)
     {
         var (n, shown) = ShownStatValue(def, string.Empty, CatalogStats.Nutrition);
-        return shown && n > 0 ? Known((double)n) : Unknown<double>();
+        return shown && n > 0 ? new P.RaceProductFood.Feeds(n) : new P.RaceProductFood.Inedible();
     }
 
     // The race's lifeStageAges with each stage's hunger rate factor; empty when an entry or its LifeStageDef is absent.
@@ -161,20 +159,20 @@ public sealed partial class DefinitionCatalog
     }
 
     // The mean litter of a birth, as Hediff_Pregnant rolls it: one child without a curve, else Rand.ByCurveAverage of the
-    // curve, never below the one child a birth gives. Unknown for a curve Rand.ByCurve rejects (fewer than three points,
+    // curve, never below the one child a birth gives. Unrollable for a curve Rand.ByCurve rejects (fewer than three points,
     // or ends not at y = 0).
-    private static Fact<double> LitterSizeMean(SimpleCurve? curve)
+    private static P.RaceLitter LitterSizeMean(SimpleCurve? curve)
     {
         if (curve is null)
         {
-            return Known(1.0);
+            return new P.RaceLitter.Mean(1);
         }
 
         var points = curve.Points;
         var n = points.Count;
         if (n < 3 || points[0].y != 0 || points[n - 1].y != 0)
         {
-            return Unknown<double>();
+            return new P.RaceLitter.Unrollable();
         }
 
         double area = 0, moment = 0;
@@ -183,14 +181,14 @@ public sealed partial class DefinitionCatalog
             double x0 = points[i].x, y0 = points[i].y, x1 = points[i + 1].x, y1 = points[i + 1].y;
             if (y0 < 0)
             {
-                return Unknown<double>();
+                return new P.RaceLitter.Unrollable();
             }
 
             area += (x1 - x0) * (y0 + y1);
             moment += (x1 - x0) * ((x0 * ((2 * y0) + y1)) + (x1 * (y0 + (2 * y1))));
         }
 
-        return area <= 0 ? Unknown<double>() : Known(Math.Max(1, moment / area / 3));
+        return area <= 0 ? new P.RaceLitter.Unrollable() : new P.RaceLitter.Mean(Math.Max(1, moment / area / 3));
     }
 
     // The game's animal interaction job constants, each positive.
@@ -250,14 +248,7 @@ public sealed partial class DefinitionCatalog
             };
             if (egg.eggFertilizedDef is { } fertilized)
             {
-                var hatcher = fertilized.GetCompProperties<CompProperties_Hatcher>()
-                    ?? throw new CatalogException($"race {row.defName} lays fertilized egg {fertilized.defName} with no hatcher comp");
-                product = product with
-                {
-                    FertilizedDef = new P.Resource(fertilized.defName),
-                    HatchDays = Known((double)hatcher.hatcherDaystoHatch),
-                    HatchPawn = new P.Resource(hatcher.hatcherPawn?.defName ?? string.Empty),
-                };
+                product = product with { FertilizedDef = new P.Resource(fertilized.defName) };
             }
 
             products.Add(product);

@@ -114,10 +114,9 @@ public static class FoodChannelsReads
         {
             return output;
         }
-        if (race.MeatNutritionPerUnit.TryGetValue(out var per))
-        {
-            output = output with { MeatNutrition = Known(row.MeatAmount * per) };
-        }
+        // A race without meat yields no food.
+        var per = race.Meat is RaceMeat.Yields { NutritionPerUnit: var nutrition } ? nutrition : 0;
+        output = output with { MeatNutrition = Known(row.MeatAmount * per) };
         if (race.EatsPlant && StageFeedPerDay(race, pawns, row.PawnId, out var feed))
         {
             output = output with { FeedPerDay = Known(feed) };
@@ -141,7 +140,9 @@ public static class FoodChannelsReads
     private static bool StageFeedPerDay(AnimalRace race, Pawns pawns, string id, out double feed)
     {
         feed = 0;
-        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGetValue(id, out var row) || row?.AnimalState is not O.PawnAnimalState.Animal { State: var state })
+        // A race without a food need eats nothing in any stage.
+        var adult = race.AdultFeed is RaceFeed.Eats { PerDay: var perDay } ? perDay : 0;
+        if (!pawns.TryGetValue(id, out var row) || row?.AnimalState is not O.PawnAnimalState.Animal { State: var state })
         {
             return false;
         }
