@@ -160,6 +160,31 @@ Stats are Normal-quality values for the specific material; armor multipliers are
 0.6/0.8/1/1.15/1.3/1.45/1.8 and insulation multipliers
 0.8/0.9/1/1.1/1.2/1.5/1.8, Awful through Legendary.
 
+A crafted garment comes out at its crafter's quality (#3850). The native read
+offers a bill only when some free colonist can work its recipe (a
+`WorkGiver_DoBill` of one of its benches whose work type, tags and capacities
+the pawn has, and the recipe's skill requirements), and a bill whose def has a
+quality carries each such colonist's distinct `GearCrafter` facts: the recipe's
+work skill level, `Inspired_Creativity`, and the ideoligion role's
+`RoleEffect_ProductionQualityOffset`. The decode prices the bill at the odds
+`QualityUtility.GenerateQualityCreatedByPawn` gives the best of them, the one
+with the highest expected quality (`CraftedQualityRules`, `GearOption.QualityOdds`):
+an asymmetric Gaussian (widths 0.6 below, 0.8 above) around the skill level's
+centre, truncated and clamped to Awful..Masterwork, a Masterwork redrawn half
+the time with an upper width of 0.95, then two levels for inspiration and the
+role's offset, each capped at Legendary. A quality bill without a crafter raises
+`RequiredFactException`. Insulation is the stat expected over the odds; the armor
+response takes each layer's effective armor expected over its odds, exact because
+the walk is linear in it; the title minimum-quality thought is active with the
+chance some garment is below the minimum. The bill is priced for that best
+crafter whichever colonist the selection binds to craft it, and at the skill and
+inspiration of the observation (skill learned while crafting and an inspiration
+that ends first are not modelled). Apparel whose recipe is not available now has
+one `GearSnapshot.LockedBills` row with the same craftability and crafter facts;
+the knowledge bill read (`ColonyGearReads.KnowledgeBillOptions`) prices a bill
+from it, offers none for a def no colonist could craft, and raises
+`RequiredFactException` for a def without a row.
+
 The optional seasonal observation carries 12 outdoor temperatures sampled at local
 twelfth midpoints and indexed by native Twelfth, the current twelfth and ticks to
 its next boundary, 12 daylight hours (`GenCelestial.IsDaytime` at the tile over the
@@ -369,7 +394,9 @@ A title also sets a minimum apparel quality (#3841): the native read carries the
 highest `requiredMinimumApparelQuality` of the titles in effect
 (`NeedApparel.MinimumQuality`, Awful with none), and `TitleApparelMinQualityNotMet`
 is active while a worn garment that has a quality is below it. A crafted garment
-is priced at Normal; apparel whose def has no `CompQuality` is `Qualityless`
+is at its crafter's quality odds (above), so the thought is active with the chance
+one is below the minimum and the credit is each outcome's gain (`ForecastApparel.MoodOutcomes`)
+weighted by its chance; apparel whose def has no `CompQuality` is `Qualityless`
 (the census row carries no quality) and counts neither way. A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
 ambient temperature, kind-required apparel), outfit, mood, tick or shift is
 unread is named `apparel_credit_unassessed:<pawn>` and credited nothing. The
@@ -435,7 +462,7 @@ outcomes/32 tasks. Truncation is reported, never an optimum claim. A bundle uses
 one recipe per bench and distinct output cells; missing between-job routes can
 exclude sequential jobs on one worker. Route duration is a native path-cost
 estimate, not a simulation of pickup animations or future congestion. Comfort shifts use
-the option's observed quality stats; future crafted quality, future weather and
+the option's quality stats (a crafted garment's expected over its crafter's odds); future weather and
 whether the wearer puts the garment on remain unassessed. Supported needs
 and participant commitments enter the shared portfolio comparison. Material
 scarcity is a hard shared budget, not a calibrated market-price valuation.

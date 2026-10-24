@@ -51,7 +51,7 @@ public static class ColonyGearReads
             Pawns = pawns,
             Stored = GearStorageFacts(gear),
             Outfits = OutfitIds(v.Policies),
-            KnowledgeBills = KnowledgeBillOptions(catalog, finished),
+            KnowledgeBills = KnowledgeBillOptions(catalog, finished, gear.LockedBills),
         };
         return Known(result);
     }
@@ -59,11 +59,13 @@ public static class ColonyGearReads
     /// <summary>
     /// The bill options of apparel that only unfinished knowledge projects (Anomaly) keep from the colony (#3848): every apparel
     /// recipe of the catalog (<see cref="DefinitionCatalog.ApparelBills"/>) whose unfinished research is all knowledge projects, one
-    /// option per stuff a bill of it takes, as the census writes a bill option (Normal quality, whole). The census lists only
-    /// recipes available now, so these are what finishing those projects adds.
+    /// option per stuff a bill of it takes, as the census writes a bill option (whole, at its best crafter's quality odds, #3850).
+    /// The census lists only recipes available now, so these are what finishing those projects adds. A def no free colonist could
+    /// craft offers nothing; one the <paramref name="locked"/> bills lack raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static EquatableArray<GearOption> KnowledgeBillOptions(DefinitionCatalog catalog, IReadOnlySet<string> finished)
+    public static EquatableArray<GearOption> KnowledgeBillOptions(DefinitionCatalog catalog, IReadOnlySet<string> finished, IEnumerable<O.GearLockedBill> locked)
     {
+        var crafters = locked.ToDictionary(b => b.DefName, StringComparer.Ordinal);
         var options = new List<GearOption>();
         foreach (var (def, research) in catalog.ApparelBills())
         {
@@ -73,10 +75,21 @@ public static class ColonyGearReads
                 continue;
             }
 
+            var bill = crafters.TryGetValue(def, out var b) ? b : throw new RequiredFactException("locked bill crafters");
+            if (!bill.Craftable)
+            {
+                continue;
+            }
+
             var stuffs = catalog.ApparelBillStuffs(def);
             foreach (var stuff in stuffs.Count == 0 && !catalog.ThingRow(def).MadeFromStuff ? [""] : stuffs)
             {
-                var row = new O.GearLoadoutOption { Id = $"bill:{def}/{stuff}", DefName = def, Source = "bill", Quality = (int)D.QualityCategory.Normal, Condition = 1 };
+                // A craftable def with a quality always has a crafter; one without CompQuality lists none (GearLockedBill).
+                var row = new O.GearLoadoutOption
+                {
+                    Id = $"bill:{def}/{stuff}", DefName = def, Source = "bill", Condition = 1, Crafters = bill.Crafters,
+                    Quality = bill.Crafters.Count == 0 ? null : (int)D.QualityCategory.Normal,
+                };
                 if (GearLoadoutOption(stuff.Length == 0 ? row : row with { Stuff = stuff }, catalog) is { } option)
                 {
                     options.Add(option);
@@ -267,9 +280,9 @@ public static class ColonyGearReads
 
     /// <summary>
     /// Maps one native option against the catalog: its layers and groups from the def's apparel row, its stats from
-    /// the stat table for its (def, stuff), its move speed, psychic and shield facts from the row. Null for a
-    /// garment the model's slots do not name; throws for a def the catalog lacks or does not know as apparel, or a
-    /// pair without stat values.
+    /// the stat table for its (def, stuff), its move speed, psychic and shield facts from the row, a crafted bill's quality odds
+    /// from its crafters. Null for a garment the model's slots do not name; throws for a def the catalog lacks or does not know
+    /// as apparel, a pair without stat values, or a bill with a quality and no crafter.
     /// </summary>
     private static GearOption? GearLoadoutOption(O.GearLoadoutOption x, DefinitionCatalog catalog)
     {
@@ -303,6 +316,8 @@ public static class ColonyGearReads
             Stuff = new Resource(stuff),
             Quality = x.Quality ?? (int)D.QualityCategory.Normal,
             Qualityless = x.Quality is null,
+            // A crafted garment comes out at its best crafter's quality odds (#3850); a bill names at least one crafter.
+            QualityOdds = source == GearSource.Bill && x.Quality is not null ? EquatableArray.From(CraftedQualityRules.BestOdds(x.Crafters)) : [],
             Slot = shape.Slot,
             Layers = shape.Layers,
             Groups = shape.Groups,

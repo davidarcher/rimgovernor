@@ -102,8 +102,18 @@ public sealed record GearOption
     public Resource Definition { get; init; }
     public Resource Stuff { get; init; }
 
-    /// <summary>Awful=0 through Legendary=6; Normal for a <see cref="Qualityless"/> item, whose stats StatPart_Quality leaves unscaled as Normal's factors do.</summary>
+    /// <summary>
+    /// Awful=0 through Legendary=6; Normal for a <see cref="Qualityless"/> item, whose stats StatPart_Quality leaves unscaled as
+    /// Normal's factors do. A crafted bill's quality is its <see cref="QualityOdds"/> instead.
+    /// </summary>
     public int Quality { get; init; }
+
+    /// <summary>
+    /// A crafted bill's odds of each quality (#3850), Awful through Legendary, for the colony's best crafter of it
+    /// (<see cref="CraftedQualityRules.BestOdds"/>); empty for an item, which is at <see cref="Quality"/>. Every quality-dependent
+    /// term reads the option through <see cref="GearLoadoutRules.QualityChance"/>.
+    /// </summary>
+    public EquatableArray<double> QualityOdds { get; init; }
 
     /// <summary>The def has no quality (no CompQuality): the item counts toward no royal title's minimum apparel quality (#3841).</summary>
     public bool Qualityless { get; init; }
@@ -213,6 +223,8 @@ public sealed record GearLoadoutInput
                     && o.Quality <= 6,
                 "invalid gear option identity"
             );
+            DomainException.Require(o.QualityOdds.Count == 0 || o.QualityOdds.Count == CraftedQualityRules.Categories
+                && o.QualityOdds.All(p => p >= 0 && p <= 1) && Math.Abs(o.QualityOdds.Sum() - 1) < 1e-9, "invalid gear quality odds");
             DomainException.Require(o.Slot is >= GearSlot.SkinTorso and <= GearSlot.Primary, "invalid gear slot");
             DomainException.Require(o.Source is >= GearSource.Worn and <= GearSource.Bill, "invalid gear source");
             DomainException.Require(
@@ -411,6 +423,24 @@ public static class GearLoadoutRules
         ReadOnlySpan<double> armor = [.6, .8, 1, 1.15, 1.3, 1.45, 1.8];
         ReadOnlySpan<double> insulation = [.8, .9, 1, 1.1, 1.2, 1.5, 1.8];
         return (armor[quality], insulation[quality]);
+    }
+
+    /// <summary>The chance <paramref name="o"/> is at <paramref name="quality"/>: its <see cref="GearOption.QualityOdds"/>, or certainty at its one quality.</summary>
+    public static double QualityChance(GearOption o, int quality) =>
+        o.QualityOdds.Count == 0 ? (quality == o.Quality ? 1 : 0) : o.QualityOdds[quality];
+
+    /// <summary>The armor and insulation multipliers of <paramref name="o"/>'s quality, expected over its <see cref="GearOption.QualityOdds"/>.</summary>
+    public static (double Armor, double Insulation) GearQualityMultipliers(GearOption o)
+    {
+        if (o.QualityOdds.Count == 0) return GearQualityMultipliers(o.Quality);
+        double armor = 0, insulation = 0;
+        for (var q = 0; q < CraftedQualityRules.Categories; q++)
+        {
+            var (a, i) = GearQualityMultipliers(q);
+            armor += o.QualityOdds[q] * a;
+            insulation += o.QualityOdds[q] * i;
+        }
+        return (armor, insulation);
     }
 
     public static double GearGapThreshold(GearRole role) =>
@@ -697,7 +727,7 @@ public static class GearLoadoutRules
 
     private static (double Cold, double Heat) GearItemInsulation(GearOption o)
     {
-        var (_, i) = GearQualityMultipliers(o.Quality);
+        var (_, i) = GearQualityMultipliers(o);
         return (o.Cold * i, o.Heat * i);
     }
 

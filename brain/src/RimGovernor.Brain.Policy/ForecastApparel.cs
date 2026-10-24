@@ -1,4 +1,5 @@
 using RimGovernor.Contracts.Wire.Observations;
+using System.Globalization;
 using Gender = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
@@ -45,15 +46,34 @@ public static class ForecastApparel
     /// The summed offset of the apparel thoughts <paramref name="pawn"/> has wearing <paramref name="outfit"/> (its primary weapon
     /// aside), each thought's stage as its worker picks it. A thought without rows does not apply to the pawn (the native read
     /// leaves out a precept the ideoligion does not hold, and Naked under Ideology). Null when the pawn's apparel facts are
-    /// unread or an active stage within the thought's stages has no row.
+    /// unread or an active stage within the thought's stages has no row. A crafted garment's quality is a distribution (#3850),
+    /// so this is the mood expected over <see cref="MoodOutcomes"/>.
     /// </summary>
-    public static double? MoodOf(NeedsForecastPawn pawn, IEnumerable<GearOption> outfit)
+    public static double? MoodOf(NeedsForecastPawn pawn, IEnumerable<GearOption> outfit) =>
+        MoodOutcomes(pawn, outfit) is { } outcomes ? outcomes.Sum(o => o.Mood * o.Chance) : null;
+
+    /// <summary>
+    /// The apparel moods <paramref name="pawn"/> can have wearing <paramref name="outfit"/>, each with its chance (#3850): one, or two
+    /// when a crafted garment's quality may leave it below the pawn's title minimum (the minimum-quality thought active, and not).
+    /// Null as for <see cref="MoodOf"/>.
+    /// </summary>
+    public static (double Mood, double Chance)[]? MoodOutcomes(NeedsForecastPawn pawn, IEnumerable<GearOption> outfit)
     {
         if (pawn.Apparel is not { } facts) return null;
         var worn = outfit.Where(o => o.Slot != GearSlot.Primary).ToArray();
-        double sum = 0;
+        double sum = 0, quality = 0;
+        var below = BelowMinimumChance(facts, worn);
         foreach (var thought in pawn.ThoughtStages.Where(r => Roles.Contains(r.Role)).GroupBy(r => (r.Thought, r.Role)))
         {
+            if (thought.Key.Role == TitleApparelQuality)
+            {
+                // ThoughtWorker_RoyalTitleApparelMinQualityNotMet: active while a worn garment with a quality (TryGetQuality) is below
+                // a title in effect's minimum, a quality-less garment counting neither way; its one stage.
+                if (below <= 0) continue;
+                if (thought.FirstOrDefault(r => r.Stage == 0) is not { } first) return null;
+                quality += first.Offset;
+                continue;
+            }
             var stage = StageOf(thought.Key.Role, facts, worn);
             if (stage < 0) continue;
             // Past the last defined stage the game clamps to it (ThoughtState.StageIndexFor): five tainted garments are the fourth stage.
@@ -61,7 +81,17 @@ public static class ForecastApparel
             if ((stage > last.Stage ? last : thought.FirstOrDefault(r => r.Stage == stage)) is not { } row) return null;
             sum += row.Offset;
         }
-        return sum;
+        if (quality == 0 || below >= 1) return [(sum + quality, 1)];
+        return [(sum + quality, below), (sum, 1 - below)];
+    }
+
+    /// <summary>The chance some worn garment with a quality is below the pawn's title minimum: each garment's quality is drawn on its own.</summary>
+    private static double BelowMinimumChance(NeedApparel facts, GearOption[] worn)
+    {
+        var met = 1.0;
+        foreach (var o in worn.Where(o => !o.Qualityless))
+            met *= AtLeastChance(o, (int)facts.MinimumQuality);
+        return 1 - met;
     }
 
     /// <summary>The apparel mood <paramref name="garments"/> overlaid on <paramref name="worn"/> adds; null when either side's is unknown.</summary>
@@ -94,8 +124,17 @@ public static class ForecastApparel
         return string.Join(",", worn.SelectMany(o => o.Groups).Distinct().Order(StringComparer.Ordinal)) + ";"
             + string.Join(",", worn.Where(o => o.CountsAsClothingForNudity).Select(o => o.Definition.Value + ":" + string.Join("+", o.Groups)).Order(StringComparer.Ordinal))
             + ";" + (least < 0.2 ? 1 : least < 0.5 ? 0 : -1) + ";" + worn.Count(o => o.Tainted) + ";" + (worn.Length > 0)
-            + ";" + worn.Where(o => !o.Qualityless).Select(o => o.Quality).DefaultIfEmpty(-1).Min()
+            + ";" + string.Join(",", Enumerable.Range(1, CraftedQualityRules.Categories - 1)
+                .Select(m => worn.Where(o => !o.Qualityless).Aggregate(1.0, (met, o) => met * AtLeastChance(o, m)).ToString("R", CultureInfo.InvariantCulture)))
             + ";" + string.Concat((facts?.Requirements ?? []).Select(r => Met(r, worn) ? '1' : '0'));
+    }
+
+    /// <summary>The chance <paramref name="o"/> is at <paramref name="quality"/> or better.</summary>
+    private static double AtLeastChance(GearOption o, int quality)
+    {
+        var chance = 0.0;
+        for (var q = Math.Max(quality, 0); q < CraftedQualityRules.Categories; q++) chance += GearLoadoutRules.QualityChance(o, q);
+        return chance;
     }
 
     /// <summary>ApparelRequirement.IsMet: some worn garment's def meets <paramref name="requirement"/>.</summary>
@@ -142,10 +181,6 @@ public static class ForecastApparel
                 // ThoughtWorker_RoyalTitleApparelRequirementNotMet and Thought_IdeoRoleApparelRequirementNotMet: active while any of
                 // the pawn's active requirements of the source is unmet, IsMet by any worn garment.
                 return facts.Requirements.Any(r => r.Thought == role && !Met(r, worn)) ? 0 : -1;
-            case TitleApparelQuality:
-                // ThoughtWorker_RoyalTitleApparelMinQualityNotMet: active while a worn garment with a quality (TryGetQuality) is below
-                // a title in effect's minimum; a quality-less garment counts neither way.
-                return worn.Any(o => !o.Qualityless && o.Quality < (int)facts.MinimumQuality) ? 0 : -1;
             default:
                 return -1;
         }
@@ -177,7 +212,8 @@ public static class ForecastApparel
                     var next = new ForecastOutfitChange(group.Key, items) { Overlay = true }.Apply(outfit);
                     if (!seen.Add(Signature(next, pawn.Apparel))) continue;
                     queue.Enqueue(next);
-                    if (MoodOf(pawn, next) is { } mood && mood != before) shifts.Add((mood - before) / 100);
+                    foreach (var (mood, _) in MoodOutcomes(pawn, next) ?? [])
+                        if (mood != before) shifts.Add((mood - before) / 100);
                 }
             }
             if (shifts.Count > 0) result[group.Key] = [.. shifts];
@@ -219,9 +255,12 @@ public static class ForecastApparel
             foreach (var (change, at) in group.OrderBy(c => c.At!.Value))
             {
                 current = change.Apply(current);
-                var mood = MoodOf(pawn, current);
-                var gain = mood is { } m ? ForecastHousing.GainPerDay(m - baseline, outcome.Needs.GetValueOrDefault(group.Key)?.Mood, context.MoodBreaks,
-                    context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay) : null;
+                // Expected over the outfit's moods (a crafted garment's quality, #3850), each priced at its own break shift.
+                var moods = MoodOutcomes(pawn, current);
+                double? gain = moods is null ? null : 0;
+                foreach (var (m, chance) in moods ?? [])
+                    gain += chance * ForecastHousing.GainPerDay(m - baseline, outcome.Needs.GetValueOrDefault(group.Key)?.Mood,
+                        context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
                 if (gain is not { } total) { assessed = false; break; }
                 var units = RingClosure.CreditDays(days, at!.Value);
                 if (total != previous && units > 0)

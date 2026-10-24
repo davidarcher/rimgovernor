@@ -142,7 +142,11 @@ internal static class EffectSourceCandidates
     private static IEnumerable<string> ArmorKey(IEnumerable<GearOption> items) =>
         Apparel(items).Where(o => o.Sharp > 0 || o.Blunt > 0 || o.ArmorHeat > 0).Select(o => string.Join('|', string.Join(',', o.Groups),
             string.Join(',', o.Layers), o.Sharp.ToString("R", CultureInfo.InvariantCulture), o.Blunt.ToString("R", CultureInfo.InvariantCulture),
-            o.ArmorHeat.ToString("R", CultureInfo.InvariantCulture), o.Quality, o.Condition.ToString("R", CultureInfo.InvariantCulture))).Order(StringComparer.Ordinal);
+            o.ArmorHeat.ToString("R", CultureInfo.InvariantCulture), QualityKey(o), o.Condition.ToString("R", CultureInfo.InvariantCulture))).Order(StringComparer.Ordinal);
+
+    // A garment's quality as the armor response reads it: its one quality, or a crafted bill's odds (#3850).
+    private static string QualityKey(GearOption o) =>
+        o.QualityOdds.Count == 0 ? o.Quality.ToString(CultureInfo.InvariantCulture) : string.Join(",", o.QualityOdds.Select(p => p.ToString("R", CultureInfo.InvariantCulture)));
 
     /// <summary>The floor segment of a candidate id, <c>cold&lt;c&gt;-heat&lt;h&gt;</c>, rounded to 6 decimals; <see cref="Choice"/> reads it back.</summary>
     internal static string FloorId(double cold, double heat) =>

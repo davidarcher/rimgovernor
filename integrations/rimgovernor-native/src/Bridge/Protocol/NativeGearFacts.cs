@@ -93,10 +93,11 @@ namespace HomeBridge.BridgeTools
                         row = row with { Candidates = [.. row.Candidates, new Obs.GearCandidate { Item = Gear(candidate.Key), Gain = Number(candidate.Value) }] };
                 }
                 Lap();
-                row = row with { LoadoutModel = Model(pawn, row, catalog, byId, billOptions) };
+                row = row with { LoadoutModel = Model(pawn, row, catalog, byId, billOptions, people) };
                 modelTicks += Lap();
                 result = result with { Pawns = [.. result.Pawns, row] };
             }
+            result = result with { LockedBills = [.. LockedBills(catalog, people)] };
             ObservationWork.Detail("cf.gear.rows", rowTicks);
             ObservationWork.Detail("cf.gear.available", availTicks);
             ObservationWork.Detail("cf.gear.identity", identTicks);
@@ -120,13 +121,39 @@ namespace HomeBridge.BridgeTools
 
         // Producible apparel: one recipe per definition whose research is
         // finished, in stable definition order.
-        private static List<RecipeDef> Catalog() => DefDatabase<RecipeDef>.AllDefsListForReading
-            .Where(r => r.ProducedThingDef != null && r.ProducedThingDef.IsApparel && r.AvailableNow)
+        private static List<RecipeDef> Catalog() => ApparelRecipes(true);
+
+        private static List<RecipeDef> ApparelRecipes(bool available) => DefDatabase<RecipeDef>.AllDefsListForReading
+            .Where(r => r.ProducedThingDef != null && r.ProducedThingDef.IsApparel && r.AvailableNow == available)
             .GroupBy(r => r.ProducedThingDef).Select(g => g.OrderBy(r => r.defName, StringComparer.Ordinal).First())
             .OrderBy(r => r.ProducedThingDef.defName, StringComparer.Ordinal).ToList();
 
+        // The apparel defs no available recipe makes: who could craft each once its recipe is available (#3850), for the bills
+        // the brain offers ahead of their research.
+        private static IEnumerable<Obs.GearLockedBill> LockedBills(List<RecipeDef> available, IReadOnlyList<Pawn> people)
+        {
+            var made = new HashSet<ThingDef>(available.Select(r => r.ProducedThingDef));
+            foreach (var recipe in ApparelRecipes(false).Where(r => !made.Contains(r.ProducedThingDef))) {
+                var (craftable, crafters) = Crafters(recipe, people);
+                yield return new Obs.GearLockedBill { DefName = Id(recipe.ProducedThingDef.defName), Craftable = craftable, Crafters = [.. crafters] };
+            }
+        }
+
+        // Whether a free colonist can work the recipe, and the able colonists' quality facts for a def with a quality.
+        // GenRecipe.PostProcessProduct sets a quality product's quality from the recipe's workSkill: without one the game cannot make it.
+        private static (bool Craftable, Obs.GearCrafter[] Crafters) Crafters(RecipeDef recipe, IReadOnlyList<Pawn> people)
+        {
+            var benches = recipe.AllRecipeUsers.ToList();
+            var givers = DefDatabase<WorkGiverDef>.AllDefsListForReading.Where(g => g.Worker is WorkGiver_DoBill && g.fixedBillGiverDefs != null
+                && g.fixedBillGiverDefs.Any(benches.Contains)).ToList();
+            var able = people.Where(p => CanCraft(recipe, givers, p)).ToList();
+            var quality = recipe.ProducedThingDef.HasComp<CompQuality>();
+            if (able.Count == 0 || quality && recipe.workSkill == null) return (false, Array.Empty<Obs.GearCrafter>());
+            return (true, quality ? able.Select(p => Crafter(recipe, p)).Distinct().ToArray() : Array.Empty<Obs.GearCrafter>());
+        }
+
         private static Obs.GearLoadoutModel Model(Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog,
-            Dictionary<string, Apparel> things, Dictionary<RecipeDef, IReadOnlyList<Obs.GearLoadoutOption>> billOptions)
+            Dictionary<string, Apparel> things, Dictionary<RecipeDef, IReadOnlyList<Obs.GearLoadoutOption>> billOptions, IReadOnlyList<Pawn> people)
         {
             var model = new Obs.GearLoadoutModel();
             if (pawn.story?.traits != null)
@@ -145,20 +172,41 @@ namespace HomeBridge.BridgeTools
                 if (!def.apparel.CorrectGenderForWearing(pawn.gender) || !def.apparel.developmentalStageFilter.Has(pawn.DevelopmentalStage)
                     || !ApparelUtility.HasPartsToWear(pawn, def)) continue;
                 // A bill option does not depend on the pawn: built once per census.
-                if (!billOptions.TryGetValue(recipe, out var options)) billOptions[recipe] = options = BillOptions(recipe);
+                if (!billOptions.TryGetValue(recipe, out var options)) billOptions[recipe] = options = BillOptions(recipe, people);
                 model = model with { Options = [.. model.Options, .. options] };
             }
             return model;
         }
 
-        // Expose legal material candidates; the brain owns selection and its search bound.
-        private static IReadOnlyList<Obs.GearLoadoutOption> BillOptions(RecipeDef recipe)
+        // Expose legal material candidates; the brain owns selection and its search bound. A recipe no free colonist can work
+        // offers no bill, and a crafted garment with a quality carries its crafters' quality facts (#3850).
+        private static IReadOnlyList<Obs.GearLoadoutOption> BillOptions(RecipeDef recipe, IReadOnlyList<Pawn> people)
         {
             var def = recipe.ProducedThingDef;
-            if (!def.MadeFromStuff) return new[] { Option("bill:" + def.defName + "/", def, null, "bill") };
+            var (craftable, crafters) = Crafters(recipe, people);
+            if (!craftable) return Array.Empty<Obs.GearLoadoutOption>();
+            Obs.GearLoadoutOption Bill(ThingDef? stuff) =>
+                Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill") with { Crafters = [.. crafters] };
+            if (!def.MadeFromStuff) return new[] { Bill(null) };
             return GenStuff.AllowedStuffsFor(def).Where(s => recipe.fixedIngredientFilter.Allows(s))
-                .OrderBy(s => s.defName, StringComparer.Ordinal)
-                .Select(s => Option("bill:" + def.defName + "/" + s.defName, def, s, "bill")).ToArray();
+                .OrderBy(s => s.defName, StringComparer.Ordinal).Select(Bill).ToArray();
+        }
+
+        // A free colonist who can work the recipe: one of the WorkGiver_DoBill givers of its benches whose work type and tags the
+        // pawn can do and whose capacities it has (as the tailoring read's giver), and the recipe's skill requirements.
+        private static bool CanCraft(RecipeDef recipe, List<WorkGiverDef> givers, Pawn pawn) =>
+            recipe.FirstSkillRequirementPawnDoesntSatisfy(pawn) == null
+            && givers.Any(g => !pawn.WorkTypeIsDisabled(g.workType) && !pawn.WorkTagIsDisabled(g.workTags)
+                && ((WorkGiver_DoBill)g.Worker).MissingRequiredCapacity(pawn) == null);
+
+        // What QualityUtility.GenerateQualityCreatedByPawn reads of the crafter: the recipe's work skill level, Inspired_Creativity,
+        // and the ideoligion role's first RoleEffect_ProductionQualityOffset under Ideology.
+        private static Obs.GearCrafter Crafter(RecipeDef recipe, Pawn pawn)
+        {
+            var offset = 0;
+            if (ModsConfig.IdeologyActive && pawn.Ideo?.GetRole(pawn)?.def.roleEffects?.FirstOrDefault(e => e is RoleEffect_ProductionQualityOffset)
+                is RoleEffect_ProductionQualityOffset effect) offset = effect.offset;
+            return new(pawn.skills.GetSkill(recipe.workSkill).Level, pawn.InspirationDef == InspirationDefOf.Inspired_Creativity, offset);
         }
         private static Obs.GearLoadoutOption Physical(Apparel apparel, string source)
         {

@@ -28,7 +28,8 @@ public sealed record ArmorResponse
 /// damage), under the effective armor it is halved (and a sharp hit becomes blunt, so no layer after it counts a sharp
 /// rating and it no longer bleeds), otherwise it passes. A garment's rating is the option's stat × the quality's armor
 /// multiplier (<see cref="GearLoadoutRules.GearQualityMultipliers"/>) × its condition, the planner's reading of the stat's quality part
-/// and hit-point scaling. The game rounds a halved amount at random; the expectation halves it exactly. The part is drawn
+/// and hit-point scaling; a crafted bill's effective armor is expected over its quality odds (#3850), exact because the walk is
+/// linear in each layer's effective armor. The game rounds a halved amount at random; the expectation halves it exactly. The part is drawn
 /// from <see cref="BodyCoverage"/>, not from any observed hit record; a part no garment covers takes only natural armor.
 /// </summary>
 public static class ArmorResponseRules
@@ -103,14 +104,12 @@ public static class ArmorResponseRules
         for (var k = 0; k < n; k++)
         {
             var o = outfit[order[n - 1 - k]];
-            var (quality, _) = GearLoadoutRules.GearQualityMultipliers(o.Quality);
-            var scale = quality * o.Condition;
-            first[k] = Rating(o, bin.Category) * scale;
-            afterHalve[k] = Rating(o, afterCategory) * scale;
+            first[k] = Effective(o, Rating(o, bin.Category), bin);
+            afterHalve[k] = Effective(o, Rating(o, afterCategory), bin);
         }
 
-        first[n] = Rating(natural, bin.Category);
-        afterHalve[n] = Rating(natural, afterCategory);
+        first[n] = Effective(Rating(natural, bin.Category), bin);
+        afterHalve[n] = Effective(Rating(natural, afterCategory), bin);
         var tally = default(Tally);
         Walk(first, afterHalve, 0, bin, false, bin.Damage, probability, ref tally);
         total.Damage += tally.Damage;
@@ -132,10 +131,26 @@ public static class ArmorResponseRules
             return;
         }
 
-        var effective = Math.Clamp((converted ? afterHalve[layer] : first[layer]) - bin.ArmorPenetration, 0, 1);
+        var effective = converted ? afterHalve[layer] : first[layer];
         tally.Deflect += probability * effective / 2;
         Walk(first, afterHalve, layer + 1, bin, converted || bin.Category == ArmorCategory.Sharp, damage / 2, probability * effective / 2, ref tally);
         Walk(first, afterHalve, layer + 1, bin, converted, damage, probability * (1 - effective), ref tally);
+    }
+
+    // ApplyArmor's draw against one layer: max(rating − penetration, 0), and a draw is a number in [0, 1).
+    private static double Effective(double rating, WeaponBin bin) => Math.Clamp(rating - bin.ArmorPenetration, 0, 1);
+
+    // A garment's effective armor expected over its quality (#3850): the walk is linear in each layer's effective armor and a
+    // garment's quality is drawn once, so the expectation over its odds is exact.
+    private static double Effective(GearOption o, double rating, WeaponBin bin)
+    {
+        if (o.QualityOdds.Count == 0) return Effective(rating * (GearLoadoutRules.GearQualityMultipliers(o.Quality).Armor * o.Condition), bin);
+        var effective = 0.0;
+        for (var q = 0; q < CraftedQualityRules.Categories; q++)
+        {
+            if (o.QualityOdds[q] > 0) effective += o.QualityOdds[q] * Effective(rating * (GearLoadoutRules.GearQualityMultipliers(q).Armor * o.Condition), bin);
+        }
+        return effective;
     }
 
     private static double Rating(GearOption o, ArmorCategory category) =>

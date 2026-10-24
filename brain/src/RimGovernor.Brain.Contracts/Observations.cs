@@ -4407,8 +4407,8 @@ public sealed record GearLoadoutOption
     public string? Stuff { get; init; }
 
     /// <summary>
-    /// The item's QualityCategory (TryGetQuality), a bill's Normal; absent for apparel without quality (the def has no
-    /// CompQuality), which counts toward no royal title's minimum apparel quality (#3841).
+    /// The item's QualityCategory (TryGetQuality), a bill's Normal (its crafted quality is its <see cref="Crafters"/>'); absent
+    /// for apparel without quality (the def has no CompQuality), which counts toward no royal title's minimum apparel quality (#3841).
     /// </summary>
     public int? Quality { get; init; }
 
@@ -4419,7 +4419,22 @@ public sealed record GearLoadoutOption
     public bool? Tainted { get; init; }
 
     public bool? Locked { get; init; }
+
+    /// <summary>
+    /// A bill option's crafters (#3850): the distinct facts <c>QualityUtility.GenerateQualityCreatedByPawn</c> reads of each
+    /// free colonist able to work the recipe (a bill giver of one of its benches whose work the pawn can do, and the recipe's
+    /// skill requirements). The native read offers no bill nobody can craft; empty for an item and for a bill without quality,
+    /// whose crafter sets nothing.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GearCrafter>))]
+    public EquatableArray<GearCrafter> Crafters { get; init; }
 }
+
+/// <summary>
+/// One crafter's quality facts (#3850): the recipe's work skill level (<c>SkillRecord.Level</c>), whether the pawn has
+/// Inspired_Creativity, and the <c>RoleEffect_ProductionQualityOffset</c> of its ideoligion role (0 with none or without Ideology).
+/// </summary>
+public sealed record GearCrafter(int Skill, bool Inspired, int QualityOffset);
 
 /// <summary>
 /// The loadout model's per-pawn inputs: present only when the producer read the
@@ -4465,6 +4480,28 @@ public sealed record GearSnapshot
     public GearWeatherCondition? ActiveWeather { get; init; }
 
     public GearStorage? StoredApparel { get; init; }
+
+    /// <summary>
+    /// One row per apparel def whose recipe (the first by defName that makes it) is not available now, so no pawn's bill
+    /// options list it: who could craft it once it is (#3850).
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GearLockedBill>))]
+    public EquatableArray<GearLockedBill> LockedBills { get; init; }
+}
+
+/// <summary>
+/// The crafters of a locked apparel bill (#3850). <see cref="Craftable"/> is false when no free colonist can work the recipe,
+/// or the def has a quality and the recipe no work skill. A craftable def with a quality lists every able colonist's quality
+/// facts; a craftable def without CompQuality lists none.
+/// </summary>
+public sealed record GearLockedBill
+{
+    public string DefName { get; init; } = "";
+
+    public bool Craftable { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GearCrafter>))]
+    public EquatableArray<GearCrafter> Crafters { get; init; }
 }
 
 /// <summary>

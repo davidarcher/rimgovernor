@@ -448,7 +448,8 @@ What finishing the project adds is what it unlocks, valued by the terms that val
 project's unlocks the way `ResearchProjectDef.UnlockedDefs` does (`ResearchProjectFacts.Unlocks`): recipe products, things, terrain,
 sown plants, surgeries and psychic rituals that name it. The gear census lists only bills available now, so the gear read adds the bill
 options of apparel that only unfinished knowledge projects keep from the colony (`GearObservation.KnowledgeBills`,
-`ColonyGearReads.KnowledgeBillOptions`). Their garment nodes wait on the knowledge node, picked apart from the garments that can be made
+`ColonyGearReads.KnowledgeBillOptions`). Each is priced at its best crafter's quality odds from the census's locked bill row
+(`GearSnapshot.LockedBills`, #3850); a def no free colonist could craft adds no option. Their garment nodes wait on the knowledge node, picked apart from the garments that can be made
 now (`ProjectGraph.Garments` groups by stuff, slot and the research a bill still waits on), so the apparel term prices the armor they add.
 No other term prices an unlock (weapons, serums, buildings, floors, surgeries, rituals): each unlock of a funded project that is not a gear
 option is named `knowledge_unlock_unmodelled:<project>:<def>` in the graph's findings, which `ProjectMarginals.Findings` carries. An
@@ -498,7 +499,8 @@ pawn; each fuel is one of
 *Garment credit (#3816).* A selected commitment that overlays a garment on a colonist's worn outfit (a craft's delivery, a
 retained bill's completion) is credited, under `apparel/<pawn>/<garment>`, the apparel thoughts the outfit then gives less the
 worn outfit's (`ForecastApparel.MoodOf` over the pawn's native stage rows, a title's or role's required apparel by the
-unmet-requirement thought it lifts, #3836, and a garment at a title's minimum quality by that thought, #3841), priced as a bedroom's delta below from the change's
+unmet-requirement thought it lifts, #3836, and a garment at a title's minimum quality by that thought, #3841, a crafted garment's
+quality being its crafter's odds, each mood outcome priced and weighted by its chance, #3850), priced as a bedroom's delta below from the change's
 tick to tier 2's horizon. A pawn's garments are taken in delivery order, each credited the gain its delivery adds; the break
 shifts of every outfit the alternatives can reach are integrated before the search (`ForecastApparel.BreakShifts`, at most 64
 outfits a pawn). A pawn whose apparel facts, outfit, mood, tick or shift is unread is `apparel_credit_unassessed:<pawn>`.

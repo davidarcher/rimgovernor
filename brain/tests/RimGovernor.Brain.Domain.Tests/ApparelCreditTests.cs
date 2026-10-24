@@ -208,6 +208,48 @@ public sealed class ApparelCreditTests
         Assert.Equal(-4, ForecastApparel.MoodOf(pawn, [Shirt(1) with { Quality = 1 }, crown]));
     }
 
+    // #3850: a crafted garment comes out at its crafter's quality odds (QualityUtility.GenerateQualityCreatedByPawn).
+    private static GearOption Crafted(int skill) => Shirt(1) with { QualityOdds = EquatableArray.From(CraftedQualityRules.Odds(new(skill, false, 0))) };
+
+    private static readonly NeedApparel Count = Warm with { MinimumQuality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Excellent };
+
+    [Fact]
+    public void ATitleMinimumOfExcellentIsLiftedOnlyWithTheChanceTheCrafterReachesIt()
+    {
+        var bill = Crafted(15);
+        var reach = bill.QualityOdds[4] + bill.QualityOdds[5] + bill.QualityOdds[6];
+        Assert.InRange(reach, 0.05, 0.95);
+        // A Good shirt is below Excellent: the thought holds unless the crafted one reaches it.
+        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Quality = 3 });
+        var pawn = context.Needs.Pawns[0];
+        var outcomes = ForecastApparel.MoodOutcomes(pawn, [bill])!;
+        Assert.Equal([-4.0, 0.0], outcomes.Select(o => o.Mood));
+        Assert.Equal(1 - reach, outcomes[0].Chance, 12);
+        Assert.Equal(reach, outcomes[1].Chance, 12);
+        Assert.Equal(4 * reach, ForecastApparel.MoodDelta(pawn, context.Outfits["pawn"], [bill])!.Value, 12);
+        Assert.True(ForecastApparel.ChangesThoughts(context.Outfits["pawn"], [bill]));
+        // The outcome that keeps the thought shifts nothing; the one that lifts it is the 0.04 shift.
+        Assert.Equal([0.04], ForecastApparel.BreakShifts(context.Needs, context.Outfits, [Craft(bill)])["pawn"]);
+        var row = Assert.Single(Value(context, bill, shift: 0.04).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
+        var perDay = context.Value.WellbeingWeight * 4 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value;
+        Assert.Equal(-reach * perDay * (Horizon - 0.5), row.Value, 12);
+    }
+
+    [Fact]
+    public void ASkillThreeCraftersBillIsWorthLessThanASkillFifteenCrafters()
+    {
+        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Quality = 3 });
+        double Credit(GearOption bill) =>
+            Assert.Single(Value(context, bill, shift: 0.04).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal)).Value;
+        // Credits are gains, negative: the skilled crafter's shirt lifts the thought more often.
+        Assert.True(Credit(Crafted(15)) < Credit(Crafted(3)));
+        // Its stats are expected over the odds too: more armor and insulation.
+        var (armor3, insulation3) = GearLoadoutRules.GearQualityMultipliers(Crafted(3));
+        var (armor15, insulation15) = GearLoadoutRules.GearQualityMultipliers(Crafted(15));
+        Assert.True(armor15 > armor3 && insulation15 > insulation3);
+        Assert.True(armor3 < 1 && armor15 > 1);
+    }
+
     [Fact]
     public void AWearerWithUnreadApparelFactsIsNamedAndNotCredited()
     {
