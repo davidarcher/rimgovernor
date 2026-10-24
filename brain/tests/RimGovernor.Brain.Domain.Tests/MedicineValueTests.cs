@@ -30,19 +30,43 @@ public sealed class MedicineValueTests
         };
     }
 
+    // Anna contracts every Core disease she is a victim of, and gains immunity at 1x.
+    private static readonly NeedsForecastPawn Anna = ForecastValueTests.HarmPawn() with
+    {
+        Pawn = "Anna",
+        Disease = new() { ImmunityGainSpeed = 1, Contracts = [new("Disease_Flu", 1), new("Disease_GutWorms", 1), new("Disease_OrganDecay", 1)] },
+    };
+
     private static ColonyValue Value(ColonyModelInput input, HarmInputs? harm = null)
     {
-        var context = ForecastValueTests.Context(ForecastValueTests.HarmPawn() with { Pawn = "Anna" }, ForecastValueTests.HarmTables(),
+        var context = ForecastValueTests.Context(Anna, ForecastValueTests.HarmTables(),
             harm ?? ForecastValueTests.RaidDay(), new Dictionary<string, EquatableArray<GearOption>> { ["Anna"] = ForecastValueTests.Cloth });
         return new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, ItemFactsFixtureRules.CoreItemFacts());
     }
 
+    // #3829: a flu at 0.2 rising 0.2 a day kills at 1 unless immunity (0.25 x u a day) comes first; a tend lowers it 0.15 x quality a
+    // day, so a better tend saves more of the victims. Every day of it halves consciousness.
+    private static readonly DiseaseCourse Flu = new()
+    {
+        Table = new()
+        {
+            Known = true, Hediff = "Flu", InitialSeverity = 0.2, LethalSeverity = 1, Immunizable = new ImmunizableProps(0.25, 0.2, -0.5),
+            Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.5)])],
+        },
+        Tendable = true, Tend = new TendCourse(-0.15, 0.5, 0.75, -1),
+    };
+
+    private static HarmInputs Sick(double perDay) => ForecastValueTests.RaidDay() with
+    {
+        Illness = new() { Assessed = true, Comps = [(0, perDay)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, Flu)] },
+    };
+
     private static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = Known(tends) };
 
-    private static double Priced(ColonyModelInput input, double tends = 0)
+    private static double Priced(ColonyModelInput input, HarmInputs? harm = null, double tends = 0)
     {
         var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy(tends));
-        var result = Value(input).Price(trajectory);
+        var result = Value(input, harm).Price(trajectory);
         Assert.Empty(result.Unpriced);
         return result.Value.Value;
     }
@@ -95,6 +119,62 @@ public sealed class MedicineValueTests
         Assert.NotNull(tending);
         Assert.True(tending.Tended);
         Assert.Equal(0.8, tending.Quality, 9);
+    }
+
+    [Fact]
+    public void ADiseaseRateRaisesTheWorthOfTheDoctorsSkillAndOfTheMedicine()
+    {
+        var medicine = ProjectGraph.MedicineKey(new Resource(Industrial));
+        var sick = Marginals(Colony(3, 100_000), Sick(0.1));
+        var well = Marginals(Colony(3, 100_000), Sick(0));
+
+        // The level-4 doctor's better tend saves flu victims as well as raid wounds.
+        Assert.True(sick.PerUnit[Key] > well.PerUnit[Key], string.Join(',', sick.Findings));
+        Assert.Equal((Priced(Colony(4, 100_000), Sick(0.1)) - Priced(Colony(3, 100_000), Sick(0.1))) / 100_000, sick.PerUnit[Key], 12);
+
+        // A unit more puts the run-out off by a day of the medicine's better tend, on the flu too.
+        Assert.True(Marginals(Colony(6, 30), Sick(0.1), tends: 1).PerUnit[medicine] > Marginals(Colony(6, 30), Sick(0), tends: 1).PerUnit[medicine]);
+    }
+
+    [Fact]
+    public void TheMedicineTendedADayAddsTheIllnessTermsTendsAtTheTendingNow()
+    {
+        var input = Colony(6, 1000);
+        var raids = Value(input, Sick(0)).TreatmentsPerDay(input);
+        var sick = Value(input, Sick(0.1)).TreatmentsPerDay(input);
+
+        // Anna at level 6 tends at 0.8 with the industrial medicine on hand (TendingNow); a flu incident's tends at that quality.
+        var flu = IllnessForecast.Of(Sick(0.1).Illness, Anna, ForecastValueTests.HarmTables(), new HarmConsequences.Care(true, 0.8, 0, 1), 1,
+            new ForecastValuePolicy(), CalendarRules.YearDays * GameTime.TicksPerDay);
+        Assert.True(flu.Treatments > 0);
+        Assert.Equal(raids.Value + (0.1 * flu.Treatments), sick.Value, 9);
+    }
+
+    [Fact]
+    public void AnUnassessedIllnessThrowsRatherThanPricingTheRaidsAlone()
+    {
+        var input = Colony(6, 1000);
+        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy());
+        var unread = Value(input, ForecastValueTests.RaidDay() with { Illness = new() { Findings = ["disease_facts_unobserved"] } });
+
+        Assert.Equal("illness_schedule", Assert.Throws<RequiredFactException>(() => unread.Price(trajectory)).Fact);
+        Assert.Throws<RequiredFactException>(() => unread.TreatmentsPerDay(input));
+    }
+
+    [Fact]
+    public void AFreshColonysProductionIllnessPricesTheDoctorWithoutThrowing()
+    {
+        // The production way (#3822): the Core disease defs through the catalog, and the native disease read of a colony settled today
+        // (Cassandra's comp starts on day 9), through the review's harm inputs.
+        var catalog = Game.DiseaseTableTests.Catalog(Game.DiseaseTableTests.CoreDefs());
+        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = IllnessForecastTests.Facts(0) }).Illness;
+        Assert.True(illness.Assessed);
+        var input = Colony(3, 100_000);
+
+        var sick = Marginals(input, ForecastValueTests.RaidDay() with { Illness = illness });
+
+        Assert.True(sick.PerUnit[Key] > Marginals(input).PerUnit[Key], string.Join(',', sick.Findings));
+        Assert.True(Value(input, ForecastValueTests.RaidDay() with { Illness = illness }).TreatmentsPerDay(input).Value > Value(input).TreatmentsPerDay(input).Value);
     }
 
     [Fact]

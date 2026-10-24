@@ -34,14 +34,14 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// <summary>The finding of a pawn who may tend but has no native tend quality curve (#3633), or of a pawn census the value cannot read.</summary>
     public const string MedicineSkillValueUnassessed = "medicine_skill_value_unassessed";
 
-    /// <summary>Raid wounds are tended at once: the delay to first care is not modelled.</summary>
+    /// <summary>Raid wounds and illnesses are tended at once: the delay to first care is not modelled.</summary>
     public const string RaidFirstCareDelayUnmodelled = "raid_first_care_delay_unmodelled";
 
     // StatDefOf.MedicalTendQuality's defName, which NativeSkillStat names the biography's curve by; Policy has no typed route to StatDefOf.
     internal const string TendQualityStat = "MedicalTendQuality";
 
-    // The one care service the tier-2 raid tending stands for (HarmConsequences averages the quality over the services).
-    private const string RaidCare = "raid/tend";
+    // The one care service the tier-2 tending stands for (HarmConsequences averages the quality over the services).
+    private const string TendCare = "colony/tend";
 
     // The stub outcome the harm ledger prices a single pawn's outfit with: it reads the pawn set and the support only.
     private static readonly ForecastNeedsResult NoNeeds = new([], default, default, new ForecastCapacityResult(default!, []), []);
@@ -53,15 +53,15 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     // The perturbation runs walk the same outfits: one review's losses are priced once.
     private readonly Dictionary<(string, EquatableArray<GearOption>), Fact<double>> losses = [];
 
-    // The raid tending term's own cache: its raids are priced over the whole horizon, the apparel's over a day, and the keys omit it.
-    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> raidCache = new();
+    // The tending term's own cache: its raids are priced over the whole horizon, the apparel's over a day, and the keys omit it.
+    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> tendedCache = new();
 
     // The illness distributions of the two horizons (#3824), each by pawn and care.
-    private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> raidIllness = new();
+    private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> tendedIllness = new();
     private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> dailyIllness = new();
 
-    // The colony's raid harm a day at a tend quality (-1: untended), with the harm model's findings.
-    private readonly Dictionary<double, HarmTerm> raidLoss = [];
+    // The colony's raid and illness harm over the horizon at a tend quality (-1: untended), with the harm model's findings.
+    private readonly Dictionary<double, HarmTerm> tendedHarm = [];
 
     public ColonyValueResult Price(ColonyTrajectory trajectory)
     {
@@ -69,32 +69,37 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         var unpriced = new SortedSet<string>(StringComparer.Ordinal);
         var hunger = HungerLoss(trajectory, findings);
         var apparel = ApparelGain(trajectory, findings);
-        var harm = RaidHarm(trajectory, findings, unpriced);
+        var harm = TendedHarm(trajectory, findings, unpriced);
         return new(hunger is { } lost ? Known(apparel - lost - (harm ?? 0)) : default, EquatableArray.From(findings)) { Unpriced = EquatableArray.From(unpriced) };
     }
 
     /// <summary>
-    /// The one skill price is the raid tending's (<see cref="RaidHarm"/>): it reads a doctor's stock of its tend quality curve's skill,
-    /// and none while no raid is to be expected.
+    /// The one skill price is the tending's (<see cref="TendedHarm"/>): it reads a doctor's stock of its tend quality curve's skill,
+    /// and none while neither a raid nor a disease is to be expected.
     /// </summary>
-    public bool Reads(SkillTrack track) => RaidsExpected && doctors.TryGetValue(out var pawns)
+    public bool Reads(SkillTrack track) => HarmExpected && doctors.TryGetValue(out var pawns)
         && pawns.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill);
 
-    /// <summary>False when the schedule says no raid comes (the raid harm is then 0); true otherwise, unread included.</summary>
-    private bool RaidsExpected =>
-        !(context.Harm.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && context.Harm.Schedule.RaidFraction.TryGetValue(out var share) && threats * share == 0);
+    /// <summary>
+    /// False when the schedule says no raid comes and the assessed disease schedule no incident over the horizon (the tended harm is
+    /// then 0); true otherwise, unread included.
+    /// </summary>
+    private bool HarmExpected =>
+        !(HarmLedger.RaidsPerDay(context.Harm) == 0 && context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0);
 
     /// <summary>
-    /// Capability-days the colony loses to raid injuries over the horizon at the tending the trajectory gives them (#3635): for each span
-    /// of days, raids a day × each raid's loss through the harm model (bleeding, healing and infection over the horizon, as the
-    /// ledger counts a raid) at the span's tend quality. That quality is the best doctor's native MedicalTendQuality at the stored
-    /// Medicine level its stock reaches (#3633, #3634) through the game's tend formula with the best medicine on hand then
-    /// (<see cref="TendQuality"/>); with no doctor the wounds go untended. Zero with no raid to expect. Null, with findings and every
-    /// skill and medicine key unpriced, when the harm model, a doctor's curve or a medicine's potency cannot say.
+    /// Capability-days the colony loses to raid injuries and illness over the horizon at the tending the trajectory gives them (#3635,
+    /// #3829): for each span of days, the harm term a day (raids a day × each raid's loss through the harm model, bleeding, healing and
+    /// infection over the horizon as the ledger counts a raid, plus the illness term's loss, <see cref="IllnessForecast"/>) at the
+    /// span's tend quality. That quality is the best doctor's native MedicalTendQuality at the stored Medicine level its stock reaches
+    /// (#3633, #3634) through the game's tend formula with the best medicine on hand then (<see cref="TendQuality"/>); TendUtility.DoTend
+    /// tends a disease by the same quality as a wound. With no doctor the wounds and illnesses go untended. Zero with neither to
+    /// expect. Null, with findings and every skill and medicine key unpriced, when the raid harm model, a doctor's curve or a
+    /// medicine's potency cannot say; throws a RequiredFactException when the illness term is unassessed.
     /// </summary>
-    private double? RaidHarm(ColonyTrajectory trajectory, SortedSet<string> findings, SortedSet<string> unpriced)
+    private double? TendedHarm(ColonyTrajectory trajectory, SortedSet<string> findings, SortedSet<string> unpriced)
     {
-        if (!RaidsExpected)
+        if (!HarmExpected)
         {
             return 0;
         }
@@ -118,7 +123,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             for (var i = 0; i + 1 < cuts.Length; i++)
             {
                 if (TendQuality(doctors, cuts[i], kind < 0 ? null : trajectory.MedicineKinds[kind], findings) is not { } quality
-                    || !RaidLossPerDay(quality, findings).TryGetValue(out var perDay))
+                    || HarmLossPerDay(quality, findings) is not { } perDay)
                 {
                     return Unpriced();
                 }
@@ -148,7 +153,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
-    /// The pawns who tend raid wounds: each with a native tend quality curve and its stock of the curve's skill. A pawn without a
+    /// The pawns who tend wounds and illnesses: each with a native tend quality curve and its stock of the curve's skill. A pawn without a
     /// curve whose skill is disabled cannot tend; any other is named (<see cref="MedicineSkillValueUnassessed"/>) and its stock
     /// unpriced. Null when no pawn qualifies while one is unassessed, or the pawn census is unknown.
     /// </summary>
@@ -277,20 +282,37 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         }
     }
 
-    /// <summary>The colony's raid harm a day with its wounds tended at <paramref name="quality"/> (-1: untended), each raid priced over the horizon.</summary>
-    private Fact<double> RaidLossPerDay(double quality, SortedSet<string> findings)
+    /// <summary>
+    /// The colony's raid and illness harm a day with its wounds and illnesses tended at <paramref name="quality"/> (-1: untended), each
+    /// raid and incident priced over the horizon (<see cref="HarmAt"/>); null when the raid part is unknown.
+    /// </summary>
+    private double? HarmLossPerDay(double quality, SortedSet<string> findings)
     {
-        if (!raidLoss.TryGetValue(quality, out var term))
+        var term = HarmAt(quality);
+        findings.UnionWith(term.Findings);
+        return term.Detail is { Illness: { } illness } detail ? (detail.RaidLoss + illness.Loss) / horizonDays : null;
+    }
+
+    /// <summary>
+    /// The harm term over the horizon at <paramref name="quality"/> (-1: untended), first care at once. Its detail is null when the raid
+    /// part is unknown; a known one carries the illness part, and a RequiredFactException is thrown when that is unassessed.
+    /// </summary>
+    private HarmTerm HarmAt(double quality)
+    {
+        if (!tendedHarm.TryGetValue(quality, out var term))
         {
-            var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = RaidCare, TendQuality = Known(quality) };
+            var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = TendCare, TendQuality = Known(quality) };
             var needs = rows.Keys.ToDictionary(p => p, _ => NoNeeds, StringComparer.Ordinal);
             var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), needs, []) { Support = support };
-            raidLoss[quality] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, raidCache, rows, null, raidIllness);
+            tendedHarm[quality] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness);
         }
 
-        // The raids' part alone: illness in the doctor's and the medicine's value is #3829.
-        findings.UnionWith(term.Findings);
-        return term.Detail is { } detail ? Known(detail.RaidLoss / horizonDays) : default;
+        if (term.Detail is { Illness: null })
+        {
+            throw new RequiredFactException(context.Harm.Illness.Assessed ? "illness_harm" : "illness_schedule");
+        }
+
+        return term;
     }
 
     /// <summary>
@@ -310,10 +332,40 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
-    /// The medicine raid tending uses up a day (#3634): the treatments the harm model's raid wounds take at each pawn's worn outfit
-    /// (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>). Unknown when the harm model cannot say.
+    /// The medicine tending uses up a day (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>): the treatments the harm model's raid
+    /// wounds take at each pawn's worn outfit (#3634), and the illness term's tends a day (<see cref="IllnessTerm.TendsPerDay"/>, #3829)
+    /// at the tending a wound gets at the start of <paramref name="input"/>'s run (<see cref="TendingNow"/> of its skill stocks and
+    /// medicine on hand): TendUtility.DoTend uses up one medicine a treatment and tends a disease alone. Unknown when the raid harm
+    /// model, a doctor's curve or a medicine's potency cannot say; throws a RequiredFactException when the illness term is unassessed.
     /// </summary>
-    public Fact<double> RaidTreatmentsPerDay() => HarmLedger.TreatmentsPerDay(context, rows);
+    public Fact<double> TreatmentsPerDay(ColonyModelInput input)
+    {
+        if (!HarmLedger.TreatmentsPerDay(context, rows).TryGetValue(out var raids))
+        {
+            return default;
+        }
+
+        // No incident over the horizon takes no tend, whoever would tend it.
+        if (context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0)
+        {
+            return Known(raids);
+        }
+
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var held = input.Stocks.Medicine.TryGetValue(out var medicine) ? medicine : [];
+        var start = new ColonyTrajectory
+        {
+            Skills = EquatableArray.From((doctors.TryGetValue(out var pawns) ? pawns : []).SelectMany(p => SkillStock.Of(p, findings)).Select(s => s.Track())),
+            MedicineKinds = EquatableArray.From(held.Select(a => a.Resource)),
+            StartMedicine = EquatableArray.From(held.Select(a => (double)a.Count)),
+        };
+        if (TendingNow(start, findings) is not { } tending || HarmAt(tending.Tended ? tending.Quality : -1).Detail?.Illness is not { } illness)
+        {
+            return default;
+        }
+
+        return Known(raids + illness.TendsPerDay);
+    }
 
     /// <summary>The colony's capability-days lost to malnutrition over the horizon; null when a table or a pawn's capacities are unobserved.</summary>
     private double? HungerLoss(ColonyTrajectory trajectory, SortedSet<string> findings)

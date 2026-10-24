@@ -101,11 +101,14 @@ public sealed class ForecastValueTests
         Composition = new() { Pawns = Known(5d), Bins = [new() { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }] },
         RaidPoints = Known(1000d), DefenseCapacity = Known(1000d),
         Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(),
+        // A colony the storyteller sends no disease (random diseases off): an assessed schedule without incidents.
+        Illness = new() { Assessed = true },
     };
 
     internal static NeedsForecastPawn HarmPawn() => Pawn() with
     {
         PainShockThreshold = Known(0.8), HealthScale = Known(1d), IncomingDamageFactor = Known(1d), InjuryHealingFactor = Known(1d),
+        Disease = new() { ImmunityGainSpeed = 1 },
     };
 
     internal static CapacityPenaltyTables HarmTables() => Tables() with

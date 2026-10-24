@@ -165,7 +165,7 @@ public sealed class IllnessForecastTests
 
     // ----- the schedule
 
-    private static DiseaseFacts Facts(double settled = 5, params DiseaseIncidentRead[] incidents) => new()
+    internal static DiseaseFacts Facts(double settled = 5, params DiseaseIncidentRead[] incidents) => new()
     {
         Storyteller = "Cassandra", Biome = "TemperateForest", RandomDiseases = true, IntervalFactor = 1, DaysSinceSettle = settled,
         Candidates = 3, FreeColonists = 3,

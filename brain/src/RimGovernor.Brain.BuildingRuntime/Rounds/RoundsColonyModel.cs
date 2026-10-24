@@ -79,7 +79,7 @@ internal static class RoundsColonyModel
         var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
         var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)) };
         var valuation = new ColonyValue(context, options, policy.HorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
-        policy = policy with { MedicineTendsPerDay = valuation.RaidTreatmentsPerDay() };
+        policy = policy with { MedicineTendsPerDay = valuation.TreatmentsPerDay(input) };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);
         var notes = new List<string>();

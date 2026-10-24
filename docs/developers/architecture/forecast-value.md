@@ -422,13 +422,14 @@ the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock
 unread `skill_stock_unknown:<pawn>:skills_unread`). No tier-2 work pays XP: between
 events a stock falls by its level's native decay (`DecayXp` per `DecayInterval` while learning is allowed), and a level is lost at the
 loss threshold by `ForecastSkill`'s level rule, each change dated inside the interval (`ColonyTrajectory.Skills`). Medicine is held by
-kind, best potency first, and raid tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from `ColonyValue.RaidTreatmentsPerDay`: the
-harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20 per treatment) uses up the best kind
-first. `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
+kind, best potency first, and tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from `ColonyValue.TreatmentsPerDay`: the
+harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20 per treatment, plus the illness term's
+tends a day, `IllnessTerm.TendsPerDay` (#3829), at the tending the run starts with, `TendingNow` of the observed skill levels and
+medicine; `TendUtility.DoTend` uses up one medicine a treatment and tends a disease alone) uses up the best kind first. `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
 again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
 `RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Only a stock the value
 reads is run (`ITrajectoryValue.Reads`, #3664): for `ColonyValue` that is each doctor's stock of its tend quality curve's skill
-(Medicine) while raids are expected; any other priced stock is worth 0 per XP by construction and is written without a run. Each medicine kind is
+(Medicine) while raids or disease incidents are expected; any other priced stock is worth 0 per XP by construction and is written without a run. Each medicine kind is
 perturbed by one unit. The values per XP and per unit go to `PerUnit` under the stock key and `medicine/<kind>`; the `colony_model` event logs each stock's
 value per XP (`skill_per_xp`), and `production/skill-marginal` (#3663) proves a live review prices the staged colonist's Medicine stock.
 
@@ -454,14 +455,16 @@ option is named `knowledge_unlock_unmodelled:<project>:<def>` in the graph's fin
 apparel unlock is a gear option even without armor (a flare pack): the apparel term prices it at what its armor avoids. In vanilla
 Anomaly the garments with armor are BioferriteExtraction's cultist masks.
 
-*Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
-at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind
-first, from `ColonyTrajectory.StartMedicine`); each span costs its days × raids a day × each raid's loss through `HarmLedger`
-(bleeding, healing and infection, every raid priced over the whole horizon as the ledger counts it) with the wounds tended at once
+*Tending (#3635, #3829).* `ColonyValue` subtracts the colony's raid and illness harm over the run at the tending the run gives it.
+The run is cut at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate,
+best kind first, from `ColonyTrajectory.StartMedicine`); each span costs its days × the harm term a day through `HarmLedger`: raids a
+day × each raid's loss (bleeding, healing and infection, every raid priced over the whole horizon as the ledger counts it) plus the
+illness term's loss (`IllnessForecast`, a disease tended by the same quality as a wound), with the wounds and illnesses tended at once
 (`raid_first_care_delay_unmodelled`) at the span's tend quality. That quality is `TendUtility.CalculateBaseTendQuality`: the best
 doctor's MedicalTendQuality curve (#3633) at its stored Medicine level then × the medicine's `MedicalPotency`, clamped to its
 `MedicalQualityMax` (without medicine the native `NoMedicinePotency` and `NoMedicineQualityMax`, read by the catalog); the bed's
-offset and self-tending are not modelled. No pawn able to tend leaves the wounds untended; no raid to expect makes the term 0. A pawn
+offset and self-tending are not modelled. No pawn able to tend leaves the wounds untended; no raid and no disease incident to expect
+makes the term 0, and an unassessed illness term throws a `RequiredFactException` (`illness_schedule`, `illness_harm`). A pawn
 who may tend but has no curve is `medicine_skill_value_unassessed:<pawn>` and its stock is unpriced; when no pawn qualifies, the
 harm model has no number (for example `exposure_cell_uncalibrated`) or a medicine's numbers are unread, the term is left out and every
 skill and medicine stock is unpriced (`ColonyValueResult.Unpriced`): `ProjectMarginalValue` writes no `PerUnit` for an unpriced key,

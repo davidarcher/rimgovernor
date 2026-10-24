@@ -455,8 +455,9 @@ costs each pawn.
   `disease_organ_loss_unpriced:<hediff>`, `disease_part_efficiency_unpriced:<hediff>`, `disease_severity_factors_unpriced:<hediff>`.
 - `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
   — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when unassessed; the term's loss is
-  then `HarmDetail.RaidLoss` alone with `illness_unassessed` and the reason. `ColonyValue`'s raid loss reads `RaidLoss`, so its
-  doctor and medicine prices leave illness out (#3829). Mirrored literals:
+  then `HarmDetail.RaidLoss` alone with `illness_unassessed` and the reason. `ColonyValue` prices the doctor and the medicine by the
+  whole term (raid plus illness loss at each tend quality, raid treatments plus `TendsPerDay`, #3829) and throws a
+  `RequiredFactException` when the illness is unassessed. Mirrored literals:
   [kept constants](kept-constants.md#mirrored-game-literals-illness-3824).
 
 ### Escape term (#3811)

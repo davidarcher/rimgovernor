@@ -36,7 +36,7 @@ public sealed record ColonyModelPolicy
     public int MaxEvents { get; init; } = 4_096;
 
     /// <summary>
-    /// Medicine tended a day: the treatments the harm model's raid wounds imply (<see cref="ColonyValue.RaidTreatmentsPerDay"/>, #3634).
+    /// Medicine tended a day: the treatments the harm model's raid wounds and illnesses imply (<see cref="ColonyValue.TreatmentsPerDay"/>, #3634, #3829).
     /// Unknown leaves medicine unconsumed by tending and is reported, never defaulted.
     /// </summary>
     public Fact<double> MedicineTendsPerDay { get; init; }
