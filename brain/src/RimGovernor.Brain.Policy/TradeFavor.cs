@@ -96,10 +96,9 @@ public static partial class TradePolicyRules
     /// </summary>
     public static IReadOnlySet<PawnId> SurplusPrisoners(this RoundsFacts f, bool silverShort)
     {
-        var rk = f.Prisoners.TryGetValue(out var rows);
-        var ck = f.PrisonerColony.TryGetValue(out var colony);
+        var pk = f.Population.TryGetValue(out var census);
         var mk = f.MedicalPawns.TryGetValue(out _);
-        if (!rk || !ck || !mk || FavorPrisonersHeld(f.IdeologyRead()))
+        if (!pk || !mk || FavorPrisonersHeld(f.IdeologyRead()))
         {
             return new HashSet<PawnId>();
         }
@@ -113,16 +112,15 @@ public static partial class TradePolicyRules
         var needs = OrganHarvestRules.OrganNeeds(f.MedicalPawns, wants, silverShort, stock, f.Recipes);
         var parts = OrganHarvestRules.PartRecoveryNeeds(f.MedicalPawns, wants, f.Recipes);
         var output = new HashSet<PawnId>();
-        foreach (var row in rows!)
+        foreach (var row in census!.Prisoners)
         {
-            if (!SurplusPrisoner(row, colony!))
+            if (!SurplusPrisoner(row, census.Colony))
             {
                 continue;
             }
-            Fact<EquatableArray<PrisonerFacts>> one = Known<EquatableArray<PrisonerFacts>>([row]);
-            var col = Known(colony!);
-            var harvest = OrganHarvestRules.SelectOrganHarvest(one, col, needs, null) is not null;
-            var recovery = OrganHarvestRules.SelectPartRecovery(one, col, parts, null, f.Recipes) is not null;
+            var one = Known(census with { Prisoners = [row] });
+            var harvest = OrganHarvestRules.SelectOrganHarvest(one, needs, null) is not null;
+            var recovery = OrganHarvestRules.SelectPartRecovery(one, parts, null, f.Recipes) is not null;
             if (!harvest && !recovery)
             {
                 output.Add(row.Pawn);
@@ -133,17 +131,13 @@ public static partial class TradePolicyRules
 
     private static bool SurplusPrisoner(PrisonerFacts row, PrisonerColony colony)
     {
-        var dk = row.Dead.TryGetValue(out var dead);
-        var pk = row.Prisoner.TryGetValue(out var prisoner);
-        var ek = row.HarvestEligible(colony).TryGetValue(out var eligible);
         var jk = row.CreepJoiner.TryGetValue(out var joiner);
         var qk = row.QueuedSurgeries.TryGetValue(out var queued);
-        row.Prospect.TryGetValue(out var prospect);
-        if (!dk || dead || !pk || !prisoner || !ek || !eligible || !jk || joiner || !qk || queued > 0 || row.Executing)
+        if (row.Dead || !row.HarvestEligible(colony) || !jk || joiner || !qk || queued > 0 || row.Executing)
         {
             return false;
         }
-        return !(colony.SlaveryAllowed() && !row.WildMan && PopulationRules.CanLabor(prospect!));
+        return !(colony.SlaveryAllowed() && !row.WildMan && PopulationRules.CanLabor(row.Prospect));
     }
 
     /// <summary>Adds the prisoner-sale reason to the need: a tribute collector is present or arriving and some prisoner is surplus.</summary>

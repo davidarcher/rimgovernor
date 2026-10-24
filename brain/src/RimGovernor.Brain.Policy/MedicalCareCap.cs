@@ -128,7 +128,7 @@ public static partial class MedicalRules
         {
             return (MedicalCare.Herbal, false);
         }
-        if (p.CurrentInteraction.TryGetValue(out var mode)
+        if (p.CurrentInteraction is PrisonerHeldInteraction.Settable { Mode: var mode }
             && mode is PrisonerInteractionMode.Recruit or PrisonerInteractionMode.ReduceResistance or PrisonerInteractionMode.Convert or PrisonerInteractionMode.Enslave)
         {
             return (MedicalCare.Normal, true);
@@ -209,10 +209,10 @@ public static partial class MedicalRules
                 }
             }
         }
-        f.Prisoners.TryGetValue(out var prisoners);
-        foreach (var row in prisoners)
+        f.Population.TryGetValue(out var census);
+        foreach (var row in census?.Prisoners ?? [])
         {
-            if (!row.Dead.TryGetValue(out var dead) || dead)
+            if (row.Dead)
             {
                 continue;
             }
@@ -220,8 +220,7 @@ public static partial class MedicalRules
             var (want, ok) = Capped(baseCare, raise, row.Conditions, row.LifeThreatening);
             Add(row.Pawn, row.MedicalCare, want, ok);
         }
-        f.Guests.TryGetValue(out var guests);
-        foreach (var g in guests)
+        foreach (var g in census?.Guests ?? [])
         {
             var (want, ok) = Capped(MedicalCare.Normal, true, g.Conditions, g.LifeThreatening);
             Add(g.Id, g.Care, want, ok);

@@ -3524,8 +3524,6 @@ public abstract record PersonCustody
 
 public sealed record PopulationSnapshot
 {
-    public required Common.ObservationContext Context { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<PopulationPerson>))]
     public required EquatableArray<PopulationPerson> Persons { get; init; }
 

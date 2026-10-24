@@ -169,7 +169,7 @@ public sealed record JoinerChoice
 /// </summary>
 public sealed record JoinerCapacityFacts
 {
-    public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
+    public Fact<PrisonerCensus> Population { get; init; }
 
     public Fact<double> FoodDays { get; init; }
 
@@ -232,32 +232,9 @@ public static partial class PopulationRules
 
     /// <summary>
     /// Counts the living people the colony hosts: admitted colonists plus every guest (a prisoner is a guest
-    /// of the player faction too). A row missing any of those facts leaves the count unknown, since an
-    /// undercount would admit a joiner past the population target.
+    /// of the player faction too).
     /// </summary>
-    internal static Fact<long> HostedPopulation(Fact<EquatableArray<CustodyFacts>> custody)
-    {
-        if (!custody.TryGetValue(out var rows))
-        {
-            return Unknown<long>();
-        }
-        long count = 0;
-        foreach (var row in rows)
-        {
-            var dk = row.Dead.TryGetValue(out var dead);
-            var ak = row.Admitted.TryGetValue(out var admitted);
-            var gk = row.Guest.TryGetValue(out var guest);
-            if (!dk || !ak || !gk)
-            {
-                return Unknown<long>();
-            }
-            if (!dead && (admitted || guest))
-            {
-                count++;
-            }
-        }
-        return Known(count);
-    }
+    internal static long HostedPopulation(IReadOnlyList<CustodyFacts> custody) => custody.LongCount(row => !row.Dead && (row.Admitted || row.Guest));
 
     /// <summary>
     /// Reports whether the colony can host one more colonist: hosted population below
@@ -266,19 +243,18 @@ public static partial class PopulationRules
     /// </summary>
     public static Fact<bool> JoinerCapacity(JoinerCapacityFacts f)
     {
-        var hk = HostedPopulation(f.Custody).TryGetValue(out var hosted);
-        var fk = f.FoodDays.TryGetValue(out var food);
-        if (!hk || !fk)
+        if (!f.Population.TryGetValue(out var census) || !f.FoodDays.TryGetValue(out var food))
         {
             return Unknown<bool>();
         }
+        var hosted = HostedPopulation(census.Custody);
         return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food >= JoinerFoodFloorDays(hosted));
     }
 
     /// <summary>
     /// Reports whether an answerable joiner offer is waiting while the colony has capacity for it. An offer
     /// the colony cannot host is not a deficit: it is left to expire. An unknown census leaves the need
-    /// unknown rather than silently settled, the same rule PrisonerRecruitDeficit uses.
+    /// unknown rather than silently settled, the same rule the prisoner census uses.
     /// </summary>
     public static Fact<bool> JoinerDeficit(Fact<EquatableArray<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
     {
@@ -383,5 +359,5 @@ public static class JoinerRoundsFactsExtensions
     /// runway (falling back to the stock runway, as the foothold food gate does).
     /// </summary>
     public static JoinerCapacityFacts JoinerCapacity(this RoundsFacts f) =>
-        new() { Custody = f.Custody, FoodDays = f.FoodDays, ColonistGoal = f.ColonistGoal };
+        new() { Population = f.Population, FoodDays = f.FoodDays, ColonistGoal = f.ColonistGoal };
 }

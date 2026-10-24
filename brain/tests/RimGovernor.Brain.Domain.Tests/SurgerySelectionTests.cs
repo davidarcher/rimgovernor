@@ -52,20 +52,19 @@ public sealed class SurgerySelectionTests
     private static PrisonerFacts Prisoner(IReadOnlyList<SurgeryOperation> ops) => new()
     {
         Pawn = Captive,
-        Dead = Known(false),
-        Prisoner = Known(true),
-        Recruitable = Known(false),
-        CurrentInteraction = Known(PrisonerInteractionMode.Maintain),
-        Resistance = Known(0.0),
-        HeldTicks = Known(0L),
-        Prospect = Known(new PrisonerProspect { Age = 30, Health = 1 }),
+        Dead = false,
+        Recruitable = false,
+        CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
+        Resistance = 0.0,
+        HeldTicks = 0L,
+        Prospect = new PrisonerProspect { Age = 30, Health = 1 },
         QueuedSurgeries = Known(0),
-        HarvestGoodwill = Known(0),
+        HarvestGoodwill = 0,
         MissingParts = Known(EquatableArray.From(new List<MissingPart>())),
         Operations = Known(EquatableArray.From(ops)),
     };
 
-    private static Fact<EquatableArray<PrisonerFacts>> Prisoners(PrisonerFacts row) => Known(EquatableArray.From([row]));
+    private static Fact<PrisonerCensus> Population(PrisonerFacts row, PrisonerColony colony) => Known(PopulationFixtures.Census([row], colony: colony));
 
     /// <summary>A three-colonist colony without Ideology.</summary>
     private static readonly PrisonerColony Colony = new() { Colonists = 3 };
@@ -138,7 +137,7 @@ public sealed class SurgerySelectionTests
         var needs = OrganHarvestRules.OrganNeeds(pawns, [want], false, new Dictionary<Resource, long>(), Recipes);
         Assert.Equal(("Kidney", Colonist), (Assert.Single(needs).Organ, needs[0].For));
 
-        var harvest = OrganHarvestRules.SelectOrganHarvest(Prisoners(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)])), Known(Colony), needs, null);
+        var harvest = OrganHarvestRules.SelectOrganHarvest(Population(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)]), Colony), needs, null);
 
         Assert.NotNull(harvest);
         Assert.Equal((Captive, "Harvest_Kidney", Colonist, true), (harvest.Prisoner, harvest.Recipe, harvest.For, harvest.Violation));
@@ -153,18 +152,18 @@ public sealed class SurgerySelectionTests
         var pawns = Census(KidneyPatient());
         var wants = SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext()).Wants;
         var needs = OrganHarvestRules.OrganNeeds(pawns, wants, false, new Dictionary<Resource, long>(), Recipes);
-        var prisoners = Prisoners(Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)]));
+        var prisoners = Prisoner([Harvest(KidneyPart), Harvest(OtherKidneyPart)]);
         var forbidding = Colony with { Preferences = new PreferencesRecord { Forbidden = [ForbiddenMethod.OrganHarvest] } };
 
-        Assert.NotNull(OrganHarvestRules.SelectOrganHarvest(prisoners, Known(Colony), needs, null));
-        Assert.Null(OrganHarvestRules.SelectOrganHarvest(prisoners, Known(forbidding), needs, null));
-        Assert.Null(OrganHarvestRules.SelectPartRecovery(prisoners, Known(forbidding), needs, null, Recipes));
+        Assert.NotNull(OrganHarvestRules.SelectOrganHarvest(Population(prisoners, Colony), needs, null));
+        Assert.Null(OrganHarvestRules.SelectOrganHarvest(Population(prisoners, forbidding), needs, null));
+        Assert.Null(OrganHarvestRules.SelectPartRecovery(Population(prisoners, forbidding), needs, null, Recipes));
     }
 
     [Fact]
     public void ForbiddingSlaveryStopsTheColonyEnslaving()
     {
-        Assert.False((Colony with { IdeologyActive = true, Preferences = new PreferencesRecord { Forbidden = [ForbiddenMethod.Slavery] } }).SlaveryAllowed());
+        Assert.False((Colony with { Ideology = new ColonyIdeology.Installed(false, null), Preferences = new PreferencesRecord { Forbidden = [ForbiddenMethod.Slavery] } }).SlaveryAllowed());
     }
 
     [Fact]
@@ -172,13 +171,13 @@ public sealed class SurgerySelectionTests
     {
         var pawns = Census(KidneyPatient());
         var needs = OrganHarvestRules.OrganNeeds(pawns, SurgeryRules.SelectSurgery(pawns, null, new SurgeryContext()).Wants, false, new Dictionary<Resource, long>(), Recipes);
-        var limited = Prisoners(Prisoner([
+        var limited = Prisoner([
             Harvest(KidneyPart) with { IngredientsOnMap = Known(false), CareLimited = Known(true) },
             Harvest(OtherKidneyPart) with { IngredientsOnMap = Known(false), CareLimited = Known(true) },
-        ]));
+        ]);
 
-        Assert.Null(OrganHarvestRules.SelectOrganHarvest(limited, Known(Colony), needs, null));
-        var blocked = PrisonerMedicineRules.CareLimitedHarvest(limited, Known(Colony), needs, [], null, Recipes);
+        Assert.Null(OrganHarvestRules.SelectOrganHarvest(Population(limited, Colony), needs, null));
+        var blocked = PrisonerMedicineRules.CareLimitedHarvest(Population(limited, Colony), needs, [], null, Recipes);
         Assert.NotNull(blocked);
         Assert.Equal((Captive, "Harvest_Kidney"), (blocked.Prisoner, blocked.Recipe));
     }
@@ -197,7 +196,7 @@ public sealed class SurgerySelectionTests
             MedicineValue = Known(18.0),
         };
 
-        var recovery = OrganHarvestRules.SelectPartRecovery(Prisoners(Prisoner([removal])), Known(Colony), parts, null, Recipes);
+        var recovery = OrganHarvestRules.SelectPartRecovery(Population(Prisoner([removal]), Colony), parts, null, Recipes);
 
         Assert.NotNull(recovery);
         Assert.Equal((Captive, "RemoveBodyPart", ArmPart, Colonist), (recovery.Prisoner, recovery.Recipe, recovery.Part, recovery.For));

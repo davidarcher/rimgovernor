@@ -27,7 +27,7 @@ public sealed class QuestPolicyTests
         QuestOffers = Known<EquatableArray<JoinerOffer>>([.. offers]),
         QuestColonyCalm = Known(true),
         DefenseCapacity = Known(500.0),
-        Custody = Known<EquatableArray<CustodyFacts>>([]),
+        Population = Known(PopulationFixtures.Census()),
         FoodDays = Known(20.0),
     };
 

@@ -9,22 +9,18 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record PrisonersFacts
 {
-    public Fact<EquatableArray<PrisonerFacts>> Prisoners { get; init; }
+    public EquatableArray<PrisonerFacts> Prisoners { get; init; } = [];
 
-    public Fact<PrisonerColony> Colony { get; init; }
+    public PrisonerColony Colony { get; init; } = new();
 
     public Fact<double> FoodDays { get; init; }
 
-    public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
+    public EquatableArray<CustodyFacts> Custody { get; init; } = [];
 
-    /// <summary>The facts a review already holds.</summary>
-    public static PrisonersFacts From(RoundsFacts f) => new()
-    {
-        Prisoners = f.Prisoners,
-        Colony = f.PrisonerColony,
-        FoodDays = f.FoodDays,
-        Custody = f.Custody,
-    };
+    /// <summary>The facts a review already holds; a review without the population census raises <see cref="RequiredFactException"/>.</summary>
+    public static PrisonersFacts From(RoundsFacts f) => f.Population.TryGetValue(out var census)
+        ? new() { Prisoners = census.Prisoners, Colony = census.Colony, FoodDays = f.FoodDays, Custody = census.Custody }
+        : throw new RequiredFactException("population census");
 }
 
 /// <summary>
@@ -32,11 +28,11 @@ public sealed record PrisonersFacts
 /// joiners and anomaly families are the rest (#3302).
 /// <list type="bullet">
 /// <item><c>prisoners/recruit</c> (Development): every living prisoner has the interaction the colony has a use for
-/// (recruit, convert, enslave or release, <see cref="PopulationRules.PrisonerRecruitDeficit"/>). Each Method sets one
+/// (recruit, convert, enslave or release, <see cref="PopulationRules.PrisonerUse"/>). Each Method sets one
 /// prisoner's interaction, named <c>prisoner-&lt;mode&gt;-&lt;pawn&gt;</c>, one per prisoner owed a change; the runtime also stages the jail (ring,
 /// bed, prisoner flag) while the Need is unmet.</item>
 /// <item><c>prisoners/custody</c> (Wellbeing): no downed humanlike is owed a capture or rescue
-/// (<see cref="PopulationRules.CustodyDeficit"/>). Both are held: a rescue belongs to the patient's medical/critical Need
+/// (<see cref="PopulationRules.CustodyEligible"/>). Both are held: a rescue belongs to the patient's medical/critical Need
 /// owner and a capture needs shared forecast support.</item>
 /// </list>
 /// The two Needs are independent; neither waits on the other.
@@ -82,13 +78,13 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
         var output = new List<NeedMethod>();
         foreach (var need in ready)
         {
-            if (need.Id == Recruit && facts.Prisoners.TryGetValue(out var rows) && facts.Colony.TryGetValue(out var colony))
+            if (need.Id == Recruit)
             {
                 // One Method per prisoner owed a change, lowest pawn first: each claims only its prisoner, so they
                 // run side by side.
-                foreach (var row in rows.OrderBy(r => r.Pawn))
+                foreach (var row in facts.Prisoners.OrderBy(r => r.Pawn))
                 {
-                    if (PopulationRules.PrisonerUse(row, colony, facts.FoodDays, policy).Want is not { } mode)
+                    if (PopulationRules.PrisonerUse(row, facts.Colony, facts.FoodDays, policy) is not { } mode)
                     {
                         continue;
                     }
@@ -97,7 +93,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
                         id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPrisonerInteractionAction(new ActionId(id.Value + "-0"), interaction)])));
                 }
             }
-            else if (need.Id == Custody && PopulationRules.SelectCustodyMethod(facts.Custody) is { Reason: CustodyPlanReason.None } held)
+            else if (need.Id == Custody && PopulationRules.SelectCustodyMethod(facts.Custody) is { } held)
             {
                 output.Add(held.Decision == CustodyDecision.Rescue
                     ? NeedMethod.Held(Custody, RescueHeld, "Critical eligible dependent rescue belongs to the patient's medical/critical Need; other custody transport requires shared forecast support.")
@@ -113,38 +109,25 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
 
     private static Need RecruitNeed(PrisonersFacts facts, PrisonerPolicy policy)
     {
-        if (!PopulationRules.PrisonerRecruitDeficit(facts.Prisoners, facts.Colony, facts.FoodDays, policy).TryGetValue(out var deficit))
-        {
-            throw new RequiredFactException("prisoner recruit deficit");
-        }
-        var owed = 0;
-        if (deficit && facts.Prisoners.TryGetValue(out var rows) && facts.Colony.TryGetValue(out var colony))
-        {
-            owed = rows.Count(row => PopulationRules.PrisonerUse(row, colony, facts.FoodDays, policy).Want is not null);
-        }
+        var owed = facts.Prisoners.Count(row => PopulationRules.PrisonerUse(row, facts.Colony, facts.FoodDays, policy) is not null);
         return new Need
         {
             Id = Recruit,
             Tier = NeedTier.Development,
-            Satisfaction = deficit ? Satisfaction.Unmet : Satisfaction.Met,
+            Satisfaction = owed > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)owed),
         };
     }
 
-    private static Need CustodyNeed(Fact<EquatableArray<CustodyFacts>> census)
+    private static Need CustodyNeed(IReadOnlyList<CustodyFacts> census)
     {
-        if (!PopulationRules.CustodyDeficit(census).TryGetValue(out var deficit) || !census.TryGetValue(out var rows))
-        {
-            throw new RequiredFactException("custody census");
-        }
-        var candidates = rows.Count(row => PopulationRules.CustodyEligible(row).Ok);
+        var candidates = census.Count(row => PopulationRules.CustodyEligible(row) is not null);
         return new Need
         {
             Id = Custody,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = deficit ? Satisfaction.Unmet : Satisfaction.Met,
+            Satisfaction = candidates > 0 ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known((double)candidates),
         };
     }
-
 }

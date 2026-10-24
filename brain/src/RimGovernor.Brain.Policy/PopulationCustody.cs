@@ -1,6 +1,3 @@
-using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
-
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -11,8 +8,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public enum CustodyDecision
 {
-    [WireName("")]
-    None = 0,
     Capture,
     Rescue,
 }
@@ -28,153 +23,94 @@ public sealed record CustodyFacts
 
     public bool QuestProtected { get; init; }
 
-    public Fact<bool> WillJoinIfRescued { get; init; }
+    public required bool WillJoinIfRescued { get; init; }
 
-    public PawnId Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> Guest { get; init; }
+    public required bool Guest { get; init; }
 
-    public Fact<bool> Admitted { get; init; }
+    public required bool Admitted { get; init; }
 
-    public Fact<bool> Prisoner { get; init; }
+    public required bool Prisoner { get; init; }
 
-    public Fact<bool> Hostile { get; init; }
+    public required bool Hostile { get; init; }
 
     /// <summary>
     /// The game's guest.Recruitable, rolled at pawn generation (PawnGenerator.GeneratePawn ->
     /// SetupRecruitable), so a downed raider already carries it before capture. It orders captures only.
     /// </summary>
-    public Fact<bool> Recruitable { get; init; }
+    public required bool Recruitable { get; init; }
 
     /// <summary>The pawn's biography: skills rank a standing hostile as a lance target.</summary>
-    public Fact<PrisonerProspect> Prospect { get; init; }
+    public required PrisonerProspect Prospect { get; init; }
 
     /// <summary>
     /// A LuciferiumAddiction hediff: the raider is not CaptureWorthy, so the fight strips and finishes it
     /// instead.
     /// </summary>
-    public Fact<bool> Luciferium { get; init; }
+    public required bool Luciferium { get; init; }
 
     /// <summary>Gates a capture on the fight's strip: every downed raider is stripped before it is taken.</summary>
-    public Fact<bool> WearingApparel { get; init; }
-}
-
-/// <summary>Names why the population custody planner did or did not propose a capture/rescue write.</summary>
-public enum CustodyPlanReason
-{
-    [WireName("")]
-    None = 0,
-    [WireName("no_custody_candidate")]
-    NoDeficit,
-    [WireName("population_census_unknown")]
-    Unknown,
+    public required bool WearingApparel { get; init; }
 }
 
 /// <summary>The one candidate chosen for a capture/rescue dispatch, chosen deterministically.</summary>
-public sealed record CustodyChoice
-{
-    public CustodyPlanReason Reason { get; init; }
-
-    public PawnId Pawn { get; init; }
-
-    public CustodyDecision Decision { get; init; }
-}
+public sealed record CustodyChoice(PawnId Pawn, CustodyDecision Decision);
 
 public static partial class PopulationRules
 {
-    internal static (CustodyDecision Decision, bool Ok) CustodyEligible(CustodyFacts row)
+    /// <summary>The custody sub-step <paramref name="row"/> calls for, or null when it is not a candidate.</summary>
+    internal static CustodyDecision? CustodyEligible(CustodyFacts row)
     {
-        var dk = row.Dead.TryGetValue(out var dead);
-        var wk = row.Downed.TryGetValue(out var downed);
-        if (!dk || !wk || dead || !downed)
+        if (row.Dead || !row.Downed)
         {
-            return (CustodyDecision.None, false);
+            return null;
         }
-        var gk = row.Guest.TryGetValue(out var guest);
-        var ak = row.Admitted.TryGetValue(out var admitted);
-        if (!gk || !ak)
+        if (row.Guest && !row.Admitted)
         {
-            return (CustodyDecision.None, false);
+            return CustodyDecision.Rescue;
         }
-        if (guest && !admitted)
+        if (row.QuestRefugee && !row.Admitted && !row.Prisoner)
         {
-            return (CustodyDecision.Rescue, true);
+            return row.Hostile ? CustodyDecision.Capture : CustodyDecision.Rescue;
         }
-        var pk = row.Prisoner.TryGetValue(out var prisoner);
-        var hk = row.Hostile.TryGetValue(out var hostile);
-        if (!pk || !hk)
+        if (!row.QuestProtected && !row.Guest && !row.Admitted && !row.Prisoner && row.Hostile)
         {
-            return (CustodyDecision.None, false);
-        }
-        if (row.QuestRefugee && !admitted && !prisoner)
-        {
-            return (hostile ? CustodyDecision.Capture : CustodyDecision.Rescue, true);
-        }
-        if (!row.QuestProtected && !guest && !admitted && !prisoner && hostile)
-        {
-            row.Luciferium.TryGetValue(out var addicted);
-            var known = row.WearingApparel.TryGetValue(out var worn);
-            if (!CombatThreatRules.CaptureWorthy(new CombatPawnState { Luciferium = addicted }) || !known || worn)
+            if (!CombatThreatRules.CaptureWorthy(new CombatPawnState { Luciferium = row.Luciferium }) || row.WearingApparel)
             {
-                return (CustodyDecision.None, false);
+                return null;
             }
-            return (CustodyDecision.Capture, true);
+            return CustodyDecision.Capture;
         }
-        return (CustodyDecision.None, false);
+        return null;
     }
 
     /// <summary>
-    /// Reports whether any observed candidate currently qualifies for capture or rescue. An unknown census
-    /// leaves the whole need unknown; an individual row with incomplete facts is simply not a candidate, the
-    /// same lenient style SelectRescue's eligibility checks use, since the candidate pool here is the whole
-    /// map population rather than a small trusted list.
+    /// Picks the next eligible candidate to dispatch, or null when none qualifies. A capture of an unrecruitable
+    /// raider ranks after every other candidate; within a rank the lowest pawn ID wins, for a deterministic order.
+    /// Rescues are never demoted, and an unrecruitable raider is still captured once nothing outranks it.
     /// </summary>
-    public static Fact<bool> CustodyDeficit(Fact<EquatableArray<CustodyFacts>> rows)
+    public static CustodyChoice? SelectCustodyMethod(IReadOnlyList<CustodyFacts> rows)
     {
-        if (!rows.TryGetValue(out var all))
-        {
-            return Unknown<bool>();
-        }
-        return Known(all.Any(row => CustodyEligible(row).Ok));
-    }
-
-    /// <summary>
-    /// Picks the next eligible candidate to dispatch. A capture of a raider not known to be recruitable ranks
-    /// after every other candidate; within a rank the lowest pawn ID wins, for
-    /// a deterministic order. Rescues are never demoted, and an unrecruitable raider
-    /// is still captured once nothing outranks it.
-    /// </summary>
-    public static CustodyChoice SelectCustodyMethod(Fact<EquatableArray<CustodyFacts>> rows)
-    {
-        if (!rows.TryGetValue(out var all))
-        {
-            return new CustodyChoice { Reason = CustodyPlanReason.Unknown };
-        }
         CustodyChoice? best = null;
         var bestRank = 0;
-        foreach (var row in all)
+        foreach (var row in rows)
         {
-            var (decision, ok) = CustodyEligible(row);
-            if (!ok)
+            if (CustodyEligible(row) is not { } decision)
             {
                 continue;
             }
-            var rank = 0;
-            var known = row.Recruitable.TryGetValue(out var recruitable);
-            if (decision == CustodyDecision.Capture && (!known || !recruitable))
-            {
-                rank = 1;
-            }
+            var rank = decision == CustodyDecision.Capture && !row.Recruitable ? 1 : 0;
             if (best is null || rank < bestRank || (rank == bestRank && row.Pawn.CompareTo(best.Pawn) < 0))
             {
-                best = new CustodyChoice { Pawn = row.Pawn, Decision = decision };
+                best = new CustodyChoice(row.Pawn, decision);
                 bestRank = rank;
             }
         }
-        return best ?? new CustodyChoice { Reason = CustodyPlanReason.NoDeficit };
+        return best;
     }
 }

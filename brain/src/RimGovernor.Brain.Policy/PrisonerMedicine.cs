@@ -24,20 +24,19 @@ public static partial class PrisonerMedicineRules
     /// is chosen or the choice is not blocked by care.
     /// </summary>
     public static OrganHarvest? CareLimitedHarvest(
-        Fact<EquatableArray<PrisonerFacts>> prisoners,
-        Fact<PrisonerColony> colony,
+        Fact<PrisonerCensus> population,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyList<OrganNeed> parts,
         IReadOnlyDictionary<PawnId, bool>? inFlight,
         RecipeFacts facts)
     {
-        if (!prisoners.TryGetValue(out var rows))
+        if (!population.TryGetValue(out var census))
         {
             return null;
         }
-        var relaxed = new List<PrisonerFacts>(rows.Count);
+        var relaxed = new List<PrisonerFacts>(census.Prisoners.Count);
         var limited = new HashSet<CareOp>();
-        foreach (var row in rows)
+        foreach (var row in census.Prisoners)
         {
             if (!row.Operations.TryGetValue(out var ops))
             {
@@ -62,8 +61,8 @@ public static partial class PrisonerMedicineRules
         {
             return null;
         }
-        var relaxedFacts = Known(EquatableArray.From(relaxed));
-        var h = OrganHarvestRules.SelectOrganHarvest(relaxedFacts, colony, needs, inFlight) ?? OrganHarvestRules.SelectPartRecovery(relaxedFacts, colony, parts, inFlight, facts);
+        var relaxedFacts = Known(census with { Prisoners = EquatableArray.From(relaxed) });
+        var h = OrganHarvestRules.SelectOrganHarvest(relaxedFacts, needs, inFlight) ?? OrganHarvestRules.SelectPartRecovery(relaxedFacts, parts, inFlight, facts);
         return h is not null && limited.Contains(new CareOp((PawnId)h.Prisoner, h.Recipe, h.Part)) ? h : null;
     }
 
@@ -82,7 +81,7 @@ public static partial class PrisonerMedicineRules
             }
         }
         var sale = OrganHarvestRules.OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], RoundsRules.Positive(silverShort), stock, f.Recipes);
-        if (CareLimitedHarvest(f.Prisoners, f.PrisonerColony, sale, [], null, f.Recipes) is null)
+        if (CareLimitedHarvest(f.Population, sale, [], null, f.Recipes) is null)
         {
             return needs;
         }

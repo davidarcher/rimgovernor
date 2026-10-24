@@ -92,7 +92,7 @@ public static partial class OrganHarvestRules
     public static (double Mood, bool Ok) HarvestMood(PrisonerColony c, bool sale)
     {
         var n = (double)Math.Max(0, c.Colonists);
-        if (!c.IdeologyActive)
+        if (c.Ideology is ColonyIdeology.NotInstalled)
         {
             return (OrganHarvestRules.ClassicKnowHarvestMood * n, true);
         }
@@ -104,7 +104,7 @@ public static partial class OrganHarvestRules
         double mood = 0;
         foreach (var evt in events)
         {
-            var v = IdeologyRuleRules.ActionStance(c.Ideology, new PreceptAction { HistoryEvent = evt }, new PreceptSubject());
+            var v = IdeologyRuleRules.ActionStance(c.Ideoligion, new PreceptAction { HistoryEvent = evt }, new PreceptSubject());
             if (v.Stance == PreceptStance.Unknown || v.RefusalChance > 0)
             {
                 return (0, false);
@@ -194,27 +194,24 @@ public static partial class OrganHarvestRules
     /// harvest whose cost reaches its gain, or whose precept refuses, is never chosen. Unknown facts refuse.
     /// </summary>
     public static OrganHarvest? SelectOrganHarvest(
-        Fact<EquatableArray<PrisonerFacts>> prisoners,
-        Fact<PrisonerColony> colony,
+        Fact<PrisonerCensus> population,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
-        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || needs.Count == 0
-            || c.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(rows, inFlight))
+        if (!population.TryGetValue(out var census) || needs.Count == 0
+            || census.Colony.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(census.Prisoners, inFlight))
         {
             return null;
         }
+        var c = census.Colony;
         OrganHarvest? best = null;
-        foreach (var row in rows)
+        foreach (var row in census.Prisoners)
         {
-            if (!row.HarvestEligible(c).TryGetValue(out var eligible) || !eligible)
+            if (!row.HarvestEligible(c) || !row.Operations.TryGetValue(out var ops))
             {
                 continue;
             }
-            if (!row.HarvestGoodwill.TryGetValue(out var goodwill) || !row.Operations.TryGetValue(out var ops))
-            {
-                continue;
-            }
+            var goodwill = row.HarvestGoodwill;
             var pairs = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var op in ops)
             {
@@ -272,8 +269,7 @@ public static partial class OrganHarvestRules
             if (!row.QueuedSurgeries.TryGetValue(out var queued) || queued > 0
                 || (inFlight?.GetValueOrDefault(row.Pawn) ?? false))
             {
-                row.Dead.TryGetValue(out var dead);
-                if (!dead)
+                if (!row.Dead)
                 {
                     return true;
                 }
@@ -329,7 +325,7 @@ public static partial class OrganHarvestRules
                 stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
             }
         }
-        return SelectOrganHarvest(f.Prisoners, f.PrisonerColony, OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], true, stock, f.Recipes), null) is not null;
+        return SelectOrganHarvest(f.Population, OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], true, stock, f.Recipes), null) is not null;
     }
 
     /// <summary>
@@ -418,20 +414,20 @@ public static partial class OrganHarvestRules
     /// (lethal included).
     /// </summary>
     public static OrganHarvest? SelectPartRecovery(
-        Fact<EquatableArray<PrisonerFacts>> prisoners,
-        Fact<PrisonerColony> colony,
+        Fact<PrisonerCensus> population,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyDictionary<PawnId, bool>? inFlight,
         RecipeFacts facts)
     {
-        if (!prisoners.TryGetValue(out var rows) || !colony.TryGetValue(out var c) || c.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(rows, inFlight))
+        if (!population.TryGetValue(out var census) || census.Colony.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(census.Prisoners, inFlight))
         {
             return null;
         }
+        var c = census.Colony;
         OrganHarvest? best = null;
-        foreach (var row in rows)
+        foreach (var row in census.Prisoners)
         {
-            if (!row.HarvestEligible(c).TryGetValue(out var eligible) || !eligible)
+            if (!row.HarvestEligible(c))
             {
                 continue;
             }
@@ -506,9 +502,8 @@ public static partial class OrganHarvestRules
         }
         if (violation)
         {
-            var gk = row.HarvestGoodwill.TryGetValue(out var goodwill);
-            var (extra, ok) = HarvestCost(c, goodwill, false);
-            if (!gk || !ok)
+            var (extra, ok) = HarvestCost(c, row.HarvestGoodwill, false);
+            if (!ok)
             {
                 return (0, false);
             }
@@ -519,7 +514,7 @@ public static partial class OrganHarvestRules
 
     /// <summary>Reports whether a stock recovery would be queued now; it keeps the medical/surgery Need unmet.</summary>
     public static bool PartRecoveryWanted(RoundsFacts f) =>
-        SelectPartRecovery(f.Prisoners, f.PrisonerColony, [], null, f.Recipes) is not null;
+        SelectPartRecovery(f.Population, [], null, f.Recipes) is not null;
 
     /// <summary>
     /// Keeps one stocked unit per open colonist restore or install: each want, each choice this review would

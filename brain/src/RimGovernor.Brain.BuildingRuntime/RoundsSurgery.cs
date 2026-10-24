@@ -104,12 +104,12 @@ public sealed partial class RoundsSurgeryPlanner
         }
         SilverGapRules.RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortfall);
         var needs = OrganHarvestRules.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);
-        var harvest = OrganHarvestRules.SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight);
+        var harvest = OrganHarvestRules.SelectOrganHarvest(read.Projection.Facts.Population, needs, inFlight);
         if (harvest is null)
         {
             // Artificial part recovery: the same one-at-a-time slot.
             var parts = OrganHarvestRules.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, read.Projection.Facts.Recipes);
-            harvest = OrganHarvestRules.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes);
+            harvest = OrganHarvestRules.SelectPartRecovery(read.Projection.Facts.Population, parts, inFlight, read.Projection.Facts.Recipes);
         }
         // Prisoners stay on herbal: a cut only better medicine could serve is refused; the review asks for herbal instead.
         var harvesting = harvest is not null && arbiter.TryClaim([harvest.Prisoner]);

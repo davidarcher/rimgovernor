@@ -20,7 +20,7 @@ public sealed class JoinersAnomalyFamilyTests
     /// <summary>Room for one more colonist: nobody hosted, twenty days of food and a spare unowned bed.</summary>
     private static RoundsFacts Room(RoundsFacts f) => f with
     {
-        Custody = Known<EquatableArray<CustodyFacts>>([]),
+        Population = Known(PopulationFixtures.Census()),
         FoodDays = Known(20.0),
         Sleeping = Known(new SleepingObservation
         {

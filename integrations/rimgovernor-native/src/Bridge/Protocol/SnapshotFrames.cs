@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                observed = observed with { Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new Obs.PopulationRequest { Scope = Scope() }, context)) };
+                observed = observed with { Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new Obs.PopulationRequest { Scope = Scope() })) };
                 ObservationWork.Captured("population", Now() - began, observed.Population?.Persons.Count ?? 0);
             }
             {

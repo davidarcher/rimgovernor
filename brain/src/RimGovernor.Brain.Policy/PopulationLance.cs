@@ -39,29 +39,19 @@ public static partial class PopulationRules
     /// </summary>
     public static PawnId? LanceCandidate(RoundsFacts f)
     {
-        if (!f.PrisonerColony.TryGetValue(out var colony) || colony.Colonists >= PopulationTargetFor(f.ColonistGoal))
-        {
-            return null;
-        }
-        if (!f.Custody.TryGetValue(out var rows))
+        if (!f.Population.TryGetValue(out var census) || census.Colony.Colonists >= PopulationTargetFor(f.ColonistGoal))
         {
             return null;
         }
         PawnId? best = null;
         var bestScore = -1;
-        foreach (var row in rows)
+        foreach (var row in census.Custody)
         {
-            var dk = row.Dead.TryGetValue(out var dead);
-            var wk = row.Downed.TryGetValue(out var downed);
-            var hk = row.Hostile.TryGetValue(out var hostile);
-            var pk = row.Prisoner.TryGetValue(out var prisoner);
-            var rk = row.Recruitable.TryGetValue(out var recruitable);
-            var sk = row.Prospect.TryGetValue(out var prospect);
-            if (!dk || !wk || !hk || !pk || !rk || !sk || dead || downed || !hostile || prisoner || !recruitable)
+            if (row.Dead || row.Downed || !row.Hostile || row.Prisoner || !row.Recruitable)
             {
                 continue;
             }
-            var score = LanceScore(prospect!);
+            var score = LanceScore(row.Prospect);
             if (score > bestScore || (score == bestScore && row.Pawn.CompareTo(best!.Value) < 0))
             {
                 (best, bestScore) = (row.Pawn, score);

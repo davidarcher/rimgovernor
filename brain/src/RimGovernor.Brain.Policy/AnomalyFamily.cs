@@ -174,13 +174,9 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         {
             return 0;
         }
-        if (!f.PrisonerColony.TryGetValue(out _))
+        if (!f.Population.TryGetValue(out _))
         {
-            throw new RequiredFactException("prisoner colony");
-        }
-        if (!f.Custody.TryGetValue(out _))
-        {
-            throw new RequiredFactException("custody");
+            throw new RequiredFactException("population census");
         }
         return PopulationRules.LanceCandidate(f) is null ? 0 : 1;
     }

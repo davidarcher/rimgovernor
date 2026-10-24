@@ -129,23 +129,23 @@ public sealed class BelieverConversionTests
         var prisoner = new PrisonerFacts
         {
             Pawn = new("p"),
-            Dead = Known(false),
-            Prisoner = Known(true),
-            Recruitable = Known(true),
-            CurrentInteraction = Known(PrisonerInteractionMode.Maintain),
-            Resistance = Known(0.0),
-            HeldTicks = Known(0L),
+            Dead = false,
+            Recruitable = true,
+            CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
+            Resistance = 0.0,
+            HeldTicks = 0L,
+            HarvestGoodwill = 0,
             Ideo = "Ideo_other",
-            Prospect = Known(new PrisonerProspect { Age = 30, Health = 1 }),
+            Prospect = new PrisonerProspect { Age = 30, Health = 1 },
         };
-        var colony = new PrisonerColony { Colonists = 1, IdeologyActive = true, Ideo = Ours };
+        var colony = new PrisonerColony { Colonists = 1, Ideology = new ColonyIdeology.Installed(false, Ours) };
 
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony, Known(20.0), policy).Intent);
-        Assert.Equal(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true }, Known(20.0), policy).Intent);
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony, Known(20.0), policy));
+        Assert.Equal(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true }, Known(20.0), policy));
 
         // A prisoner of our own ideoligion is not converted, and a classic game has no conversion.
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner with { Ideo = Ours }, colony with { BelieversWanted = true }, Known(20.0), policy).Intent);
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true, ClassicIdeo = true }, Known(20.0), policy).Intent);
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner with { Ideo = Ours }, colony with { BelieversWanted = true }, Known(20.0), policy));
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true, Ideology = new ColonyIdeology.Installed(true, Ours) }, Known(20.0), policy));
     }
 
     [Fact]
@@ -155,8 +155,9 @@ public sealed class BelieverConversionTests
         Assert.True(GoalRules.DemandOf(GoalFacts(Ideo(Guide("guide")), pawns)).Believers);
         Assert.False(GoalRules.DemandOf(GoalFacts(Ideo(Guide("guide")), Pawns(Believer))).Believers);
 
-        var facts = GoalRules.Stamp(new RoundsFacts { PrisonerColony = Known(new PrisonerColony()) }, new GoalDemand { Believers = true });
-        Assert.True(facts.PrisonerColony.Value.BelieversWanted);
+        var census = new PrisonerCensus { Prisoners = [], Custody = [], Colony = new PrisonerColony(), Guests = [], Names = [] };
+        var facts = GoalRules.Stamp(new RoundsFacts { Population = Known(census) }, new GoalDemand { Believers = true });
+        Assert.True(facts.Population.Value.Colony.BelieversWanted);
     }
 
     private static (GoalState State, string Reason) Status(IdeologyFacts _, Fact<EquatableArray<WorkPawn>> pawns, Fact<Ideoligion> ideo)

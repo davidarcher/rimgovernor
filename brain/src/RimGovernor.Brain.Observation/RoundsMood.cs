@@ -113,11 +113,9 @@ public static class RoundsMoodReads
         }
         if (frame.Population is { } population)
         {
-            var prisoners = population.Prisoners.IsKnown;
-            var custody = population.Custody.IsKnown;
             output = output with
             {
-                Population = new Held<PrisonerCensus> { Value = population, AsOf = tick, Complete = prisoners && custody, Source = "rimgovernor/observations_read_population" },
+                Population = new Held<PrisonerCensus> { Value = population, AsOf = tick, Complete = true, Source = "rimgovernor/observations_read_population" },
             };
         }
         if (projection.Facts.Research.TryGetValue(out var research))

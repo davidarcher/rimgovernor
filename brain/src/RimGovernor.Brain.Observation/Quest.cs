@@ -155,14 +155,14 @@ public static class QuestReads
     internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
     {
         var ids = QuestHospitality.ProtectedQuestGuestIds(f.QuestOffers);
-        if (f.Custody.TryGetValue(out var custody))
+        if (f.Population.TryGetValue(out var census))
         {
-            var rows = new List<CustodyFacts>(custody.Count);
-            foreach (var row in custody)
+            var rows = new List<CustodyFacts>(census.Custody.Count);
+            foreach (var row in census.Custody)
             {
                 rows.Add(row with { QuestProtected = ids.Contains(row.Pawn) });
             }
-            f = f with { Custody = Known(EquatableArray.From(rows)) };
+            f = f with { Population = Known(census with { Custody = EquatableArray.From(rows) }) };
         }
         if (f.MedicalPawns.TryGetValue(out var medical))
         {
@@ -180,14 +180,14 @@ public static class QuestReads
     internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
     {
         var refugees = QuestRefugees.QuestRefugeeIds(f.QuestOffers);
-        if (f.Custody.TryGetValue(out var custody))
+        if (f.Population.TryGetValue(out var census))
         {
-            var rows = new List<CustodyFacts>(custody.Count);
-            foreach (var row in custody)
+            var rows = new List<CustodyFacts>(census.Custody.Count);
+            foreach (var row in census.Custody)
             {
                 rows.Add(row with { QuestRefugee = refugees.TryGetValue(row.Pawn, out var refugeeQuest) && refugeeQuest.Value != "" });
             }
-            f = f with { Custody = Known(EquatableArray.From(rows)) };
+            f = f with { Population = Known(census with { Custody = EquatableArray.From(rows) }) };
         }
         return f;
     }

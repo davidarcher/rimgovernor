@@ -166,13 +166,7 @@ public sealed class GoalsFamilyTests
         // A full hundred hosted people: the bot's own target admits no more; the goal does.
         var full = new RoundsFacts
         {
-            Custody = Known<EquatableArray<CustodyFacts>>([.. Enumerable.Range(0, 100).Select(i => new CustodyFacts
-            {
-                Pawn = new("c" + i),
-                Dead = Known(false),
-                Admitted = Known(true),
-                Guest = Known(false),
-            })]),
+            Population = Known(PopulationFixtures.Census(custody: Enumerable.Range(0, 100).Select(i => PopulationFixtures.Admitted("c" + i)))),
             FoodDays = Known(30.0),
         };
         Assert.False(PopulationRules.JoinerCapacity(full.JoinerCapacity()).Value);
@@ -222,18 +216,12 @@ public sealed class GoalsFamilyTests
         Assert.Equal("ideoligion", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, Facts(goal))).Fact);
     }
 
-    private static PrisonerFacts Held(string pawn, bool recruitable = true) => new()
-    {
-        Pawn = new(pawn),
-        Dead = Known(false),
-        Prisoner = Known(true),
-        Recruitable = Known(recruitable),
-    };
+    private static PrisonerFacts Held(string pawn, bool recruitable = true) => PopulationFixtures.Held(pawn, recruitable);
 
-    private static CustodyFacts Colonist(string pawn) => new() { Pawn = new(pawn), Dead = Known(false), Admitted = Known(true) };
+    private static CustodyFacts Colonist(string pawn) => PopulationFixtures.Admitted(pawn);
 
     private static GoalsFacts PrisonersCensus(IEnumerable<PrisonerFacts> prisoners, params CustodyFacts[] custody) =>
-        new() { Rounds = new RoundsFacts { Prisoners = Known<EquatableArray<PrisonerFacts>>([.. prisoners]), Custody = Known<EquatableArray<CustodyFacts>>([.. custody]) } };
+        new() { Rounds = new RoundsFacts { Population = Known(PopulationFixtures.Census(prisoners, custody)) } };
 
     [Fact]
     public void ANamedPrisonerIsPursuedWhileHeldMetOnceAColonistAndHasNoMethodOtherwise()
@@ -247,12 +235,12 @@ public sealed class GoalsFamilyTests
         Assert.Equal((GoalState.NoMethod, "not a prisoner"), (stranger.State, stranger.Reason));
         var unrecruitable = GoalRules.Evaluate(goal, PrisonersCensus([Held("p1", recruitable: false)]));
         Assert.Equal((GoalState.NoMethod, "not_recruitable"), (unrecruitable.State, unrecruitable.Reason));
-        Assert.Equal("prisoners", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);
+        Assert.Equal("population census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);
 
         var demand = GoalRules.DemandOf(PrisonersCensus([Held("p1")]) with { Goals = [goal] });
         Assert.Equal([new PawnId("p1")], demand.Prisoners);
-        var stamped = GoalRules.Stamp(new RoundsFacts { PrisonerColony = Known(new PrisonerColony()) }, demand);
-        Assert.Equal(demand.Prisoners, stamped.PrisonerColony.Value.NamedPrisoners);
+        var stamped = GoalRules.Stamp(new RoundsFacts { Population = Known(PopulationFixtures.Census()) }, demand);
+        Assert.Equal(demand.Prisoners, stamped.Population.Value.Colony.NamedPrisoners);
     }
 
     private static (GoalState, Satisfaction) Pair(GoalStatus s) => (s.State, s.Satisfaction);

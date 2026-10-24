@@ -517,9 +517,9 @@ internal static class StationFactsBuilder
         {
             f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
         }
-        if (projection.Facts.Prisoners.TryGetValue(out var prisoners))
+        if (projection.Facts.Population.TryGetValue(out var census))
         {
-            f = f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(prisoners)) };
+            f = f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(census.Prisoners)) };
         }
         // An inactive ledger (no planner declares into it) wants no order: a known empty list, where an
         // unreviewed or unread one is unknown.

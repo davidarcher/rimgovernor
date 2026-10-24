@@ -26,9 +26,9 @@ namespace HomeBridge.BridgeTools
         internal static Obs.PopulationSnapshot HandleReadPopulation(Obs.PopulationRequest request)
         {
             if (!ValidatePopulation(request, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var failure))
                 throw NativeFaults.Refused(failure);
-            try { return Population(map, request, context); }
+            try { return Population(map, request); }
             catch (Exception error)
             {
                 ModLog.Error("observe", "Population read failed: " + error);
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The population as a frame section: a read that throws fails the frame. Every person is read whole.
-        internal static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context)
+        internal static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).OrderBy(p => p.thingIDNumber).ToList();
@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
                 ? new Obs.ColonyIdeology.Installed(Find.IdeoManager.classicMode,
                     player.ideos?.PrimaryIdeo is Ideo ideo ? NativePawnObservationTools.Id(ideo.GetUniqueLoadID()) : null)
                 : new Obs.ColonyIdeology.NotInstalled();
-            return new Obs.PopulationSnapshot { Context = context, Persons = [.. persons], Ideology = ideology, OwnedNames = [.. names] };
+            return new Obs.PopulationSnapshot { Persons = [.. persons], Ideology = ideology, OwnedNames = [.. names] };
         }
 
         // A colony prisoner's custody facts: its resistance and interaction, the time held, its care and surgery

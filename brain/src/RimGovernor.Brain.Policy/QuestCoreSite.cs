@@ -95,10 +95,15 @@ public static class QuestCoreSite
             }
         }
         ids.Sort();
-        if (!f.Custody.TryGetValue(out var rows) || ids.Count == 0)
+        if (!f.Population.TryGetValue(out var census))
+        {
+            throw new RequiredFactException("population census");
+        }
+        if (ids.Count == 0)
         {
             return result with { Reason = "rescue_target_unknown" };
         }
+        var rows = census.Custody;
         foreach (var id in ids)
         {
             var row = rows.FirstOrDefault(r => r.Pawn == id);
@@ -106,21 +111,15 @@ public static class QuestCoreSite
             {
                 return result with { Reason = "rescue_target_unavailable" };
             }
-            var dk = row.Dead.TryGetValue(out var dead);
-            var ak = row.Admitted.TryGetValue(out var admitted);
-            if (!dk || !ak)
-            {
-                return result with { Reason = "rescue_state_unknown" };
-            }
-            if (dead)
+            if (row.Dead)
             {
                 return result with { Kind = "return", Reason = "rescue_target_dead" };
             }
-            if (admitted)
+            if (row.Admitted)
             {
                 continue;
             }
-            if (row.WillJoinIfRescued.TryGetValue(out var willing) && willing)
+            if (row.WillJoinIfRescued)
             {
                 if (site.Extraction.TryGetValue(out var extraction))
                 {
@@ -131,10 +130,7 @@ public static class QuestCoreSite
                         {
                             continue;
                         }
-                        var pdk = performer.Dead.TryGetValue(out var pdead);
-                        var pnk = performer.Downed.TryGetValue(out var pdowned);
-                        var pak = performer.Admitted.TryGetValue(out var padmitted);
-                        if (!pdk || !pnk || !pak || pdead || pdowned || !padmitted)
+                        if (performer.Dead || performer.Downed || !performer.Admitted)
                         {
                             continue;
                         }
@@ -149,26 +145,20 @@ public static class QuestCoreSite
                 }
                 return result with { Reason = "rescue_actor_unavailable" };
             }
-            if (f.Prisoners.TryGetValue(out var prisoners))
+            foreach (var prisoner in census.Prisoners)
             {
-                foreach (var prisoner in prisoners)
+                if (prisoner.Pawn != id)
                 {
-                    if (prisoner.Pawn != id)
+                    continue;
+                }
+                if (prisoner.Recruitable && prisoner.CurrentInteraction is PrisonerHeldInteraction.Settable { Mode: not PrisonerInteractionMode.Recruit })
+                {
+                    try
                     {
-                        continue;
+                        return result with { Kind = "recruit", Recruit = new PrisonerInteraction((Domain.PawnId)id, PrisonerInteractionMode.Recruit) };
                     }
-                    var ok = prisoner.Prisoner.TryGetValue(out var owned);
-                    var rk = prisoner.Recruitable.TryGetValue(out var recruitable);
-                    var mk = prisoner.CurrentInteraction.TryGetValue(out var mode);
-                    if (ok && owned && rk && recruitable && mk && mode != PrisonerInteractionMode.Recruit)
+                    catch (DomainException)
                     {
-                        try
-                        {
-                            return result with { Kind = "recruit", Recruit = new PrisonerInteraction((Domain.PawnId)id, PrisonerInteractionMode.Recruit) };
-                        }
-                        catch (DomainException)
-                        {
-                        }
                     }
                 }
             }

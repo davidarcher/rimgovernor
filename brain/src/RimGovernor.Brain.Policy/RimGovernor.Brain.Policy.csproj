@@ -43,5 +43,8 @@
     <!-- The gear census's climate and option source (#3777). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
+    <!-- The population read's ideology mode and owned names (#3785). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.OwnedName" Alias="OwnedName" />
   </ItemGroup>
 </Project>

@@ -108,8 +108,8 @@ public static partial class ReadingPolicyRules
         var count = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var n in names)
         {
-            shortNames[n.Pawn] = n.Short;
-            var key = n.Short.ToLowerInvariant();
+            shortNames[n.PawnId] = n.ShortName;
+            var key = n.ShortName.ToLowerInvariant();
             count[key] = count.GetValueOrDefault(key) + 1;
         }
         var output = new List<ReadingPolicyChange>();

@@ -175,9 +175,10 @@ public sealed class PreferencesFactsTests
     [Fact]
     public void TheStampReachesThePrisonerDecisions()
     {
-        var facts = new RoundsFacts { PrisonerColony = Known(new PrisonerColony { Colonists = 2 }) }.WithPreferences(Prefer(forbidden: [ForbiddenMethod.Slavery]));
+        var facts = new RoundsFacts { Population = Known(PopulationFixtures.Census(colony: new PrisonerColony { Colonists = 2 })) }.WithPreferences(Prefer(forbidden: [ForbiddenMethod.Slavery]));
 
-        Assert.True(facts.PrisonerColony.TryGetValue(out var colony));
+        Assert.True(facts.Population.TryGetValue(out var census));
+        var colony = census.Colony;
         Assert.True(colony.Preferences.Forbids(ForbiddenMethod.Slavery));
         Assert.True(facts.Preferences.Forbids(ForbiddenMethod.Slavery));
     }

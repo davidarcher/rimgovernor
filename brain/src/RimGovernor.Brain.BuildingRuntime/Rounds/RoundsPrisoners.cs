@@ -103,7 +103,7 @@ public sealed class PrisonersRounds
     internal static JailStep JailStep(ColonyProjection facts)
     {
         var (plan, rooms, known) = RoundsBuildingPlanner.PlannedLayout(facts);
-        var pk = facts.Facts.Prisoners.TryGetValue(out var prisoners);
+        var pk = facts.Facts.Population.TryGetValue(out var census);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         var bk = facts.Facts.CurrentConstruction.TryGetValue(out var built);
         if (!known || !pk || !sk || !bk || !built!.Colony)
@@ -111,7 +111,7 @@ public sealed class PrisonersRounds
             return new JailStep();
         }
 
-        return JailRules.NextJailStep(plan, rooms, HeldPrisoners(prisoners!), sleeping!.Beds, built.Buildings);
+        return JailRules.NextJailStep(plan, rooms, HeldPrisoners(census!.Prisoners), sleeping!.Beds, built.Buildings);
     }
 
     /// <summary>Flags one jail bed for prisoners, once per bed under the Need; nothing when native already has it so.</summary>
@@ -161,17 +161,6 @@ public sealed class PrisonersRounds
 
     internal static int HeldPrisoners(IReadOnlyList<PrisonerFacts> prisoners)
     {
-        var n = 0;
-        foreach (var p in prisoners)
-        {
-            var hk = p.Prisoner.TryGetValue(out var held);
-            var dk = p.Dead.TryGetValue(out var dead);
-            if (hk && held && dk && !dead)
-            {
-                n++;
-            }
-        }
-
-        return n;
+        return prisoners.Count(p => !p.Dead);
     }
 }

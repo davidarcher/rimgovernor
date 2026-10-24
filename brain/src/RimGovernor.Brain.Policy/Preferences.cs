@@ -17,9 +17,9 @@ public static class PreferenceRules
     public static RoundsFacts WithPreferences(this RoundsFacts f, PreferencesRecord preferences)
     {
         f = f with { Preferences = preferences };
-        if (f.PrisonerColony.TryGetValue(out var colony))
+        if (f.Population.TryGetValue(out var census))
         {
-            f = f with { PrisonerColony = Known(colony with { Preferences = preferences }) };
+            f = f with { Population = Known(census with { Colony = census.Colony with { Preferences = preferences } }) };
         }
         var leather = preferences.Forbids(ForbiddenMethod.HumanLeather);
         if (leather)

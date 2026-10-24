@@ -925,9 +925,9 @@ public static partial class WorkRules
         {
             demand = demand with { GrowingCells = cells };
         }
-        if (facts.Prisoners.TryGetValue(out var prisoners))
+        if (facts.Population.TryGetValue(out var census))
         {
-            demand = demand with { Prisoners = prisoners.Count };
+            demand = demand with { Prisoners = census.Prisoners.Count };
         }
         if (facts.EventLoot.TryGetValue(out var loot))
         {

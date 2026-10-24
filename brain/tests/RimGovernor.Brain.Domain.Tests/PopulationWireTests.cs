@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -35,7 +36,6 @@ public sealed class PopulationWireTests
 
     private static readonly Obs.PopulationSnapshot Population = new()
     {
-        Context = new Common.ObservationContext { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
         Persons =
         [
             Person("colonist") with { Admitted = true, IdeoId = "Ideo_1" },
@@ -73,23 +73,36 @@ public sealed class PopulationWireTests
 
         var census = PopulationDecoder.Decode(Population, pawns, null);
 
-        Assert.True(census.Prisoners.TryGetValue(out var prisoners));
-        var prisoner = Assert.Single(prisoners);
+        var prisoner = Assert.Single(census.Prisoners);
         Assert.Equal(new PawnId("prisoner"), prisoner.Pawn);
-        Assert.True(prisoner.Resistance.TryGetValue(out var resistance));
-        Assert.Equal(12.5, resistance);
-        Assert.True(prisoner.HarvestGoodwill.TryGetValue(out var goodwill));
-        Assert.Equal(-40, goodwill);
-        Assert.True(census.Guests.TryGetValue(out var guests));
-        Assert.Equal(new PawnId("guest"), Assert.Single(guests).Id);
-        Assert.True(census.Colony.TryGetValue(out var colony));
-        Assert.True(colony.IdeologyActive);
-        Assert.False(colony.ClassicIdeo);
-        Assert.Equal("Ideo_1", colony.Ideo);
-        Assert.Equal(1, colony.Colonists);
-        Assert.True(census.Custody.TryGetValue(out var custody));
-        Assert.Equal(3, custody.Count);
-        Assert.All(custody, row => Assert.True(row.Prospect.IsKnown));
+        Assert.Equal(12.5, prisoner.Resistance);
+        Assert.Equal(-40, prisoner.HarvestGoodwill);
+        Assert.Equal(new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.ReduceResistance), prisoner.CurrentInteraction);
+        Assert.Equal(new PawnId("guest"), Assert.Single(census.Guests).Id);
+        Assert.Equal(new Obs.ColonyIdeology.Installed(false, "Ideo_1"), census.Colony.Ideology);
+        Assert.True(census.Colony.PreceptsBind);
+        Assert.Equal("Ideo_1", census.Colony.PrimaryIdeo);
+        Assert.Equal(1, census.Colony.Colonists);
+        Assert.Equal(3, census.Custody.Count);
+        Assert.Equal([new Obs.OwnedName { PawnId = new("colonist"), ShortName = "Tess", ThingId = 7 }], census.Names);
+    }
+
+    [Theory]
+    [InlineData("AttemptRecruit", PrisonerInteractionMode.Recruit)]
+    [InlineData("MaintainOnly", PrisonerInteractionMode.Maintain)]
+    [InlineData("ReduceResistance", PrisonerInteractionMode.ReduceResistance)]
+    [InlineData("Release", PrisonerInteractionMode.Release)]
+    [InlineData("Enslave", PrisonerInteractionMode.Enslave)]
+    [InlineData("Convert", PrisonerInteractionMode.Convert)]
+    public void AnInteractionTheIntentExposesIsSettable(string def, PrisonerInteractionMode mode)
+    {
+        Assert.Equal(new PrisonerHeldInteraction.Settable(mode), PrisonerCensusRules.PrisonerInteraction(def));
+    }
+
+    [Fact]
+    public void AnyOtherInteractionIsNamedByItsDef()
+    {
+        Assert.Equal(new PrisonerHeldInteraction.Other(), PrisonerCensusRules.PrisonerInteraction("Execution"));
     }
 
     [Fact]

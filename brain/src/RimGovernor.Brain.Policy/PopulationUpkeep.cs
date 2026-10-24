@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -13,6 +12,28 @@ public sealed record PrisonerPolicy
     public double ReleaseAfterDays { get; init; }
 
     public double FoodTargetDays { get; init; }
+}
+
+/// <summary>
+/// One population read's census (the frame's <c>observations_read_population</c> section), each person joined to its
+/// pawn table row: the colony prisoners, every observed humanlike as a custody candidate, the colony side of a
+/// prisoner's use, the hosted guests' care cap inputs and the owned-pawn short names.
+/// </summary>
+public sealed record PrisonerCensus
+{
+    public required EquatableArray<PrisonerFacts> Prisoners { get; init; }
+
+    /// <summary>The capture/rescue candidate census: every observed humanlike, not only prisoners.</summary>
+    public required EquatableArray<CustodyFacts> Custody { get; init; }
+
+    /// <summary>The colony side of each prisoner's use: the free colonists' best skills and the Ideology mode.</summary>
+    public required PrisonerColony Colony { get; init; }
+
+    /// <summary>The colony guests' care cap inputs.</summary>
+    public required EquatableArray<CarePatient> Guests { get; init; }
+
+    /// <summary>The owned-pawn short-name census.</summary>
+    public required EquatableArray<OwnedName> Names { get; init; }
 }
 
 /// <summary>One pawn's native skill row. Passion is "None", "Minor" or "Major".</summary>
@@ -61,27 +82,29 @@ public sealed record PrisonerColony
 
     public IReadOnlyDictionary<string, int> BestSkill { get; init; } = new Dictionary<string, int>();
 
-    public bool IdeologyActive { get; init; }
-
-    public bool ClassicIdeo { get; init; }
+    /// <summary>Whether Ideology is installed and, if so, its classic mode and the player faction's primary ideoligion.</summary>
+    public ColonyIdeology Ideology { get; init; } = new ColonyIdeology.NotInstalled();
 
     /// <summary>A Believers goal lacks believers (#3501): a recruitable prisoner of another ideoligion is converted before anything else, whatever the worth threshold says.</summary>
     public bool BelieversWanted { get; init; }
-
-    /// <summary>The player faction's primary ideoligion id; empty without Ideology.</summary>
-    public string Ideo { get; init; } = "";
 
     /// <summary>
     /// The frame's ideoligion fact: slavery and organ use read it through the shared precept rule. The
     /// routine reading fills it; unknown without Ideology.
     /// </summary>
-    public Fact<Ideoligion> Ideology { get; init; }
+    public Fact<Ideoligion> Ideoligion { get; init; }
 
     /// <summary>The prisoners the player's goals name (#3499): recruited whatever their worth.</summary>
     public IReadOnlyList<PawnId> NamedPrisoners { get; init; } = [];
 
     /// <summary>The player's preferences, stamped from the review facts: slavery and organ use read what they forbid.</summary>
     public PreferencesRecord Preferences { get; init; } = new();
+
+    /// <summary>Ideology is installed outside classic mode: its precepts bind the colony.</summary>
+    public bool PreceptsBind => Ideology is ColonyIdeology.Installed { Classic: false };
+
+    /// <summary>The player faction's primary ideoligion id while precepts bind; null otherwise or without one.</summary>
+    public string? PrimaryIdeo => Ideology is ColonyIdeology.Installed { Classic: false, PrimaryIdeoId: var id } ? id : null;
 
     /// <summary>
     /// Reports whether the colony's ideoligion lets it enslave without a mood cost or refusal: the precept
@@ -90,33 +113,44 @@ public sealed record PrisonerColony
     /// </summary>
     public bool SlaveryAllowed()
     {
-        if (!IdeologyActive || ClassicIdeo || Preferences.Forbids(ForbiddenMethod.Slavery))
+        if (!PreceptsBind || Preferences.Forbids(ForbiddenMethod.Slavery))
         {
             return false;
         }
-        var stance = IdeologyRuleRules.ActionStance(Ideology, new PreceptAction { HistoryEvent = "EnslavedPrisoner" }, new PreceptSubject()).Stance;
+        var stance = IdeologyRuleRules.ActionStance(Ideoligion, new PreceptAction { HistoryEvent = "EnslavedPrisoner" }, new PreceptSubject()).Stance;
         return stance is PreceptStance.Allowed or PreceptStance.Approved;
     }
 }
 
-/// <summary>One observed prisoner's population census row.</summary>
+/// <summary>
+/// The interaction a prisoner is under: a mode the colony sets (<see cref="Settable"/>), or one it never sets
+/// (<see cref="Other"/>: Execution, a DLC mode the intent does not expose), which the colony leaves alone.
+/// </summary>
+public abstract record PrisonerHeldInteraction
+{
+    private protected PrisonerHeldInteraction() { }
+
+    public sealed record Settable(PrisonerInteractionMode Mode) : PrisonerHeldInteraction;
+
+    public sealed record Other : PrisonerHeldInteraction;
+}
+
+/// <summary>One observed colony prisoner's population census row.</summary>
 public sealed partial record PrisonerFacts
 {
-    public PawnId Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Prisoner { get; init; }
+    public required bool Recruitable { get; init; }
 
-    public Fact<bool> Recruitable { get; init; }
-
-    public Fact<PrisonerInteractionMode> CurrentInteraction { get; init; }
+    public required PrisonerHeldInteraction CurrentInteraction { get; init; }
 
     /// <summary>Native's remaining recruit resistance.</summary>
-    public Fact<double> Resistance { get; init; }
+    public required double Resistance { get; init; }
 
     /// <summary>The TimeAsPrisoner record, in ticks.</summary>
-    public Fact<long> HeldTicks { get; init; }
+    public required long HeldTicks { get; init; }
 
     /// <summary>The prisoner's ideoligion id, empty for none.</summary>
     public string Ideo { get; init; } = "";
@@ -124,18 +158,18 @@ public sealed partial record PrisonerFacts
     /// <summary>Bars Enslave.</summary>
     public bool WildMan { get; init; }
 
-    public Fact<PrisonerProspect> Prospect { get; init; }
+    public required PrisonerProspect Prospect { get; init; }
 
-    // Organ harvest facts: the prisoner's operations and queued medical bills, its home faction's id (empty
-    // for none) and the goodwill change vanilla's harvest violation would make with it (<= 0). MissingParts:
-    // the prisoner's missing parts; removal must retain one leg.
+    // Organ harvest facts: the prisoner's operations and queued medical bills and the goodwill change vanilla's
+    // harvest violation would make with its home faction (<= 0). MissingParts: the prisoner's missing parts;
+    // removal must retain one leg.
     public Fact<EquatableArray<MissingPart>> MissingParts { get; init; }
 
     public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
 
     public Fact<int> QueuedSurgeries { get; init; }
 
-    public Fact<int> HarvestGoodwill { get; init; }
+    public required int HarvestGoodwill { get; init; }
 
     /// <summary>The prisoner's MedicalCareCategory name.</summary>
     public Fact<string> MedicalCare { get; init; }
@@ -154,42 +188,14 @@ public sealed partial record PrisonerFacts
 
     public string Kind { get; init; } = "";
 
-    /// <summary>The row's PrisonerWorth against the colony; Unknown without a prospect.</summary>
-    public Fact<double> Worth(PrisonerColony c)
-    {
-        if (!Prospect.TryGetValue(out var p))
-        {
-            return Unknown<double>();
-        }
-        Resistance.TryGetValue(out var resistance);
-        return Known(PopulationRules.PrisonerWorth(p, resistance, c));
-    }
-
-    internal bool WorthRecruiting(PrisonerProspect p, PrisonerColony c)
-    {
-        if (c.NamedPrisoners.Contains(Pawn))
-        {
-            return true;
-        }
-        Resistance.TryGetValue(out var resistance);
-        return PopulationRules.PrisonerWorth(p, resistance, c) >= PopulationRules.RecruitThreshold(c.Colonists);
-    }
+    internal bool WorthRecruiting(PrisonerColony c) =>
+        c.NamedPrisoners.Contains(Pawn) || PopulationRules.PrisonerWorth(Prospect, Resistance, c) >= PopulationRules.RecruitThreshold(c.Colonists);
 
     /// <summary>
     /// Reports whether a living prisoner is one the colony would not recruit: unrecruitable, or worth below
-    /// RecruitThreshold. It only gates organ harvest; Unknown when a needed fact is missing.
+    /// RecruitThreshold. It only gates organ harvest.
     /// </summary>
-    public Fact<bool> HarvestEligible(PrisonerColony c)
-    {
-        var dk = Dead.TryGetValue(out var dead);
-        var rk = Recruitable.TryGetValue(out var recruitable);
-        var pk = Prospect.TryGetValue(out var p);
-        if (!dk || !rk || !pk)
-        {
-            return Unknown<bool>();
-        }
-        return Known(!dead && (!recruitable || !WorthRecruiting(p!, c)));
-    }
+    public bool HarvestEligible(PrisonerColony c) => !Dead && (!Recruitable || !WorthRecruiting(c));
 }
 
 public static partial class PopulationRules
@@ -269,22 +275,20 @@ public static partial class PopulationRules
     /// <summary>
     /// The interaction one living prisoner should have, or null when the row is settled: PrisonerIntent's use
     /// when the prisoner does not already have it. A legless prisoner is not released: vanilla cannot release
-    /// a downed pawn. Unknown reports a fact the decision
-    /// needed but the census did not carry; an unknown fact is never evidence of a settled prisoner.
+    /// a downed pawn.
     /// </summary>
-    internal static (PrisonerInteractionMode? Want, bool Unknown) PrisonerUse(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
+    internal static PrisonerInteractionMode? PrisonerUse(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
     {
-        var (intent, unknown) = PrisonerIntent(row, colony, food, p);
-        PrisonerInteractionMode? current = row.CurrentInteraction.TryGetValue(out var c) ? c : null;
-        if (unknown || intent is null || intent == current)
+        var intent = PrisonerIntent(row, colony, food, p);
+        if (intent is null || (row.CurrentInteraction is PrisonerHeldInteraction.Settable { Mode: var current } && current == intent))
         {
-            return (null, unknown);
+            return null;
         }
         if (intent == PrisonerInteractionMode.Release && Legless(row))
         {
-            return (null, false);
+            return null;
         }
-        return (intent, false);
+        return intent;
     }
 
     /// <summary>Every leg of a human body (two) is missing.</summary>
@@ -293,6 +297,7 @@ public static partial class PopulationRules
 
     /// <summary>
     /// The use the colony has for one living prisoner, or null while it is simply held. The rules, in order:
+    /// a prisoner under a mode the colony never sets (<see cref="PrisonerHeldInteraction.Other"/>) is left alone;
     /// a recruitable prisoner whose resistance is broken and who is already being recruited keeps recruiting;
     /// worth recruiting (PrisonerWorth >= RecruitThreshold, or named by a player goal) and recruitable: Convert first when Ideology is
     /// active outside classic mode and the prisoner holds another ideoligion, so the recruit joins without a
@@ -301,100 +306,44 @@ public static partial class PopulationRules
     /// prisoner of another ideoligion is converted whatever its worth, since a convert is a believer to recruit;
     /// otherwise, able to labor, not a wild man and the ideoligion allows slavery without mood
     /// cost: Enslave; otherwise Release: once chosen it stays, else at once while the food runway is below
-    /// target, else after ReleaseAfterDays in custody.
+    /// target, else after ReleaseAfterDays in custody. A release that waits on an unread food runway raises
+    /// <see cref="RequiredFactException"/>.
     /// </summary>
-    internal static (PrisonerInteractionMode? Intent, bool Unknown) PrisonerIntent(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
+    internal static PrisonerInteractionMode? PrisonerIntent(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
     {
-        if (!row.Dead.TryGetValue(out var dead))
+        if (row.Dead || row.CurrentInteraction is not PrisonerHeldInteraction.Settable { Mode: var current })
         {
-            return (null, true);
+            return null;
         }
-        if (dead)
+        if (row.Recruitable && current == PrisonerInteractionMode.Recruit && row.Resistance <= 0)
         {
-            return (null, false);
+            return PrisonerInteractionMode.Recruit;
         }
-        var rk = row.Recruitable.TryGetValue(out var recruitable);
-        var ck = row.CurrentInteraction.TryGetValue(out var current);
-        var pk = row.Prospect.TryGetValue(out var prospect);
-        if (!rk || !ck || !pk)
+        var foreign = colony.PrimaryIdeo is { Length: > 0 } ours && row.Ideo.Length != 0 && row.Ideo != ours;
+        if (row.Recruitable && foreign && colony.BelieversWanted)
         {
-            return (null, true);
+            return PrisonerInteractionMode.Convert;
         }
-        if (recruitable && current == PrisonerInteractionMode.Recruit)
+        if (row.Recruitable && row.WorthRecruiting(colony))
         {
-            if (row.Resistance.TryGetValue(out var resistance) && resistance <= 0)
-            {
-                return (PrisonerInteractionMode.Recruit, false);
-            }
+            return foreign ? PrisonerInteractionMode.Convert : PrisonerInteractionMode.Recruit;
         }
-        var foreign = colony.IdeologyActive && !colony.ClassicIdeo && colony.Ideo.Length != 0 && row.Ideo.Length != 0 && row.Ideo != colony.Ideo;
-        if (recruitable && foreign && colony.BelieversWanted)
+        if (colony.SlaveryAllowed() && !row.WildMan && CanLabor(row.Prospect))
         {
-            return (PrisonerInteractionMode.Convert, false);
-        }
-        if (recruitable && row.WorthRecruiting(prospect!, colony))
-        {
-            return foreign ? (PrisonerInteractionMode.Convert, false) : (PrisonerInteractionMode.Recruit, false);
-        }
-        if (colony.SlaveryAllowed() && !row.WildMan && CanLabor(prospect!))
-        {
-            return (PrisonerInteractionMode.Enslave, false);
+            return PrisonerInteractionMode.Enslave;
         }
         if (current == PrisonerInteractionMode.Release)
         {
-            return (PrisonerInteractionMode.Release, false);
+            return PrisonerInteractionMode.Release;
         }
         if (!food.TryGetValue(out var days))
         {
-            return (null, true);
+            throw new RequiredFactException("food runway");
         }
-        if (days < p.FoodTargetDays)
+        if (days < p.FoodTargetDays || row.HeldTicks >= p.ReleaseAfterDays * GameTime.TicksPerDay)
         {
-            return (PrisonerInteractionMode.Release, false);
+            return PrisonerInteractionMode.Release;
         }
-        if (!row.HeldTicks.TryGetValue(out var held))
-        {
-            return (null, true);
-        }
-        if (held >= p.ReleaseAfterDays * GameTime.TicksPerDay)
-        {
-            return (PrisonerInteractionMode.Release, false);
-        }
-        return (null, false);
-    }
-
-    /// <summary>
-    /// Reports whether any observed, living prisoner still needs an interaction write. An unknown census, or
-    /// any prisoner whose facts are incomplete for the decision, leaves the whole need unknown rather than
-    /// silently treating it as recovered. The colony facts matter only once a prisoner is held.
-    /// </summary>
-    public static Fact<bool> PrisonerRecruitDeficit(Fact<EquatableArray<PrisonerFacts>> prisoners, Fact<PrisonerColony> colony, Fact<double> food, PrisonerPolicy p)
-    {
-        if (!prisoners.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        if (rows.Count == 0)
-        {
-            return Known(false);
-        }
-        if (!colony.TryGetValue(out var c))
-        {
-            return Unknown<bool>();
-        }
-        var deficit = false;
-        foreach (var row in rows)
-        {
-            var (want, unknown) = PrisonerUse(row, c, food, p);
-            if (unknown)
-            {
-                return Unknown<bool>();
-            }
-            if (want is not null)
-            {
-                deficit = true;
-            }
-        }
-        return Known(deficit);
+        return null;
     }
 }

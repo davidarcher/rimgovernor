@@ -10,9 +10,6 @@ namespace RimGovernor.Brain.Policy;
 // keeps it and every newer one is renamed; native draws the new name from the pawn's own name bank, never a
 // numbered one.
 
-/// <summary>One owned named pawn: its short name and thingIDNumber, which orders pawns by creation.</summary>
-public sealed record OwnedName(PawnId Pawn, string Short, int ThingId);
-
 public static partial class PawnRules
 {
     /// <summary>The renames owed: every pawn whose short name an older owned pawn already holds, compared case-insensitively.</summary>
@@ -23,7 +20,7 @@ public static partial class PawnRules
         var result = new List<PawnSettings>();
         foreach (var row in rows)
         {
-            var key = row.Short.Trim().ToLowerInvariant();
+            var key = row.ShortName.Trim().ToLowerInvariant();
             if (key.Length == 0)
             {
                 continue;
@@ -34,7 +31,7 @@ public static partial class PawnRules
             }
             try
             {
-                result.Add(PawnSettings.NewNicknameSetting(row.Pawn, row.Short));
+                result.Add(PawnSettings.NewNicknameSetting(row.PawnId, row.ShortName));
             }
             catch (DomainException)
             {
@@ -45,12 +42,12 @@ public static partial class PawnRules
     }
 
     /// <summary>The review's NamesOwed fact: a rename is owed. An unknown census owes nothing.</summary>
-    public static Fact<bool> NamesOwed(Fact<EquatableArray<OwnedName>> names)
+    public static Fact<bool> NamesOwed(Fact<PrisonerCensus> population)
     {
-        if (!names.TryGetValue(out var rows))
+        if (!population.TryGetValue(out var census))
         {
             return Unknown<bool>();
         }
-        return Known(NicknameChanges(rows).Count > 0);
+        return Known(NicknameChanges(census.Names).Count > 0);
     }
 }

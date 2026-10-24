@@ -283,30 +283,12 @@ public static class RoundsReads
             Facts = p.Facts with
             {
                 Royalty = royalty,
-                Prisoners = default,
-                Custody = default,
-                PrisonerColony = default,
-                OwnedNames = default,
-                Guests = default,
+                Population = default,
             },
         };
         if (frame.Population is { } population)
         {
-            p = p with
-            {
-                Facts = p.Facts with
-                {
-                    Prisoners = population.Prisoners,
-                    Custody = population.Custody,
-                    PrisonerColony = population.Colony,
-                    OwnedNames = population.Names,
-                    Guests = population.Guests,
-                },
-            };
-            if (p.Facts.PrisonerColony.TryGetValue(out var prisonerColony))
-            {
-                p = p with { Facts = p.Facts with { PrisonerColony = Known(prisonerColony with { Ideology = p.Facts.Ideology }) } };
-            }
+            p = p with { Facts = p.Facts with { Population = Known(population with { Colony = population.Colony with { Ideoligion = p.Facts.Ideology } }) } };
         }
         // The frame's rooms census is the one room table: room quality reads it on every reading, the room census
         // sections only when asked.

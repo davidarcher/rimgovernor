@@ -503,31 +503,23 @@ public static partial class GoalRules
         var owner = PrisonersFamily.Recruit;
         var one = Fact.Known(1.0);
         var pawn = new PawnId(goal.Target);
-        if (!f.Rounds.Prisoners.TryGetValue(out var prisoners))
+        if (!f.Rounds.Population.TryGetValue(out var census))
         {
-            throw new RequiredFactException("prisoners");
+            throw new RequiredFactException("population census");
         }
-        var row = prisoners.FirstOrDefault(p => p.Pawn == pawn);
+        var row = census.Prisoners.FirstOrDefault(p => p.Pawn == pawn);
         if (row is null)
         {
-            if (!f.Rounds.Custody.TryGetValue(out var custody))
-            {
-                throw new RequiredFactException("custody");
-            }
-            var colonist = custody.Any(c => c.Pawn == pawn && c.Admitted.TryGetValue(out var admitted) && admitted && c.Dead.TryGetValue(out var dead) && !dead);
+            var colonist = census.Custody.Any(c => c.Pawn == pawn && c.Admitted && !c.Dead);
             return colonist
                 ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0))
                 : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAPrisoner, default, one);
         }
-        if (!row.Dead.TryGetValue(out var gone) || !row.Recruitable.TryGetValue(out var recruitable))
-        {
-            throw new RequiredFactException("prisoner " + goal.Target);
-        }
-        if (gone)
+        if (row.Dead)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAPrisoner, default, one);
         }
-        return recruitable ? Pursued(goal, f, owner, one) : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not_recruitable", default, one);
+        return row.Recruitable ? Pursued(goal, f, owner, one) : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not_recruitable", default, one);
     }
 
     /// <summary>
@@ -742,7 +734,7 @@ public static partial class GoalRules
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
         f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build, GoalValues = d.Values, GoalTraining = d.Training, GoalSurgeries = d.Surgeries }, d.Worn);
-        return f.PrisonerColony.TryGetValue(out var colony) ? f with { PrisonerColony = Fact.Known(colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers }) } : f;
+        return f.Population.TryGetValue(out var census) ? f with { Population = Fact.Known(census with { Colony = census.Colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers } }) } : f;
     }
 
     /// <summary>

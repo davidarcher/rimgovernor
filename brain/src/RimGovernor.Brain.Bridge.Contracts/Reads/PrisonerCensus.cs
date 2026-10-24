@@ -1,55 +1,21 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
-
-/// <summary>
-/// One rounds cycle's whole prisoner census, read once per cycle so the prisoners
-/// family can detect prisoners/recruit's deficit and select a candidate the same way the
-/// always-present generic colony census lets the husbandry planner detect and select from animal state. Unlike that
-/// generic census, prisoner facts live only on the dedicated population read. The read and its decoder
-/// (<c>ReadRoundsPopulation</c>, <c>decodePopulation</c>, <c>prisonerProspect</c>) are wire plumbing and not
-/// ported.
-/// </summary>
-public sealed record PrisonerCensus
-{
-    public ObservationContext? Context { get; init; }
-
-    public Fact<EquatableArray<PrisonerFacts>> Prisoners { get; init; }
-
-    /// <summary>The same read's capture/rescue candidate census: every observed humanlike, not only prisoners.</summary>
-    public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
-
-    /// <summary>The colony side of each prisoner's use: the free colonists' best skills and the snapshot's Ideology facts.</summary>
-    public Fact<PrisonerColony> Colony { get; init; }
-
-    /// <summary>The colony guests' care cap inputs.</summary>
-    public Fact<EquatableArray<CarePatient>> Guests { get; init; }
-
-    /// <summary>The owned-pawn short-name census.</summary>
-    public Fact<EquatableArray<OwnedName>> Names { get; init; }
-}
 
 public static class PrisonerCensusRules
 {
     /// <summary>
-    /// Maps the open native defName a population person's interaction
-    /// carries to the domain mode; any other current interaction (Execution, DLC modes the intent does not expose)
-    /// stays unknown rather than misread.
+    /// The interaction a population person's open native defName names: a mode the intent exposes, or any other
+    /// current interaction (Execution, DLC modes the intent does not expose).
     /// </summary>
-    public static bool TryPrisonerInteractionMode(string defName, out PrisonerInteractionMode mode)
+    public static PrisonerHeldInteraction PrisonerInteraction(string defName) => defName switch
     {
-        PrisonerInteractionMode? found = defName switch
-        {
-            "AttemptRecruit" => PrisonerInteractionMode.Recruit,
-            "MaintainOnly" => PrisonerInteractionMode.Maintain,
-            "ReduceResistance" => PrisonerInteractionMode.ReduceResistance,
-            "Release" => PrisonerInteractionMode.Release,
-            "Enslave" => PrisonerInteractionMode.Enslave,
-            "Convert" => PrisonerInteractionMode.Convert,
-            _ => null,
-        };
-        mode = found.GetValueOrDefault();
-        return found.HasValue;
-    }
+        "AttemptRecruit" => new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Recruit),
+        "MaintainOnly" => new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
+        "ReduceResistance" => new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.ReduceResistance),
+        "Release" => new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Release),
+        "Enslave" => new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Enslave),
+        "Convert" => new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Convert),
+        _ => new PrisonerHeldInteraction.Other(),
+    };
 }

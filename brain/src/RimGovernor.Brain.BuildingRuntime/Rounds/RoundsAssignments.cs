@@ -113,9 +113,9 @@ public sealed partial class RoundsWorkPlanner
         var settings = new List<PawnSettings>(HostilityRules.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
         var reserve = MedicalRules.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
         settings.AddRange(MedicineCarryRules.MedicineCarryChanges(MedicineCarryRules.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
-        if (read.Projection.Facts.OwnedNames.TryGetValue(out var ownedNames))
+        if (read.Projection.Facts.Population.TryGetValue(out var census))
         {
-            settings.AddRange(PawnRules.NicknameChanges(ownedNames));
+            settings.AddRange(PawnRules.NicknameChanges(census.Names));
         }
         var care = MedicalRules.MedicalCareChanges(read.Projection.Facts, _reviewer.Policy.MedicalReserve).ToList();
         if (care.Count > 8)
@@ -125,7 +125,7 @@ public sealed partial class RoundsWorkPlanner
         settings.AddRange(care);
         settings.AddRange(RoundsMech.RoundsMechSettings(read));
         var reading = new List<ReadingPolicy>();
-        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Books, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.GoalTraining);
+        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Books, read.Projection.Facts.Population, pawns, read.Projection.Facts.GoalTraining);
         if (readingChanges.Count > 0)
         {
             foreach (var c in readingChanges.Take(8))
@@ -141,7 +141,7 @@ public sealed partial class RoundsWorkPlanner
             }
         }
         var food = new List<FoodPolicy>();
-        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Foods, read.Projection.FoodEaters, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve, read.Projection.Facts.Preferences);
+        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Foods, read.Projection.FoodEaters, read.Projection.Facts.Population, pawns, read.Projection.Facts.FoodReserve, read.Projection.Facts.Preferences);
         if (dietChanges.Count > 0)
         {
             foreach (var c in dietChanges.Take(8))
@@ -362,26 +362,26 @@ partial class RoundsWorkPlanner
         pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
 
     /// <summary>The reading-policy writes and assignments the review's policies, books and skill goals call for.</summary>
-    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
+    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, Fact<PrisonerCensus> population, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
     {
-        if (!names.TryGetValue(out var owned) || books.Count == 0)
+        if (!population.TryGetValue(out var census) || books.Count == 0)
         {
             return [];
         }
         var entries = policies.Reading.Select(e => new ReadingPolicyEntry { Id = e.Id, Label = e.Label, Allowed = e.AllowedDefs }).ToList();
-        return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, books, training);
+        return ReadingPolicyRules.ReadingPolicyChanges(pawns, census.Names, entries, books, training);
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, Fact<PrisonerCensus> population, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
     {
-        if (!names.TryGetValue(out var owned) || foods.Count == 0)
+        if (!population.TryGetValue(out var census) || foods.Count == 0)
         {
             return [];
         }
         var entries = policies.Food.Select(e => new FoodPolicyEntry { Label = e.Label, Pawns = e.Pawns, Allowed = e.AllowedDefs }).ToList();
         reserve.TryGetValue(out var stock);
-        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, eaters, owned, entries, foods, stock?.IsShort ?? false, preferences);
+        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, eaters, census.Names, entries, foods, stock?.IsShort ?? false, preferences);
     }
 
     /// <summary>Every native drug policy as the drug planners read it: its label, holders and the entries that allow anything.</summary>

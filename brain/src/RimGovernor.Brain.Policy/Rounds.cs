@@ -319,28 +319,15 @@ public sealed record RoundsFacts
     public MedicalReserveObservation MedicalReserve { get; init; } = new();
 
     /// <summary>
-    /// Carries Population-*'s recruit/maintain census: unlike AnimalUpkeep, this has no generic per-tick
-    /// colony read to piggyback on (recruitable/current-interaction facts live only on the dedicated
-    /// rimgovernor/observations_read_population census), so it is populated by a dedicated per-cycle
-    /// RoundsSource read instead of ObserveColony's always-present projection.
+    /// The population census: unlike AnimalUpkeep, this has no generic per-tick colony read to piggyback on
+    /// (recruitable/current-interaction facts live only on the dedicated rimgovernor/observations_read_population
+    /// census), so it is the frame's population section: the prisoners, the capture/rescue candidates (every observed
+    /// humanlike), the colony side of a prisoner's use, the guests' care cap inputs and the owned-pawn names.
     /// </summary>
-    public Fact<EquatableArray<PrisonerFacts>> Prisoners { get; init; }
-
-    /// <summary>The same read's colony side of each prisoner's use: the free colonists' best skills and the Ideology facts.</summary>
-    public Fact<PrisonerColony> PrisonerColony { get; init; }
-
-    /// <summary>
-    /// Carries Population-*'s capture/rescue candidate census: every observed humanlike from the same
-    /// dedicated population read Prisoners uses, broadened past prisoners alone so
-    /// the prisoners family can detect and select a downed hostile or unadmitted guest to dispatch.
-    /// </summary>
-    public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
+    public Fact<PrisonerCensus> Population { get; init; }
 
     /// <summary>The containment cell's inputs and the entity rows the capture rule decides, set by the routine reading.</summary>
     public ContainmentPlanning Containment { get; init; } = new();
-
-    /// <summary>The same read's owned-pawn short-name census.</summary>
-    public Fact<EquatableArray<OwnedName>> OwnedNames { get; init; }
 
     /// <summary>
     /// Carries the joiners family's quest census: every visible quest row
@@ -647,9 +634,6 @@ public sealed record RoundsFacts
 
     /// <summary>A pawn whose medical care differs from its cap.</summary>
     public Fact<bool> MedicalCareOwed { get; init; }
-
-    /// <summary>The colony's guests' cap inputs.</summary>
-    public Fact<EquatableArray<CarePatient>> Guests { get; init; }
 
     /// <summary>A colonist whose medicine carry count differs from the planned one; the admin/work-assignments Need writes it.</summary>
     public Fact<bool> MedicineCarryOwed { get; init; }
@@ -1007,4 +991,3 @@ public sealed record ButcherBench
 
     public Fact<string> Room { get; init; }
 }
-

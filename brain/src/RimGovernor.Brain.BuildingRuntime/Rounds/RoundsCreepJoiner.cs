@@ -32,12 +32,12 @@ internal static class RoundsCreepJoiner
             }
             work = work with { Drops = drops, Inspections = inspections, Isolation = isolation };
         }
-        if (facts.Facts.Prisoners.TryGetValue(out var prisoners))
+        if (facts.Facts.Population.TryGetValue(out var census))
         {
             DisarmWork disarm;
             try
             {
-                disarm = (catalog ?? throw new ControlException("creepJoiner review: no definition catalog")).CreepJoinerDisarm().Orders(prisoners);
+                disarm = (catalog ?? throw new ControlException("creepJoiner review: no definition catalog")).CreepJoinerDisarm().Orders(census.Prisoners);
             }
             catch (DomainException)
             {

@@ -588,7 +588,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { CleanupPawns = Known(stray.Count > 0) });
         reading = reading.WithFacts(rf => rf with { HostilityOwed = HostilityRules.HostilityOwed(RoundsWorkPlanner.HostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats) });
         reading = reading.WithFacts(rf => rf with { MedicalCareOwed = MedicalRules.MedicalCareOwed(reading.Projection.Facts, Policy.MedicalReserve) });
-        reading = reading.WithFacts(rf => rf with { NamesOwed = PawnRules.NamesOwed(reading.Projection.Facts.OwnedNames) });
+        reading = reading.WithFacts(rf => rf with { NamesOwed = PawnRules.NamesOwed(reading.Projection.Facts.Population) });
         reading.Projection.ApplyFieldBudget(Seasonal(reading.Projection.Facts).FoodTargetDays);
         // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.

@@ -16,6 +16,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.BestowingCeremony" Alias="BestowingCeremony" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.OwnedName" Alias="OwnedName" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />

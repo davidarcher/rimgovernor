@@ -13,14 +13,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 internal static class PopulationDecoder
 {
-    internal static PrisonerCensus Decode(PbObservations.PopulationSnapshot observed, Pawns pawns, BridgeCatalog? catalog)
+    internal static P.PrisonerCensus Decode(PbObservations.PopulationSnapshot observed, Pawns pawns, BridgeCatalog? catalog)
     {
-        var names = new List<P.OwnedName>(observed.OwnedNames.Count);
-        foreach (var n in observed.OwnedNames)
-        {
-            names.Add(new P.OwnedName(n.PawnId, n.ShortName, n.ThingId));
-        }
-
         var bestSkill = new Dictionary<string, int>(StringComparer.Ordinal);
         var colonists = 0;
         var rows = new List<P.PrisonerFacts>(observed.Persons.Count);
@@ -36,17 +30,17 @@ internal static class PopulationDecoder
             custody.Add(new P.CustodyFacts
             {
                 Pawn = person.Pawn,
-                WillJoinIfRescued = Known(person.WillJoinIfRescued),
-                Dead = Known(pawn.Dead),
-                Downed = Known(pawn.Downed),
-                Hostile = Known(pawn.Hostile),
-                Prisoner = Known(pawn.Prisoner),
-                Recruitable = Known(person.Recruitable),
-                Admitted = Known(person.Admitted),
-                Guest = Known(person.Guest),
+                WillJoinIfRescued = person.WillJoinIfRescued,
+                Dead = pawn.Dead,
+                Downed = pawn.Downed,
+                Hostile = pawn.Hostile,
+                Prisoner = pawn.Prisoner,
+                Recruitable = person.Recruitable,
+                Admitted = person.Admitted,
+                Guest = person.Guest,
                 Prospect = prospect,
-                Luciferium = Known(person.LuciferiumAddicted),
-                WearingApparel = Known(person.WearingApparel),
+                Luciferium = person.LuciferiumAddicted,
+                WearingApparel = person.WearingApparel,
             });
 
             if (person.Custody is PbObservations.PersonCustody.Guest hosted && !pawn.Dead)
@@ -72,39 +66,29 @@ internal static class PopulationDecoder
             }
         }
 
-        var installed = observed.Ideology as PbObservations.ColonyIdeology.Installed;
-        var colony = new P.PrisonerColony
+        return new P.PrisonerCensus
         {
-            Colonists = colonists,
-            BestSkill = bestSkill,
-            IdeologyActive = installed is not null,
-            ClassicIdeo = installed is { Classic: true },
-            Ideo = installed?.PrimaryIdeoId ?? "",
-        };
-        return new PrisonerCensus
-        {
-            Context = observed.Context,
-            Prisoners = Known(EquatableArray.From(rows)),
-            Custody = Known(EquatableArray.From(custody)),
-            Colony = Known(colony),
-            Guests = Known(EquatableArray.From(guests)),
-            Names = Known(EquatableArray.From(names)),
+            Prisoners = EquatableArray.From(rows),
+            Custody = EquatableArray.From(custody),
+            Colony = new P.PrisonerColony { Colonists = colonists, BestSkill = bestSkill, Ideology = observed.Ideology },
+            Guests = EquatableArray.From(guests),
+            Names = observed.OwnedNames,
         };
     }
 
     /// <summary>One colony prisoner's census row.</summary>
-    private static P.PrisonerFacts PrisonerRow(PbObservations.PopulationPerson person, PbObservations.PersonCustody.Prisoner held, PbObservations.PawnState pawn, Fact<P.PrisonerProspect> prospect, BridgeCatalog? catalog)
+    private static P.PrisonerFacts PrisonerRow(PbObservations.PopulationPerson person, PbObservations.PersonCustody.Prisoner held, PbObservations.PawnState pawn, P.PrisonerProspect prospect, BridgeCatalog? catalog)
     {
         var (parts, operations) = SurgeryFactsRules.SurgeryFacts(held.Surgery, catalog is null ? null : new DefinitionPartCatalog(catalog));
         var (conditions, life) = CareConditionsRules.CareConditions(held.Conditions);
         var f = new P.PrisonerFacts
         {
             Pawn = person.Pawn,
-            Prisoner = Known(true),
-            Dead = Known(pawn.Dead),
-            Recruitable = Known(person.Recruitable),
-            Resistance = Known(held.Resistance),
-            HeldTicks = Known(held.HeldTicks),
+            Dead = pawn.Dead,
+            Recruitable = person.Recruitable,
+            CurrentInteraction = PrisonerCensusRules.PrisonerInteraction(held.Interaction),
+            Resistance = held.Resistance,
+            HeldTicks = held.HeldTicks,
             Ideo = person.IdeoId ?? "",
             WildMan = person.WildMan,
             Prospect = prospect,
@@ -114,7 +98,7 @@ internal static class PopulationDecoder
             QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(held.Surgery) ?? [],
             Kind = pawn.KindDefName,
             CreepJoiner = Unknown<bool>(),
-            HarvestGoodwill = Known(held.HarvestGoodwillChange),
+            HarvestGoodwill = held.HarvestGoodwillChange,
             MedicalCare = Known(WireEnums.MedicalCareName(held.MedicalCare)),
             Conditions = conditions,
             LifeThreatening = life,
@@ -124,10 +108,6 @@ internal static class PopulationDecoder
         {
             f = f with { CreepJoiner = Known(joiner is not null) };
         }
-        if (PrisonerCensusRules.TryPrisonerInteractionMode(held.Interaction, out var mode))
-        {
-            f = f with { CurrentInteraction = Known(mode) };
-        }
         return f;
     }
 
@@ -135,7 +115,7 @@ internal static class PopulationDecoder
     /// A person's biography and health. Each trait's worth is derived from the catalog's rows; without a catalog it
     /// is zero.
     /// </summary>
-    private static Fact<P.PrisonerProspect> Prospect(PbObservations.PopulationPerson person, BridgeCatalog? catalog)
+    private static P.PrisonerProspect Prospect(PbObservations.PopulationPerson person, BridgeCatalog? catalog)
     {
         var bio = person.Biography;
         var skills = new List<P.PrisonerSkill>(bio.Skills.Count);
@@ -153,13 +133,13 @@ internal static class PopulationDecoder
             }
             traits.Add(trait);
         }
-        return Known(new P.PrisonerProspect
+        return new P.PrisonerProspect
         {
             Age = bio.BiologicalAgeYears,
             Health = person.HealthSummary,
             Incapable = [.. bio.IncapableWorkTypes],
             Skills = skills,
             Traits = traits,
-        });
+        };
     }
 }

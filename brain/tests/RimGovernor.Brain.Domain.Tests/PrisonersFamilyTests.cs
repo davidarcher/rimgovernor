@@ -20,49 +20,32 @@ public sealed class PrisonersFamilyTests
     private static readonly PrisonerPolicy Policy = new() { ReleaseAfterDays = 10, FoodTargetDays = 5 };
 
     /// <summary>A living, recruitable prisoner worth recruiting to a one-colonist colony, currently on <paramref name="current"/>.</summary>
-    private static PrisonerFacts Prisoner(string pawn, PrisonerInteractionMode current = PrisonerInteractionMode.Maintain, string ideo = "") => new()
+    private static PrisonerFacts Prisoner(string pawn, PrisonerInteractionMode current = PrisonerInteractionMode.Maintain, string ideo = "") => PopulationFixtures.Held(pawn) with
     {
-        Pawn = new(pawn),
-        Dead = Known(false),
-        Prisoner = Known(true),
-        Recruitable = Known(true),
-        CurrentInteraction = Known(current),
-        Resistance = Known(0.0),
-        HeldTicks = Known(0L),
+        CurrentInteraction = new PrisonerHeldInteraction.Settable(current),
         Ideo = ideo,
-        Prospect = Known(new PrisonerProspect
+        Prospect = new PrisonerProspect
         {
             Age = 30,
             Health = 1,
             Skills = [new PrisonerSkill { Name = "Shooting", Level = 12, Passion = "Major" }],
-        }),
+        },
     };
 
     private static readonly PrisonerColony Colony1 = new() { Colonists = 1 };
 
     /// <summary>A colony whose ideoligion differs from a prisoner's: a recruit there is converted first.</summary>
-    private static readonly PrisonerColony Faithful = new() { Colonists = 1, IdeologyActive = true, Ideo = "ours" };
+    private static readonly PrisonerColony Faithful = new() { Colonists = 1, Ideology = new ColonyIdeology.Installed(false, "ours") };
 
     private static PrisonersFacts Census(PrisonerColony colony, params PrisonerFacts[] rows) => new()
     {
-        Prisoners = Known<EquatableArray<PrisonerFacts>>([.. rows]),
-        Colony = Known(colony),
+        Prisoners = [.. rows],
+        Colony = colony,
         FoodDays = Known(20.0),
-        Custody = Known<EquatableArray<CustodyFacts>>([]),
+        Custody = [],
     };
 
-    private static CustodyFacts Downed(string pawn, bool guest) => new()
-    {
-        Pawn = new(pawn),
-        Dead = Known(false),
-        Downed = Known(true),
-        Guest = Known(guest),
-        Admitted = Known(false),
-        Prisoner = Known(false),
-        Hostile = Known(!guest),
-        Luciferium = Known(false),
-        WearingApparel = Known(false),
-    };
+    private static CustodyFacts Downed(string pawn, bool guest) => PopulationFixtures.Person(pawn) with { Downed = true, Guest = guest, Hostile = !guest };
 
     // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
     private static Need Derive(PrisonersFacts facts, NeedId id) =>
@@ -78,25 +61,31 @@ public sealed class PrisonersFamilyTests
         var unmet = Derive(Census(Colony1, Prisoner("a"), Prisoner("b"), Prisoner("c", PrisonerInteractionMode.Recruit)), PrisonersFamily.Recruit);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
-        // An unknown census, or one prisoner whose decision facts are missing, never reads as settled.
-        Assert.Equal("prisoner recruit deficit", Assert.Throws<RequiredFactException>(() => Derive(new PrisonersFacts(), PrisonersFamily.Recruit)).Fact);
-        Assert.Equal("prisoner recruit deficit", Assert.Throws<RequiredFactException>(() => Derive(Census(Colony1, Prisoner("a"), Prisoner("b") with { Dead = default }), PrisonersFamily.Recruit)).Fact);
+        // A review without the population census raises; a prisoner under a mode the colony never sets is left alone.
+        Assert.Equal("population census", Assert.Throws<RequiredFactException>(() => PrisonersFacts.From(new RoundsFacts())).Fact);
+        var executing = Prisoner("b") with { CurrentInteraction = new PrisonerHeldInteraction.Other() };
+        Assert.Null(PopulationRules.PrisonerIntent(executing, Colony1, Known(20.0), Policy));
+        Assert.Equal(Satisfaction.Met, Derive(Census(Colony1, executing), PrisonersFamily.Recruit).Satisfaction);
+
+        // A release that waits on an unread food runway raises rather than reads as settled.
+        var unworthy = Prisoner("c") with { Recruitable = false };
+        Assert.Equal("food runway", Assert.Throws<RequiredFactException>(() => Derive(Census(Colony1, unworthy) with { FoodDays = default }, PrisonersFamily.Recruit)).Fact);
     }
 
     [Fact]
     public void ALowWorthPrisonerNamedByAGoalIsRecruitedAndOtherwiseKeepsTodaysIntent()
     {
-        var drifter = Prisoner("a") with { Prospect = Known(new PrisonerProspect { Age = 30, Health = 1 }) };
+        var drifter = Prisoner("a") with { Prospect = new PrisonerProspect { Age = 30, Health = 1 } };
         var named = Colony1 with { NamedPrisoners = [new PawnId("a")] };
-        Assert.Equal(((PrisonerInteractionMode?)PrisonerInteractionMode.Recruit, false), PopulationRules.PrisonerIntent(drifter, named, Known(20.0), Policy));
-        Assert.Equal(((PrisonerInteractionMode?)null, false), PopulationRules.PrisonerIntent(drifter, Colony1, Known(20.0), Policy));
+        Assert.Equal(PrisonerInteractionMode.Recruit, PopulationRules.PrisonerIntent(drifter, named, Known(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(drifter, Colony1, Known(20.0), Policy));
         // Another prisoner the goal does not name is judged on worth as before.
-        Assert.Equal(((PrisonerInteractionMode?)null, false), PopulationRules.PrisonerIntent(drifter with { Pawn = new("b") }, named, Known(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(drifter with { Pawn = new("b") }, named, Known(20.0), Policy));
         // The custody precondition stays: a dead prisoner is not recruited.
-        Assert.Equal(((PrisonerInteractionMode?)null, false), PopulationRules.PrisonerIntent(drifter with { Dead = Known(true) }, named, Known(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(drifter with { Dead = true }, named, Known(20.0), Policy));
         // A named prisoner is not an organ-harvest candidate.
-        Assert.False(drifter.HarvestEligible(named).Value);
-        Assert.True(drifter.HarvestEligible(Colony1).Value);
+        Assert.False(drifter.HarvestEligible(named));
+        Assert.True(drifter.HarvestEligible(Colony1));
     }
 
     [Fact]
@@ -105,10 +94,11 @@ public sealed class PrisonersFamilyTests
         var met = Derive(Census(Colony1), PrisonersFamily.Custody);
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (met.Satisfaction, met.Tier));
 
-        var unmet = Derive(Census(Colony1) with { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true), Downed("h", guest: false)]) }, PrisonersFamily.Custody);
+        var unmet = Derive(Census(Colony1) with { Custody = [Downed("g", guest: true), Downed("h", guest: false)] }, PrisonersFamily.Custody);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
-        Assert.Equal("custody census", Assert.Throws<RequiredFactException>(() => Derive(Census(Colony1) with { Custody = default }, PrisonersFamily.Custody)).Fact);
+        // A downed person that is neither a guest to rescue nor a hostile to capture owes no custody.
+        Assert.Equal(Satisfaction.Met, Derive(Census(Colony1) with { Custody = [PopulationFixtures.Person("n") with { Downed = true }] }, PrisonersFamily.Custody).Satisfaction);
     }
 
     [Fact]
@@ -116,9 +106,9 @@ public sealed class PrisonersFamilyTests
     {
         var family = new PrisonersFamily(Policy);
         var ready = new[] { new Need { Id = PrisonersFamily.Custody, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet } };
-        var rescue = Assert.Single(family.Propose(ready, Census(Colony1) with { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true)]) }));
+        var rescue = Assert.Single(family.Propose(ready, Census(Colony1) with { Custody = [Downed("g", guest: true)] }));
         Assert.Equal(PrisonersFamily.RescueHeld, rescue.Hold!.Subject);
-        var capture = Assert.Single(family.Propose(ready, Census(Colony1) with { Custody = Known<EquatableArray<CustodyFacts>>([Downed("h", guest: false)]) }));
+        var capture = Assert.Single(family.Propose(ready, Census(Colony1) with { Custody = [Downed("h", guest: false)] }));
         Assert.Equal(PrisonersFamily.CaptureHeld, capture.Hold!.Subject);
     }
 
@@ -214,13 +204,13 @@ public sealed class PrisonersFamilyTests
     }
 
     [Fact]
-    public void AnUnreadCensusRaisesAndHeldCustodyFilesItsSubject()
+    public void AnUnreadFoodRunwayRaisesAndHeldCustodyFilesItsSubject()
     {
         using var colony = Open();
-        colony.Facts = new PrisonersFacts { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true)]) };
-        Assert.Equal("prisoner recruit deficit", Assert.Throws<RequiredFactException>(() => colony.Run()).Fact);
+        colony.Facts = Census(Colony1, Prisoner("a") with { Recruitable = false }) with { FoodDays = default };
+        Assert.Equal("food runway", Assert.Throws<RequiredFactException>(() => colony.Run()).Fact);
 
-        colony.Facts = Census(Colony1) with { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true)]) };
+        colony.Facts = Census(Colony1) with { Custody = [Downed("g", guest: true)] };
         var run = colony.Run();
         Assert.Empty(run.Methods);
         colony.File(run);
