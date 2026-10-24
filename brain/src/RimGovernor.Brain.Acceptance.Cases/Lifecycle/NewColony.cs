@@ -203,8 +203,7 @@ internal static class LifecycleNewColony
         }
 
         var worldReply = await s.CallAsync(label + "-world", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
-        var tile = TypedReads.Observed(label + "-world", NativeOps.ReadWorld, worldReply, worldReply.Outcome?.Observed).Tile
-            ?? throw new AcceptanceException($"{label}-world: no settlement tile");
+        var tile = worldReply.Tile;
         var colonists = (await NewColonyStart.ColonistsAsync(s, label + "-pawns", identity, cancellationToken).ConfigureAwait(false))
             .Select(p => string.Create(
                 CultureInfo.InvariantCulture,

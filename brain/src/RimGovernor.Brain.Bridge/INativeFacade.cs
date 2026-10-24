@@ -157,7 +157,7 @@ public interface INativeFacade
 
     Task<Obs.WallUpgradeSnapshot> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.WorldReply> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken);
+    Task<Obs.WorldSnapshot> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken);
 
     Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken);
 

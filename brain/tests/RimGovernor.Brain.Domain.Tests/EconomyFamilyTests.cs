@@ -316,4 +316,25 @@ public sealed class EconomyFamilyTests
         Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal)));
         Assert.Empty(EconomyRules.ResearchCensusOf(NoResearch, catalog).Current);
     }
+
+    /// <summary>A world read of the home tile with no settlement in range.</summary>
+    private static Obs.WorldSnapshot NoWorld => new()
+    {
+        Tile = new() { Tile = 7, Hilliness = "Flat" },
+        Settlements = [],
+    };
+
+    [Fact]
+    public void TheWorldReadRoundTripsOnTheWire()
+    {
+        var read = NoWorld with
+        {
+            Settlements = [new() { Id = "Settlement_1", Tile = 9, Relation = Obs.SettlementRelation.Neutral, CanTrade = true, TraderKind = "Base_Outlander_Standard" },
+                new() { Id = "Settlement_2", Tile = 7, Relation = Obs.SettlementRelation.Player, CanTrade = false, TraderKind = "" }],
+        };
+        var json = RimGovernor.Contracts.Wire.WireJson.Serialize(read);
+        Assert.Contains("\"relation\":\"neutral\"", json, StringComparison.Ordinal);
+        Assert.Equal(read, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.WorldSnapshot>(json));
+        Assert.Equal(NoWorld, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.WorldSnapshot>(RimGovernor.Contracts.Wire.WireJson.Serialize(NoWorld)));
+    }
 }

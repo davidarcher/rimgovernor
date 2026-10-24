@@ -3546,98 +3546,60 @@ public sealed record PopulationReply
     public PopulationSnapshot? Observed { get; init; }
 }
 
+/// <summary>A settlement's faction as the player sees it.</summary>
+[JsonConverter(typeof(WireEnumConverter<SettlementRelation>))]
+public enum SettlementRelation
+{
+    /// <summary>The player's own settlement.</summary>
+    [WireName("player")]
+    Player,
+
+    [WireName("hostile")]
+    Hostile,
+
+    [WireName("neutral")]
+    Neutral,
+}
+
+/// <summary>A world settlement: its tile, its faction's relation and whether it trades now (TraderKind is empty for a settlement with no trader kind).</summary>
 public sealed record Settlement
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Label { get; init; }
+    public required int Tile { get; init; }
 
-    public Common.Ref? Faction { get; init; }
+    public required SettlementRelation Relation { get; init; }
 
-    public string? FactionDefName { get; init; }
+    public required bool CanTrade { get; init; }
 
-    public string? Relation { get; init; }
-
-    public int? Goodwill { get; init; }
-
-    public int? Tile { get; init; }
-
-    public bool? Player { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
-
-    public SnapshotRef? FactionSnapshot { get; init; }
-
-    public bool? CanTrade { get; init; }
-
-    public string? TraderKind { get; init; }
+    public required string TraderKind { get; init; }
 }
 
+/// <summary>The read scope's map tile.</summary>
 public sealed record WorldTile
 {
-    public int? Tile { get; init; }
+    public required int Tile { get; init; }
 
-    public string? Hilliness { get; init; }
-
-    public double? Longitude { get; init; }
+    public required string Hilliness { get; init; }
 }
 
+/// <summary>The scope map's tile and the settlements within the requested radius of the requested tile (none without a tile).</summary>
 public sealed record WorldSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
-    public WorldTile? Tile { get; init; }
+    public required WorldTile Tile { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Settlement>))]
-    public EquatableArray<Settlement> Settlements { get; init; }
+    public required EquatableArray<Settlement> Settlements { get; init; }
 }
 
+/// <summary>SettlementRadius is in tiles (0 when omitted: the requested tile only).</summary>
 public sealed record WorldRequest
 {
     public ReadScope? Scope { get; init; }
 
     public int? Tile { get; init; }
 
-    public double? SettlementRadius { get; init; }
-}
-
-public sealed record WorldReply
-{
-    public WorldReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="WorldReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(WorldReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(WorldReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(WorldReplyOutcome.FailureCase), "failure")]
-public abstract record WorldReplyOutcome
-{
-    private protected WorldReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public WorldSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(WorldSnapshot Value) : WorldReplyOutcome;
-
-    public static implicit operator WorldReplyOutcome(WorldSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : WorldReplyOutcome;
-
-    public static implicit operator WorldReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : WorldReplyOutcome;
-
-    public static implicit operator WorldReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public double SettlementRadius { get; init; }
 }
 
 public sealed record WorldRoute

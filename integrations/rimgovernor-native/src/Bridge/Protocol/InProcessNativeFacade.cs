@@ -239,7 +239,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.WallUpgradeSnapshot> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListWallUpgradeSites, request, () => NativeWallUpgradeObservationTools.HandleListWallUpgradeSites(request), cancellationToken);
 
-        public Task<Obs.WorldReply> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken)
+        public Task<Obs.WorldSnapshot> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadWorld, request, () => NativeWorldObservationTools.HandleReadWorld(request), cancellationToken);
 
         public Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken)

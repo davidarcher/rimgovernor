@@ -166,46 +166,6 @@ public sealed record SpatialAccess
     private static string Show(DomainCell c) => $"{{{c.X} {c.Z}}}";
 }
 
-/// <summary>One world settlement and the faction that holds it.</summary>
-public sealed record SettlementFact
-{
-    public string Id { get; init; } = "";
-
-    public string Label { get; init; } = "";
-
-    public Fact<bool> CanTrade { get; init; }
-
-    public string TraderKind { get; init; } = "";
-
-    public int Tile { get; init; }
-
-    public string FactionId { get; init; } = "";
-
-    public string FactionDefName { get; init; } = "";
-
-    public string Relation { get; init; } = "";
-
-    public int Goodwill { get; init; }
-
-    public bool GoodwillKnown { get; init; }
-
-    public bool Player { get; init; }
-
-    public string SnapshotToken { get; init; } = "";
-
-    public string FactionSnapshotToken { get; init; } = "";
-}
-
-/// <summary>The world's settlements around a tile and the home tile's longitude.</summary>
-public sealed record WorldRead
-{
-    public ObservationContext? Context { get; init; }
-
-    public IReadOnlyList<SettlementFact> Settlements { get; init; } = [];
-
-    public Fact<double> Longitude { get; init; }
-}
-
 /// <summary>
 /// The native placement preview of one building action, the stock it implies, whether
 /// native work (a blueprint or frame) already stands on the cells and the native reason when it was refused.

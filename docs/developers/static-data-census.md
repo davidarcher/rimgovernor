@@ -508,7 +508,6 @@ Kept, reason recorded:
 | WorldTile | message | 1036 | 16 | state | World tile climate and geography row |  |  |
 | WorldSnapshot | message | 1043 | 3 | state | World tile plus settlements |  |  |
 | WorldRequest | message | 1044 | 3 | state | Read request parameters |  |  |
-| WorldReply | message | 1045 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | WorldRoute | message | 1046 | 9 | code | Route estimate to a settlement or home |  |  |
 | CaravanState | message | 1047 | 14 | state | Caravan row with pawns, inventory, routes |  |  |
 | QuestTradeRequest | message | 1053 | 3 | state | Quest trade request resource/count/destination |  |  |

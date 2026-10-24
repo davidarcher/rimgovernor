@@ -26,13 +26,13 @@ partial class RoundsTradePlanner
     /// installed. Throws <see cref="DomainException"/> with the failure reason when the mission cannot be
     /// prepared.
     /// </summary>
-    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(FacadeNativeClient source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
+    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(FacadeNativeClient source, GenerationSnapshot world, int homeTile, O.Settlement settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
     {
-        if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Player || settlement.TraderKind.Length == 0)
+        if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Relation == O.SettlementRelation.Player || settlement.TraderKind.Length == 0)
         {
             throw new DomainException("invalid_trade_destination");
         }
-        if (!settlement.CanTrade.TryGetValue(out var canTrade) || !canTrade)
+        if (!settlement.CanTrade)
         {
             throw new DomainException("settlement_unavailable");
         }

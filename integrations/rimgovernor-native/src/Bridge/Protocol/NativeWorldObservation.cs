@@ -1,9 +1,8 @@
 #nullable enable
 using System;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -12,90 +11,55 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Closes the observations_read_world gap: WorldRequest/WorldReply and the
-    // Settlement message (including its snapshot/faction_snapshot CAS tokens)
-    // were already fully defined with no native handler and no consumer
-    // (confirmed by exhaustive search before writing this file) -- the same
-    // "proto ahead of consumer" pattern NativeWorldProgressionObservation
-    // already closed for its own request. This handler
-    // only surfaces settlements near a requested tile with fresh CAS tokens;
-    // WorldTile terrain facts remain unimplemented (a distinct, unrelated
-    // follow-up, not needed by any current consumer).
-    //
-    // Settlement/faction tokens are self-computed: no other observation
-    // exposes a per-settlement CAS snapshot yet.
-    // The settlement-gift boundary is this handler's first consumer, reading
-    // the settlement at an already-known caravan tile (from
-    // ReadWorldProgression) to learn whether -- and to which faction -- that
-    // caravan currently sits.
-    internal static class NativeWorldObservation
-    {
-
-        // Versioned over the observed FactionState facts (player, goodwill,
-        // hostile).
-        internal static string FactionToken(Faction faction) => NativeSnapshotVersions.Token("faction", null, faction.GetUniqueLoadID(), string.Join("|",
-            faction.IsPlayer.ToString(), faction.IsPlayer ? "" : faction.PlayerGoodwill.ToString(), faction.HostileTo(Faction.OfPlayer).ToString()));
-
-        // Versioned over the Settlement facts (tile, faction id, CanTradeNow),
-        // so a settlement whose trade eligibility changed reads a new token.
-        internal static string SettlementToken(Settlement settlement) => NativeSnapshotVersions.Token("settlement", null, settlement.GetUniqueLoadID(), string.Join("|",
-            settlement.Tile.tileId.ToString(), settlement.Faction != null ? settlement.Faction.GetUniqueLoadID() : "", settlement.CanTradeNow.ToString()));
-
-        internal static Obs.Settlement SettlementRow(Common.ObservationContext context, Settlement settlement)
-        {
-            var faction = settlement.Faction;
-            var row = new Obs.Settlement
-            {
-                Id = settlement.GetUniqueLoadID(), Label = settlement.Label ?? "", Tile = settlement.Tile.tileId,
-                Player = faction != null && faction.IsPlayer, CanTrade = settlement.CanTradeNow,
-                Snapshot = new Obs.SnapshotRef { Context = context, EntityId = settlement.GetUniqueLoadID(), Token = SettlementToken(settlement) },
-            };
-            if (settlement.TraderKind != null) row = row with { TraderKind = settlement.TraderKind.defName };
-            if (faction != null)
-            {
-                row = row with { Faction = NativeRef.Of(faction) };
-                row = row with { FactionDefName = faction.def.defName };
-                row = row with { Relation = faction.IsPlayer ? "player" : faction.HostileTo(Faction.OfPlayer) ? "hostile" : "neutral" };
-                if (!faction.IsPlayer) row = row with { Goodwill = faction.PlayerGoodwill };
-                row = row with { FactionSnapshot = new Obs.SnapshotRef { Context = context, EntityId = faction.GetUniqueLoadID(), Token = FactionToken(faction) } };
-            }
-            return row;
-        }
-
-    }
-
+    // observations_read_world: the scope map's tile and the settlements near a
+    // requested tile, each with its faction's relation and whether it trades now.
     internal static class NativeWorldObservationTools
     {
-        internal static Obs.WorldReply HandleReadWorld(Obs.WorldRequest request)
+        // On the game thread. A refused request or a world that cannot be read completely throws.
+        internal static Obs.WorldSnapshot HandleReadWorld(Obs.WorldRequest request)
         {
-            if (!Validate(request, out var failure))
-                return new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                return new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) };
+            if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var invalid))
+                throw NativeFaults.Refused(invalid);
             try
             {
-                var tile = request.Tile is int tileId ? new PlanetTile(tileId) : (PlanetTile?)null;
-                var radius = request.SettlementRadius ?? 0d;
-                var snapshot = new Obs.WorldSnapshot { Context = context };
-                if (tile.HasValue && tile.Value.Valid)
+                var settlements = request.Tile is int tileId && new PlanetTile(tileId) is var tile && tile.Valid
+                    ? Find.WorldObjects.Settlements
+                        .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile, s.Tile) <= request.SettlementRadius)
+                        .Select(SettlementRow).ToArray()
+                    : Array.Empty<Obs.Settlement>();
+                var info = map.TileInfo ?? throw new InvalidOperationException("The map's world tile is unavailable.");
+                return new Obs.WorldSnapshot
                 {
-                    var rows = Find.WorldObjects.Settlements
-                        .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile.Value, s.Tile) <= radius)
-                        .Select(s => NativeWorldObservation.SettlementRow(context, s)).ToList();
-                    snapshot = snapshot with { Settlements = [.. snapshot.Settlements, .. rows] };
-                }
-                var reply = new Obs.WorldReply { Outcome = snapshot };
-                return reply;
+                    Tile = new Obs.WorldTile { Tile = map.Tile.tileId, Hilliness = info.hilliness.ToString() },
+                    Settlements = [.. settlements],
+                };
             }
-            catch (Exception) { return new Obs.WorldReply { Outcome =
-                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world read could not complete." } }; }
+            catch (Exception thrown)
+            {
+                ModLog.Error("observe", "World read failed: " + thrown);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = "Native world read could not complete: " + thrown.GetType().Name + ": " + thrown.Message });
+            }
+        }
+
+        private static Obs.Settlement SettlementRow(Settlement settlement)
+        {
+            var faction = settlement.Faction ?? throw new InvalidOperationException("Settlement " + settlement.GetUniqueLoadID() + " has no faction.");
+            return new Obs.Settlement
+            {
+                Id = settlement.GetUniqueLoadID(),
+                Tile = settlement.Tile.tileId,
+                Relation = faction.IsPlayer ? Obs.SettlementRelation.Player : faction.HostileTo(Faction.OfPlayer) ? Obs.SettlementRelation.Hostile : Obs.SettlementRelation.Neutral,
+                CanTrade = settlement.CanTradeNow,
+                TraderKind = settlement.TraderKind?.defName ?? "",
+            };
         }
 
         private static bool Validate(Obs.WorldRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a nonnegative settlement_radius are required.");
-            return request?.Scope?.ExpectedIdentity != null
-                && (request.SettlementRadius is null || request.SettlementRadius.GetValueOrDefault() >= 0);
+            return request?.Scope?.ExpectedIdentity != null && request.SettlementRadius >= 0;
         }
     }
 }

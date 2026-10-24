@@ -124,8 +124,8 @@ internal static class CaravanDeparture
         var home = TypedReads.Observed("home-tile", NativeOps.ReadWorldProgression, progression, progression.Outcome?.Observed).Maps.FirstOrDefault(m => m.Home == true)?.Tile
             ?? throw new AcceptanceException("home-tile: no home map tile");
         var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Tile = home, SettlementRadius = 1000 }, cancellationToken).ConfigureAwait(false);
-        var candidates = TypedReads.Observed("settlements", NativeOps.ReadWorld, reply, reply.Outcome?.Observed).Settlements
-            .Where(c => c.Player != true && c.Relation == "neutral" && c.Tile is { } tile && tile != home)
+        var candidates = reply.Settlements
+            .Where(c => c.Relation == Observations.SettlementRelation.Neutral && c.Tile != home)
             .OrderBy(c => c.Id, StringComparer.Ordinal).Take(12).ToList();
         foreach (var candidate in candidates)
         {
@@ -133,7 +133,7 @@ internal static class CaravanDeparture
             var facts = await TradeKit.AcquisitionAsync(s, "reach-" + candidate.Id, pack, cancellationToken).ConfigureAwait(false);
             if (facts.Pack?.Outbound?.Reachable == true)
             {
-                return candidate.Tile!.Value;
+                return candidate.Tile;
             }
         }
 

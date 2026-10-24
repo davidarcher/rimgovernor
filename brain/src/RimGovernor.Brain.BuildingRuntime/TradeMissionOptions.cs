@@ -64,7 +64,7 @@ public sealed partial class Rounder
         }
         // Read the complete native settlement census; routes, not radius, determine which exact pack can safely
         // make the round trip.
-        WorldRead destinations;
+        O.WorldSnapshot destinations;
         try
         {
             destinations = await source.ReadWorldAsync(id, home, double.MaxValue, ct).ConfigureAwait(false);

@@ -28,7 +28,6 @@ Bridge.Contracts/Facts/SurgeryFacts.cs|Fact|7
 Bridge.Contracts/Facts/SurgeryFacts.cs|Unknown|4
 Bridge.Contracts/Facts/WireEnums.cs|Discard|7
 Bridge.Contracts/Foundation/Families.cs|Discard|1
-Bridge.Contracts/Reads/PlanningReads.cs|Fact|2
 Bridge.Contracts/Reads/PrisonerCensus.cs|Fact|5
 Bridge.Contracts/Reads/WorldProgressionRead.cs|Fact|3
 Bridge.Contracts/Tables/Tables.cs|Fact|1
@@ -78,8 +77,6 @@ BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|4
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Fact|1
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|4
-BuildingRuntime/Client/FacadeNativeClient.World.cs|Fact|2
-BuildingRuntime/Client/FacadeNativeClient.World.cs|Unknown|2
 BuildingRuntime/Client/GearRecipeCatalogAdapter.cs|Fact|3
 BuildingRuntime/Client/IdeologyDecoder.cs|Fact|1
 BuildingRuntime/Client/PopulationDecoder.cs|Fact|30
@@ -342,7 +339,7 @@ BuildingRuntime/StockpileBenchInputs.cs|Fact|2
 BuildingRuntime/StockpileShelves.cs|Fact|4
 BuildingRuntime/StockpileSitedRoles.cs|Fact|6
 BuildingRuntime/StockpileZones.cs|Fact|8
-BuildingRuntime/TradeMission.cs|Fact|14
+BuildingRuntime/TradeMission.cs|Fact|13
 BuildingRuntime/TradeMissionDriver.cs|Fact|6
 BuildingRuntime/TradeMissionDriver.cs|Unknown|3
 BuildingRuntime/TradeMissionOptions.cs|Fact|3
@@ -372,7 +369,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|665
+Contracts/Observations.cs|NullableValue|658
 Contracts/Observations.cs|UnknownMember|13
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
