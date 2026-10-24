@@ -20,7 +20,7 @@ public sealed class FamilyKeptWaitsTests
 
     private static readonly NeedId Fix = NeedId.Of("test-keep", "fix");
 
-    private sealed record KeepFacts(Fact<bool> Fixed, Fact<double> Deficit = default);
+    private sealed record KeepFacts(Fact<bool> Fixed, double Deficit = 0);
 
     /// <summary>One Need, ready while the colony is not fixed; its work is the test's, counted and scripted.</summary>
     private sealed class KeepFamily : IFamily<KeepFacts>
@@ -157,7 +157,7 @@ public sealed class FamilyKeptWaitsTests
         Assert.Equal([Fix], colony.Run(cadence: true).Kept);
         Assert.Equal(1, colony.Worked);
 
-        colony.Facts = colony.Facts with { Deficit = Known(1.0) };
+        colony.Facts = colony.Facts with { Deficit = 1.0 };
         Assert.Empty(colony.Run(cadence: true).Kept);
         Assert.Equal(2, colony.Worked);
         Assert.Equal([Fix], colony.Run(cadence: true).Kept);

@@ -115,7 +115,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
             Id = Recruit,
             Tier = NeedTier.Development,
             Satisfaction = owed > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)owed),
+            Deficit = (double)owed,
         };
     }
 
@@ -127,7 +127,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
             Id = Custody,
             Tier = NeedTier.Wellbeing,
             Satisfaction = candidates > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)candidates),
+            Deficit = (double)candidates,
         };
     }
 }

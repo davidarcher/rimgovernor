@@ -98,7 +98,7 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
             Id = Dialog,
             Tier = NeedTier.Wellbeing,
             Satisfaction = waiting ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known(waiting ? 1.0 : 0.0),
+            Deficit = waiting ? 1.0 : 0.0,
         };
     }
 

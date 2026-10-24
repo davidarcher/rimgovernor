@@ -178,7 +178,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Id = CreepJoiners,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)work.Count),
+            Deficit = (double)work.Count,
         };
     }
 
@@ -198,7 +198,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Id = SupplySafety,
             Tier = NeedTier.Wellbeing,
             Satisfaction = rows.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)rows.Count),
+            Deficit = (double)rows.Count,
         };
     }
 
@@ -214,7 +214,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Id = Burial,
             Tier = NeedTier.Wellbeing,
             Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known(due ? 1.0 : 0.0),
+            Deficit = due ? 1.0 : 0.0,
         };
     }
 
@@ -230,7 +230,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Id = WorkLedger,
             Tier = NeedTier.Wellbeing,
             Satisfaction = diff ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known(diff ? 1.0 : 0.0),
+            Deficit = diff ? 1.0 : 0.0,
         };
     }
 
@@ -246,7 +246,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Id = Stockpiles,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known(owed ? 1.0 : 0.0),
+            Deficit = owed ? 1.0 : 0.0,
         };
     }
 
@@ -262,7 +262,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Id = WorkAssignments,
             Tier = NeedTier.Wellbeing,
             Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known(due ? 1.0 : 0.0),
+            Deficit = due ? 1.0 : 0.0,
         };
     }
 

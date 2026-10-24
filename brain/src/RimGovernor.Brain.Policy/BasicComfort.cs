@@ -25,13 +25,9 @@ public sealed record BasicComfortReview
         return Known(Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered && MissingVariety == 0);
     }
 
-    public Fact<double> Deficit()
+    /// <summary>The unmet share: half per short kind. Meaningful only once <see cref="Recovered"/> has read both kinds.</summary>
+    public double Deficit()
     {
-        if (Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown)
-        {
-            return Unknown<double>();
-        }
-
         var value = 0.0;
         if (Dining != ComfortNeed.Recovered)
         {
@@ -43,7 +39,7 @@ public sealed record BasicComfortReview
             value += .5;
         }
 
-        return Known(value);
+        return value;
     }
 
     /// <summary>The dining and recreation capacity stand; only variety is left.</summary>

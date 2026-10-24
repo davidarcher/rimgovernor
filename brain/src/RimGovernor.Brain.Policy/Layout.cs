@@ -219,7 +219,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Id = HomeCoverage,
             Tier = NeedTier.Wellbeing,
             Satisfaction = diff.Empty() ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Fact.Known((double)cells + (diff.AutoOff ? 1 : 0)),
+            Deficit = (double)cells + (diff.AutoOff ? 1 : 0),
         };
     }
 
@@ -231,7 +231,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Id = Firebreak,
             Tier = NeedTier.Wellbeing,
             Satisfaction = work.Owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)(work.Cut.Count + work.Deconstruct.Count)),
+            Deficit = (double)(work.Cut.Count + work.Deconstruct.Count),
         };
     }
 
@@ -244,7 +244,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Id = ClimateEnvelope,
             Tier = NeedTier.Wellbeing,
             Satisfaction = rooms > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)rooms),
+            Deficit = (double)rooms,
         };
     }
 
@@ -256,7 +256,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Id = StoneShell,
             Tier = NeedTier.Development,
             Satisfaction = rows.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)rows.Count),
+            Deficit = (double)rows.Count,
         };
     }
 
@@ -271,7 +271,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Id = Defense,
             Tier = NeedTier.Development,
             Satisfaction = f.Verified && !f.WaitingFight ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Fact.Known(f.Standing ? 0.0 : 1.0),
+            Deficit = f.Standing ? 0.0 : 1.0,
         };
     }
 
@@ -291,7 +291,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Id = Routes,
             Tier = NeedTier.Development,
             Satisfaction = s.Review.Active || s.DoorOwed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)unreachable + (s.DoorOwed ? 1 : 0)),
+            Deficit = (double)unreachable + (s.DoorOwed ? 1 : 0),
         };
     }
 

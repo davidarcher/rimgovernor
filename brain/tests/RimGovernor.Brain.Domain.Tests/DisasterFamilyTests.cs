@@ -48,10 +48,10 @@ public sealed class DisasterFamilyTests
         Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => DisasterFacts.From(new RoundsFacts(), null)).Fact);
 
         var owed = Derive(new DisasterFacts { Changes = [Move("a", "Safe"), Move("b", "Safe")] }, DisasterFamily.Sheltering);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (owed.Satisfaction, owed.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (owed.Satisfaction, owed.Deficit));
 
         var none = Derive(new DisasterFacts { Changes = [] }, DisasterFamily.Sheltering);
-        Assert.Equal((Satisfaction.Met, 0.0), (none.Satisfaction, none.Deficit.Value));
+        Assert.Equal((Satisfaction.Met, 0.0), (none.Satisfaction, none.Deficit));
     }
 
     [Fact]

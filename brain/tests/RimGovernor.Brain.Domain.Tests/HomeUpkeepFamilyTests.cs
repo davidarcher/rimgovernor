@@ -27,10 +27,10 @@ public sealed class HomeUpkeepFamilyTests
     public void RepairsIsMetUnmetOrUnknownByTheDamagedHomeStructures()
     {
         var met = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<RepairStructure>>([Structure("whole", 100), Structure("outside", 10, home: false)]) }, HomeUpkeepFamily.Repairs);
-        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit.Value, met.Tier));
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit, met.Tier));
 
         var unmet = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<RepairStructure>>([Structure("wall", 60), Structure("door", 90)]) }, HomeUpkeepFamily.Repairs);
-        Assert.Equal((Satisfaction.Unmet, 50.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 50.0), (unmet.Satisfaction, unmet.Deficit));
 
         Assert.Equal("repair census", Assert.Throws<RequiredFactException>(() => Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs)).Fact);
     }
@@ -57,7 +57,7 @@ public sealed class HomeUpkeepFamilyTests
             Clearance = Known<EquatableArray<ClearanceTarget>>([held, new ClearanceTarget { EntityId = "wall", Deconstructible = true }]),
             Ground = Known<EquatableArray<string>>(["floor"]),
         }, HomeUpkeepFamily.Clearance);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit));
 
         Assert.Equal("clearance census", Assert.Throws<RequiredFactException>(() => Derive(new HomeUpkeepFacts { Ground = Known<EquatableArray<string>>(["floor"]) }, HomeUpkeepFamily.Clearance)).Fact);
     }

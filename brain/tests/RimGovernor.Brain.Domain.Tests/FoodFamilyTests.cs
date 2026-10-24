@@ -31,11 +31,11 @@ public sealed class FoodFamilyTests
     public void TheSupplyNeedIsAPlainThresholdOverItsChecks()
     {
         var met = Supply(SupplyFacts());
-        Assert.Equal((FoodRules.FoodSupplyNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
+        Assert.Equal((FoodRules.FoodSupplyNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
         // A runway short of the season's target reopens the Need: no latch holds it open or shut.
         var shortRunway = Supply(SupplyFacts(reserve: false));
-        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (shortRunway.Satisfaction, shortRunway.Deficit));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (shortRunway.Satisfaction, shortRunway.Deficit));
 
         // A known shortfall decides the Need while other checks are unread.
         Assert.Equal(Satisfaction.Unmet, Supply(new() { ButcherFacility = Known(false) }).Satisfaction);
@@ -79,11 +79,11 @@ public sealed class FoodFamilyTests
     public void TheCookingNeedIsMetWhileAMealCanBeMadeAndReopensWhenTheKitchenIsLost()
     {
         var met = Cooking(new() { Cooking = Known(true), CampfireRetireOwed = Known(false) });
-        Assert.Equal((FoodRules.CookingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
+        Assert.Equal((FoodRules.CookingNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
         // A lost stove kitchen: nothing can be cooked on the next review, so the Need is unmet again.
         var lost = Cooking(new() { Cooking = Known(false), CampfireRetireOwed = Known(false) });
-        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (lost.Satisfaction, lost.Deficit));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (lost.Satisfaction, lost.Deficit));
 
         // A superseded cooking campfire keeps the Need unmet even while a stove cooks, and decides it unread cooking.
         Assert.Equal(Satisfaction.Unmet, Cooking(new() { Cooking = Known(true), CampfireRetireOwed = Known(true) }).Satisfaction);
@@ -314,13 +314,13 @@ public sealed class FoodFamilyTests
     public void TheBabyFeedingNeedIsUnmetWhileBabyFoodIsShortAndUnknownUnread()
     {
         var stocked = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { StockNutrition = 10, TargetNutrition = 5 }) });
-        Assert.Equal((FoodRules.BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
+        Assert.Equal((FoodRules.BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
 
         var breastfed = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Breastfed = true }) });
         Assert.Equal(Satisfaction.Met, breastfed.Satisfaction);
 
         var shortFood = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { TargetNutrition = 5, IsShort = true }) });
-        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (shortFood.Satisfaction, shortFood.Deficit));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (shortFood.Satisfaction, shortFood.Deficit));
 
         Assert.Equal("baby feeding", Assert.Throws<RequiredFactException>(() => BabyFeedingOf(new())).Fact);
 
@@ -333,11 +333,11 @@ public sealed class FoodFamilyTests
     public void TheBlightNeedIsUnmetWhileABlightedPlantStandsAndUnknownUnread()
     {
         var clear = BlightOf(Census());
-        Assert.Equal((FoodRules.BlightNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (clear.Id, clear.Tier, clear.Satisfaction, clear.Deficit));
+        Assert.Equal((FoodRules.BlightNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (clear.Id, clear.Tier, clear.Satisfaction, clear.Deficit));
 
         // A designated plant still stands: the Need is met by the cut, not the order.
         var standing = BlightOf(Census(Blighted("plant-1", 1, designated: true)));
-        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (standing.Satisfaction, standing.Deficit));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (standing.Satisfaction, standing.Deficit));
 
         Assert.Equal("blight census", Assert.Throws<RequiredFactException>(() => BlightOf(new())).Fact);
         var all = SupplyFacts() with { Cooking = Known(false), BabyFeeding = Known(new BabyFeeding { Breastfed = true }), Blight = Known<EquatableArray<BlightedPlant>>([]) };

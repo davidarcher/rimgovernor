@@ -203,7 +203,7 @@ public static class AnimalsFamilyRules
             Id = AnimalsFamily.Herd,
             Tier = NeedTier.Development,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Known(owed ? 1.0 : 0.0),
+            Deficit = owed ? 1.0 : 0.0,
         };
     }
 
@@ -228,7 +228,7 @@ public static class AnimalsFamilyRules
             Id = AnimalsFamily.Containment,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Known(count + (penOwed ? 1.0 : 0.0)),
+            Deficit = count + (penOwed ? 1.0 : 0.0),
         };
     }
 
@@ -245,7 +245,7 @@ public static class AnimalsFamilyRules
             Id = AnimalsFamily.Ward,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Known(owed ? 1.0 : 0.0),
+            Deficit = owed ? 1.0 : 0.0,
         };
     }
 
@@ -266,7 +266,7 @@ public static class AnimalsFamilyRules
             Id = AnimalsFamily.Sterilize,
             Tier = NeedTier.Development,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Known((double)wanted),
+            Deficit = (double)wanted,
             Preconditions = ward ? [AnimalsFamily.Ward] : [],
         };
     }

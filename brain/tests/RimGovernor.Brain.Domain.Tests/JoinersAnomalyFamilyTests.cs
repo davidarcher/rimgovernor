@@ -45,12 +45,12 @@ public sealed class JoinersAnomalyFamilyTests
         var met = Census();
         Assert.All(new JoinersFamily().Derive(JoinersFacts.From(met)), n =>
         {
-            Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Development), (n.Satisfaction, n.Deficit.Value, n.Tier));
+            Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Development), (n.Satisfaction, n.Deficit, n.Tier));
             Assert.Equal(JoinersFamily.FamilyId, n.Id.Family);
         });
 
         var unmet = Joiner(Census(Letter(7)), JoinersFamily.Letters);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit));
 
         // A letter the colony may have no room for, or an unread census, never reads as settled.
         Assert.Equal("population capacity", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
@@ -133,8 +133,8 @@ public sealed class JoinersAnomalyFamilyTests
 
         var unmet = Containment([Holder("e1", 1, holdOpen: true), Holder("e2", 3, holdOpen: true)], Held("e1"), Held("e2"));
         var doors = Anomaly(unmet, AnomalyFamily.Doors);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (doors.Satisfaction, doors.Deficit.Value));
-        Assert.Equal((Satisfaction.Unmet, 2.0), (Anomaly(unmet, AnomalyFamily.Bioferrite).Satisfaction, Anomaly(unmet, AnomalyFamily.Bioferrite).Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (doors.Satisfaction, doors.Deficit));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (Anomaly(unmet, AnomalyFamily.Bioferrite).Satisfaction, Anomaly(unmet, AnomalyFamily.Bioferrite).Deficit));
 
         // Without Anomaly (Inactive) the family derives nothing, whatever the containment read holds; with it, unread
         // research or gear raises for the whole family, never reading as met.

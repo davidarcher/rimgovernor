@@ -50,7 +50,7 @@ public sealed class GoalsFamilyTests
         var goal = Goal(7, GoalKind.ResearchProject, "Smithing");
         var need = Derive(Facts(goal), goal);
         Assert.Equal("goals/research-project/7", need.Id.Value);
-        Assert.Equal((NeedTier.Development, Satisfaction.Unmet, 1.0), (need.Tier, need.Satisfaction, need.Deficit.Value));
+        Assert.Equal((NeedTier.Development, Satisfaction.Unmet, 1.0), (need.Tier, need.Satisfaction, need.Deficit));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(["Smithing"], GoalRules.DemandOf(open).Research);
 
         var done = open with { Research = Known(Research("Smithing")) };
-        Assert.Equal((Satisfaction.Met, 0.0), (Derive(done, goal).Satisfaction, Derive(done, goal).Deficit.Value));
+        Assert.Equal((Satisfaction.Met, 0.0), (Derive(done, goal).Satisfaction, Derive(done, goal).Deficit));
         Assert.Empty(GoalRules.DemandOf(done).Research);
 
         // A project the census does not list does not exist: unmet with no method. An unread census raises.
@@ -78,7 +78,7 @@ public sealed class GoalsFamilyTests
         var goal = Goal(1, GoalKind.ResearchTier, "Powered");
         var facts = Facts(goal);
         Assert.Equal(["Electricity", "Stonecutting"], GoalRules.DemandOf(facts).Research);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
         Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = Known(TechTier.Industrial) }, goal).Satisfaction);
         Assert.Equal("tech tier", Assert.Throws<RequiredFactException>(() => Derive(facts with { Tier = default }, goal)).Fact);
     }
@@ -117,7 +117,7 @@ public sealed class GoalsFamilyTests
         var medieval = RimGovernor.Contracts.Wire.Defs.TechLevel.Medieval;
         var open = WithLevels(Facts(goal), ["Smithing"], ("Smithing", medieval), ("Smelting", medieval), ("Machining", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial));
         Assert.Equal(["Smelting"], GoalRules.DemandOf(open).Research);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (Derive(open, goal).Satisfaction, Derive(open, goal).Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (Derive(open, goal).Satisfaction, Derive(open, goal).Deficit));
         var done = WithLevels(open, ["Smithing", "Smelting"], ("Smithing", medieval), ("Smelting", medieval));
         Assert.Equal(Satisfaction.Met, Derive(done, goal).Satisfaction);
         Assert.Empty(GoalRules.DemandOf(done).Research);
@@ -130,7 +130,7 @@ public sealed class GoalsFamilyTests
         var goal = Goal(2, GoalKind.StockCount, "Steel", 100);
         var facts = Facts(goal);
         var need = Derive(facts, goal);
-        Assert.Equal((Satisfaction.Unmet, 60.0), (need.Satisfaction, need.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 60.0), (need.Satisfaction, need.Deficit));
         Assert.Equal(Satisfaction.Met, Derive(facts with { Stock = Known<EquatableArray<Amount>>([new Amount(new Resource("Steel"), 100)]) }, goal).Satisfaction);
 
         var demand = GoalRules.DemandOf(facts);
@@ -161,7 +161,7 @@ public sealed class GoalsFamilyTests
     {
         var goal = Goal(3, GoalKind.Colonists, count: 150);
         var facts = Facts(goal);
-        Assert.Equal((Satisfaction.Unmet, 145.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 145.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
         Assert.Equal(150, GoalRules.DemandOf(facts).Colonists);
 
         // A full hundred hosted people: the bot's own target admits no more; the goal does.
@@ -185,7 +185,7 @@ public sealed class GoalsFamilyTests
     {
         var goal = Goal(4, GoalKind.Animals, "Muffalo", 6);
         var facts = Facts(goal);
-        Assert.Equal((Satisfaction.Unmet, 5.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 5.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
         var applied = GoalRules.Apply(new RoundsFacts(), GoalRules.DemandOf(facts));
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Muffalo")] = 6 }, applied.AnimalGoals);
         Assert.Equal(applied.AnimalGoals, applied.HerdPlanInput().Goals);

@@ -33,7 +33,7 @@ public sealed class ShelterFamilyTests
         var needs = new ShelterFamily(true, true, true).Derive(Housed);
         Assert.Equal([ShelterFamily.SafeArea, ShelterFamily.Sleeping, ShelterFamily.Temperature], needs.Select(n => n.Id));
         Assert.All(needs, n => Assert.Equal(Satisfaction.Met, n.Satisfaction));
-        Assert.All(needs, n => Assert.Equal(Known(0.0), n.Deficit));
+        Assert.All(needs, n => Assert.Equal(0.0, n.Deficit));
         Assert.Empty(new ShelterFamily(false, false, false).Derive(Housed));
         Assert.Equal([ShelterFamily.Temperature], new ShelterFamily(false, true, false).Derive(Housed).Select(n => n.Id));
     }
@@ -105,7 +105,7 @@ public sealed class ShelterFamilyTests
         Assert.Equal(Satisfaction.Met, Assert.Single(family.Derive(new PowerFacts { Standing = Known(true) })).Satisfaction);
         var unmet = Assert.Single(family.Derive(new PowerFacts { Standing = Known(false) }));
         Assert.Equal(Satisfaction.Unmet, unmet.Satisfaction);
-        Assert.Equal(Known(1.0), unmet.Deficit);
+        Assert.Equal(1.0, unmet.Deficit);
         Assert.Equal("power standing", Assert.Throws<RequiredFactException>(() => Assert.Single(family.Derive(new PowerFacts()))).Fact);
         Assert.Empty(family.SeriousHarmReads);
         Assert.Empty(family.Propose([unmet], new PowerFacts { Standing = Known(false) }));

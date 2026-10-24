@@ -24,11 +24,11 @@ public sealed class MilitaryFamilyTests
     public void DefenseIsMetUnmetOrUnknownByTheArmedFootholdHostilesAndUnarmed()
     {
         var met = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(0L), Foothold = 3L }, MilitaryFamily.Defense);
-        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit.Value, met.Tier));
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit, met.Tier));
 
         var unarmed = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(1L), Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, unarmed.Satisfaction);
-        Assert.True(unarmed.Deficit.Value > 0);
+        Assert.True(unarmed.Deficit > 0);
 
         var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L), Armed = Known(3L), Unarmed = Known(0L), Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, hostile.Satisfaction);
@@ -40,14 +40,14 @@ public sealed class MilitaryFamilyTests
     public void PestsIsMetUnmetOrUnknownByTheCensusAndStaleHunts()
     {
         var met = Derive(new MilitaryFacts { Pests = Known(0) }, MilitaryFamily.Pests);
-        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit.Value, met.Tier));
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit, met.Tier));
 
         var unmet = Derive(new MilitaryFacts { Pests = Known(2) }, MilitaryFamily.Pests);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit));
 
         // A hunt of the Need's own whose animal is gone keeps the Need unmet until the work step cancels it.
         var stale = Derive(new MilitaryFacts { Pests = Known(0), StaleHunts = [new StaleHunt(new("p"), new("p-0"))] }, MilitaryFamily.Pests);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (stale.Satisfaction, stale.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (stale.Satisfaction, stale.Deficit));
 
         Assert.Equal("pests", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Pests)).Fact);
     }
@@ -59,7 +59,7 @@ public sealed class MilitaryFamilyTests
         Assert.Equal((Satisfaction.Met, NeedTier.Development), (met.Satisfaction, met.Tier));
 
         var unmet = Derive(new MilitaryFacts { Training = new TrainingReview { Capable = 4, Below = 1, ShootingTrainees = 1 } }, MilitaryFamily.Training);
-        Assert.Equal((Satisfaction.Unmet, 0.25), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 0.25), (unmet.Satisfaction, unmet.Deficit));
 
         Assert.Equal("training review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Training)).Fact);
     }
@@ -76,13 +76,13 @@ public sealed class MilitaryFamilyTests
     public void CombatIsUnmetByHostilesOrHuntPreyMetByNeitherAndUnknownWhileTheCensusIsUnread()
     {
         var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L) }, MilitaryFamily.Combat);
-        Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (hostile.Satisfaction, hostile.Deficit.Value, hostile.Tier));
+        Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (hostile.Satisfaction, hostile.Deficit, hostile.Tier));
 
         var hunt = Derive(new MilitaryFacts { Hostiles = Known(0L), HuntPrey = [new PawnId("deer")] }, MilitaryFamily.Combat);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (hunt.Satisfaction, hunt.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (hunt.Satisfaction, hunt.Deficit));
 
         var clear = Derive(new MilitaryFacts { Hostiles = Known(0L) }, MilitaryFamily.Combat);
-        Assert.Equal((Satisfaction.Met, 0.0), (clear.Satisfaction, clear.Deficit.Value));
+        Assert.Equal((Satisfaction.Met, 0.0), (clear.Satisfaction, clear.Deficit));
 
         Assert.Equal("hostiles", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Combat)).Fact);
 
@@ -96,7 +96,7 @@ public sealed class MilitaryFamilyTests
     public void RestoreWorkersIsUnmetByAStrayDraftWithNoHostileAndUnknownWhileTheCensusIsUnread()
     {
         var unmet = Derive(new MilitaryFacts { StrayDrafts = Known(2), Hostiles = Known(0L) }, MilitaryFamily.RestoreWorkers);
-        Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (unmet.Satisfaction, unmet.Deficit.Value, unmet.Tier));
+        Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (unmet.Satisfaction, unmet.Deficit, unmet.Tier));
 
         // A standing hostile owns the drafts; no stray draft is met whatever the hostiles.
         Assert.Equal(Satisfaction.Met, Derive(new MilitaryFacts { StrayDrafts = Known(2), Hostiles = Known(1L) }, MilitaryFamily.RestoreWorkers).Satisfaction);
@@ -112,10 +112,10 @@ public sealed class MilitaryFamilyTests
         Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Equipment)).Fact);
         // An empty census has every pawn outfitted (#3904).
         var empty = Derive(new MilitaryFacts { Gear = Known(ColonyModelFixtures.NoGear()) }, MilitaryFamily.Equipment);
-        Assert.Equal((Satisfaction.Met, 0.0), (empty.Satisfaction, empty.Deficit.Value));
+        Assert.Equal((Satisfaction.Met, 0.0), (empty.Satisfaction, empty.Deficit));
 
         var shells = Derive(new MilitaryFacts { ShellsShort = Known(true) }, MilitaryFamily.Equipment);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (shells.Satisfaction, shells.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (shells.Satisfaction, shells.Deficit));
 
         Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts { ShellsShort = Known(false) }, MilitaryFamily.Equipment)).Fact);
     }

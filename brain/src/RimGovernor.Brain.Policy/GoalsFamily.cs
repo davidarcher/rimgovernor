@@ -262,7 +262,7 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
             Id = GoalRules.NeedOf(s.Goal),
             Tier = NeedTier.Development,
             Satisfaction = s.Satisfaction,
-            Deficit = s.Deficit is GoalDeficit.Measured measured ? Fact.Known(measured.Amount) : Fact.Unknown<double>(),
+            Deficit = s.Deficit is GoalDeficit.Measured measured ? measured.Amount : s.Satisfaction == Satisfaction.Met ? 0.0 : 1.0,
         })];
 
     public IReadOnlyList<Need> DeriveSeriousHarm(GoalsFacts facts) => [];

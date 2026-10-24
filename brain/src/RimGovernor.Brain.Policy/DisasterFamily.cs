@@ -81,7 +81,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
             Id = Sheltering,
             Tier = NeedTier.SeriousHarm,
             Satisfaction = owed.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)owed.Count),
+            Deficit = (double)owed.Count,
         };
     }
 
@@ -103,7 +103,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
             Tier = NeedTier.Wellbeing,
             Preconditions = [Sheltering],
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Fact.Known(met ? 0.0 : 1.0),
+            Deficit = met ? 0.0 : 1.0,
         };
     }
 

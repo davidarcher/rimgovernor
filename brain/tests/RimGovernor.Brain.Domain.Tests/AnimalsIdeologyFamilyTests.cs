@@ -39,10 +39,10 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (Animal(penned, AnimalsFamily.Containment).Satisfaction, Animal(penned, AnimalsFamily.Containment).Tier));
 
         var loose = Animal(penned with { Uncontained = EquatableArray.From<PawnId>([new("cow"), new("pig")]) }, AnimalsFamily.Containment);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (loose.Satisfaction, loose.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (loose.Satisfaction, loose.Deficit));
 
         var owed = Animal(penned with { Pen = Known(Step(HerdStepKind.Reconcile)) }, AnimalsFamily.Containment);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit));
 
         // No latch: the Need is only what this read shows, and an unread pen step is unknown.
         Assert.Equal("pen step", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Containment)).Fact);
@@ -112,7 +112,7 @@ public sealed class AnimalsIdeologyFamilyTests
     public void RolesAndRitualsAreMetOrUnmetByWhatIsOwed()
     {
         var owed = Ideology(new IdeologyFacts { Roles = [new(new("a"), "role-1", "Leader")] }, IdeologyFamily.Roles);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit));
         Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Roles = [] }, IdeologyFamily.Roles).Satisfaction);
         Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Rituals = [] }, IdeologyFamily.Rituals).Satisfaction);
         var rituals = new Need { Id = IdeologyFamily.Rituals, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet };

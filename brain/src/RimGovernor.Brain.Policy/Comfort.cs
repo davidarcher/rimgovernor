@@ -72,12 +72,9 @@ public sealed record ComfortReview
             ? Unknown<bool>()
             : Known(Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered);
 
-    public Fact<double> Deficit()
+    /// <summary>The unmet share: half per short kind. Meaningful only once <see cref="Recovered"/> has read both kinds.</summary>
+    public double Deficit()
     {
-        if (Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown)
-        {
-            return Unknown<double>();
-        }
         // The development ranking counts each unmet facility kind equally, whether it needs capacity or proof of use.
         var value = 0.0;
         if (Dining != ComfortNeed.Recovered)
@@ -88,7 +85,7 @@ public sealed record ComfortReview
         {
             value += .5;
         }
-        return Known(value);
+        return value;
     }
 }
 

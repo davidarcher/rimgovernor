@@ -168,7 +168,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
             Id = Research,
             Tier = NeedTier.Development,
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Known(deficit),
+            Deficit = deficit,
         };
     }
 }
@@ -194,13 +194,13 @@ public static class EconomyRules
         var census = new StockReader(f.Stock, f.Wood).Census(f.Targets);
         var (recovered, deficit) = ResearchRules.ResourceTargetNeed(f.Targets, census);
         var shortRunways = new List<string>();
+        var runwayShare = 0.0;
         foreach (var runway in f.Runways)
         {
             var deficitKnown = runway.Deficit.TryGetValue(out var runwayDeficit);
             if (!deficitKnown && runway.WindowDays >= 1 && RoundsRules.Positive(recovered))
             {
                 recovered = Unknown<bool>();
-                deficit = Unknown<double>();
             }
             if (deficitKnown && runwayDeficit)
             {
@@ -208,8 +208,7 @@ public static class EconomyRules
                 recovered = Known(false);
                 if (runway.DaysLeft.TryGetValue(out var days))
                 {
-                    deficit.TryGetValue(out var old);
-                    deficit = Known(Math.Max(old, 1 - days / ColonyDiagnosticsRules.MaintenanceHorizonDays));
+                    runwayShare = Math.Max(runwayShare, 1 - days / ColonyDiagnosticsRules.MaintenanceHorizonDays);
                 }
             }
         }
@@ -222,7 +221,7 @@ public static class EconomyRules
             Id = EconomyFamily.Resource,
             Tier = NeedTier.Wellbeing,
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = deficit,
+            Deficit = met ? 0.0 : Math.Max(runwayShare, deficit.TryGetValue(out var owed) ? owed : 0.0),
         };
     }
 

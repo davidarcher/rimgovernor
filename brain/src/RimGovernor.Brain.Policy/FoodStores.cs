@@ -192,7 +192,7 @@ public static class FoodStoresRules
             Id = FoodStorageNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Known(owed.Count == 0 ? 0.0 : owed.Max()),
+            Deficit = owed.Count == 0 ? 0.0 : owed.Max(),
         };
     }
 
@@ -241,7 +241,7 @@ public static class FoodStoresRules
             Id = RefrigerationNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = unmet ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Known(deficit),
+            Deficit = deficit,
         };
     }
 

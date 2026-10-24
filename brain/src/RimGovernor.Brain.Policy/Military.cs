@@ -254,7 +254,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         var ok = EquipmentMet(f);
         // The gear review's deficit while gear is short; a retire or a shell shortage alone is a whole deficit.
         var deficit = ok ? 0.0 : f.Gear.IsKnown && GearRules.ReviewGear(f.Gear) is { Recovered: false } gear ? gear.Deficit : 1.0;
-        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = Known(deficit) };
+        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit };
     }
 
     /// <summary>
@@ -314,7 +314,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         {
             throw new RequiredFactException("armed fighters, hostiles or unarmed colonists");
         }
-        var deficit = ok ? Known(0.0) : Unknown<double>();
+        var deficit = ok ? 0.0 : 1.0;
         var n = f.Foothold;
         if (!ok && f.Armed.TryGetValue(out var stock) && n > 0)
         {
@@ -325,7 +325,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             {
                 share = (double)unarmed / (unarmed + stock);
             }
-            deficit = Known(share);
+            deficit = share;
         }
         return new Need { Id = Defense, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit };
     }
@@ -358,7 +358,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Id = RestoreWorkers,
             Tier = NeedTier.SeriousHarm,
             Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Known(ok ? 0.0 : f.StrayDrafts.ValueOrDefault),
+            Deficit = ok ? 0.0 : f.StrayDrafts.Value,
         };
     }
 
@@ -379,7 +379,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Id = Combat,
             Tier = NeedTier.SeriousHarm,
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Known(met ? 0.0 : (double)(hostiles + f.HuntPrey.Count)),
+            Deficit = met ? 0.0 : (double)(hostiles + f.HuntPrey.Count),
         };
     }
 
@@ -395,7 +395,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Id = Pests,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed == 0 ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Known((double)owed),
+            Deficit = (double)owed,
         };
     }
 
@@ -407,7 +407,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Id = Training,
             Tier = NeedTier.Development,
             Satisfaction = r.Below == 0 ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Known(r.Below == 0 || r.Capable == 0 ? 0.0 : (double)r.Below / r.Capable),
+            Deficit = r.Below == 0 || r.Capable == 0 ? 0.0 : (double)r.Below / r.Capable,
         };
     }
 

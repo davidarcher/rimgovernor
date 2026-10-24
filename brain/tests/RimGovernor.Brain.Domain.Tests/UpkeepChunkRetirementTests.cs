@@ -19,7 +19,7 @@ public sealed class UpkeepChunkRetirementTests
             Ground = Fact.Known(default(EquatableArray<string>)),
         });
         Assert.Equal(Satisfaction.Met, need.Satisfaction);
-        Assert.Equal(0.0, need.Deficit.Value);
+        Assert.Equal(0.0, need.Deficit);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class UpkeepChunkRetirementTests
             Ground = Fact.Known<EquatableArray<string>>(["floor"]),
         });
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
-        Assert.Equal(2.0, need.Deficit.Value);
+        Assert.Equal(2.0, need.Deficit);
         Assert.Equal<string>(["wall", "floor"], HomeUpkeepFamily.ClearanceTargets(
             [new ClearanceTarget { EntityId = "wall", Deconstructible = true }], Fact.Known<EquatableArray<string>>(["floor"])));
     }

@@ -76,7 +76,7 @@ public sealed class BiotechRoyaltyFamilyTests
             _ => Bio(owed ? looseGenepack : Settled),
         };
         var owed = Biotech(With(true), id);
-        Assert.Equal((Satisfaction.Unmet, NeedTier.Development, 1.0), (owed.Satisfaction, owed.Tier, owed.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, NeedTier.Development, 1.0), (owed.Satisfaction, owed.Tier, owed.Deficit));
         Assert.Equal(Satisfaction.Met, Biotech(With(false), id).Satisfaction);
     }
 

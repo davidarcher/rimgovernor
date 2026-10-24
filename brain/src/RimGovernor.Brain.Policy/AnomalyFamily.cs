@@ -174,6 +174,6 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         Id = id,
         Tier = tier,
         Satisfaction = owed > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-        Deficit = Fact.Known((double)owed),
+        Deficit = (double)owed,
     };
 }

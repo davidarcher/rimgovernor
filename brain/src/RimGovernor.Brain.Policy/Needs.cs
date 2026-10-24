@@ -113,8 +113,8 @@ public sealed record Need
     /// <summary>The predicate's result over the facts read.</summary>
     public required Satisfaction Satisfaction { get; init; }
 
-    /// <summary>How far from met, in the family's own unit; unknown when the facts do not say.</summary>
-    public Fact<double> Deficit { get; init; }
+    /// <summary>How far from met, in the family's own unit; zero for a met Need. A family missing a fact it needs raises <see cref="RequiredFactException"/> instead of deriving the Need.</summary>
+    public double Deficit { get; init; }
 
     /// <summary>Other Needs whose predicate must be met before this one is proposed for; ordering between Needs.</summary>
     public EquatableArray<NeedId> Preconditions { get; init; }
@@ -125,7 +125,7 @@ public sealed record Need
         Id.Validate();
         DomainException.Require(Id.Family == family, $"need {Id} does not belong to family {family}");
         DomainException.Require(Enum.IsDefined(Tier) && Enum.IsDefined(Satisfaction), $"need {Id} has an invalid tier or satisfaction");
-        DomainException.Require(!Deficit.TryGetValue(out var deficit) || (deficit >= 0 && double.IsFinite(deficit)), $"need {Id} has an invalid deficit");
+        DomainException.Require(Deficit >= 0 && double.IsFinite(Deficit), $"need {Id} has an invalid deficit");
         foreach (var precondition in Preconditions)
         {
             precondition.Validate();

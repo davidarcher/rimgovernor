@@ -186,6 +186,6 @@ public static class FoodRules
         Id = id,
         Tier = tier,
         Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-        Deficit = Known(met ? 0.0 : 1.0),
+        Deficit = met ? 0.0 : 1.0,
     };
 }

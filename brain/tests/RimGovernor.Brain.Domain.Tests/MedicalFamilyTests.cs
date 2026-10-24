@@ -57,7 +57,7 @@ public sealed class MedicalFamilyTests
         Assert.Equal([MedicalRules.MedicalCareNeed, MedicalRules.MedicalReservesNeed, MedicalRules.SurgeryNeed], needs.Select(n => n.Id));
         Assert.All(needs, n => Assert.Equal((NeedTier.Wellbeing, expected), (n.Tier, n.Satisfaction)));
         var reserves = needs[1];
-        Assert.Equal(expected == Satisfaction.Met ? Known(0.0) : Known(0.75), reserves.Deficit);
+        Assert.Equal(expected == Satisfaction.Met ? 0.0 : 0.75, reserves.Deficit);
         Assert.Empty(new MedicalFamily(true, true, true, true).Propose(needs, facts));
     }
 

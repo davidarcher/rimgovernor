@@ -28,7 +28,7 @@ public sealed record RoomsFacts
     public Fact<bool> HostingRecovered { get; init; }
 
     /// <summary>The share of hosting facility kinds not yet recovered.</summary>
-    public Fact<double> HostingDeficit { get; init; }
+    public double HostingDeficit { get; init; }
 
     /// <summary>The PartySpot is missing, duplicated or outranked by a better shared room, and the one-shot is not spent.</summary>
     public Fact<bool> PartySpotOwed { get; init; }

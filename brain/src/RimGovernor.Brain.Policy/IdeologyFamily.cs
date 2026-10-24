@@ -103,7 +103,7 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
                 Id = ConversionRules.NeedOf(facts.Conversion.Target),
                 Tier = NeedTier.Development,
                 Satisfaction = Satisfaction.Unmet,
-                Deficit = Known(1.0),
+                Deficit = 1.0,
                 Preconditions = roles ? [Roles] : [],
             });
         }
@@ -182,7 +182,7 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         Id = id,
         Tier = NeedTier.Development,
         Satisfaction = count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-        Deficit = Known((double)count),
+        Deficit = (double)count,
     };
 }
 

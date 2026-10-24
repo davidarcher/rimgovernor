@@ -170,7 +170,7 @@ public static partial class MedicalRules
             Id = CriticalNeed(p),
             Tier = NeedTier.SeriousHarm,
             Satisfaction = Satisfaction.Unmet,
-            Deficit = Known(1.0),
+            Deficit = 1.0,
         })];
     }
 
@@ -205,9 +205,9 @@ public static partial class MedicalRules
             Id = MedicalReservesNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = covered ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = covered ? Known(0.0)
+            Deficit = covered ? 0.0
                 : f.MedicineStock.TryGetValue(out var stock) && f.MedicineTarget.TryGetValue(out var target) && target > 0
-                    ? Known(Math.Clamp((target - stock) / (double)target, 0, 1)) : Known(1.0),
+                    ? Math.Clamp((target - stock) / (double)target, 0, 1) : 1.0,
         };
     }
 

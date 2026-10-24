@@ -183,7 +183,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             Id = Repairs,
             Tier = NeedTier.Wellbeing,
             Satisfaction = targets.Count == 0 ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Fact.Known(missing),
+            Deficit = missing,
         };
     }
 
@@ -199,7 +199,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             Id = Clearance,
             Tier = NeedTier.Development,
             Satisfaction = targets.Count == 0 ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = Fact.Known((double)targets.Count),
+            Deficit = (double)targets.Count,
         };
     }
 

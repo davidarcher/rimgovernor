@@ -43,13 +43,13 @@ public sealed class EconomyFamilyTests
     public void ResearchIsMetUnmetOrUnknownByTheNeedsAndTheCensus()
     {
         var none = EconomyFamily.ResearchNeed(new EconomyFacts());
-        Assert.Equal((EconomyFamily.Research, NeedTier.Development, Satisfaction.Met, 0.0), (none.Id, none.Tier, none.Satisfaction, none.Deficit.Value));
+        Assert.Equal((EconomyFamily.Research, NeedTier.Development, Satisfaction.Met, 0.0), (none.Id, none.Tier, none.Satisfaction, none.Deficit));
 
         var finished = EconomyFamily.ResearchNeed(Facts(["Smithing"], finished: ["Smithing"], projects: Project("Smithing")));
         Assert.Equal(Satisfaction.Met, finished.Satisfaction);
 
         var idle = EconomyFamily.ResearchNeed(Facts(["Smithing"], projects: Project("Smithing")));
-        Assert.Equal((Satisfaction.Unmet, 1.0), (idle.Satisfaction, idle.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (idle.Satisfaction, idle.Deficit));
 
         // A derived target stays owed while its project is current: the ladder waits on it finishing.
         Assert.Equal(Satisfaction.Unmet, EconomyFamily.ResearchNeed(Facts(["Smithing"], current: "Smithing", projects: Project("Smithing"))).Satisfaction);
@@ -65,7 +65,7 @@ public sealed class EconomyFamilyTests
         var facts = Facts(["Smithing"], finished: ["Smithing"], slots: [new KnowledgeSlot { Category = "Basic" }],
             projects: [Project("Smithing"), Project("Study", category: "Basic")]);
         var need = EconomyFamily.ResearchNeed(facts);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (need.Satisfaction, need.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (need.Satisfaction, need.Deficit));
         Assert.Equal(new ResearchStep("Study", null, false, false), EconomyRules.ResearchStepOf(facts));
 
         // A slot already funding is no spending need.
@@ -161,12 +161,12 @@ public sealed class EconomyFamilyTests
 
         var unmet = EconomyRules.ResourceNeedOf(Stock(25));
         Assert.Equal(Satisfaction.Unmet, unmet.Satisfaction);
-        Assert.True(unmet.Deficit.TryGetValue(out var deficit) && deficit > 0, unmet.Deficit.ToString());
+        Assert.True(unmet.Deficit > 0, unmet.Deficit.ToString());
 
         // A runway known short is unmet with targets covered; its missing horizon share is the deficit.
         var runway = EconomyRules.ResourceNeedOf(Stock(150, Runway(Known(true), Known(1.0))));
         Assert.Equal(Satisfaction.Unmet, runway.Satisfaction);
-        Assert.True(runway.Deficit.TryGetValue(out var share) && share > 0, runway.Deficit.ToString());
+        Assert.True(runway.Deficit > 0, runway.Deficit.ToString());
 
         // An unread census, or an unread runway with nothing short, is unknown: no latch holds the last answer.
         Assert.Equal("resource stock or runways", Assert.Throws<RequiredFactException>(() => EconomyRules.ResourceNeedOf(Stock(150) with { Stock = Unknown<EquatableArray<Amount>>() })).Fact);
@@ -242,7 +242,7 @@ public sealed class EconomyFamilyTests
         Assert.Equal("silver gap", Assert.Throws<RequiredFactException>(() => EconomyFamily.TradeNeed(new TradeReview())).Fact);
         Assert.Equal(Satisfaction.Met, EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(0.0) }).Satisfaction);
         var gap = EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(120.0) });
-        Assert.Equal((EconomyFamily.Trade, NeedTier.Development, Satisfaction.Unmet, 1.0), (gap.Id, gap.Tier, gap.Satisfaction, gap.Deficit.Value));
+        Assert.Equal((EconomyFamily.Trade, NeedTier.Development, Satisfaction.Unmet, 1.0), (gap.Id, gap.Tier, gap.Satisfaction, gap.Deficit));
 
         // The caravan Need: met once every caravan present is traded out.
         Assert.Equal("caravan trade", Assert.Throws<RequiredFactException>(() => EconomyFamily.CaravanNeed(new TradeReview())).Fact);

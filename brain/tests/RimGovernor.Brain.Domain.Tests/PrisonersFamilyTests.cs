@@ -55,11 +55,11 @@ public sealed class PrisonersFamilyTests
     public void RecruitIsMetUnmetOrUnknownByThePrisonersOwedAnInteraction()
     {
         var met = Derive(Census(Colony1, Prisoner("a", PrisonerInteractionMode.Recruit)), PrisonersFamily.Recruit);
-        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Development), (met.Satisfaction, met.Deficit.Value, met.Tier));
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Development), (met.Satisfaction, met.Deficit, met.Tier));
         Assert.Equal(Satisfaction.Met, Derive(Census(Colony1), PrisonersFamily.Recruit).Satisfaction);
 
         var unmet = Derive(Census(Colony1, Prisoner("a"), Prisoner("b"), Prisoner("c", PrisonerInteractionMode.Recruit)), PrisonersFamily.Recruit);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit));
 
         // A review without the population census raises; a prisoner under a mode the colony never sets is left alone.
         Assert.Equal("population census", Assert.Throws<RequiredFactException>(() => PrisonersFacts.From(new RoundsFacts())).Fact);
@@ -95,7 +95,7 @@ public sealed class PrisonersFamilyTests
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (met.Satisfaction, met.Tier));
 
         var unmet = Derive(Census(Colony1) with { Custody = [Downed("g", guest: true), Downed("h", guest: false)] }, PrisonersFamily.Custody);
-        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit));
 
         // A downed person that is neither a guest to rescue nor a hostile to capture owes no custody.
         Assert.Equal(Satisfaction.Met, Derive(Census(Colony1) with { Custody = [PopulationFixtures.Person("n") with { Downed = true }] }, PrisonersFamily.Custody).Satisfaction);
