@@ -101,12 +101,11 @@ internal static class ProductionLadder
     // The colony's ComponentIndustrial units, held stock included (a crafter carrying the product to storage).
     private static async Task<long> CountAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(
+        var supplies = await s.CallAsync(
             label,
             NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Component], IncludeHeld = true } },
+            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Component], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.Ours, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
-        var supplies = TypedReads.Observed(label, NativeOps.ListSupplies, reply, reply.Outcome?.Observed);
-        return supplies.Stocks.Where(row => row.Definition.DefName == Component).Sum(row => row.Units);
+        return supplies.Stocks.Where(row => row.DefName == Component).Sum(row => row.Units);
     }
 }

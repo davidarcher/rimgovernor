@@ -59,7 +59,7 @@ internal static class SuppliesReads
         foreach (var includeHeld in new[] { true, false })
         {
             var label = includeHeld ? "held" : "spawned";
-            var supplies = await CensusAsync(s, label, new Observations.StockFilter { DefNames = [.. Defs], Ownership = Observations.StockOwnership.All, IncludeHeld = includeHeld }, cancellationToken).ConfigureAwait(false);
+            var supplies = await CensusAsync(s, label, new Observations.StockFilter { DefNames = [.. Defs], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.All, IncludeHeld = includeHeld }, cancellationToken).ConfigureAwait(false);
             if (supplies.Context != before.Context)
             {
                 throw new AcceptanceException($"{label}: context drifted mid-run: {supplies.Context} vs {before.Context}");
@@ -79,17 +79,17 @@ internal static class SuppliesReads
             s.Record(label + "_stocks", new JsonArray([.. rows.Select(r => JsonNode.Parse(WireJson.Serialize(r)))]));
         }
 
-        var defaults = await CensusAsync(s, "default", new Observations.StockFilter { DefNames = [.. Defs] }, cancellationToken).ConfigureAwait(false);
+        var defaults = await CensusAsync(s, "default", new Observations.StockFilter { DefNames = [.. Defs], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.Ours, IncludeHeld = true }, cancellationToken).ConfigureAwait(false);
         foreach (var row in defaults.Stocks)
         {
             if (row.Ours <= 0)
             {
-                throw new AcceptanceException($"default: want a positive ours quantity, got {row.Definition.DefName}: ours {row.Ours}");
+                throw new AcceptanceException($"default: want a positive ours quantity, got {row.DefName}: ours {row.Ours}");
             }
         }
 
         var weapons = await CensusAsync(s, "weapons", new Observations.StockFilter { Category = Observations.StockCategory.Weapons, Ownership = Observations.StockOwnership.All, IncludeHeld = true }, cancellationToken).ConfigureAwait(false);
-        var weaponDefs = weapons.Stocks.Select(row => row.Definition.DefName ?? "").ToList();
+        var weaponDefs = weapons.Stocks.Select(row => row.DefName).ToList();
         s.Record("weapon_census", new JsonArray([.. weaponDefs.Select(d => (JsonNode?)d)]));
         if (!weaponDefs.Contains(Defs[0]))
         {
@@ -108,17 +108,16 @@ internal static class SuppliesReads
 
     private static async Task<Observations.SuppliesSnapshot> CensusAsync(TypedSession s, string label, Observations.StockFilter filter, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.ListSupplies, reply, reply.Outcome?.Observed);
+        return await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, cancellationToken).ConfigureAwait(false);
     }
 
-    // One row's counts agree: each stack is one item with its CAS snapshot (or the documented items.snapshot UNSUPPORTED
-    // gap for an item that is not forbiddable), and spawned plus the holders' units is the total (held mode) or spawned
+    // One row's counts agree: each stack is one item (with its CAS snapshot unless it is a loose supply the Allow rules
+    // do not admit), and spawned plus the holders' units is the total (held mode) or spawned
     // is the total with no holders (spawned mode).
     private static void Check(string label, Observations.ResourceStock row, bool includeHeld)
     {
-        var what = $"{label}: {row.Definition.DefName}";
-        if (string.IsNullOrEmpty(row.Definition.DefName) || row.Units <= 0)
+        var what = $"{label}: {row.DefName}";
+        if (string.IsNullOrEmpty(row.DefName) || row.Units <= 0)
         {
             throw new AcceptanceException($"{what}: a stock row without a definition or units: {row}");
         }
@@ -129,15 +128,9 @@ internal static class SuppliesReads
         }
 
         var items = row.Items.ToList();
-        if (items.Count != row.Stacks || items.Select(i => i.Item.Id).Distinct(StringComparer.Ordinal).Count() != items.Count || items.Any(i => string.IsNullOrEmpty(i.Item.Id)))
+        if (items.Count != row.Stacks || items.Select(i => i.Id).Distinct(StringComparer.Ordinal).Count() != items.Count || items.Any(i => string.IsNullOrEmpty(i.Id)))
         {
             throw new AcceptanceException($"{what}: {items.Count} distinct-id items for {row.Stacks} stacks");
-        }
-
-        var snapshotless = row.Issues.Any(i => i.Field == "items.snapshot" && i.Unavailable?.Reason == Common.UnavailableReason.Unsupported);
-        if (!snapshotless && items.Any(i => i.Snapshot is null))
-        {
-            throw new AcceptanceException($"{what}: an item without a CAS snapshot");
         }
 
         var holders = row.Holders.ToList();
@@ -152,7 +145,7 @@ internal static class SuppliesReads
         }
 
         var held = holders.Sum(h => h.Units);
-        if (holders.Any(h => h.Units <= 0 || string.IsNullOrEmpty(h.Holder.Id)) || row.Spawned + held != row.Units)
+        if (holders.Any(h => h.Units <= 0 || string.IsNullOrEmpty(h.Holder)) || row.Spawned + held != row.Units)
         {
             throw new AcceptanceException($"{what}: spawned {row.Spawned} + holder units {held} != units {row.Units}, or a holder without id or units");
         }

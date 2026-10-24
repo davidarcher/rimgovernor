@@ -144,13 +144,13 @@ public static class ColonyAudits
         var supplies = await harness.CallAsync(
             "audit-supplies",
             NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = scope, Filter = new Observations.StockFilter { DefNames = [PemmicanDef, WoodLogDef] } },
+            new Observations.ListSuppliesRequest { Scope = scope, Filter = new Observations.StockFilter { DefNames = [PemmicanDef, WoodLogDef], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.Ours, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
         var forbidden = new List<string>();
         var stocks = new JsonArray();
-        foreach (var stock in TypedReads.Observed("audit-supplies", NativeOps.ListSupplies, supplies, supplies.Outcome?.Observed).Stocks)
+        foreach (var stock in supplies.Stocks)
         {
-            var name = stock.Definition.DefName ?? "";
+            var name = stock.DefName;
             stocks.Add(new JsonObject { { "def", name }, { "ours", stock.Ours }, { "ours_unforbidden", stock.OursUnforbidden } });
 
             // Wood stacks outside the base stay forbidden on purpose (admin/supply-safety, outside_base:insufficient_defense),

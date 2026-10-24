@@ -102,27 +102,19 @@ public sealed partial class FacadeNativeClient
         var request = new PbObservations.ListSuppliesRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            Filter = new PbObservations.StockFilter { DefNames = EquatableArray.From(defNames), Ownership = PbObservations.StockOwnership.Ours },
+            Filter = new PbObservations.StockFilter
+            {
+                DefNames = EquatableArray.From(defNames),
+                Category = PbObservations.StockCategory.Haulable,
+                Ownership = PbObservations.StockOwnership.Ours,
+                IncludeHeld = true,
+            },
         };
-        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
+        var snapshot = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
+        foreach (var row in snapshot.Stocks)
         {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        foreach (var row in reply.Outcome.Observed!.Stocks)
-        {
-            var name = row.Definition.DefName ?? "";
-            seenOut.Add(name);
-            output.Add(
-                new P.Stock(
-                    new P.Resource(name),
-                    row.OursUnforbidden is { } available && available >= 0 ? Fact.Known(available) : Fact.Unknown<long>()
-                )
-            );
+            seenOut.Add(row.DefName);
+            output.Add(new P.Stock(new P.Resource(row.DefName), Fact.Known(row.OursUnforbidden)));
         }
     }
 

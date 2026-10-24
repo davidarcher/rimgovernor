@@ -3,9 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -17,58 +16,39 @@ namespace HomeBridge.BridgeTools
     internal static class NativeSuppliesObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.ListSuppliesReply HandleListSupplies(Obs.ListSuppliesRequest parsed)
+        internal static Obs.SuppliesSnapshot HandleListSupplies(Obs.ListSuppliesRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListSuppliesReply { Outcome = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ListSuppliesReply { Outcome = error };
+                throw NativeFaults.Refused(error);
+            var filter = parsed.Filter;
+            var player = Faction.OfPlayerSilentFail;
+            if (player == null || map.areaManager?.Home == null || map.zoneManager == null || map.reservationManager == null || map.fogGrid == null)
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Stock ownership/read trackers are unavailable." });
+            if (filter.Region != null && (!NativeCell(filter.Region.Minimum).InBounds(map) || !NativeCell(filter.Region.Maximum).InBounds(map)))
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map."));
             try
             {
-                var filter = parsed.Filter ?? new Obs.StockFilter();
-                var player = Faction.OfPlayerSilentFail;
-                if (player == null || map.areaManager?.Home == null || map.zoneManager == null || map.reservationManager == null || map.fogGrid == null)
-                    return new Obs.ListSuppliesReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Stock ownership/read trackers are unavailable.") };
-                if (filter.Region != null && (!NativeCell(filter.Region.Minimum).InBounds(map) || !NativeCell(filter.Region.Maximum).InBounds(map)))
-                    return new Obs.ListSuppliesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
                 var entries = new Census(map, player, filter).Read();
-                var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-                var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
-                var snapshot = new Obs.SuppliesSnapshot { Context = context };
-                foreach (var group in selected)
-                {
-                    var entriesForDefinition = group.ToList();
-                    var row = Project(entriesForDefinition);
-                    var items = row.Items.ToList();
-                    for (var index = 0; index < items.Count; index++)
-                    {
-                        var entry = entriesForDefinition[index];
-                        items[index] = items[index] with { Snapshot = entry.Holder == null
-                            ? NativeSupplyAllow.Snapshot(entry.Thing, context)
-                            : HeldSnapshot(entry, context) };
-                    }
-                    row = row with { Items = [.. items] };
-                    if (items.All(item => item.Snapshot != null))
-                    {
-                        var snapshotIssue = row.Issues.Single(issue => (issue.Field ?? "") == "items.snapshot");
-                        row = row with { Issues = [.. row.Issues.Where(issue => !ReferenceEquals(issue, snapshotIssue))] };
-                    }
-                    snapshot = snapshot with { Stocks = [.. snapshot.Stocks, row] };
-                }
-                return new Obs.ListSuppliesReply { Outcome = snapshot };
+                var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal);
+                var selected = groups.Where(g => filter.Ownership == Obs.StockOwnership.All || g.Any(e => e.Ours));
+                return new Obs.SuppliesSnapshot { Context = context, Stocks = [.. selected.Select(g => Project(g.ToList(), context))] };
             }
-            catch (Exception) { return new Obs.ListSuppliesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Stock or holder facts could not be read completely.") }; }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Supplies read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Stock or holder facts could not be read completely." });
+            }
         }
 
         internal static bool Validate(Obs.ListSuppliesRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, supported exact stock filters are required.");
-            if (request == null || request.Scope?.ExpectedIdentity == null) return false;
+            if (request?.Filter == null || request.Scope?.ExpectedIdentity == null) return false;
             var filter = request.Filter;
-            if (filter == null) return true;
             if (filter.DefNames.Count > 256 || filter.DefNames.Any(d => !ProtoBoundary.IsIdentifier(d))
                 || filter.DefNames.Distinct(StringComparer.Ordinal).Count() != filter.DefNames.Count) return false;
-            if (filter.Category is not null && (filter.Category.GetValueOrDefault() == Obs.StockCategory.Unspecified || !Enum.IsDefined(typeof(Obs.StockCategory), filter.Category.GetValueOrDefault()))) return false;
-            if (filter.Ownership is not null && filter.Ownership.GetValueOrDefault() != Obs.StockOwnership.Ours && filter.Ownership.GetValueOrDefault() != Obs.StockOwnership.All) return false;
+            if (!Enum.IsDefined(typeof(Obs.StockCategory), filter.Category) || !Enum.IsDefined(typeof(Obs.StockOwnership), filter.Ownership)) return false;
             if (filter.Region == null) return true;
             var min = filter.Region.Minimum;
             var max = filter.Region.Maximum;
@@ -104,21 +84,21 @@ namespace HomeBridge.BridgeTools
             internal List<StockEntry> Read()
             {
                 var all = map.listerThings.AllThings.ToList();
-                var category = Category(filter);
+                var category = filter.Category;
                 IEnumerable<Thing> spawned = category == Obs.StockCategory.All ? all : category == Obs.StockCategory.Buildings
                     ? map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingArtificial)
                     : map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver);
                 foreach (var thing in spawned) Add(thing, null, thing.Position);
-                if (IncludeHeld(filter)) foreach (var root in all)
+                if (filter.IncludeHeld) foreach (var root in all)
                     if (root is IThingHolder holder) Walk(holder, root, null, 0);
                 return result;
             }
             private void Add(Thing thing, Holder? holder, IntVec3 position)
             {
                 if (thing == null || thing.Destroyed || thing.def == null || !things.Add(thing)) throw new InvalidOperationException("Invalid or duplicate native stock thing.");
-                if (!MatchesCategory(thing.def, Category(filter), holder != null)) return;
-                if (filter.Corpses.GetValueOrDefault() && !(thing is Corpse)) return;
-                if (filter.ExcludeChunks.GetValueOrDefault() && thing.def.defName.StartsWith("Chunk", StringComparison.OrdinalIgnoreCase)) return;
+                if (!MatchesCategory(thing.def, filter.Category, holder != null)) return;
+                if (filter.Corpses && !(thing is Corpse)) return;
+                if (filter.ExcludeChunks && thing.def.defName.StartsWith("Chunk", StringComparison.OrdinalIgnoreCase)) return;
                 if (filter.DefNames.Count != 0 && !filter.DefNames.Contains(thing.def.defName)) return;
                 if (!position.InBounds(map)) throw new InvalidOperationException("Stock root position outside map.");
                 if (filter.Region != null)
@@ -129,7 +109,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (thing.stackCount <= 0) throw new InvalidOperationException("Invalid native stack quantity.");
                 var forbidden = (thing as ThingWithComps)?.GetComp<CompForbiddable>()?.Forbidden ?? false;
-                if (filter.ForbiddenOnly.GetValueOrDefault() && !forbidden) return;
+                if (filter.ForbiddenOnly && !forbidden) return;
                 var fogged = position.Fogged(map);
                 var ownFaction = holder?.Player ?? (thing.Faction == player);
                 var other = holder?.Other ?? (thing.Faction != null && thing.Faction != player);
@@ -193,10 +173,8 @@ namespace HomeBridge.BridgeTools
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
 
-        internal static Obs.ResourceStock Project(List<StockEntry> entries)
+        internal static Obs.ResourceStock Project(List<StockEntry> entries, Common.ObservationContext context)
         {
-            var first = entries[0].Thing.def;
-            var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName) }, Stacks = entries.Count };
             long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0, playerFaction = 0;
             foreach (var entry in entries)
             {
@@ -210,15 +188,23 @@ namespace HomeBridge.BridgeTools
                     if (entry.Forbidden) forbidden += units;
                     if (entry.PlayerFaction) playerFaction += units;
                 }
-                row = row with { Items = [.. row.Items, Item(entry.Thing, entry.Position)] };
-                if (entry.Thing.def.IsWeapon) {
-                    row = row with { WeaponItems = [.. row.WeaponItems, NativeGearFacts.Gear(entry.Thing)] };
-                }
-                if (entry.Holder != null) row = row with { Holders = [.. row.Holders, new Obs.HeldStock { Holder = NativeRef.Thing(entry.Holder), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units }] };
             }
-            row = row with { Issues = [.. row.Issues, Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow.")] };
-            return row with { Units = totalUnits, Spawned = spawned, Ours = ours, OursUnforbidden = oursUnforbidden, Forbidden = forbidden,
-                PlayerFaction = playerFaction };
+            return new Obs.ResourceStock
+            {
+                DefName = Id(entries[0].Thing.def.defName),
+                Units = totalUnits,
+                Stacks = entries.Count,
+                Spawned = spawned,
+                Ours = ours,
+                OursUnforbidden = oursUnforbidden,
+                Forbidden = forbidden,
+                PlayerFaction = playerFaction,
+                Items = [.. entries.Select(entry => Item(entry, context))],
+                Holders = [.. entries.Where(entry => entry.Holder != null).Select(entry => new Obs.HeldStock
+                    { Holder = Id(entry.Holder!.GetUniqueLoadID()), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = entry.Thing.stackCount })],
+                WeaponItems = [.. entries.Where(entry => entry.Thing.def.IsWeapon)
+                    .Select(entry => NativeGearFacts.Gear(entry.Thing))],
+            };
         }
 
         // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token
@@ -231,25 +217,23 @@ namespace HomeBridge.BridgeTools
                 w.Write(entry.Position.x); w.Write(entry.Position.z);
             });
 
-        private static Obs.StockItem Item(Thing thing, IntVec3 position)
+        private static Obs.StockItem Item(StockEntry entry, Common.ObservationContext context) => new Obs.StockItem
         {
-            var entity = new Obs.StockItem { Item = new Common.Ref { Id = Id(thing.GetUniqueLoadID()) }, Cell = new Common.Cell { X = position.x, Z = position.z } };
-            if (thing is MinifiedThing mini && mini.InnerThing != null)
+            Id = Id(entry.Thing.GetUniqueLoadID()),
+            Cell = new RimGovernor.Brain.Domain.Cell(entry.Position.x, entry.Position.z),
+            Snapshot = entry.Holder == null ? NativeSupplyAllow.Snapshot(entry.Thing, context) : HeldSnapshot(entry, context),
+            Packed = entry.Thing is MinifiedThing mini && mini.InnerThing != null ? new Obs.PackedBuilding
             {
-                entity = entity with { Inner = new Common.Ref { Id = Id(mini.InnerThing.GetUniqueLoadID()) } };
-                entity = entity with { InnerDefName = Id(mini.InnerThing.def.defName) };
+                Id = Id(mini.InnerThing.GetUniqueLoadID()),
+                DefName = Id(mini.InnerThing.def.defName),
                 // Art stock: the trade selector keeps the best pieces.
-                if (mini.InnerThing.TryGetQuality(out var quality)) entity = entity with { Quality = (Defs.QualityCategory)(int)quality };
-                try { entity = entity with { MarketValue = thing.MarketValue }; } catch { }
-            }
-            return entity;
-        }
-        private static Obs.StockCategory Category(Obs.StockFilter filter) => filter.Category is not null ? filter.Category.GetValueOrDefault() : Obs.StockCategory.Haulable;
-        private static Obs.StockOwnership Ownership(Obs.StockFilter filter) => filter.Ownership is not null ? filter.Ownership.GetValueOrDefault() : Obs.StockOwnership.Ours;
-        private static bool IncludeHeld(Obs.StockFilter filter) => filter.IncludeHeld is null || filter.IncludeHeld.GetValueOrDefault();
+                Quality = mini.InnerThing.TryGetQuality(out var quality) ? (Defs.QualityCategory)(int)quality : null,
+                MarketValue = mini.MarketValue,
+            } : null,
+        };
+
         private static bool CellPresent([NotNullWhen(true)] Common.Cell? cell) => cell != null;
         private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3(cell?.X ?? 0, 0, cell?.Z ?? 0);
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };    }
+    }
 }

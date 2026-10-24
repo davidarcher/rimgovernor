@@ -552,8 +552,7 @@ public sealed class GameReuse : IAsyncDisposable
 
         // Stock: the colony-facts resource census (units per definition) is the bounded, save-independent sample; an
         // unfiltered supplies listing exceeds the native 256-row item limit on an ordinary colony. Forbidden counts come
-        // from a supplies read scoped to those definitions and are skipped (-1) when native declines that read as too
-        // large as well.
+        // from a supplies read scoped to those definitions.
         var facts = await h.CallAsync(
             label + "-stock",
             NativeOps.ReadColonyFacts,
@@ -570,25 +569,21 @@ public sealed class GameReuse : IAsyncDisposable
 
         if (stock.Count > 0)
         {
-            var suppliesReply = await h.CallAsync(
+            var supplies = await h.CallAsync(
                 label + "-forbidden",
                 NativeOps.ListSupplies,
-                new Wo.ListSuppliesRequest { Scope = scope, Filter = new() { DefNames = [.. stock.Keys], Ownership = Wo.StockOwnership.All } },
-                cancellationToken).ConfigureAwait(false);
-            if (suppliesReply.Outcome?.Observed is { } supplies)
-            {
-                foreach (var row in supplies.Stocks)
+                new Wo.ListSuppliesRequest
                 {
-                    if (row.Definition.DefName is { } defName && stock.TryGetValue(defName, out var counts))
-                    {
-                        stock[defName] = counts with { Forbidden = row.Forbidden };
-                    }
-                }
-            }
-            else if (suppliesReply.Outcome?.Unavailable is null)
+                    Scope = scope,
+                    Filter = new() { DefNames = [.. stock.Keys], Category = Wo.StockCategory.Haulable, Ownership = Wo.StockOwnership.All, IncludeHeld = true },
+                },
+                cancellationToken).ConfigureAwait(false);
+            foreach (var row in supplies.Stocks)
             {
-                // Native declining the bounded read leaves the forbidden counts unsampled; anything else is a failure.
-                throw new AcceptanceException($"supplies: {WireJson.Serialize(suppliesReply)}");
+                if (stock.TryGetValue(row.DefName, out var counts))
+                {
+                    stock[row.DefName] = counts with { Forbidden = row.Forbidden };
+                }
             }
         }
 

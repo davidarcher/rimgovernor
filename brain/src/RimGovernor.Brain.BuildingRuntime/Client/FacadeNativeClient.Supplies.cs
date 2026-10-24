@@ -8,29 +8,22 @@ public sealed partial class FacadeNativeClient
     /// <summary>Lists the colony's spawned, unheld packed items of one packed definition.</summary>
     internal async Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
     {
-        var reply = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        var snapshot = reply.Outcome.Observed!;
+        var snapshot = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
         var output = new List<PackedItem>();
         foreach (var row in snapshot.Stocks)
         {
             foreach (var item in row.Items)
             {
+                // A packed def's stack is always a packed building.
+                var packed = item.Packed ?? throw BridgeContractException.Contract("packed stock without its building");
                 output.Add(new PackedItem
                 {
-                    Id = item.Item.Id ?? "",
-                    Inner = item.Inner?.Id ?? "",
-                    InnerDef = item.InnerDefName ?? "",
-                    Quality = (int)item.Quality.GetValueOrDefault(),
-                    QualityKnown = item.Quality is not null,
-                    MarketValue = item.MarketValue.GetValueOrDefault(),
+                    Id = item.Id,
+                    Inner = packed.Id,
+                    InnerDef = packed.DefName,
+                    Quality = packed.Quality is { } quality ? (int)quality : 0,
+                    QualityKnown = packed.Quality is not null,
+                    MarketValue = packed.MarketValue,
                 });
             }
         }
@@ -45,26 +38,18 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<IReadOnlyList<string>> ReadNeuroformerItemsAsync(PbCommon.Identity identity, string def, CancellationToken cancellationToken)
     {
-        var reply = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, def), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
+        var snapshot = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, def), cancellationToken).ConfigureAwait(false);
         var output = new List<string>();
-        foreach (var stock in reply.Outcome.Observed!.Stocks)
+        foreach (var stock in snapshot.Stocks)
         {
             foreach (var item in stock.Items)
             {
-                // Native issues distinguish ineligible items from an incomplete census.
+                // An item with no Allow snapshot is an ineligible loose supply.
                 if (item.Snapshot is null || stock.Forbidden != 0)
                 {
                     continue;
                 }
-                output.Add(item.Item.Id ?? "");
+                output.Add(item.Id);
             }
         }
         output.Sort(StringComparer.Ordinal);
@@ -78,7 +63,7 @@ public sealed partial class FacadeNativeClient
             new()
             {
                 Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-                Filter = new PbObservations.StockFilter { DefNames = [def], Ownership = PbObservations.StockOwnership.Ours, IncludeHeld = false },
+                Filter = new PbObservations.StockFilter { DefNames = [def], Category = PbObservations.StockCategory.Haulable, Ownership = PbObservations.StockOwnership.Ours, IncludeHeld = false },
             };
     }
 }

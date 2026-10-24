@@ -26,7 +26,6 @@ public sealed partial class FacadeNativeClient
                 Category = PbObservations.StockCategory.Weapons,
                 Ownership = PbObservations.StockOwnership.Ours,
                 IncludeHeld = false,
-                ForbiddenOnly = false,
                 Region = new PbObservations.Rectangle
                 {
                     Minimum = new PbCommon.Cell { X = minimum.X, Z = minimum.Z },
@@ -34,8 +33,7 @@ public sealed partial class FacadeNativeClient
                 },
             },
         };
-        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        return SupplyDecodeEquipWeapons(SupplyObserved(reply));
+        return SupplyDecodeEquipWeapons(await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>The loose forbidden supply items at one cell, as allow targets.</summary>
@@ -58,13 +56,13 @@ public sealed partial class FacadeNativeClient
             Filter = new PbObservations.StockFilter
             {
                 DefNames = EquatableArray.From(FoodReserveRules.ReserveFoodDefinitions()),
+                Category = PbObservations.StockCategory.Haulable,
                 Ownership = PbObservations.StockOwnership.Ours,
                 IncludeHeld = false,
                 ForbiddenOnly = !forbid,
             },
         };
-        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        return SupplyDecodeAccess(SupplyObserved(reply), forbid);
+        return SupplyDecodeAccess(await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false), forbid);
     }
 
     private async Task<SupplyRead> SupplyReadAccessAsync(PbCommon.Identity identity, DomainCell cell, bool forbid, CancellationToken cancellationToken)
@@ -89,22 +87,7 @@ public sealed partial class FacadeNativeClient
                 },
             },
         };
-        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        return SupplyDecodeAccess(SupplyObserved(reply), forbid);
-    }
-
-    /// <summary>The supplies census of <paramref name="reply"/>: a failure or unavailable outcome throws.</summary>
-    private static PbObservations.SuppliesSnapshot SupplyObserved(PbObservations.ListSuppliesReply reply)
-    {
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        return reply.Outcome.Observed!;
+        return SupplyDecodeAccess(await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false), forbid);
     }
 
     private static EquipRead SupplyDecodeEquipWeapons(PbObservations.SuppliesSnapshot v)
@@ -119,10 +102,9 @@ public sealed partial class FacadeNativeClient
             }
             foreach (var item in stock.Items)
             {
-                var id = item.Item.Id ?? "";
-                var at = item.Cell;
+                var id = item.Id;
                 owners.TryGetValue(id, out var weapon);
-                // Native issues distinguish ineligible items from an incomplete census.
+                // An item with no Allow snapshot is an ineligible loose supply.
                 if (item.Snapshot is null)
                 {
                     continue;
@@ -131,8 +113,8 @@ public sealed partial class FacadeNativeClient
                     new EquipCandidate
                     {
                         Thing = id,
-                        Definition = stock.Definition.DefName ?? "",
-                        Cell = new DomainCell(at.X, at.Z),
+                        Definition = stock.DefName,
+                        Cell = item.Cell,
                         Token = item.Snapshot.Token ?? "",
                         BiocodedTo = new RimGovernor.Brain.Domain.PawnId(weapon?.BiocodedTo ?? ""),
                         Biocoded = weapon?.Biocoded ?? false,
@@ -149,17 +131,15 @@ public sealed partial class FacadeNativeClient
         var targets = new List<SupplyTarget>();
         foreach (var stock in v.Stocks)
         {
-            var def = stock.Definition.DefName ?? "";
+            var def = stock.DefName;
             foreach (var item in stock.Items)
             {
-                var id = item.Item.Id ?? "";
-                var cell = new DomainCell(item.Cell.X, item.Cell.Z);
-                // Native issues distinguish ineligible items from an incomplete census.
+                // An item with no Allow snapshot is an ineligible loose supply.
                 if (item.Snapshot is null)
                 {
                     continue;
                 }
-                var supply = forbid ? RimGovernor.Brain.Domain.SupplyAllow.NewSupplyForbid(id, def, cell) : new RimGovernor.Brain.Domain.SupplyAllow(id, def, cell);
+                var supply = forbid ? RimGovernor.Brain.Domain.SupplyAllow.NewSupplyForbid(item.Id, def, item.Cell) : new RimGovernor.Brain.Domain.SupplyAllow(item.Id, def, item.Cell);
                 targets.Add(new SupplyTarget { Supply = supply });
             }
         }

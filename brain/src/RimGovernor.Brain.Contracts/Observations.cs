@@ -77,8 +77,6 @@ public enum Passion
 [JsonConverter(typeof(WireEnumConverter<HolderKind>))]
 public enum HolderKind
 {
-    [WireName("HOLDER_KIND_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("HOLDER_KIND_CONTAINER")]
     Container = 1,
     [WireName("HOLDER_KIND_CORPSE")]
@@ -110,13 +108,11 @@ public enum BenchUnusableReason
 }
 
 /// <summary>
-/// StockCategory and StockOwnership scope a supplies read; absent means HAULABLE and OURS.
+/// StockCategory and StockOwnership scope a supplies read: which things it counts and whose.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<StockCategory>))]
 public enum StockCategory
 {
-    [WireName("STOCK_CATEGORY_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("STOCK_CATEGORY_HAULABLE")]
     Haulable = 1,
     [WireName("STOCK_CATEGORY_FOOD")]
@@ -132,8 +128,6 @@ public enum StockCategory
 [JsonConverter(typeof(WireEnumConverter<StockOwnership>))]
 public enum StockOwnership
 {
-    [WireName("STOCK_OWNERSHIP_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("STOCK_OWNERSHIP_OURS")]
     Ours = 1,
     [WireName("STOCK_OWNERSHIP_ALL")]
@@ -1804,150 +1798,118 @@ public abstract record TendReach
 }
 
 /// <summary>
-/// One stack a stock row counts: the thing, the cell its units are
-/// at (its holder's when held), its supply CAS token when it is allowable,
-/// and for a packed (minified) item the building inside it, for a
-/// RelocateIntent install, with that building's quality (absent without
-/// one) and the packed item's market value (absent when the game throws
-/// computing it).
+/// One stack a stock row counts: the thing's load id and the cell its units are at (its holder's when held).
+/// Snapshot is its supply CAS token; it is absent exactly when the item is a loose supply the Allow rules do not
+/// admit (every held item carries a stateless holder token). Packed is the building inside a packed (minified)
+/// item, absent for any other thing.
 /// </summary>
 public sealed record StockItem
 {
-    public Common.Ref Item { get; init; } = new();
+    public required string Id { get; init; }
 
-    public Common.Cell Cell { get; init; } = new();
+    public required Cell Cell { get; init; }
 
     public SnapshotRef? Snapshot { get; init; }
 
-    public Common.Ref? Inner { get; init; }
-
-    public string? InnerDefName { get; init; }
-
-    public Defs.QualityCategory? Quality { get; init; }
-
-    public double? MarketValue { get; init; }
-}
-
-public sealed record HeldStock
-{
-    public Common.Ref Holder { get; init; } = new();
-
-    public HolderKind HolderKind { get; init; }
-
-    public long Units { get; init; }
+    public PackedBuilding? Packed { get; init; }
 }
 
 /// <summary>
-/// One definition's stock: unit and stack counts by place, ownership and
-/// state.
+/// The building inside a packed (minified) item, for a RelocateIntent install: its load id and def, its quality
+/// (absent for a building with no quality), and the packed item's market value.
+/// </summary>
+public sealed record PackedBuilding
+{
+    public required string Id { get; init; }
+
+    public required string DefName { get; init; }
+
+    public Defs.QualityCategory? Quality { get; init; }
+
+    public required double MarketValue { get; init; }
+}
+
+/// <summary>A holder's units of one definition: the holder thing's load id, what kind of holder it is, and the units.</summary>
+public sealed record HeldStock
+{
+    public required string Holder { get; init; }
+
+    public required HolderKind HolderKind { get; init; }
+
+    public required long Units { get; init; }
+}
+
+/// <summary>
+/// One definition's stock: unit and stack counts by place, ownership and state, every stack, the held units by
+/// holder, and the weapon rows' biocode facts keyed by the items' ids.
 /// </summary>
 public sealed record ResourceStock
 {
-    public DefinitionRef Definition { get; init; } = new();
+    public required string DefName { get; init; }
 
-    public long Units { get; init; }
+    public required long Units { get; init; }
 
-    public long Stacks { get; init; }
+    public required long Stacks { get; init; }
 
-    public long Spawned { get; init; }
+    public required long Spawned { get; init; }
 
-    public long Ours { get; init; }
+    public required long Ours { get; init; }
 
-    public long OursUnforbidden { get; init; }
+    public required long OursUnforbidden { get; init; }
 
-    public long Forbidden { get; init; }
+    public required long Forbidden { get; init; }
 
-    public long PlayerFaction { get; init; }
+    public required long PlayerFaction { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<StockItem>))]
-    public EquatableArray<StockItem> Items { get; init; }
+    public required EquatableArray<StockItem> Items { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<HeldStock>))]
-    public EquatableArray<HeldStock> Holders { get; init; }
+    public required EquatableArray<HeldStock> Holders { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
-    /// <summary>
-    /// Biocode facts keyed by items' exact identities.
-    /// Only weapon rows carry these; older producers omit them.
-    /// </summary>
+    /// <summary>Only weapon rows carry these.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearItem>))]
-    public EquatableArray<GearItem> WeaponItems { get; init; }
+    public required EquatableArray<GearItem> WeaponItems { get; init; }
 }
 
+/// <summary>
+/// A supplies read's scope. DefNames (empty: every def) narrows to exact defs; Category, Ownership and IncludeHeld
+/// choose the census (the usual read is Haulable, Ours, held included); ForbiddenOnly, ExcludeChunks and Corpses
+/// narrow it further; Region (absent: the whole map) bounds the root cells.
+/// </summary>
 public sealed record StockFilter
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> DefNames { get; init; }
 
-    public StockCategory? Category { get; init; }
+    public required StockCategory Category { get; init; }
 
-    public StockOwnership? Ownership { get; init; }
+    public required StockOwnership Ownership { get; init; }
 
-    public bool? IncludeHeld { get; init; }
+    public required bool IncludeHeld { get; init; }
 
-    public bool? ForbiddenOnly { get; init; }
+    public bool ForbiddenOnly { get; init; }
 
-    public bool? ExcludeChunks { get; init; }
+    public bool ExcludeChunks { get; init; }
 
-    public bool? Corpses { get; init; }
+    public bool Corpses { get; init; }
 
     public Rectangle? Region { get; init; }
 }
 
 public sealed record SuppliesSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceStock>))]
-    public EquatableArray<ResourceStock> Stocks { get; init; }
+    public required EquatableArray<ResourceStock> Stocks { get; init; }
 }
 
 public sealed record ListSuppliesRequest
 {
     public ReadScope? Scope { get; init; }
 
-    public StockFilter? Filter { get; init; }
-}
-
-public sealed record ListSuppliesReply
-{
-    public ListSuppliesReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ListSuppliesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ListSuppliesReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ListSuppliesReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ListSuppliesReplyOutcome.FailureCase), "failure")]
-public abstract record ListSuppliesReplyOutcome
-{
-    private protected ListSuppliesReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SuppliesSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(SuppliesSnapshot Value) : ListSuppliesReplyOutcome;
-
-    public static implicit operator ListSuppliesReplyOutcome(SuppliesSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ListSuppliesReplyOutcome;
-
-    public static implicit operator ListSuppliesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ListSuppliesReplyOutcome;
-
-    public static implicit operator ListSuppliesReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required StockFilter Filter { get; init; }
 }
 
 /// <summary>

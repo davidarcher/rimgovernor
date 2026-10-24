@@ -99,14 +99,14 @@ internal static class ControlHaulOut
             {
                 left = await StackAsync(s, stack, ct).ConfigureAwait(false) is { } item && item.Cell.X == origin.X && item.Cell.Z == origin.Z;
                 at = await AtAsync(s, destination, ct).ConfigureAwait(false);
-                return ($"left={left} stored={at?.Item.Id ?? "none"}", left && at is not null);
+                return ($"left={left} stored={at?.Id ?? "none"}", left && at is not null);
             },
             cancellationToken).ConfigureAwait(false);
         var rest = await HaulOpAsync(s, stack, cancellationToken).ConfigureAwait(false);
         if (!left || at is null || rest is null)
         {
             throw new AcceptanceException($"first carry: want the remainder of {stack} at its cell under its Haul removal and the carry on {destination}, "
-                + $"got left={left} stored={at?.Item.Id ?? "none"} op={rest?.ToString() ?? "none"}");
+                + $"got left={left} stored={at?.Id ?? "none"} op={rest?.ToString() ?? "none"}");
         }
 
         await DeliverAsync(s, generation, worker, stack, origin, destination, Count - first, 1, 2, cancellationToken).ConfigureAwait(false);
@@ -118,12 +118,12 @@ internal static class ControlHaulOut
             {
                 cleared = await HaulOpAsync(s, stack, ct).ConfigureAwait(false) is null && await StackAsync(s, stack, ct).ConfigureAwait(false) is null;
                 at = await AtAsync(s, destination, ct).ConfigureAwait(false);
-                return ($"cleared={cleared} stored={at?.Item.Id ?? "none"}", cleared && at is not null);
+                return ($"cleared={cleared} stored={at?.Id ?? "none"}", cleared && at is not null);
             },
             cancellationToken).ConfigureAwait(false);
         if (!cleared || at is null)
         {
-            throw new AcceptanceException($"second carry: want the Haul removal of {stack} gone and the chemfuel on {destination}, got cleared={cleared} stored={at?.Item.Id ?? "none"}");
+            throw new AcceptanceException($"second carry: want the Haul removal of {stack} gone and the chemfuel on {destination}, got cleared={cleared} stored={at?.Id ?? "none"}");
         }
     }
 
@@ -147,7 +147,7 @@ internal static class ControlHaulOut
 
     // The staged stack among the colony's chemfuel, or null when it is gone (merged into the stored stack).
     private static async Task<Observations.StockItem?> StackAsync(TypedSession s, string stack, CancellationToken cancellationToken)
-        => (await StockAsync(s, cancellationToken).ConfigureAwait(false)).FirstOrDefault(i => i.Item.Id == stack);
+        => (await StockAsync(s, cancellationToken).ConfigureAwait(false)).FirstOrDefault(i => i.Id == stack);
 
     // The colony's chemfuel on the stockpile cell, or null when none is there.
     private static async Task<Observations.StockItem?> AtAsync(TypedSession s, Cell cell, CancellationToken cancellationToken)
@@ -155,10 +155,9 @@ internal static class ControlHaulOut
 
     private static async Task<IEnumerable<Observations.StockItem>> StockAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync("stock", NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Def], Ownership = Observations.StockOwnership.All } },
+        var supplies = await s.CallAsync("stock", NativeOps.ListSupplies,
+            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Def], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.All, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
-        var supplies = TypedReads.Observed("stock", NativeOps.ListSupplies, reply, reply.Outcome?.Observed);
         return supplies.Stocks.SelectMany(st => st.Items);
     }
 }

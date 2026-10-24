@@ -409,6 +409,7 @@ Kept, reason recorded:
 | BenchUnusableReason | enum | 607 | 6 | state | Why a bench takes no bills |  |  |
 | StockItem | message | 614 | 7 | mixed | One stack in a stock row | market_value (of packed item) | ThingDef.statBases MarketValue with quality factor via Go rule over rows |
 | HeldStock | message | 618 | 3 | state | Holder of a held stack |  |  |
+| PackedBuilding | message | 614 | 4 | state | The building inside a packed stack: id, def, quality, market value |  |  |
 | CorpseState | message | 619 | 5 | state | Corpse with inner pawn rot stage |  |  |
 | ResourceStock | message | 620 | 18 | mixed | Per-def stock counts and items | definition.label | XDef.label of the ThingDef |
 | StockCategory | enum | 634 | 6 | state | Supplies read category tag |  |  |
@@ -416,7 +417,6 @@ Kept, reason recorded:
 | StockFilter | message | 636 | 8 | state | Supplies query filter |  |  |
 | SuppliesSnapshot | message | 637 | 3 | state | Supplies snapshot |  |  |
 | ListSuppliesRequest | message | 638 | 2 | state | List supplies request |  |  |
-| ListSuppliesReply | message | 639 | 3 | state | List supplies reply envelope |  |  |
 | FilterSpecialRule | message | 641 | 2 | state | Special filter rule toggle |  |  |
 | StockpileFilter | message | 642 | 8 | state | Bill or zone thing filter |  |  |
 | BillState | message | 647 | 25 | mixed | One bill on a bench | recipe.label | RecipeDef.label |

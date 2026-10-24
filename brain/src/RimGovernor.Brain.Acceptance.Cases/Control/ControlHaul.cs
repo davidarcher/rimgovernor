@@ -94,10 +94,9 @@ internal static class ControlHaul
     // The staged stack among the colony's steel, or null when it is gone (merged or destroyed).
     private static async Task<Observations.StockItem?> StackAsync(TypedSession s, string stack, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync("stock", NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Def], Ownership = Observations.StockOwnership.All } },
+        var supplies = await s.CallAsync("stock", NativeOps.ListSupplies,
+            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Def], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.All, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
-        var supplies = TypedReads.Observed("stock", NativeOps.ListSupplies, reply, reply.Outcome?.Observed);
-        return supplies.Stocks.SelectMany(st => st.Items).FirstOrDefault(i => i.Item.Id == stack);
+        return supplies.Stocks.SelectMany(st => st.Items).FirstOrDefault(i => i.Id == stack);
     }
 }

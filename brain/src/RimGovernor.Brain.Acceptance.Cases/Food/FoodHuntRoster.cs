@@ -353,10 +353,12 @@ internal static class FoodHuntRoster
             var corpses = await SuppliesAsync("corpses", new Observations.StockFilter
             {
                 DefNames = ["Corpse_" + BigGame, "Corpse_" + SmallGame],
+                Category = Observations.StockCategory.Haulable,
                 Ownership = Observations.StockOwnership.All,
+                IncludeHeld = true,
                 Corpses = true,
             }, ct).ConfigureAwait(false);
-            var corpse = corpses.Stocks.SelectMany(st => st.Items).FirstOrDefault(i => i.Item.Id == corpseId);
+            var corpse = corpses.Stocks.SelectMany(st => st.Items).FirstOrDefault(i => i.Id == corpseId);
             var cell = corpse is null ? "gone" : string.Create(CultureInfo.InvariantCulture, $"{corpse.Cell.X},{corpse.Cell.Z}");
             if (cell != _corpseCell)
             {
@@ -372,8 +374,8 @@ internal static class FoodHuntRoster
                 return;
             }
 
-            var food = await SuppliesAsync("meat", new Observations.StockFilter { Category = Observations.StockCategory.Food, Ownership = Observations.StockOwnership.All }, ct).ConfigureAwait(false);
-            var meat = food.Stocks.Where(st => st.Definition.DefName.StartsWith(MeatPrefix, StringComparison.Ordinal)).ToList();
+            var food = await SuppliesAsync("meat", new Observations.StockFilter { Category = Observations.StockCategory.Food, Ownership = Observations.StockOwnership.All, IncludeHeld = true }, ct).ConfigureAwait(false);
+            var meat = food.Stocks.Where(st => st.DefName.StartsWith(MeatPrefix, StringComparison.Ordinal)).ToList();
             _meat = meat.Sum(st => st.Units);
             if (_meat <= 0)
             {
@@ -384,7 +386,7 @@ internal static class FoodHuntRoster
             s.Record("meat", CombatLabKit.Obj(
                 ("tick", tick),
                 ("units", _meat),
-                ("stocks", new JsonObject(meat.Select(st => KeyValuePair.Create(st.Definition.DefName, (JsonNode?)st.Units))))));
+                ("stocks", new JsonObject(meat.Select(st => KeyValuePair.Create(st.DefName, (JsonNode?)st.Units))))));
             s.Record("corpse_path", _corpsePath);
             _phase = Phase.Done;
         }
@@ -402,8 +404,7 @@ internal static class FoodHuntRoster
 
         private async Task<Observations.SuppliesSnapshot> SuppliesAsync(string label, Observations.StockFilter filter, CancellationToken ct)
         {
-            var reply = await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, ct).ConfigureAwait(false);
-            return TypedReads.Observed(label, NativeOps.ListSupplies, reply, reply.Outcome?.Observed);
+            return await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, ct).ConfigureAwait(false);
         }
     }
 }

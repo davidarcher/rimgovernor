@@ -35,6 +35,27 @@ public sealed class ProductionFamilyWireTests
         Storage = new O.StorageCapacity { Capacity = 750, Stored = 120, Haulers = [new PawnId("Thing_Human7")], Candidates = [new Cell(5, 6), new Cell(5, 7)] },
     };
 
+    private static readonly O.SuppliesSnapshot Supplies = new()
+    {
+        Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+        Stocks =
+        [
+            new O.ResourceStock
+            {
+                DefName = "MinifiedSculpture", Units = 2, Stacks = 2, Spawned = 1, Ours = 2, OursUnforbidden = 1, Forbidden = 1, PlayerFaction = 2,
+                Items =
+                [
+                    new O.StockItem { Id = "Thing_Minified1", Cell = new Cell(3, 4), Snapshot = new O.SnapshotRef { EntityId = "Thing_Minified1", Token = "t1" },
+                        Packed = new O.PackedBuilding { Id = "Thing_Sculpture1", DefName = "SculptureSmall", Quality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Excellent, MarketValue = 410.5 } },
+                    new O.StockItem { Id = "Thing_Minified2", Cell = new Cell(9, 9),
+                        Packed = new O.PackedBuilding { Id = "Thing_Bed2", DefName = "Bed", MarketValue = 80 } },
+                ],
+                Holders = [new O.HeldStock { Holder = "Thing_Human7", HolderKind = O.HolderKind.Carried, Units = 1 }],
+                WeaponItems = [],
+            },
+        ],
+    };
+
     private static void RoundTrips<T>(T payload)
     {
         var json = WireJson.Serialize(payload);
@@ -52,4 +73,7 @@ public sealed class ProductionFamilyWireTests
 
     [Fact]
     public void ResourceSourcesRoundTripExactly() => RoundTrips(Sources);
+
+    [Fact]
+    public void SuppliesRoundTripExactly() => RoundTrips(Supplies);
 }

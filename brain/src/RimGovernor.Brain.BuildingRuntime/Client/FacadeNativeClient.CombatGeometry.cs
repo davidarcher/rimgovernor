@@ -167,23 +167,14 @@ public sealed partial class FacadeNativeClient
                 throw BridgeContractException.Contract("duplicate cargo crew");
             }
         }
-        var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var snapshot = reply.Outcome.Observed!;
+        var snapshot = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
         var cargo = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var stock in snapshot.Stocks)
         {
-            var definition = stock.Definition.DefName ?? "";
+            var definition = stock.DefName;
             foreach (var held in stock.Holders)
             {
-                if (crew.Contains(held.Holder.Id ?? "") && held.HolderKind is PbObservations.HolderKind.PawnInventory or PbObservations.HolderKind.Carried)
+                if (crew.Contains(held.Holder) && held.HolderKind is PbObservations.HolderKind.PawnInventory or PbObservations.HolderKind.Carried)
                 {
                     cargo[definition] = cargo.GetValueOrDefault(definition) + held.Units;
                 }

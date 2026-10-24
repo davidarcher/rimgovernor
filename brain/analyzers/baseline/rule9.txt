@@ -67,7 +67,7 @@ BuildingRuntime/Client/FacadeNativeClient.CellGrid.cs|Unknown|2
 BuildingRuntime/Client/FacadeNativeClient.Emergency.cs|Fact|23
 BuildingRuntime/Client/FacadeNativeClient.Emergency.cs|Unknown|2
 BuildingRuntime/Client/FacadeNativeClient.GearBench.cs|Fact|13
-BuildingRuntime/Client/FacadeNativeClient.GearBench.cs|Unknown|10
+BuildingRuntime/Client/FacadeNativeClient.GearBench.cs|Unknown|9
 BuildingRuntime/Client/FacadeNativeClient.Pawns.cs|Fact|2
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Fact|9
@@ -363,8 +363,8 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|496
-Contracts/Observations.cs|UnknownMember|10
+Contracts/Observations.cs|NullableValue|489
+Contracts/Observations.cs|UnknownMember|7
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
 Contracts/PawnActivities.cs|NullableValue|1
