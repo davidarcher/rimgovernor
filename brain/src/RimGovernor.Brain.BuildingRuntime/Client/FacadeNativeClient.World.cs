@@ -25,18 +25,7 @@ public sealed partial class FacadeNativeClient
     internal async Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.WorldProgressionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
-        var reply = await Facade.ReadWorldProgressionAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        if (outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-
-        return WorldProgressionRead.DecodeWorldProgressionSnapshot(outcome.Observed!);
+        var snapshot = await Facade.ReadWorldProgressionAsync(request, cancellationToken).ConfigureAwait(false);
+        return WorldProgressionRead.DecodeWorldProgressionSnapshot(snapshot);
     }
 }

@@ -79,7 +79,7 @@ public static class QuestExpedition
         {
             return false;
         }
-        if (selected.State is Pb.WorldSiteState.Destroyed or Pb.WorldSiteState.Unknown)
+        if (selected.State == Pb.WorldSiteState.Destroyed)
         {
             return false;
         }

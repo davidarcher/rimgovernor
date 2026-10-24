@@ -17,11 +17,6 @@ namespace HomeBridge.BridgeTools
     // applied again without a second Accept.
     internal static class NativeQuestOperations
     {
-        // Exact quest acceptance-relevant state, the snapshot token the
-        // world-progression census reports.
-        internal static string Token(Quest quest) => NativeSnapshotVersions.Token("quest", null, quest.GetUniqueLoadID(), string.Join("|",
-            quest.State.ToString(), quest.acceptanceTick.ToString(), QuestUtility.CanAcceptQuest(quest).Accepted.ToString()));
-
         internal static Quest? Find(string questId) => global::Verse.Find.QuestManager.QuestsListForReading
             .ById(questId) is Quest q && !q.hidden && !q.hiddenInUI ? q : null;
 

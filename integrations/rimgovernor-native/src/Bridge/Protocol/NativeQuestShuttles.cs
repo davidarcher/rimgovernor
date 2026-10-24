@@ -16,13 +16,11 @@ namespace HomeBridge.BridgeTools
             {
                 if (shuttle == null || shuttle.shipParent == null || !quest.PartsListForReading.Any(p => p.QuestPartReserves(shuttle.shipParent))) continue;
                 var gizmos = shuttle.CompGetGizmosExtra().ToArray();
-                var row = new Obs.QuestShuttleState { ShuttleId = shuttle.parent.GetUniqueLoadID(),
+                var row = new Obs.QuestShuttleState {
                     AutoloadAvailable = gizmos.OfType<Command_Toggle>().Any(g => !g.Disabled && g.defaultLabel == "CommandAutoloadTransporters".Translate().ToString()),
                     Autoload = shuttle.Autoload, Loading = shuttle.Transporter.LoadingInProgressOrReadyToLaunch,
                     AllRequiredLoaded = shuttle.AllRequiredThingsLoaded,
-                    ManualLaunchAvailable = shuttle.CanLaunch.Accepted && shuttle.AllRequiredThingsLoaded && gizmos.OfType<Command_Action>().Any(g => !g.Disabled && g.defaultLabel == "CommandSendShuttle".Translate().ToString()),
-                    RequiredColonistCount = shuttle.requiredColonistCount };
-                row = row with { PawnIds = [.. row.PawnIds, .. shuttle.RequiredPawns.Select(p => p.GetUniqueLoadID())] };
+                    ManualLaunchAvailable = shuttle.CanLaunch.Accepted && shuttle.AllRequiredThingsLoaded && gizmos.OfType<Command_Action>().Any(g => !g.Disabled && g.defaultLabel == "CommandSendShuttle".Translate().ToString()) };
                 row = row with { LoadedPawnIds = [.. row.LoadedPawnIds, .. shuttle.Transporter.innerContainer.OfType<Pawn>().Select(p => p.GetUniqueLoadID())] };
                 if (shuttle.Transporter.leftToLoad != null)
                     row = row with { PendingPawnIds = [.. row.PendingPawnIds, .. shuttle.Transporter.leftToLoad.Where(t => t.CountToTransfer > 0)

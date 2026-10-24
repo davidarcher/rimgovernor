@@ -242,7 +242,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.WorldSnapshot> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadWorld, request, () => NativeWorldObservationTools.HandleReadWorld(request), cancellationToken);
 
-        public Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken)
+        public Task<Obs.WorldProgressionSnapshot> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadWorldProgression, request, () => NativeWorldProgressionObservationTools.HandleReadWorldProgression(request), cancellationToken);
 
         public Task<Obs.ZonesSnapshot> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken)

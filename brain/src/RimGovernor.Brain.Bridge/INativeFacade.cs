@@ -159,7 +159,7 @@ public interface INativeFacade
 
     Task<Obs.WorldSnapshot> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken);
+    Task<Obs.WorldProgressionSnapshot> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ZonesSnapshot> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken);
 

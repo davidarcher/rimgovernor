@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 /// One native player-home route row from a caravan's home_routes census.
 /// <see cref="EstimatedTicksKnown"/> is false when native reports no travel-time estimate for that route.
 /// </summary>
-public sealed record WorldRouteFact(string SettlementId, int DestinationTile, bool Reachable, long EstimatedTicks, bool EstimatedTicksKnown);
+public sealed record WorldRouteFact(int DestinationTile, bool Reachable, long EstimatedTicks, bool EstimatedTicksKnown);
 
 /// <summary>
 /// The validated subset of one player caravan's world-progression census row that
@@ -31,8 +31,6 @@ public sealed record CaravanJourney
     public bool FoodDaysKnown { get; init; }
 
     public IReadOnlyList<WorldRouteFact> HomeRoutes { get; init; } = [];
-
-    public IReadOnlyList<WorldRouteFact> SettlementRoutes { get; init; } = [];
 
     public Fact<double> MassUsage { get; init; }
 
@@ -64,13 +62,9 @@ public sealed partial record QuestOffer
 
     public int ChoiceCount { get; init; }
 
-    public IReadOnlyList<QuestTradeRequestFact> TradeRequests { get; init; } = [];
-
     public IReadOnlyList<string> EligiblePawnIds { get; init; } = [];
 
     public IReadOnlyList<string> DeparturePawnIds { get; init; } = [];
-
-    public string SnapshotToken { get; init; } = "";
 
     /// <summary>The first non-player faction the quest involves, empty when none.</summary>
     public string FactionId { get; init; } = "";
@@ -92,8 +86,6 @@ public sealed partial record QuestOffer
     public int? RewardChoiceParts { get; init; }
 
     public IReadOnlyList<QuestRewardFact> Rewards { get; init; } = [];
-
-    public string Asker { get; init; } = "";
 
     public bool? AskerFactionPlayer { get; init; }
 
@@ -163,8 +155,6 @@ public sealed record QuestLodgerMoodFact(double? Mood);
 
 public sealed record QuestShuttleFact
 {
-    public string Id { get; init; } = "";
-
     public bool? AutoloadAvailable { get; init; }
 
     public bool? Autoload { get; init; }
@@ -175,13 +165,9 @@ public sealed record QuestShuttleFact
 
     public bool? ManualLaunchAvailable { get; init; }
 
-    public IReadOnlyList<string> PawnIds { get; init; } = [];
-
     public IReadOnlyList<string> LoadedPawnIds { get; init; } = [];
 
     public IReadOnlyList<string> PendingPawnIds { get; init; } = [];
-
-    public int? RequiredColonistCount { get; init; }
 }
 
 /// <summary>The royal favor one reward choice grants in total.</summary>
@@ -189,12 +175,6 @@ public sealed record QuestFavorFact(int Choice, int Favor);
 
 /// <summary>The validated subset of one factions row the quest planners join to a quest's faction id.</summary>
 public sealed record FactionFact(string Id, bool Player, bool Hostile);
-
-/// <summary>
-/// One native settlement trade objective row, the required resource def name
-/// and count and the settlement's destination tile.
-/// </summary>
-public sealed record QuestTradeRequestFact(string Resource, long Count, int DestinationTile);
 
 /// <summary>
 /// The validated subset of one maps row that failure-recovery classification needs. Tile is

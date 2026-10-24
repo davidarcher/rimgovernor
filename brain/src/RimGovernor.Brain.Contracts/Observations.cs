@@ -190,51 +190,47 @@ public enum ExcavationSupport
 [JsonConverter(typeof(WireEnumConverter<QuestObjectiveKind>))]
 public enum QuestObjectiveKind
 {
-    [WireName("QUEST_OBJECTIVE_KIND_UNKNOWN")]
-    Unknown = 0,
-    [WireName("QUEST_OBJECTIVE_KIND_PRODUCE_ITEM")]
-    ProduceItem = 1,
-    [WireName("QUEST_OBJECTIVE_KIND_HARVEST_PLANT")]
-    HarvestPlant = 2,
-    [WireName("QUEST_OBJECTIVE_KIND_KILL_ANIMALS")]
-    KillAnimals = 3,
-    [WireName("QUEST_OBJECTIVE_KIND_HOST_LODGERS")]
-    HostLodgers = 4,
-    [WireName("QUEST_OBJECTIVE_KIND_ACCEPT_REQUIREMENT_UNMET")]
-    AcceptRequirementUnmet = 5,
-    [WireName("QUEST_OBJECTIVE_KIND_LOAD_PAWNS")]
-    LoadPawns = 6,
-    [WireName("QUEST_OBJECTIVE_KIND_LOAD_NAMED_PAWNS")]
-    LoadNamedPawns = 7,
-    [WireName("QUEST_OBJECTIVE_KIND_MONUMENT")]
-    Monument = 8,
-    [WireName("QUEST_OBJECTIVE_KIND_EXPIRY")]
-    Expiry = 9,
-    [WireName("QUEST_OBJECTIVE_KIND_RESCUE_PAWNS")]
-    RescuePawns = 10,
-    [WireName("QUEST_OBJECTIVE_KIND_INSPECT_GRAV_ENGINE")]
-    InspectGravEngine = 11,
-    [WireName("QUEST_OBJECTIVE_KIND_HOLD_SURVEY_SCANNER")]
-    HoldSurveyScanner = 12,
-    [WireName("QUEST_OBJECTIVE_KIND_HACK_THINGS")]
-    HackThings = 13,
-    [WireName("QUEST_OBJECTIVE_KIND_GIVE_ITEMS")]
-    GiveItems = 14,
+    [WireName("produce_item")]
+    ProduceItem,
+    [WireName("harvest_plant")]
+    HarvestPlant,
+    [WireName("kill_animals")]
+    KillAnimals,
+    [WireName("host_lodgers")]
+    HostLodgers,
+    [WireName("accept_requirement_unmet")]
+    AcceptRequirementUnmet,
+    [WireName("load_pawns")]
+    LoadPawns,
+    [WireName("load_named_pawns")]
+    LoadNamedPawns,
+    [WireName("monument")]
+    Monument,
+    [WireName("expiry")]
+    Expiry,
+    [WireName("rescue_pawns")]
+    RescuePawns,
+    [WireName("inspect_grav_engine")]
+    InspectGravEngine,
+    [WireName("hold_survey_scanner")]
+    HoldSurveyScanner,
+    [WireName("hack_things")]
+    HackThings,
+    [WireName("give_items")]
+    GiveItems,
 }
 
 [JsonConverter(typeof(WireEnumConverter<WorldSiteState>))]
 public enum WorldSiteState
 {
-    [WireName("WORLD_SITE_STATE_UNKNOWN")]
-    Unknown = 0,
-    [WireName("WORLD_SITE_STATE_PENDING")]
-    Pending = 1,
-    [WireName("WORLD_SITE_STATE_SPAWNED")]
-    Spawned = 2,
-    [WireName("WORLD_SITE_STATE_MAP_LOADED")]
-    MapLoaded = 3,
-    [WireName("WORLD_SITE_STATE_DESTROYED")]
-    Destroyed = 4,
+    [WireName("pending")]
+    Pending,
+    [WireName("spawned")]
+    Spawned,
+    [WireName("map_loaded")]
+    MapLoaded,
+    [WireName("destroyed")]
+    Destroyed,
 }
 
 /// <summary>
@@ -3604,8 +3600,6 @@ public sealed record WorldRequest
 
 public sealed record WorldRoute
 {
-    public string? SettlementId { get; init; }
-
     public int? Destination { get; init; }
 
     public bool? Reachable { get; init; }
@@ -3639,18 +3633,6 @@ public sealed record CaravanState
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Inventory { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<WorldRoute>))]
-    public EquatableArray<WorldRoute> SettlementRoutes { get; init; }
-}
-
-public sealed record QuestTradeRequest
-{
-    public string? Resource { get; init; }
-
-    public long? Count { get; init; }
-
-    public int? Destination { get; init; }
 }
 
 public sealed record QuestReward
@@ -3674,7 +3656,7 @@ public sealed record QuestReward
 
 public sealed record QuestObjective
 {
-    public QuestObjectiveKind? Kind { get; init; }
+    public required QuestObjectiveKind Kind { get; init; }
 
     public string? Def { get; init; }
 
@@ -3803,7 +3785,7 @@ public sealed record WorldSite
 
     public int? LayerId { get; init; }
 
-    public WorldSiteState? State { get; init; }
+    public required WorldSiteState State { get; init; }
 
     public int? MapId { get; init; }
 
@@ -4043,8 +4025,6 @@ public sealed record QuestMonumentResource
 
 public sealed record QuestShuttleState
 {
-    public string? ShuttleId { get; init; }
-
     public bool? AutoloadAvailable { get; init; }
 
     public bool? Autoload { get; init; }
@@ -4056,12 +4036,7 @@ public sealed record QuestShuttleState
     public bool? ManualLaunchAvailable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> LoadedPawnIds { get; init; }
-
-    public int? RequiredColonistCount { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PendingPawnIds { get; init; }
@@ -4084,13 +4059,8 @@ public sealed record QuestState
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> EligiblePawns { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<QuestTradeRequest>))]
-    public EquatableArray<QuestTradeRequest> TradeRequests { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestReward>))]
     public EquatableArray<QuestReward> Rewards { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
 
     public string? ScriptDef { get; init; }
 
@@ -4102,8 +4072,6 @@ public sealed record QuestState
     public EquatableArray<QuestObjective> Objectives { get; init; }
 
     public int? ChoicePartCount { get; init; }
-
-    public string? AskerPawnId { get; init; }
 
     public bool? AskerFactionPlayer { get; init; }
 
@@ -4178,45 +4146,6 @@ public sealed record WorldProgressionSnapshot
 public sealed record WorldProgressionRequest
 {
     public ReadScope? Scope { get; init; }
-}
-
-public sealed record WorldProgressionReply
-{
-    public WorldProgressionReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="WorldProgressionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(WorldProgressionReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(WorldProgressionReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(WorldProgressionReplyOutcome.FailureCase), "failure")]
-public abstract record WorldProgressionReplyOutcome
-{
-    private protected WorldProgressionReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public WorldProgressionSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(WorldProgressionSnapshot Value) : WorldProgressionReplyOutcome;
-
-    public static implicit operator WorldProgressionReplyOutcome(WorldProgressionSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : WorldProgressionReplyOutcome;
-
-    public static implicit operator WorldProgressionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : WorldProgressionReplyOutcome;
-
-    public static implicit operator WorldProgressionReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

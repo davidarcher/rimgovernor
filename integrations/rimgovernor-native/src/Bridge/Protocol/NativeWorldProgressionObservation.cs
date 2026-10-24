@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -69,20 +71,6 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static List<Obs.WorldRoute> SettlementRoutes(Caravan caravan)
-        {
-            var rows = new List<Obs.WorldRoute>();
-            foreach (var settlement in Find.WorldObjects.Settlements.Where(s => s.Faction != null && !s.Faction.IsPlayer).OrderBy(s => s.GetUniqueLoadID()))
-            {
-                var row = new Obs.WorldRoute { SettlementId = settlement.GetUniqueLoadID(), Destination = settlement.Tile.tileId,
-                    Reachable = caravan.CanReach(settlement.Tile), };
-                if (row.Reachable.GetValueOrDefault())
-                    try { row = row with { EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(caravan.Tile, settlement.Tile, caravan) }; }
-                    catch (Exception) { /* Unknown estimate cannot admit a safe mission. */ }
-                rows.Add(row);
-            }
-            return rows;
-        }
         private static List<Obs.Quantity> Inventory(Caravan caravan)
         {
             var rows = new List<Obs.Quantity>();
@@ -106,7 +94,6 @@ namespace HomeBridge.BridgeTools
                 if (c.pather.Moving) row = row with { Destination = c.pather.Destination.tileId };
                 row = row with { Pawns = [.. row.Pawns, .. c.PawnsListForReading.Select(p => NativeObservationTools.PawnRow(p, context))] };
                 row = row with { HomeRoutes = [.. row.HomeRoutes, .. HomeRoutes(c)] };
-                row = row with { SettlementRoutes = [.. row.SettlementRoutes, .. SettlementRoutes(c)] };
                 row = row with { Inventory = [.. row.Inventory, .. Inventory(c)] };
                 rows.Add(row);
             }
@@ -171,6 +158,49 @@ namespace HomeBridge.BridgeTools
         private static readonly AccessTools.FieldRef<QuestPart_PlantsHarvested, int> Harvested = AccessTools.FieldRefAccess<QuestPart_PlantsHarvested, int>("harvested");
         private static readonly AccessTools.FieldRef<QuestPart_PawnsKilled, int> Killed = AccessTools.FieldRefAccess<QuestPart_PawnsKilled, int>("killed");
 
+        // The objective one quest part states; null for a part that states none the brain reads.
+        private static Obs.QuestObjective? Objective(Quest quest, QuestPart part, bool decree)
+        {
+            switch (part)
+            {
+                case QuestPart_ThingsProduced p:
+                    return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.ProduceItem, Def = p.def?.defName ?? "", Stuff = p.stuff?.defName ?? "",
+                        Count = p.count, Produced = Produced(p) };
+                case QuestPart_PlantsHarvested p:
+                    return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HarvestPlant, Def = p.plant?.defName ?? "", Count = p.count, Produced = Harvested(p) };
+                case QuestPart_PawnsKilled p when p.race?.race?.Animal == true:
+                    return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.KillAnimals, Def = p.race.defName, Count = p.count, Produced = Killed(p) };
+                case QuestPart_RequirementsToAccept p:
+                    var report = p.CanAccept();
+                    return report.Accepted ? null : new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.AcceptRequirementUnmet, UnmetRequirement = report.Reason ?? "" };
+                case QuestPart_RequiredShuttleThings p:
+                    var shuttle = p.shuttle?.TryGetComp<CompShuttle>();
+                    var named = shuttle != null && shuttle.requiredPawns.Count > 0;
+                    var load = new Obs.QuestObjective { Kind = named ? Obs.QuestObjectiveKind.LoadNamedPawns : Obs.QuestObjectiveKind.LoadPawns };
+                    if (p.requiredColonistCount >= 0) load = load with { Count = p.requiredColonistCount };
+                    if (named) load = load with { PawnIds = [.. shuttle!.requiredPawns.Select(pawn => pawn.GetUniqueLoadID())] };
+                    return load;
+                case QuestPart_DropMonumentMarkerCopy _:
+                    var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Monument };
+                    var monument = NativeQuestMonuments.Read(quest); if (monument != null) row = row with { Monument = monument };
+                    var timer = quest.PartsListForReading.OfType<QuestPart_Delay>().Where(d => d.isBad &&
+                        (decree || d.inSignalDisable?.EndsWith(".MonumentCompleted", StringComparison.Ordinal) == true))
+                        .OrderBy(d => d.delayTicks).FirstOrDefault();
+                    if (timer != null)
+                    {
+                        if (timer.State == QuestPartState.Enabled) row = row with { DeadlineTicks = Math.Max(0, (long)Find.TickManager.TicksGame + timer.TicksLeft) };
+                        else if (quest.State == QuestState.NotYetAccepted && timer.State == QuestPartState.NeverEnabled) row = row with { DurationTicks = timer.delayTicks };
+                    }
+                    return row;
+                case QuestPart_PawnsArrive p when p.pawns.Any(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)):
+                    var lodgers = p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)).ToArray();
+                    var host = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HostLodgers, PawnIds = [.. lodgers.Select(pawn => pawn.GetUniqueLoadID())], Count = lodgers.Length };
+                    return NativeQuestShuttles.LodgerMood(quest, host, lodgers);
+                default:
+                    return null;
+            }
+        }
+
         private static List<Obs.QuestObjective> Objectives(Quest quest)
         {
             var rows = new List<Obs.QuestObjective>();
@@ -182,52 +212,10 @@ namespace HomeBridge.BridgeTools
                 .Select(p => (long?)Math.Max(0, (long)Find.TickManager.TicksGame + p.TicksLeft)).Min() : null;
             foreach (var part in quest.PartsListForReading)
             {
-                var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Unknown };
+                var row = Objective(quest, part, decree);
+                if (row == null) continue;
                 if (part is QuestPartActivable activable) row = row with { Active = activable.State == QuestPartState.Enabled };
-                switch (part)
-                {
-                    case QuestPart_ThingsProduced p:
-                        row = row with { Kind = Obs.QuestObjectiveKind.ProduceItem }; row = row with { Def = p.def?.defName ?? "" }; row = row with { Stuff = p.stuff?.defName ?? "" };
-                        row = row with { Count = p.count }; row = row with { Produced = Produced(p) }; break;
-                    case QuestPart_PlantsHarvested p:
-                        row = row with { Kind = Obs.QuestObjectiveKind.HarvestPlant }; row = row with { Def = p.plant?.defName ?? "" };
-                        row = row with { Count = p.count }; row = row with { Produced = Harvested(p) }; break;
-                    case QuestPart_PawnsKilled p when p.race?.race?.Animal == true:
-                        row = row with { Kind = Obs.QuestObjectiveKind.KillAnimals }; row = row with { Def = p.race.defName };
-                        row = row with { Count = p.count }; row = row with { Produced = Killed(p) }; break;
-                    case QuestPart_RequirementsToAccept p:
-                        var report = p.CanAccept();
-                        if (report.Accepted) continue;
-                        row = row with { Kind = Obs.QuestObjectiveKind.AcceptRequirementUnmet }; row = row with { UnmetRequirement = report.Reason ?? "" }; break;
-                    case QuestPart_RequiredShuttleThings p:
-                        row = row with { Kind = Obs.QuestObjectiveKind.LoadPawns };
-                        if (p.requiredColonistCount >= 0) row = row with { Count = p.requiredColonistCount };
-                        var shuttle = p.shuttle?.TryGetComp<CompShuttle>();
-                        if (shuttle != null && shuttle.requiredPawns.Count > 0)
-                        {
-                            row = row with { Kind = Obs.QuestObjectiveKind.LoadNamedPawns };
-                            row = row with { PawnIds = [.. row.PawnIds, .. shuttle.requiredPawns.Select(pawn => pawn.GetUniqueLoadID())] };
-                        }
-                        break;
-                    case QuestPart_DropMonumentMarkerCopy _:
-                        row = row with { Kind = Obs.QuestObjectiveKind.Monument };
-                        var monument = NativeQuestMonuments.Read(quest); if (monument != null) row = row with { Monument = monument };
-                        var timer = quest.PartsListForReading.OfType<QuestPart_Delay>().Where(p => p.isBad &&
-                            (decree || p.inSignalDisable?.EndsWith(".MonumentCompleted", StringComparison.Ordinal) == true))
-                            .OrderBy(p => p.delayTicks).FirstOrDefault();
-                        if (timer != null)
-                        {
-                            if (timer.State == QuestPartState.Enabled) row = row with { DeadlineTicks = Math.Max(0, (long)Find.TickManager.TicksGame + timer.TicksLeft) };
-                            else if (quest.State == QuestState.NotYetAccepted && timer.State == QuestPartState.NeverEnabled) row = row with { DurationTicks = timer.delayTicks };
-                        }
-                        break;
-                    case QuestPart_PawnsArrive p when p.pawns.Any(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))):
-                        row = row with { Kind = Obs.QuestObjectiveKind.HostLodgers };
-                        row = row with { PawnIds = [.. row.PawnIds, .. p.pawns.Where(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))).Select(pawn => pawn.GetUniqueLoadID())] };
-                        row = NativeQuestShuttles.LodgerMood(quest, row, p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)));
-                        row = row with { Count = row.PawnIds.Count }; break;
-                }
-                if (deadline.HasValue && (row.Kind.GetValueOrDefault() == Obs.QuestObjectiveKind.ProduceItem || row.Kind.GetValueOrDefault() == Obs.QuestObjectiveKind.HarvestPlant || row.Kind.GetValueOrDefault() == Obs.QuestObjectiveKind.KillAnimals)) row = row with { DeadlineTicks = deadline.Value };
+                if (deadline.HasValue && row.Kind is Obs.QuestObjectiveKind.ProduceItem or Obs.QuestObjectiveKind.HarvestPlant or Obs.QuestObjectiveKind.KillAnimals) row = row with { DeadlineTicks = deadline.Value };
                 var workload = NativeQuestWorkload.Read(row, quest); if (workload != null) row = row with { Workload = workload };
                 rows.Add(row);
             }
@@ -236,7 +224,7 @@ namespace HomeBridge.BridgeTools
                 .Concat(quest.State == QuestState.NotYetAccepted
                     ? quest.PartsListForReading.OfType<QuestPart_RequirementsToAcceptBedroom>().SelectMany(p => p.targetPawns)
                     : Enumerable.Empty<Pawn>()).Distinct().ToArray();
-            if (hosted.Length > 0 && !rows.Any(r => r.Kind.GetValueOrDefault() == Obs.QuestObjectiveKind.HostLodgers))
+            if (hosted.Length > 0 && !rows.Any(r => r.Kind == Obs.QuestObjectiveKind.HostLodgers))
             {
                 var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HostLodgers, Count = hosted.Length };
                 row = row with { PawnIds = [.. row.PawnIds, .. hosted.Select(p => p.GetUniqueLoadID())] };
@@ -247,26 +235,6 @@ namespace HomeBridge.BridgeTools
                 rows.Add(new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Expiry, DeadlineTicks = (long)Find.TickManager.TicksGame + quest.TicksUntilExpiry });
             rows.AddRange(NativeQuestRefugees.Read(quest));
             rows.AddRange(NativeQuestHackGift.Read(quest));
-            return rows;
-        }
-
-        // Only a still-active request is reported: once the live
-        // TradeRequestComp is fulfilled, the QuestPart_InitiateTradeRequest itself
-        // typically remains on the quest (removing it is the responsibility
-        // of whatever quest-script listener chain reacts to the settlement's
-        // fulfillment signal, which a minimal quest need not carry), so
-        // reporting on the part's mere presence would keep the objective
-        // live forever after a real fulfillment.
-        private static List<Obs.QuestTradeRequest> TradeRequests(Quest quest)
-        {
-            var rows = new List<Obs.QuestTradeRequest>();
-            foreach (var part in quest.PartsListForReading.OfType<QuestPart_InitiateTradeRequest>())
-            {
-                if (part.settlement?.GetComponent<TradeRequestComp>()?.ActiveRequest != true) continue;
-                var row = new Obs.QuestTradeRequest { Resource = part.requestedThingDef?.defName ?? "", Count = part.requestedCount };
-                row = row with { Destination = part.settlement.Tile.tileId };
-                rows.Add(row);
-            }
             return rows;
         }
 
@@ -294,8 +262,6 @@ namespace HomeBridge.BridgeTools
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
                     ChoicePartCount = q.PartsListForReading.OfType<QuestPart_Choice>().Count(),
-                    // The quest row's identity-and-state token.
-                    Snapshot = new Obs.SnapshotRef { Context = context, EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
                 var faction = q.InvolvedFactions.FirstOrDefault(f => f != null && !f.IsPlayer);
                 if (faction != null) row = row with { FactionId = faction.GetUniqueLoadID() };
@@ -303,14 +269,9 @@ namespace HomeBridge.BridgeTools
                 if (mapId.HasValue) row = row with { MapId = mapId.Value };
                 row = row with { EligiblePawns = [.. row.EligiblePawns, .. Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
                     .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(NativeRef.Thing)] };
-                row = row with { TradeRequests = [.. row.TradeRequests, .. TradeRequests(q)] };
                 var asker = q.root?.defName.StartsWith("Decree_", StringComparison.Ordinal) == true
                     ? q.PartsListForReading.OfType<QuestPart_SituationalThought>().Where(p => p.def?.defName == "DecreeUnmet").Select(p => p.pawn).Distinct().ToArray() : Array.Empty<Pawn>();
-                if (asker.Length == 1 && asker[0] != null)
-                {
-                    row = row with { AskerPawnId = asker[0].GetUniqueLoadID() };
-                    if (asker[0].Faction != null) row = row with { AskerFactionPlayer = asker[0].Faction.IsPlayer };
-                }
+                if (asker.Length == 1 && asker[0]?.Faction != null) row = row with { AskerFactionPlayer = asker[0].Faction.IsPlayer };
                 row = row with { ViolentQuestsAllowed = Find.Storyteller.difficulty.allowViolentQuests };
                 var threatPoints = NativeQuestThreats.Read(q);
                 if (threatPoints.HasValue) row = row with { ThreatPoints = threatPoints.Value };
@@ -347,20 +308,22 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeWorldProgressionObservationTools
     {
-        internal static Obs.WorldProgressionReply HandleReadWorldProgression(Obs.WorldProgressionRequest request)
+        // On the game thread. A refused request or a census that cannot be read completely throws.
+        internal static Obs.WorldProgressionSnapshot HandleReadWorldProgression(Obs.WorldProgressionRequest request)
         {
-            if (!Validate(request, out var failure))
-                return new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                return new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) };
+            if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out _, out var context, out var invalid))
+                throw NativeFaults.Refused(invalid);
             try
             {
-                var snapshot = NativeWorldProgressionObservation.Build(context);
-                var reply = new Obs.WorldProgressionReply { Outcome = snapshot };
-                return reply;
+                return NativeWorldProgressionObservation.Build(context);
             }
-            catch (Exception) { return new Obs.WorldProgressionReply { Outcome =
-                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native world progression could not be read completely." } }; }
+            catch (Exception thrown)
+            {
+                ModLog.Error("observe", "World progression read failed: " + thrown);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = "Native world progression could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message });
+            }
         }
 
         private static bool Validate(Obs.WorldProgressionRequest request, out Common.Failure failure)

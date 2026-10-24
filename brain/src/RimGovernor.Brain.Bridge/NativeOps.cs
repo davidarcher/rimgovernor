@@ -138,7 +138,7 @@ public static class NativeOps
     public static readonly NativeOp<Obs.TradeSheetRequest, Obs.TradeSheetReply> ReadTradeSheet = Op<Obs.TradeSheetRequest, Obs.TradeSheetReply>("observations_read_trade_sheet", (f, r, c) => f.ReadTradeSheetAsync(r, c));
     public static readonly NativeOp<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSnapshot> ListWallUpgradeSites = Op<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSnapshot>("observations_list_wall_upgrade_sites", (f, r, c) => f.ListWallUpgradeSitesAsync(r, c));
     public static readonly NativeOp<Obs.WorldRequest, Obs.WorldSnapshot> ReadWorld = Op<Obs.WorldRequest, Obs.WorldSnapshot>("observations_read_world", (f, r, c) => f.ReadWorldAsync(r, c));
-    public static readonly NativeOp<Obs.WorldProgressionRequest, Obs.WorldProgressionReply> ReadWorldProgression = Op<Obs.WorldProgressionRequest, Obs.WorldProgressionReply>("observations_read_world_progression", (f, r, c) => f.ReadWorldProgressionAsync(r, c));
+    public static readonly NativeOp<Obs.WorldProgressionRequest, Obs.WorldProgressionSnapshot> ReadWorldProgression = Op<Obs.WorldProgressionRequest, Obs.WorldProgressionSnapshot>("observations_read_world_progression", (f, r, c) => f.ReadWorldProgressionAsync(r, c));
     public static readonly NativeOp<Obs.ListZonesRequest, Obs.ZonesSnapshot> ListZones = Op<Obs.ListZonesRequest, Obs.ZonesSnapshot>("observations_list_zones", (f, r, c) => f.ListZonesAsync(r, c));
     public static readonly NativeOp<Obs.ExcavationSiteRequest, Obs.ExcavationSiteSnapshot> ReadExcavationSite = Op<Obs.ExcavationSiteRequest, Obs.ExcavationSiteSnapshot>("observations_read_excavation_site", (f, r, c) => f.ReadExcavationSiteAsync(r, c));
 

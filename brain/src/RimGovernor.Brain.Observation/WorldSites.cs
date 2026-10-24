@@ -16,7 +16,7 @@ public static class WorldSitesReads
                 Id = site.Id ?? "",
                 Tile = ColonyDecodeReads.Optional(site.Tile is not null, site.Tile.GetValueOrDefault()),
                 Layer = ColonyDecodeReads.Optional(site.LayerId is not null, site.LayerId.GetValueOrDefault()),
-                State = site.State.GetValueOrDefault(),
+                State = site.State,
                 Threat = ColonyDecodeReads.Optional(site.Threat is not null, site.Threat.GetValueOrDefault()),
                 ThreatPoints = ColonyDecodeReads.Optional(site.ThreatPoints is not null, site.ThreatPoints.GetValueOrDefault()),
                 Reachable = ColonyDecodeReads.Optional(site.Reachable is not null, site.Reachable.GetValueOrDefault()),

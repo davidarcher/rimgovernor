@@ -94,8 +94,7 @@ internal static class CaravanDeparture
         Observations.CaravanState? caravan = null;
         _ = await s.RunUntilAsync("observe-formation", FormationTicks, async ct =>
         {
-            var reply = await s.CallAsync("observe-formation-world", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-            var world = TypedReads.Observed("observe-formation-world", NativeOps.ReadWorldProgression, reply, reply.Outcome?.Observed);
+            var world = await s.CallAsync("observe-formation-world", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
             caravan = world.Caravans.FirstOrDefault(c => c.Pawns.Count == 1 && c.Pawns[0].Pawn.Id == crew);
             return ($"{world.Caravans.Count} caravans", caravan is not null);
         }, cancellationToken).ConfigureAwait(false);
@@ -121,7 +120,7 @@ internal static class CaravanDeparture
     private static async Task<int> DestinationAsync(TypedSession s, string crew, Operations.DefCount[] cargo, CancellationToken cancellationToken)
     {
         var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var home = TypedReads.Observed("home-tile", NativeOps.ReadWorldProgression, progression, progression.Outcome?.Observed).Maps.FirstOrDefault(m => m.Home == true)?.Tile
+        var home = progression.Maps.FirstOrDefault(m => m.Home == true)?.Tile
             ?? throw new AcceptanceException("home-tile: no home map tile");
         var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Tile = home, SettlementRadius = 1000 }, cancellationToken).ConfigureAwait(false);
         var candidates = reply.Settlements

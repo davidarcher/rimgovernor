@@ -12,12 +12,12 @@ namespace HomeBridge.BridgeTools
         internal static Obs.QuestWorkload? Read(Obs.QuestObjective objective, Quest quest)
         {
             var remaining = Math.Max(0, objective.Count.GetValueOrDefault() - objective.Produced.GetValueOrDefault());
-            if (objective.Kind.GetValueOrDefault() == Obs.QuestObjectiveKind.HarvestPlant)
+            if (objective.Kind == Obs.QuestObjectiveKind.HarvestPlant)
             {
                 var plant = DefDatabase<ThingDef>.GetNamedSilentFail((objective.Def ?? ""))?.plant;
                 return plant == null ? null : new Obs.QuestWorkload { Work = remaining * plant.harvestWork, Stat = StatDefOf.PlantWorkSpeed.defName, RateFactor = 1 };
             }
-            if (objective.Kind.GetValueOrDefault() != Obs.QuestObjectiveKind.ProduceItem) return null;
+            if (objective.Kind != Obs.QuestObjectiveKind.ProduceItem) return null;
             var map = quest.QuestLookTargets.Select(t => t.Map).FirstOrDefault(m => m != null);
             if (map == null) return null;
             var stuff = DefDatabase<ThingDef>.GetNamedSilentFail((objective.Stuff ?? ""));

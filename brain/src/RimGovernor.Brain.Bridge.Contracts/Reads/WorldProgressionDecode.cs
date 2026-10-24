@@ -61,9 +61,8 @@ partial record WorldProgressionRead
                 Tile = row.Tile.GetValueOrDefault(),
                 Moving = row.Moving.GetValueOrDefault(),
                 PawnIds = [.. row.Pawns.Select(pawn => pawn.Pawn.Id ?? "")],
-                HomeRoutes = [.. row.HomeRoutes.Select(route => new WorldRouteFact("", route.Destination.GetValueOrDefault(), route.Reachable.GetValueOrDefault(), route.EstimatedTicks.GetValueOrDefault(), route.EstimatedTicks is not null))],
+                HomeRoutes = [.. row.HomeRoutes.Select(route => new WorldRouteFact(route.Destination.GetValueOrDefault(), route.Reachable.GetValueOrDefault(), route.EstimatedTicks.GetValueOrDefault(), route.EstimatedTicks is not null))],
                 Inventory = inventory,
-                SettlementRoutes = [.. row.SettlementRoutes.Select(route => new WorldRouteFact(route.SettlementId ?? "", route.Destination.GetValueOrDefault(), route.Reachable.GetValueOrDefault(), route.EstimatedTicks.GetValueOrDefault(), route.EstimatedTicks is not null))],
                 MassUsage = FactHelpers.OptionalFact(row.MassUsage is not null, row.MassUsage.GetValueOrDefault()),
                 MassCapacity = FactHelpers.OptionalFact(row.MassCapacity is not null, row.MassCapacity.GetValueOrDefault()),
                 FoodRotDays = FactHelpers.OptionalFact(row.FoodRotDays is not null, row.FoodRotDays.GetValueOrDefault()),
@@ -123,16 +122,13 @@ partial record QuestOffer
         {
             shuttles.Add(new QuestShuttleFact
             {
-                Id = shuttle.ShuttleId ?? "",
                 AutoloadAvailable = shuttle.AutoloadAvailable,
                 Autoload = shuttle.Autoload,
                 Loading = shuttle.Loading,
                 AllRequiredLoaded = shuttle.AllRequiredLoaded,
                 ManualLaunchAvailable = shuttle.ManualLaunchAvailable,
-                PawnIds = [.. shuttle.PawnIds],
                 LoadedPawnIds = [.. shuttle.LoadedPawnIds],
                 PendingPawnIds = [.. shuttle.PendingPawnIds],
-                RequiredColonistCount = shuttle.RequiredColonistCount,
             });
         }
         return new QuestOffer
@@ -144,13 +140,11 @@ partial record QuestOffer
             CanAccept = row.CanAccept.GetValueOrDefault(),
             ChoiceCount = choices.Count,
             EligiblePawnIds = [.. row.EligiblePawns.Select(pawn => pawn.Id ?? "")],
-            SnapshotToken = row.Snapshot?.Token ?? "",
             DeparturePawnIds = [.. row.DeparturePawnIds],
             FactionId = row.FactionId ?? "",
             MapKnown = row.MapId is not null,
             MapId = row.MapId.GetValueOrDefault(),
             ExpiresInTicks = row.ExpiresInTicks,
-            Asker = row.AskerPawnId ?? "",
             AskerFactionPlayer = row.AskerFactionPlayer,
             ViolentQuestsAllowed = row.ViolentQuestsAllowed,
             ThreatPoints = row.ThreatPoints,
@@ -159,7 +153,6 @@ partial record QuestOffer
             Objectives = [.. row.Objectives.Select(QuestObjectiveFact.DecodeObjective)],
             Shuttles = shuttles,
             Favor = [.. favor.Select(pair => new QuestFavorFact(pair.Key, pair.Value)).OrderBy(fact => fact.Choice)],
-            TradeRequests = [.. row.TradeRequests.Select(request => new QuestTradeRequestFact(request.Resource ?? "", request.Count.GetValueOrDefault(), request.Destination.GetValueOrDefault()))],
         };
     }
 }
@@ -169,7 +162,7 @@ partial record QuestObjectiveFact
 
     internal static QuestObjectiveFact DecodeObjective(QuestObjective objective) => new()
     {
-        Kind = objective.Kind.GetValueOrDefault(),
+        Kind = objective.Kind,
         Def = objective.Def ?? "",
         Stuff = objective.Stuff ?? "",
         Count = objective.Count,

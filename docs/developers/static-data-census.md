@@ -271,7 +271,7 @@ Kept, reason recorded:
 | NativeQuestHackGift.cs | 97 | state | Reads hack-target and beg-for-items quest objectives with eligible hackers and haulers. |  |  |
 | NativeQuestJoinerOperations.cs | 42 | state | Orders a colonist to take the OfferHelp job on a willing rescue joiner. |  |  |
 | NativeQuestMonuments.cs | 105 | state | Reads monument marker quest state: install cells, sketch pieces, costs, resources and eligible haulers. |  |  |
-| NativeQuestOperations.cs | 106 | state | Accepts a visible quest offer under the game's acceptance rules and versions quest state tokens. |  |  |
+| NativeQuestOperations.cs | 106 | state | Accepts a visible quest offer under the game's acceptance rules. |  |  |
 | NativeQuestRefugees.cs | 24 | state | Lists refugee pod pawns for rescue objectives. |  |  |
 | NativeQuestShuttleOperations.cs | 99 | state | Loads pawns into and launches a quest shuttle via vanilla gizmos. |  |  |
 | NativeQuestShuttles.cs | 48 | state | Reads quest shuttle loading state and lodger mood thresholds. |  |  |
@@ -510,7 +510,6 @@ Kept, reason recorded:
 | WorldRequest | message | 1044 | 3 | state | Read request parameters |  |  |
 | WorldRoute | message | 1046 | 9 | code | Route estimate to a settlement or home |  |  |
 | CaravanState | message | 1047 | 14 | state | Caravan row with pawns, inventory, routes |  |  |
-| QuestTradeRequest | message | 1053 | 3 | state | Quest trade request resource/count/destination |  |  |
 | QuestReward | message | 1054 | 11 | state | Quest reward choice |  |  |
 | QuestObjectiveKind | enum | 1055 | 15 | state | Quest objective kind tag |  |  |
 | QuestObjective | message | 1072 | 19 | state | Quest objective details (item, count, deadline, sub-objectives) |  |  |
@@ -542,7 +541,6 @@ Kept, reason recorded:
 | CaravanAssembly | message | 1205 | 5 | state | Caravan assembly state |  |  |
 | WorldProgressionSnapshot | message | 1206 | 7 | state | World progression: maps, factions, caravans, quests, sites |  |  |
 | WorldProgressionRequest | message | 1207 | 2 | state | Read request parameters |  |  |
-| WorldProgressionReply | message | 1208 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | BillsSnapshot | message | 1211 | 2 | state | Bills per bench |  |  |
 | BillsRequest | message | 1212 | 3 | state | Read request parameters |  |  |
 | BillsReply | message | 1213 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
