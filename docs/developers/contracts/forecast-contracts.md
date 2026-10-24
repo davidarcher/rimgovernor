@@ -334,6 +334,10 @@ unknown. What the game does not have is a case, never an unknown:
   of a bed of rest effectiveness 1 (0 for other needs). `ThoughtStages` roles
   `slept_on_ground`, `slept_in_cold`, `slept_in_heat` and `need_comfort`
   (`ThoughtWorker_NeedComfort`, only for a pawn with the comfort need) price them.
+  The roles `ate_in_dining_room` (`AteInImpressiveDiningRoom`) and `joy_in_rec_room`
+  (`JoyActivityInImpressiveRecRoom`), staged by the Impressiveness stage of the room a
+  meal or joy activity ends in (null stages at 0), and `ate_without_table`
+  (`AteWithoutTable`) price the dining and rec credits (#3803).
 - `NeedsForecastPawn.LyingIn` (#3882, `NeedLyingIn`): the lie-down the pawn is in now,
   null when it is not laying. `Place` is a `NeedSleep` read at the pawn's own cell and its
   `CurrentBed` (its load id, "" on the ground); `HediffBlocksSleeping`

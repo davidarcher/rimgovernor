@@ -390,7 +390,8 @@ internal static class NativeNeedsForecast
     /// The stage rows of the thoughts #3339 and the bedroom credit (#3655) value, each priced by the game's MoodOffset for this
     /// pawn on an unattached thought (zero when ThoughtUtility.CanGetThought refuses it, as the game would never give it). The
     /// bed and ascetic rows also carry each null stage at 0: Toils_LayDown.ApplyBedThoughts gains no bed memory at a null
-    /// room stage (SleptInBedroom's dull stage, #3822), and ThoughtWorker_Ascetic leaves the thought inactive at those stages.
+    /// room stage (SleptInBedroom's dull stage, #3822), and ThoughtWorker_Ascetic leaves the thought inactive at those stages;
+    /// so do the dining and rec room memories (#3803), which no meal or joy activity gains at a null stage.
     /// </summary>
     private static EquatableArray<Obs.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
     {
@@ -473,6 +474,12 @@ internal static class NativeNeedsForecast
         if (pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is not null)
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_DeathrestChamber)))
                 Rows(def, "deathrest_chamber", nullStagesInactive: true);
+        // The room memories a planned dining or rec room gives (#3803): Toils_Ingest.FinalizeIngest gains AteInImpressiveDiningRoom
+        // and JoyUtility.TryGainRecRoomThought JoyActivityInImpressiveRecRoom at the Impressiveness stage of the room the pawn is
+        // in, none at a null stage (rows at 0); FinalizeIngest gains AteWithoutTable eating with no table, which a dining room lifts.
+        Rows(ThoughtDefOf.AteInImpressiveDiningRoom, "ate_in_dining_room", nullStagesInactive: true);
+        Rows(ThoughtDefOf.JoyActivityInImpressiveRecRoom, "joy_in_rec_room", nullStagesInactive: true);
+        Rows(ThoughtDefOf.AteWithoutTable, "ate_without_table");
         return EquatableArray.From(rows);
     }
     /// <summary>How long a thought of <paramref name="def"/> lasts: a memory's DurationTicks, lerpMoodToZero and stackLimit, else situational.</summary>

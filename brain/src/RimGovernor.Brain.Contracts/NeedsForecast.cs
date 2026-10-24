@@ -323,7 +323,10 @@ public abstract record ThoughtLasting
 /// (ThoughtDefOf.IdeoRoleApparelRequirementNotMet), each active while one of the pawn's <see cref="NeedApparel.Requirements"/>
 /// of its role is unmet; and title_apparel_quality_unmet (ThoughtWorker_RoyalTitleApparelMinQualityNotMet, #3841), active while
 /// a worn garment that has a quality is below <see cref="NeedApparel.MinimumQuality"/>. Then need_comfort (ThoughtWorker_NeedComfort,
-/// read only for a pawn with a comfort need, #3840), the comfort a bed gives over the day. A stage the game cannot price is left out.
+/// read only for a pawn with a comfort need, #3840), the comfort a bed gives over the day. Then the room memories a planned
+/// dining or rec room gives (#3803): ate_in_dining_room (AteInImpressiveDiningRoom) and joy_in_rec_room
+/// (JoyActivityInImpressiveRecRoom) by the Impressiveness stage of the room a meal or joy activity ends in, each null stage a
+/// row at 0, and ate_without_table (AteWithoutTable). A stage the game cannot price is left out.
 /// </summary>
 public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset, ThoughtLasting Lasting);
 /// <summary>

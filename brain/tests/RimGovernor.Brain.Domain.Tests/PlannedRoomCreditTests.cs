@@ -737,20 +737,35 @@ public sealed class PlannedRoomCreditTests
     internal static RoundsFacts WithEveryShippedRoom(RoundsFacts review)
     {
         var roles = ShippedRooms(review.PlannedShelters.Count == 0 ? 1 : review.PlannedShelters.Max(r => r.Id) + 1);
+        var needs = review.ForecastObserved.Needs!;
         var facts = review with
         {
-            // RoundsWork reads each work pawn's skills (a fresh colonist with none it could practise) and health.
-            ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value
-                .Select(p => p with { Health = 1d }))) },
+            // RoundsWork reads each work pawn's skills (a fresh colonist with none it could practise) and health; native reads
+            // each pawn's room memory rows (#3803) and RoundsRead each colonist's thoughts (RoundsMood), none held yet.
+            ForecastObserved = review.ForecastObserved with
+            {
+                WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value.Select(p => p with { Health = 1d }))),
+                Needs = needs with { Pawns = EquatableArray.From(needs.Pawns.Select(p => p with { ThoughtStages = EquatableArray.From([.. p.ThoughtStages, .. DiningRecCreditTests.NativeRows]) })) },
+            },
+            MoodPawns = review.MoodPawns.TryGetValue(out var moods) && moods.Count != 0 ? review.MoodPawns
+                : Known(EquatableArray.From(needs.Pawns.Select(p => new MoodPawn { Id = new(p.Pawn), Thoughts = [] }))),
             PlannedShelters = [.. review.PlannedShelters, .. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(review.PlannedRoomPredictions.Concat(roles.Select(r => PlannedRoomPredictionTests.Closed(
-                r.Room.ToString(System.Globalization.CultureInfo.InvariantCulture), "", Wire.Name(r.Role), 30d, 0, 9, 0, false)))),
+                r.Room.ToString(System.Globalization.CultureInfo.InvariantCulture), "", PredictedRole(r.Role), 30d, 0, 9, 0, false)))),
             // RoundsRead furnishes the planned hospital with the catalog's hospital bed.
             HospitalBed = new RoomFurniture { Beds = [new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07 }] }.HospitalBed(),
         };
         return facts;
     }
+
+    /// <summary>The role native predicts a furnished planned room at: a dining room's tables and a rec room's joy buildings score their RoomRoleDef (#3803).</summary>
+    private static string PredictedRole(PlannedRole role) => role switch
+    {
+        PlannedRole.Dining => Wire.Name(RoomRole.DiningRoom),
+        PlannedRole.Rec => Wire.Name(RoomRole.RecRoom),
+        _ => Wire.Name(role),
+    };
 
     /// <summary>The production comparison's selected outcome over <paramref name="facts"/> and the context it was evaluated on.</summary>
     private static (ForecastCoupledContext Context, ForecastCoupledOutcome Outcome) Selected(RoundsFacts facts, double horizon,

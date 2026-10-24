@@ -533,7 +533,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813), `TrainingRange` (#3846), `Prison` (#3805) and `Classroom` (#3809).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813), `TrainingRange` (#3846), `Prison` (#3805), `Classroom` (#3809), and `Dining` and `Rec` (#3803).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -891,6 +891,27 @@ not modelled: the XP of the desire a lesson displaces (Workwatching, Reading), t
 whenever a lesson is wanted, desks shared by turns, a blackboard's `maxSimultaneous` and the lesson memories. There is no growth
 term (D3): the learning need, whose level sets a child's growth points, is refilled by the other desires with or without a
 classroom, so growth is unchanged. No playroom is planned (#3809): its role is deleted, and the babies' play is the nursery's (#3854).
+
+*Dining and rec credits (#3803).* A planned dining or rec room the outcome serves is credited (`ForecastRoomThoughts.DiningCredit`,
+`RecCredit`) the impressive-room memory it gives, per colonist under `dining/<room>/<pawn>` or `rec/<room>/<pawn>`.
+`Toils_Ingest.FinalizeIngest` gains `AteInImpressiveDiningRoom`, and `JoyUtility.TryGainRecRoomThought` (as a joy job ends)
+`JoyActivityInImpressiveRecRoom`, at the Impressiveness stage of the room the pawn is in, whatever its role; a null stage gives
+none. A user is a colonist with a mood and the food (or joy) need; its uses a day are the need's fall a day over one refill, from
+its threshold to full (`ForecastRoomThoughts.UsesPerDay`). Its level in a room is the stage row's offset (`ate_in_dining_room`,
+`joy_in_rec_room`, at the predicted stage) held at those uses (`ForecastRoomThoughts.Held`: a stackLimit-1 memory renewed at each
+use is held min(1, duration × uses) of the time, a fading one its average between uses); its level now is the observed offset of
+the memory it holds, and for dining of `AteWithoutTable` too (`ate_without_table`), which the room's tables lift. The served rooms
+of a role take the users in service order, each crediting the level less the one before (now, then the earlier room's), so the
+credit over the horizon is each room's level from its service day, priced through `GainPerDay` (the shifts are
+`ForecastRoomThoughts.Shifts`). Named states, each earning nothing: a dining room with no eat surface (`dining_no_table`) or a rec
+room with no recreation building (`rec_no_recreation`), by the predicted role (`RoomRoleWorker_DiningRoom`, `RoomRoleWorker_RecRoom`);
+no user (`dining_no_diner`, `rec_no_user`); a ring closing no room (`room_thought_not_closed`). A memory whose stackLimit is not 1
+is named as not modelled (`room_thought_stacked`) and earns nothing. Named as not modelled: table reach and seats
+(`dining_table_reach`), the meal size (`dining_meal_size`), the joy kind (`rec_joy_kind`), joy activities ending before the need
+is full (`rec_activity_length`) and the memory held now standing for the one kept without the room (`room_thought_level_now`).
+An unread stage row, def or observed thoughts throws `RequiredFactException`. The credit reads no planned walk, so it prices the
+same before the first layout plan, when no room is planned. The thought follows the room, not its role, so
+`LayoutMoodRules.MoodJudgment.RoleThoughts` keeps no row for it.
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from
