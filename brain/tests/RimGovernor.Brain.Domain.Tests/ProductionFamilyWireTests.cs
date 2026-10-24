@@ -56,6 +56,22 @@ public sealed class ProductionFamilyWireTests
         ],
     };
 
+    private static readonly O.BillsSnapshot Bills = BillWire.Census(
+        BillWire.Bill("Bill_1") with
+        {
+            Worker = "Thing_Human7", RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Count, RepeatCount = 3, Finished = false,
+            Reservations = [new O.IngredientReservation { PawnId = "Thing_Human7", Items = [new O.Quantity { DefName = "RawPotatoes", Units = 10 }] }],
+            UnfinishedWork = new O.BillUnfinishedWork { Item = "" },
+        },
+        BillWire.Bill("Bill_2") with { Suspended = true });
+
+    private static readonly O.RecipesSnapshot Recipes = new()
+    {
+        Snapshot = new O.SnapshotRef { Context = BillWire.Context, EntityId = "Thing_Campfire1", Token = "t" },
+        BenchDef = "Campfire",
+        Recipes = [new O.RecipeState { Recipe = "CookMealSimple", AvailableNow = true, AvailableOnBench = true }, new O.RecipeState { Recipe = "Make_Pemmican", AvailableNow = false, AvailableOnBench = true }],
+    };
+
     private static void RoundTrips<T>(T payload)
     {
         var json = WireJson.Serialize(payload);
@@ -76,4 +92,10 @@ public sealed class ProductionFamilyWireTests
 
     [Fact]
     public void SuppliesRoundTripExactly() => RoundTrips(Supplies);
+
+    [Fact]
+    public void TheBillCensusRoundTripsExactly() => RoundTrips(Bills);
+
+    [Fact]
+    public void BenchRecipesRoundTripExactly() => RoundTrips(Recipes);
 }

@@ -67,8 +67,8 @@ namespace HomeBridge.BridgeTools {
   // An item, or a piece of art (a sculpture): vanilla makes it packed.
   internal static bool Product(ThingDef d)=>d!=null&&(d.category==ThingCategory.Item&&!d.IsCorpse||d.category==ThingCategory.Building&&d.Minifiable&&d.HasComp(typeof(CompArt)));
   internal static Obs.BillState BillRow(Bill bill,int index){
-   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},BillClass=bill.GetType().Name,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
-   row = row with { Worker = NativeRef.Of(bill.PawnRestriction) };
+   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=bill.recipe.defName,BillClass=bill.GetType().Name,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill),IngredientFilter=IngredientFilter(bill)};
+   row = row with { Worker = bill.PawnRestriction?.GetUniqueLoadID() };
    // Census defaults stay detached from native bill ids.
    var fresh=Detached(bill.recipe);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
@@ -78,15 +78,14 @@ namespace HomeBridge.BridgeTools {
     row = row with { DefaultIngredients = FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter) };
     row = row with { UnrestrictedWorker = bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly };
    }
-   if(NativeRecipeRoles.ButcherFlesh(bill.recipe)){
-    row = row with { IngredientFilter = NativeStockpileSettings.Project(bill.ingredientFilter) with { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };
-   }
-   else {row = row with { IngredientFilter = NativeStockpileSettings.Project(bill.ingredientFilter) with { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };}
    row=Reservations(bill,row);
    row=row with { UnfinishedWork=UnfinishedWork(bill) };
    if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { Finished = BillCommon.IsFinished(p) };}
    return row;
   }
+  // A flesh-butchering bill lists only the humanlike corpses it admits.
+  private static Obs.StockpileFilter IngredientFilter(Bill bill)=>NativeStockpileSettings.Project(bill.ingredientFilter) with { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs
+   .Where(d=>!NativeRecipeRoles.ButcherFlesh(bill.recipe)||d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] };
   private static Obs.BillUnfinishedWork? UnfinishedWork(Bill bill){
    var item=(bill as Bill_ProductionWithUft)?.BoundUft;
    if(item==null||item.Destroyed)return new Obs.BillUnfinishedWork{Item=""};
@@ -121,7 +120,9 @@ namespace HomeBridge.BridgeTools {
    }
    return row;
   }
-  internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};return row;}
+  // Only what a frame alone knows: whether the game offers the recipe now
+  // and on this bench. The rest is the recipe's catalog row.
+  internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe)=>new Obs.RecipeState{Recipe=recipe.defName,AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};
   internal static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,Operations.BillSettings s,Map map){
      if(s.Ingredients!=null){
       bill.ingredientFilter.SetDisallowAll();

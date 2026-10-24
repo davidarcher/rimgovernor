@@ -335,10 +335,10 @@ public static class ConstructionReads
         foreach (var bill in snapshot.Benches.SelectMany(b => b.Bills))
         {
             if (string.IsNullOrWhiteSpace(bill.Id)) return default;
-            rows.Add(new(bill.Id, bill.ManagedUnchanged is { } unchanged ? Known(unchanged) : default,
+            rows.Add(new(bill.Id, Known(bill.ManagedUnchanged),
                 bill.RepeatMode == RimGovernor.Contracts.Wire.Operations.RepeatMode.Count && bill.RepeatCount is >= 0
                     ? Known(bill.RepeatCount.Value) : default,
-                bill.Suspended is { } suspended ? Known(suspended) : default,
+                Known(bill.Suspended),
                 bill.Finished is { } finished ? Known(finished) : default)
             { UnfinishedWork = ProductionUnfinishedWorkOf(bill.UnfinishedWork) });
         }
@@ -374,7 +374,7 @@ public static class ConstructionReads
             {
                 foreach (var r in bill.Reservations)
                 {
-                    if ((r.PawnId ?? "") == "")
+                    if (r.PawnId == "")
                     {
                         return unknown;
                     }
@@ -389,7 +389,7 @@ public static class ConstructionReads
                     }
                     output.Add(new IngredientReservation
                     {
-                        Pawn = new PawnId((r.PawnId ?? "")), Items = items,
+                        Pawn = new PawnId(r.PawnId), Items = items,
                         Bill = string.IsNullOrWhiteSpace(bill.Id) ? Unknown<string>() : Known(bill.Id),
                     });
                 }

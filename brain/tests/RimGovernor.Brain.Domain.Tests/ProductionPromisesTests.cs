@@ -124,13 +124,13 @@ public sealed class ProductionPromisesTests
     [Fact]
     public void NativeProjectionKeepsMissingRemainingCountUnknown()
     {
-        var bill = new O.BillState { Id = "bill", ManagedUnchanged = true, Suspended = false, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3 };
-        O.BillsSnapshot Snapshot(O.BillState row) => new() { Benches = [new() { Bills = [row] }] };
+        var bill = BillWire.Bill("bill") with { ManagedUnchanged = true, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3 };
+        O.BillsSnapshot Snapshot(O.BillState row) => BillWire.Census(row);
         var census = ConstructionReads.ProductionBatchStates(Snapshot(bill));
         Assert.Equal(30, Promises(Placed, census).Value[0].MaterialClaims[0].Units.Value);
         Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatCount = null })).Value[0].Remaining.IsKnown);
         Assert.False(ConstructionReads.ProductionBatchStates(null).IsKnown);
-        Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { Id = null })).IsKnown);
+        Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { Id = "" })).IsKnown);
     }
 
     [Fact]

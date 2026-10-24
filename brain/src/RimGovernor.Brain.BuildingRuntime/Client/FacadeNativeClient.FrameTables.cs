@@ -54,7 +54,7 @@ public sealed partial class FacadeNativeClient
         var table = default(Table<PbObservations.BillStackRow>);
         foreach (var row in snapshot.Benches)
         {
-            table = table.Set(row.Bench?.Id ?? "", row);
+            table = table.Set(row.Bench, row);
         }
         return new EntityRows<PbObservations.BillStackRow> { Context = snapshot.Context, Rows = table };
     }

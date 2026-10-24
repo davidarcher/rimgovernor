@@ -104,12 +104,12 @@ public sealed class UnfinishedMaterialTests
     [Fact]
     public void WireRoundTripAndProjectionDistinguishAbsentUnreadAndEmbedded()
     {
-        var bill = new O.BillState
+        var bill = BillWire.Bill("bill") with
         {
-            Id = "bill", ManagedUnchanged = true, Suspended = false, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3,
+            ManagedUnchanged = true, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3,
             UnfinishedWork = new() { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 10 }] },
         };
-        ProductionBatchState Read(O.BillState row) => ConstructionReads.ProductionBatchStates(new() { Benches = [new() { Bills = [row] }] }).Value[0];
+        ProductionBatchState Read(O.BillState row) => ConstructionReads.ProductionBatchStates(BillWire.Census(row)).Value[0];
         var decoded = WireJson.Deserialize<O.BillState>(WireJson.Serialize(bill));
         Assert.Equal(20, Promises(Read(decoded)).Value[0].MaterialClaims[0].Units.Value);
         Assert.Equal(30, Promises(Read(bill with { UnfinishedWork = new() { Item = "" } })).Value[0].MaterialClaims[0].Units.Value);

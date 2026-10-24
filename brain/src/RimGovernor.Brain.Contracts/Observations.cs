@@ -88,26 +88,6 @@ public enum HolderKind
 }
 
 /// <summary>
-/// BenchUnusableReason is why a bench takes no bills.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<BenchUnusableReason>))]
-public enum BenchUnusableReason
-{
-    [WireName("BENCH_UNUSABLE_REASON_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("BENCH_UNUSABLE_REASON_NOT_PLAYER_OWNED")]
-    NotPlayerOwned = 1,
-    [WireName("BENCH_UNUSABLE_REASON_FORBIDDEN")]
-    Forbidden = 2,
-    [WireName("BENCH_UNUSABLE_REASON_BURNING")]
-    Burning = 3,
-    [WireName("BENCH_UNUSABLE_REASON_NOT_USABLE_FOR_BILLS")]
-    NotUsableForBills = 4,
-    [WireName("BENCH_UNUSABLE_REASON_OTHER")]
-    Other = 5,
-}
-
-/// <summary>
 /// StockCategory and StockOwnership scope a supplies read: which things it counts and whose.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<StockCategory>))]
@@ -1952,13 +1932,15 @@ public sealed record BillState
     /// <summary>
     /// Current-load controller bill with unchanged player settings.
     /// </summary>
-    public bool? ManagedUnchanged { get; init; }
+    public required bool ManagedUnchanged { get; init; }
 
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public DefinitionRef? Recipe { get; init; }
+    /// <summary>The recipe's def name.</summary>
+    public required string Recipe { get; init; }
 
-    public string? BillClass { get; init; }
+    /// <summary>The bill's runtime class name (Bill_Production, Bill_GovernorRecipe, ...).</summary>
+    public required string BillClass { get; init; }
 
     public Operations.RepeatMode? RepeatMode { get; init; }
 
@@ -1966,13 +1948,14 @@ public sealed record BillState
 
     public int? TargetCount { get; init; }
 
-    public bool? Suspended { get; init; }
+    public required bool Suspended { get; init; }
 
     public bool? Finished { get; init; }
 
-    public Common.Ref? Worker { get; init; }
+    /// <summary>The pinned worker's pawn id; absent when no pawn is pinned (a real none).</summary>
+    public string? Worker { get; init; }
 
-    public StockpileFilter? IngredientFilter { get; init; }
+    public required StockpileFilter IngredientFilter { get; init; }
 
     /// <summary>
     /// Live bill jobs' promised ingredients: one row per spawned pawn
@@ -1997,28 +1980,29 @@ public sealed record BillUnfinishedWork
 
 public sealed record IngredientReservation
 {
-    public string? PawnId { get; init; }
+    public required string PawnId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Items { get; init; }
 }
 
 /// <summary>
-/// work_speed is the bench's WorkTableWorkSpeedFactor stat as the game computes it now (stat parts included); absent when the bench has no such stat.
+/// One bench's ordered bill stack under its CAS token. work_speed is the bench's WorkTableWorkSpeedFactor stat as the
+/// game computes it now (stat parts included): a def stat every thing has, so it is always read.
 /// </summary>
 public sealed record BillStackRow
 {
-    public SnapshotRef? Snapshot { get; init; }
+    public required SnapshotRef Snapshot { get; init; }
 
-    public Common.Ref? Bench { get; init; }
+    /// <summary>The bench's thing id.</summary>
+    public required string Bench { get; init; }
 
-    public bool? Usable { get; init; }
-
+    public required bool Usable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
-    public EquatableArray<BillState> Bills { get; init; }
+    public required EquatableArray<BillState> Bills { get; init; }
 
-    public double? WorkSpeed { get; init; }
+    public required double WorkSpeed { get; init; }
 }
 
 /// <summary>
@@ -2026,11 +2010,12 @@ public sealed record BillStackRow
 /// </summary>
 public sealed record RecipeState
 {
-    public DefinitionRef? Recipe { get; init; }
+    /// <summary>The recipe's def name.</summary>
+    public required string Recipe { get; init; }
 
-    public bool? AvailableNow { get; init; }
+    public required bool AvailableNow { get; init; }
 
-    public bool? AvailableOnBench { get; init; }
+    public required bool AvailableOnBench { get; init; }
 }
 
 public sealed record BuildingSettings
@@ -4122,58 +4107,18 @@ public sealed record WorldProgressionRequest
 /// </summary>
 public sealed record BillsSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BillStackRow>))]
-    public EquatableArray<BillStackRow> Benches { get; init; }
+    public required EquatableArray<BillStackRow> Benches { get; init; }
 }
 
+/// <summary>bench_id narrows the census to one bench; absent reads every player bench.</summary>
 public sealed record BillsRequest
 {
     public ReadScope? Scope { get; init; }
 
     public string? BenchId { get; init; }
-
-    public bool? AllFactions { get; init; }
-}
-
-public sealed record BillsReply
-{
-    public BillsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="BillsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(BillsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(BillsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(BillsReplyOutcome.FailureCase), "failure")]
-public abstract record BillsReplyOutcome
-{
-    private protected BillsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BillsSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(BillsSnapshot Value) : BillsReplyOutcome;
-
-    public static implicit operator BillsReplyOutcome(BillsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : BillsReplyOutcome;
-
-    public static implicit operator BillsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : BillsReplyOutcome;
-
-    public static implicit operator BillsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>
@@ -4181,12 +4126,12 @@ public abstract record BillsReplyOutcome
 /// </summary>
 public sealed record RecipesSnapshot
 {
-    public SnapshotRef? Snapshot { get; init; }
+    public required SnapshotRef Snapshot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeState>))]
-    public EquatableArray<RecipeState> Recipes { get; init; }
+    public required EquatableArray<RecipeState> Recipes { get; init; }
 
-    public string? BenchDef { get; init; }
+    public required string BenchDef { get; init; }
 }
 
 /// <summary>
@@ -4196,46 +4141,7 @@ public sealed record RecipesRequest
 {
     public ReadScope? Scope { get; init; }
 
-    public string? BenchId { get; init; }
-}
-
-public sealed record RecipesReply
-{
-    public RecipesReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="RecipesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(RecipesReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(RecipesReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(RecipesReplyOutcome.FailureCase), "failure")]
-public abstract record RecipesReplyOutcome
-{
-    private protected RecipesReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RecipesSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(RecipesSnapshot Value) : RecipesReplyOutcome;
-
-    public static implicit operator RecipesReplyOutcome(RecipesSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : RecipesReplyOutcome;
-
-    public static implicit operator RecipesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : RecipesReplyOutcome;
-
-    public static implicit operator RecipesReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required string BenchId { get; init; }
 }
 
 /// <summary>One loose garment a pawn could wear: the item and the game's apparel score gain over what it wears now.</summary>

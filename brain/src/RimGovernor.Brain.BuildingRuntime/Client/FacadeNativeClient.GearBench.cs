@@ -22,39 +22,29 @@ public sealed partial class FacadeNativeClient
     )
     {
         var request = new PbObservations.BillsRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
-        var reply = await Facade.ReadBillsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var snapshot = reply.Outcome.Observed!;
+        var snapshot = await Facade.ReadBillsAsync(request, cancellationToken).ConfigureAwait(false);
         var recipeCatalog = await catalog(cancellationToken).ConfigureAwait(false);
         var recipeReads = new Task<((List<P.GearRecipe> Recipes, string Def) Value, Exception? Error)>[snapshot.Benches.Count];
         for (var i = 0; i < snapshot.Benches.Count; i++)
         {
-            recipeReads[i] = SharedReads.Attempt(GearReadRecipesAsync(identity, snapshot.Benches[i].Bench!.Id ?? "", recipeCatalog, cancellationToken));
+            recipeReads[i] = SharedReads.Attempt(GearReadRecipesAsync(identity, snapshot.Benches[i].Bench, recipeCatalog, cancellationToken));
         }
         var reads = new List<GearBenchRead>(snapshot.Benches.Count);
         for (var i = 0; i < snapshot.Benches.Count; i++)
         {
             var stack = snapshot.Benches[i];
-            var benchId = stack.Bench!.Id ?? "";
             var (recipes, def) = SharedReads.Reply(await recipeReads[i].ConfigureAwait(false));
             var bills = GearBillsFromStack(stack, def, recipes, recipeCatalog);
             var bench = new P.GearBench
             {
-                Id = benchId,
+                Id = stack.Bench,
                 Def = def,
-                WorkSpeed = GearBenchWorkSpeed(stack),
+                WorkSpeed = Fact.Known(stack.WorkSpeed),
                 Bills = Fact.Known(EquatableArray.From(bills)),
                 Recipes = Fact.Known(EquatableArray.From(recipes)),
-                Usable = stack.Usable is null ? Fact.Unknown<bool>() : Fact.Known(stack.Usable.GetValueOrDefault()),
+                Usable = Fact.Known(stack.Usable),
             };
-            reads.Add(new GearBenchRead { Token = stack.Snapshot?.Token ?? "", Bench = bench });
+            reads.Add(new GearBenchRead { Token = stack.Snapshot.Token ?? "", Bench = bench });
         }
         reads.Sort((a, b) => string.CompareOrdinal(a.Bench.Id, b.Bench.Id));
         return reads;
@@ -122,24 +112,13 @@ public sealed partial class FacadeNativeClient
     private async Task<(List<P.GearRecipe> Recipes, string Def)> GearReadRecipesAsync(PbCommon.Identity identity, string bench, GearRecipeCatalogAdapter catalog, CancellationToken cancellationToken)
     {
         var request = new PbObservations.RecipesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, BenchId = bench };
-        var reply = await Facade.ReadRecipesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var snapshot = reply.Outcome.Observed!;
-        var benchDef = snapshot.BenchDef ?? "";
+        var snapshot = await Facade.ReadRecipesAsync(request, cancellationToken).ConfigureAwait(false);
+        var benchDef = snapshot.BenchDef;
         var recipes = new List<P.GearRecipe>(snapshot.Recipes.Count);
         foreach (var row in snapshot.Recipes)
         {
-            var definition = row.Recipe?.DefName ?? "";
+            var definition = row.Recipe;
             var role = catalog.RecipeRoleOf(definition);
-            var available = row.AvailableNow is { } now ? Fact.Known(now) : Fact.Unknown<bool>();
-            var availableOn = row.AvailableOnBench is { } onBench ? Fact.Known(onBench) : Fact.Unknown<bool>();
             // What the recipe is and costs is the catalog's; the frame says only whether this bench offers it now.
             var products = catalog.RecipeProducts(definition);
             var ingredients = catalog.RecipeIngredients(definition);
@@ -153,8 +132,8 @@ public sealed partial class FacadeNativeClient
                 {
                     Definition = definition,
                     Role = role,
-                    Available = available,
-                    AvailableOn = availableOn,
+                    Available = Fact.Known(row.AvailableNow),
+                    AvailableOn = Fact.Known(row.AvailableOnBench),
                     Products = EquatableArray.From(products),
                     Ingredients = ingredients,
                     RequiredWork = requiredWork,
@@ -168,10 +147,6 @@ public sealed partial class FacadeNativeClient
         return (recipes, benchDef);
     }
 
-    /// <summary>The stack's work-table speed factor; unknown when native sent none or a negative one.</summary>
-    private static Fact<double> GearBenchWorkSpeed(PbObservations.BillStackRow stack) =>
-        stack.WorkSpeed is { } speed && speed >= 0 ? Fact.Known(speed) : Fact.Unknown<double>();
-
     private static List<P.GearBill> GearBillsFromStack(PbObservations.BillStackRow stack, string benchDef, List<P.GearRecipe> recipes, GearRecipeCatalogAdapter catalog)
     {
         var products = new Dictionary<string, EquatableArray<P.Resource>>(StringComparer.Ordinal);
@@ -184,7 +159,7 @@ public sealed partial class FacadeNativeClient
         var bills = new List<P.GearBill>(stack.Bills.Count);
         foreach (var bill in stack.Bills)
         {
-            var recipeName = bill.Recipe?.DefName ?? "";
+            var recipeName = bill.Recipe;
             var role = catalog.RecipeRoleOf(recipeName);
             // An unrestricted bill carries no worker reference.
             products.TryGetValue(recipeName, out var billProducts);
@@ -192,11 +167,11 @@ public sealed partial class FacadeNativeClient
             bills.Add(
                 new P.GearBill
                 {
-                    Id = bill.Id ?? "",
+                    Id = bill.Id,
                     Recipe = recipeName,
                     Role = role,
-                    Active = bill.Suspended is not null && bill.Finished is not null ? Fact.Known(!bill.Suspended.GetValueOrDefault() && !bill.Finished.GetValueOrDefault()) : Fact.Unknown<bool>(),
-                    Worker = Fact.Known(bill.Worker?.Id ?? ""),
+                    Active = bill.Finished is { } finished ? Fact.Known(!bill.Suspended && !finished) : Fact.Unknown<bool>(),
+                    Worker = Fact.Known(bill.Worker ?? ""),
                     Products = billProducts,
                     Spent = bill.Finished.GetValueOrDefault(),
                     Kind = bill.BillClass == "Bill_GovernorRecipe" ? P.LedgerBillKind.ActivityExecution : billKind,
@@ -250,8 +225,8 @@ public sealed partial class FacadeNativeClient
             BenchKind = benchDef,
             Mode = mode,
             Target = target,
-            Worker = bill.Worker?.Id ?? "",
-            Ingredients = bill.DefaultIngredients.GetValueOrDefault() ? default : EquatableArray.From(bill.IngredientFilter?.AllowedDefNames ?? default),
+            Worker = bill.Worker ?? "",
+            Ingredients = bill.DefaultIngredients.GetValueOrDefault() ? default : bill.IngredientFilter.AllowedDefNames,
         };
         return Fact.Known(spec);
     }

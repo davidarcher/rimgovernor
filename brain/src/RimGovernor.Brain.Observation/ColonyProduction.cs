@@ -5,7 +5,7 @@ public static class ColonyProductionReads
 {
     /// <summary>The bill's allowed defs; a butcher bill's filter is the corpse selection, not an ingredient list, so it stays unknown.</summary>
     private static Fact<EquatableArray<string>> BillIngredients(O.BillState b, RecipeRole role) =>
-        b.IngredientFilter is null || role == RecipeRole.ButcherFlesh
+        role == RecipeRole.ButcherFlesh
             ? Unknown<EquatableArray<string>>()
             : Known<EquatableArray<string>>([.. b.IngredientFilter.AllowedDefNames]);
 
@@ -13,7 +13,7 @@ public static class ColonyProductionReads
 
     private static Fact<string> RepeatModeFact(bool has, Ops.RepeatMode mode) => has ? Known(WireEnums.RepeatModeName(mode)) : Unknown<string>();
 
-    private static Fact<bool> BillActive(bool has, bool suspended) => has ? Known(!suspended) : Unknown<bool>();
+    private static Fact<bool> BillActive(bool suspended) => Known(!suspended);
 
     /// <summary>The nutrition of the fresh humanlike corpses near a bench: each race's live MeatAmount sum times the Nutrition of that race's meat def; unknown when a race's meat shows no nutrition.</summary>
     private static Fact<double> HumanCorpseNutrition(IEnumerable<O.HumanCorpseMeat> meat, DefinitionCatalog? catalog)
@@ -210,19 +210,11 @@ public static class ColonyProductionReads
             var recipes = new HashSet<string>(StringComparer.Ordinal);
             foreach (var recipe in bench.Recipes)
             {
-                recipes.Add(recipe.Recipe?.DefName ?? "");
+                recipes.Add(recipe.Recipe);
             }
             foreach (var bill in bench.Bills)
             {
-                if (!recipes.Contains(bill.Recipe?.DefName ?? ""))
-                {
-                    continue;
-                }
-                if (bill.Suspended is null)
-                {
-                    known = false;
-                }
-                else if (!bill.Suspended.GetValueOrDefault())
+                if (recipes.Contains(bill.Recipe) && !bill.Suspended)
                 {
                     ready = true;
                 }
@@ -291,7 +283,7 @@ public static class ColonyProductionReads
             var recipeRows = new List<ProductionRecipe>();
             foreach (var r in recipes)
             {
-                var name = r.Recipe?.DefName ?? "";
+                var name = r.Recipe;
                 var recipe = new ProductionRecipe { Name = name, Role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(name), Bulk = ColonyDecodeReads.RequireCatalog(catalog).RecipeBulk(name) };
                 var meal = ColonyDecodeReads.RequireCatalog(catalog).RecipeMealFacts(name, row.Definition);
                 recipe = recipe with
@@ -303,10 +295,7 @@ public static class ColonyProductionReads
                     IngredientClasses = meal.IngredientClasses,
                     CookSkillFloor = meal.CookSkillFloor,
                 };
-                if (r.AvailableNow is not null && r.AvailableOnBench is not null)
-                {
-                    recipe = recipe with { Available = Known(r.AvailableNow.GetValueOrDefault() && r.AvailableOnBench.GetValueOrDefault()) };
-                }
+                recipe = recipe with { Available = Known(r.AvailableNow && r.AvailableOnBench) };
                 var products = new List<ProductionProduct>();
                 foreach (var p in production)
                 {
@@ -316,7 +305,7 @@ public static class ColonyProductionReads
                     }
                     if (p.Available is not null)
                     {
-                        recipe = recipe with { Available = Known(p.Available.GetValueOrDefault() && r.AvailableNow.GetValueOrDefault() && r.AvailableOnBench.GetValueOrDefault()) };
+                        recipe = recipe with { Available = Known(p.Available.GetValueOrDefault() && r.AvailableNow && r.AvailableOnBench) };
                     }
                     foreach (var product in p.Products)
                     {
@@ -328,21 +317,21 @@ public static class ColonyProductionReads
             var billRows = new List<ExistingProductionBill>();
             foreach (var b in bills)
             {
-                var role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(b.Recipe?.DefName ?? "");
+                var role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(b.Recipe);
                 billRows.Add(new ExistingProductionBill
                 {
                     Role = role,
                     DefaultIngredients = ColonyDecodeReads.Optional(b.DefaultIngredients is not null, b.DefaultIngredients.GetValueOrDefault()),
                     UnrestrictedWorker = ColonyDecodeReads.Optional(b.UnrestrictedWorker is not null, b.UnrestrictedWorker.GetValueOrDefault()),
-                    Worker = Known(b.Worker?.Id ?? ""),
+                    Worker = Known(b.Worker ?? ""),
                     RepeatMode = RepeatModeFact(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
                     Ingredients = BillIngredients(b, role),
-                    Id = b.Id ?? "",
-                    Active = BillActive(b.Suspended is not null, b.Suspended.GetValueOrDefault()),
-                    Recipe = b.Recipe?.DefName ?? "",
+                    Id = b.Id,
+                    Active = BillActive(b.Suspended),
+                    Recipe = b.Recipe,
                     TargetCount = ColonyDecodeReads.Optional(b.TargetCount is not null, b.TargetCount.GetValueOrDefault()),
                     Forever = BillForever(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
-                    Humanlike = butcher && (b.IngredientFilter?.AllowedDefNames.Count ?? 0) > 0,
+                    Humanlike = butcher && b.IngredientFilter.AllowedDefNames.Count > 0,
                 });
             }
             return row with { Recipes = recipeRows, Bills = billRows };

@@ -186,9 +186,9 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context).Outcome?.Observed;
-                ObservationWork.Captured("bills", Now() - began, bills != null ? bills.Benches.Count : 0);
-                if (bills != null) { observed = observed with { Bills = bills }; }
+                var bills = SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Bills), () => NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context));
+                ObservationWork.Captured("bills", Now() - began, bills.Benches.Count);
+                observed = observed with { Bills = bills };
             }
             {
                 var began = Now();

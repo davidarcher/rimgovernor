@@ -158,13 +158,13 @@ public sealed class ForecastClaimsTests
     [Fact]
     public void NativeDecoderRetainsBillIdentityWithoutInventingMissingIdentity()
     {
-        var bill = new O.BillState { Id = "native-bill", Reservations = [new() { PawnId = "cook", Items = [new() { DefName = Material.Value, Units = 20 }] }] };
-        var snapshot = new O.BillsSnapshot { Benches = [new() { Bills = [bill] }] };
+        var bill = BillWire.Bill("native-bill") with { Reservations = [new() { PawnId = "cook", Items = [new() { DefName = Material.Value, Units = 20 }] }] };
+        var snapshot = BillWire.Census(bill);
         var observed = ConstructionReads.BillReservations(snapshot);
         Assert.Equal("native-bill", observed.Value[0].Bill.Value);
         var promise = Promise("method", Material, 50, "native-bill");
         Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].Value);
-        observed = ConstructionReads.BillReservations(snapshot with { Benches = [snapshot.Benches[0] with { Bills = [bill with { Id = null }] }] });
+        observed = ConstructionReads.BillReservations(snapshot with { Benches = [snapshot.Benches[0] with { Bills = [bill with { Id = "" }] }] });
         Assert.False(observed.Value[0].Bill.IsKnown);
         Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].IsKnown);
     }

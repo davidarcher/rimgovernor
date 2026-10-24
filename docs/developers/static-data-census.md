@@ -406,7 +406,6 @@ Kept, reason recorded:
 | PawnSnapshot | message | 588 | 5 | state | Pawn list snapshot with completeness |  |  |
 | ListPawnsRequest | message | 594 | 3 | state | List pawns request |  |  |
 | HolderKind | enum | 603 | 5 | state | What holds a stack |  |  |
-| BenchUnusableReason | enum | 607 | 6 | state | Why a bench takes no bills |  |  |
 | StockItem | message | 614 | 7 | mixed | One stack in a stock row | market_value (of packed item) | ThingDef.statBases MarketValue with quality factor via Go rule over rows |
 | HeldStock | message | 618 | 3 | state | Holder of a held stack |  |  |
 | PackedBuilding | message | 614 | 4 | state | The building inside a packed stack: id, def, quality, market value |  |  |
@@ -538,11 +537,9 @@ Kept, reason recorded:
 | WorldProgressionSnapshot | message | 1206 | 7 | state | World progression: maps, factions, caravans, quests, sites |  |  |
 | WorldProgressionRequest | message | 1207 | 2 | state | Read request parameters |  |  |
 | BillsSnapshot | message | 1211 | 2 | state | Bills per bench |  |  |
-| BillsRequest | message | 1212 | 3 | state | Read request parameters |  |  |
-| BillsReply | message | 1213 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
+| BillsRequest | message | 1212 | 2 | state | Read request parameters |  |  |
 | RecipesSnapshot | message | 1214 | 4 | state | Recipes available at a bench |  |  |
 | RecipesRequest | message | 1215 | 2 | state | Read request parameters |  |  |
-| RecipesReply | message | 1216 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | PawnSettingsRequest | message | 1219 | 2 | state | Read request parameters |  |  |
 | PawnSettingsReply | message | 1220 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResolveTargetSnapshot | message | 1221 | 3 | state | Target resolution candidates |  |  |

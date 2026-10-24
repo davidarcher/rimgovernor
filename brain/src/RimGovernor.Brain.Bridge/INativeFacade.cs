@@ -90,9 +90,9 @@ public interface INativeFacade
 
     Task<Obs.DefinitionCatalogAck> ReadDefinitionCatalogAsync(Obs.DefinitionCatalogRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.BillsReply> ReadBillsAsync(Obs.BillsRequest request, CancellationToken cancellationToken);
+    Task<Obs.BillsSnapshot> ReadBillsAsync(Obs.BillsRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.RecipesReply> ReadRecipesAsync(Obs.RecipesRequest request, CancellationToken cancellationToken);
+    Task<Obs.RecipesSnapshot> ReadRecipesAsync(Obs.RecipesRequest request, CancellationToken cancellationToken);
 
     // Operations. Every write is an Apply intent; Hands owns the game-order writes on the game thread.
 

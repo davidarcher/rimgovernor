@@ -150,10 +150,10 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.DefinitionCatalogAck> ReadDefinitionCatalogAsync(Obs.DefinitionCatalogRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadDefinitionCatalog, request, () => NativeDefinitionCatalogTool.HandleReadDefinitionCatalog(request), cancellationToken);
 
-        public Task<Obs.BillsReply> ReadBillsAsync(Obs.BillsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.BillsSnapshot> ReadBillsAsync(Obs.BillsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadBills, request, () => NativeBillsObservationTools.HandleReadBills(request), cancellationToken);
 
-        public Task<Obs.RecipesReply> ReadRecipesAsync(Obs.RecipesRequest request, CancellationToken cancellationToken)
+        public Task<Obs.RecipesSnapshot> ReadRecipesAsync(Obs.RecipesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadRecipes, request, () => NativeBillsObservationTools.HandleReadRecipes(request), cancellationToken);
 
         // Operations.

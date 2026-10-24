@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
@@ -45,15 +46,14 @@ internal static class BillsCensus
     {
         var id = s.Staged!.Buildings[Bench].Ids.Single();
         var problems = new List<string>();
-        var bills = await s.CallAsync("bills", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var census = TypedReads.Observed("bills", NativeOps.ReadBills, bills, bills.Outcome?.Observed);
-        var rows = census.Benches.Where(b => b.Bench?.Id == id).ToList();
+        var census = await s.CallAsync("bills", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var rows = census.Benches.Where(b => b.Bench == id).ToList();
         if (rows is not [{ Snapshot: { Token.Length: > 0 } snapshot } row] || snapshot.EntityId != id)
         {
             throw new AcceptanceException($"bill census: want the staged bench {id} once with a CAS token, got {rows.Count} rows: {string.Join("; ", rows)}");
         }
 
-        var duplicated = census.Benches.GroupBy(b => b.Bench?.Id).Where(g => g.Key is null || g.Count() > 1).Select(g => g.Key ?? "(no id)").ToList();
+        var duplicated = census.Benches.GroupBy(b => b.Bench).Where(g => g.Key.Length == 0 || g.Count() > 1).Select(g => g.Key.Length == 0 ? "(no id)" : g.Key).ToList();
         if (duplicated.Count > 0)
         {
             problems.Add($"bench ids missing or duplicated: {string.Join(' ', duplicated)}");
@@ -66,9 +66,8 @@ internal static class BillsCensus
             problems.Add($"census token {snapshot.Token} disagrees with the colony-facts cooking row {cooking?.BenchSnapshot?.Token}");
         }
 
-        var recipes = await s.CallAsync("recipes", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = id }, cancellationToken).ConfigureAwait(false);
-        var catalog = TypedReads.Observed("recipes", NativeOps.ReadRecipes, recipes, recipes.Outcome?.Observed);
-        if (catalog.Snapshot?.Token != snapshot.Token || catalog.Snapshot?.EntityId != id)
+        var catalog = await s.CallAsync("recipes", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = id }, cancellationToken).ConfigureAwait(false);
+        if (catalog.Snapshot.Token != snapshot.Token || catalog.Snapshot.EntityId != id)
         {
             problems.Add($"recipe catalog snapshot {catalog.Snapshot} disagrees with the census {snapshot}");
         }
@@ -79,19 +78,27 @@ internal static class BillsCensus
         }
 
         problems.AddRange(catalog.Recipes
-            .Where(r => r.Recipe?.DefName is null or "" || r.AvailableNow is null || r.AvailableOnBench is null)
-            .Select(r => $"recipe row without a def name or availability: {r}"));
+            .Where(r => r.Recipe.Length == 0)
+            .Select(r => $"recipe row without a def name: {r}"));
 
-        var blank = await s.CallAsync("blank-bench", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope, BenchId = " " }, cancellationToken).ConfigureAwait(false);
-        if (blank.Outcome?.Failure?.Code != Common.FailureCode.InvalidRequest)
+        try
         {
-            problems.Add($"blank bench id: want INVALID_REQUEST, got {blank.Outcome}");
+            var blank = await s.CallAsync("blank-bench", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope, BenchId = " " }, cancellationToken).ConfigureAwait(false);
+            problems.Add($"blank bench id: want INVALID_REQUEST, got {blank.Benches.Count} benches");
+        }
+        catch (NativeFailureException refused) when (refused.Value.Code == Common.FailureCode.InvalidRequest)
+        {
+            s.Record("blank-bench", refused.Message);
         }
 
-        var unknown = await s.CallAsync("unknown-bench", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = "Thing_NoSuchBench0" }, cancellationToken).ConfigureAwait(false);
-        if (unknown.Outcome?.Failure?.Code != Common.FailureCode.NotFound)
+        try
         {
-            problems.Add($"unknown bench id: want NOT_FOUND, got {unknown.Outcome}");
+            var unknown = await s.CallAsync("unknown-bench", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = "Thing_NoSuchBench0" }, cancellationToken).ConfigureAwait(false);
+            problems.Add($"unknown bench id: want NOT_FOUND, got {unknown.Recipes.Count} recipes");
+        }
+        catch (NativeFailureException refused) when (refused.Value.Code == Common.FailureCode.NotFound)
+        {
+            s.Record("unknown-bench", refused.Message);
         }
 
         s.RecordWire("bench", row);

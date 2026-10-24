@@ -26,6 +26,7 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.ReadConsumption) ? """{"sinceHour":0}"""
                 : ReferenceEquals(op, NativeOps.ReadStorageOccupancy) ? """{"groups":[],"sinceHour":0}"""
                 : ReferenceEquals(op, NativeOps.ListResourceSources) ? """{"resource":""}"""
+                : ReferenceEquals(op, NativeOps.ReadRecipes) ? """{"benchId":""}"""
                 : ReferenceEquals(op, NativeOps.ListSupplies) ? """{"filter":{"category":"STOCK_CATEGORY_HAULABLE","ownership":"STOCK_OWNERSHIP_OURS","includeHeld":true}}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }
