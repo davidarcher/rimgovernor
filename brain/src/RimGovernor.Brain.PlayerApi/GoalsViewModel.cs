@@ -88,14 +88,24 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
             detail);
     }
 
-    internal static (string State, string Detail) Describe(GoalStatus s) => s.State switch
+    internal static (string State, string Detail) Describe(GoalStatus s)
     {
-        GoalState.Met => ("Met", ""),
-        GoalState.Pursuing => ("Pursuing", s.EtaDay.TryGetValue(out var eta) ? $"{s.Owner.Value}, est. day {eta.ToString(CultureInfo.InvariantCulture)}" : s.Owner.Value),
-        GoalState.Blocked => ("Blocked", s.Reason),
-        GoalState.Infeasible => ("Infeasible", s.Reason),
-        _ => ("No method", s.Reason),
-    };
+        switch (s.State)
+        {
+            case GoalState.Met:
+                return ("Met", "");
+            case GoalState.Pursuing:
+                return ("Pursuing", s.Eta is GoalEta.Day eta ? $"{s.Owner.Value}, est. day {eta.Value.ToString(CultureInfo.InvariantCulture)}" : s.Owner.Value);
+            case GoalState.Blocked:
+                return ("Blocked", s.Reason);
+            case GoalState.Infeasible:
+                return ("Infeasible", s.Reason);
+            case GoalState.NoMethod:
+                return ("No method", s.Reason);
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(s), s.State, "unhandled goal state");
+    }
 
     internal static string TargetText(GoalRecord goal)
     {

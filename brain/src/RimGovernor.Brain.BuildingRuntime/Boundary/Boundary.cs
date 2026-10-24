@@ -145,10 +145,6 @@ public static class Boundary
 
     // ---- Decode typed native pawn/receipt evidence into domain facts. ----
 
-    public static Fact<bool> FactBool(bool has, bool value) => has ? Known(value) : Unknown<bool>();
-
-    public static Fact<uint> FactUint(bool has, uint value) => has ? Known(value) : Unknown<uint>();
-
     public static string PawnToken(PbObservations.PawnState row, PbCommon.ObservationContext ctx)
     {
         var reference = row.PawnSnapshot;

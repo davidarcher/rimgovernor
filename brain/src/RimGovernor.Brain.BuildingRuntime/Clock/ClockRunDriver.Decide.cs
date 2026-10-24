@@ -343,10 +343,10 @@ public sealed partial class ClockRunDriver
 
         // The defense planner's verdict at this step: only a reported no-squad answer lets a hostile building be
         // watched instead of held; any other outcome, or no planner, keeps the hold.
-        var squadUnanswered = Unknown<bool>();
+        var squad = SquadAnswer.NotReported;
         if (step.Defense is { } defense && !defense.Verdict.IsZero)
         {
-            squadUnanswered = Known(defense.Verdict == BuildingReasonNoSquad);
+            squad = defense.Verdict == BuildingReasonNoSquad ? SquadAnswer.NoSquad : SquadAnswer.Squad;
         }
         // A complete sheltering response lets the threat be waited out, watched like a fight's. A step between two
         // rounds reviews ran no rounder of its own (#3556); the scheduler's last review answers for it.
@@ -366,11 +366,11 @@ public sealed partial class ClockRunDriver
                 Snapshot = state.Snapshot,
                 Tick = tick,
                 State = running ? ClockWatchState.Running : ClockWatchState.Held,
-                NativeTickBoundary = Boundary.FactBool(status.NativeTickBoundary is not null, status.NativeTickBoundary.GetValueOrDefault()),
+                NativeTickBoundary = status.NativeTickBoundary ?? throw new HeldException("clock status carried no native tick boundary"),
             },
-            CombatPlan = Known(combatPlan),
+            CombatPlan = combatPlan,
             HuntPrey = huntPrey,
-            SquadUnanswered = squadUnanswered,
+            Squad = squad,
             Sheltered = sheltered,
             AcknowledgedHungry = _sentPolicy is { } sent ? [.. sent.AcknowledgedHungryColonistIds.Select(id => new PawnId(id))] : [],
             FirstPlanUnread = note.FirstPlanUnread,

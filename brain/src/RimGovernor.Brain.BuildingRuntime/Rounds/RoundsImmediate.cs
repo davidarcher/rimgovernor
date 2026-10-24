@@ -169,7 +169,7 @@ partial class ClockScheduler
 
     internal static bool ProtectionNeedsTicks(ClockSchedulerResult result) =>
         (result.Defense is not null && (result.Defense.Plan.Value.Length != 0 || result.Defense.Verdict == BuildingReasonExistingWork))
-        || RoundsBuildingPlanner.PositiveFact(ClockShelterHeld(result.Rounds));
+        || ClockShelterHeld(result.Rounds);
 }
 
 public sealed partial class ClockScheduler

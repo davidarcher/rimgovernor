@@ -111,7 +111,7 @@ public sealed class BelieverConversionTests
     {
         var pawns = Pawns(Believer, Colonist("a", "Ideo_other", 0.3));
         var pursued = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), pawns));
-        Assert.Equal((GoalState.Pursuing, "ideology/convert/a", 1.0), (pursued.State, pursued.Owner.Value, pursued.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, "ideology/convert/a", 1.0), (pursued.State, pursued.Owner.Value, ((GoalDeficit.Measured)pursued.Deficit).Amount));
 
         var met = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, 0.3))));
         Assert.Equal(GoalState.Met, met.State);

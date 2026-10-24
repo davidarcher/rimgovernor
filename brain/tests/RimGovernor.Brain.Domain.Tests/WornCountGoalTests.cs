@@ -117,7 +117,7 @@ public sealed class WornCountGoalTests
     public void TheStatusIsPursuingWithWearersAndNoMethodWithout()
     {
         var pursuing = GoalRules.Evaluate(Goal(), GoalFacts(Facts(Pawn("p1"))));
-        Assert.Equal((GoalState.Pursuing, EconomyFamily.Resource, 2.0), (pursuing.State, pursuing.Owner, pursuing.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, EconomyFamily.Resource, 2.0), (pursuing.State, pursuing.Owner, ((GoalDeficit.Measured)pursuing.Deficit).Amount));
         var none = GoalRules.Evaluate(Goal(), GoalFacts(Facts(Pawn("p1", canWear: false))));
         Assert.Equal((GoalState.NoMethod, "no_wearer"), (none.State, none.Reason));
         Assert.Equal("gear", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Goal(), GoalFacts(new RoundsFacts()))).Fact);

@@ -22,13 +22,66 @@ public enum GoalState
 }
 
 /// <summary>One goal's standing: its state with the reason, the Need that pursues it and how far it is from met.</summary>
-public sealed record GoalStatus(GoalRecord Goal, Satisfaction Satisfaction, GoalState State, string Reason, NeedId Owner, Fact<double> Deficit)
+public sealed record GoalStatus(GoalRecord Goal, Satisfaction Satisfaction, GoalState State, string Reason, NeedId Owner, GoalDeficit Deficit)
 {
     /// <summary>
-    /// The game day tier 2 estimates the goal completes (#3505): derived each review from the colony model and never stored. Unknown for a
-    /// goal the model has no path for, one it cannot complete inside its horizon and one already met.
+    /// The game day tier 2 estimates the goal completes (#3505): derived each review from the colony model and never stored.
+    /// <see cref="GoalEta.Unestimated"/> for a goal the model has no path for, one it cannot complete inside its horizon and one already met.
     /// </summary>
-    public Fact<int> EtaDay { get; init; }
+    public GoalEta Eta { get; init; } = GoalEta.Unestimated;
+}
+
+/// <summary>How far a goal is from met: a measured amount (0 once met), or nothing measurable because the goal names a target the facts do not list.</summary>
+public abstract record GoalDeficit
+{
+    private GoalDeficit()
+    {
+    }
+
+    /// <summary>The goal is <see cref="Amount"/> short of met, in the unit of its kind; 0 once met.</summary>
+    public sealed record Measured(double Amount) : GoalDeficit;
+
+    /// <summary>The goal names a target the facts do not list (or no target at all), so no distance to it exists.</summary>
+    public sealed record NoTarget : GoalDeficit;
+
+    public static readonly GoalDeficit Unmeasured = new NoTarget();
+
+    public static GoalDeficit Of(double amount) => new Measured(amount);
+}
+
+/// <summary>Which goal the ideoligion reform in flight serves: one goal, or none while no reform is pending or chosen.</summary>
+public abstract record ReformFocus
+{
+    private ReformFocus()
+    {
+    }
+
+    public sealed record Serving(int Goal) : ReformFocus;
+
+    public sealed record NoReform : ReformFocus;
+
+    public static readonly ReformFocus Idle = new NoReform();
+
+    public static ReformFocus Of(int? goal) => goal is { } id ? new Serving(id) : Idle;
+
+    /// <summary>Whether the reform in flight serves goal <paramref name="id"/>.</summary>
+    public bool Serves(int id) => this is Serving serving && serving.Goal == id;
+}
+
+/// <summary>When tier 2 expects a goal done: a game day, or no estimate.</summary>
+public abstract record GoalEta
+{
+    private GoalEta()
+    {
+    }
+
+    public sealed record Day(int Value) : GoalEta;
+
+    public sealed record NoEstimate : GoalEta;
+
+    public static readonly GoalEta Unestimated = new NoEstimate();
+
+    public static GoalEta On(int day) => new Day(day);
 }
 
 /// <summary>A theme's progress: how many of its goals stand met.</summary>
@@ -150,7 +203,7 @@ public sealed record GoalsFacts
     public DesignChoice? Reform { get; init; }
 
     /// <summary>The goal the reform in flight serves: the pending record's, else the chosen reform's.</summary>
-    public int? ReformGoal { get; init; }
+    public ReformFocus ReformGoal { get; init; } = ReformFocus.Idle;
 
     /// <summary>The room census a room goal is judged by.</summary>
     public Fact<RoomObservation> Rooms { get; init; }
@@ -212,7 +265,7 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
             Id = GoalRules.NeedOf(s.Goal),
             Tier = NeedTier.Development,
             Satisfaction = s.Satisfaction,
-            Deficit = s.Deficit,
+            Deficit = s.Deficit is GoalDeficit.Measured measured ? Fact.Known(measured.Amount) : Fact.Unknown<double>(),
         })];
 
     public IReadOnlyList<Need> DeriveSeriousHarm(GoalsFacts facts) => [];
@@ -229,16 +282,29 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
                 continue;
             }
             var status = GoalRules.Evaluate(goal, facts);
-            var (subject, detail) = status.State switch
-            {
-                GoalState.Pursuing => ("pursuing:" + status.Owner.Value, "Pursued by " + status.Owner.Value + "."),
-                GoalState.Blocked => ("blocked:" + status.Reason, "The goal cannot advance: " + status.Reason + "."),
-                GoalState.Infeasible => ("infeasible:" + status.Reason, "Every route to the goal breaks the " + status.Reason + " floor."),
-                _ => ("no_method:" + status.Reason, "Nothing pursues this goal: " + status.Reason + "."),
-            };
+            var (subject, detail) = HoldOf(status);
             output.Add(NeedMethod.Held(need.Id, subject, detail));
         }
         return output;
+    }
+
+    /// <summary>The subject and detail of the held Method a goal's state names.</summary>
+    private static (string Subject, string Detail) HoldOf(GoalStatus status)
+    {
+        switch (status.State)
+        {
+            case GoalState.Pursuing:
+                return ("pursuing:" + status.Owner.Value, "Pursued by " + status.Owner.Value + ".");
+            case GoalState.Blocked:
+                return ("blocked:" + status.Reason, "The goal cannot advance: " + status.Reason + ".");
+            case GoalState.Infeasible:
+                return ("infeasible:" + status.Reason, "Every route to the goal breaks the " + status.Reason + " floor.");
+            case GoalState.NoMethod:
+            case GoalState.Met:
+                return ("no_method:" + status.Reason, "Nothing pursues this goal: " + status.Reason + ".");
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(status), status.State, "unhandled goal state");
     }
 }
 
@@ -269,7 +335,7 @@ public static partial class GoalRules
         var status = EvaluateOwned(goal, f);
         if (status.State != GoalState.Met && f.Etas.TryGetValue(NeedOf(goal).Value, out var eta))
         {
-            status = status with { EtaDay = Fact.Known(eta) };
+            status = status with { Eta = GoalEta.On(eta) };
         }
         return status.State is GoalState.Pursuing or GoalState.Blocked && f.Infeasible.TryGetValue(NeedOf(goal).Value, out var floor)
             ? status with { State = GoalState.Infeasible, Reason = floor }
@@ -278,29 +344,29 @@ public static partial class GoalRules
 
     private static GoalStatus EvaluateOwned(GoalRecord goal, GoalsFacts f)
     {
-        Fact<bool> met;
-        Fact<double> deficit;
-        NeedId owner;
+        // Only the measured kinds below fall out of the switch; every other kind returns its own status.
+        Standing? standing = null;
+        NeedId owner = default;
         switch (goal.Kind)
         {
             case GoalKind.ResearchProject:
-                (met, deficit) = ProjectMet(goal.Target, f.Research);
+                standing = ProjectMet(goal.Target, f.Research);
                 owner = EconomyFamily.Research;
                 break;
             case GoalKind.ResearchTier:
-                (met, deficit) = Enum.TryParse<TechTier>(goal.Target, true, out _) ? TierMet(goal.Target, f.Tier) : LevelMet(goal.Target, f.Research);
+                standing = Enum.TryParse<TechTier>(goal.Target, true, out _) ? TierMet(goal.Target, f.Tier) : LevelMet(goal.Target, f.Research);
                 owner = EconomyFamily.Research;
                 break;
             case GoalKind.StockCount:
-                (met, deficit) = Shortfall(goal.Count, f.Stock.TryGetValue(out var stock) ? stock.Where(a => a.Resource == new Resource(goal.Target)).Sum(a => a.Count) : throw new RequiredFactException("stock census"));
+                standing = Shortfall(goal.Count, f.Stock.TryGetValue(out var stock) ? stock.Where(a => a.Resource == new Resource(goal.Target)).Sum(a => a.Count) : throw new RequiredFactException("stock census"));
                 owner = EconomyFamily.Resource;
                 break;
             case GoalKind.Colonists:
-                (met, deficit) = Shortfall(goal.Count, f.Colonists);
+                standing = Shortfall(goal.Count, f.Colonists);
                 owner = JoinersFamily.Offers;
                 break;
             case GoalKind.Animals:
-                (met, deficit) = Shortfall(goal.Count, f.Animals.TryGetValue(out var animals) ? animals.Count(a => a.Definition == new Resource(goal.Target)) : throw new RequiredFactException("animal census"));
+                standing = Shortfall(goal.Count, f.Animals.TryGetValue(out var animals) ? animals.Count(a => a.Definition == new Resource(goal.Target)) : throw new RequiredFactException("animal census"));
                 owner = AnimalsFamily.Herd;
                 break;
             case GoalKind.WornCount:
@@ -323,19 +389,27 @@ public static partial class GoalRules
                 return Skill(goal, f);
             case GoalKind.Health:
                 return Health(goal, f);
-            default:
-                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPursuit, default, default);
+            case GoalKind.PowerSurplus:
+            case GoalKind.Ritual:
+            case GoalKind.Territory:
+            case GoalKind.Ending:
+            case GoalKind.Caravan:
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPursuit, default, GoalDeficit.Unmeasured);
         }
-        if (!met.TryGetValue(out var isMet))
+        if (standing is not { } stands)
         {
             // The facts are read (an unread one raised); a target they do not list does not exist.
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, UnknownTarget, default, deficit);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, UnknownTarget, default, GoalDeficit.Unmeasured);
         }
-        return isMet ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit) : Pursued(goal, f, owner, deficit);
+        var deficit = GoalDeficit.Of(stands.Deficit);
+        return stands.Met ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit) : Pursued(goal, f, owner, deficit);
     }
 
+    /// <summary>Whether a goal's measured target is met and how far it stands from it.</summary>
+    private sealed record Standing(bool Met, double Deficit);
+
     /// <summary>An unmet goal an owning Need can work: blocked when that Need's progress row says why it has no method, else pursuing.</summary>
-    private static GoalStatus Pursued(GoalRecord goal, GoalsFacts f, NeedId owner, Fact<double> deficit) =>
+    private static GoalStatus Pursued(GoalRecord goal, GoalsFacts f, NeedId owner, GoalDeficit deficit) =>
         f.Owners.TryGetValue(owner, out var row) && !row.Method && row.Blocked != ""
             ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, row.Blocked, owner, deficit)
             : new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", owner, deficit);
@@ -354,7 +428,7 @@ public static partial class GoalRules
         }
         var want = new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count);
         var wearing = WearingCount(gear, want);
-        var deficit = Fact.Known((double)Math.Max(0, goal.Count - wearing));
+        var deficit = GoalDeficit.Of((double)Math.Max(0, goal.Count - wearing));
         if (wearing >= goal.Count)
         {
             return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
@@ -377,9 +451,11 @@ public static partial class GoalRules
     /// <summary>Whether the goals family itself places the goal's building (its Need has a work step instead of a held Method).</summary>
     public static bool OwnStep(GoalRecord goal) => goal.Kind == GoalKind.BuiltCount && PlacerOf(goal.Target) is BuiltPlacer.Beacon or BuiltPlacer.Geothermal;
 
-    /// <summary>How many finished buildings of <paramref name="definition"/> stand; unknown while the building table is unread.</summary>
-    public static Fact<long> BuiltOf(RoundsFacts f, string definition) =>
-        f.BuiltBuildings.TryGetValue(out var built) ? Fact.Known(built.Where(a => a.Resource == new Resource(definition)).Sum(a => a.Count)) : Fact.Unknown<long>();
+    /// <summary>How many finished buildings of <paramref name="definition"/> stand; an unread building table raises <see cref="RequiredFactException"/>.</summary>
+    public static long BuiltOf(RoundsFacts f, string definition) =>
+        f.BuiltBuildings.TryGetValue(out var built)
+            ? built.Where(a => a.Resource == new Resource(definition)).Sum(a => a.Count)
+            : throw new RequiredFactException("built buildings");
 
     /// <summary>
     /// A built-count goal (#3496): met once <c>Count</c> finished buildings of the definition stand. A turret is built by the
@@ -389,24 +465,26 @@ public static partial class GoalRules
     private static GoalStatus Built(GoalRecord goal, GoalsFacts f)
     {
         var placer = PlacerOf(goal.Target);
-        var owner = placer switch { BuiltPlacer.Turret => LayoutFamily.Defense, BuiltPlacer.None => default, _ => NeedOf(goal) };
-        // A definition nothing places has no method whether or not the building table was read.
-        var read = BuiltOf(f.Rounds, goal.Target).TryGetValue(out var built);
-        if (!read && placer != BuiltPlacer.None)
-        {
-            throw new RequiredFactException("built buildings");
-        }
-        var (met, deficit) = read ? Shortfall(goal.Count, built) : (default, default);
-        if (met.TryGetValue(out var isMet) && isMet)
-        {
-            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
-        }
         if (placer == BuiltPlacer.None)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no placer for " + goal.Target, default, deficit);
+            // A definition nothing places has no method whether or not the building table was read; one already standing is still met.
+            if (!f.Rounds.BuiltBuildings.TryGetValue(out _))
+            {
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPlacerFor(goal), default, GoalDeficit.Unmeasured);
+            }
+            var counted = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
+            return counted.Met
+                ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, GoalDeficit.Of(counted.Deficit))
+                : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPlacerFor(goal), default, GoalDeficit.Of(counted.Deficit));
         }
-        return Pursued(goal, f, owner, deficit);
+
+        var owner = placer == BuiltPlacer.Turret ? LayoutFamily.Defense : NeedOf(goal);
+        var standing = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
+        var deficit = GoalDeficit.Of(standing.Deficit);
+        return standing.Met ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit) : Pursued(goal, f, owner, deficit);
     }
+
+    private static string NoPlacerFor(GoalRecord goal) => "no placer for " + goal.Target;
 
     /// <summary>
     /// A skill goal (#3508): met once the pawn's skill level (aptitudes included) reaches <c>Count</c>. Otherwise the
@@ -423,14 +501,14 @@ public static partial class GoalRules
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, GoalDeficit.Unmeasured);
         }
         var skill = pawn.Skills.FirstOrDefault(s => s.Name == goal.Qualifier);
         if (skill is null)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_skill", default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_skill", default, GoalDeficit.Unmeasured);
         }
-        var deficit = Fact.Known((double)Math.Max(0, goal.Count - skill.Level));
+        var deficit = GoalDeficit.Of((double)Math.Max(0, goal.Count - skill.Level));
         if (skill.Level >= goal.Count)
         {
             return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
@@ -449,10 +527,10 @@ public static partial class GoalRules
     private static GoalStatus Health(GoalRecord goal, GoalsFacts f)
     {
         var owner = MedicalRules.SurgeryNeed;
-        var one = Fact.Known(1.0);
+        var one = GoalDeficit.Of(1.0);
         if (!f.Rounds.Recipes.AddedHediffs.TryGetValue(goal.Qualifier, out var hediff))
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_recipe", default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_recipe", default, GoalDeficit.Unmeasured);
         }
         if (!f.Rounds.MedicalPawns.TryGetValue(out var pawns))
         {
@@ -461,11 +539,11 @@ public static partial class GoalRules
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null || pawn.Dead)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, GoalDeficit.Unmeasured);
         }
         if (pawn.Conditions.Any(c => c.DefName == hediff))
         {
-            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, GoalDeficit.Of(0.0));
         }
         if (!pawn.Operations.Any(op => op.Operation.Recipe == goal.Qualifier))
         {
@@ -493,7 +571,7 @@ public static partial class GoalRules
     private static GoalStatus NamedPrisoner(GoalRecord goal, GoalsFacts f)
     {
         var owner = PrisonersFamily.Recruit;
-        var one = Fact.Known(1.0);
+        var one = GoalDeficit.Of(1.0);
         var pawn = new PawnId(goal.Target);
         if (!f.Rounds.Population.TryGetValue(out var census))
         {
@@ -504,7 +582,7 @@ public static partial class GoalRules
         {
             var colonist = census.Custody.Any(c => c.Pawn == pawn && c.Admitted && !c.Dead);
             return colonist
-                ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0))
+                ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, GoalDeficit.Of(0.0))
                 : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAPrisoner, default, one);
         }
         if (row.Dead)
@@ -524,7 +602,7 @@ public static partial class GoalRules
     {
         if (!Wire.TryParse<RoomRole>(goal.Target, out var role))
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_role", default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_role", default, GoalDeficit.Unmeasured);
         }
         var staged = StagedRole(role);
         var owner = role == RoomRole.Hospital ? MedicalRules.MedicalCareNeed : staged ? ShelterFamily.Sleeping : default;
@@ -548,9 +626,9 @@ public static partial class GoalRules
         }
         if (deficit == 0)
         {
-            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, GoalDeficit.Of(0.0));
         }
-        var unmet = Fact.Known(deficit);
+        var unmet = GoalDeficit.Of(deficit);
         if (!staged)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPursuit, default, unmet);
@@ -578,7 +656,7 @@ public static partial class GoalRules
     /// <summary>A named quest: met when it completes, pursued by the quest step (the offers step for a joiner) while an admission check passes, blocked on the check that fails, no method once it expires or fails.</summary>
     private static GoalStatus NamedQuest(GoalRecord goal, GoalsFacts f)
     {
-        var one = Fact.Known(1.0);
+        var one = GoalDeficit.Of(1.0);
         if (!f.Rounds.QuestOffers.TryGetValue(out var offers))
         {
             throw new RequiredFactException("quest offers");
@@ -593,7 +671,7 @@ public static partial class GoalRules
         switch (offer.State)
         {
             case QuestStatus.EndedSuccess:
-                return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
+                return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, GoalDeficit.Of(0.0));
             case QuestStatus.EndedOfferExpired:
                 return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, Expired, default, one);
             case QuestStatus.Ongoing:
@@ -790,55 +868,55 @@ public static partial class GoalRules
     {
         if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, Fact.Known(1.0));
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, GoalDeficit.Of(1.0));
         }
         var lacking = ConversionRules.Shortfall([goal], f.Ideology, f.Pawns);
         var owed = ConversionRules.Owed([goal], f.Ideology, f.Pawns);
         if (lacking == 0)
         {
-            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, Fact.Known(0.0));
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, GoalDeficit.Of(0.0));
         }
-        var deficit = Fact.Known((double)lacking);
+        var deficit = GoalDeficit.Of(lacking);
         if (!owed.IsOwed)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_convertible_colonist", default, deficit);
         }
         var need = ConversionRules.NeedOf(owed.Target);
-        return owed.Block switch
+        switch (owed.Block)
         {
-            ConversionBlock.NoGuideRole => new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, IdeologyFamily.NoGuideRole, default, deficit),
-            ConversionBlock.Unassigned => new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_moral_guide", IdeologyFamily.Roles, deficit),
-            _ => new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", need, deficit),
-        };
+            case ConversionBlock.NoGuideRole:
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, IdeologyFamily.NoGuideRole, default, deficit);
+            case ConversionBlock.Unassigned:
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_moral_guide", IdeologyFamily.Roles, deficit);
+            case ConversionBlock.None:
+            case ConversionBlock.Charging:
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, "", need, deficit);
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(goal), owed.Block, "unhandled conversion block");
     }
 
     private static GoalStatus Adoption(GoalRecord goal, GoalsFacts f)
     {
         if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, Fact.Known(1.0));
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, GoalDeficit.Of(1.0));
         }
         if (!f.Ideology.TryGetValue(out var ideo))
         {
             throw new RequiredFactException("ideoligion");
         }
-        var held = goal.Kind switch
-        {
-            GoalKind.Precept => ideo.Facts.Precepts.Any(p => p.Def == goal.Target),
-            GoalKind.Meme => ideo.Facts.Memes.Contains(goal.Target),
-            _ => ideo.Facts.VeneratedAnimals.Contains(goal.Target),
-        };
+        var held = goal.Kind == GoalKind.Precept ? ideo.Facts.Precepts.Any(p => p.Def == goal.Target)
+            : goal.Kind == GoalKind.Meme ? ideo.Facts.Memes.Contains(goal.Target)
+            : ideo.Facts.VeneratedAnimals.Contains(goal.Target);
         if (held)
         {
-            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, Fact.Known(0.0));
+            return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, GoalDeficit.Of(0.0));
         }
-        var unmet = Fact.Known(1.0);
-        var defined = goal.Kind switch
-        {
-            GoalKind.Precept => ideo.Defs.Precepts.ContainsKey(goal.Target),
-            GoalKind.Meme => ideo.Defs.Memes.ContainsKey(goal.Target),
-            _ => goal.Target != "",
-        };
+        var unmet = GoalDeficit.Of(1.0);
+        var defined = goal.Kind == GoalKind.Precept ? ideo.Defs.Precepts.ContainsKey(goal.Target)
+            : goal.Kind == GoalKind.Meme ? ideo.Defs.Memes.ContainsKey(goal.Target)
+            : goal.Target != "";
         if (!defined)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, unmet);
@@ -862,7 +940,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, FormattableString.Invariant($"development points {development.DevelopmentPoints}/{development.NextReformPoints}"), owner, unmet);
         }
-        return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, f.ReformGoal == goal.Id ? "" : "queued", owner, unmet);
+        return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, f.ReformGoal.Serves(goal.Id) ? "" : "queued", owner, unmet);
     }
 
     /// <summary>The meme, precept and venerated-animal goals the ideoligion's reform plans toward.</summary>
@@ -870,34 +948,29 @@ public static partial class GoalRules
         [
             .. goals
                 .Where(g => g.Kind is GoalKind.Precept or GoalKind.Meme or GoalKind.VeneratedAnimal && g.Target != "")
-                .Select(g => new IdeoGoalTarget(g.Id, g.Kind switch
-                {
-                    GoalKind.Meme => IdeoGoalKind.Meme,
-                    GoalKind.Precept => IdeoGoalKind.Precept,
-                    _ => IdeoGoalKind.Animal,
-                }, g.Target)),
+                .Select(g => new IdeoGoalTarget(g.Id, g.Kind == GoalKind.Meme ? IdeoGoalKind.Meme : g.Kind == GoalKind.Precept ? IdeoGoalKind.Precept : IdeoGoalKind.Animal, g.Target)),
         ];
 
-    /// <summary>Whether the project is finished; neither while the census does not list it. An unread census raises <see cref="RequiredFactException"/>.</summary>
-    private static (Fact<bool> Met, Fact<double> Deficit) ProjectMet(string project, Fact<ResearchFacts> research)
+    /// <summary>Whether the project is finished; null while the census does not list it. An unread census raises <see cref="RequiredFactException"/>.</summary>
+    private static Standing? ProjectMet(string project, Fact<ResearchFacts> research)
     {
         var facts = research.TryGetValue(out var r) ? r : throw new RequiredFactException("research census");
         if (project == "" || !facts.Projects.Any(p => p.Value == project))
         {
-            return (default, default);
+            return null;
         }
         var finished = facts.Finished.Any(p => p.Value == project);
-        return (Fact.Known(finished), Fact.Known(finished ? 0.0 : 1.0));
+        return new Standing(finished, finished ? 0.0 : 1.0);
     }
 
-    private static (Fact<bool> Met, Fact<double> Deficit) TierMet(string target, Fact<TechTier> tier)
+    private static Standing? TierMet(string target, Fact<TechTier> tier)
     {
         var reached = tier.TryGetValue(out var t) ? t : throw new RequiredFactException("tech tier");
         if (!Enum.TryParse<TechTier>(target, true, out var wanted))
         {
-            return (default, default);
+            return null;
         }
-        return (Fact.Known(reached >= wanted), Fact.Known((double)Math.Max(0, wanted - reached)));
+        return new Standing(reached >= wanted, Math.Max(0, wanted - reached));
     }
 
     /// <summary>The unfinished projects at the tech level <paramref name="target"/> names; none when it names no level or the census is unread.</summary>
@@ -911,8 +984,8 @@ public static partial class GoalRules
         return [.. facts.Levels.Where(l => l.Value == level && !finished.Contains(l.Key.Value)).Select(l => l.Key.Value)];
     }
 
-    /// <summary>A tech level that is not a construction tier: met once no listed project at that level is unfinished; neither when the target names no level.</summary>
-    private static (Fact<bool> Met, Fact<double> Deficit) LevelMet(string target, Fact<ResearchFacts> research)
+    /// <summary>A tech level that is not a construction tier: met once no listed project at that level is unfinished; null when the target names no level.</summary>
+    private static Standing? LevelMet(string target, Fact<ResearchFacts> research)
     {
         if (!research.TryGetValue(out _))
         {
@@ -920,12 +993,11 @@ public static partial class GoalRules
         }
         if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level))
         {
-            return (default, default);
+            return null;
         }
         var open = LevelProjects(target, research).Count;
-        return (Fact.Known(open == 0), Fact.Known((double)open));
+        return new Standing(open == 0, open);
     }
 
-    private static (Fact<bool> Met, Fact<double> Deficit) Shortfall(long wanted, long have) =>
-        (Fact.Known(have >= wanted), Fact.Known((double)Math.Max(0, wanted - have)));
+    private static Standing Shortfall(long wanted, long have) => new(have >= wanted, Math.Max(0, wanted - have));
 }

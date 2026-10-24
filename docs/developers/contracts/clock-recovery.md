@@ -109,11 +109,11 @@ the next step re-plans against the held world.
 consumer must have opened the queue. Events that arrive after the step read a held clock do not refuse the Run: the
 hold serial the Run quotes is the one stale-read guard, so a hold the step did not read is refused at native and
 any other event is planned against by the next step while the clock runs. Native
-tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). A `HOLD_REASON_COLONY_LOST` hold
+tick boundaries must be reached (a never-run clock reports `HOLD_REASON_NEVER_RUN`; a status that carries none fails the step). A `HOLD_REASON_COLONY_LOST` hold
 is answered before any decision: the driver files a `clock_run` row (verdict `lost`, reason `colony_lost`) and sends no
 `Run`, so the clock stays held; a served acceptance case ends at once with `colony_lost` (#2819). The session journal
 records no clock events, so that row is the loss's record. The decision names the watch mode
-and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony`,
+and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `invalid_facts`, `no_tick_boundary`, `unsafe_colony`,
 `unreviewed_events`, `first_plan` or `urgent_build`) only keeps a held clock held; it never stops a running one.
 
 A colony with no layout plan holds the clock under `first_plan` (#3652, a brain-only hold: no native hold reason)
@@ -133,10 +133,9 @@ tracking is in memory only: a restart has no urgent plan to wait for, and the ne
 ### Threat and stock rules
 
 - A live, undowned hostile or hunting predator refuses the run (`unsafe_colony`)
-  unless the `military/combat` Need holds an admitted plan with open work; unknown plan
-  evidence refuses as `unknown_facts`.
+  unless the `military/combat` Need holds an admitted plan with open work.
 - A hostile building alone refuses only while the defense planner has not reported
-  `no_worker:squad` for this stop (`ClockWatchFacts.SquadUnanswered`); after that
+  `no_worker:squad` for this stop (`ClockWatchFacts.Squad`); after that
   it is watched and the colony run resumes.
 - A colonist's aggressive mental break (`BreakResponseRules.AggressiveBreak`) refuses
   the run the same way, and is watched (the breaker among the acknowledged ids) once the

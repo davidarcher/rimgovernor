@@ -43,7 +43,7 @@ public sealed class BuiltCountGoalTests
         var goal = Built(1, DefenseTurretsPolicy.TurretMini, 3);
         var open = Facts(goal, Standing((DefenseTurretsPolicy.TurretMini, 1))) with { Owners = new Dictionary<NeedId, OwnerProgress> { [LayoutFamily.Defense] = new(true, "") } };
         var status = GoalRules.Evaluate(goal, open);
-        Assert.Equal((GoalState.Pursuing, LayoutFamily.Defense, 2.0), (status.State, status.Owner, status.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, LayoutFamily.Defense, 2.0), (status.State, status.Owner, ((GoalDeficit.Measured)status.Deficit).Amount));
 
         var blocked = open with { Owners = new Dictionary<NeedId, OwnerProgress> { [LayoutFamily.Defense] = new(false, "turret_power") } };
         Assert.Equal((GoalState.Blocked, "turret_power"), (GoalRules.Evaluate(goal, blocked).State, GoalRules.Evaluate(goal, blocked).Reason));
@@ -60,7 +60,7 @@ public sealed class BuiltCountGoalTests
     {
         var goal = Built(1, "Turret_Mortar", 2);
         var status = GoalRules.Evaluate(goal, Facts(goal, Standing(("Turret_Mortar", 1))));
-        Assert.Equal((GoalState.NoMethod, "no placer for Turret_Mortar", 1.0), (status.State, status.Reason, status.Deficit.Value));
+        Assert.Equal((GoalState.NoMethod, "no placer for Turret_Mortar", 1.0), (status.State, status.Reason, ((GoalDeficit.Measured)status.Deficit).Amount));
         Assert.Equal(default, status.Owner);
         Assert.Equal(0, GoalRules.DemandOf(Facts(goal, new RoundsFacts())).Build.Turrets);
 
@@ -84,7 +84,7 @@ public sealed class BuiltCountGoalTests
 
         var open = Facts(goal, Standing((thing, 1)));
         var status = GoalRules.Evaluate(goal, open);
-        Assert.Equal((GoalState.Pursuing, own, 1.0), (status.State, status.Owner, status.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, own, 1.0), (status.State, status.Owner, ((GoalDeficit.Measured)status.Deficit).Amount));
         Assert.Equal(GoalState.Blocked, GoalRules.Evaluate(goal, open with { Owners = new Dictionary<NeedId, OwnerProgress> { [own] = new(false, "no_space") } }).State);
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, Facts(goal, Standing((thing, 2)))).State);
         Assert.Equal(0, GoalRules.DemandOf(open).Build.Turrets);

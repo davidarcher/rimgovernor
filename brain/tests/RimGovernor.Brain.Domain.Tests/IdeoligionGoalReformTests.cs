@@ -169,7 +169,7 @@ public sealed class IdeoligionGoalReformTests
             },
             new IdeoligionFacts { Memes = memes, Development = development })),
         Reform = reform,
-        ReformGoal = 1,
+        ReformGoal = ReformFocus.Of(1),
     };
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class IdeoligionGoalReformTests
 
         var pursuing = GoalRules.Evaluate(goal, GoalFacts(goal, Points(), plan));
         Assert.Equal((GoalState.Pursuing, "", "ideology/reform"), (pursuing.State, pursuing.Reason, pursuing.Owner.Value));
-        Assert.Equal("queued", GoalRules.Evaluate(goal, GoalFacts(goal, Points(), plan) with { ReformGoal = 9 }).Reason);
+        Assert.Equal("queued", GoalRules.Evaluate(goal, GoalFacts(goal, Points(), plan) with { ReformGoal = ReformFocus.Of(9) }).Reason);
 
         var points = GoalRules.Evaluate(goal, GoalFacts(goal, Points(have: 12, cost: 30), Choose(Lacking, [new(1, IdeoGoalKind.Precept, Naked)], Points(have: 12, cost: 30))));
         Assert.Equal((GoalState.Blocked, "development points 12/30"), (points.State, points.Reason));

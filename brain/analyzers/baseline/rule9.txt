@@ -28,8 +28,6 @@ Bridge/Catalog/Trade.cs|Unknown|7
 Bridge/Catalog/WorkResources.cs|Fact|4
 BuildingRuntime/ArrivalHold.cs|Fact|1
 BuildingRuntime/Boundary/Boundary.cs|Discard|2
-BuildingRuntime/Boundary/Boundary.cs|Fact|4
-BuildingRuntime/Boundary/Boundary.cs|Unknown|2
 BuildingRuntime/BreakDispatch.cs|Fact|7
 BuildingRuntime/BreakDispatch.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.CellGrid.cs|Fact|17
@@ -38,11 +36,6 @@ BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Fact|8
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|3
 BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|1
-BuildingRuntime/Clock/ClockRunDriver.Decide.cs|Fact|2
-BuildingRuntime/Clock/ClockRunDriver.Decide.cs|Unknown|1
-BuildingRuntime/Clock/ClockScheduler.cs|Discard|1
-BuildingRuntime/Clock/ClockScheduler.cs|Fact|2
-BuildingRuntime/Clock/ClockScheduler.cs|Unknown|1
 BuildingRuntime/Colony/ColonyExtent.cs|Fact|2
 BuildingRuntime/Colony/ColonyPlan.cs|Fact|8
 BuildingRuntime/Colony/ColonyPlanCut.cs|Fact|3
@@ -142,10 +135,9 @@ BuildingRuntime/Rounds/RoundsFoodStores.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsGathering.cs|Fact|2
 BuildingRuntime/Rounds/RoundsGathering.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsGearOrders.cs|Fact|3
-BuildingRuntime/Rounds/RoundsGoals.cs|Discard|1
-BuildingRuntime/Rounds/RoundsGoals.cs|Fact|4
+BuildingRuntime/Rounds/RoundsGoals.cs|Fact|2
 BuildingRuntime/Rounds/RoundsGoals.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsGoalsBuild.cs|Fact|7
+BuildingRuntime/Rounds/RoundsGoalsBuild.cs|Fact|6
 BuildingRuntime/Rounds/RoundsHay.cs|Fact|6
 BuildingRuntime/Rounds/RoundsHerdRooms.cs|Fact|13
 BuildingRuntime/Rounds/RoundsHospital.cs|Fact|2
@@ -365,8 +357,6 @@ Observation/StuffChoice.cs|Fact|7
 Observation/StuffChoice.cs|Unknown|1
 Observation/WorldSites.cs|Fact|2
 Observation/WorldSites.cs|Unknown|1
-PlayerApi/GoalsViewModel.cs|Discard|1
-PlayerApi/GoalsViewModel.cs|Fact|1
 PlayerApi/LifecycleRoutes.cs|Discard|6
 PlayerApi/LifecycleRoutes.cs|Fact|2
 PlayerApi/PlayerProviders.cs|Fact|8
@@ -406,12 +396,7 @@ Policy/Calendar.cs|Unknown|5
 Policy/CapabilityMaintenance.cs|Fact|2
 Policy/CapacityPenaltyTables.cs|NullableValue|6
 Policy/ChildRooms.cs|Fact|2
-Policy/Climate.cs|Discard|2
 Policy/Climate.cs|Fact|1
-Policy/ClockWatch.cs|Discard|1
-Policy/ClockWatch.cs|Fact|5
-Policy/ClockWatchTypes.cs|Fact|4
-Policy/ClockWatchTypes.cs|UnknownMember|1
 Policy/ClothingDemand.cs|Fact|9
 Policy/ClothingDemand.cs|Unknown|1
 Policy/ColonyAdmin.cs|Fact|23
@@ -555,9 +540,7 @@ Policy/GearClimate.cs|Fact|2
 Policy/GearSurplus.cs|Fact|1
 Policy/GoalValues.cs|Fact|3
 Policy/Goals.cs|NullableValue|9
-Policy/GoalsFamily.cs|Discard|7
-Policy/GoalsFamily.cs|Fact|84
-Policy/GoalsFamily.cs|NullableValue|1
+Policy/GoalsFamily.cs|Fact|43
 Policy/GoalsFamily.cs|Unknown|1
 Policy/GrowerCrop.cs|Fact|6
 Policy/GrowerCrop.cs|ValueOrDefault|2

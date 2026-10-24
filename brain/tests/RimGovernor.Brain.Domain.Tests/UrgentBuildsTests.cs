@@ -2,7 +2,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -23,8 +22,8 @@ public sealed class UrgentBuildsTests
             SinceObserved = TimeSpan.FromMilliseconds(500),
             Emergency = EmergencySnapshot.New(World, new(100), new EmergencyFacts()),
             EventsOpen = true,
-            Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = ClockWatchState.Held, NativeTickBoundary = Known(true) },
-            CombatPlan = Known(false),
+            Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = ClockWatchState.Held, NativeTickBoundary = true },
+            CombatPlan = false,
             UrgentBuilds = urgent,
         },
         new ClockWatchLimits { MaxAge = TimeSpan.FromSeconds(10) });

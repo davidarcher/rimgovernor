@@ -43,9 +43,9 @@ public sealed class GoalsThemesTests
         return edit.Record;
     }
 
-    private static GoalStatus Met(GoalRecord goal) => new(goal, Satisfaction.Met, GoalState.Met, "", new NeedId(""), Known(1.0));
+    private static GoalStatus Met(GoalRecord goal) => new(goal, Satisfaction.Met, GoalState.Met, "", new NeedId(""), GoalDeficit.Of(1.0));
 
-    private static GoalStatus Unmet(GoalRecord goal) => new(goal, Satisfaction.Unmet, GoalState.Pursuing, "", new NeedId("economy/resource"), Known(1.0));
+    private static GoalStatus Unmet(GoalRecord goal) => new(goal, Satisfaction.Unmet, GoalState.Pursuing, "", new NeedId("economy/resource"), GoalDeficit.Of(1.0));
 
     [Fact]
     public void AdoptingMintsTheAvailableMembersWithTheThemesImportanceAndDeadline()

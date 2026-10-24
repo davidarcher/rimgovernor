@@ -35,7 +35,7 @@ public sealed class SkillHealthGoalTests
     {
         var goal = Goal(GoalKind.Skill, "trainee", "Cooking", 10);
         var open = GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18)));
-        Assert.Equal((GoalState.Pursuing, AdminFamily.WorkAssignments, 4.0), (open.State, open.Owner, open.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, AdminFamily.WorkAssignments, 4.0), (open.State, open.Owner, ((GoalDeficit.Measured)open.Deficit).Amount));
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 12, 18))).State);
 
         Assert.Equal("pawn census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts { Goals = [goal] })).Fact);

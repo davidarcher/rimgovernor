@@ -61,7 +61,7 @@ public sealed partial class GoalsRounds
         {
             var reform = Rounder.ReformChoice(reading, scope.World, targets);
             var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false))?.Goal;
-            facts = facts with { Reform = reform, ReformGoal = pending ?? (reform.Serves is ReformServes.Goal serves ? serves.Id : null) };
+            facts = facts with { Reform = reform, ReformGoal = ReformFocus.Of(pending ?? (reform.Serves is ReformServes.Goal serves ? serves.Id : null)) };
         }
         Record(facts, Player.PlayerWorld(scope.World));
         return facts;
@@ -102,6 +102,25 @@ public sealed partial class GoalsRounds
         }
     }
 
+    private static string VerdictOf(GoalState state)
+    {
+        switch (state)
+        {
+            case GoalState.Met:
+                return "met";
+            case GoalState.Pursuing:
+                return "pursuing";
+            case GoalState.Blocked:
+                return "blocked";
+            case GoalState.Infeasible:
+                return "infeasible";
+            case GoalState.NoMethod:
+                return "no_method";
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(state), state, "unhandled goal state");
+    }
+
     internal static Decision ReviewDecision(GoalStatus status, IReadOnlyDictionary<int, ThemeStatus> themes)
     {
         var attrs = new Dictionary<string, object?>
@@ -110,13 +129,13 @@ public sealed partial class GoalsRounds
             ["need"] = GoalRules.NeedOf(status.Goal).Value,
             ["owner"] = status.Owner.Value,
         };
-        if (status.Deficit.TryGetValue(out var deficit))
+        if (status.Deficit is GoalDeficit.Measured deficit)
         {
-            attrs["deficit"] = deficit;
+            attrs["deficit"] = deficit.Amount;
         }
-        if (status.EtaDay.TryGetValue(out var eta))
+        if (status.Eta is GoalEta.Day eta)
         {
-            attrs["eta_day"] = eta;
+            attrs["eta_day"] = eta.Value;
         }
         if (status.Goal.Theme is { } theme && themes.TryGetValue(theme, out var progress))
         {
@@ -128,14 +147,7 @@ public sealed partial class GoalsRounds
         {
             Kind = TelemetryKinds.GoalReviewKind,
             Component = GoalsFamily.FamilyId,
-            Verdict = status.State switch
-            {
-                GoalState.Met => "met",
-                GoalState.Pursuing => "pursuing",
-                GoalState.Blocked => "blocked",
-                GoalState.Infeasible => "infeasible",
-                _ => "no_method",
-            },
+            Verdict = VerdictOf(status.State),
             Reason = status.Reason,
             Target = status.Goal.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
             Attrs = attrs,

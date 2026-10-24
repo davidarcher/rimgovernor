@@ -26,12 +26,12 @@ public static class ClockWatchRules
 
         if (limits.MaxAge <= TimeSpan.Zero)
         {
-            Hold(ClockWatchReason.Unknown);
+            Hold(ClockWatchReason.Invalid);
         }
 
         if (!f.Current.IsValid || f.Current.Revision.Value == 0 || f.Current.Native.Value == 0 || f.Tick.Value < 0)
         {
-            Hold(ClockWatchReason.Unknown);
+            Hold(ClockWatchReason.Invalid);
         }
 
         if (f.Status.Snapshot != f.Current || f.Status.Tick != f.Tick)
@@ -49,10 +49,9 @@ public static class ClockWatchRules
             Hold(ClockWatchReason.Stale);
         }
 
-        var combatKnown = f.CombatPlan.TryGetValue(out var combatPlan);
-        var unansweredKnown = f.SquadUnanswered.TryGetValue(out var unanswered);
-        var shelteredKnown = f.Sheltered.TryGetValue(out var sheltered);
-        sheltered = sheltered && shelteredKnown;
+        var combatPlan = f.CombatPlan;
+        var unanswered = f.Squad == SquadAnswer.NoSquad;
+        var sheltered = f.Sheltered;
         var hostiles = new List<PawnId>();
         var combat = false;
         var buildings = HostileBuildingIDs(f.Emergency);
@@ -70,24 +69,20 @@ public static class ClockWatchRules
                     // them pass with every live hostile acknowledged. Without a plan a raid must not
                     // auto-advance.
                     var named = h.Pawn.Value.Length != 0;
-                    if (!combatKnown)
-                    {
-                        Hold(ClockWatchReason.Unknown);
-                    }
-                    else if (combatPlan && named && buildings.Contains(h.Pawn))
+                    if (combatPlan && named && buildings.Contains(h.Pawn))
                     {
                         // A hostile building makes the watch a combat one but is never acknowledged: the
                         // native watcher holds for unacknowledged hostile pawns only and resolves every
                         // acknowledged id as a pawn.
                         combat = true;
                     }
-                    else if (named && buildings.Contains(h.Pawn) && unansweredKnown && unanswered)
+                    else if (named && buildings.Contains(h.Pawn) && unanswered)
                     {
                         // No squad can be assigned (every colonist downed or incapable of violence): the
                         // building goes nowhere, so it is watched rather than held. The planner reports again
                         // at every hold and a plan it admits later makes the next watch a combat one.
                     }
-                    else if (named && breaking.Contains(h.Pawn) && unansweredKnown && unanswered)
+                    else if (named && breaking.Contains(h.Pawn) && unanswered)
                     {
                         // A colonist's aggressive break that no squad can subdue (#3572: every other colonist
                         // unarmed or ranged) ends only with ticks, so holding for it cannot resolve it: the
@@ -119,9 +114,6 @@ public static class ClockWatchRules
                     // order times out unexecuted, the reviewer retries, and the colony is unsafe forever. Unlike a
                     // hostile threat, an untended patient is resolved BY letting the clock run, not by holding it.
                     break;
-                default:
-                    Hold(ClockWatchReason.Unsafe);
-                    break;
             }
         }
 
@@ -130,11 +122,7 @@ public static class ClockWatchRules
             // A drop-pod raid on its way down: with the fight's plan the watch is a combat one with nothing
             // to acknowledge until the pods open (the watcher holds on the raiders then); without it the raid
             // must not auto-advance.
-            if (!combatKnown)
-            {
-                Hold(ClockWatchReason.Unknown);
-            }
-            else if (combatPlan)
+            if (combatPlan)
             {
                 combat = true;
             }
@@ -152,24 +140,16 @@ public static class ClockWatchRules
             hostiles.AddRange(f.HuntPrey.Items);
         }
 
-        void Check(Fact<bool> fact, bool want, ClockWatchReason reason)
-        {
-            if (!fact.TryGetValue(out var value))
-            {
-                Hold(ClockWatchReason.Unknown);
-            }
-            else if (value != want)
-            {
-                Hold(reason);
-            }
-        }
-
         if (f.Status.State is not (ClockWatchState.Running or ClockWatchState.Held))
         {
-            Hold(ClockWatchReason.Unknown);
+            Hold(ClockWatchReason.Invalid);
         }
 
-        Check(f.Status.NativeTickBoundary, true, ClockWatchReason.Unknown);
+        if (!f.Status.NativeTickBoundary)
+        {
+            Hold(ClockWatchReason.NoTickBoundary);
+        }
+
         if (!f.EventsOpen)
         {
             // Before the brain opens the colony events nothing it planned has seen them. The Run's hold serial is the

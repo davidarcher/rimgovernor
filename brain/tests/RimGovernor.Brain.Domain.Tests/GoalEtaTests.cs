@@ -135,7 +135,7 @@ public sealed class GoalEtaTests
         Assert.Equal(flat, Assert.Single(GoalRules.Priced([flat], new Dictionary<string, GoalProjection> { [flat.Goal] = new() })));
 
         var status = GoalRules.Evaluate(stock, Facts(stock));
-        Assert.False(status.EtaDay.IsKnown);
+        Assert.IsType<GoalEta.NoEstimate>(status.Eta);
     }
 
     [Fact]
@@ -175,8 +175,8 @@ public sealed class GoalEtaTests
         };
 
         var status = GoalRules.Evaluate(goal, facts);
-        Assert.Equal(Known(45), status.EtaDay);
-        Assert.False(GoalRules.Evaluate(goal, facts with { Etas = new Dictionary<string, int>() }).EtaDay.IsKnown);
+        Assert.Equal(GoalEta.On(45), status.Eta);
+        Assert.IsType<GoalEta.NoEstimate>(GoalRules.Evaluate(goal, facts with { Etas = new Dictionary<string, int>() }).Eta);
 
         var record = new GoalsRecord { World = new(new("colony"), new("load"), new(1)) }.WithNewGoal(goal);
         var stored = Assert.Single(record.Goals);

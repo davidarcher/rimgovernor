@@ -61,7 +61,7 @@ public sealed class RoomRoleGoalTests
         var goal = Room(1, RoomRole.Classroom);
         var open = Facts(goal) with { Owners = new Dictionary<NeedId, OwnerProgress> { [ShelterFamily.Sleeping] = Working } };
         var status = GoalRules.Evaluate(goal, open);
-        Assert.Equal((GoalState.Pursuing, ShelterFamily.Sleeping, 1.0), (status.State, status.Owner, status.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, ShelterFamily.Sleeping, 1.0), (status.State, status.Owner, ((GoalDeficit.Measured)status.Deficit).Amount));
 
         var blocked = open with { Owners = new Dictionary<NeedId, OwnerProgress> { [ShelterFamily.Sleeping] = new(false, "no_site") } };
         Assert.Equal((GoalState.Blocked, "no_site"), (GoalRules.Evaluate(goal, blocked).State, GoalRules.Evaluate(goal, blocked).Reason));
@@ -115,7 +115,7 @@ public sealed class RoomRoleGoalTests
         var facts = Facts(goal, Standing(RoomRole.Hospital, "b1")) with { Owners = new Dictionary<NeedId, OwnerProgress> { [MedicalRules.MedicalCareNeed] = Working } };
         facts = facts with { Rounds = facts.Rounds with { Sleeping = Known(new SleepingObservation { Beds = [Bed("b1", true)] }) } };
         var status = GoalRules.Evaluate(goal, facts);
-        Assert.Equal((GoalState.Pursuing, MedicalRules.MedicalCareNeed, 1.0), (status.State, status.Owner, status.Deficit.Value));
+        Assert.Equal((GoalState.Pursuing, MedicalRules.MedicalCareNeed, 1.0), (status.State, status.Owner, ((GoalDeficit.Measured)status.Deficit).Amount));
 
         var two = facts with { Rounds = facts.Rounds with { Sleeping = Known(new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] }) }, Rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, "b1", "b2"))) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, two).State);

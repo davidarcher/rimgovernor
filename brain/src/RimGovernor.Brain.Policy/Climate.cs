@@ -131,13 +131,23 @@ public sealed record ClimateBuildValue
     public double Cooler { get; init; }
 
     /// <summary>What an opening costs to build beyond the door that stands there anyway: a vent, or an airlock's second door and two walls.</summary>
-    internal double BuildValue(Opening o) =>
-        o switch
+    internal double BuildValue(Opening o)
+    {
+        switch (o)
         {
-            Opening.Vent => Vent,
-            Opening.Airlock => Door + (2 * Wall),
-            _ => 0,
-        };
+            case Opening.Vent:
+                return Vent;
+            case Opening.Airlock:
+                return Door + (2 * Wall);
+            case Opening.None:
+            case Opening.DoorOpen:
+            case Opening.DoorClosed:
+            case Opening.Door:
+                return 0;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(o), o, "unhandled opening");
+    }
 }
 
 /// <summary>The temperature range a room is held in; an open end is infinite.</summary>
@@ -233,9 +243,11 @@ public sealed record ClimateModel
                 return (f * DoorOpen.Conductance(cells)) + ((1 - f) * DoorClosed.Conductance(cells));
             case Opening.Airlock:
                 return AirlockConductance(passages);
-            default:
+            case Opening.None:
                 return 0;
         }
+
+        throw new ArgumentOutOfRangeException(nameof(l), l.Opening, "unhandled opening");
     }
 
     /// <summary>

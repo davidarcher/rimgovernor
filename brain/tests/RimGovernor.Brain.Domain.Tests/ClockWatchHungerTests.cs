@@ -7,7 +7,6 @@ using C = RimGovernor.Contracts.Wire.Common;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Defs = RimGovernor.Contracts.Wire.Defs;
 using O = RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 using static RimGovernor.Brain.Policy.ClockWatchRules;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -47,8 +46,8 @@ public sealed class ClockWatchHungerTests
                 SinceObserved = TimeSpan.FromMilliseconds(500),
                 Emergency = census,
                 EventsOpen = true,
-                Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = state, NativeTickBoundary = Known(true) },
-                CombatPlan = Known(false),
+                Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = state, NativeTickBoundary = true },
+                CombatPlan = false,
                 AcknowledgedHungry = EquatableArray.From(acknowledged.Select(a => new PawnId(a))),
             },
             new ClockWatchLimits { MaxAge = TimeSpan.FromSeconds(10) });

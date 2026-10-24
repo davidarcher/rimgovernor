@@ -31,10 +31,7 @@ public sealed partial class GoalsRounds
         var started = _reviewer.Clock.Now();
         var read = await BiotechRounds.StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
         var f = read.Projection;
-        if (!GoalRules.BuiltOf(f.Facts, goal.Target).TryGetValue(out var standing))
-        {
-            return FieldUnavailable("built_buildings");
-        }
+        var standing = GoalRules.BuiltOf(f.Facts, goal.Target);
         if (standing >= goal.Count)
         {
             return BuildingReasonNoDeficit;

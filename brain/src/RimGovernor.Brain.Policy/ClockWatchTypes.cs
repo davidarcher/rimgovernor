@@ -14,6 +14,19 @@ public enum ClockWatchState
     Held,
 }
 
+/// <summary>The defense planner's verdict at a clock step, as far as the watch needs it.</summary>
+public enum SquadAnswer
+{
+    /// <summary>The planner ran no verdict this step.</summary>
+    NotReported,
+
+    /// <summary>The planner found no eligible squad for the threats.</summary>
+    NoSquad,
+
+    /// <summary>The planner reported anything else.</summary>
+    Squad,
+}
+
 public sealed record ClockWatchStatus
 {
     public GenerationSnapshot Snapshot { get; init; }
@@ -22,7 +35,7 @@ public sealed record ClockWatchStatus
 
     public ClockWatchState State { get; init; }
 
-    public Fact<bool> NativeTickBoundary { get; init; }
+    public bool NativeTickBoundary { get; init; }
 }
 
 public sealed record ClockWatchFacts
@@ -44,23 +57,23 @@ public sealed record ClockWatchFacts
     public ClockWatchStatus Status { get; init; } = new();
 
     /// <summary>Whether the military/combat Need holds an admitted plan with open work. Only then may live hostiles be watched instead of refused.</summary>
-    public Fact<bool> CombatPlan { get; init; }
+    public bool CombatPlan { get; init; }
 
     /// <summary>
-    /// Whether the defense planner, at this tick, found no eligible squad for the emergency's threats. A
-    /// hostile building it cannot answer is then watched like a distant one, so the colony keeps running around
-    /// it, instead of holding the clock for good, and a colonist's aggressive break it cannot subdue is watched
-    /// so the break ends with ticks; a hostile pawn still holds, a raid must not auto-advance. Unknown means the
-    /// planner has not reported and the building or breaker holds.
+    /// What the defense planner reported at this tick. <see cref="SquadAnswer.NoSquad"/>: it found no eligible
+    /// squad for the emergency's threats, so a hostile building it cannot answer is watched like a distant one
+    /// (the colony keeps running around it instead of holding the clock for good) and a colonist's aggressive
+    /// break it cannot subdue is watched so the break ends with ticks; a hostile pawn still holds, a raid must not
+    /// auto-advance. <see cref="SquadAnswer.NotReported"/> and <see cref="SquadAnswer.Squad"/> hold the building or breaker.
     /// </summary>
-    public Fact<bool> SquadUnanswered { get; init; }
+    public SquadAnswer Squad { get; init; }
 
     /// <summary>
     /// Whether the threat's sheltering response is complete (ShelterHeld): every undrafted colonist is
     /// restricted to the Safe area. A hostile pawn is then watched in a combat watch instead of refused, so
     /// the sheltered colony waits it out.
     /// </summary>
-    public Fact<bool> Sheltered { get; init; }
+    public bool Sheltered { get; init; }
 
     /// <summary>
     /// The live prey of an open hunt fight (the squad hunt of the military/combat Need): no hostile stands, so the watch
@@ -108,8 +121,13 @@ public enum ClockWatchReason
     [WireName("stale_facts")]
     Stale,
 
-    [WireName("unknown_facts")]
-    Unknown,
+    /// <summary>The limits, the world snapshot, the tick or the clock state are not usable.</summary>
+    [WireName("invalid_facts")]
+    Invalid,
+
+    /// <summary>The native clock is not at a tick boundary (a never-run clock reports none).</summary>
+    [WireName("no_tick_boundary")]
+    NoTickBoundary,
 
     [WireName("unsafe_colony")]
     Unsafe,

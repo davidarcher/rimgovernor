@@ -18,9 +18,9 @@ partial class ClockScheduler
     /// <summary>The catalog planner name of the routine defense planner.</summary>
     internal const string DefensePlanner = "defense";
 
-    /// <summary>The shelter-held fact over the review's facts: unknown without an enabled review.</summary>
-    internal static Fact<bool> ClockShelterHeld(RoundsResult? review) =>
-        review?.Detection is { } detection ? Known(ShelterRules.ShelterHeld(detection.Facts)) : Unknown<bool>();
+    /// <summary>Whether the review's facts report the sheltering response held; false without an enabled review, which reports nothing.</summary>
+    internal static bool ClockShelterHeld(RoundsResult? review) =>
+        review?.Detection is { } detection && ShelterRules.ShelterHeld(detection.Facts);
 }
 
 /// <summary>The native reads a scheduler step makes.</summary>
@@ -221,11 +221,7 @@ public sealed partial class ClockScheduler
         {
             stillOpen = PlannerQueue.OpenWorkIndex(await _player.Journal.LoadPlansAsync(ct).ConfigureAwait(false));
         }
-        return reason.Cause switch
-        {
-            StepCause.Review or StepCause.Wake or StepCause.Retry => _queue.Selection(tick, false, stillOpen),
-            _ => _queue.Selection(tick, true, stillOpen),
-        };
+        return _queue.Selection(tick, reason.Cause is StepCause.Full, stillOpen);
     }
 
     /// <summary>

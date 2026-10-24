@@ -26,7 +26,7 @@ public sealed class GoalsViewModelTests
     }
 
     private static GoalStatus Status(GoalRecord goal, GoalState state, string reason = "", string owner = "") =>
-        new(goal, Satisfaction.Unmet, state, reason, new NeedId(owner), Known(1.0));
+        new(goal, Satisfaction.Unmet, state, reason, new NeedId(owner), GoalDeficit.Of(1.0));
 
     [Fact]
     public void EveryStateRendersWithItsReasonAndAGoalNotYetReviewedIsPending()

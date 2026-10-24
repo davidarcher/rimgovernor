@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using static RimGovernor.Brain.Policy.ClockWatchRules;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -27,7 +26,7 @@ public sealed class ClockWatchBreakTests
             Threats = threats,
         });
 
-    private static ClockWatchDecision Decide(EmergencySnapshot census, Fact<bool> squadUnanswered) => EvaluateClockWatch(
+    private static ClockWatchDecision Decide(EmergencySnapshot census, SquadAnswer squad) => EvaluateClockWatch(
         new ClockWatchFacts
         {
             Current = World,
@@ -36,9 +35,9 @@ public sealed class ClockWatchBreakTests
             SinceObserved = TimeSpan.FromMilliseconds(500),
             Emergency = census,
             EventsOpen = true,
-            Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = ClockWatchState.Held, NativeTickBoundary = Known(true) },
-            CombatPlan = Known(false),
-            SquadUnanswered = squadUnanswered,
+            Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = ClockWatchState.Held, NativeTickBoundary = true },
+            CombatPlan = false,
+            Squad = squad,
         },
         new ClockWatchLimits { MaxAge = TimeSpan.FromSeconds(10) });
 
@@ -47,7 +46,7 @@ public sealed class ClockWatchBreakTests
     [Fact]
     public void AColonistBreakNoSquadCanSubdueIsWatchedSoTheBreakEndsWithTicks()
     {
-        var decision = Decide(BreakingColony(), Known(true));
+        var decision = Decide(BreakingColony(), SquadAnswer.NoSquad);
 
         Assert.True(decision.Run, string.Join(",", decision.Refused.Items));
         Assert.Equal(ClockWatchMode.Combat, decision.Mode);
@@ -58,7 +57,7 @@ public sealed class ClockWatchBreakTests
     [Fact]
     public void AColonistBreakHoldsWhileThePlannerHasNotReportedOrFoundASquad()
     {
-        Fact<bool>[] answers = [Unknown<bool>(), Known(false)];
+        SquadAnswer[] answers = [SquadAnswer.NotReported, SquadAnswer.Squad];
         foreach (var answer in answers)
         {
             var decision = Decide(BreakingColony(), answer);
@@ -71,7 +70,7 @@ public sealed class ClockWatchBreakTests
     [Fact]
     public void AHostilePawnNoSquadCanAnswerStillHolds()
     {
-        var decision = Decide(Census([Colonist("ada", breaking: false)], Raider("raider")), Known(true));
+        var decision = Decide(Census([Colonist("ada", breaking: false)], Raider("raider")), SquadAnswer.NoSquad);
 
         Assert.False(decision.Run);
         Assert.Contains(ClockWatchReason.Unsafe, decision.Refused.Items);
