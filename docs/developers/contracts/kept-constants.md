@@ -330,8 +330,11 @@ own target, standing in for the player's stock-target bill count.
 | Population-intent offsets (#3909) | IncreaseHard 0.4, IncreaseMedium 0, IncreaseEasy −0.4, floored at the comp's `minIncChancePopulationIntentFactor` | `StorytellerComp.IncidentChanceFactor_PopulationIntent` |
 | RandomMain ThreatBig fraction (#3909) | 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷ p), 1 ÷ (1 + λM) at p = 0: λ = 1 ÷ `mtbDays`, p = ThreatBig's weight over the drawable weight, M = `maxThreatBigIntervalDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory` |
 
-The model's own choices, not game rules: a visit's purchases are paid from today's silver (all the colony's silver, not only what
-lies in beacon range), the part and medicine purchases are independent, the accept curves are taken at today's days and points,
+The model's own choices, not game rules: a visit's purchases are paid from today's spendable silver (the silver above the routine
+trade's reserve, all the colony's silver, not only what lies in beacon range; medicine is claimed first, parts see the rest, #3907),
+the medicine the model buys is the cheapest kind by market value only (a visit whose trader lacks it buys none, though the routine
+trade would take its cheapest kind), a visit is a fluid rate rather than a lump, the silver at the market value (not the live buy
+price) caps the units bought, the accept curves are taken at today's days and points,
 the category draws at today's gates, weights, danger and population intent (#3909 Q3, `minRefireDays` among the gates), a
 RandomMain comp's last ThreatBig is its own (another comp's ThreatBig resets the game's one clock), its space-layer factors are
 left out, every non-trader category counts as always drawable (#3909 Q2 B), a visitor faction with a child kind in its Peaceful

@@ -39,8 +39,7 @@ public static partial class SilverGapRules
         var price = 0.0;
         if (n.MedicineReplenish > 0)
         {
-            var (_, medicine) = items.CheapestMedicine();
-            price += n.MedicineReplenish * medicine;
+            price += TradePolicyRules.MedicineClaim(items, n.MedicineReplenish);
         }
         if (n.ComponentShortfall > 0)
         {

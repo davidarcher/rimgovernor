@@ -83,6 +83,7 @@ internal static class RoundsColonyModel
         {
             MedicineTendsPerDay = valuation.TreatmentsPerDay(input),
             MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Colonists * MedicalReservePolicy.Default().TargetPerColonist),
+            MedicineTrade = context.Stock.MedicineTrade,
         };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);

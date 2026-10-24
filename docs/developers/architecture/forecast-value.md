@@ -464,7 +464,10 @@ tends a day, `IllnessTerm.TendsPerDay` (#3829), at the tending the run starts wi
 medicine held; `TendUtility.DoTend` uses up one medicine a treatment and tends a disease alone) uses up the best kind first. The
 stock-target bill crafts medicine (`ColonyModelPolicy.MedicineCraft`, #3868, [stock arrival](../contracts/forecast-contracts.md#stock-arrival-3868)):
 below the target the best-potency kind a source makes is crafted at the full rate until its ingredients run out, at the target what
-tending uses, above it nothing (`ModelEventKind.MedicineCraft` marks reaching the target and running out of ingredients). `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
+tending uses, above it nothing (`ModelEventKind.MedicineCraft` marks reaching the target and running out of ingredients). The routine trade's purchases join it
+(`ColonyModelPolicy.MedicineTrade`, #3907): on the medical reserve's latch the cheapest kind arrives at the trader comps' rate
+(`ModelEventKind.MedicineTrade` marks the latch starting and stopping, the silver spent, a comp's visits beginning and the best
+kind, which the latch does not count, running out). `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
 again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
 `RequiredXp` of the observed level (`SkillTrack.NextLevel`). A stock at the top level is worth 0 per XP. Only a stock the value
 reads is run (`ITrajectoryValue.Reads`, #3664): for `ColonyValue` that is each doctor's stock of its tend quality curve's skill

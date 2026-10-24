@@ -26,6 +26,13 @@ public sealed record MedicalReserveObservation
 public sealed record MedicalReservePolicy(long MinimumPerColonist, long TargetPerColonist)
 {
     public static MedicalReservePolicy Default() => new(1, 3);
+
+    /// <summary>
+    /// The usable stock the reserve latch compares with for <paramref name="people"/> colonists (#3907): the reserve starts below the
+    /// entry (the minimum per colonist) and, once active, stops at the target (the target per colonist). The review and the colony
+    /// model's trade purchases share this threshold.
+    /// </summary>
+    public long Threshold(long people, bool active) => people * (active ? TargetPerColonist : MinimumPerColonist);
 }
 
 public sealed record MedicalReserveReview
@@ -155,10 +162,8 @@ public static partial class MedicalRules
             }
             stock += add;
         }
-        var entry = people * p.MinimumPerColonist;
-        var target = people * p.TargetPerColonist;
-        var threshold = active ? target : entry;
-        var nowActive = people > 0 && stock < threshold;
+        var target = p.Threshold(people, true);
+        var nowActive = people > 0 && stock < p.Threshold(people, active);
         var replenishment = nowActive ? Math.Max(0, target - stock) : 0;
         return r with { Active = nowActive, Stock = Known(stock), Target = Known(target), Replenish = Known(replenishment) };
     }

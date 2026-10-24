@@ -272,6 +272,61 @@ public sealed record TraderOffer
         }
 
         var n = (int)Math.Min(count, int.MaxValue - 1);
+        return Distribution(n)[n];
+    }
+
+    /// <summary>
+    /// The units a visit sells when it can pay for at most <paramref name="cap"/> (#3907): E[min(count the generators make, cap)]. The
+    /// count never exceeds <see cref="MaxCount"/>, which bounds the distribution.
+    /// </summary>
+    public double Expected(long cap)
+    {
+        var n = (int)Math.Min(Math.Min(cap, MaxCount), int.MaxValue - 1);
+        if (n <= 0)
+        {
+            return 0;
+        }
+
+        var total = Distribution(n);
+        var expected = n * total[n];
+        for (var have = 1; have < n; have++)
+        {
+            expected += have * total[have];
+        }
+
+        return expected;
+    }
+
+    /// <summary>The most units the generators can make together; <see cref="long.MaxValue"/> for a price range over a def with no market value.</summary>
+    public long MaxCount
+    {
+        get
+        {
+            var most = 0L;
+            foreach (var draw in Draws)
+            {
+                if (draw.CountMax > 0)
+                {
+                    most += draw.CountMax;
+                }
+                else if (draw.PriceMax > 0)
+                {
+                    if (!(draw.MarketValue > 0))
+                    {
+                        return long.MaxValue;
+                    }
+
+                    most += (long)Math.Ceiling((draw.PriceMax / draw.MarketValue) + 0.5);
+                }
+            }
+
+            return most;
+        }
+    }
+
+    // The chance the generators together make exactly have units, for have below n, and n or more at n.
+    private double[] Distribution(int n)
+    {
         var total = new double[n + 1];
         total[0] = 1;
         foreach (var draw in Draws)
@@ -296,7 +351,7 @@ public sealed record TraderOffer
             total = next;
         }
 
-        return total[n];
+        return total;
     }
 }
 
@@ -363,6 +418,28 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
         }
 
         return chance;
+    }
+
+    /// <summary>
+    /// The units a day the routine trade buys from this comp's visits (#3907): the visits a day × the expected units a visit sells that
+    /// <see cref="Silver"/> pays for (a buy takes what the silver allows, unlike a part's whole count).
+    /// </summary>
+    public double UnitsPerDay()
+    {
+        var units = 0.0;
+        foreach (var kind in Kinds)
+        {
+            if (kind.Offer.Unread.Length != 0)
+            {
+                throw new RequiredFactException(kind.Offer.Unread);
+            }
+
+            var price = UnitPrice(kind.Offer.UnitValue);
+            var cap = (long)Math.Min(Math.Floor(Silver / price), long.MaxValue / 2.0);
+            units += kind.Chance * kind.Offer.Expected(cap);
+        }
+
+        return VisitsPerDay * units;
     }
 
     /// <summary>The rate a day at which visits supply <paramref name="count"/> units.</summary>

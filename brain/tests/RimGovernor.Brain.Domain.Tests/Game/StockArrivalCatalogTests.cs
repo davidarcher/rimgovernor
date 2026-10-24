@@ -4,6 +4,7 @@ using RimGovernor.Contracts.Wire.Observations;
 using RimWorld;
 using Verse;
 using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -151,6 +152,14 @@ public sealed class StockArrivalCatalogTests
         return new TraderKindDef { defName = "Caravan_Outlander_Exotic", stockGenerators = [implants, new StockGenerator_BuyTradeTag { tag = "TechHediff" }] };
     }
 
+    // A caravan kind that sells 3 to 5 herbal medicine a visit.
+    private static TraderKindDef Medic(ThingDef herbal)
+    {
+        var sale = new StockGenerator_SingleDef { countRange = new IntRange(3, 5) };
+        GameMembers.SingleDefThing(sale) = herbal;
+        return new TraderKindDef { defName = "Caravan_Outlander_Medic", stockGenerators = [sale] };
+    }
+
     private static DefinitionCatalog TradeCatalog()
     {
         ThingDef arm = new() { defName = "BionicArm", tradeTags = ["TechHediff"] }, leg = new() { defName = "BionicLeg", tradeTags = ["TechHediff"] };
@@ -172,7 +181,7 @@ public sealed class StockArrivalCatalogTests
         return new DefinitionCatalog(
             [
                 silver, new TerrainDef { defName = "Soil" }, Potency, Arm, arm, leg, herbal, install, FactionArrival, OrbitalVisitor, Misc, ThreatBig, Caravan, Orbital, Visitors,
-                Travelers, Cassandra(), Randy(), Tribe(), Outlander(),
+                Travelers, Cassandra(), Randy(), Tribe(), Outlander(), Medic(herbal),
             ],
             stats, new CatalogDerived("Silver", "Wort", 10f));
     }
@@ -214,28 +223,36 @@ public sealed class StockArrivalCatalogTests
         Assert.False(kind.Offers.ContainsKey(new Resource("MedicineHerbal")));
     }
 
-    private static TradeVisitFacts Visits() => new()
+    private static TradeVisitFacts Visits(string kind = "Caravan_Outlander_Exotic") => new()
     {
         AllyFraction = 1, FullAllyFraction = -1, DaysSinceSettle = 0, CommsConsole = false, TradeBeacon = false, Negotiator = true, NegotiatorPriceImprovement = 0, PriceFactorLoss = 0,
         PopulationIntent = 1,
         Incidents =
         [
-            new TraderIncidentRead("OrbitalTraderArrival") { Weight = 3, Sources = [new() { Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
-            new TraderIncidentRead("TraderCaravanArrival") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
+            new TraderIncidentRead("OrbitalTraderArrival") { Weight = 3, Sources = [new() { Kinds = [new TraderKindWeight(kind, 1)] }] },
+            new TraderIncidentRead("TraderCaravanArrival") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight(kind, 1)] }] },
             new TraderIncidentRead("TravelerGroup") { Weight = 4 },
-            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
+            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight(kind, 1)] }] },
         ],
     };
 
-    private static (double Expected, StockArrival Stock) ArmWait(DefinitionCatalog catalog, string storyteller)
+    // Three colonists (the routine trade's reserve is 300 silver) and the silver they hold.
+    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic")
     {
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = Visits() } },
-            Resources = [new Quantity { DefName = "Silver", Units = 2000 }],
+            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = Visits(kind) } },
+            Resources = [new Quantity { DefName = "Silver", Units = silver }],
+            ColonistCount = 3,
         };
         var bills = new BillsSnapshot { Context = census.Context, Benches = [] };
-        var stock = RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, null, census, [new Resource("MedicineHerbal")]);
+        var pawns = new PawnSnapshot { Context = census.Context, Pawns = [] };
+        return RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, pawns, census, [new Resource("MedicineHerbal")]);
+    }
+
+    private static (double Expected, StockArrival Stock) ArmWait(DefinitionCatalog catalog, string storyteller)
+    {
+        var stock = FreshStock(catalog, storyteller, 2000);
         var replacement = new OrganReplacementRead("Arm", "InstallBionicArm")
         {
             PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, SuccessChance = 0.95, DoctorSuccessChance = 0.95,
@@ -280,5 +297,36 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal(1 + ((1 - Math.Exp(-rate * 29)) / rate), expected, 9);
         Assert.True(expected < 30);
         Assert.DoesNotContain(stock.Findings, f => f.StartsWith(TradeArrivalRules.CompUnmodelled, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AFreshColonyWithoutAMedicineBenchForecastsTheMedicineItsTradersSell()
+    {
+        // The production way (#3822, #3907): the decoded comps and a caravan kind selling 3 to 5 herbal at 10 × 1.4 = 14 silver, the census as
+        // the read boundary fills it for three colonists with 1000 silver and no medicine, the routine trade's reserve review of it, and
+        // the colony model over it.
+        var stock = FreshStock(TradeCatalog(), "Cassandra", 1000, "Caravan_Outlander_Medic");
+        Assert.Equal(700, stock.Spendable);
+        var items = ItemFactsFixtureRules.CoreItemFacts();
+        var review = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
+        {
+            Colonists = 3, Catalog = items, Items = Known<EquatableArray<MedicineStackRow>>([]), Resources = Known<EquatableArray<Amount>>([]),
+        }, false, MedicalReservePolicy.Default());
+        Assert.Equal((true, 9L), (review.Active, review.Replenish.Value));
+
+        // The gap of 9 at the cheapest kind's 18 is claimed first: 162 of the 700.
+        var claimed = stock.WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default());
+        var trade = claimed.MedicineTrade!;
+        Assert.Equal((new Resource("MedicineHerbal"), 9.0, 38.0), (trade.Kind, trade.Claimed, trade.Units));
+        // Visitors (4 a 60-day year, trading with 0.75) from day 3, caravans (5 a year) from day 5, each visit selling 4 on average.
+        Assert.Equal([new MedicineTradeSource(3, 4 / 60.0 * 0.75 * 4), new MedicineTradeSource(5, 5 / 60.0 * 4)], trade.Sources);
+
+        // The model buys from day 3 at 0.2 a day and from day 5 at 0.2 + 1/3: 0.4 by day 5, the 9 of the target on day 21.125.
+        var input = MedicineValueTests.Colony(6, 0);
+        var run = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], MedicineValueTests.Policy(0) with { MedicineTrade = trade });
+        var stop = run.Events.First(e => e is { Kind: ModelEventKind.MedicineTrade, Id: "stop" });
+        Assert.Equal(21.125, stop.Day, 9);
+        Assert.Equal(9, stop.Levels[(int)ModelStock.Medicine], 9);
+        Assert.DoesNotContain(MedicineTrade.LaterBuysFinding, run.Findings);
     }
 }

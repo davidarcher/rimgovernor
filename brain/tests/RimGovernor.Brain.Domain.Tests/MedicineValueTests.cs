@@ -18,7 +18,7 @@ public sealed class MedicineValueTests
     private static SkillStatCurve Tend() => new(ColonyValue.TendQualityStat, "Medicine",
         EquatableArray.From(Enumerable.Range(0, 21).Select(l => new SkillStatLevel(l, 0.2 + (0.1 * l)))), "test");
 
-    private static ColonyModelInput Colony(int stored, long medicine, bool curve = true)
+    internal static ColonyModelInput Colony(int stored, long medicine, bool curve = true)
     {
         var doctor = SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(stored, 0));
         doctor = curve ? doctor with { SkillStatCurves = EquatableArray.From(doctor.SkillStatCurves.Append(Tend())) } : doctor;
@@ -61,7 +61,7 @@ public sealed class MedicineValueTests
         Illness = new() { Assessed = true, Comps = [(0, perDay)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, Flu)] },
     };
 
-    private static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = Known(tends) };
+    internal static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = Known(tends) };
 
     private static double Priced(ColonyModelInput input, HarmInputs? harm = null, double tends = 0)
     {
@@ -142,6 +142,81 @@ public sealed class MedicineValueTests
         Assert.Equal(3, Held(Colony(6, 0), Policy(1) with { MedicineCraft = Craft(1000) }, 100), 6);
         // Five units of ingredients make five: the stock then runs out.
         Assert.Equal(0, Held(Colony(6, 30), Policy(1) with { MedicineCraft = Craft(5) }, 200), 6);
+    }
+
+    // #3907: the routine trade buys the cheapest kind (herbal) on the medical reserve's latch, counted without the best kind (industrial
+    // here): 1 colonist starts it below 1 and stops it at 3.
+    private static readonly Resource Herbal = new("MedicineHerbal");
+
+    private static MedicineTrade Trade(double units = 1000, double claimed = 0, bool active = false, params (double From, double PerDay)[] visits) =>
+        new(Herbal, EquatableArray.From((visits.Length == 0 ? [(0.0, 2.0)] : visits).Select(v => new MedicineTradeSource(v.From, v.PerDay))), units, claimed,
+            new Resource(Industrial), 1, MedicalReservePolicy.Default(), active, [new Resource(Industrial)]);
+
+    private static ColonyModelInput Stocked(double industrial, double herbal)
+    {
+        var input = Colony(6, 0);
+        return input with { Stocks = input.Stocks with { Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource(Industrial), (long)industrial), new Amount(Herbal, (long)herbal) })) } };
+    }
+
+    private static ColonyTrajectory Run(ColonyModelInput input, ColonyModelPolicy policy) =>
+        ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+
+    private static (double Day, double Industrial, double Herbal) At(ColonyTrajectory run, string id)
+    {
+        var e = run.Events.First(e => e.Kind == ModelEventKind.MedicineTrade && e.Id == id);
+        var kinds = run.MedicineKinds.ToList();
+        return (Math.Round(e.Day, 9), Math.Round(e.Medicine[kinds.IndexOf(new Resource(Industrial))], 9), Math.Round(e.Medicine[kinds.IndexOf(Herbal)], 9));
+    }
+
+    [Fact]
+    public void TheRoutineTradeBuysTheCheapestKindBelowTheEntryUntilTheTargetCountingWithoutTheBestKind()
+    {
+        // No herbal held, the 30 industrial not counted: below the entry of 1, so the trade buys 2 a day while tending takes the industrial
+        // at 1 a day. It stops at 3 herbal on day 1.5, the industrial then 28.5.
+        var run = Run(Stocked(30, 0), Policy(1) with { MedicineTrade = Trade() });
+        Assert.Equal((1.5, 28.5, 3.0), At(run, "stop"));
+        // The industrial runs out on day 30; tending then takes the herbal 3 → 1 by day 32, where the trade starts again and gains a net
+        // unit a day to the target on day 34.
+        Assert.Equal(30, At(run, "best").Day);
+        Assert.Equal((32.0, 0.0, 1.0), At(run, "start"));
+        Assert.Contains(run.Events, e => e.Kind == ModelEventKind.MedicineTrade && e.Id == "stop" && Math.Abs(e.Day - 34) < 1e-9);
+        Assert.Contains(MedicineTrade.LaterBuysFinding, run.Findings);
+    }
+
+    [Fact]
+    public void TheLatchStartsBelowTheEntryAndHoldsBetweenTheEntryAndTheTarget()
+    {
+        // 2 herbal, between the entry (1) and the target (3): an inactive latch buys nothing and starts on day 31 when tending has taken
+        // the herbal below 1 (the industrial lasts 30 days) …
+        var idle = Run(Stocked(30, 2), Policy(1) with { MedicineTrade = Trade(active: false) });
+        Assert.DoesNotContain(idle.Events, e => e.Kind == ModelEventKind.MedicineTrade && e.Day < 29);
+        Assert.Equal(31, At(idle, "start").Day);
+        // … an active one keeps buying to the target, 2 → 3 at 2 a day.
+        var held = Run(Stocked(30, 2), Policy(1) with { MedicineTrade = Trade(active: true) });
+        Assert.Equal((0.5, 29.5, 3.0), At(held, "stop"));
+    }
+
+    [Fact]
+    public void TheTradeBuysNothingBeforeItsVisitsStartAndNoMoreThanTheSilverPays()
+    {
+        // The visits start on day 5, so the stock is bought from then: 3 herbal at 2 a day by day 6.5.
+        var late = Run(Stocked(30, 0), Policy(1) with { MedicineTrade = Trade(visits: (5.0, 2.0)) });
+        Assert.Equal(5, At(late, "visits").Day);
+        Assert.Equal((6.5, 23.5, 3.0), At(late, "stop"));
+        // Two units of silver buy two: spent on day 1; the latch stays on below the target.
+        var spent = Run(Stocked(30, 0), Policy(1) with { MedicineTrade = Trade(units: 2) });
+        Assert.Equal((1.0, 29.0, 2.0), At(spent, "silver"));
+        Assert.DoesNotContain(spent.Events, e => e.Kind == ModelEventKind.MedicineTrade && e.Id == "stop");
+    }
+
+    [Fact]
+    public void ABuyBeyondTodaysGapIsNamedAndOneWithinItIsNot()
+    {
+        // The gap of 3 is claimed: 3 bought is within it; 3 bought against a claim of 1 is not.
+        var within = Run(Stocked(30, 0), Policy(1) with { MedicineTrade = Trade(units: 3, claimed: 3) });
+        var beyond = Run(Stocked(30, 0), Policy(1) with { MedicineTrade = Trade(units: 3, claimed: 1) });
+        Assert.DoesNotContain(MedicineTrade.LaterBuysFinding, within.Findings);
+        Assert.Contains(MedicineTrade.LaterBuysFinding, beyond.Findings);
     }
 
     [Fact]

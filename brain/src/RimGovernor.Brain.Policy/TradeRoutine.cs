@@ -108,6 +108,22 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>
+    /// The silver a purchase may spend (#3907): the silver above <see cref="TradeSilverReserve"/>, none below it and none for an empty
+    /// colony (the routine buys nothing then). The stock-arrival model prices trader purchases from it.
+    /// </summary>
+    public static long SpendableSilver(long silver, long colonists)
+    {
+        var (reserve, ok) = TradeSilverReserve(colonists);
+        return ok ? Math.Max(0, silver - reserve) : 0;
+    }
+
+    /// <summary>The units the medical reserve review would have the routine trade buy; false while the review's facts are unread.</summary>
+    public static bool MedicineReplenish(MedicalReserveReview review, out long replenish) => review.Replenish.TryGetValue(out replenish);
+
+    /// <summary>The rough silver a medicine replenish of <paramref name="replenish"/> units costs: the cheapest medicine's market value each (the routine trade's purchase, #3907).</summary>
+    public static double MedicineClaim(ItemFacts items, long replenish) => replenish * items.CheapestMedicine().Price;
+
+    /// <summary>
     /// The per-definition floor set the routine trade review sells against: EconomicReserves over native's
     /// outstanding construction deficits when the caller has read them (empty otherwise); stock targets, which
     /// carry the derived resource needs, apply separately.
@@ -224,7 +240,7 @@ public static partial class TradePolicyRules
         TradeFoodContext? food = null
     )
     {
-        var known = medicine.Replenish.TryGetValue(out var replenish);
+        var known = MedicineReplenish(medicine, out var replenish);
         var rowsKnown = resources.TryGetValue(out var rows);
         if (!known || !rowsKnown)
         {

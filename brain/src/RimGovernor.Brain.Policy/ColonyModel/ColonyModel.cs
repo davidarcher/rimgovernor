@@ -63,14 +63,28 @@ public static class ColonyModel
 
         // A crafted kind the colony holds none of joins the kinds after the better ones (#3868): tending takes them first.
         var craft = policy.MedicineCraft;
-        var crafted = craft is null ? -1 : Array.IndexOf(kinds, craft.Kind);
-        if (craft is not null && crafted < 0)
+        if (craft is not null && Array.IndexOf(kinds, craft.Kind) < 0)
         {
-            crafted = kinds.Count(k => craft.Better.Contains(k));
-            kinds = [.. kinds[..crafted], craft.Kind, .. kinds[crafted..]];
-            held = [.. held[..crafted], 0, .. held[crafted..]];
+            var at = kinds.Count(k => craft.Better.Contains(k));
+            kinds = [.. kinds[..at], craft.Kind, .. kinds[at..]];
+            held = [.. held[..at], 0, .. held[at..]];
         }
 
+        // So is a bought one (#3907).
+        var trade = policy.MedicineTrade;
+        if (trade is not null && Array.IndexOf(kinds, trade.Kind) < 0)
+        {
+            var at = kinds.Count(k => trade.Better.Contains(k));
+            kinds = [.. kinds[..at], trade.Kind, .. kinds[at..]];
+            held = [.. held[..at], 0, .. held[at..]];
+        }
+
+        var crafted = craft is null ? -1 : Array.IndexOf(kinds, craft.Kind);
+        var traded = trade is null ? -1 : Array.IndexOf(kinds, trade.Kind);
+        var bestHeld = trade is null ? -1 : Array.IndexOf(kinds, trade.Best);
+        var tradeOn = trade?.Active ?? false;
+        var tradeUnitsLeft = trade?.Units ?? 0;
+        var bought = 0.0;
         var unitsLeft = craft?.Units ?? 0;
         levels[(int)ModelStock.Medicine] = held.Sum();
         var startMedicine = EquatableArray.From(held);
@@ -165,6 +179,20 @@ public static class ColonyModel
                 Consider(scheduled[next].Day, scheduled[next].Kind, scheduled[next].Id);
             }
 
+            // The routine trade (#3907): on the medical reserve's latch (below the entry, held to the target, the usable stock without the
+            // best kind) the comps' visits bring medicine at their rates until the silver above the reserve is spent.
+            var buying = 0.0;
+            if (trade is not null)
+            {
+                tradeOn = Others(held, bestHeld) < trade.Reserve.Threshold(trade.Colonists, tradeOn) - Epsilon;
+                if (tradeOn && tradeUnitsLeft > Epsilon)
+                {
+                    buying = trade.PerDayAt(now);
+                }
+            }
+
+            var baseRate = medicineBase + buying;
+
             // The stock-target bill (#3868): below the target the crafter makes medicine at its rate; at it, what tending uses; above
             // it nothing, the stock falling to the target.
             var making = 0.0;
@@ -173,14 +201,14 @@ public static class ColonyModel
                 var stocked = levels[(int)ModelStock.Medicine];
                 var below = stocked < craft.Target - Epsilon;
                 var above = stocked > craft.Target + Epsilon;
-                making = below ? craft.PerDay : above ? 0 : Math.Clamp(-medicineBase, 0, craft.PerDay);
-                if (below && medicineBase + making > 0)
+                making = below ? craft.PerDay : above ? 0 : Math.Clamp(-baseRate, 0, craft.PerDay);
+                if (below && baseRate + making > 0)
                 {
-                    Consider(now + (craft.Target - stocked) / (medicineBase + making), ModelEventKind.MedicineCraft, "target");
+                    Consider(now + (craft.Target - stocked) / (baseRate + making), ModelEventKind.MedicineCraft, "target");
                 }
-                else if (above && medicineBase < 0)
+                else if (above && baseRate < 0)
                 {
-                    Consider(now + (stocked - craft.Target) / -medicineBase, ModelEventKind.MedicineCraft, "target");
+                    Consider(now + (stocked - craft.Target) / -baseRate, ModelEventKind.MedicineCraft, "target");
                 }
 
                 if (making > 0)
@@ -189,7 +217,40 @@ public static class ColonyModel
                 }
             }
 
-            net[(int)ModelStock.Medicine] = medicineBase + making;
+            net[(int)ModelStock.Medicine] = baseRate + making;
+
+            if (trade is not null)
+            {
+                foreach (var visits in trade.Sources.Where(s => s.From > now))
+                {
+                    Consider(visits.From, ModelEventKind.MedicineTrade, "visits");
+                }
+
+                if (buying > 0)
+                {
+                    Consider(now + tradeUnitsLeft / buying, ModelEventKind.MedicineTrade, "silver");
+                }
+
+                // Tending takes the best kind first, so the latch's stock (without it) moves with what is bought and crafted into other
+                // kinds, and with the tends once the best kind is gone.
+                var others = Others(held, bestHeld);
+                var best = bestHeld < 0 ? 0 : held[bestHeld];
+                var bestNet = bestHeld < 0 ? 0 : (crafted == bestHeld ? making : 0) + (traded == bestHeld ? buying : 0) + medicineBase;
+                var othersNet = bestHeld < 0 || best > Epsilon || bestNet > 0 ? net[(int)ModelStock.Medicine] - bestNet : net[(int)ModelStock.Medicine];
+                if (best > Epsilon && bestNet < 0)
+                {
+                    Consider(now + best / -bestNet, ModelEventKind.MedicineTrade, "best");
+                }
+
+                if (!tradeOn && othersNet < 0)
+                {
+                    Consider(now + (others - trade.Reserve.Threshold(trade.Colonists, false)) / -othersNet, ModelEventKind.MedicineTrade, "start");
+                }
+                else if (tradeOn && othersNet > 0)
+                {
+                    Consider(now + (trade.Reserve.Threshold(trade.Colonists, true) - others) / othersNet, ModelEventKind.MedicineTrade, "stop");
+                }
+            }
 
             for (var s = 0; s < levels.Length; s++)
             {
@@ -228,6 +289,13 @@ public static class ColonyModel
             {
                 held[crafted] += making * span;
                 unitsLeft = Math.Max(0, unitsLeft - (making * span));
+            }
+
+            if (buying > 0)
+            {
+                held[traded] += buying * span;
+                tradeUnitsLeft = Math.Max(0, tradeUnitsLeft - (buying * span));
+                bought += buying * span;
             }
 
             UseMedicine(held, levels[(int)ModelStock.Medicine]);
@@ -270,6 +338,22 @@ public static class ColonyModel
                     held[crafted] += craft.Target - levels[(int)ModelStock.Medicine];
                     levels[(int)ModelStock.Medicine] = craft.Target;
                     break;
+                case ModelEventKind.MedicineTrade when id == "silver":
+                    tradeUnitsLeft = 0;
+                    break;
+                case ModelEventKind.MedicineTrade when id == "start":
+                    tradeOn = true;
+                    break;
+                case ModelEventKind.MedicineTrade when id == "stop" && trade is not null:
+                    // The stock reached the target the latch holds to: float drift settles on it.
+                    var missing = trade.Reserve.Threshold(trade.Colonists, true) - Others(held, bestHeld);
+                    if (missing > 0)
+                    {
+                        held[traded] += missing;
+                        levels[(int)ModelStock.Medicine] += missing;
+                    }
+
+                    break;
             }
 
             events.Add(new ModelEvent { Day = now, Kind = kind, Id = id, Levels = EquatableArray.From(levels), Medicine = EquatableArray.From(held) });
@@ -277,6 +361,11 @@ public static class ColonyModel
             {
                 break;
             }
+        }
+
+        if (trade is not null && bought > trade.Claimed + Epsilon)
+        {
+            findings.Add(MedicineTrade.LaterBuysFinding);
         }
 
         graph.Finish();
@@ -293,6 +382,9 @@ public static class ColonyModel
             Findings = EquatableArray.From(findings),
         };
     }
+
+    // The usable medicine the reserve's latch counts (#3907): every kind held but the best.
+    private static double Others(double[] held, int best) => held.Sum() - (best < 0 ? 0 : held[best]);
 
     /// <summary>Brings the kinds to <paramref name="total"/>: what was used up comes off the best kind first; a gain joins the best kind.</summary>
     private static void UseMedicine(double[] held, double total)

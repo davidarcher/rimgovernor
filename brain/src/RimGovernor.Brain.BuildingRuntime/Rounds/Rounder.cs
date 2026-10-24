@@ -610,6 +610,8 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { ResearchNeeds = [.. needs] });
         var medicine = MedicalRules.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, Policy.MedicalReserve);
         reading = reading.WithFacts(rf => rf with { MedicineCarryOwed = MedicineCarryRules.MedicineCarryOwed(reading.Projection.WorkPawns, medicine) });
+        // The routine trade buys medicine before parts (#3907): the stock-arrival model claims the gap's silver and carries the latch.
+        reading = reading.WithFacts(rf => rf with { StockArrival = rf.StockArrival.WithMedicineClaim(rf.Items, medicine, rf.Colonists, Policy.MedicalReserve) });
         // A prisoner surgery blocked only by the herbal care limit.
         reading = reading.WithFacts(rf => rf with { ResourceNeeds = PrisonerMedicineRules.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, SilverGapRules.RoundsSilverShort(reading.Projection.Facts, Policy, medicine.Active)) });
         // A willing colonist's psylink neuroformer, bought or made by the resource ladder.

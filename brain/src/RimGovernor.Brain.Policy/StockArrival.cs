@@ -44,6 +44,27 @@ public sealed record StockNeed(EquatableArray<Resource> AnyOf, long Count);
 /// </summary>
 public sealed record MedicineCraft(Resource Kind, double PerDay, double Units, double Target, EquatableArray<Resource> Better);
 
+/// <summary>The medicine the routine trade expects a day (<see cref="PerDay"/>, #3907) once a trader comp's visits start, <see cref="From"/> days from now.</summary>
+public sealed record MedicineTradeSource(double From, double PerDay);
+
+/// <summary>
+/// The medicine the routine trade buys (#3907, as the autopilot buys it: the cheapest medicine kind, on the medical reserve's latch).
+/// While <see cref="Active"/> (below <see cref="Reserve"/>'s entry, held until its target; the colony's usable medicine without
+/// <see cref="Best"/>) the visits of <see cref="Sources"/> bring medicine at their rates, <see cref="Kind"/>, until
+/// <see cref="Units"/> are bought (the silver above the reserve pays for that many). <see cref="Claimed"/> units are today's gap, whose
+/// cost is claimed before the parts' (<see cref="StockArrival.WithMedicineClaim"/>); a later buy is named by the model.
+/// <see cref="Better"/> are the kinds of higher potency, which tending takes before it.
+/// </summary>
+public sealed record MedicineTrade(Resource Kind, EquatableArray<MedicineTradeSource> Sources, double Units, double Claimed, Resource Best, long Colonists,
+    MedicalReservePolicy Reserve, bool Active, EquatableArray<Resource> Better)
+{
+    /// <summary>The model's finding that the trade buys more medicine than today's gap, which no part's silver is charged for.</summary>
+    public const string LaterBuysFinding = "medicine_trade_later_buys_unclaimed";
+
+    /// <summary>The units a day the visits that have started by day <paramref name="day"/> bring.</summary>
+    public double PerDayAt(double day) => Sources.Where(s => s.From <= day).Sum(s => s.PerDay);
+}
+
 /// <summary>
 /// The stock-arrival model of one review (#3868), built once at the read boundary (<see cref="StockArrivalRules.Craft"/>) and carried on
 /// <see cref="ForecastCoupledContext.Stock"/>. A craft source's not-arrived chance is a step: 1 until its arrival day, 0 after (crafting
@@ -59,6 +80,12 @@ public sealed record StockArrival
     public EquatableArray<TradeSource> Trade { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
+
+    /// <summary>The silver the trade sources price their buys from (#3907): today's silver above the routine trade's reserve (<see cref="TradePolicyRules.SpendableSilver"/>).</summary>
+    public long Spendable { get; init; }
+
+    /// <summary>The medicine the routine trade buys over the horizon (#3907); null buys none. Set by <see cref="WithMedicineClaim"/>.</summary>
+    public MedicineTrade? MedicineTrade { get; init; }
 
     /// <summary>The fact the boundary could not read to build the model; empty when it is built.</summary>
     public string Unread { get; init; } = "";
@@ -180,6 +207,39 @@ public sealed record StockArrival
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The silver shared between medicine and parts (#3907, #3855 Q2 A): the routine trade buys medicine first, so its gap's cost
+    /// (<see cref="TradePolicyRules.MedicineClaim"/> of <paramref name="review"/>'s replenish) is claimed from <see cref="Spendable"/> and
+    /// the parts' sources see what is left; the medicine sources see all of it and bring medicine on the reserve's latch. An unread
+    /// reserve leaves the model unread.
+    /// </summary>
+    public StockArrival WithMedicineClaim(ItemFacts items, MedicalReserveReview review, long colonists, MedicalReservePolicy reserve)
+    {
+        if (Unread.Length != 0 || items.MedicineTiers().Count == 0)
+        {
+            return this;
+        }
+
+        if (!TradePolicyRules.MedicineReplenish(review, out var replenish))
+        {
+            return this with { Unread = "medicine_reserve" };
+        }
+
+        var claim = (long)Math.Ceiling(TradePolicyRules.MedicineClaim(items, replenish));
+        var parts = Trade.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) });
+        var (kind, price) = items.CheapestMedicine();
+        var tiers = items.MedicineTiers().Reverse().ToList();
+        var visits = Trade.Where(s => s.Resource == kind).Select(s => new MedicineTradeSource(s.From, s.UnitsPerDay())).Where(s => s.PerDay > 0).OrderBy(s => s.From).ThenBy(s => s.PerDay).ToList();
+        var units = Math.Floor(Spendable / price);
+        return this with
+        {
+            Trade = EquatableArray.From(parts),
+            MedicineTrade = visits.Count == 0 || !(units > 0)
+                ? null
+                : new MedicineTrade(kind, EquatableArray.From(visits), units, replenish, items.BestMedicine(), colonists, reserve, review.Active, EquatableArray.From(tiers.Take(tiers.IndexOf(kind)))),
+        };
     }
 
     private void Require()

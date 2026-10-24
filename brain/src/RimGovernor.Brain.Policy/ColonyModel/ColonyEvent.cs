@@ -26,6 +26,13 @@ public enum ModelEventKind
 
     /// <summary>The medicine crafted toward the stock target reaches it ("target") or its ingredients run out ("ingredients", #3868).</summary>
     MedicineCraft,
+
+    /// <summary>
+    /// The medicine the routine trade buys changes (#3907): the reserve's latch starts it ("start") or the stock reaches the target
+    /// that stops it ("stop"), the silver is spent ("silver"), a comp's visits begin ("visits"), or the best kind, which the latch does not
+    /// count, runs out ("best").
+    /// </summary>
+    MedicineTrade,
     HorizonEnd,
 }
 

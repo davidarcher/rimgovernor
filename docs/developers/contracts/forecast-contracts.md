@@ -519,18 +519,30 @@ reads every trader kind's stock (`DefinitionCatalog.TraderStock`): SingleDef, Mu
 each picking the def with the chance its draw of distinct defs gives and making `StockGenerator.RandomCountOf` of it; the Buy
 generators make nothing, another class handling a stock resource is named `stock_arrival_trade_stock_unmodelled:<kind>:<class>`.
 A visit supplies n units when its kind makes n and n × the buy price (the def's market value × 1.4 × its PriceType multiplier ×
-(1 + tradePriceFactorLoss) × (1 − the best negotiator's TradePriceImprovement)) is within today's silver (#3855 Q2 A, silver income
-named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
+(1 + tradePriceFactorLoss) × (1 − the best negotiator's TradePriceImprovement)) is within today's spendable silver (the silver above the routine trade's reserve, `TradePolicyRules.SpendableSilver`: max(200, 100 ×
+colonists) kept, #3855 Q2 A, #3907; silver income named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
 supply chance × (t − start)), multiplied with the craft steps, and the expected wait integrates the product exactly. True zeros are
 named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_console`, `stock_arrival_orbital_no_trade_beacon`,
 `stock_arrival_trade_blocked:<incident>:<gates>`, `stock_arrival_trade_no_trader_kind:<incident>` (it fires with no kind to
 send); a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
 [kept constants](kept-constants.md#mirrored-game-rules-trader-stock-3869).
 
+Medicine and parts share the spendable silver in the autopilot's own order (#3907, `StockArrival.WithMedicineClaim`, applied in the
+review after the medical reserve latch): medicine first, with a fixed claim of today's gap, the reserve review's replenish × the
+cheapest medicine's market value (`TradePolicyRules.MedicineClaim`, also the medicine term of `SilverGap`), so the parts' sources
+see the spendable silver less that claim and the medicine sources all of it. Trade also feeds the colony model's medicine
+trajectory (`ColonyModelPolicy.MedicineTrade`, `StockArrival.MedicineTrade`) as the routine trade buys: the cheapest kind, on the
+reserve's latch (`MedicalReservePolicy.Threshold`, the same threshold the review uses: starts below 1 medicine per colonist, stops
+at 3, counting the usable stock without the best kind, so tending's use of the best kind first moves the latch only once it is
+gone). While the latch is on, the comps' visits bring `TradeSource.UnitsPerDay` (visits a day × the units a visit sells that the
+spendable silver pays for, E[min(count, affordable)]) from the day each comp starts, until the silver, at the cheapest kind's market
+value, is spent. Crafting keeps the stock-target rule above. A model buy beyond today's claimed gap is named
+`medicine_trade_later_buys_unclaimed` on the trajectory (its silver is not charged to the parts).
+
 A census the frame did not carry, or a crafter's unread speed stat, leaves the model
 unread (`StockArrival.Unread`: `stock_arrival_bills`, `stock_arrival_pawns`, `stock_arrival_resources`,
 `stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`, `stock_arrival_trade_facts`, `storyteller_unknown:<def>`,
-`trade_incident_unread:<incident>`, `trade_incident_unknown:<incident>`, `trader_kind_unknown:<kind>`), and a rule that then waits on stock throws
+`trade_incident_unread:<incident>`, `trade_incident_unknown:<incident>`, `trader_kind_unknown:<kind>`, `medicine_reserve`), and a rule that then waits on stock throws
 `RequiredFactException` (as does an offer whose market value is unread, `market_value:<def>`).
 `SurgeryRules.RestorePick` takes the best-tier candidate with its part and medicine on the map, else the best whose needs arrive
 within the horizon.

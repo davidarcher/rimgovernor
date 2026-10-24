@@ -47,6 +47,12 @@ public sealed record ColonyModelPolicy
     /// </summary>
     public MedicineCraft? MedicineCraft { get; init; }
 
+    /// <summary>
+    /// The medicine the routine trade buys (#3907, <see cref="StockArrival.MedicineTrade"/>): while the medical reserve's latch is
+    /// active the visits of the trader comps bring medicine at their rates, until the silver above the reserve is spent. Null buys none.
+    /// </summary>
+    public MedicineTrade? MedicineTrade { get; init; }
+
     /// <summary>Constant production in stock units a day, indexed by <see cref="ModelStock"/> (a missing entry is zero). The project graph (T4) replaces it with real production.</summary>
     public EquatableArray<double> FixedProduction { get; init; }
 

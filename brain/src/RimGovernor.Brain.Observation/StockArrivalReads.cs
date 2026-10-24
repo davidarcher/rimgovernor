@@ -58,7 +58,8 @@ public static class StockArrivalReads
             return craft;
         }
 
-        var (trade, findings, unread) = Trade(catalog, colony.Threat.Observed, stock);
+        var spendable = TradePolicyRules.SpendableSilver(stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef)), colony.ColonistCount);
+        var (trade, findings, unread) = Trade(catalog, colony.Threat.Observed, stock, spendable);
         return unread.Length != 0
             ? new StockArrival { Unread = unread }
             : craft with
@@ -66,13 +67,14 @@ public static class StockArrivalReads
                 Trade = EquatableArray.From(trade),
                 Findings = EquatableArray.From(craft.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)),
                 Medicines = EquatableArray.From(medicines),
+                Spendable = spendable,
             };
     }
 
     // The trader-visit sources (#3869): the storyteller's decoded trader comps, the trader kinds' stock, the visit facts the native
-    // read carries, the colony's wealth and raid points, and today's silver (#3855 Q2 A).
+    // read carries, the colony's wealth and raid points, and the silver above the routine trade's reserve (#3855 Q2 A, #3907).
     private static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Trade(DefinitionCatalog catalog, O.ThreatFacts threat,
-        IReadOnlyDictionary<Resource, long> stock)
+        IReadOnlyDictionary<Resource, long> stock, long spendable)
     {
         if (threat.Trade is not { } facts)
         {
@@ -85,7 +87,6 @@ public static class StockArrivalReads
             return ([], [], "storyteller_unknown:" + threat.Storyteller);
         }
 
-        var silver = stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef));
-        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal, silver);
+        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal, spendable);
     }
 }
