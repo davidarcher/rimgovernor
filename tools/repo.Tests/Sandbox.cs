@@ -44,9 +44,7 @@ internal sealed class Sandbox : IDisposable
 
     public string Worktree => Path.Combine(Root, "task");
 
-    public string CommonDir => Path.Combine(Main, ".git");
-
-    public LandCommand.Options Options() => new() { Worktree = Worktree, LockPoll = TimeSpan.FromMilliseconds(100) };
+    public LandCommand.Options Options() => new() { Worktree = Worktree };
 
     public Task LandAsync(LandCommand.Options? options = null) => LandCommand.LandAsync(options ?? Options(), CancellationToken.None);
 

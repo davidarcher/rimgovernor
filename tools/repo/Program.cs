@@ -15,7 +15,7 @@ internal static class Program
         usage: RimGovernor.cmd <tool> [flags] [args]
 
         tools:
-          land      squash a task branch onto main under the landing lock and push it
+          land      squash a task branch onto origin's main and push it (no checks; the nightly validates)
           test      build and test what the working tree's changes owe
           issue     print a GitHub issue and its comments as markdown
           affected  list the changed files and the checks they owe

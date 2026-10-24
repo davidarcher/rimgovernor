@@ -13,22 +13,18 @@
 2. Make one coherent milestone. While iterating on a failure, run
    `RimGovernor.cmd test > test.out 2>&1` from the worktree root and wait for its final PASS/FAIL.
    Do not pipe it, rerun it to filter output, or follow it with your own `dotnet build`/`dotnet test`; it runs the gate when C# changed.
-   Do not run it as a final check before landing: `land -test` is that check, and the
-   gate costs a minute each time. Use `-full` only at an epic's end or for changed code covered by skipped tests.
+   A passing `test` on the finished milestone is the one check; a merge of main does not owe another.
+   Use `-full` only at an epic's end or for changed code covered by skipped tests.
    No native acceptance run is required before landing; the nightly supplies
    that evidence. C# changes are gated by `RimGovernor.slnx`, the contract probes and the native build, which the gate runs for you.
 3. Commit the milestone with checks and anything left unverified in the body.
    Make its subject the branch tip: the lane uses it for the squash title.
-4. From the worktree root, run `RimGovernor.cmd land -test` once. The lane locks,
-   updates main from origin, merges, runs the gate once on the merged tree when
-   the change touches files it builds (a failure lands nothing), squashes, pushes
-   the squash to origin's main (landing again on top when origin moved), then
-   moves local main and the main checkout and resets the branch. One gate per
-   landing: never follow `test` with `land -test`, or `land -test` with `test`.
-   Resolve lane-reported conflicts, then build. Main moving is not a reason to
-   rerun tests yourself: a plain `land` after a passing `test` only rebuilds the
-   merged tree when main brought in files the gate builds (a build failure lands
-   nothing and undoes the merge); a docs-only merge lands without a rebuild.
+4. From the worktree root, run `RimGovernor.cmd land` once. It merges origin/main,
+   squashes and pushes to origin's main (merging again when origin moved), then
+   resets the branch to the landing. It checks nothing; the nightly validates main.
+   Baseline conflicts (`brain/analyzers/baseline/*.txt`) resolve themselves. Resolve
+   any other reported conflict on the branch, build the touched projects, commit and
+   run `land` again; do not rerun tests for it.
 5. Continue authorized milestones. Close an issue when its stated acceptance
    is met; a registered, compiling acceptance case satisfies a case-writing
    task. Write a closing keyword (for example, `Fixes #N`) only when the commit

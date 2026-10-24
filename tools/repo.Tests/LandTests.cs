@@ -2,11 +2,11 @@ using static RimGovernor.Tools.Workflow.Tests.Sandbox;
 
 namespace RimGovernor.Tools.Workflow.Tests;
 
-/// <summary>The lane's landing and push: what reaches origin, local main, the main checkout and the branch.</summary>
+/// <summary>The lane's landing and push: what reaches origin and where the branch ends up.</summary>
 public sealed class LandTests
 {
     [Fact]
-    public async Task LandsOneSquashOnOriginAndBringsMainAndTheBranchAlong()
+    public async Task LandsOneSquashOnOriginAndResetsTheBranchToIt()
     {
         using var s = new Sandbox();
         var seed = s.OriginMain();
@@ -20,9 +20,6 @@ public sealed class LandTests
         var landed = s.OriginMain();
         Assert.Equal(seed, Git(s.Origin, "rev-parse", "main^"));
         Assert.Equal("Add b, the milestone", Git(s.Origin, "log", "-1", "--format=%s", "main"));
-        Assert.Equal(landed, Git(s.Main, "rev-parse", "main"));
-        Assert.True(File.Exists(Path.Combine(s.Main, "a.txt")));
-        Assert.Equal("", Git(s.Main, "status", "--porcelain"));
         Assert.Equal(landed, Git(s.Worktree, "rev-parse", "HEAD"));
     }
 
@@ -65,9 +62,8 @@ public sealed class LandTests
 
         Assert.Equal(competing, Git(s.Origin, "rev-parse", "main^"));
         Assert.Equal("Add a", Git(s.Origin, "log", "-1", "--format=%s", "main"));
-        Assert.Equal(s.OriginMain(), Git(s.Main, "rev-parse", "main"));
-        Assert.True(File.Exists(Path.Combine(s.Main, "other.txt")));
-        Assert.True(File.Exists(Path.Combine(s.Main, "a.txt")));
+        Assert.Equal(s.OriginMain(), Git(s.Worktree, "rev-parse", "HEAD"));
+        Assert.True(File.Exists(Path.Combine(s.Worktree, "other.txt")));
     }
 
     [Fact]
@@ -105,7 +101,6 @@ public sealed class LandTests
         var refused = await SandboxAssert.RefusedAsync(() => s.LandAsync());
 
         Assert.Contains("fetching origin's main failed", refused.Message, StringComparison.Ordinal);
-        Assert.Equal(seed, Git(s.Main, "rev-parse", "main"));
         Assert.Equal(head, Git(s.Worktree, "rev-parse", "HEAD"));
     }
 
@@ -122,7 +117,6 @@ public sealed class LandTests
 
         Assert.Contains("pushing to origin's main failed", refused.Message, StringComparison.Ordinal);
         Assert.Equal(seed, s.OriginMain());
-        Assert.Equal(seed, Git(s.Main, "rev-parse", "main"));
     }
 
     [Fact]

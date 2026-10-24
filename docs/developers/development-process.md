@@ -18,21 +18,18 @@ the pawn finished the work or the owning Concern is satisfied.
 
 ## Verify
 
-The landing's one check is the gate run by `land -test` ([landing](#landing)) on the
-merged tree. While iterating on a failure, run the same gate from the worktree root:
+A milestone's one check is the gate, run from the worktree root:
 
 ```powershell
 .\RimGovernor.cmd test > test.out 2>&1
 ```
 
 Wait for the final `test: PASS` or `test: FAIL`. When anything the gate builds changed, the command
-runs it ([project-wide build](#project-wide-build)). Do not follow it with another full build or test, and do not
-run it as a final step before `land -test`: the gate takes about a minute, and the lane runs it again on the
-merged tree. [choose-tests](testing/choose-tests.md) covers skipped tests, wire
-changes, concurrency and native evidence.
+runs it ([project-wide build](#project-wide-build)). Do not follow it with another full build or test.
+[choose-tests](testing/choose-tests.md) covers skipped tests, wire changes, concurrency and native evidence.
 
 Keep checks and their limitations in the milestone commit. A passing result
-survives a clean merge of main; do not repeat it merely because main moved.
+survives a merge of main; do not repeat it merely because main moved.
 Native acceptance is a nightly signal, not a pre-landing gate.
 
 ## Landing
@@ -41,40 +38,29 @@ Commit each coherent milestone, with the final subject on the branch tip.
 From the branch worktree's root:
 
 ```powershell
-.\RimGovernor.cmd land -test
+.\RimGovernor.cmd land
 ```
 
-The lane locks the repository, fast-forwards local main to origin/main, merges
-main into the branch, runs the gate once on the merged tree when the branch changed files the gate builds
-(`Affected.GateOwed`: `brain/`, `tools/`, `integrations/`, `contracts/`, `scripts/` and the solution and
-launcher files), squashes, pushes the squash to origin's main, then moves local
-main and the main checkout to it and resets the branch. When origin's main moved
-since the fetch, the push is rejected and the lane lands again on top (three tries);
-a push origin refuses for any other reason lands nothing. A failed gate lands nothing.
+The lane (`tools/repo/Commands/LandCommand.cs`) fetches origin/main, merges it into the
+branch, squashes the branch's tree onto origin/main and pushes the squash. It checks nothing;
+the nightly validates main. There is no lock: when origin's main moved since the fetch, the push
+is rejected and the lane merges and pushes again (up to ten tries). A push origin refuses for any
+other reason lands nothing. After the push the branch is reset to the landing, ready for the next
+task. The squash message is `-m`/`-F`, else the branch tip's message, plus every Co-Authored-By
+trailer on the branch.
 
-Without `-test` the lane takes the branch's own gate as given: each merge of main that
-brings in files the gate builds only rebuilds the merged tree (the gate's build steps, seconds rather than the
-minute the full gate costs under the landing lock), since both sides passed the gate alone and what is left
-to catch is the two not compiling together; a test-level interaction surfaces at the next landing's gate and
-the nightly. A merge that brings only docs or notes lands without a rebuild. A failed build lands nothing and
-resets the branch to before the merge, so the next `land` merges and builds again rather than finding nothing
-new. The lane comments on an `issue-<n>-...` branch's issue with the landing hash.
-It closes only issues named by closing keywords in the final squash message
-(`Fixes #N`, `Closes #N`, or `Resolves #N`, including their verb forms), or an explicit
-`-issue <n>` override. A branch number alone or "part of #N" does not close an issue.
-`-no-close` suppresses the lane's GitHub comments and closes; GitHub itself can still
-close issues from keywords in pushed commits, so omit those keywords to leave an issue open.
-
-Use a closing keyword only when the commit meets the issue's whole acceptance.
-If a required remote-acceptance run remains, land without the keyword, then close
-the issue with the landing hash and run evidence after it passes. The lane reads
-the final squash message, so use `-m` or `-F` when its default multi-commit summary
-does not carry the intended completion statement.
-
-- Run the lane once per ready milestone. `land -test` replaces a final `test`;
-  one gate per landing, never both.
-- Resolve a reported merge conflict in the task branch, then build the touched
-  projects (`dotnet build` on them).
+- Conflicts confined to the gate baselines (`brain/analyzers/baseline/*.txt`) resolve
+  themselves: an entry either side deleted goes, and a `rule9.txt` count takes the smaller
+  value. Any other conflict aborts the merge; resolve it on the branch
+  (`git merge origin/main`), build the touched projects, commit and run `land` again.
+- A merged tree that puts a file back to its content before one of main's recent
+  landings is refused (`LandChecks.RefuseRevertsAsync`): a stale side taken in a conflict.
+  Restore main's version, or name the reverted commit's hash in a commit message when the
+  revert is intended.
+- GitHub closes an issue named by a closing keyword (`Fixes #N`, `Closes #N`,
+  `Resolves #N`) in the pushed squash. Use one only when the commit meets the issue's whole
+  acceptance. If a required remote-acceptance run remains, land without the keyword, then
+  close the issue with the landing hash and run evidence after it passes.
 - Do not edit the main checkout, manually squash there, open a PR, force-push,
   push a task branch, or push to main yourself.
 - The launcher builds from main. Restart it after landing when testing the
