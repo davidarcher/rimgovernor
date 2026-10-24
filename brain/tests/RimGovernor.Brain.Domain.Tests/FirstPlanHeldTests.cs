@@ -21,11 +21,7 @@ public sealed class FirstPlanHeldTests
             Tick = new(100),
             SinceStarted = TimeSpan.FromSeconds(1),
             SinceObserved = TimeSpan.FromMilliseconds(500),
-            Emergency = EmergencySnapshot.New(World, new(100), new EmergencyFacts
-            {
-                ColonistsComplete = Known(true),
-                DependentPatients = Known(EquatableArray.From<EmergencyDependentPatient>([])),
-            }),
+            Emergency = EmergencySnapshot.New(World, new(100), new EmergencyFacts()),
             EventsOpen = true,
             Status = new ClockWatchStatus { Snapshot = World, Tick = new(100), State = ClockWatchState.Held, NativeTickBoundary = Known(true) },
             CombatPlan = Known(false),

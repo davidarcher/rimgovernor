@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
                 pot.SetFaction(player);
                 GenSpawn.Spawn(pot, potCell, map);
                 var grower = pot as Building_PlantGrower;
-                if (grower == null || NativeGrowerCrop.Snapshot(grower, context) == null) return Refuse("Fixture plant pot is not a plant grower.");
+                if (grower == null || !NativeGrowerCrop.Eligible(grower)) return Refuse("Fixture plant pot is not a plant grower.");
                 var crop = DefDatabase<ThingDef>.AllDefs.FirstOrDefault(d => NativeGrowerCrop.Sowable(d, grower) && d != grower.GetPlantDefToGrow());
                 if (crop == null) return Refuse("No sowable crop for the fixture plant pot.");
 

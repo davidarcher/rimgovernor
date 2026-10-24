@@ -38,29 +38,12 @@ namespace HomeBridge.BridgeTools
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
             && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null;
 
-        internal static string Token(Common.Identity identity, Building_Bed bed) =>
-            NativeSnapshotVersions.Token("bed", identity, bed.GetUniqueLoadID(), writer => {
-                writer.Write(bed.Medical); writer.Write(bed.ForPrisoners); writer.Write(bed.ForSlaves);
-                foreach (var owner in bed.OwnersForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal))
-                    writer.Write(owner);
-            });
-
-        internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
-        {
-            if (!Eligible(thing)) return null;
-            return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
-                Token = Token(context.Identity!, (Building_Bed)thing) };
-        }
-
-        // Settings carries the bed's writable medical state beside its CAS
-        // snapshot on the building listing row; the settable flag itself is
-        // only implied (a refused preview names the gate).
-        internal static Obs.BuildingSettings Settings(Building_Bed bed, Common.ObservationContext context)
-        {
-            var settings = new Obs.BuildingSettings { Snapshot = Snapshot(bed, context), Medical = bed.Medical, ForPrisoners = bed.ForPrisoners };
-            foreach (var owner in bed.OwnersForReading) settings = settings with { AssignedPawns = [.. settings.AssignedPawns, NativeRef.Of(owner)!] };
-            return settings;
-        }
+        // Control carries the bed's writable medical state on the building
+        // listing row; the settable flag itself is only implied (a refused
+        // preview names the gate).
+        internal static Obs.BuildingControl.Bed Control(Building_Bed bed) =>
+            new(bed.Medical, bed.ForPrisoners,
+                [.. bed.OwnersForReading.Select(owner => NativeRef.Of(owner)!)]);
 
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_Bed? bed)
         {

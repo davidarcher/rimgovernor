@@ -462,9 +462,9 @@ partial class RoundsDefensePlanner
         s = s with { Mech = mech, Insect = insect };
         var h = row.Health;
         s = s with { BloodLoss = Known(h.BloodLoss), BleedRatePerDay = Known(h.BleedRatePerDay) };
-        if (h.HoursUntilDeathFromBloodLoss is not null)
+        if (h.BleedOut is PbObservations.BleedOut.Within bleedOut)
         {
-            s = s with { HoursUntilBleedDeath = Known(h.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
+            s = s with { HoursUntilBleedDeath = Known(bleedOut.Hours) };
         }
         var toil = row.LordToilClass ?? "";
         s = s with { Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || (row.Job.DefName ?? "") == "Mine" };

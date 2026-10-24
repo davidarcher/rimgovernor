@@ -56,7 +56,7 @@ internal static class RoundsCreepJoiner
     /// <summary>The hands of the colonists when the frame's pawn census is complete; null otherwise.</summary>
     internal static List<CreepJoinerHand>? CreepJoinerHands(BridgeRoundsFrame frame)
     {
-        if (frame.Pawns is null || !frame.Emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete
+        if (frame.Pawns is null || !frame.Emergency.Facts.AllSeen
             || frame.Pawns.Pawns.Count != frame.Emergency.Facts.Colonists.Count)
         {
             return null;

@@ -13,33 +13,16 @@ public sealed class ClockWatchBreakTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static EmergencyPawn Colonist(string id, bool breaking) => new()
+    private static EmergencyPawn Colonist(string id, bool breaking) => EmergencyFixtures.Colonist(id) with
     {
-        Id = new PawnId(id),
-        Dead = Known(false),
-        Downed = Known(false),
-        Bleeding = Known(false),
-        NeedsTend = Known(false),
-        InBed = Known(false),
-        Hunger = Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed),
         MentalState = breaking ? new MentalState { DefName = "Slaughterer", IsAggro = true, TicksInState = 10 } : null,
     };
 
-    private static EmergencyThreat Raider(string id) => new()
-    {
-        Id = new PawnId(id),
-        Kind = ThreatKind.Hostile,
-        Dead = Known(false),
-        Downed = Known(false),
-        Animal = Known(false),
-        Distance = Known(12.0),
-    };
+    private static EmergencyThreat Raider(string id) => EmergencyFixtures.Threat(id);
 
     private static EmergencySnapshot Census(IEnumerable<EmergencyPawn> colonists, params EmergencyThreat[] threats) =>
         EmergencySnapshot.New(World, new(100), new EmergencyFacts
         {
-            ColonistsComplete = Known(true),
-            DependentPatients = Known(EquatableArray.From<EmergencyDependentPatient>([])),
             Colonists = [.. colonists],
             Threats = threats,
         });

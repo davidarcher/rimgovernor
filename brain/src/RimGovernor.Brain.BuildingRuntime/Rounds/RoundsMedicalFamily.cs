@@ -168,13 +168,9 @@ public sealed class MedicalRounds
     /// </summary>
     private async Task<CriticalCare> CareAsync(GenerationSnapshot world, EmergencyFacts emergency, IReadOnlyList<PawnId> patients, CancellationToken ct)
     {
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Colonists.Count == 0)
+        if (!emergency.AllSeen || emergency.Colonists.Count == 0)
         {
             return new CriticalCare { Wait = "colonist_census" };
-        }
-        if (!emergency.DependentPatients.TryGetValue(out var dependents) || dependents.Any(p => !p.Rescue.IsKnown || !p.Tend.IsKnown))
-        {
-            return new CriticalCare { Wait = "dependent_patient_census" };
         }
         var identity = Boundary.Identity(world);
         var workers = emergency.Colonists.Select(pawn => pawn.Id).ToHashSet();

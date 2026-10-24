@@ -23,7 +23,7 @@ public sealed class BuildingsWireTests
         HitPoints = hitPoints,
         Construction = construction,
         Service = new O.BuildingServiceState(),
-        Settings = new O.BuildingSettings(),
+        Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
         Occupied = new O.Rectangle { Minimum = new C.Cell { X = 3, Z = 4 }, Maximum = new C.Cell { X = 3, Z = 4 } },
         Anomaly = null,
@@ -75,6 +75,33 @@ public sealed class BuildingsWireTests
         Assert.True(node["buildings"]![1]!.AsObject().Remove(member));
 
         Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.BuildingsSnapshot>(node.ToJsonString()));
+    }
+
+    // #3770: a building's settings are its forbidden flag and one control family the brain reads; only temperature carries its CAS snapshot.
+    [Fact]
+    public void EveryBuildingControlRoundTripsExactly()
+    {
+        var snapshot = new O.SnapshotRef { Context = Context, EntityId = "b-1", Token = "tok" };
+        O.BuildingControl[] controls =
+        [
+            new O.BuildingControl.Temperature(snapshot, -5.5),
+            new O.BuildingControl.Bed(true, false, [new C.Ref { Id = "p-1" }]),
+            new O.BuildingControl.Grower(null),
+            new O.BuildingControl.None(),
+        ];
+        var settings = controls.Select(c => new O.BuildingSettings { Forbidden = true, Control = c }).ToList();
+
+        var json = string.Join("\n", settings.Select(x => WireJson.Serialize(x)));
+
+        const string Snap = """{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":0},"tick":10,"nativeGeneration":null},"entityId":"b-1","token":"tok"}""";
+        Assert.Equal(
+            string.Join("\n",
+                $$$"""{"forbidden":true,"control":{"type":"temperature","snapshot":{{{Snap}}},"targetC":-5.5}}""",
+                $$$"""{"forbidden":true,"control":{"type":"bed","medical":true,"forPrisoners":false,"assignedPawns":[{"id":"p-1"}]}}""",
+                """{"forbidden":true,"control":{"type":"grower","cropDefName":null}}""",
+                """{"forbidden":true,"control":{"type":"none"}}"""),
+            json);
+        Assert.Equal(settings, settings.Select(x => WireJson.Deserialize<O.BuildingSettings>(WireJson.Serialize(x))).ToList());
     }
 
     [Theory]

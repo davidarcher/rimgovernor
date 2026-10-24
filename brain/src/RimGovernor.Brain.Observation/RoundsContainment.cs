@@ -335,7 +335,7 @@ public static class RoundsContainmentReads
     {
         var unknown = Unknown<EquatableArray<CarePawn>>();
         var parts = new DefinitionPartCatalog(catalog);
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || snapshot is null
+        if (!emergency.AllSeen || colony is null || snapshot is null
             || colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
@@ -353,13 +353,11 @@ public static class RoundsContainmentReads
         foreach (var pawn in emergency.Colonists)
         {
             byId.TryGetValue(pawn.Id.Value, out var row);
-            var dk = pawn.Dead.TryGetValue(out var dead);
-            var nk = pawn.Downed.TryGetValue(out var downed);
-            if (row is null || !dk || !nk || row.Dead != dead || row.Downed != downed || !row.Colonist)
+            if (row is null || row.Dead != pawn.Dead || row.Downed != pawn.Downed || !row.Colonist)
             {
                 return unknown;
             }
-            var p = new CarePawn { Id = pawn.Id, Dead = Known(dead) };
+            var p = new CarePawn { Id = pawn.Id, Dead = Known(pawn.Dead) };
             p = p with { Care = RoundsWorkReads.CareName(row.Settings.Care is O.PawnCare.Configured care ? care.MedicalCare : null) };
             var h = row.Health;
             var (_, operations) = SurgeryFactsRules.SurgeryFacts(h.Surgery, parts);

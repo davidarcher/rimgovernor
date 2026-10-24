@@ -19,38 +19,30 @@ public enum ClearanceClass
 [JsonConverter(typeof(WireEnumConverter<SurgeryKind>))]
 public enum SurgeryKind
 {
-    [WireName("SURGERY_KIND_UNSPECIFIED")]
-    Unspecified = 0,
     /// <summary>
     /// Installs a part where the body part is missing.
     /// </summary>
-    [WireName("SURGERY_KIND_RESTORE")]
-    Restore = 1,
+    Restore,
     /// <summary>
     /// Removes a condition.
     /// </summary>
-    [WireName("SURGERY_KIND_CURE")]
-    Cure = 2,
+    Cure,
     /// <summary>
     /// Removes a damaged or artificial part.
     /// </summary>
-    [WireName("SURGERY_KIND_AMPUTATE")]
-    Amputate = 3,
+    Amputate,
     /// <summary>
     /// Installs over a present part, or an implant.
     /// </summary>
-    [WireName("SURGERY_KIND_INSTALL")]
-    Install = 4,
+    Install,
     /// <summary>
     /// Removes a clean natural part.
     /// </summary>
-    [WireName("SURGERY_KIND_HARVEST")]
-    Harvest = 5,
+    Harvest,
     /// <summary>
     /// Any other medical recipe (administer, execute).
     /// </summary>
-    [WireName("SURGERY_KIND_OTHER")]
-    Other = 6,
+    Other,
 }
 
 /// <summary>
@@ -659,48 +651,94 @@ public abstract record FoodNeed
     public sealed record Lacks : FoodNeed;
 }
 
+/// <summary>A body part of the pawn's race: its def and its index in the race's body (#3770).</summary>
+public sealed record BodyPartRef
+{
+    public required int Index { get; init; }
+
+    public required string DefName { get; init; }
+}
+
 public sealed record Hediff
 {
     /// <summary>
     /// The HediffDef is the catalog row by def_name; its label is the row's.
     /// </summary>
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    /// <summary>
-    /// The body part: its def and index in the race's body; both absent for a whole-body hediff.
-    /// </summary>
-    public string? PartDefName { get; init; }
+    /// <summary>The body part the hediff is on; absent for a whole-body hediff.</summary>
+    public required BodyPartRef? Part { get; init; }
 
-    public int? PartIndex { get; init; }
+    public required double Severity { get; init; }
 
-    public double Severity { get; init; }
+    public required bool Visible { get; init; }
 
-    public bool Visible { get; init; }
+    public required HediffTend Tend { get; init; }
 
-    public bool Tended { get; init; }
+    /// <summary>The disease's immunity facts; absent unless the hediff is immunizable.</summary>
+    public required HediffImmunity? Immunizable { get; init; }
+}
 
-    /// <summary>
-    /// The tend's quality; absent unless the hediff is tended and has a tend duration.
-    /// </summary>
-    public double? TendQuality { get; init; }
+/// <summary>
+/// Whether a hediff is tended now. Only a hediff with a tend duration can be tended, so a tended hediff always
+/// carries its tend quality.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HediffTend.Untended), "untended")]
+[JsonDerivedType(typeof(HediffTend.Tended), "tended")]
+public abstract record HediffTend
+{
+    private HediffTend()
+    {
+    }
 
-    public double? Immunity { get; init; }
+    public sealed record Untended : HediffTend;
 
-    /// <summary>
-    /// Instantaneous native rates per 60000 game ticks; absent when unavailable.
-    /// </summary>
-    public double? SeverityPerDay { get; init; }
+    public sealed record Tended(double Quality) : HediffTend;
+}
 
-    public double? ImmunityPerDay { get; init; }
+/// <summary>
+/// An immunizable hediff's immunity and its instantaneous native rates per 60000 game ticks. The severity rate
+/// includes tending's severity modifier and the disease's randomized native progression.
+/// </summary>
+public sealed record HediffImmunity
+{
+    public required double Immunity { get; init; }
+
+    public required double SeverityPerDay { get; init; }
+
+    public required ImmunityGain Gain { get; init; }
+}
+
+/// <summary>
+/// The pawn's immunity gain against the hediff: a rate per day, none yet because the pawn has no immunity record
+/// for the def, or none because the pawn is dead. Read only: native never creates an immunity record.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ImmunityGain.PerDay), "per_day")]
+[JsonDerivedType(typeof(ImmunityGain.NoRecord), "no_record")]
+[JsonDerivedType(typeof(ImmunityGain.Dead), "dead")]
+public abstract record ImmunityGain
+{
+    private ImmunityGain()
+    {
+    }
+
+    public sealed record PerDay(double Value) : ImmunityGain;
+
+    public sealed record NoRecord : ImmunityGain;
+
+    public sealed record Dead : ImmunityGain;
 }
 
 public sealed record SurgeryBill
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Recipe { get; init; }
+    public required string Recipe { get; init; }
 
-    public int? PartIndex { get; init; }
+    /// <summary>The part the bill operates on; absent for a whole-body bill.</summary>
+    public required BodyPartRef? Part { get; init; }
 }
 
 /// <summary>
@@ -708,39 +746,54 @@ public sealed record SurgeryBill
 /// </summary>
 public sealed record PawnHealth
 {
-    public double SummaryFraction { get; init; }
+    public required double SummaryFraction { get; init; }
 
-    public bool NeedsTend { get; init; }
+    public required bool NeedsTend { get; init; }
 
-    public bool Bleeding { get; init; }
+    public required bool Bleeding { get; init; }
 
-    public double BleedRatePerDay { get; init; }
+    public required double BleedRatePerDay { get; init; }
 
-    public double BloodLoss { get; init; }
+    public required double BloodLoss { get; init; }
 
-    /// <summary>
-    /// HealthUtility.TicksUntilDeathDueToBloodLoss in hours; absent unless a living pawn bleeds toward a finite death.
-    /// </summary>
-    public double? HoursUntilDeathFromBloodLoss { get; init; }
+    public required BleedOut BleedOut { get; init; }
 
-    public bool LifeThreatening { get; init; }
+    public required bool LifeThreatening { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Hediff>))]
-    public EquatableArray<Hediff> Hediffs { get; init; }
+    public required EquatableArray<Hediff> Hediffs { get; init; }
 
-    public bool ShouldSeekMedicalRest { get; init; }
+    public required bool ShouldSeekMedicalRest { get; init; }
 
     /// <summary>
     /// The bed the pawn lies in; absent when it is in none.
     /// </summary>
-    public string? BedId { get; init; }
+    public required string? BedId { get; init; }
 
-    public SnapshotRef Snapshot { get; init; } = new();
+    public required SnapshotRef Snapshot { get; init; }
 
     /// <summary>
-    /// The pawn's surgery facts; absent for a dead pawn or one off every map.
+    /// The pawn's surgery facts; absent for a dead pawn or one off every map, which has no operations.
     /// </summary>
-    public PawnSurgery? Surgery { get; init; }
+    public required PawnSurgery? Surgery { get; init; }
+}
+
+/// <summary>
+/// HealthUtility.TicksUntilDeathDueToBloodLoss for a living, bleeding pawn: <see cref="Within"/> a finite number
+/// of hours, or <see cref="NotBleedingOut"/> (not bleeding, dead, or bleeding toward no finite death).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BleedOut.Within), "within")]
+[JsonDerivedType(typeof(BleedOut.NotBleedingOut), "not_bleeding_out")]
+public abstract record BleedOut
+{
+    private BleedOut()
+    {
+    }
+
+    public sealed record Within(double Hours) : BleedOut;
+
+    public sealed record NotBleedingOut : BleedOut;
 }
 
 /// <summary>
@@ -748,10 +801,10 @@ public sealed record PawnHealth
 /// </summary>
 public sealed record PawnConditions
 {
-    public bool LifeThreatening { get; init; }
+    public required bool LifeThreatening { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Hediff>))]
-    public EquatableArray<Hediff> Hediffs { get; init; }
+    public required EquatableArray<Hediff> Hediffs { get; init; }
 }
 
 /// <summary>
@@ -760,17 +813,18 @@ public sealed record PawnConditions
 public sealed record PawnSurgery
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<SurgeryBill>))]
-    public EquatableArray<SurgeryBill> SurgeryBills { get; init; }
+    public required EquatableArray<SurgeryBill> SurgeryBills { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<MissingBodyPart>))]
-    public EquatableArray<MissingBodyPart> MissingParts { get; init; }
+    public required EquatableArray<MissingBodyPart> MissingParts { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<SurgeryOperation>))]
-    public EquatableArray<SurgeryOperation> Operations { get; init; }
+    public required EquatableArray<SurgeryOperation> Operations { get; init; }
 }
 
 /// <summary>
-/// A missing or destroyed part at its common missing ancestor; descendants are implied.
+/// A missing or destroyed part at its common missing ancestor; descendants are implied. Native always sets both;
+/// they stay optional until their only reader, Policy MissingPart, is hardened (#3788).
 /// </summary>
 public sealed record MissingBodyPart
 {
@@ -780,22 +834,20 @@ public sealed record MissingBodyPart
 }
 
 /// <summary>
-/// One available operation on one part. success_chance is vanilla's
-/// SurgeryOutcomeEffectDef quality with the best eligible doctor, the best
-/// colony medical bed (or the current bed) and the best permitted medicine on
-/// the map; absent when no doctor is eligible or the recipe has no outcome effect.
+/// One available operation on one part. Native always sets the recipe, eligible doctors, ingredients, violation,
+/// lethal and care-limited facts; they stay optional until their only reader, Policy SurgeryOperation, is hardened
+/// (#3788).
 /// </summary>
 public sealed record SurgeryOperation
 {
     public DefinitionRef? Recipe { get; init; }
 
-    public int? PartIndex { get; init; }
+    /// <summary>The part the operation targets; absent for a whole-body recipe.</summary>
+    public required BodyPartRef? Part { get; init; }
 
-    public string? PartDefName { get; init; }
+    public required SurgeryKind Kind { get; init; }
 
-    public SurgeryKind Kind { get; init; }
-
-    public double? SuccessChance { get; init; }
+    public required SurgeryChance Chance { get; init; }
 
     public uint? EligibleDoctors { get; init; }
 
@@ -806,45 +858,59 @@ public sealed record SurgeryOperation
     public bool? Lethal { get; init; }
 
     /// <summary>
-    /// A harvest's yield, or an added part's on removal:
-    /// BaseMarketValue of the spawnThingOnRemoved; absent otherwise.
+    /// The thing the operation spawns: a harvest's organ, or an added part's on its removal; absent when it
+    /// spawns none.
     /// </summary>
-    public double? YieldMarketValue { get; init; }
+    public required SurgeryYield? Yield { get; init; }
 
     /// <summary>
-    /// Artificial part removal: the removed Hediff_AddedPart's def and
-    /// the thing it spawns; absent unless the target part carries an added part.
+    /// Artificial part removal: the removed Hediff_AddedPart's def; absent unless the target part carries an added
+    /// part.
     /// </summary>
-    public string? AddedPartHediff { get; init; }
-
-    public string? YieldThingDef { get; init; }
+    public required string? AddedPartHediff { get; init; }
 
     /// <summary>
-    /// BaseMarketValue x count of the medicine the operation would use (the
-    /// best permitted on the map); absent when it uses none or none is stocked.
+    /// BaseMarketValue x count of the medicine the operation would use (the best permitted on the map); absent when
+    /// it uses none or none is stocked.
     /// </summary>
     public double? MedicineMarketValue { get; init; }
 
     /// <summary>
-    /// The best eligible doctor's chance with an ideal bed and room:
-    /// success_chance with the bed factor replaced by a clean, roofed Bed's;
-    /// absent exactly when success_chance is.
-    /// </summary>
-    public double? DoctorSuccessChance { get; init; }
-
-    /// <summary>
-    /// True when medicine the recipe accepts is on the map but the patient's
-    /// medical care level forbids all of it; ingredients_on_map is
-    /// then false.
+    /// True when medicine the recipe accepts is on the map but the patient's medical care level forbids all of it;
+    /// ingredients_on_map is then false.
     /// </summary>
     public bool? MedicineCareLimited { get; init; }
+}
 
-    /// <summary>
-    /// Each eligible doctor's chance on this operation, the same score as
-    /// success_chance, keyed by pawn id; empty when success_chance is
-    /// absent.
-    /// </summary>
-    public IReadOnlyDictionary<string, double> DoctorChances { get; init; } = new Dictionary<string, double>();
+/// <summary>A thing an operation spawns: its def and BaseMarketValue.</summary>
+public sealed record SurgeryYield
+{
+    public required string ThingDef { get; init; }
+
+    public required double MarketValue { get; init; }
+}
+
+/// <summary>
+/// An operation's success chance. <see cref="Rated"/>: vanilla's SurgeryOutcomeEffectDef quality with the best
+/// eligible doctor, the best colony medical bed (or the current bed) and the best permitted medicine on the map,
+/// the same with an ideal bed and room (a clean, roofed Bed's factor), and each eligible doctor's chance keyed by
+/// pawn id. Else the recipe has <see cref="NoOutcomeEffect"/>, or there is <see cref="NoEligibleDoctor"/>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SurgeryChance.Rated), "rated")]
+[JsonDerivedType(typeof(SurgeryChance.NoOutcomeEffect), "no_outcome_effect")]
+[JsonDerivedType(typeof(SurgeryChance.NoEligibleDoctor), "no_eligible_doctor")]
+public abstract record SurgeryChance
+{
+    private SurgeryChance()
+    {
+    }
+
+    public sealed record Rated(double Success, double IdealSuccess, IReadOnlyDictionary<string, double> Doctors) : SurgeryChance;
+
+    public sealed record NoOutcomeEffect : SurgeryChance;
+
+    public sealed record NoEligibleDoctor : SurgeryChance;
 }
 
 /// <summary>
@@ -2020,28 +2086,42 @@ public sealed record RecipeState
 
 public sealed record BuildingSettings
 {
-    public SnapshotRef? Snapshot { get; init; }
+    public required bool Forbidden { get; init; }
 
-    public bool Forbidden { get; init; }
+    /// <summary>The building's one writable setting family the brain reads, or none (#3770).</summary>
+    public required BuildingControl Control { get; init; }
+}
 
-    public double? TargetTemperatureC { get; init; }
+/// <summary>
+/// A building's writable settings the brain reads. A temperature-controlled building is <see cref="Temperature"/>
+/// (with the CAS snapshot its BuildingPatchIntent arm sends back); else a humanlike bed is <see cref="Bed"/>; else a
+/// plant grower is <see cref="Grower"/>; any other building is <see cref="None"/>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BuildingControl.Temperature), "temperature")]
+[JsonDerivedType(typeof(BuildingControl.Bed), "bed")]
+[JsonDerivedType(typeof(BuildingControl.Grower), "grower")]
+[JsonDerivedType(typeof(BuildingControl.None), "none")]
+public abstract record BuildingControl
+{
+    private BuildingControl()
+    {
+    }
 
-    public bool? Medical { get; init; }
+    /// <summary>A temperature-controlled building and its target temperature.</summary>
+    public sealed record Temperature(SnapshotRef Snapshot, double TargetC) : BuildingControl;
 
-    public bool? ForPrisoners { get; init; }
+    /// <summary>A humanlike bed: its medical and prisoner flags and its assigned owners.</summary>
+    public sealed record Bed(
+        bool Medical,
+        bool ForPrisoners,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))] EquatableArray<Common.Ref> AssignedPawns) : BuildingControl;
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> AssignedPawns { get; init; }
+    /// <summary>A plant grower and its current crop; the crop is null when the grower is set to grow nothing.</summary>
+    public sealed record Grower(string? CropDefName) : BuildingControl;
 
-    /// <summary>
-    /// crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
-    /// </summary>
-    public string? CropDefName { get; init; }
-
-    /// <summary>
-    /// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim).
-    /// </summary>
-    public bool? PlayerOwned { get; init; }
+    /// <summary>A building with no writable setting family.</summary>
+    public sealed record None : BuildingControl;
 }
 
 public sealed record MaterialDeficit
@@ -3348,27 +3428,27 @@ public sealed record WasteReply
     public WasteSnapshot Outcome { get; init; } = null!;
 }
 
+/// <summary>One free colonist's player area restriction on the map.</summary>
 public sealed record RecoveryRestriction
 {
-    public Common.Ref? Pawn { get; init; }
+    public required Common.Ref Pawn { get; init; }
 
-    public string? AreaId { get; init; }
-
+    /// <summary>The restricting area's load id; null when the pawn is unrestricted.</summary>
+    public required string? AreaId { get; init; }
 }
 
+/// <summary>
+/// The recovery census (#3770): every spawned free colonist's restriction and every unfogged colonist
+/// building, each building's facts being its row in the bundle's building table. A read that cannot make it
+/// fails the colony read.
+/// </summary>
 public sealed record RecoverySnapshot
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecoveryRestriction>))]
-    public EquatableArray<RecoveryRestriction> Restrictions { get; init; }
+    public required EquatableArray<RecoveryRestriction> Restrictions { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Buildings { get; init; }
-}
-
-public sealed record RecoveryReply
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public RecoverySnapshot? Observed { get; init; }
+    public required EquatableArray<Common.Ref> Buildings { get; init; }
 }
 
 /// <summary>
@@ -6491,7 +6571,7 @@ public sealed record ColonyFactsSnapshot
 
     public required Planning Planning { get; init; }
 
-    public required RecoveryReply Recovery { get; init; }
+    public required RecoverySnapshot Recovery { get; init; }
 
     public required WasteReply Waste { get; init; }
 
@@ -7235,81 +7315,96 @@ public sealed record ColonyFactsRequest
 }
 
 /// <summary>
+/// Chebyshev cells from a threat to the nearest free colonist on the map, or <see cref="NoColonist"/> when the map has none.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ColonistDistance.Nearest), "nearest")]
+[JsonDerivedType(typeof(ColonistDistance.NoColonist), "no_colonist")]
+public abstract record ColonistDistance
+{
+    private protected ColonistDistance() { }
+
+    public sealed record Nearest(int Cells) : ColonistDistance;
+
+    public sealed record NoColonist : ColonistDistance;
+}
+
+/// <summary>A PredatorHunt's target pawn (a corpse's inner pawn): whether it is player-owned or player-held.</summary>
+public sealed record ThreatPrey(bool Ours);
+
+/// <summary>
 /// Simulation status excludes notifications/UI/clock, exposed by their typed owners.
 /// ThreatPawn is one living non-colonist pawn's threat facts: the
 /// native emits facts, the brain classifies them (bridge.ClassifyThreat). A row is
 /// emitted for a pawn in a mental state, of a faction hostile to the
 /// player, breaking out of prison or on a PredatorHunt job, and for
-/// an unowned downed pawn or predator within the requested predator radius
+/// an unowned downed pawn or predator within the predator radius
 /// of a colonist; any other pawn costs one field read and no row.
-/// pawn references the bundle's pawn table row; ours is a
-/// player-faction pawn; faction_id is set with faction_hostile (a held
-/// prisoner is never faction_hostile). prey is a PredatorHunt's target pawn
-/// (a corpse's inner pawn), prey_is_ours a player-owned or player-held prey.
-/// passive (on ThreatPawn and ThreatBuilding) is set for
+/// Pawn references the bundle's pawn table row; Ours is a
+/// player-faction pawn; a held prisoner is never FactionHostile.
+/// Prey is a PredatorHunt's resolved target; null when the pawn hunts nothing that resolves to a pawn.
+/// Passive (on ThreatPawn and ThreatBuilding) is true for
 /// faction-hostile insects and hives (dormant, or awake but not engaging)
 /// and other CompCanBeDormant hostiles (asleep); a passive threat is left
-/// alone, never held for or attacked. nearest_colonist_distance is
-/// Chebyshev cells to the nearest free colonist, absent with none.
+/// alone, never held for or attacked. Any other pawn has no dormancy and is not passive.
+/// MentalState is the pawn's mental state def; null when it is in none.
 /// </summary>
 public sealed record ThreatPawn
 {
-    public Common.Ref? Prey { get; init; }
+    public required Common.Ref Pawn { get; init; }
 
-    public bool? PreyIsOurs { get; init; }
+    public ThreatPrey? Prey { get; init; }
 
-    public bool? Ours { get; init; }
+    public required bool Ours { get; init; }
 
-    public bool? Passive { get; init; }
+    public required bool Passive { get; init; }
 
-    public Common.Ref? Pawn { get; init; }
-
-    public double? NearestColonistDistance { get; init; }
+    public required ColonistDistance NearestColonist { get; init; }
 
     public string? MentalState { get; init; }
 
-    public bool? FactionHostile { get; init; }
+    public required bool FactionHostile { get; init; }
 
-    public bool? PrisonBreak { get; init; }
+    public required bool PrisonBreak { get; init; }
 
-    public bool? PredatorHunt { get; init; }
+    public required bool PredatorHunt { get; init; }
 
-    public bool? Predator { get; init; }
+    public required bool Predator { get; init; }
 
-    public bool? Downed { get; init; }
+    public required bool Downed { get; init; }
 }
 
 /// <summary>
 /// A hostile-faction building that is itself a combat target (an insect hive,
-/// a crashed ship part, a mech-cluster piece with combat power): its own CAS
-/// token rides on building.snapshot for Operations.AttackTarget, and
-/// nearest_colonist_distance is Chebyshev cells like a threat pawn's;
-/// occupied is the building's occupied rect (inclusive), the cells a
+/// a crashed ship part, a mech-cluster piece with combat power): Building is its head (no table holds hostile
+/// buildings), Snapshot its own CAS token for Operations.AttackTarget, and
+/// NearestColonist is in Chebyshev cells like a threat pawn's;
+/// Occupied is the building's occupied rect (inclusive), the cells a
 /// ranged defender needs a line of fire to.
-/// A hostile building's row: building is its head (no table holds hostile
-/// buildings) and building_snapshot its CAS token; nearest_colonist_distance
-/// is absent without a free colonist on the map.
 /// </summary>
 public sealed record ThreatBuilding
 {
     public required EntityRef Building { get; init; }
 
-    public SnapshotRef BuildingSnapshot { get; init; } = new();
+    public required string Snapshot { get; init; }
 
-    public int? NearestColonistDistance { get; init; }
+    public required ColonistDistance NearestColonist { get; init; }
 
-    public bool Passive { get; init; }
+    public required bool Passive { get; init; }
 
-    public Rectangle Occupied { get; init; } = new();
+    /// <summary>The building's position cell stands in fog the colony has not explored.</summary>
+    public required bool Fogged { get; init; }
+
+    public required Rectangle Occupied { get; init; }
 }
 
 public sealed record ThreatsSnapshot
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatPawn>))]
-    public EquatableArray<ThreatPawn> Pawns { get; init; }
+    public required EquatableArray<ThreatPawn> Pawns { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatBuilding>))]
-    public EquatableArray<ThreatBuilding> HostileBuildings { get; init; }
+    public required EquatableArray<ThreatBuilding> HostileBuildings { get; init; }
 }
 
 /// <summary>
@@ -7317,82 +7412,41 @@ public sealed record ThreatsSnapshot
 /// </summary>
 public sealed record DependentPatientObservation
 {
-    public Common.Ref? Pawn { get; init; }
-    public DependentPatientGroup? Group { get; init; }
-    public bool? Rescue { get; init; }
-    public bool? Tend { get; init; }
+    public required Common.Ref Pawn { get; init; }
+
+    public required DependentPatientGroup Group { get; init; }
+
+    public required bool Rescue { get; init; }
+
+    public required bool Tend { get; init; }
 }
 
-/// <summary>Present means a complete census, including a known empty set.</summary>
+/// <summary>The complete dependent-patient census, including an empty set.</summary>
 public sealed record DependentPatientCensus
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<DependentPatientObservation>))]
-    public EquatableArray<DependentPatientObservation> Patients { get; init; }
+    public required EquatableArray<DependentPatientObservation> Patients { get; init; }
 }
-/// <summary>Colonists and dependent patients are separate complete pawn-table censuses.</summary>
+
+/// <summary>
+/// The status census: the free colonists, the dependent patients and the threats, each complete. Colonists and
+/// threats are pawn-table references. A census that cannot be read whole fails the read.
+/// </summary>
 public sealed record StatusSnapshot
 {
-    public DependentPatientCensus? DependentPatients { get; init; }
+    public required DependentPatientCensus DependentPatients { get; init; }
 
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
-    public ThreatsSnapshot? Threats { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public required ThreatsSnapshot Threats { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Colonists { get; init; }
+    public required EquatableArray<Common.Ref> Colonists { get; init; }
 }
 
 public sealed record StatusRequest
 {
     public ReadScope? Scope { get; init; }
-
-    public bool? Colonists { get; init; }
-
-    public bool? Threats { get; init; }
-
-    public double? PredatorRadius { get; init; }
-}
-
-public sealed record StatusReply
-{
-    public StatusReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="StatusReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(StatusReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(StatusReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(StatusReplyOutcome.FailureCase), "failure")]
-public abstract record StatusReplyOutcome
-{
-    private protected StatusReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public StatusSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(StatusSnapshot Value) : StatusReplyOutcome;
-
-    public static implicit operator StatusReplyOutcome(StatusSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : StatusReplyOutcome;
-
-    public static implicit operator StatusReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : StatusReplyOutcome;
-
-    public static implicit operator StatusReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

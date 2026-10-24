@@ -68,8 +68,7 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("bed medical target missing or ambiguous");
         }
-        var settings = v.Buildings[0].Settings;
-        if (settings.Medical is null)
+        if (v.Buildings[0].Settings.Control is not PbObservations.BuildingControl.Bed bed)
         {
             throw BridgeContractException.Contract("building is not a bed");
         }
@@ -77,9 +76,9 @@ public sealed partial class FacadeNativeClient
         {
             Context = v.Context,
             Thing = thing,
-            Medical = settings.Medical.GetValueOrDefault(),
-            Prisoners = settings.ForPrisoners.GetValueOrDefault(),
-            Owners = FactHelpers.RefIds(settings.AssignedPawns),
+            Medical = bed.Medical,
+            Prisoners = bed.ForPrisoners,
+            Owners = FactHelpers.RefIds(bed.AssignedPawns),
         };
     }
 
@@ -91,12 +90,11 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("grower crop target missing or ambiguous");
         }
-        var settings = v.Buildings[0].Settings;
-        if (settings.Snapshot is null || settings.Medical is not null || settings.TargetTemperatureC is not null || settings.PlayerOwned is not null)
+        if (v.Buildings[0].Settings.Control is not PbObservations.BuildingControl.Grower grower)
         {
             throw BridgeContractException.Contract("building is not a plant grower");
         }
-        return new GrowerCropTarget { Context = v.Context, Thing = thing, Crop = settings.CropDefName ?? "" };
+        return new GrowerCropTarget { Context = v.Context, Thing = thing, Crop = grower.CropDefName ?? "" };
     }
 
     /// <summary>

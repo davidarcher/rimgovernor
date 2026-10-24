@@ -77,7 +77,7 @@ public static class HostilityRules
     /// <summary>
     /// Reports a work-giver job whose target cell stands within StealthCells of a known-passive hostile with no
     /// engaging hostile within that reach. A job no work giver issued (a forced order, rest, a meal), an unknown
-    /// target or an unplaced hostile is never stealth work.
+    /// target is never stealth work.
     /// </summary>
     public static bool StealthJob(Fact<PawnJob> job, IReadOnlyList<EmergencyThreat> threats)
     {
@@ -96,20 +96,11 @@ public static class HostilityRules
         var passive = false;
         foreach (var t in threats)
         {
-            if (t.Dead.TryGetValue(out var dead) && dead)
+            if (t.Dead)
             {
                 continue;
             }
-            var (near, placed) = ThreatNear(t, cell);
-            if (!placed)
-            {
-                if (t.Engaging && !t.DistantThreat)
-                {
-                    return false;
-                }
-                continue;
-            }
-            if (!near)
+            if (!ThreatNear(t, cell))
             {
                 continue;
             }
@@ -122,23 +113,11 @@ public static class HostilityRules
         return passive;
     }
 
-    /// <summary>Reports whether a threat stands within StealthCells of cell, and whether its place is known at all.</summary>
-    private static (bool Near, bool Placed) ThreatNear(EmergencyThreat t, Cell cell)
+    /// <summary>Reports whether a threat (a pawn's cell, any of a building's cells) stands within StealthCells of cell.</summary>
+    private static bool ThreatNear(EmergencyThreat t, Cell cell)
     {
-        var cells = new List<Cell>();
-        if (t.Position.TryGetValue(out var p))
-        {
-            cells.Add(p);
-        }
-        cells.AddRange(t.Cells);
-        foreach (var c in cells)
-        {
-            if (LightingRules.Chebyshev(c, cell) <= StealthCells)
-            {
-                return (true, true);
-            }
-        }
-        return (false, cells.Count > 0);
+        IReadOnlyList<Cell> cells = t.Building ? t.Cells : [t.Position];
+        return cells.Any(c => LightingRules.Chebyshev(c, cell) <= StealthCells);
     }
 
     /// <summary>The response the pawn should hold now: Ignore on stealth work for a pawn that would otherwise Attack, else its default. A Flee pawn keeps fleeing beside sleeping hostiles.</summary>

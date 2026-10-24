@@ -116,7 +116,7 @@ public sealed partial class AnomalyRounds
             throw new ControlException("anomaly lance: emergency context");
         }
 
-        if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
+        if (!emergency.Facts.AllSeen || emergency.Facts.Colonists.Count == 0)
         {
             return false;
         }

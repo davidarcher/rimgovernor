@@ -27,9 +27,9 @@ namespace HomeBridge.BridgeTools
         internal bool Downed;
         internal bool Predator;
         internal int X, Z;
-        /// Insects: dormant, or awake but targeting nothing of the
-        /// player's. Other hostiles with CompCanBeDormant (such as mech clusters): asleep. Null for every other pawn.
-        internal bool? Passive;
+        /// Faction-hostile insects: dormant, or awake but targeting nothing of the
+        /// player's. Other faction hostiles with CompCanBeDormant (such as mech clusters): asleep. False for every other pawn.
+        internal bool Passive;
     }
 
     /// The facts of one faction that decide whether a raid can come from it.
@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Scan Collect<T>(IReadOnlyList<T> pawns, Func<T, ThreatFacts> facts,
             IReadOnlyList<(int X, int Z)> colonists, double radius,
-            Func<T, RimGovernor.Contracts.Wire.Common.Ref> project, Func<T, RimGovernor.Contracts.Wire.Common.Ref> prey, ref Obs.ThreatsSnapshot threats)
+            Func<T, RimGovernor.Contracts.Wire.Common.Ref> project, ref Obs.ThreatsSnapshot threats)
         {
             var scan = new Scan();
             foreach (var pawn in pawns) {
@@ -91,11 +91,9 @@ namespace HomeBridge.BridgeTools
                 scan.Candidates++;
                 scan.Projections++;
                 var row = new Obs.ThreatPawn { Pawn = project(pawn), Ours = f.Ours, FactionHostile = f.FactionHostile, PrisonBreak = f.PrisonBreak,
-                    PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed };
-                if (nearest.HasValue) row = row with { NearestColonistDistance = nearest.Value };
-                if (f.Mental != null) row = row with { MentalState = f.Mental };
-                                if (f.Passive.HasValue) row = row with { Passive = f.Passive.Value };
-                if (f.HasPrey) { row = row with { Prey = prey(pawn) }; row = row with { PreyIsOurs = f.PreyOurs }; }
+                    PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed, Passive = f.Passive, MentalState = f.Mental,
+                    NearestColonist = nearest is int cells ? new Obs.ColonistDistance.Nearest(cells) : new Obs.ColonistDistance.NoColonist(),
+                    Prey = f.HasPrey ? new Obs.ThreatPrey(f.PreyOurs) : null };
                 threats = threats with { Pawns = [.. threats.Pawns, row] };
             }
             return scan;

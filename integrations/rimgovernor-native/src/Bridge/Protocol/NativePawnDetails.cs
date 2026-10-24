@@ -47,28 +47,35 @@ namespace HomeBridge.BridgeTools
         // One hediff row of a health read.
         private static Obs.Hediff HediffRow(Pawn pawn,Hediff h)
         {
-                var item=new Obs.Hediff {DefName=Id(h.def.defName),Severity=Number(h.Severity),
-                    Visible=h.Visible,Tended=h.IsTended()};
-                if(h.Part!=null) {
-                    var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
-                    if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
-                    item = item with { PartIndex = index };item = item with { PartDefName = Id(h.Part.def.defName) };
-                }
-                var immune=h.TryGetComp<HediffComp_Immunizable>();
-                if(immune!=null) {
-                    item = item with { Immunity = Number(immune.Immunity) };
+            var immune=h.TryGetComp<HediffComp_Immunizable>();
+            Obs.HediffImmunity? immunity=null;
+            if(immune!=null) {
+                var record=pawn.health.immunity.GetImmunityRecord(h.def);
+                immunity=new Obs.HediffImmunity {
+                    Immunity=Number(immune.Immunity),
                     // Include tending's severity modifier, as well as the disease's
                     // randomized native progression. Read only: never create immunity records.
-                    item = item with { SeverityPerDay = Number(((HediffWithComps)h).comps
-                        .OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay())) };
-                    var record=pawn.health.immunity.GetImmunityRecord(h.def);
-                    if(record!=null && !pawn.Dead)
-                        item = item with { ImmunityPerDay = Number(GameTime.PerDay(record.ImmunityChangePerTick(pawn,true,h))) };
-                }
-                var tend=h.TryGetComp<HediffComp_TendDuration>();
-                if(tend!=null && item.Tended) item = item with { TendQuality = Number(tend.tendQuality) };
-                return item;
+                    SeverityPerDay=Number(((HediffWithComps)h).comps.OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay())),
+                    Gain=pawn.Dead?new Obs.ImmunityGain.Dead()
+                        :record==null?new Obs.ImmunityGain.NoRecord()
+                        :new Obs.ImmunityGain.PerDay(Number(GameTime.PerDay(record.ImmunityChangePerTick(pawn,true,h)))) };
             }
+            // Only a hediff with a tend duration is ever tended (HediffUtility.IsTended).
+            Obs.HediffTend tend=h.IsTended()
+                ?new Obs.HediffTend.Tended(Number((h.TryGetComp<HediffComp_TendDuration>()
+                    ?? throw new InvalidOperationException("A tended hediff has no tend duration.")).tendQuality))
+                :new Obs.HediffTend.Untended();
+            return new Obs.Hediff {DefName=Id(h.def.defName),Part=h.Part!=null?PartRef(pawn,h.Part,"Hediff"):null,Severity=Number(h.Severity),
+                Visible=h.Visible,Tend=tend,Immunizable=immunity};
+        }
+
+        // A part of the pawn's race body; one outside it is a broken read.
+        private static Obs.BodyPartRef PartRef(Pawn pawn,BodyPartRecord part,string what)
+        {
+            var index=pawn.RaceProps.body.AllParts.IndexOf(part);
+            if(index<0) throw new InvalidOperationException(what+" body part is not in this pawn's body.");
+            return new Obs.BodyPartRef { Index=index, DefName=Id(part.def.defName) };
+        }
 
         // The need levels; a need the pawn lacks is Lacks.
         internal static Obs.PawnNeeds Needs(Pawn pawn)
@@ -100,25 +107,29 @@ namespace HomeBridge.BridgeTools
         {
             var set=pawn.health.hediffSet;
             var all=set.hediffs.ToList();
-            var row=new Obs.PawnHealth { SummaryFraction=Number(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false),
-                BleedRatePerDay=Number(set.BleedRateTotal), Bleeding=set.BleedRateTotal>0,
-                LifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening), BloodLoss=Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity)),
-                ShouldSeekMedicalRest=HealthAIUtility.ShouldSeekMedicalRest(pawn), Hediffs=[.. all.Select(h=>HediffRow(pawn,h))], Surgery=Surgery(pawn) };
-            if(pawn.CurrentBed()!=null) row = row with { BedId = Id(pawn.CurrentBed().GetUniqueLoadID()) };
-            if(row.Bleeding && !pawn.Dead) {
+            var bleeding=set.BleedRateTotal>0;
+            Obs.BleedOut bleedOut=new Obs.BleedOut.NotBleedingOut();
+            if(bleeding && !pawn.Dead) {
                 var ticks=HealthUtility.TicksUntilDeathDueToBloodLoss(pawn);
-                if(ticks>0 && ticks<int.MaxValue) row = row with { HoursUntilDeathFromBloodLoss = GameTime.Hours((double)ticks) };
+                if(ticks>0 && ticks<int.MaxValue) bleedOut=new Obs.BleedOut.Within(GameTime.Hours((double)ticks));
             }
-            row = row with { Snapshot = NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
-                w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
-                w.Write(row.ShouldSeekMedicalRest);w.Write(row.BedId??"");
-                foreach(var h in all.OrderBy(h=>h.def.defName,StringComparer.Ordinal)
-                    .ThenBy(h=>h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1)) {
-                    w.Write(h.def.defName);w.Write((double)h.Severity);
-                    w.Write(h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1);
-                }
-            }) };
-            return row;
+            var lifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening);
+            var bloodLoss=Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity));
+            var seekRest=HealthAIUtility.ShouldSeekMedicalRest(pawn);
+            var bedId=pawn.CurrentBed() is { } bed ? Id(bed.GetUniqueLoadID()) : null;
+            return new Obs.PawnHealth { SummaryFraction=Number(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false),
+                BleedRatePerDay=Number(set.BleedRateTotal), Bleeding=bleeding, BleedOut=bleedOut,
+                LifeThreatening=lifeThreatening, BloodLoss=bloodLoss,
+                ShouldSeekMedicalRest=seekRest, Hediffs=[.. all.Select(h=>HediffRow(pawn,h))], Surgery=Surgery(pawn), BedId=bedId,
+                Snapshot=NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
+                    w.Write(lifeThreatening);w.Write(bloodLoss);
+                    w.Write(seekRest);w.Write(bedId??"");
+                    foreach(var h in all.OrderBy(h=>h.def.defName,StringComparer.Ordinal)
+                        .ThenBy(h=>h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1)) {
+                        w.Write(h.def.defName);w.Write((double)h.Severity);
+                        w.Write(h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1);
+                    }
+                }) };
         }
 
         // Surgery facts, all through vanilla: recipe discovery from the
@@ -129,22 +140,11 @@ namespace HomeBridge.BridgeTools
         {
             var map=pawn.MapHeld;
             if(pawn.Dead || map==null) return null;
-            var row=new Obs.PawnSurgery();
-            var parts=pawn.RaceProps.body.AllParts;
-            foreach(var bill in pawn.BillStack.Bills) {
-                var b=new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName)};
-                if(bill is Bill_Medical medical && medical.Part!=null) {
-                    var index=parts.IndexOf(medical.Part);
-                    if(index<0) throw new InvalidOperationException("Surgery body part is not in this pawn's body.");
-                    b = b with { PartIndex = index };
-                }
-                row = row with { SurgeryBills = [.. row.SurgeryBills, b] };
-            }
-            foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {
-                var part=missing.Part; if(part==null) continue;
-                var m=new Obs.MissingBodyPart {PartIndex=parts.IndexOf(part),PartDefName=Id(part.def.defName)};
-                row = row with { MissingParts = [.. row.MissingParts, m] };
-            }
+            var bills=pawn.BillStack.Bills.Select(bill => new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),
+                Part=bill is Bill_Medical { Part: { } part } ? PartRef(pawn,part,"Surgery") : null}).ToList();
+            var missingParts=pawn.health.hediffSet.GetMissingPartsCommonAncestors().Where(m => m.Part!=null)
+                .Select(m => PartRef(pawn,m.Part,"Missing")).Select(p => new Obs.MissingBodyPart {PartIndex=p.Index,PartDefName=p.DefName}).ToList();
+            var operations=new System.Collections.Generic.List<Obs.SurgeryOperation>();
             var facts=SurgeryScope.Facts(map);
             var bestBed=facts.BestBed; var bedFactor=facts.BedFactor; var idealFactor=facts.IdealFactor;
             foreach(var def in pawn.def.AllRecipes) {
@@ -165,40 +165,45 @@ namespace HomeBridge.BridgeTools
                         usesMedicine=recipe.UsesMedicine;
                         careLimited=others && usesMedicine && medicine==null && facts.Medicine(pawn,def,false)!=null;
                     }
-                    var op=new Obs.SurgeryOperation {Recipe=Definition(def),Kind=Kind(pawn,def,part),
-                        EligibleDoctors=(uint)doctors.Count,
-                        IngredientsOnMap=others && (!usesMedicine || medicine!=null),
-                        // medicine is stocked but the care level forbids all of it.
-                        MedicineCareLimited=careLimited,
-                        Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
-                    if(part!=null) {op = op with { PartIndex = parts.IndexOf(part) };op = op with { PartDefName = Id(part.def.defName) };}
-                    if(op.Kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved!=null) op = op with { YieldMarketValue = Number(part.def.spawnThingOnRemoved.BaseMarketValue) };
+                    var kind=Kind(pawn,def,part);
+                    Obs.SurgeryYield? yield=null; string? addedPart=null;
+                    if(kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved is { } organ)
+                        yield=new Obs.SurgeryYield { ThingDef=Id(organ.defName), MarketValue=Number(organ.BaseMarketValue) };
                     // Artificial part removal: the added part on the
                     // target and the thing its removal spawns.
                     if(def.Worker is Recipe_RemoveBodyPart && part!=null) {
                         var added=pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>().FirstOrDefault(h => h.Part==part);
                         if(added!=null) {
-                            op = op with { AddedPartHediff = Id(added.def.defName) };
-                            var spawn=added.def.spawnThingOnRemoved;
-                            if(spawn!=null) {op = op with { YieldThingDef = Id(spawn.defName) };op = op with { YieldMarketValue = Number(spawn.BaseMarketValue) };}
+                            addedPart=Id(added.def.defName);
+                            if(added.def.spawnThingOnRemoved is { } spawn) yield=new Obs.SurgeryYield { ThingDef=Id(spawn.defName), MarketValue=Number(spawn.BaseMarketValue) };
                         }
                     }
+                    double? medicineValue=null;
                     if(medicine!=null) {
                         var count=def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => i.CountRequiredOfFor(medicine,def));
-                        if(count>0) op = op with { MedicineMarketValue = Number(medicine.BaseMarketValue*count) };
+                        if(count>0) medicineValue=Number(medicine.BaseMarketValue*count);
                     }
-                    if(def.surgeryOutcomeEffect!=null && doctors.Count>0) {
+                    Obs.SurgeryChance chance;
+                    if(def.surgeryOutcomeEffect==null) chance=new Obs.SurgeryChance.NoOutcomeEffect();
+                    else if(doctors.Count==0) chance=new Obs.SurgeryChance.NoEligibleDoctor();
+                    else {
                         float? real=pawn.InBed()?(float?)null:bestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
                         // each doctor's chance, so training can name one.
                         var chances=new System.Collections.Generic.Dictionary<string,double>();
                         foreach(var d in doctors) chances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,real));
-                        op = op with { DoctorChances = chances, SuccessChance = chances.Values.Max() };
-                        op = op with { DoctorSuccessChance = Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor))) };
+                        chance=new Obs.SurgeryChance.Rated(chances.Values.Max(),Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor))),chances);
                     }
-                    row = row with { Operations = [.. row.Operations, op] };
+                    operations.Add(new Obs.SurgeryOperation {Recipe=Definition(def),Part=part!=null?PartRef(pawn,part,"Surgery"):null,Kind=kind,
+                        Chance=chance,
+                        EligibleDoctors=(uint)doctors.Count,
+                        IngredientsOnMap=others && (!usesMedicine || medicine!=null),
+                        // medicine is stocked but the care level forbids all of it.
+                        MedicineCareLimited=careLimited,
+                        Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part),
+                        Yield=yield, AddedPartHediff=addedPart, MedicineMarketValue=medicineValue});
                 }
             }
-            return row;
+            return new Obs.PawnSurgery { SurgeryBills=[.. bills], MissingParts=[.. missingParts], Operations=[.. operations] };
         }
 
         // The best-potency medicine on the map that the recipe allows and,

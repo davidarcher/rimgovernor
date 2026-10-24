@@ -91,10 +91,9 @@ public static class RoundsMoodReads
             Zones = projection.Zones,
         };
         var emergency = frame.Emergency.Facts;
-        var known = emergency.ColonistsComplete.TryGetValue(out var complete);
         output = output with
         {
-            Emergency = new Held<EmergencyFacts> { Value = emergency, AsOf = tick, Complete = known && complete && emergency.DependentPatients.IsKnown, Source = "rimgovernor/observations_read_status" },
+            Emergency = new Held<EmergencyFacts> { Value = emergency, AsOf = tick, Complete = emergency.AllSeen, Source = "rimgovernor/observations_read_status" },
         };
         if (projection.WorkPawns.TryGetValue(out var work))
         {
@@ -143,7 +142,7 @@ public static class RoundsMoodReads
     internal static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
         var unknown = Unknown<EquatableArray<MoodPawn>>();
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || snapshot is null
+        if (!emergency.AllSeen || colony is null || snapshot is null
             || colony.ColonistCount != emergency.Colonists.Count)
         {
             return unknown;
@@ -173,9 +172,7 @@ public static class RoundsMoodReads
             {
                 continue;
             }
-            var dk = pawn.Dead.TryGetValue(out var dead);
-            var nk = pawn.Downed.TryGetValue(out var downed);
-            if (!dk || !nk || r.Dead != dead || r.Downed != downed || !r.Colonist)
+            if (r.Dead != pawn.Dead || r.Downed != pawn.Downed || !r.Colonist)
             {
                 return unknown;
             }
@@ -314,13 +311,11 @@ public static class RoundsMoodReads
         foreach (var pawn in emergency.Colonists)
         {
             byId.TryGetValue(pawn.Id.Value, out var row);
-            var dk = pawn.Dead.TryGetValue(out var dead);
-            var nk = pawn.Downed.TryGetValue(out var downed);
-            if (row is null || !dk || !nk || row.Dead != dead || row.Downed != downed || !row.Colonist)
+            if (row is null || row.Dead != pawn.Dead || row.Downed != pawn.Downed || !row.Colonist)
             {
                 return (unknown, unknown);
             }
-            if (dead || downed)
+            if (pawn.Dead || pawn.Downed)
             {
                 continue;
             }
@@ -373,7 +368,7 @@ public static class RoundsMoodReads
             {
                 return unknown;
             }
-            var d = new SquadDefenderFacts { Id = pawn.Id, Dead = pawn.Dead, Downed = pawn.Downed };
+            var d = new SquadDefenderFacts { Id = pawn.Id, Dead = Known(pawn.Dead), Downed = Known(pawn.Downed) };
             if (BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var bt))
             {
                 d = d with { Deathresting = bt.IsDeathresting() };

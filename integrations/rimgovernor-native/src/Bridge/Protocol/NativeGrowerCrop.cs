@@ -27,25 +27,9 @@ namespace HomeBridge.BridgeTools
             && PlantUtility.CanSowOnGrower(plant, grower)
             && (plant.plant.sowResearchPrerequisites == null || plant.plant.sowResearchPrerequisites.All(r => r.IsFinished));
 
-        internal static string Token(Common.Identity identity, Building_PlantGrower grower) =>
-            NativeSnapshotVersions.Token("crop", identity, grower.GetUniqueLoadID(), w => w.Write(grower.GetPlantDefToGrow()?.defName ?? string.Empty));
-
-        internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
-        {
-            if (!Eligible(thing)) return null;
-            return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
-                Token = Token(context.Identity, (Building_PlantGrower)thing) };
-        }
-
-        // Settings carries the grower's current crop beside its CAS snapshot on
-        // the building listing row.
-        internal static Obs.BuildingSettings Settings(Building_PlantGrower grower, Common.ObservationContext context)
-        {
-            var settings = new Obs.BuildingSettings { Snapshot = Snapshot(grower, context) };
-            var crop = grower.GetPlantDefToGrow();
-            if (crop != null) settings = settings with { CropDefName = crop.defName };
-            return settings;
-        }
+        // Control carries the grower's current crop on the building listing row.
+        internal static Obs.BuildingControl.Grower Control(Building_PlantGrower grower) =>
+            new(grower.GetPlantDefToGrow()?.defName);
 
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_PlantGrower? grower, out ThingDef? plant)
         {

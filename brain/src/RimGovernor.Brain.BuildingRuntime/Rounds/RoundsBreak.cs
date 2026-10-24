@@ -31,7 +31,7 @@ public sealed partial class RoundsDefensePlanner
             {
                 throw new ControlException("subdue needs a complete current census");
             }
-            if (combat.Emergency.Facts.ColonistsComplete != Known(true))
+            if (!combat.Emergency.Facts.AllSeen)
             {
                 throw new ControlException("subdue needs a complete current census");
             }

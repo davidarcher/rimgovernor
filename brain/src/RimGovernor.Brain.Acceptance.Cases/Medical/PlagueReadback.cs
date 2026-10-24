@@ -52,8 +52,8 @@ internal static class PlagueReadback
             foreach (var (field, got, want) in new (string, double?, double)[]
             {
                 ("severity", plague.Severity, .2),
-                ("immunity", plague.Immunity, .1),
-                ("severityPerDay", plague.SeverityPerDay, .666 - (index * .3628 * .75)),
+                ("immunity", plague.Immunizable?.Immunity, .1),
+                ("severityPerDay", plague.Immunizable?.SeverityPerDay, .666 - (index * .3628 * .75)),
             })
             {
                 if (got is not { } value || Math.Abs(value - want) > .0001)
@@ -62,15 +62,15 @@ internal static class PlagueReadback
                 }
             }
 
-            if (plague.ImmunityPerDay is not (>= .01 and <= 2))
+            if (plague.Immunizable?.Gain is not Observations.ImmunityGain.PerDay { Value: >= .01 and <= 2 })
             {
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} immunity per day = {plague.ImmunityPerDay}"));
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} immunity gain = {plague.Immunizable?.Gain}"));
             }
 
             var tended = index == 1;
-            if (plague.Tended != tended || (tended ? plague.TendQuality is not { } q || Math.Abs(q - .75) > .0001 : plague.TendQuality is not null))
+            if (tended ? plague.Tend is not Observations.HediffTend.Tended { Quality: var q } || Math.Abs(q - .75) > .0001 : plague.Tend is not Observations.HediffTend.Untended)
             {
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} tended = {plague.Tended} at quality {plague.TendQuality}, want tended = {tended}"));
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} tend = {plague.Tend}, want tended = {tended}"));
             }
         }
 

@@ -38,7 +38,7 @@ public sealed class ColonyFactsCoreTests
         Upkeep = UpkeepFactsTests.NoUpkeep,
         Development = new(),
         Planning = new Planning.NotRequested(),
-        Recovery = new(),
+        Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new(),
         PlayerTechLevel = Defs.TechLevel.Neolithic,
         Threat = new() { Observed = QuietThreat },

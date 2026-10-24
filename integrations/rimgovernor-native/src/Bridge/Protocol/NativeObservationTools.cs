@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -20,13 +19,19 @@ namespace HomeBridge.BridgeTools
     internal static class NativeObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.StatusReply HandleReadStatus(Obs.StatusRequest parsed)
+        // A refused request throws NativeRefusedException; a census that cannot be read completely throws an unavailable fault.
+        internal static Obs.StatusSnapshot HandleReadStatus(Obs.StatusRequest parsed)
         {
-            if (!ValidateStatus(parsed, out var invalidRequest)) return new Obs.StatusReply { Outcome = invalidRequest };
+            if (!ValidateStatus(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.StatusReply { Outcome = failure };
-            try { return new Obs.StatusReply { Outcome = Status(map, parsed, context) }; }
-            catch (Exception) { return new Obs.StatusReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }; }
+                throw NativeFaults.Refused(failure);
+            try { return Status(map, context); }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Status read failed: " + readError);
+                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
+                    PlacementPreviewOperation.Diagnostic("Native status facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message)));
+            }
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade: the rectangle as the
@@ -77,9 +82,8 @@ namespace HomeBridge.BridgeTools
             && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
         internal static bool ValidateStatus(Obs.StatusRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and finite nonnegative predator radius required.");
-            return request != null && request.Scope?.ExpectedIdentity != null
-                && (request.PredatorRadius is null || !double.IsNaN(request.PredatorRadius.GetValueOrDefault()) && !double.IsInfinity(request.PredatorRadius.GetValueOrDefault()) && request.PredatorRadius.GetValueOrDefault() >= 0);
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope required.");
+            return request != null && request.Scope?.ExpectedIdentity != null;
         }
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
@@ -90,46 +94,40 @@ namespace HomeBridge.BridgeTools
             return ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1) <= 1 << 20;
         }
 
-        // The status read as a bundle section: the same facts ReadStatus
-        // answers, with read failures as unavailable.
-        internal static bool TryStatus(Map map, Obs.StatusRequest request, Common.ObservationContext context,
-            [NotNullWhen(true)] out Obs.StatusSnapshot? snapshot, [NotNullWhen(false)] out Common.Unavailable? unavailable)
+        /// The Chebyshev radius around a colonist within which an unowned downed pawn or predator is a threat row; the
+        /// brain classifies with the same radius (EmergencyDecode.ThreatProximityRadius).
+        internal const double PredatorRadius = 30;
+
+        // The status census, whole: the free colonists, the dependent patients and every threat row. The status read and
+        // the bundle's emergency section both read it; anything it cannot read throws.
+        internal static Obs.StatusSnapshot Status(Map map, Common.ObservationContext context)
         {
-            snapshot = null; unavailable = null;
-            try { snapshot = Status(map, request, context); return true; }
-            catch (Exception) { unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely."); return false; }
-        }
-        private static Obs.StatusSnapshot Status(Map map, Obs.StatusRequest request, Common.ObservationContext context)
-        {
-            var result = new Obs.StatusSnapshot { Context = context, DependentPatients = NativeDependentPatients.Observe(map) };
-            var wantColonists = request.Colonists is null || request.Colonists.GetValueOrDefault();
-            var wantThreats = request.Threats is null || request.Threats.GetValueOrDefault();
-            if (!wantColonists && !wantThreats) {
-                result = result with { Issues = [.. result.Issues, Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested.")] };
-                result = result with { Issues = [.. result.Issues, Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")] }; return result;
-            }
             var spawned = map.mapPawns.AllPawnsSpawned.ToList();
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
-            // Colonists and threats are pawn table references.
-            if (wantColonists) foreach (var pawn in colonists) result = result with { Colonists = [.. result.Colonists, NativePawnObservationTools.Ref(pawn)] };
-            else result = result with { Issues = [.. result.Issues, Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested.")] };
-            if (!wantThreats) { result = result with { Issues = [.. result.Issues, Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")] }; return result; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
-            var threats = new Obs.ThreatsSnapshot(); var radius = request.PredatorRadius is not null ? request.PredatorRadius.GetValueOrDefault() : 30;
+            var threats = new Obs.ThreatsSnapshot { Pawns = [], HostileBuildings = [] };
             var colonistCells = colonists.Select(p => (p.Position.x, p.Position.z)).ToList();
             NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
-                colonistCells, radius, NativePawnObservationTools.Ref, pawn => NativeRef.Thing(HuntedPawn(pawn)!), ref threats);
+                colonistCells, PredatorRadius, NativePawnObservationTools.Ref, ref threats);
+            var buildings = new List<Obs.ThreatBuilding>();
             foreach (var building in HostileBuildings(map, player)) {
-                var row = new Obs.ThreatBuilding { Building = Entity(building) };
-                row = row with { BuildingSnapshot = new Obs.SnapshotRef { Context = context, EntityId = row.Building.Id, Token = Token(context.Identity, building) } };
-                if (colonists.Count > 0) row = row with { NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z))) };
                 var rect = building.OccupiedRect();
-                row = row with { Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) } };
-                if (building is Hive) row = row with { Passive = !HiveEngaging(building, colonists, spawned, player) };
-                else row = row with { Passive = Dormant(building) ?? false };
-                threats = threats with { HostileBuildings = [.. threats.HostileBuildings, row] };
+                buildings.Add(new Obs.ThreatBuilding {
+                    Building = Entity(building),
+                    Snapshot = Token(context.Identity, building),
+                    NearestColonist = colonists.Count == 0 ? new Obs.ColonistDistance.NoColonist()
+                        : new Obs.ColonistDistance.Nearest(colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)))),
+                    Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
+                    Passive = building is Hive ? !HiveEngaging(building, colonists, spawned, player) : Dormant(building),
+                    Fogged = building.Position.Fogged(map),
+                });
             }
-            result = result with { Threats = threats }; return result;
+            return new Obs.StatusSnapshot {
+                Context = context,
+                DependentPatients = NativeDependentPatients.Observe(map),
+                Colonists = [.. colonists.Select(NativePawnObservationTools.Ref)],
+                Threats = threats with { HostileBuildings = [.. buildings] },
+            };
         }
 
         // The cheap facts the threat filter branches on and its rows carry; the brain classifies them.
@@ -140,8 +138,7 @@ namespace HomeBridge.BridgeTools
                 FactionHostile = pawn.Faction != null && !ours && !held && pawn.Faction.HostileTo(player), PredatorHunt = hunt,
                 PrisonBreak = held && PrisonBreakUtility.IsPrisonBreaking(pawn),
                 Downed = pawn.Downed, Predator = pawn.RaceProps.predator, X = pawn.Position.x, Z = pawn.Position.z };
-            if (facts.FactionHostile && pawn.Faction == Faction.OfInsects) facts.Passive = !InsectEngaging(pawn, player);
-            else if (facts.FactionHostile) facts.Passive = Dormant(pawn);
+            facts.Passive = facts.FactionHostile && (pawn.Faction == Faction.OfInsects ? !InsectEngaging(pawn, player) : Dormant(pawn));
             if (hunt) { var prey = HuntedPawn(pawn); if (prey != null) { facts.HasPrey = true; facts.PreyOurs = prey.Faction == player || prey.HostFaction == player; } }
             return facts;
         }
@@ -156,8 +153,8 @@ namespace HomeBridge.BridgeTools
         private static bool Awake(Thing thing) => thing.TryGetComp<CompCanBeDormant>()?.Awake ?? true;
         // A dormant mech cluster: its mechs and buildings sleep under
         // CompCanBeDormant until a wake-up comp fires, so each is passive
-        // while asleep and engaging once awake. Null without the comp.
-        private static bool? Dormant(Thing thing) => thing.TryGetComp<CompCanBeDormant>() is CompCanBeDormant comp ? !comp.Awake : (bool?)null;
+        // while asleep and engaging once awake. A thing without the comp never sleeps.
+        private static bool Dormant(Thing thing) => thing.TryGetComp<CompCanBeDormant>() is CompCanBeDormant comp && !comp.Awake;
         private static bool PlayerThing(Thing? thing, Faction player) => thing != null && (thing.Faction == player || thing is Pawn p && p.HostFaction == player);
         internal static bool InsectEngaging(Pawn pawn, Faction player) => Awake(pawn)
             && (PlayerThing(pawn.mindState?.enemyTarget, player) || PlayerThing(pawn.CurJob?.targetA.Thing, player));
@@ -286,6 +283,5 @@ namespace HomeBridge.BridgeTools
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);
         private static double Finite(double value)=>double.IsNaN(value)||double.IsInfinity(value)?throw new InvalidOperationException("Nonfinite native fact."):value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable { Reason=reason,Detail=detail };
-        private static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue { Field=field,Unavailable=Unavailable(reason,detail) };
     }
 }

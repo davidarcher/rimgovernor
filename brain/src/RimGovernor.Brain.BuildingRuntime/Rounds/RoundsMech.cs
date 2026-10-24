@@ -15,9 +15,7 @@ internal static class RoundsMech
         var hostile = false;
         foreach (var t in read.Emergency.Threats)
         {
-            t.Dead.TryGetValue(out var dead);
-            t.Downed.TryGetValue(out var downed);
-            hostile = hostile || (t.Kind == ThreatKind.Hostile && !dead && !downed);
+            hostile = hostile || (t.Kind == ThreatKind.Hostile && !t.Dead && !t.Downed);
         }
 
         var chargerReady = read.Projection.Biotech.TryGetValue(out var biotech) && MechRules.MechChargerReady(biotech.MechChargerRows());

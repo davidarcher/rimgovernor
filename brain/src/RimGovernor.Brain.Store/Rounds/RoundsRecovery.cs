@@ -89,7 +89,7 @@ public sealed record RoundsRecovery
             planning = planning with
             {
                 Safety = Fact.Known(
-                    new RecoverySafety { Restrictions = EquatableArray.From(safety.Restrictions.Select(v => new RecoveryRestriction(v.Pawn, PersistedFact.OfReference(v.Area)))) }
+                    new RecoverySafety { Restrictions = EquatableArray.From(safety.Restrictions.Select(v => new RecoveryRestriction(v.Pawn, v.Area ?? ""))) }
                 ),
             };
         }
@@ -151,7 +151,7 @@ public sealed partial class Store
             {
                 Safety = new RoundsRecoverySafety
                 {
-                    Restrictions = EquatableArray.From(safety.Restrictions.Select(v => new RoundsRecoveryRestriction(v.Pawn, PersistedFact.Reference(v.Area)))),
+                    Restrictions = EquatableArray.From(safety.Restrictions.Select(v => new RoundsRecoveryRestriction(v.Pawn, v.Area))),
                 },
             };
         }

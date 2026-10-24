@@ -464,7 +464,7 @@ partial class RoundsDefensePlanner
     {
         var facts = combat.Emergency.Facts;
         var catalog = combat.Catalog ?? throw new ControlException("combatFrameInputs: no definition catalog");
-        if (!facts.ColonistsComplete.TryGetValue(out var colonistsComplete) || !colonistsComplete)
+        if (!facts.AllSeen)
         {
             return (null, WaitFor(Cause.MethodUsed, "colonist_census_incomplete"));
         }
@@ -604,12 +604,12 @@ partial class RoundsDefensePlanner
         foreach (var building in inp.Buildings)
         {
             lines.TryGetValue(building.Id, out var linesOfFire);
-            threats.Add(new SquadThreatFacts { Id = building.Id, Dead = building.Dead, Building = true, LinesOfFire = linesOfFire?.ToDictionary(shooter => shooter, _ => true) ?? new Dictionary<PawnId, bool>() });
+            threats.Add(new SquadThreatFacts { Id = building.Id, Dead = Known(building.Dead), Building = true, LinesOfFire = linesOfFire?.ToDictionary(shooter => shooter, _ => true) ?? new Dictionary<PawnId, bool>() });
         }
         var structures = new List<HostileStructure>();
         foreach (var b in inp.Buildings)
         {
-            if (!(b.Dead.TryGetValue(out var dead) && dead) && b.Cells.Count > 0)
+            if (!b.Dead && b.Cells.Count > 0)
             {
                 structures.Add(new HostileStructure { Id = b.Id, Def = b.Definition, Cell = b.Cells[0], Mortar = b.Mortar });
             }
@@ -849,7 +849,7 @@ partial class RoundsDefensePlanner
             }
             if (threat.Building)
             {
-                if (threat.Dead.TryGetValue(out var dead) && !dead)
+                if (!threat.Dead)
                 {
                     buildings.Add(threat);
                 }

@@ -54,29 +54,21 @@ namespace HomeBridge.BridgeTools
         private static Obs.BuildingState Row(Thing thing, Common.ObservationContext context)
         {
             var row = Project(thing);
-            // Only the implemented BuildingPatchIntent arms carry a
-            // settings row with their own dedicated CAS snapshot:
-            // target_temperature_c (NativeBuildingTemperature), a
-            // humanlike bed's medical flag (NativeBedUse), a
-            // plant grower's crop (NativeGrowerCrop) and a claimable
-            // building's faction (NativeClaimBuilding).
-            // A player storage building (shelf) reports its storage token
-            // (NativeStockpilePatch, a zone intent settings patch on a building) first.
+            // The settings the brain reads: a temperature control (NativeBuildingTemperature, with its CAS
+            // snapshot), a humanlike bed (NativeBedUse) or a plant grower (NativeGrowerCrop).
             var tempControl = thing.TryGetComp<CompTempControl>();
-            var forbidden = row.Settings.Forbidden;
-            if (NativeStockpilePatch.StorageEligible(thing))
-                row = row with { Settings = NativeStockpilePatch.Settings((Building_Storage)thing, context) };
-            else if (tempControl != null)
-                row = row with { Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature } };
-            else if (NativeBedUse.Eligible(thing))
-                row = row with { Settings = NativeBedUse.Settings((Building_Bed)thing, context) };
-            else if (NativeGrowerCrop.Eligible(thing))
-                row = row with { Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context) };
-            else if (NativeClaimBuilding.Eligible(thing))
-                row = row with { Settings = NativeClaimBuilding.Settings((Building)thing, context) };
-            row = row with { Settings = row.Settings with { Forbidden = forbidden } };
-            return row;
+            Obs.BuildingControl control =
+                tempControl != null ? new Obs.BuildingControl.Temperature(Eligible(NativeBuildingTemperature.Snapshot(thing, context), thing), tempControl.targetTemperature)
+                : NativeBedUse.Eligible(thing) ? NativeBedUse.Control((Building_Bed)thing)
+                : NativeGrowerCrop.Eligible(thing) ? NativeGrowerCrop.Control((Building_PlantGrower)thing)
+                : new Obs.BuildingControl.None();
+            return row with { Settings = row.Settings with { Control = control } };
         }
+
+        // The temperature snapshot of a building with a temperature control; one its eligibility test then
+        // refuses is a broken invariant that fails the read.
+        private static Obs.SnapshotRef Eligible(Obs.SnapshotRef? snapshot, Thing thing) =>
+            snapshot ?? throw new InvalidOperationException($"building {thing.GetUniqueLoadID()} has a temperature control but no temperature snapshot");
 
         internal static bool Validate(Obs.ListBuildingsRequest request, out Common.Failure failure)
         {
@@ -142,7 +134,7 @@ namespace HomeBridge.BridgeTools
                 HitPoints = HitPoints(thing),
                 Construction = Construction(thing, stuff),
                 Service = Service(thing),
-                Settings = new Obs.BuildingSettings { Forbidden = player != null && thing.IsForbidden(player) },
+                Settings = new Obs.BuildingSettings { Forbidden = player != null && thing.IsForbidden(player), Control = new Obs.BuildingControl.None() },
                 Burning = thing.IsBurning(),
                 Occupied = new Obs.Rectangle { Minimum = Cell(new IntVec3(rectangle.minX, 0, rectangle.minZ)), Maximum = Cell(new IntVec3(rectangle.maxX, 0, rectangle.maxZ)) },
                 Anomaly = NativeAnomalyFacts.Building(thing),

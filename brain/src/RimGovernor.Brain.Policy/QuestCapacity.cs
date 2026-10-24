@@ -287,7 +287,7 @@ public static class QuestCapacity
         var unknown = false;
         foreach (var hold in emergency.Holds)
         {
-            if (hold.Reason is EmergencyReason.UnknownFacts or EmergencyReason.StaleFacts)
+            if (hold.Reason is EmergencyReason.StaleFacts)
             {
                 unknown = true;
             }

@@ -478,7 +478,7 @@ public static class ColonyGearReads
 
     internal static Fact<GearObservation> RoundsGear(Fact<GearObservation> v, EmergencyFacts emergency)
     {
-        if (!v.TryGetValue(out var gear) || !emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || gear.Pawns.Count != emergency.Colonists.Count)
+        if (!v.TryGetValue(out var gear) || !emergency.AllSeen || gear.Pawns.Count != emergency.Colonists.Count)
         {
             return Unknown<GearObservation>();
         }

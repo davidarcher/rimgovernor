@@ -79,9 +79,9 @@ internal static class CombatLabSiegeStage
     // The census classes a pawn a hostile threat when it is a manhunter, of a hostile faction or breaking out of prison;
     // it is engaging unless the native marks it passive.
     private static Observations.ThreatPawn? FarThreat(Observations.BundleSnapshot frame, List<string> hostiles) =>
-        frame.Emergency?.Threats?.Pawns.FirstOrDefault(t =>
-            (t.FactionHostile == true || t.PrisonBreak == true || (t.MentalState ?? "").Contains("manhunter", StringComparison.OrdinalIgnoreCase))
-            && t.Passive != true
-            && hostiles.Contains(t.Pawn?.Id ?? "", StringComparer.Ordinal)
-            && t.NearestColonistDistance >= FarCells);
+        frame.Emergency?.Threats.Pawns.FirstOrDefault(t =>
+            (t.FactionHostile || t.PrisonBreak || (t.MentalState ?? "").Contains("manhunter", StringComparison.OrdinalIgnoreCase))
+            && !t.Passive
+            && hostiles.Contains(t.Pawn.Id ?? "", StringComparer.Ordinal)
+            && t.NearestColonist is Observations.ColonistDistance.Nearest { Cells: >= FarCells });
 }

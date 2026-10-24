@@ -8,6 +8,23 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 internal static class PawnFixtures
 {
+    /// <summary>Full health: no hediffs, no bleeding, in no bed, no surgery bills, missing parts or operations.</summary>
+    public static readonly O.PawnHealth Healthy = new()
+    {
+        SummaryFraction = 1,
+        NeedsTend = false,
+        Bleeding = false,
+        BleedRatePerDay = 0,
+        BloodLoss = 0,
+        BleedOut = new O.BleedOut.NotBleedingOut(),
+        LifeThreatening = false,
+        Hediffs = [],
+        ShouldSeekMedicalRest = false,
+        BedId = null,
+        Snapshot = new O.SnapshotRef(),
+        Surgery = new O.PawnSurgery { SurgeryBills = [], MissingParts = [], Operations = [] },
+    };
+
     /// <summary>A live, standing colonist with nothing else read into it: no job, needs, conditions, gear or ideoligion.</summary>
     public static O.PawnState Row(string id) => new()
     {
@@ -28,7 +45,7 @@ internal static class PawnFixtures
         ActivityExecution = null,
         Job = new O.JobEvidence(),
         Needs = PawnNeedsTests.NoNeeds,
-        Health = new O.PawnHealth { SummaryFraction = 1 },
+        Health = Healthy,
         Equipment = GearFixtures.NoEquipment,
         Biography = new O.PawnBiography
         {

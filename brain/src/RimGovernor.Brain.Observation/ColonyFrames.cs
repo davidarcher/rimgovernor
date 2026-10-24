@@ -53,14 +53,15 @@ public static class ColonyFramesReads
             facts = facts with { DisasterConditions = Known(conditions) };
         }
         facts = facts with { DisasterTick = new Tick((long)(v.Context?.Tick ?? 0)) };
-        if (v.Recovery?.Observed is not { } recovery || !ColonyDecodeReads.Resolved(buildings, recovery.Buildings, r => r))
+        var recovery = v.Recovery;
+        if (!ColonyDecodeReads.Resolved(buildings, recovery.Buildings, r => r))
         {
             return facts;
         }
         var restrictions = new List<RecoveryRestriction>();
         foreach (var restriction in recovery.Restrictions)
         {
-            restrictions.Add(new RecoveryRestriction(new PawnId(restriction.Pawn?.Id ?? ""), Known(restriction.AreaId ?? "")));
+            restrictions.Add(new RecoveryRestriction(new PawnId(restriction.Pawn.Id), restriction.AreaId ?? ""));
         }
         facts = facts with { RecoverySafety = Known(new RecoverySafety { Restrictions = EquatableArray.From(restrictions) }) };
         var rows = new List<RecoveryBuilding>(recovery.Buildings.Count);

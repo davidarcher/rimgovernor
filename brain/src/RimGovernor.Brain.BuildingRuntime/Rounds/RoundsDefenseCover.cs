@@ -9,7 +9,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal async Task<(int Defenders, Fact<double> MinRange, bool Ok)> DefenderRangeAsync(ControlState state, RoundsReading read, CancellationToken call)
     {
-        if (!read.Emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || read.Emergency.Colonists.Count == 0)
+        if (!read.Emergency.AllSeen || read.Emergency.Colonists.Count == 0)
         {
             return (0, Unknown<double>(), false);
         }

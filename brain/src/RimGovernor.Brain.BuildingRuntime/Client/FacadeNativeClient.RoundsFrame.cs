@@ -131,7 +131,7 @@ public sealed partial class FacadeNativeClient
     internal static List<string> RoundsPawnIds(EmergencyObservation emergency)
     {
         var ids = new List<string>();
-        if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete)
+        if (!emergency.Facts.AllSeen)
         {
             return ids;
         }

@@ -335,12 +335,11 @@ public sealed partial class ClockRunDriver
         {
             throw Failed(e);
         }
-        var colonistsKnown = emergency.Facts.ColonistsComplete.TryGetValue(out var colonistsComplete);
         FactStore.Put(
             _scheduler.Facts.Store,
             ClockScheduler.FactScope(loadedContext),
             FactSection.Emergency,
-            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete && emergency.Facts.DependentPatients.IsKnown, Source = "rimgovernor/observations_read_status" });
+            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = emergency.Facts.AllSeen, Source = "rimgovernor/observations_read_status" });
 
         // The defense planner's verdict at this step: only a reported no-squad answer lets a hostile building be
         // watched instead of held; any other outcome, or no planner, keeps the hold.

@@ -130,9 +130,9 @@ public static class TendFacts
         {
             facts = facts with { ExistingJobDef = Known(jobDef) };
         }
-        if (health.HoursUntilDeathFromBloodLoss is not null)
+        if (health.BleedOut is PbObservations.BleedOut.Within bleedOut)
         {
-            facts = facts with { HoursUntilDeathFromBloodLoss = Known(health.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
+            facts = facts with { HoursUntilDeathFromBloodLoss = Known(bleedOut.Hours) };
         }
         if (row.Settings.Care is PbObservations.PawnCare.Configured care)
         {

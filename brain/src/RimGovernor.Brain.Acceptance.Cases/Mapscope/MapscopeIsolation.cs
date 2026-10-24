@@ -111,8 +111,15 @@ internal static class MapscopeIsolation
         }
 
         // An identity naming a map that is not loaded is stale, with the viewed map's context to re-anchor on.
-        var gone = await s.CallAsync("status-unloaded-map", NativeOps.ReadStatus, new Observations.StatusRequest { Scope = new() { ExpectedIdentity = home with { MapId = 987654 } } }, cancellationToken).ConfigureAwait(false);
-        StaleOn("status-unloaded-map", gone.Outcome?.Failure, second.MapId, gone.Outcome);
+        try
+        {
+            var gone = await s.CallAsync("status-unloaded-map", NativeOps.ReadStatus, new Observations.StatusRequest { Scope = new() { ExpectedIdentity = home with { MapId = 987654 } } }, cancellationToken).ConfigureAwait(false);
+            throw new AcceptanceException($"status-unloaded-map: want STALE_IDENTITY, got a census {gone.Context}");
+        }
+        catch (NativeFailureException e)
+        {
+            StaleOn("status-unloaded-map", e.Value, second.MapId, e.Value);
+        }
 
         // Back on the home map, a fresh grant admits a draft bound to the home identity, and it lands there.
         _ = await s.FixtureAsync("view-home", View, home.MapId, cancellationToken).ConfigureAwait(false);
@@ -169,12 +176,11 @@ internal static class MapscopeIsolation
         var reply = await s.CallAsync(
             label,
             NativeOps.ReadStatus,
-            new Observations.StatusRequest { Scope = new() { ExpectedIdentity = identity }, Colonists = false, Threats = false },
+            new Observations.StatusRequest { Scope = new() { ExpectedIdentity = identity } },
             cancellationToken).ConfigureAwait(false);
-        var observed = TypedReads.Observed(label, NativeOps.ReadStatus, reply, reply.Outcome?.Observed);
-        if (observed.Context?.Identity.MapId != identity.MapId)
+        if (reply.Context.Identity.MapId != identity.MapId)
         {
-            throw new AcceptanceException($"{label}: want context map {identity.MapId}, got {observed.Context}");
+            throw new AcceptanceException($"{label}: want context map {identity.MapId}, got {reply.Context}");
         }
     }
 }

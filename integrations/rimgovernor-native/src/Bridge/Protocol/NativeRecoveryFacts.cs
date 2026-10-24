@@ -1,8 +1,5 @@
 #nullable enable
-using System;
 using System.Linq;
-using System.Collections.Generic;
-using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
@@ -11,27 +8,18 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeRecoveryFacts
     {
-        // Pure census: reading recovery never acquires or repairs area leases.
-        internal static Obs.RecoveryReply Read(Map map, Common.ObservationContext context)
+        // Pure census: reading recovery never acquires or repairs area leases. A read that cannot make it fails the
+        // colony read.
+        internal static Obs.RecoverySnapshot Read(Map map, Common.ObservationContext context) => new Obs.RecoverySnapshot
         {
-            try {
-                var buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map)).OrderBy(b => b.thingIDNumber).ToList();
-                var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                var result = new Obs.RecoverySnapshot();
-                // Each building's hit points, fuel and breakdown state is its
-                // row in the bundle's building table.
-                foreach (var building in buildings) result = result with { Buildings = [.. result.Buildings, NativeBuildingObservationTools.Ref(building)] };
-                foreach (var pawn in pawns) {
-                    var row = new Obs.RecoveryRestriction { Pawn = NativePawnObservationTools.Ref(pawn) };
-                    var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-                    if (area != null) row = row with { AreaId = area.GetUniqueLoadID() };
-                    result = result with { Restrictions = [.. result.Restrictions, row] };
-                }
-                return new Obs.RecoveryReply { Observed = result };
-            } catch (Exception ex) {
-                ReadFailureLog.Note("recovery", ex);
-                return new Obs.RecoveryReply();
-            }
-        }
+            // Each building's hit points, fuel and breakdown state is its row in the bundle's building table.
+            Buildings = [.. map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map)).OrderBy(b => b.thingIDNumber)
+                .Select(b => NativeBuildingObservationTools.Ref(b))],
+            Restrictions = [.. map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Select(pawn => new Obs.RecoveryRestriction
+            {
+                Pawn = NativePawnObservationTools.Ref(pawn),
+                AreaId = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID(),
+            })],
+        };
     }
 }

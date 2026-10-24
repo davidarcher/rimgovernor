@@ -1,3 +1,6 @@
+using ColonistDistance = RimGovernor.Contracts.Wire.Observations.ColonistDistance;
+using FoodNeed = RimGovernor.Contracts.Wire.Observations.FoodNeed;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>An observed active native break, never an inferred mood risk.</summary>
@@ -10,32 +13,33 @@ public sealed record MentalState
     public int TicksInState { get; init; }
 }
 
+/// <summary>One census pawn joined to its pawn-table row: every fact is the row's.</summary>
 public sealed record EmergencyPawn
 {
     /// <summary>The active native break; null when the pawn is in none.</summary>
     public MentalState? MentalState { get; init; }
 
-    public PawnId Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> Bleeding { get; init; }
+    public required bool Bleeding { get; init; }
 
-    public Fact<bool> NeedsTend { get; init; }
+    public required bool NeedsTend { get; init; }
 
     /// <summary>
     /// Decides whether a bleeding colonist who is still on their feet is anyone's patient: WorkGiver_Tend tends a
     /// humanlike only in a bed and the ground tend needs a downed pawn.
     /// </summary>
-    public Fact<bool> InBed { get; init; }
+    public required bool InBed { get; init; }
 
-    /// <summary>The colonist's cell when the pawn table row carried one.</summary>
-    public Fact<Cell> Position { get; init; }
+    /// <summary>The pawn's cell on the census map.</summary>
+    public required Cell Position { get; init; }
 
-    /// <summary>Need_Food.CurCategory when the pawn table row carried the pawn's needs.</summary>
-    public Fact<RimGovernor.Contracts.Wire.Defs.HungerCategory> Hunger { get; init; }
+    /// <summary>Need_Food: its level and CurCategory, or Lacks for a pawn without a food need.</summary>
+    public required FoodNeed Food { get; init; }
 }
 
 /// <summary>
@@ -57,9 +61,9 @@ public enum ThreatKind : byte
 
 /// <summary>
 /// One native threat row. Animal and Distance (Chebyshev cells from the nearest
-/// living colonist) decide whether a hostile or hunting animal is close enough to be an emergency; either unknown
-/// keeps the hold. A HostileBuilding row is dead when destroyed and never downed; it carries its own native CAS
-/// token (SnapshotToken) for the attack order and its definition name.
+/// free colonist) decide whether a hostile or hunting animal is far enough to be watched rather than held. A
+/// HostileBuilding row is never dead or downed while the census lists it; it carries its own native CAS token
+/// (SnapshotToken) for the attack order and its definition name.
 /// </summary>
 public sealed record EmergencyThreat
 {
@@ -70,19 +74,19 @@ public sealed record EmergencyThreat
     /// emergency before it can reach anyone. A humanlike or mechanoid threat holds at any distance. A hostile
     /// building goes nowhere, so the same band applies to it.
     /// </summary>
-    public const double DistantThreatCells = 50.0;
+    public const int DistantThreatCells = 50;
 
-    public PawnId Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public ThreatKind Kind { get; init; }
+    public required ThreatKind Kind { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> Animal { get; init; }
+    public required bool Animal { get; init; }
 
-    public Fact<double> Distance { get; init; }
+    public required ColonistDistance Distance { get; init; }
 
     /// <summary>Set on HostileBuilding rows only.</summary>
     public string SnapshotToken { get; init; } = "";
@@ -93,40 +97,34 @@ public sealed record EmergencyThreat
     /// <summary>Set on HostileBuilding rows only: the building's occupied rect, the cells a ranged defender needs a line of fire to.</summary>
     public IReadOnlyList<Cell> Cells { get; init; } = [];
 
-    /// <summary>The native discovery fact: the pawn stands in fog the colony has not explored. Unknown counts as discovered.</summary>
-    public Fact<bool> Fogged { get; init; }
+    /// <summary>The native discovery fact: the threat stands in fog the colony has not explored.</summary>
+    public required bool Fogged { get; init; }
 
     /// <summary>
-    /// Set on insects and hives and on hostiles that can sleep, such as dormant mech clusters: true when the
-    /// thing is dormant, or awake but not engaging the colony. Unknown counts as engaging.
+    /// Insects and hives and hostiles that can sleep, such as dormant mech clusters: true when the thing is
+    /// dormant, or awake but not engaging the colony. Any other threat is never passive.
     /// </summary>
-    public Fact<bool> Passive { get; init; }
+    public required bool Passive { get; init; }
 
-    /// <summary>A pawn threat's cell, when the census row carried one; the safety overlay draws its reach around it.</summary>
-    public Fact<Cell> Position { get; init; }
+    /// <summary>A pawn threat's cell, a building's position cell; the safety overlay draws a pawn's reach around it.</summary>
+    public required Cell Position { get; init; }
 
     /// <summary>Set on HostileBuilding rows only: the catalog row of the def says a turret whose verb fires mortar shells.</summary>
     public bool Mortar { get; init; }
 
-    /// <summary>Reports a threat that is not known passive.</summary>
-    public bool Engaging => !Passive.TryGetValue(out var passive) || !passive;
+    /// <summary>Reports a threat that is not passive.</summary>
+    public bool Engaging => !Passive;
 
     /// <summary>Reports whether the row is a hostile building rather than a pawn.</summary>
     public bool Building => Kind == ThreatKind.HostileBuilding;
 
     /// <summary>
-    /// Reports a hostile or hunting animal, or a hostile building, known to be at least
-    /// <see cref="DistantThreatCells"/> from every colonist. A crashed ship part is never distant.
+    /// Reports a hostile or hunting animal, or a hostile building, at least
+    /// <see cref="DistantThreatCells"/> from every colonist. A crashed ship part is never distant, and a threat on a
+    /// map without a colonist is not distant either.
     /// </summary>
-    public bool DistantThreat
-    {
-        get
-        {
-            var ak = Animal.TryGetValue(out var animal);
-            var dk = Distance.TryGetValue(out var distance);
-            return ((Building && !ShipPart(Definition)) || (ak && animal)) && dk && distance >= DistantThreatCells;
-        }
-    }
+    public bool DistantThreat =>
+        ((Building && !ShipPart(Definition)) || Animal) && Distance is ColonistDistance.Nearest { Cells: >= DistantThreatCells };
 
     /// <summary>
     /// Reports a crashed ship part's definition (DefoliatorShipPart, PsychicDronerShipPart): a gunless hostile
@@ -138,40 +136,37 @@ public sealed record EmergencyThreat
     /// Reports a threat the colony has not found: a hostile standing in fog can neither reach a colonist nor be
     /// reached by one, so it is watched like a distant animal rather than held.
     /// </summary>
-    public bool Undiscovered => Fogged.TryGetValue(out var fogged) && fogged;
+    public bool Undiscovered => Fogged;
 
     /// <summary>
     /// Whether one census row is an emergency the colony must answer before anything else:
     /// a live, standing hostile, hunting predator or hostile building it has discovered, that is not distant and
     /// that is not a passive insect or hive.
     /// </summary>
-    public bool Holds()
-    {
-        if (Kind is not (ThreatKind.Hostile or ThreatKind.HuntingPredator or ThreatKind.HostileBuilding))
-        {
-            return false;
-        }
-        var dk = Dead.TryGetValue(out var dead);
-        var wk = Downed.TryGetValue(out var downed);
-        if ((dk && dead) || (wk && downed))
-        {
-            return false;
-        }
-        return Engaging && !DistantThreat && !Undiscovered;
-    }
+    public bool Holds() =>
+        Kind is ThreatKind.Hostile or ThreatKind.HuntingPredator or ThreatKind.HostileBuilding
+        && !Dead && !Downed && Engaging && !DistantThreat && !Undiscovered;
 }
 
-public sealed record EmergencyDependentPatient(EmergencyPawn Pawn, DependentPatientGroup Group, Fact<bool> Rescue, Fact<bool> Tend);
+public sealed record EmergencyDependentPatient(EmergencyPawn Pawn, DependentPatientGroup Group, bool Rescue, bool Tend);
 
+/// <summary>
+/// The status census joined to the pawn table: the free colonists, the dependent patients and the classified
+/// threats, each complete. Unseen lists the census pawns the joined pawn table has no map row for yet (a live census
+/// newer than the newest frame); they hold the emergency as stale until a frame carries them.
+/// </summary>
 public sealed record EmergencyFacts
 {
-    public Fact<bool> ColonistsComplete { get; init; }
-
-    public Fact<EquatableArray<EmergencyDependentPatient>> DependentPatients { get; init; }
+    public IReadOnlyList<EmergencyDependentPatient> DependentPatients { get; init; } = [];
 
     public IReadOnlyList<EmergencyPawn> Colonists { get; init; } = [];
 
     public IReadOnlyList<EmergencyThreat> Threats { get; init; } = [];
+
+    public IReadOnlyList<PawnId> Unseen { get; init; } = [];
+
+    /// <summary>Every census pawn has its pawn-table row, so the colonist list is the whole census.</summary>
+    public bool AllSeen => Unseen.Count == 0;
 
     /// <summary>
     /// The open tick of the newest drop-pod arrival still closed at the census tick, zero with none: its raiders
@@ -185,7 +180,6 @@ public enum EmergencyReason
 {
     CriticalMedical,
     StaleFacts,
-    UnknownFacts,
     UnsafeThreat,
 }
 
@@ -231,7 +225,7 @@ public sealed record EmergencySnapshot
         {
             DomainException.Require(ValidId(pawn.Id) && people.Add(pawn.Id), "invalid or duplicate emergency pawn");
         }
-        foreach (var patient in facts.DependentPatients.ValueOrDefault)
+        foreach (var patient in facts.DependentPatients)
             DomainException.Require(ValidId(patient.Pawn.Id) && people.Add(patient.Pawn.Id)
                 && Enum.IsDefined(patient.Group), "invalid or duplicate dependent patient");
         var seen = new HashSet<(PawnId, ThreatKind)>();
@@ -247,15 +241,14 @@ public sealed record EmergencySnapshot
                     && !(threat.Building && (!ValidId(new PawnId(threat.SnapshotToken)) || !ValidId(new PawnId(threat.Definition)) || threat.Cells.Count == 0)),
                 "hostile building threat requires its snapshot token, definition and occupied cells"
             );
-            DomainException.Require(
-                !(threat.Distance.TryGetValue(out var distance) && (double.IsNaN(distance) || double.IsInfinity(distance) || distance < 0)),
-                "invalid emergency threat distance"
-            );
+            DomainException.Require(threat.Distance is not ColonistDistance.Nearest { Cells: < 0 }, "invalid emergency threat distance");
         }
         var owned = facts with
         {
             Colonists = [.. facts.Colonists],
+            DependentPatients = [.. facts.DependentPatients],
             Threats = [.. facts.Threats.Select(t => t with { Cells = [.. t.Cells] })],
+            Unseen = [.. facts.Unseen],
         };
         return new EmergencySnapshot(current, tick, owned);
     }
@@ -273,8 +266,8 @@ public sealed record EmergencySnapshot
 public static class EmergencyRules
 {
     /// <summary>
-    /// Clears only known complete, current facts. It does not decide how to treat,
-    /// fight or advance time, and never grants execution authority.
+    /// Clears only current facts. It does not decide how to treat, fight or advance time, and never grants
+    /// execution authority. A census pawn the pawn table has no row for yet holds the census as stale.
     /// </summary>
     public static EmergencyDecision EvaluateEmergency(EmergencySnapshot snapshot, GenerationSnapshot current, Tick minimumTick)
     {
@@ -284,79 +277,28 @@ public static class EmergencyRules
         }
         var holds = new HashSet<EmergencyHold>();
         void Hold(EmergencyReason reason, PawnId pawn) => holds.Add(new EmergencyHold(reason, pawn));
-        if (!snapshot.Facts.ColonistsComplete.TryGetValue(out var yes) || !yes)
+        foreach (var pawn in snapshot.Facts.Unseen)
         {
-            Hold(EmergencyReason.UnknownFacts, default);
-        }
-        if (!snapshot.Facts.DependentPatients.TryGetValue(out var dependents)
-            || dependents.Any(p => !p.Rescue.IsKnown || !p.Tend.IsKnown))
-            Hold(EmergencyReason.UnknownFacts, default);
-        // A pawn may occur in several native categories; disagreeing known status is uncertainty, not permission
-        // to choose whichever category appears safest.
-        var statuses = new Dictionary<PawnId, (Fact<bool> Dead, Fact<bool> Downed)>();
-        void Merge(PawnId id, Fact<bool> dead, Fact<bool> downed)
-        {
-            statuses.TryGetValue(id, out var prior);
-            Fact<bool> Combine(Fact<bool> old, Fact<bool> next)
-            {
-                var ak = old.TryGetValue(out var a);
-                var bk = next.TryGetValue(out var b);
-                if (ak && bk && a != b)
-                {
-                    Hold(EmergencyReason.UnknownFacts, id);
-                }
-                return ak ? old : next;
-            }
-            statuses[id] = (Combine(prior.Dead, dead), Combine(prior.Downed, downed));
+            Hold(EmergencyReason.StaleFacts, pawn);
         }
         foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
-            Merge(pawn.Id, pawn.Dead, pawn.Downed);
             if (BreakResponseRules.AggressiveBreak(pawn))
             {
                 Hold(EmergencyReason.UnsafeThreat, pawn.Id);
             }
-            var known = pawn.Dead.TryGetValue(out var dead);
-            if (dead && known)
-            {
-                continue;
-            }
-            if (!known)
-            {
-                Hold(EmergencyReason.UnknownFacts, pawn.Id);
-            }
             // Bleeding, or downed with a tend outstanding, is the emergency: medical work the colony must do
             // now. A colonist who only needs tending is the tend planner's patient, not a reason to hold every
-            // dispatch. A colonist downed with nothing to tend is the rescue planner's patient. Every health
-            // fact still has to be known.
-            if (!AllKnown(pawn.Downed, pawn.Bleeding, pawn.NeedsTend))
-            {
-                Hold(EmergencyReason.UnknownFacts, pawn.Id);
-            }
-            else if (UrgentPatient(pawn))
+            // dispatch. A colonist downed with nothing to tend is the rescue planner's patient.
+            if (!pawn.Dead && UrgentPatient(pawn))
             {
                 Hold(EmergencyReason.CriticalMedical, pawn.Id);
             }
         }
         foreach (var threat in snapshot.Facts.Threats)
         {
-            Merge(threat.Id, threat.Dead, threat.Downed);
-            var deadKnown = threat.Dead.TryGetValue(out var dead);
-            var downedKnown = threat.Downed.TryGetValue(out var downed);
-            if ((deadKnown && dead) || (downedKnown && downed))
-            {
-                continue;
-            }
-            // A threat the colony has not discovered is nobody's deficit, and its unread health is nothing to hold for either.
-            if (threat.Undiscovered)
-            {
-                continue;
-            }
-            if (!deadKnown || !downedKnown)
-            {
-                Hold(EmergencyReason.UnknownFacts, threat.Id);
-            }
-            // A distant animal is watched by the native supervisor's radius, not held; nor is a hostile building that far out.
+            // A dead or downed threat, or one the colony has not discovered, is nobody's deficit; a distant animal is
+            // watched by the native supervisor's radius, not held, nor is a hostile building that far out.
             if (threat.Holds())
             {
                 Hold(EmergencyReason.UnsafeThreat, threat.Id);
@@ -366,29 +308,13 @@ public static class EmergencyRules
         return new EmergencyDecision(holds.Count == 0, sorted);
     }
 
-    internal static bool AllKnown(params Fact<bool>[] facts) => facts.All(f => f.IsKnown);
-
     /// <summary>
     /// The CriticalMedical test: a bleeding colonist, or one downed with a tend
     /// outstanding. A bleeding colonist who is up and not in a bed is excluded: no doctor can tend them, and on a
-    /// colony without a bed the hold suspended the very goal that would build one. An unknown InBed keeps the
-    /// hold. Callers have established that every health fact is known.
+    /// colony without a bed the hold suspended the very goal that would build one.
     /// </summary>
-    internal static bool UrgentPatient(EmergencyPawn pawn)
-    {
-        var downed = pawn.Downed.ValueOrDefault;
-        var bleeding = pawn.Bleeding.ValueOrDefault;
-        var needsTend = pawn.NeedsTend.ValueOrDefault;
-        if (downed)
-        {
-            return bleeding || needsTend;
-        }
-        if (pawn.InBed.TryGetValue(out var inBed) && !inBed)
-        {
-            return false;
-        }
-        return bleeding;
-    }
+    internal static bool UrgentPatient(EmergencyPawn pawn) =>
+        pawn.Downed ? pawn.Bleeding || pawn.NeedsTend : pawn.InBed && pawn.Bleeding;
 
     /// <summary>
     /// Projects an immunizable condition at its current rates: losing when

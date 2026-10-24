@@ -23,15 +23,19 @@ public static class CareConditionsRules
         var rows = new List<CareCondition>(hediffs.Count);
         foreach (var condition in hediffs)
         {
+            // CareCondition is the care planners' Fact-typed copy (#3788): a fact the hediff does not have (no
+            // immunity, no part, no immunity record) stays unknown there.
+            var immune = condition.Immunizable;
+            var gain = immune?.Gain as ImmunityGain.PerDay;
             rows.Add(
                 new CareCondition
                 {
                     Severity = Known(condition.Severity),
-                    SeverityPerDay = FactHelpers.OptionalFact(condition.SeverityPerDay is not null, condition.SeverityPerDay.GetValueOrDefault()),
-                    Immunity = FactHelpers.OptionalFact(condition.Immunity is not null, condition.Immunity.GetValueOrDefault()),
-                    ImmunityPerDay = FactHelpers.OptionalFact(condition.ImmunityPerDay is not null, condition.ImmunityPerDay.GetValueOrDefault()),
-                    Tended = Known(condition.Tended),
-                    PartIndex = FactHelpers.OptionalInt(condition.PartIndex is not null, condition.PartIndex.GetValueOrDefault()),
+                    SeverityPerDay = FactHelpers.OptionalFact(immune is not null, immune?.SeverityPerDay ?? 0),
+                    Immunity = FactHelpers.OptionalFact(immune is not null, immune?.Immunity ?? 0),
+                    ImmunityPerDay = FactHelpers.OptionalFact(gain is not null, gain?.Value ?? 0),
+                    Tended = Known(condition.Tend is HediffTend.Tended),
+                    PartIndex = FactHelpers.OptionalInt(condition.Part is not null, condition.Part?.Index ?? 0),
                     DefName = Known(condition.DefName),
                 }
             );

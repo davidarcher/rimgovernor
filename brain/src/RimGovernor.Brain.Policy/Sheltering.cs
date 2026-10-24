@@ -95,19 +95,11 @@ public static partial class ShelterRules
             {
                 continue;
             }
-            if (t.Dead.TryGetValue(out var dead) && dead)
+            if (t.Dead || t.Downed)
             {
                 continue;
             }
-            if (t.Downed.TryGetValue(out var downed) && downed)
-            {
-                continue;
-            }
-            IReadOnlyList<Cell> cells = t.Cells;
-            if (t.Position.TryGetValue(out var at) && !t.Building)
-            {
-                cells = [at];
-            }
+            IReadOnlyList<Cell> cells = t.Building ? t.Cells : [t.Position];
             foreach (var c in cells)
             {
                 set.Add(c);
@@ -227,14 +219,10 @@ public static partial class ShelterRules
         var calm = hostilesKnown && hostiles == 0;
         var changes = new List<AllowedAreaChange>();
 
-        void Add(PawnId id, bool animal, bool shelter, Fact<string> current)
+        void Add(PawnId id, bool animal, bool shelter, string area)
         {
             var dash = !animal && trigger == ShelterTrigger.Temperature && calm && f.DashOpenFor(id);
             shelter = shelter && !dash;
-            if (!current.TryGetValue(out var area))
-            {
-                return;
-            }
             var hauler = !animal && haulers.Contains(id);
             var to = "";
             var move = false;
@@ -296,11 +284,11 @@ public static partial class ShelterRules
         {
             foreach (var animal in animals)
             {
-                if (!RoundsRules.Positive(animal.SupportsAreas) || animal.RequiresPen)
+                if (!RoundsRules.Positive(animal.SupportsAreas) || animal.RequiresPen || !animal.AllowedArea.TryGetValue(out var allowed))
                 {
                     continue;
                 }
-                Add(animal.Id, true, trigger != ShelterTrigger.None, animal.AllowedArea);
+                Add(animal.Id, true, trigger != ShelterTrigger.None, allowed);
             }
         }
         // Stable by pawn id.
@@ -334,7 +322,7 @@ public static partial class ShelterRules
             {
                 if (restriction.Pawn == worker.Pawn)
                 {
-                    inside = restriction.Area.TryGetValue(out var area) && area == safe;
+                    inside = restriction.Area == safe;
                     break;
                 }
             }

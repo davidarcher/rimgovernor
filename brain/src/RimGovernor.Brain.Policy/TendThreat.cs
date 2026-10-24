@@ -22,21 +22,14 @@ public static partial class TendRules
             {
                 continue;
             }
-            if (t.Position.TryGetValue(out var at))
-            {
-                threats.Add(at);
-            }
+            threats.Add(t.Position);
         }
         var output = new HashSet<PawnId>();
         foreach (var p in EmergencyPatientsRules.EmergencyPatients(facts))
         {
-            if (!p.Position.TryGetValue(out var at))
-            {
-                continue;
-            }
             foreach (var t in threats)
             {
-                if (LightingRules.Chebyshev(at, t) <= TendThreatCells)
+                if (LightingRules.Chebyshev(p.Position, t) <= TendThreatCells)
                 {
                     output.Add(p.Id);
                     break;

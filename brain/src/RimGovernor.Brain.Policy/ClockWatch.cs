@@ -65,9 +65,6 @@ public static class ClockWatchRules
                 case EmergencyReason.StaleFacts:
                     Hold(ClockWatchReason.Stale);
                     break;
-                case EmergencyReason.UnknownFacts:
-                    Hold(ClockWatchReason.Unknown);
-                    break;
                 case EmergencyReason.UnsafeThreat:
                     // An admitted combat plan needs ticks for defenders to fight; the native watcher only lets
                     // them pass with every live hostile acknowledged. Without a plan a raid must not
@@ -260,9 +257,8 @@ public static class ClockWatchRules
         var hungry = new List<PawnId>();
         foreach (var pawn in f.Emergency.Facts.Colonists)
         {
-            // A colonist whose hunger the census cannot read is acknowledged too: native would otherwise hold for them
-            // on every resume and pin the clock.
-            var due = !pawn.Hunger.TryGetValue(out var hunger) || hunger >= HazardThresholdsRules.HungerHoldCategory;
+            // A colonist without a food need never trips the native hunger hold.
+            var due = pawn.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food && food.Hunger >= HazardThresholdsRules.HungerHoldCategory;
             if (due && (f.Status.State == ClockWatchState.Held || kept.Contains(pawn.Id)))
             {
                 hungry.Add(pawn.Id);
@@ -277,9 +273,7 @@ public static class ClockWatchRules
         var downed = new List<PawnId>();
         foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
-            var deadKnown = pawn.Dead.TryGetValue(out var dead);
-            var downKnown = pawn.Downed.TryGetValue(out var down);
-            if (deadKnown && !dead && downKnown && down)
+            if (!pawn.Dead && pawn.Downed)
             {
                 downed.Add(pawn.Id);
             }

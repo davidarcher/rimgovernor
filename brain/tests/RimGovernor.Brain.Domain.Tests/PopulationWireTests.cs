@@ -43,9 +43,9 @@ public sealed class PopulationWireTests
             {
                 Guest = true,
                 Recruitable = true,
-                Custody = new Obs.PersonCustody.Prisoner(12.5, "ReduceResistance", 2500, Ops.MedicalCare.HerbalOrWorse, new Obs.PawnConditions(), new Obs.PawnSurgery(), new Common.Ref { Id = "Faction_3" }, -40),
+                Custody = new Obs.PersonCustody.Prisoner(12.5, "ReduceResistance", 2500, Ops.MedicalCare.HerbalOrWorse, new Obs.PawnConditions { LifeThreatening = false, Hediffs = [] }, PawnFixtures.Healthy.Surgery!, new Common.Ref { Id = "Faction_3" }, -40),
             },
-            Person("guest") with { Guest = true, Custody = new Obs.PersonCustody.Guest(Ops.MedicalCare.Best, new Obs.PawnConditions()) },
+            Person("guest") with { Guest = true, Custody = new Obs.PersonCustody.Guest(Ops.MedicalCare.Best, new Obs.PawnConditions { LifeThreatening = false, Hediffs = [] }) },
         ],
         Ideology = new Obs.ColonyIdeology.Installed(false, "Ideo_1"),
         OwnedNames = [new Obs.OwnedName { PawnId = new PawnId("colonist"), ShortName = "Tess", ThingId = 7 }],

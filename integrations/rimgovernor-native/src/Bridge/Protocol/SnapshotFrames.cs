@@ -46,12 +46,11 @@ namespace HomeBridge.BridgeTools
         // the sections reference become the things table.
         private static Obs.BundleSnapshot? ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
-            var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity },
-                Colonists = true, Threats = true };
             var statusBegan = Now();
-            var statusRead = NativeObservationTools.TryStatus(map, status, context, out var emergency, out _);
+            Obs.StatusSnapshot emergency;
+            try { emergency = NativeObservationTools.Status(map, context); }
+            catch (System.Exception ex) { ObservationWork.Failed("emergency", ex); return null; }
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
-            if (!statusRead) return null;
             observed = observed with { Emergency = emergency };
             ReadFamilies(map, context, ref observed, request);
             ReadStepFamilies(map, context, ref observed);
@@ -65,7 +64,7 @@ namespace HomeBridge.BridgeTools
             return observed;
         }
 
-        private static bool Engaged(Obs.ThreatPawn row) => row.MentalState is not null || row.FactionHostile.GetValueOrDefault() || row.PrisonBreak.GetValueOrDefault() || row.PredatorHunt.GetValueOrDefault();
+        private static bool Engaged(Obs.ThreatPawn row) => row.MentalState is not null || row.FactionHostile || row.PrisonBreak || row.PredatorHunt;
 
         // On the main thread. The defense planner's other combat inputs
         //, the pawn detail being the pawn table's: the hive
@@ -128,7 +127,7 @@ namespace HomeBridge.BridgeTools
             var approach = new List<IntVec3>();
             foreach (var building in threats.HostileBuildings)
             {
-                if (building.Occupied?.Minimum is not { } lo || building.Occupied.Maximum is not { } hi) continue;
+                if (building.Occupied.Minimum is not { } lo || building.Occupied.Maximum is not { } hi) continue;
                 for (var z = lo.Z; z <= hi.Z; z++)
                     for (var x = lo.X; x <= hi.X; x++)
                     {

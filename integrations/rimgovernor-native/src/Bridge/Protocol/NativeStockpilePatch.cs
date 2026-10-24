@@ -13,27 +13,10 @@ namespace HomeBridge.BridgeTools
     internal static class NativeStockpilePatch
     {
         // StorageEligible is a spawned, loaded storage building the player
-        // owns with storage settings: the building listing reports its
-        // storage token as the row's settings snapshot.
+        // owns with storage settings.
         internal static bool StorageEligible(Thing thing) => thing is Building_Storage storage && !storage.Destroyed && storage.Spawned
             && ProtoBoundary.IsLoaded(storage.Map) && storage.Faction != null && storage.Faction == Faction.OfPlayerSilentFail
             && storage.GetStoreSettings()?.filter != null;
-
-        // StorageToken covers exactly what a stockpile intent writes: priority
-        // and the filter signature, the same contribution the per-zone token
-        // makes.
-        internal static Obs.SnapshotRef StorageToken(Building_Storage storage, Common.ObservationContext context) =>
-            NativeObservationSnapshot.Snapshot("storage", context, storage.GetUniqueLoadID(), w => {
-                var settings = storage.GetStoreSettings();
-                w.Write((int)settings.Priority);
-                NativeStockpileSettings.WriteSignature(w, settings.filter);
-            });
-
-        // Settings is the storage building's listing-row settings: its
-        // storage token and, since it is by definition the player's, the
-        // faction reading.
-        internal static Obs.BuildingSettings Settings(Building_Storage storage, Common.ObservationContext context) =>
-            new Obs.BuildingSettings { Snapshot = StorageToken(storage, context), PlayerOwned = true };
 
         internal static IStoreSettingsParent? Resolve(Map map, string id)
         {

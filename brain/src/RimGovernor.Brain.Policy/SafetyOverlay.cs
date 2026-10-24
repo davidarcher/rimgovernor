@@ -39,11 +39,7 @@ public static partial class SafetyOverlayRules
             }
             var name = ThreatCause(t);
             raid = raid || name == "raid";
-            IReadOnlyList<Cell> cells = t.Cells;
-            if (t.Position.TryGetValue(out var pos) && !t.Building)
-            {
-                cells = [pos];
-            }
+            IReadOnlyList<Cell> cells = t.Building ? t.Cells : [t.Position];
             foreach (var at in cells)
             {
                 if (!InBounds(at, bounds))
@@ -120,7 +116,7 @@ public static partial class SafetyOverlayRules
             case ThreatKind.HostileBuilding:
                 return t.Definition.ToLowerInvariant();
         }
-        if (t.Animal.TryGetValue(out var animal) && animal)
+        if (t.Animal)
         {
             return "manhunter";
         }

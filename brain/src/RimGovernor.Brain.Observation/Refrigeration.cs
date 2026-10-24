@@ -80,7 +80,7 @@ public static class RefrigerationReads
                     Id = site.Id,
                     Position = site.Cell,
                     Rotation = ConstructionReads.RotationOf(row.Rotation),
-                    Target = row.Settings.TargetTemperatureC ?? throw new BridgeContractException($"cooler {site.Id}: the building read carries no target temperature"),
+                    Target = row.Settings.Control is O.BuildingControl.Temperature temperature ? temperature.TargetC : throw new BridgeContractException($"cooler {site.Id}: the building read carries no target temperature"),
                     Connected = site.Connected,
                     PowerOn = site.Powered,
                 });

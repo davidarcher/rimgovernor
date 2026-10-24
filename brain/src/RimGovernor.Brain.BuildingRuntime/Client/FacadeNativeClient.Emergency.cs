@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 using PolicyEmergencyFacts = RimGovernor.Brain.Policy.EmergencyFacts;
 using PolicyEmergencyPawn = RimGovernor.Brain.Policy.EmergencyPawn;
@@ -23,157 +22,70 @@ public sealed partial class FacadeNativeClient
         PbCommon.Identity identity,
         CancellationToken cancellationToken)
     {
-        var reply = await Facade.ReadStatusAsync(EmergencyRequest(identity), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        var observed = reply.Outcome.Observed!;
+        var observed = await Facade.ReadStatusAsync(EmergencyRequest(identity), cancellationToken).ConfigureAwait(false);
         var pawns = await FramePawnsAsync(identity, cancellationToken).ConfigureAwait(false);
         return EmergencyDecode.DecodeEmergencyStatus(observed, pawns);
     }
 
-    /// <summary>The status read <see cref="ReadEmergencyAsync"/> issues; a bundle's emergency section is seeded into the step cache under the same request.</summary>
+    /// <summary>The status read <see cref="ReadEmergencyAsync"/> issues.</summary>
     internal static PbObservations.StatusRequest EmergencyRequest(PbCommon.Identity id) =>
-        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = id }, Colonists = true, Threats = true };
+        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = id } };
 
     /// <summary>The emergency status decoder and the threat classifier it uses.</summary>
     internal static class EmergencyDecode
     {
         /// <summary>The Chebyshev radius around a colonist within which an unowned downed pawn or predator is a threat.</summary>
-        internal const double ThreatProximityRadius = 30.0;
+        internal const int ThreatProximityRadius = 30;
 
         /// <summary>
         /// Shared by live reads and captured replay. Each pawn reference resolves
-        /// against <paramref name="pawns"/>, the frame's pawn table; one the table lacks leaves that pawn's facts
-        /// unknown until a later frame. The facts carry no player authority or controller plan identity.
+        /// against <paramref name="pawns"/>, the frame's pawn table; one the table has no map row for is Unseen, held
+        /// as stale until a later frame carries it. The facts carry no player authority or controller plan identity.
         /// </summary>
-        internal static Bridge.Contracts.EmergencyObservation DecodeEmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns) =>
-            EmergencyStatus(v, pawns);
-
-        internal static Fact<bool> EmergencyBool(bool? v) => v is { } b ? Known(b) : Unknown<bool>();
-
-        /// <summary>Reads one census reference's facts from its table row (returned too); an unresolved reference has only its id known.</summary>
-        private static (PolicyEmergencyPawn Pawn, PbObservations.PawnState? State) EmergencyPawn(PbCommon.Ref? reference, Pawns pawns)
+        internal static Bridge.Contracts.EmergencyObservation DecodeEmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns)
         {
-            if (!pawns.TryRow(reference!, out var row))
-            {
-                return (new PolicyEmergencyPawn { Id = new PawnId(reference!.Id ?? "") }, null);
-            }
-            return (EmergencyFacts(row), row);
-        }
-
-        private static PolicyEmergencyPawn EmergencyFacts(PbObservations.PawnState row)
-        {
-            var result = new PolicyEmergencyPawn
-            {
-                Id = new PawnId(row.Pawn.Id ?? ""),
-                Dead = Known(row.Dead),
-                Downed = Known(row.Downed),
-                InBed = Known(row.InBed),
-                // A known value is an active state; no mental state reads as unknown to the policy.
-                MentalState = row.MentalState is { } m ? new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks } : null,
-            };
-            if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var at })
-            {
-                result = result with { Position = Known(new DomainCell(at.X, at.Z)) };
-            }
-            result = result with { Bleeding = Known(row.Health.Bleeding), NeedsTend = Known(row.Health.NeedsTend) };
-            if (row.Needs.Food is O.FoodNeed.Has food)
-            {
-                result = result with { Hunger = Known(food.Hunger) };
-            }
-            return result;
-        }
-
-        private static Bridge.Contracts.EmergencyObservation EmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns)
-        {
-            var context = v.Context!;
-            // Both sections are requested. The colonist census is complete unless an issue names it, and then it lists no one.
-            var threatCensus = v.Threats!;
-            var complete = Known(true);
-            foreach (var issue in v.Issues)
-            {
-                if ((issue.Field ?? "") == "colonists")
-                {
-                    complete = Unknown<bool>();
-                }
-            }
+            var unseen = new List<PawnId>();
             var colonists = new List<PolicyEmergencyPawn>();
-            var threats = new List<PolicyEmergencyThreat>();
-            var statuses = new Dictionary<PawnId, PolicyEmergencyPawn>();
-
-            PolicyEmergencyPawn Observe(PolicyEmergencyPawn pawn)
-            {
-                if (statuses.TryGetValue(pawn.Id, out var prior))
-                {
-                    if (prior.Dead.IsKnown)
-                    {
-                        pawn = pawn with { Dead = prior.Dead };
-                    }
-                    if (prior.Downed.IsKnown)
-                    {
-                        pawn = pawn with { Downed = prior.Downed };
-                    }
-                }
-                statuses[pawn.Id] = pawn;
-                return pawn;
-            }
-
             foreach (var reference in v.Colonists)
             {
-                var (pawn, _) = EmergencyPawn(reference, pawns);
-                Observe(pawn);
-                colonists.Add(pawn);
-            }
-
-            Fact<EquatableArray<Policy.EmergencyDependentPatient>> dependentPatients = default;
-            if (v.DependentPatients is { } census)
-            {
-                var patients = new List<Policy.EmergencyDependentPatient>();
-                foreach (var reference in census.Patients)
+                if (EmergencyPawn(reference, pawns, unseen) is { } pawn)
                 {
-                    var (pawn, _) = EmergencyPawn(reference.Pawn, pawns);
-                    Observe(pawn);
-                    patients.Add(new(pawn, reference.Group.GetValueOrDefault(), EmergencyBool(reference.Rescue), EmergencyBool(reference.Tend)));
+                    colonists.Add(pawn.Pawn);
                 }
-                dependentPatients = Known(EquatableArray.From(patients));
+            }
+            var patients = new List<Policy.EmergencyDependentPatient>();
+            foreach (var patient in v.DependentPatients.Patients)
+            {
+                if (EmergencyPawn(patient.Pawn, pawns, unseen) is { } pawn)
+                {
+                    patients.Add(new(pawn.Pawn, patient.Group, patient.Rescue, patient.Tend));
+                }
             }
             // The native's threat fact rows are classified; the threats are listed kind by kind in ThreatKind order,
             // each kind in row order.
             var byKind = new Dictionary<PolicyThreatKind, List<PolicyEmergencyThreat>>();
-            foreach (var row in threatCensus.Pawns)
+            foreach (var row in v.Threats.Pawns)
             {
                 var kinds = ClassifyThreat(row);
-                if (kinds.Count == 0)
+                if (kinds.Count == 0 || EmergencyPawn(row.Pawn, pawns, unseen) is not { } seen)
                 {
                     continue;
                 }
-                var (pawn, state) = EmergencyPawn(row.Pawn, pawns);
-                Observe(pawn);
+                var (pawn, state) = seen;
                 foreach (var kind in kinds)
                 {
-                    var threat = new PolicyEmergencyThreat { Id = pawn.Id, Kind = kind, Dead = pawn.Dead, Downed = pawn.Downed };
-                    if (kind == PolicyThreatKind.Hostile)
+                    var threat = new PolicyEmergencyThreat
                     {
-                        threat = threat with { Passive = EmergencyBool(row.Passive) };
-                    }
-                    if (row.NearestColonistDistance is not null)
-                    {
-                        threat = threat with { Distance = Known(row.NearestColonistDistance.GetValueOrDefault()) };
-                    }
-                    if (state is not null)
-                    {
-                        threat = threat with { Animal = Known(state.Animal), Fogged = Known(state.Fogged) };
-                        if (state.Pawn.Place is O.EntityPlace.OnMap { Cell: var at })
-                        {
-                            threat = threat with { Position = Known(new DomainCell(at.X, at.Z)) };
-                        }
-                    }
+                        Id = pawn.Id,
+                        Kind = kind,
+                        Dead = pawn.Dead,
+                        Downed = pawn.Downed,
+                        Animal = state.Animal,
+                        Fogged = state.Fogged,
+                        Distance = row.NearestColonist,
+                        Passive = kind == PolicyThreatKind.Hostile && row.Passive,
+                        Position = pawn.Position,
+                    };
                     if (!byKind.TryGetValue(kind, out var list))
                     {
                         byKind[kind] = list = [];
@@ -181,6 +93,7 @@ public sealed partial class FacadeNativeClient
                     list.Add(threat);
                 }
             }
+            var threats = new List<PolicyEmergencyThreat>();
             foreach (var kind in new[] { PolicyThreatKind.Hostile, PolicyThreatKind.HuntingPredator, PolicyThreatKind.IgnoredHunter, PolicyThreatKind.NearbyPredator, PolicyThreatKind.NearbyDowned })
             {
                 if (byKind.TryGetValue(kind, out var list))
@@ -188,11 +101,39 @@ public sealed partial class FacadeNativeClient
                     threats.AddRange(list);
                 }
             }
-            foreach (var row in threatCensus.HostileBuildings)
+            foreach (var row in v.Threats.HostileBuildings)
             {
                 threats.Add(EmergencyBuilding(row));
             }
-            return new Bridge.Contracts.EmergencyObservation(context, new PolicyEmergencyFacts { ColonistsComplete = complete, Colonists = colonists, DependentPatients = dependentPatients, Threats = threats });
+            return new Bridge.Contracts.EmergencyObservation(
+                v.Context,
+                new PolicyEmergencyFacts { Colonists = colonists, DependentPatients = patients, Threats = threats, Unseen = unseen.Distinct().ToList() });
+        }
+
+        /// <summary>
+        /// Reads one census reference's facts from its table row (returned too); a reference without a map row is
+        /// listed in <paramref name="unseen"/> and yields null.
+        /// </summary>
+        private static (PolicyEmergencyPawn Pawn, PbObservations.PawnState State)? EmergencyPawn(PbCommon.Ref reference, Pawns pawns, List<PawnId> unseen)
+        {
+            if (!pawns.TryRow(reference, out var row) || row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var at })
+            {
+                unseen.Add(new PawnId(reference.Id ?? ""));
+                return null;
+            }
+            var pawn = new PolicyEmergencyPawn
+            {
+                Id = new PawnId(row.Pawn.Id ?? ""),
+                Dead = row.Dead,
+                Downed = row.Downed,
+                InBed = row.InBed,
+                Bleeding = row.Health.Bleeding,
+                NeedsTend = row.Health.NeedsTend,
+                Position = new DomainCell(at.X, at.Z),
+                Food = row.Needs.Food,
+                MentalState = row.MentalState is { } m ? new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks } : null,
+            };
+            return (pawn, row);
         }
 
         /// <summary>
@@ -202,54 +143,53 @@ public sealed partial class FacadeNativeClient
         /// </summary>
         private static PolicyEmergencyThreat EmergencyBuilding(PbObservations.ThreatBuilding row)
         {
-            var result = new PolicyEmergencyThreat
+            if (row.Building.Place is not O.EntityPlace.OnMap { Cell: var at })
+            {
+                throw new BridgeContractException($"status hostile building {row.Building.Id} is unplaced");
+            }
+            return new PolicyEmergencyThreat
             {
                 Id = new PawnId(row.Building.Id),
                 Kind = PolicyThreatKind.HostileBuilding,
-                Dead = Known(false),
-                Downed = Known(false),
-                Animal = Known(false),
-                SnapshotToken = row.BuildingSnapshot.Token ?? "",
+                Dead = false,
+                Downed = false,
+                Animal = false,
+                Fogged = row.Fogged,
+                Distance = row.NearestColonist,
+                SnapshotToken = row.Snapshot,
                 Definition = row.Building.DefName,
                 Cells = CellsRules.RectCells(row.Occupied),
-                Passive = Known(row.Passive),
+                Passive = row.Passive,
+                Position = new DomainCell(at.X, at.Z),
             };
-            if (row.NearestColonistDistance is not null)
-            {
-                result = result with { Distance = Known((double)row.NearestColonistDistance.GetValueOrDefault()) };
-            }
-            return result;
         }
 
         /// <summary>
         /// The kinds a threat row is. A manhunter, a faction-hostile pawn or a prison breaker
-        /// is Hostile; a predator hunt is a hunting predator or, when the hunter or its prey is ours, an ignored hunter;
-        /// else an unowned pawn within <see cref="ThreatProximityRadius"/> of a colonist is nearby downed and/or nearby predator.
+        /// is Hostile; a predator hunt is an ignored hunter when the hunter is ours or hunts prey that is not ours,
+        /// else a hunting predator; else an unowned pawn within <see cref="ThreatProximityRadius"/> of a colonist is
+        /// nearby downed and/or nearby predator.
         /// </summary>
         internal static IReadOnlyList<PolicyThreatKind> ClassifyThreat(PbObservations.ThreatPawn row)
         {
-            if ((row.MentalState ?? "").Contains("manhunter", StringComparison.OrdinalIgnoreCase) || row.FactionHostile.GetValueOrDefault() || row.PrisonBreak.GetValueOrDefault())
+            if ((row.MentalState ?? "").Contains("manhunter", StringComparison.OrdinalIgnoreCase) || row.FactionHostile || row.PrisonBreak)
             {
                 return [PolicyThreatKind.Hostile];
             }
-            if (row.PredatorHunt.GetValueOrDefault())
+            if (row.PredatorHunt)
             {
-                if (row.Ours.GetValueOrDefault() || (row.Prey is not null && !row.PreyIsOurs.GetValueOrDefault()))
-                {
-                    return [PolicyThreatKind.IgnoredHunter];
-                }
-                return [PolicyThreatKind.HuntingPredator];
+                return row.Ours || row.Prey is { Ours: false } ? [PolicyThreatKind.IgnoredHunter] : [PolicyThreatKind.HuntingPredator];
             }
-            if (row.Ours.GetValueOrDefault() || row.NearestColonistDistance is null || row.NearestColonistDistance.GetValueOrDefault() > ThreatProximityRadius)
+            if (row.Ours || row.NearestColonist is not PbObservations.ColonistDistance.Nearest { Cells: <= ThreatProximityRadius })
             {
                 return [];
             }
             var kinds = new List<PolicyThreatKind>();
-            if (row.Downed.GetValueOrDefault())
+            if (row.Downed)
             {
                 kinds.Add(PolicyThreatKind.NearbyDowned);
             }
-            if (row.Predator.GetValueOrDefault())
+            if (row.Predator)
             {
                 kinds.Add(PolicyThreatKind.NearbyPredator);
             }

@@ -22,7 +22,7 @@ public sealed class DefenseCapacityHitChanceTests
     {
         var emergency = new EmergencyFacts
         {
-            Colonists = [.. rows.Select(r => new EmergencyPawn { Id = new PawnId(r.Pawn.Id), Dead = Known(false), Downed = Known(false) })],
+            Colonists = [.. rows.Select(r => EmergencyFixtures.Colonist(r.Pawn.Id))],
         };
         var colony = ColonyFactsCoreTests.Snapshot() with { ColonistCount = (uint)rows.Length };
         var pawns = new O.PawnSnapshot { Context = colony.Context, Pawns = EquatableArray.From(rows) };

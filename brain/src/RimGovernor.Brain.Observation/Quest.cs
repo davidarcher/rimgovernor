@@ -7,7 +7,7 @@ public static class QuestReads
 
     internal static Fact<int> FrameQuestColonistsAtHome(WorldProgressionRead? read, MapId home, EmergencyFacts emergency)
     {
-        if (read is null || !emergency.ColonistsComplete.TryGetValue(out var complete) || !complete)
+        if (read is null || !emergency.AllSeen)
         {
             return Unknown<int>();
         }
@@ -33,11 +33,7 @@ public static class QuestReads
                 {
                     continue;
                 }
-                if (!pawn.Dead.TryGetValue(out var dead))
-                {
-                    return Unknown<int>();
-                }
-                if (!dead)
+                if (!pawn.Dead)
                 {
                     n++;
                 }

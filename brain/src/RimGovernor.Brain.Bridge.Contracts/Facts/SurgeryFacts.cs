@@ -32,7 +32,7 @@ public static class SurgeryFactsRules
         WireSurgeryKind.Install => PolicySurgeryKind.Install,
         WireSurgeryKind.Harvest => PolicySurgeryKind.Harvest,
         WireSurgeryKind.Other => PolicySurgeryKind.Other,
-        _ => PolicySurgeryKind.Unknown,
+        _ => throw new BridgeContractException($"surgery kind {kind} has no Policy kind"),
     };
 
     /// <summary>
@@ -74,19 +74,22 @@ public static class SurgeryFactsRules
 
     private static PolicySurgeryOperation SurgeryOperationOf(RimGovernor.Contracts.Wire.Observations.SurgeryOperation op, IPartCatalog? catalog)
     {
+        // PolicySurgeryOperation is the surgery planners' Fact-typed copy (#3788): a fact the operation does not
+        // have (a whole-body part, no rated chance, no yield or added part) stays unknown there.
+        var rated = op.Chance as SurgeryChance.Rated;
         var row = new PolicySurgeryOperation
         {
-            PartIndex = FactHelpers.OptionalInt(op.PartIndex is not null, op.PartIndex.GetValueOrDefault()),
-            PartDefName = FactHelpers.OptionalFact(op.PartDefName is not null, (op.PartDefName ?? "")),
+            PartIndex = FactHelpers.OptionalInt(op.Part is not null, op.Part?.Index ?? 0),
+            PartDefName = FactHelpers.OptionalFact(op.Part is not null, op.Part?.DefName ?? ""),
             Kind = SurgeryKindOf(op.Kind),
-            SuccessChance = FactHelpers.OptionalFact(op.SuccessChance is not null, op.SuccessChance.GetValueOrDefault()),
-            DoctorSuccessChance = FactHelpers.OptionalFact(op.DoctorSuccessChance is not null, op.DoctorSuccessChance.GetValueOrDefault()),
+            SuccessChance = FactHelpers.OptionalFact(rated is not null, rated?.Success ?? 0),
+            DoctorSuccessChance = FactHelpers.OptionalFact(rated is not null, rated?.IdealSuccess ?? 0),
             IngredientsOnMap = FactHelpers.OptionalFact(op.IngredientsOnMap is not null, op.IngredientsOnMap.GetValueOrDefault()),
             Violation = FactHelpers.OptionalFact(op.Violation is not null, op.Violation.GetValueOrDefault()),
             Lethal = FactHelpers.OptionalFact(op.Lethal is not null, op.Lethal.GetValueOrDefault()),
-            YieldValue = FactHelpers.OptionalFact(op.YieldMarketValue is not null, op.YieldMarketValue.GetValueOrDefault()),
-            AddedPart = FactHelpers.OptionalFact(op.AddedPartHediff is not null, (op.AddedPartHediff ?? "")),
-            YieldThing = FactHelpers.OptionalFact(op.YieldThingDef is not null, (op.YieldThingDef ?? "")),
+            YieldValue = FactHelpers.OptionalFact(op.Yield is not null, op.Yield?.MarketValue ?? 0),
+            AddedPart = FactHelpers.OptionalFact(op.AddedPartHediff is not null, op.AddedPartHediff ?? ""),
+            YieldThing = FactHelpers.OptionalFact(op.Yield is not null, op.Yield?.ThingDef ?? ""),
             MedicineValue = FactHelpers.OptionalFact(op.MedicineMarketValue is not null, op.MedicineMarketValue.GetValueOrDefault()),
             CareLimited = FactHelpers.OptionalFact(op.MedicineCareLimited is not null, op.MedicineCareLimited.GetValueOrDefault()),
             EligibleDoctors = op.EligibleDoctors is not null ? Known((int)op.EligibleDoctors.GetValueOrDefault()) : Unknown<int>(),
@@ -99,10 +102,10 @@ public static class SurgeryFactsRules
                 row = row with { Item = catalog.InstallItem((recipe.DefName ?? "")), Tier = catalog.PartTier((recipe.DefName ?? "")) };
             }
         }
-        if (op.DoctorChances.Count > 0)
+        if (rated is not null && rated.Doctors.Count > 0)
         {
-            var chances = new Dictionary<PawnId, double>(op.DoctorChances.Count);
-            foreach (var (doctor, chance) in op.DoctorChances)
+            var chances = new Dictionary<PawnId, double>(rated.Doctors.Count);
+            foreach (var (doctor, chance) in rated.Doctors)
             {
                 chances[new PawnId(doctor)] = chance;
             }
@@ -137,5 +140,5 @@ public static class SurgeryFactsRules
     public static IReadOnlyList<string>? QueuedSurgeryRecipes(PawnSurgery? health) =>
         health is null
             ? null
-            : [.. health.SurgeryBills.Where(bill => bill.Recipe is not null && (bill.Recipe ?? "").Length > 0).Select(bill => (bill.Recipe ?? ""))];
+            : [.. health.SurgeryBills.Where(bill => bill.Recipe.Length > 0).Select(bill => bill.Recipe)];
 }

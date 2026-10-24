@@ -189,12 +189,26 @@ and the prisoners and tame animals holding food policies. The brain holds it as
 - BillStack, BuildingSettings, PawnSettings, GearLoadout
   and ResearchSnapshot expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
-- PawnHealth carries surgery facts: `missing_parts` (each missing or
-  destroyed part at its common missing ancestor, its parent and the vital flag)
-  and `operations` (every available medical recipe per target part with its
-  kind, vanilla `success_chance` for the best eligible doctor, best colony
-  medical bed and best permitted medicine on the map, eligible doctor count,
-  `ingredients_on_map`, `violation` and `lethal`). The brain never recomputes them.
+- `BuildingSettings` is the forbidden flag and one `BuildingControl` (#3770), the
+  settings the brain reads: `temperature` (its `snapshot` and `targetC`), `bed`
+  (`medical`, `forPrisoners`, `assignedPawns`), `grower` (`cropDefName`, null when it
+  grows nothing), or `none`, tested in that order.
+- PawnHealth carries surgery facts: `missingParts` (each missing or
+  destroyed part at its common missing ancestor) and `operations` (every
+  available medical recipe per target part with its kind, its `SurgeryChance`:
+  `rated` (vanilla success for the best eligible doctor, best colony medical
+  bed and best permitted medicine on the map, the ideal-bed chance and each
+  doctor's), `no_outcome_effect` or `no_eligible_doctor`, eligible doctor
+  count, `ingredientsOnMap`, `violation`, `lethal` and the `SurgeryYield` it
+  spawns). The brain never recomputes them. Health is total (#3770): a hediff's
+  `part` is a `BodyPartRef` or null (whole body), its `tend` is `untended` or
+  `tended` at a quality, an immunizable hediff carries `HediffImmunity` with its
+  `ImmunityGain` (`per_day`, `no_record` or `dead`), and `bleedOut` is `within`
+  hours or `not_bleeding_out`. `SurgeryKind` names are snake_case with no
+  unspecified member. The operation fields native always sets but only Policy
+  `SurgeryOperation` reads (recipe, eligible doctors, ingredients, violation,
+  lethal, medicine value and care limit) and `MissingBodyPart`'s two fields stay
+  optional until #3788 hardens that copy.
   `ReadMedicalCatalog` is retired.
 - Gear loadouts carry the loadout model's inputs and an optional blocker; the brain
   derives every deficit and replacement need from the model (the native deficit
@@ -226,6 +240,23 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   use GetCells plus ListRooms by native room ID. Semantic diagnostics (inspect
   text, lock/refusal reasons, hidden/read failures, thermal sides and ingredients)
   remain typed facts or bounded diagnostic strings.
+
+## Status and threat census
+
+`ReadStatus` takes only a `ReadScope` and returns the whole `StatusSnapshot`: the free colonists, the
+dependent-patient census and the threat census, built together on the map at one tick. A read that cannot
+complete is refused (bad scope or identity) or unavailable (`read_failed`); there is no partial census and no
+per-section issue list. A threat pawn row carries plain facts (ours, passive, faction hostile, prison break,
+predator hunt, predator, downed), its prey as a `ThreatPrey` relation or absent when it hunts nothing, and
+its `ColonistDistance`: `nearest` (Chebyshev cells to the nearest free colonist) or `no_colonist`. A
+pawn or building without a dormancy comp is never passive. A hostile building row carries its CAS `snapshot`
+token, distance, passive and fogged facts and its occupied rectangle. The native keeps unowned pawns within
+30 cells of a colonist (the predator radius), the radius the brain classifies nearby threats with.
+
+The colony facts' `Recovery` section is a whole `RecoverySnapshot`: every spawned free colonist's
+`RecoveryRestriction` (its `areaId` is null when the pawn is unrestricted, never because the area is unread) and
+every unfogged colonist building's reference into the bundle's building table. A recovery read that fails fails
+the colony read.
 
 ## Catalog rows and constants
 

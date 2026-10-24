@@ -14,13 +14,12 @@ public static class EmergencyNeedsRules
         {
             switch (hold.Reason)
             {
-                case EmergencyReason.UnknownFacts:
                 case EmergencyReason.StaleFacts:
                     return (Unknown<long>(), Unknown<long>());
                 case EmergencyReason.UnsafeThreat:
                     threats++;
                     break;
-                default:
+                case EmergencyReason.CriticalMedical:
                     break;
             }
         }
@@ -37,7 +36,7 @@ public static class EmergencyNeedsRules
     /// <summary>
     /// Counts the critical patients who are bleeding or downed with a tend outstanding:
     /// the ones whose care cannot wait for ordinary work. A living colonist who merely needs tending, or who is
-    /// downed with nothing to tend, is a patient but not an urgent one. Uncertainty is unknown, exactly as
+    /// downed with nothing to tend, is a patient but not an urgent one. A stale census is unknown, exactly as
     /// <see cref="EmergencyNeeds"/> reports it.
     /// </summary>
     public static Fact<long> UrgentPatients(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
@@ -48,22 +47,18 @@ public static class EmergencyNeedsRules
 
     /// <summary>
     /// Counts the living colonists who are urgent patients and, with tending, every
-    /// downed, bleeding or tend-needing colonist too. Callers have already established that every health fact is
-    /// known.
+    /// downed, bleeding or tend-needing colonist too.
     /// </summary>
     private static long CountPatients(EmergencySnapshot snapshot, bool tending)
     {
         long patients = 0;
         foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
-            if (pawn.Dead.TryGetValue(out var dead) && dead)
+            if (pawn.Dead)
             {
                 continue;
             }
-            var downed = pawn.Downed.ValueOrDefault;
-            var bleeding = pawn.Bleeding.ValueOrDefault;
-            var needsTend = pawn.NeedsTend.ValueOrDefault;
-            if (EmergencyRules.UrgentPatient(pawn) || (tending && (downed || bleeding || needsTend)))
+            if (EmergencyRules.UrgentPatient(pawn) || (tending && (pawn.Downed || pawn.Bleeding || pawn.NeedsTend)))
             {
                 patients++;
             }
@@ -87,11 +82,11 @@ public static class EmergencyNeedsRules
         var ids = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
-            if (pawn.Dead.TryGetValue(out var dead) && dead)
+            if (pawn.Dead)
             {
                 continue;
             }
-            if (EmergencyRules.UrgentPatient(pawn) || pawn.Downed.ValueOrDefault || pawn.Bleeding.ValueOrDefault || pawn.NeedsTend.ValueOrDefault)
+            if (EmergencyRules.UrgentPatient(pawn) || pawn.Downed || pawn.Bleeding || pawn.NeedsTend)
             {
                 ids.Add(pawn.Id.Value);
             }
@@ -137,14 +132,11 @@ public static class EmergencyNeedsRules
                 continue;
             }
             var found = byId.TryGetValue(pawn.Id, out var row);
-            var downed = row?.Downed.ValueOrDefault ?? false;
-            var bleeding = row?.Bleeding.ValueOrDefault ?? false;
-            var needsTend = row?.NeedsTend.ValueOrDefault ?? false;
             if (!found || !EmergencyRules.UrgentPatient(row!))
             {
                 pressing++;
             }
-            if (!found || !(downed || bleeding || needsTend))
+            if (!found || !(row!.Downed || row.Bleeding || row.NeedsTend))
             {
                 critical++;
             }

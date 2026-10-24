@@ -22,9 +22,7 @@ public static class BreakResponseRules
     public static bool AggressiveBreak(EmergencyPawn p)
     {
         var state = p.MentalState;
-        var dk = p.Dead.TryGetValue(out var dead);
-        var wk = p.Downed.TryGetValue(out var down);
-        return state is not null && state.IsAggro && state.DefName != "SocialFighting" && dk && wk && !dead && !down;
+        return state is not null && state.IsAggro && state.DefName != "SocialFighting" && !p.Dead && !p.Downed;
     }
 
     /// <summary>

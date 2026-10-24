@@ -52,8 +52,7 @@ public static class RoundsWorkReads
         foreach (var p in emergency.Colonists)
         {
             if (!byId.TryGetValue(p.Id.Value, out var row)
-                || !p.Dead.TryGetValue(out var dead) || !p.Downed.TryGetValue(out var downed)
-                || row.Dead != dead || row.Downed != downed || !row.Colonist)
+                || row.Dead != p.Dead || row.Downed != p.Downed || !row.Colonist)
             {
                 return Unknown<EquatableArray<WorkPawn>>();
             }

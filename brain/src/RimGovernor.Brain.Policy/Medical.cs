@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The doctors, rescuers and patients one family read observed together for the critical Needs (#3258): the tend
 /// candidates with their reachability and the rescue candidates. <see cref="Wait"/> names an incomplete census
-/// (<c>colonist_census</c>, <c>dependent_patient_census</c>); nothing is paired then.
+/// (<c>colonist_census</c>); nothing is paired then.
 /// </summary>
 public sealed record CriticalCare
 {

@@ -38,10 +38,8 @@ internal static class NativeProtoObservationsProbe
         }
         const string scope="\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string,string> request=fields=>"{"+scope+(fields.Length==0?"":","+fields)+"}";
-        Check(Valid("ValidateStatus","StatusRequest",request("")),"status defaults accepted");
-        Check(Valid("ValidateStatus","StatusRequest",request("\"colonists\":false,\"threats\":false,\"predatorRadius\":0")),"known false and zero accepted");
-        foreach(var invalid in new[]{"{}",request("\"page\":{\"limit\":0}"),request("\"page\":{\"limit\":257}"),request("\"page\":{\"cursor\":\"stale\"}"),request("\"predatorRadius\":-1"),request("\"predatorRadius\":\"NaN\""),request("\"predatorRadius\":\"Infinity\"")})
-            Check(!Valid("ValidateStatus","StatusRequest",invalid),"invalid status refused");
+        Check(Valid("ValidateStatus","StatusRequest",request("")),"status with an identity scope accepted");
+        Check(!Valid("ValidateStatus","StatusRequest","{}"),"status without an identity scope refused");
         Func<int,int,int,int,string> rect=(x0,z0,x1,z1)=>"\"rectangle\":{\"minimum\":{\"x\":"+x0+",\"z\":"+z0+"},\"maximum\":{\"x\":"+x1+",\"z\":"+z1+"}}";
         Check(Valid("ValidateCells","GetCellsRequest",request(rect(2,3,2,3))),"Go singleton map-bounds request accepted");
         Check(Valid("ValidateCells","GetCellsRequest",request(rect(0,0,1023,1023))),"whole-map rectangle accepted");

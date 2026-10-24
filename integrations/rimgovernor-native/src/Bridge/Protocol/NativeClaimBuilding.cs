@@ -31,24 +31,6 @@ namespace HomeBridge.BridgeTools
 
         internal static bool PlayerOwned(Building building) => building.Faction != null && building.Faction == Faction.OfPlayerSilentFail;
 
-        internal static string Token(Common.Identity identity, Building building) =>
-            NativeSnapshotVersions.Token("claim", identity, building.GetUniqueLoadID(), w => {
-                w.Write(building.Faction?.GetUniqueLoadID() ?? string.Empty);
-                w.Write(building is Building_Casket casket && casket.HasAnyContents);
-            });
-
-        internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
-        {
-            if (!Eligible(thing)) return null;
-            return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
-                Token = Token(context.Identity, (Building)thing) };
-        }
-
-        // Settings carries the faction reading beside its CAS snapshot on
-        // the building listing row.
-        internal static Obs.BuildingSettings Settings(Building building, Common.ObservationContext context) =>
-            new Obs.BuildingSettings { Snapshot = Snapshot(building, context), PlayerOwned = PlayerOwned(building) };
-
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building? building)
         {
             building = null;

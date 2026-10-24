@@ -28,7 +28,7 @@ internal static class BreakDispatch
                 broken.Add(p.Id);
             }
         }
-        var colonistsKnown = f.ColonistsComplete.TryGetValue(out var complete);
+        var complete = f.AllSeen;
         foreach (var plan in plans)
         {
             if (plan.Retired)
@@ -43,7 +43,7 @@ internal static class BreakDispatch
             foreach (var p in plan.Progress)
             {
                 var v = p.View;
-                if (p.Action.Subdue is { } m && colonistsKnown && complete && !aggressive.Contains((PawnId)m.Target) && !v.Unresolved
+                if (p.Action.Subdue is { } m && complete && !aggressive.Contains((PawnId)m.Target) && !v.Unresolved
                     && v.Stage is Stage.Pending or Stage.Prepared or Stage.Completed)
                 {
                     await journal.CancelAsync(plan.Spec.Id, v.Action, ct).ConfigureAwait(false);
@@ -79,7 +79,7 @@ public sealed partial class Worker
         }
         var census = await _config.BreakSource.ReadEmergencyAsync(Boundary.Identity(current), ct).ConfigureAwait(false);
         _ = Boundary.Context(census.Context, current);
-        if (!census.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete)
+        if (!census.Facts.AllSeen)
         {
             throw new ControlException("breakDispatchHolds: !known || !complete");
         }

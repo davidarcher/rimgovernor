@@ -18,11 +18,8 @@ public sealed class BreakResponseTests
 
     private static readonly Fact<Cell> At = Known(new Cell(10, 10));
 
-    private static EmergencyPawn Breaker() => new()
+    private static EmergencyPawn Breaker() => EmergencyFixtures.Colonist("brookie") with
     {
-        Id = new PawnId("brookie"),
-        Dead = Known(false),
-        Downed = Known(false),
         MentalState = new MentalState { DefName = "Berserk", IsAggro = true, TicksInState = 10 },
     };
 

@@ -197,7 +197,7 @@ public static class RoundsReads
             var thoughtFacts = catalog.AllThoughtFacts();
             p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodReads.RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
         }
-        else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.ColonistCount == 0)
+        else if (emergency.AllSeen && emergency.Colonists.Count == 0 && colony.ColonistCount == 0)
         {
             p = p with
             {
@@ -370,7 +370,7 @@ public static class RoundsReads
     private static O.PawnSnapshot? RoundsPawnsOf(RoundsFrame frame, C.Identity id)
     {
         var facts = frame.Emergency.Facts;
-        if (!facts.ColonistsComplete.TryGetValue(out var complete) || !complete || facts.Colonists.Count == 0 || frame.Pawns is null)
+        if (!facts.AllSeen || facts.Colonists.Count == 0 || frame.Pawns is null)
         {
             return null;
         }

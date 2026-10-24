@@ -19,7 +19,7 @@ public sealed class ClockWatchHungerTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
     private static readonly C.Identity Identity = new() { ColonyId = "colony", MapId = 1, LoadToken = "load" };
 
-    private static O.PawnState Colonist(string id, Defs.HungerCategory? hunger) => PawnFixtures.Row(id) with
+    private static O.PawnState Colonist(string id, Defs.HungerCategory? hunger) => EmergencyFixtures.Placed(id) with
     {
         Needs = hunger is { } h ? PawnNeedsTests.NoNeeds with { Food = new O.FoodNeed.Has(0.1, h) } : PawnNeedsTests.NoNeeds,
     };
@@ -28,7 +28,7 @@ public sealed class ClockWatchHungerTests
     {
         var status = new O.StatusSnapshot
         {
-            Context = new() { Identity = Identity, Tick = 100 }, Threats = new(),
+            Context = new() { Identity = Identity, Tick = 100 }, Threats = new() { Pawns = [], HostileBuildings = [] },
             Colonists = [.. rows.Select(r => new C.Ref { Id = r.Pawn.Id })],
             DependentPatients = new() { Patients = EquatableArray.From<O.DependentPatientObservation>([]) },
         };
@@ -59,16 +59,16 @@ public sealed class ClockWatchHungerTests
     private static string[] Ids(ClockWatchDecision d) => [.. d.Hungry.Items.Select(p => p.Value)];
 
     [Fact]
-    public void ResumeAcknowledgesColonistsAtTheCategoryAndThoseWithUnreadHunger()
+    public void ResumeAcknowledgesColonistsAtTheCategoryButNotThoseWithoutAFoodNeed()
     {
         var census = Census(
             Colonist("fed", Defs.HungerCategory.Fed),
             Colonist("hungry", Defs.HungerCategory.Hungry),
             Colonist("urgent", Defs.HungerCategory.UrgentlyHungry),
             Colonist("starving", Defs.HungerCategory.Starving),
-            Colonist("unread", null));
+            Colonist("foodless", null));
 
-        Assert.Equal(["starving", "unread", "urgent"], Ids(Decide(ClockWatchState.Held, census)));
+        Assert.Equal(["starving", "urgent"], Ids(Decide(ClockWatchState.Held, census)));
     }
 
     [Fact]

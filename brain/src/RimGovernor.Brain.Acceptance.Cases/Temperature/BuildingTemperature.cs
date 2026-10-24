@@ -54,14 +54,16 @@ internal static class BuildingTemperature
 
             s.RecordWire(label, row.Settings);
             var settings = row.Settings;
-            if (settings?.Snapshot is not { EntityId: var entity, Token: { Length: > 0 } token } || entity != thingId)
+            if (settings.Control is not Observations.BuildingControl.Temperature { Snapshot: var snapshot, TargetC: var target })
+            {
+                throw new AcceptanceException($"{label}: no target temperature: {settings}");
+            }
+            if (snapshot is not { EntityId: var entity, Token: { Length: > 0 } token } || entity != thingId)
             {
                 throw new AcceptanceException($"{label}: missing or mismatched settings snapshot: {settings}");
             }
 
-            return settings.TargetTemperatureC is { } target
-                ? (target, token)
-                : throw new AcceptanceException($"{label}: no target temperature: {settings}");
+            return (target, token);
         }
 
         async Task<Operations.ActionResult> ApplyAsync(string key, float temperature)

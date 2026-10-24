@@ -3,25 +3,19 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
 using O = RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class DependentPatientTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
-    private static readonly C.Identity Identity = new() { ColonyId = "colony", MapId = 1, LoadToken = "load" };
-    private static O.StatusSnapshot Status(params O.DependentPatientObservation[] patients) => new()
-    {
-        Context = new() { Identity = Identity, Tick = 100 }, Threats = new(), Colonists = [new() { Id = "doctor" }],
-        DependentPatients = new() { Patients = EquatableArray.From(patients) }
-    };
-    private static O.PawnState Pawn(string id, bool injured = false) => PawnFixtures.Row(id) with
+    private static O.StatusSnapshot Status(params O.DependentPatientObservation[] patients) =>
+        EmergencyFixtures.Status("doctor") with { DependentPatients = new() { Patients = EquatableArray.From(patients) } };
+    private static O.PawnState Pawn(string id, bool injured = false) => EmergencyFixtures.Placed(id) with
     {
         Downed = injured,
-        Health = new() { SummaryFraction = 1, Bleeding = injured, NeedsTend = injured },
+        Health = PawnFixtures.Healthy with { Bleeding = injured, NeedsTend = injured },
     };
     private static O.DependentPatientObservation Patient(string id, DependentPatientGroup group, bool rescue, bool tend) =>
         new() { Pawn = new() { Id = id }, Group = group, Rescue = rescue, Tend = tend };
@@ -46,17 +40,14 @@ public sealed class DependentPatientTests
     }
 
     [Fact]
-    public void MissingCensusOrHealthOrCapabilityCannotBecomeKnownEmptyCare()
+    public void AnUnseenPatientCannotBecomeKnownEmptyCare()
     {
         var patient = Patient("guest", DependentPatientGroup.HostedGuest, true, true);
-        var missing = Decode(Status() with { DependentPatients = null }, Pawn("doctor"));
         var unresolved = Decode(Status(patient), Pawn("doctor"));
-        var unknownCapability = Decode(Status(patient with { Tend = null }), Pawn("doctor"), Pawn("guest", true));
-        foreach (var facts in new[] { missing, unresolved, unknownCapability })
-        {
-            Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.IsKnown);
-            Assert.Contains(EmergencyRules.EvaluateEmergency(Snapshot(facts), World, new(100)).Holds, h => h.Reason == EmergencyReason.UnknownFacts);
-        }
+        Assert.Equal(["guest"], unresolved.Unseen.Select(p => p.Value));
+        Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(unresolved), World, new(100)).Patients.IsKnown);
+        Assert.Contains(EmergencyRules.EvaluateEmergency(Snapshot(unresolved), World, new(100)).Holds,
+            h => h.Reason == EmergencyReason.StaleFacts && h.Pawn.Value == "guest");
         var empty = Decode(Status(), Pawn("doctor"));
         Assert.True(EmergencyRules.EvaluateEmergency(Snapshot(empty), World, new(100)).Clear);
         Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(empty), World, new(100)).Patients.Value);
@@ -68,7 +59,7 @@ public sealed class DependentPatientTests
         var facts = Decode(Status(Patient("guest", DependentPatientGroup.HostedGuest, true, true)), Pawn("doctor"), Pawn("guest"));
         Assert.True(EmergencyRules.EvaluateEmergency(Snapshot(facts), World, new(100)).Clear);
         Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.Value);
-        var unknown = facts with { DependentPatients = default };
+        var unknown = facts with { Unseen = [new("guest")] };
         Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(unknown), World, new(100)).Patients.IsKnown);
     }
 }

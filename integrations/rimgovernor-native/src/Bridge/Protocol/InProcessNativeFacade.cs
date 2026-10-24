@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
 
         // Observations.
 
-        public Task<Obs.StatusReply> ReadStatusAsync(Obs.StatusRequest request, CancellationToken cancellationToken)
+        public Task<Obs.StatusSnapshot> ReadStatusAsync(Obs.StatusRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadStatus, request, () => NativeObservationTools.HandleReadStatus(request), cancellationToken);
 
         public Task<Obs.ColonyFactsSnapshot> ReadColonyFactsAsync(Obs.ColonyFactsRequest request, CancellationToken cancellationToken)

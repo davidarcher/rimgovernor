@@ -376,7 +376,7 @@ public sealed class ClockRunDriverTests
         {
             lock (_mu)
             {
-                var facts = new EmergencyFacts { ColonistsComplete = Fact.Known(true), DependentPatients = Fact.Known(EquatableArray.From<EmergencyDependentPatient>([])) };
+                var facts = new EmergencyFacts();
                 return Task.FromResult(new EmergencyObservation(Context(), facts));
             }
         }

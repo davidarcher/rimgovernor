@@ -81,7 +81,7 @@ internal static class DraftNeeds
     /// </summary>
     public static List<PawnId> IdleDrafts(ControlState state, EmergencyFacts emergency, PbObservations.PawnSnapshot? observed, HashSet<PawnId> needed)
     {
-        if (emergency.ColonistsComplete != Known(true) || emergency.Colonists.Count == 0 || observed is null)
+        if (!emergency.AllSeen || emergency.Colonists.Count == 0 || observed is null)
         {
             return [];
         }
@@ -108,7 +108,7 @@ internal static class DraftNeeds
     /// while a threat holds the drafts, unknown while the colonist census is incomplete or the pawns are unread.
     /// </summary>
     public static Fact<int> StrayDrafts(ControlState state, EmergencyFacts emergency, PbObservations.PawnSnapshot? observed, HashSet<PawnId> needed) =>
-        emergency.ColonistsComplete != Known(true) || observed is null ? Unknown<int>() : Known(IdleDrafts(state, emergency, observed, needed).Count);
+        !emergency.AllSeen || observed is null ? Unknown<int>() : Known(IdleDrafts(state, emergency, observed, needed).Count);
 
     /// <summary>
     /// Sends one Draft intent per pawn, drafted false, keyed by tick. A refusal (the pawn died or left) is logged

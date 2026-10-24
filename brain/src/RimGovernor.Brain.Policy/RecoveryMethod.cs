@@ -5,7 +5,8 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Policy;
 
-public sealed record RecoveryRestriction(PawnId Pawn, Fact<string> Area);
+/// <summary>A pawn's player area restriction: the area's load id, or empty when the pawn is unrestricted.</summary>
+public sealed record RecoveryRestriction(PawnId Pawn, string Area);
 
 public sealed record RecoverySafety
 {
@@ -48,7 +49,7 @@ public sealed record RecoveryPlanning
                 {
                     throw new DomainException("invalid recovery restriction pawn");
                 }
-                if (r.Area.TryGetValue(out var id) && id.Length != 0 && !FoodForecastRules.FoodId(id))
+                if (r.Area.Length != 0 && !FoodForecastRules.FoodId(r.Area))
                 {
                     throw new DomainException("invalid current restriction");
                 }
@@ -388,23 +389,13 @@ public static partial class RecoveryRules
                 candidates.Add(c);
             }
         }
-        var restrictions = new Dictionary<PawnId, Fact<string>>();
+        var restrictions = new Dictionary<PawnId, string>();
         foreach (var r in safety.Restrictions)
         {
             restrictions[r.Pawn] = r.Area;
         }
-        var eligible = new List<RecoveryWorker>();
-        var areaUnknown = false;
-        foreach (var w in available)
-        {
-            if (!restrictions[w.Pawn].TryGetValue(out _))
-            {
-                areaUnknown = true;
-                continue;
-            }
-            eligible.Add(w);
-        }
-        if (areaUnknown || !wk)
+        var eligible = available;
+        if (!wk)
         {
             return output;
         }
@@ -427,7 +418,6 @@ public static partial class RecoveryRules
                     break;
                 }
                 var b = byBuilding.GetValueOrDefault(job.Building) ?? new RecoveryBuilding();
-                restrictions[w.Pawn].TryGetValue(out var prior);
                 Add(new RecoveryCandidate
                 {
                     Kind = RecoveryProposalKind.ServiceWork,
@@ -436,7 +426,7 @@ public static partial class RecoveryRules
                     Method = job.Method,
                     HitPoints = b.HitPoints.TryGetValue(out var hp) ? hp : null,
                     Fuel = b.Fuel.TryGetValue(out var fuel) ? fuel : null,
-                    PriorArea = prior ?? "",
+                    PriorArea = restrictions[w.Pawn],
                 });
             }
         }

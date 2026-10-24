@@ -97,9 +97,9 @@ internal static class RefrigerationBuild
             throw new AcceptanceException($"cooler at {cell} facing {cooler.Rotation} has cold side {cold} and hot side {hot}; want cold inside and hot outdoors");
         }
 
-        if (cooler.Settings.TargetTemperatureC is not { } target || target > policy.FreezerTargetC)
+        if (cooler.Settings.Control is not Observations.BuildingControl.Temperature { TargetC: var target } || target > policy.FreezerTargetC)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"cooler target {cooler.Settings.TargetTemperatureC} C is not at or under the freezer target {policy.FreezerTargetC} C"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"cooler target {(cooler.Settings.Control as Observations.BuildingControl.Temperature)?.TargetC} C is not at or under the freezer target {policy.FreezerTargetC} C"));
         }
     }
 

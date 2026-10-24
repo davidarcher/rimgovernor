@@ -207,7 +207,7 @@ public sealed class ContainmentCreditTests
         HitPoints = new O.BuildingHitPoints.Untracked(),
         Construction = null,
         Service = new O.BuildingServiceState(),
-        Settings = new O.BuildingSettings(),
+        Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
         Occupied = new O.Rectangle { Minimum = new C.Cell { X = x, Z = z }, Maximum = new C.Cell { X = x, Z = z } },
         Anomaly = new O.AnomalyBuilding { Holder = new O.EntityHolderState { ContainmentStrength = strength, Available = false, HeldPawn = new C.Ref { Id = held } } },

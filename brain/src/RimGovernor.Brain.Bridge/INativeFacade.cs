@@ -67,7 +67,7 @@ public interface INativeFacade
 
     // Observations.
 
-    Task<Obs.StatusReply> ReadStatusAsync(Obs.StatusRequest request, CancellationToken cancellationToken);
+    Task<Obs.StatusSnapshot> ReadStatusAsync(Obs.StatusRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ColonyFactsSnapshot> ReadColonyFactsAsync(Obs.ColonyFactsRequest request, CancellationToken cancellationToken);
 

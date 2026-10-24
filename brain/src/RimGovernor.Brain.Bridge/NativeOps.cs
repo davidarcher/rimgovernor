@@ -110,7 +110,7 @@ public static class NativeOps
     public static readonly NativeOp<Operations.ZonePreviewRequest, Operations.ZonePreviewReply> PreviewZone = Op<Operations.ZonePreviewRequest, Operations.ZonePreviewReply>("zones_preview", (f, r, c) => f.PreviewZoneAsync(r, c));
 
     // Observations.
-    public static readonly NativeOp<Obs.StatusRequest, Obs.StatusReply> ReadStatus = Op<Obs.StatusRequest, Obs.StatusReply>("observations_read_status", (f, r, c) => f.ReadStatusAsync(r, c));
+    public static readonly NativeOp<Obs.StatusRequest, Obs.StatusSnapshot> ReadStatus = Op<Obs.StatusRequest, Obs.StatusSnapshot>("observations_read_status", (f, r, c) => f.ReadStatusAsync(r, c));
     public static readonly NativeOp<Obs.ColonyFactsRequest, Obs.ColonyFactsSnapshot> ReadColonyFacts = Op<Obs.ColonyFactsRequest, Obs.ColonyFactsSnapshot>("observations_read_colony_facts", (f, r, c) => f.ReadColonyFactsAsync(r, c));
     public static readonly NativeOp<Obs.GetCellsRequest, Obs.CellsSnapshot> GetCells = Op<Obs.GetCellsRequest, Obs.CellsSnapshot>("observations_get_cells", (f, r, c) => f.GetCellsAsync(r, c));
     public static readonly NativeOp<Obs.ListBuildingsRequest, Obs.BuildingsSnapshot> ListBuildings = Op<Obs.ListBuildingsRequest, Obs.BuildingsSnapshot>("observations_list_buildings", (f, r, c) => f.ListBuildingsAsync(r, c));
