@@ -124,9 +124,22 @@ public sealed record ConsumerFoodForecast
     public double NutritionPerDay { get; init; }
 }
 
+/// <summary>The colony's food runway: the shortest runway of the selected consumers that eat, or none eats at all.</summary>
+public abstract record FoodRunway
+{
+    private protected FoodRunway() { }
+
+    /// <summary>No selected consumer eats: the selection is empty or every rate is zero.</summary>
+    public sealed record NoEaters : FoodRunway;
+
+    /// <summary>The shortest runway in days over the selected consumers that eat.</summary>
+    public sealed record Days(double Value) : FoodRunway;
+}
+
 public sealed record FoodForecast
 {
-    public Fact<double> RunwayDays { get; init; }
+    /// <summary>The shortest consumer runway; an empty forecast has no eaters.</summary>
+    public FoodRunway RunwayDays { get; init; } = new FoodRunway.NoEaters();
 
     public double UsableNutrition { get; init; }
 
@@ -144,7 +157,7 @@ public sealed record FoodForecast
     /// rows only: one unfed pet must not read the colony as starving. Every other row whose runway falls
     /// below minDays is reported in PetShortfalls as its own need. The allocation itself is unchanged, so pets
     /// still compete for shared stock. An empty census keeps the all-consumer minimum, and a census with no
-    /// fed rows leaves the runway unknown.
+    /// fed rows has no eaters.
     /// </summary>
     public FoodForecast GateOnColonists(IReadOnlyList<PawnId> colonists, double minDays)
     {
@@ -153,7 +166,7 @@ public sealed record FoodForecast
             return this;
         }
         var human = new HashSet<PawnId>(colonists);
-        var runway = Unknown<double>();
+        FoodRunway runway = new FoodRunway.NoEaters();
         var pets = new List<ConsumerFoodForecast>();
         foreach (var row in Consumers)
         {
@@ -165,9 +178,9 @@ public sealed record FoodForecast
                 }
                 continue;
             }
-            if (!runway.TryGetValue(out var minimum) || row.RunwayDays < minimum)
+            if (runway is not FoodRunway.Days { Value: var minimum } || row.RunwayDays < minimum)
             {
-                runway = Known(row.RunwayDays);
+                runway = new FoodRunway.Days(row.RunwayDays);
             }
         }
         return this with { RunwayDays = runway, PetShortfalls = pets };
@@ -211,7 +224,7 @@ public static class FoodForecastRules
     /// Allocates each stock among its observed eligible consumers by demand, then
     /// consumes allocations in expiry order. Private inventory belongs only to its holder. A selected human
     /// census still competes with animal demand. This is feasible nutrition under fixed access/temperature, not
-    /// predicted jobs. Null selected means all consumers; an empty selection has unknown runway. Throws
+    /// predicted jobs. Null selected means all consumers; an empty selection has no eaters. Throws
     /// <see cref="FoodFactsException"/>.
     /// </summary>
     public static FoodForecast ForecastFood(FoodSupply supply, IReadOnlyList<PawnId>? selected)
@@ -305,7 +318,7 @@ public static class FoodForecastRules
             }
         }
         stocks = [.. stocks.OrderBy(s => s.Expiry).ThenBy(s => s.Id, StringComparer.Ordinal)];
-        var runwayDays = Unknown<double>();
+        FoodRunway runwayDays = new FoodRunway.NoEaters();
         double usableTotal = 0;
         double atRisk = 0;
         double inventory = 0;
@@ -347,9 +360,9 @@ public static class FoodForecastRules
             {
                 throw new FoodFactsException();
             }
-            if (!runwayDays.TryGetValue(out var minimum) || runway < minimum)
+            if (runwayDays is not FoodRunway.Days { Value: var minimum } || runway < minimum)
             {
-                runwayDays = Known(runway);
+                runwayDays = new FoodRunway.Days(runway);
             }
             usableTotal += usableNutrition;
             atRisk += Math.Max(0, allocated - usableNutrition);

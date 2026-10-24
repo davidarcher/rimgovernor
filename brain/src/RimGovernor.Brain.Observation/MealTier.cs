@@ -32,7 +32,10 @@ public sealed partial record ColonyProjection
                     }
                     f = f.GateOnColonists(ids, minDays);
                 }
-                r = r with { RawRunwayDays = f.RunwayDays };
+                if (f.RunwayDays is FoodRunway.Days { Value: var raw })
+                {
+                    r = r with { RawRunwayDays = Known(raw) };
+                }
             }
             catch (DomainException)
             {
@@ -73,7 +76,7 @@ public sealed partial record ColonyProjection
             }
             if (complete)
             {
-                r = r with { Cooks = Known(EquatableArray.From(cooks)), CookLaborConstrained = Known(cooks.Count == 0) };
+                r = r with { Cooks = Known(EquatableArray.From(cooks)) };
             }
         }
         if (Facts.MoodPawns.TryGetValue(out var moodPawns))

@@ -115,7 +115,8 @@ internal static class RoundsHerdRooms
         return (HerdRoomsRules.NextWardStep(plan, rooms!, census.Buildings, sleeping!.Beds, ward, furniture), true);
     }
 
-    internal static Fact<bool> WardReadyOf(ColonyProjection facts)
+    /// <summary>Whether the hospital ward is ready; a ward the frame cannot show standing (plan, rooms, construction or sleeping census unread) is not.</summary>
+    internal static bool WardReadyOf(ColonyProjection facts)
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -123,7 +124,7 @@ internal static class RoundsHerdRooms
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         if (!pk || !rk || !ck || !sk || !census!.Colony)
         {
-            return Unknown<bool>();
+            return false;
         }
 
         return HerdWardRules.WardReady(plan!, rooms!, census.Buildings, sleeping!.Beds, facts.Shapes.Furniture.AnimalBed);

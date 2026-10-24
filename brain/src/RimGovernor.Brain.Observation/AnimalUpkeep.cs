@@ -53,7 +53,7 @@ public static class AnimalUpkeepReads
                 SafeToRelease = state.SafeToRelease,
                 Herd = HerdFactsOf(pawn, races),
                 Training = EquatableArray.From(training),
-                Care = RoundsWorkReads.CareName(pawn.Settings.Care is O.PawnCare.Configured care ? care.MedicalCare : null),
+                Care = pawn.Settings.Care is O.PawnCare.Configured care ? WireEnums.MedicalCareName(care.MedicalCare) : "",
                 Bonded = state.Bonded,
                 BondedPawns = EquatableArray.From(state.BondedPawnIds),
                 Master = state.MasterId,
@@ -166,10 +166,11 @@ public static class AnimalUpkeepReads
             Pregnancy = state.Pregnancy,
             LifeStageIndex = state.LifeStageIndex,
             NextLifeStage = state.NextLifeStage,
+            Feed = FoodChannelsReads.FeedOf(race, state),
         };
     }
 
-    /// <summary>Copies each player animal's meat and grazing demand from the colony food channels, matched by animal ID.</summary>
+    /// <summary>Copies each player animal's meat nutrition from the colony food channels, matched by animal ID.</summary>
     internal static Fact<EquatableArray<UpkeepAnimal>> MergeHerdFoodFacts(Fact<EquatableArray<UpkeepAnimal>> animals, FoodChannels food)
     {
         if (!animals.TryGetValue(out var rows))
@@ -187,7 +188,7 @@ public static class AnimalUpkeepReads
             var herd = a.Herd;
             if (slaughter.TryGetValue(a.Id, out var s))
             {
-                herd = herd with { MeatNutrition = s.MeatNutrition, FeedPerDay = s.FeedPerDay };
+                herd = herd with { MeatNutrition = s.MeatNutrition };
             }
             output.Add(a with { Herd = herd });
         }

@@ -14,13 +14,13 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the layout exposes of the hospital's animal ward to the herd plan. Ready is a standing hospital with a
-/// built medical animal bed; Area is the allowed-area id covering the hospital, the area an animal is let into for
-/// surgery. Either unknown (or Ready false) means no sterilize.
+/// built medical animal bed; Area is the allowed-area id covering the hospital ("" when the map has none), the area an animal is let into for
+/// surgery. A ward not ready, or no hospital area, means no sterilize.
 /// </summary>
 public sealed record AnimalWard
 {
-    public Fact<bool> Ready { get; init; }
-    public Fact<string> Area { get; init; }
+    public bool Ready { get; init; }
+    public string Area { get; init; } = "";
 }
 
 public sealed partial record LayoutPlan
@@ -210,14 +210,12 @@ public static class HerdWardRules
     }
 
     /// <summary>
-    /// AnimalWard.Ready: known true when a hospital of the plan stands shelled (CensusRoomIn) with at least one
-    /// standing animal bed whose census row reads medical. Known false when the plan has no hospital, none stands,
-    /// or none of its standing beds is flagged. Unknown when a standing bed has no census row or an unread medical
-    /// flag and no other bed proves the ward ready.
+    /// AnimalWard.Ready: true when a hospital of the plan stands shelled (CensusRoomIn) with at least one standing
+    /// animal bed whose sleeping census row reads medical. False otherwise: the plan has no hospital, none stands,
+    /// or none of its standing beds is flagged (a bed the sleeping census does not hold yet is not flagged).
     /// </summary>
-    public static Fact<bool> WardReady(LayoutPlan plan, RoomObservation rooms, IReadOnlyList<CurrentBuilding> built, IReadOnlyList<SleepingBed> beds, string animalBed)
+    public static bool WardReady(LayoutPlan plan, RoomObservation rooms, IReadOnlyList<CurrentBuilding> built, IReadOnlyList<SleepingBed> beds, string animalBed)
     {
-        var unread = false;
         foreach (var room in plan.Hospitals())
         {
             var (_, standing) = PlannedRoom.CensusRoomIn(room, rooms);
@@ -231,27 +229,16 @@ public static class HerdWardRules
                 {
                     continue;
                 }
-                var read = false;
                 foreach (var s in beds)
                 {
-                    if (s.Id != b.Id)
+                    if (s.Id == b.Id && s.Medical)
                     {
-                        continue;
+                        return true;
                     }
-                    if (s.Medical)
-                    {
-                        return Known(true);
-                    }
-                    read = true;
                 }
-                unread = unread || !read;
             }
         }
-        if (unread)
-        {
-            return Unknown<bool>();
-        }
-        return Known(false);
+        return false;
     }
 
     /// <summary>

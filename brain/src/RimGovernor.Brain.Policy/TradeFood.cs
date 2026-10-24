@@ -61,7 +61,12 @@ public static partial class TradePolicyRules
             return null;
         }
         // The plan's forecast runway, else the observed accessible runway.
-        if (!plan.Forecast.RunwayDays.TryGetValue(out var runway) && !f.FoodDays.TryGetValue(out runway))
+        double runway;
+        if (plan.Forecast.RunwayDays is FoodRunway.Days { Value: var days })
+        {
+            runway = days;
+        }
+        else if (!f.FoodDays.TryGetValue(out runway))
         {
             return null;
         }

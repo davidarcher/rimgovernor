@@ -73,21 +73,23 @@ public static class FoodChannelsReads
         var slaughter = new List<SlaughterFoodAnimal>();
         foreach (var row in v.Slaughter)
         {
-            slaughter.Add(SlaughterFood(row, pawns, races));
+            // A race the catalog does not hold is the zero row: no meat, no plant feed, no breeding.
+            races.Race(new Resource(row.Race), out var race);
+            slaughter.Add(SlaughterFood(row, race, pawns));
         }
         var products = new List<AnimalProduct>();
         foreach (var row in v.Gatherable)
         {
             if (row.Yield is O.AnimalYield.Producing p)
             {
-                products.Add(new AnimalProduct { Pawn = row.PawnId, Race = row.Race, Reachable = row.HandlerReachable, NutritionPerDay = p.NutritionPerDay, WorkPerDay = p.WorkPerDay, LeadDays = p.LeadDays });
+                products.Add(new AnimalProduct { Pawn = row.PawnId, Race = row.Race, Reachable = row.HandlerReachable, NutritionPerDay = p.NutritionPerDay, WorkPerDay = p.WorkPerDay, LeadDays = p.LeadDays, Feed = ProductFeed(row.PawnId, row.Race, pawns, races) });
             }
         }
         foreach (var row in v.EggLayer)
         {
             if (row.Yield is O.AnimalYield.Producing p)
             {
-                products.Add(new AnimalProduct { Pawn = row.PawnId, Race = row.Race, Reachable = true, NutritionPerDay = p.NutritionPerDay, WorkPerDay = p.WorkPerDay, LeadDays = p.LeadDays });
+                products.Add(new AnimalProduct { Pawn = row.PawnId, Race = row.Race, Reachable = true, NutritionPerDay = p.NutritionPerDay, WorkPerDay = p.WorkPerDay, LeadDays = p.LeadDays, Feed = ProductFeed(row.PawnId, row.Race, pawns, races) });
             }
         }
         return new FoodChannels
@@ -107,20 +109,10 @@ public static class FoodChannelsReads
     /// hunger scales the adult feed (for a plant eater), and the egg interval or the gestation is the
     /// reproduction period.
     /// </summary>
-    private static SlaughterFoodAnimal SlaughterFood(O.FoodSlaughterAnimal row, Pawns pawns, AnimalRaceCatalog races)
+    private static SlaughterFoodAnimal SlaughterFood(O.FoodSlaughterAnimal row, AnimalRace race, Pawns pawns)
     {
-        var output = new SlaughterFoodAnimal { ID = new PawnId(row.PawnId), Race = new Resource(row.Race) };
-        if (!races.Race(output.Race, out var race))
-        {
-            return output;
-        }
         // A race without meat yields no food.
         var per = race.Meat is RaceMeat.Yields { NutritionPerUnit: var nutrition } ? nutrition : 0;
-        output = output with { MeatNutrition = Known(row.MeatAmount * per) };
-        if (race.EatsPlant && StageFeedPerDay(race, pawns, row.PawnId, out var feed))
-        {
-            output = output with { FeedPerDay = Known(feed) };
-        }
         var days = race.GestationDays;
         foreach (var product in race.Products)
         {
@@ -129,31 +121,46 @@ public static class FoodChannelsReads
                 days = product.IntervalDays;
             }
         }
-        if (days > 0)
+        return new SlaughterFoodAnimal
         {
-            output = output with { ReproductionDays = Known(days) };
-        }
-        return output;
+            ID = new PawnId(row.PawnId),
+            MeatNutrition = row.MeatAmount * per,
+            Feed = FeedOf(race, AnimalStateOf(pawns, row.PawnId)),
+            Breeding = days > 0 ? new AnimalBreeding.Every(days) : new AnimalBreeding.Never(),
+        };
     }
 
-    /// <summary>The nutrition per day the animal eats in its current life stage: the adult feed scaled by the stage's hunger factor against the adult stage's.</summary>
-    private static bool StageFeedPerDay(AnimalRace race, Pawns pawns, string id, out double feed)
+    /// <summary>A producing animal's own plant feed, which its product channel nets out.</summary>
+    private static AnimalFeed ProductFeed(string pawn, string raceName, Pawns pawns, AnimalRaceCatalog races)
     {
-        feed = 0;
-        // A race without a food need eats nothing in any stage.
-        var adult = race.AdultFeed is RaceFeed.Eats { PerDay: var perDay } ? perDay : 0;
-        if (!pawns.TryGetValue(id, out var row) || row?.AnimalState is not O.PawnAnimalState.Animal { State: var state })
+        races.Race(new Resource(raceName), out var race);
+        return FeedOf(race, AnimalStateOf(pawns, pawn));
+    }
+
+    /// <summary>The animal block of a food channel's animal; one the pawn table does not hold as an animal is a contract break.</summary>
+    private static O.AnimalState AnimalStateOf(Pawns pawns, string id) =>
+        pawns.TryGetValue(id, out var row) && row?.AnimalState is O.PawnAnimalState.Animal { State: var state }
+            ? state
+            : throw new ObservationContractException($"food channel animal {id} has no animal row in the pawn table");
+
+    /// <summary>
+    /// The plants an animal eats a day in its current life stage: the race's adult feed scaled by the stage's
+    /// hunger factor against the adult stage's. A race that eats no plants, or has no food need, eats NoPlants; a
+    /// life stage the race's catalog stages do not hold is a contract break.
+    /// </summary>
+    internal static AnimalFeed FeedOf(AnimalRace race, O.AnimalState state)
+    {
+        if (!race.EatsPlant || race.AdultFeed is not RaceFeed.Eats { PerDay: var adult })
         {
-            return false;
+            return new AnimalFeed.NoPlants();
         }
         var stages = race.LifeStages;
         var index = state.LifeStageIndex;
         if (index < 0 || index >= stages.Count || !(stages[^1].HungerRateFactor > 0))
         {
-            return false;
+            throw new ObservationContractException($"race {race.Def.Value} holds no life stage {index} with a hunger rate");
         }
-        feed = adult * stages[index].HungerRateFactor / stages[^1].HungerRateFactor;
-        return true;
+        return new AnimalFeed.Plants(adult * stages[index].HungerRateFactor / stages[^1].HungerRateFactor);
     }
 
     /// <summary>Applies the policy decisions to native's raw fishing facts: research state, footprint, reachability verdict, delivery and crew.</summary>

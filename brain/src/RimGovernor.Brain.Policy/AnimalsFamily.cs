@@ -257,8 +257,8 @@ public static class AnimalsFamilyRules
 
     /// <summary>
     /// The sterilize Need, waiting on the ward when the family derives it: unmet while an animal the herd plan wants
-    /// sterilized is fertile or an animal sits in the hospital area; met otherwise. An unread census, or with nothing
-    /// wanted an unread hospital area, raises <see cref="RequiredFactException"/>. Its deficit is the animals wanted.
+    /// sterilized is fertile or an animal sits in the hospital area; met otherwise (a map with no hospital area holds
+    /// no animal in it). An unread census raises <see cref="RequiredFactException"/>. Its deficit is the animals wanted.
     /// </summary>
     public static Need SterilizeNeedOf(AnimalsFacts f, bool ward = true)
     {
@@ -267,13 +267,9 @@ public static class AnimalsFamilyRules
             throw new RequiredFactException("animal census");
         }
         var wanted = HerdSterilizeRules.SterilizeWanted(animals, f.Herd).Count;
-        var areaKnown = f.WardRoom.Area.TryGetValue(out var area);
-        var inWard = areaKnown && area!.Length != 0 && animals.Any(a => a.AllowedArea == area);
+        var area = f.WardRoom.Area;
+        var inWard = area.Length != 0 && animals.Any(a => a.AllowedArea == area);
         var owed = wanted > 0 || inWard;
-        if (!owed && !areaKnown)
-        {
-            throw new RequiredFactException("hospital area");
-        }
         return new Need
         {
             Id = AnimalsFamily.Sterilize,

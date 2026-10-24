@@ -150,7 +150,7 @@ public sealed partial class RoundsAcquisitionPlanner
         var busy = HoldWorked(projection.Acquisition, undispatched, held);
         var pending = WithoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food);
         var deficit = Unknown<double>();
-        var runway = Unknown<double>();
+        FoodRunway? runway = null;
         if (food)
         {
             if (!projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
@@ -218,7 +218,7 @@ public sealed partial class RoundsAcquisitionPlanner
         {
             throw new ControlException("step: p.session.State() != state");
         }
-        var commit = p.Journal.CommitOwnerWork(owner, methodId, AcquisitionReason(food, runway, selected), spec, call);
+        var commit = p.Journal.CommitOwnerWork(owner, methodId, AcquisitionReason(runway, selected), spec, call);
         return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome is ClaimOutcome.Conflict or ClaimOutcome.Refused ? default : id };
     }
 }
@@ -485,19 +485,19 @@ partial class RoundsAcquisitionPlanner
     }
 
     /// <summary>
-    /// The admitted method's short why for Operation.intent: the food runway the plan budgets against or the stock a resource method gathers.
+    /// The admitted method's short why for Operation.intent: the food runway the plan budgets against (a food method's runway), or the stock a resource method (no runway) gathers.
     /// </summary>
-    internal static string AcquisitionReason(bool food, Fact<double> runway, IReadOnlyList<AcquisitionSource> selected)
+    internal static string AcquisitionReason(FoodRunway? runway, IReadOnlyList<AcquisitionSource> selected)
     {
         if (selected.Count == 0)
         {
             return "";
         }
-        if (food)
+        if (runway is null)
         {
-            return runway.TryGetValue(out var days) ? $"food runway {days.ToString("F1", CultureInfo.InvariantCulture)}d" : "";
+            return selected[0].Resource + " low";
         }
-        return selected[0].Resource + " low";
+        return runway is FoodRunway.Days { Value: var days } ? $"food runway {days.ToString("F1", CultureInfo.InvariantCulture)}d" : "";
     }
 
     /// <summary>

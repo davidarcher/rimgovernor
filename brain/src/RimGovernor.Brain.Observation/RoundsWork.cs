@@ -262,8 +262,4 @@ public static class RoundsWorkReads
 
     /// <summary>The passion name policy reads; native sends "None" for no passion, which policy reads as "".</summary>
     internal static string SkillPassion(O.Passion p) => p == O.Passion.None ? "" : WireEnums.PassionName(p);
-
-    /// <summary>The MedicalCareCategory name of an optional wire care tier.</summary>
-    internal static Fact<string> CareName(Ops.MedicalCare? care) =>
-        care is null ? Unknown<string>() : Known(WireEnums.MedicalCareName(care.Value));
 }

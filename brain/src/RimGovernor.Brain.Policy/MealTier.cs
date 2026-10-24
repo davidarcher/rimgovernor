@@ -27,7 +27,6 @@ public sealed record MealTierRequest
     public double MinDays { get; init; }
     public double TargetDays { get; init; }
     public Fact<EquatableArray<MealCook>> Cooks { get; init; }
-    public Fact<bool> CookLaborConstrained { get; init; }
     public Fact<bool> HighExpectations { get; init; }
     public MealTier Previous { get; init; }
     public Fact<Infrastructure> Paste { get; init; }
@@ -102,7 +101,7 @@ public static partial class MealRules
         {
             Tier = MealTier.Simple,
         };
-        var constrained = RoundsRules.Positive(r.CookLaborConstrained) || (ck && cooks.Count == 0);
+        var constrained = ck && cooks.Count == 0;
         var pasteNeeded = constrained || days < r.MinDays || (r.Previous == MealTier.Paste && days < r.MinDays + margin);
         if (pasteNeeded && sources!.Count > 0)
         {

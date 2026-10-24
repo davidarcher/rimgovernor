@@ -30,17 +30,39 @@ public sealed record SlaughterFacts
     public bool Designatable { get; init; }
 }
 
+/// <summary>
+/// What an animal eats that the colony's food math counts: Plants at PerDay (its race's adult feed scaled by its
+/// life stage's hunger), or NoPlants for a race that eats no plants or has no food need.
+/// </summary>
+public abstract record AnimalFeed
+{
+    private protected AnimalFeed() { }
+
+    public sealed record NoPlants : AnimalFeed;
+
+    public sealed record Plants(double PerDay) : AnimalFeed;
+}
+
+/// <summary>How often a race renews itself: Every so many days (its egg interval, else its gestation), or Never.</summary>
+public abstract record AnimalBreeding
+{
+    private protected AnimalBreeding() { }
+
+    public sealed record Never : AnimalBreeding;
+
+    public sealed record Every(double Days) : AnimalBreeding;
+}
+
+/// <summary>One animal whose meat the colony eats: the nutrition its live meat yields, what it eats and how often its race renews.</summary>
 public sealed record SlaughterFoodAnimal
 {
     public PawnId ID { get; init; }
 
-    public Resource Race { get; init; }
+    public double MeatNutrition { get; init; }
 
-    public Fact<double> MeatNutrition { get; init; }
+    public AnimalFeed Feed { get; init; } = new AnimalFeed.NoPlants();
 
-    public Fact<double> FeedPerDay { get; init; }
-
-    public Fact<double> ReproductionDays { get; init; }
+    public AnimalBreeding Breeding { get; init; } = new AnimalBreeding.Never();
 }
 
 public static class AnimalFoodExtensions
@@ -201,14 +223,14 @@ public static class AnimalFoodRules
         var choices = new List<ScoredSlaughter>();
         foreach (var a in rows)
         {
-            var nk = a.MeatNutrition.TryGetValue(out var n);
-            var fk = a.FeedPerDay.TryGetValue(out var feed);
-            var dk = a.ReproductionDays.TryGetValue(out var days);
-            if (!safe.GetValueOrDefault(a.ID) || !nk || !fk || !dk || !FieldCapacityRules.FieldPositive(n) || !FieldCapacityRules.FieldPositive(feed) || !FieldCapacityRules.FieldPositive(days))
+            // Only a plant eater that breeds is scored: meat per daily feed, then the shorter renewal.
+            if (!safe.GetValueOrDefault(a.ID) || a.Feed is not AnimalFeed.Plants { PerDay: var feed } || a.Breeding is not AnimalBreeding.Every { Days: var days }
+                || !FieldCapacityRules.FieldPositive(a.MeatNutrition) || !FieldCapacityRules.FieldPositive(feed) || !FieldCapacityRules.FieldPositive(days))
             {
                 continue;
             }
 
+            var n = a.MeatNutrition;
             choices.Add(new ScoredSlaughter(a, n, n / feed, days));
         }
 

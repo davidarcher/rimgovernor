@@ -64,8 +64,8 @@ public sealed record UpkeepAnimal
     /// <summary>The sizing facts the herd Need culls and tames by.</summary>
     public HerdFacts Herd { get; init; } = new();
 
-    /// <summary>Care cap input: MedicalCareCategory name.</summary>
-    public Fact<string> Care { get; init; }
+    /// <summary>Care cap input: MedicalCareCategory name; "" for an animal without care settings.</summary>
+    public string Care { get; init; } = "";
 
     /// <summary>Care cap input: a bond to a living pawn.</summary>
     public bool Bonded { get; init; }
@@ -215,7 +215,7 @@ public abstract record RaceMeat
     public sealed record Yields(double Amount, double NutritionPerUnit) : RaceMeat;
 }
 
-/// <summary>A race's adult nutrition demand (matching Herd.FeedPerDay): Eats so much a day, or NoNeed for a race without a food need.</summary>
+/// <summary>A race's adult nutrition demand (the adult scale of Herd.Feed): Eats so much a day, or NoNeed for a race without a food need.</summary>
 public abstract record RaceFeed
 {
     private protected RaceFeed() { }
@@ -333,7 +333,7 @@ public sealed record AnimalRace
     /// <summary>The meat butchering one adult yields (the catalog's def stat table, no native read).</summary>
     public RaceMeat Meat { get; init; } = new RaceMeat.None();
 
-    /// <summary>Native adult nutrition demand, matching Herd.FeedPerDay.</summary>
+    /// <summary>Native adult nutrition demand, the adult scale of Herd.Feed.</summary>
     public RaceFeed AdultFeed { get; init; } = new RaceFeed.NoNeed();
 
     /// <summary>

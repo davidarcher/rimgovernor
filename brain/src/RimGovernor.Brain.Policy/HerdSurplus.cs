@@ -4,8 +4,8 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
-/// adulthood, veneration and tame danger natively; MeatNutrition and FeedPerDay merge in from the colony
-/// food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
+/// adulthood, veneration and tame danger natively, and Feed from the race and life stage; MeatNutrition merges in
+/// from the colony food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
 /// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). An unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
 /// EatingBarred food slaughter.
 /// </summary>
@@ -14,8 +14,12 @@ public sealed record HerdFacts
     public double AgeYears { get; init; }
     public double LifeExpectancy { get; init; }
     public double ManhunterOnTameFail { get; init; }
-    public Fact<double> MeatNutrition { get; init; }
-    public Fact<double> FeedPerDay { get; init; }
+
+    /// <summary>The nutrition the colony eats from the animal's live meat; zero for an animal whose meat the colony does not eat.</summary>
+    public double MeatNutrition { get; init; }
+
+    public AnimalFeed Feed { get; init; } = new AnimalFeed.NoPlants();
+
     public bool Sick { get; init; }
     public bool Adult { get; init; }
     public Fact<bool> SlaughterBarred { get; init; }
@@ -44,11 +48,11 @@ public sealed record HerdFacts
 
 /// <summary>
 /// The breeding rule of one egg-laying race whose eggs can be fertilized, derived from the catalog:
-/// HensPerRooster is the hens one rooster keeps laying fertilized eggs. Unknown when any of the facts is.
+/// HensPerRooster is the hens one rooster keeps laying fertilized eggs.
 /// </summary>
 public sealed record HerdLayer
 {
-    public Fact<double> HensPerRooster { get; init; }
+    public double HensPerRooster { get; init; }
 }
 
 /// <summary>A removal the herd plan lists: the animal and how it leaves.</summary>
@@ -80,7 +84,7 @@ public static class HerdSurplusRules
     /// <summary>Whether the animal can still breed: anything not read as sterilized, so a census without the fact counts every animal.</summary>
     internal static bool HerdFertile(UpkeepAnimal a) => !a.Sterilized;
 
-    /// <summary>The layer rule of a race, not ok for a race that does not lay fertilizable eggs.</summary>
+    /// <summary>The layer rule of a race, not ok for a race that does not lay fertilizable eggs or whose catalog breeding facts give no rooster ratio (it keeps males like any other race).</summary>
     internal static (HerdLayer Layer, bool Ok) HerdLayerOf(AnimalRace race)
     {
         foreach (var p in race.Products)
@@ -94,11 +98,11 @@ public static class HerdSurplusRules
             var interval = p.IntervalDays;
             if (mtb <= 0 || count <= 0 || interval <= 0 || p.FertilizationCountMax <= 0)
             {
-                return (new HerdLayer { HensPerRooster = Unknown<double>() }, true);
+                return (new HerdLayer(), false);
             }
             var matingsPerDay = 24 / mtb;
             var matingsPerHenDay = count / interval / p.FertilizationCountMax;
-            return (new HerdLayer { HensPerRooster = Known(matingsPerDay / matingsPerHenDay) }, true);
+            return (new HerdLayer { HensPerRooster = matingsPerDay / matingsPerHenDay }, true);
         }
         return (new HerdLayer(), false);
     }
@@ -172,16 +176,14 @@ public static class HerdSurplusRules
         return (null, true);
     }
 
-    /// <summary>Ranks feed cost per unit of meat; unknown costs rank last among their tier.</summary>
+    /// <summary>Ranks plant feed per unit of eaten meat; an animal without both ranks last among its tier.</summary>
     internal static double HerdFeedPerMeat(UpkeepAnimal a)
     {
-        var fk = a.Herd.FeedPerDay.TryGetValue(out var feed);
-        var mk = a.Herd.MeatNutrition.TryGetValue(out var meat);
-        if (!fk || !mk || meat <= 0)
+        if (a.Herd.Feed is not AnimalFeed.Plants { PerDay: var feed } || a.Herd.MeatNutrition <= 0)
         {
             return -1;
         }
-        return feed / meat;
+        return feed / a.Herd.MeatNutrition;
     }
 
     private static int HerdTier(UpkeepAnimal a)
@@ -262,11 +264,7 @@ public static class HerdSurplusRules
             var surplus = kept.GetValueOrDefault(race) - limit;
             var raceRows = eligible.GetValueOrDefault(race) ?? [];
             var bySex = sexes.GetValueOrDefault(race) ?? [];
-            var (keepMales, floorMales, mk) = herd.MalesKept(race, bySex.GetValueOrDefault(Sex.Female));
-            if (!mk)
-            {
-                return ([], true);
-            }
+            var (keepMales, floorMales) = herd.MalesKept(race, bySex.GetValueOrDefault(Sex.Female));
             var excessMales = bySex.GetValueOrDefault(Sex.Male) - keepMales;
             var ranked = raceRows
                 .OrderBy(r => HerdTier(r.Animal))

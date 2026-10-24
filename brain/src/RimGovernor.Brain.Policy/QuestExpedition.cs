@@ -501,17 +501,16 @@ public static class QuestExpedition
             {
                 var mid = lo + (hi - lo + 1) / 2;
                 stocks[index] = stock with { Count = count - mid, Nutrition = nutrition - mid * unit };
-                var runwayKnown = false;
-                var runway = 0.0;
+                var fits = false;
                 try
                 {
-                    runwayKnown = FoodForecastRules.ForecastFood(remaining, home).RunwayDays.TryGetValue(out runway);
+                    fits = FoodForecastRules.ForecastFood(remaining, home).RunwayDays is FoodRunway.Days { Value: var runway } && runway >= homeDays;
                 }
                 catch (DomainException)
                 {
-                    runwayKnown = false;
+                    fits = false;
                 }
-                if (runwayKnown && runway >= homeDays)
+                if (fits)
                 {
                     lo = mid;
                 }

@@ -223,7 +223,7 @@ partial class Rounder
             }
         }
 
-        channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(FoodAnimalProductsRules.WithFeed(p.FoodChannels.Products, p.Facts.AnimalUpkeep.Animals)));
+        channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(p.FoodChannels.Products));
 
         channels.AddRange(MealRules.StockIngredientChannels(supply));
         if (p.FoodFields.TryGetValue(out var fields))

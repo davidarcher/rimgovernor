@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One producing comp, not harvested stock. Rates already incorporate the native interval, resource
-/// nutrition and growth speed. FeedPerDay is the animal's own daily feed, which the channel nets out.
+/// nutrition and growth speed. Feed is the animal's own daily plant feed, which the channel nets out.
 /// </summary>
 public sealed record AnimalProduct
 {
@@ -18,26 +18,11 @@ public sealed record AnimalProduct
 
     public double LeadDays { get; init; }
 
-    public Fact<double> FeedPerDay { get; init; }
+    public AnimalFeed Feed { get; init; } = new AnimalFeed.NoPlants();
 }
 
 public static class FoodAnimalProductsRules
 {
-    /// <summary>
-    /// Sets each row's FeedPerDay from the upkeep census; an animal the census does not
-    /// list, or one with an unread feed rate, stays unknown.
-    /// </summary>
-    public static IReadOnlyList<AnimalProduct> WithFeed(IReadOnlyList<AnimalProduct> rows, Fact<EquatableArray<UpkeepAnimal>> animals)
-    {
-        _ = animals.TryGetValue(out var census);
-        var feed = new Dictionary<string, Fact<double>>(StringComparer.Ordinal);
-        foreach (var a in census)
-        {
-            feed[a.Id.Value] = a.Herd.FeedPerDay;
-        }
-        return [.. rows.Select(row => feed.TryGetValue(row.Pawn, out var f) ? row with { FeedPerDay = f } : row)];
-    }
-
     private sealed class AnimalAggregate
     {
         public double Nutrition;
@@ -50,7 +35,7 @@ public static class FoodAnimalProductsRules
 
     /// <summary>
     /// Aggregates independent comps by race into the rate net of the herd's
-    /// feed (product minus feed per day, never below zero). A missing rate or feed makes that race unknown
+    /// feed (product minus feed per day, never below zero). An unreachable animal makes that race unknown
     /// rather than silently claiming a partial herd yield.
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> AnimalProductChannels(IReadOnlyList<AnimalProduct> animals)
@@ -63,12 +48,13 @@ public static class FoodAnimalProductsRules
                 r = new AnimalAggregate();
                 byRace[a.Race] = r;
             }
-            var fk = a.FeedPerDay.TryGetValue(out var f);
-            if (!FoodForecastRules.FoodId(a.Pawn) || !FoodForecastRules.FoodId(a.Race) || !FoodForecastRules.FoodNumber(a.NutritionPerDay) || !FoodForecastRules.FoodNumber(a.WorkPerDay) || !FoodForecastRules.FoodNumber(a.LeadDays) || (fk && !FoodForecastRules.FoodNumber(f)))
+            // An animal that eats no plants nets out no feed.
+            var f = a.Feed is AnimalFeed.Plants { PerDay: var perDay } ? perDay : 0;
+            if (!FoodForecastRules.FoodId(a.Pawn) || !FoodForecastRules.FoodId(a.Race) || !FoodForecastRules.FoodNumber(a.NutritionPerDay) || !FoodForecastRules.FoodNumber(a.WorkPerDay) || !FoodForecastRules.FoodNumber(a.LeadDays) || !FoodForecastRules.FoodNumber(f))
             {
                 r.Nutrition = double.NaN;
             }
-            if (!fk || !a.Reachable)
+            if (!a.Reachable)
             {
                 r.Unknown = true;
                 continue;

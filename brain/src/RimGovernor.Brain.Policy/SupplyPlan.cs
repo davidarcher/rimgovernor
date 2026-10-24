@@ -276,7 +276,7 @@ public static partial class SupplyPlanRules
     /// </summary>
     public static SupplyDemand NutritionDemand(NutritionDemandInput input)
     {
-        if (!input.Forecast.RunwayDays.TryGetValue(out var runway)
+        if (input.Forecast.RunwayDays is not FoodRunway.Days { Value: var runway }
             || !FoodForecastRules.FoodNumber(runway)
             || !FoodForecastRules.FoodNumber(input.ReserveDays)
             || !FoodForecastRules.FoodNumber(input.MinDays)

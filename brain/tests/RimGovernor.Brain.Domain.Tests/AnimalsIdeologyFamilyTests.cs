@@ -60,7 +60,7 @@ public sealed class AnimalsIdeologyFamilyTests
     }
 
     [Fact]
-    public void SterilizeWaitsOnTheWardAndIsMetUnmetOrUnknownByTheCensusAndTheWardArea()
+    public void SterilizeWaitsOnTheWardAndIsMetOrUnmetByTheCensusAndTheWardArea()
     {
         // The herd ward is sterilize's precondition when the family composes it, and nothing else waits on another Need.
         var settled = new AnimalsFacts
@@ -73,7 +73,7 @@ public sealed class AnimalsIdeologyFamilyTests
             Uncontained = Known<EquatableArray<PawnId>>([]),
             Pen = Known(Step(HerdStepKind.None)),
             Ward = Known(Step(HerdStepKind.None)),
-            WardRoom = new AnimalWard { Area = Known("ward") },
+            WardRoom = new AnimalWard { Area = "ward" },
         };
         var needs = new AnimalsFamily().Derive(settled);
         Assert.Equal([AnimalsFamily.Ward], Assert.Single(needs, n => n.Id == AnimalsFamily.Sterilize).Preconditions);
@@ -82,13 +82,13 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.DoesNotContain(new AnimalsFamily(true, false).Derive(settled), n => n.Id == AnimalsFamily.Ward);
 
         var cow = new UpkeepAnimal { Id = new("cow"), Definition = new("Cow"), AllowedArea = "pasture" };
-        var empty = new AnimalsFacts { Animals = Known<EquatableArray<UpkeepAnimal>>([cow]), WardRoom = new AnimalWard { Area = Known("ward") } };
+        var empty = new AnimalsFacts { Animals = Known<EquatableArray<UpkeepAnimal>>([cow]), WardRoom = new AnimalWard { Area = "ward" } };
         Assert.Equal(Satisfaction.Met, Animal(empty, AnimalsFamily.Sterilize).Satisfaction);
 
         var held = empty with { Animals = Known<EquatableArray<UpkeepAnimal>>([cow with { AllowedArea = "ward" }]) };
         Assert.Equal(Satisfaction.Unmet, Animal(held, AnimalsFamily.Sterilize).Satisfaction);
 
-        Assert.Equal("hospital area", Assert.Throws<RequiredFactException>(() => Animal(empty with { WardRoom = new AnimalWard() }, AnimalsFamily.Sterilize)).Fact);
+        Assert.Equal(Satisfaction.Met, Animal(empty with { WardRoom = new AnimalWard() }, AnimalsFamily.Sterilize).Satisfaction);
         Assert.Equal("animal census", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Sterilize)).Fact);
     }
 

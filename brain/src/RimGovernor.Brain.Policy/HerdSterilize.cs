@@ -54,11 +54,7 @@ public static class HerdSterilizeRules
             {
                 continue;
             }
-            var (keepMales, _, mk) = herd.MalesKept(race, females);
-            if (!mk)
-            {
-                continue;
-            }
+            var (keepMales, _) = herd.MalesKept(race, females);
             var excessMales = males - keepMales;
             foreach (var a in animals)
             {
@@ -90,9 +86,8 @@ public static class HerdSterilizeRules
     {
         var none = new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
         var known = animals.TryGetValue(out var unsorted);
-        var rk = ward.Ready.TryGetValue(out var ready);
-        var ak = ward.Area.TryGetValue(out var area);
-        if (!known || !rk || !ready || !ak || area!.Length == 0)
+        var area = ward.Area;
+        if (!known || !ward.Ready || area.Length == 0)
         {
             return none;
         }

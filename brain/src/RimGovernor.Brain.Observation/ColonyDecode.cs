@@ -221,7 +221,7 @@ public static class ColonyDecodeReads
             MapBounds = Known(r.Bounds),
             ShelterArea = Known(AllowedAreaID(r.Policies, ShelterRules.SafeAreaLabel)),
             NoDangerArea = Known(AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel)),
-            AnimalWard = f.AnimalWard with { Area = Known(AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel)) },
+            AnimalWard = f.AnimalWard with { Area = AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
             IsolationArea = Known(AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel)),
             RaidPoints = Known(r.Threat.RaidPoints),
             HostileFactions = Known(r.Threat.HostileFactions),
@@ -495,7 +495,10 @@ public static class ColonyDecodeReads
             try
             {
                 var forecastFood = FoodForecastRules.ForecastFood(combined, selected);
-                f = f with { FoodDays = forecastFood.RunwayDays };
+                if (forecastFood.RunwayDays is FoodRunway.Days { Value: var days })
+                {
+                    f = f with { FoodDays = Known(days) };
+                }
                 r = r with { FoodAtRiskNutrition = Known(forecastFood.AtRiskNutrition) };
             }
             catch (DomainException)

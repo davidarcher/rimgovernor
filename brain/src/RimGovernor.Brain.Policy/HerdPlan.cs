@@ -144,29 +144,23 @@ public static class HerdPolicyExtensions
     /// The fertile males a race keeps for its fertile females: Keep is the count above which males are excess,
     /// Floor the count no removal goes below. A layer race below its hen target (PopulationMin) keeps enough
     /// roosters to fertilize every egg and one at target, floor and keep alike; any other race keeps one per
-    /// HerdMalesPerFemales females above a pair floor of HerdPairMales. Known is false for a layer whose ratio is
-    /// unknown.
+    /// HerdMalesPerFemales females above a pair floor of HerdPairMales.
     /// </summary>
-    public static (long Keep, long Floor, bool Known) MalesKept(this HerdPolicy h, Resource race, long females)
+    public static (long Keep, long Floor) MalesKept(this HerdPolicy h, Resource race, long females)
     {
         if (!h.Layers.TryGetValue(race, out var layer))
         {
             return (
                 Math.Max(HerdSurplusRules.HerdPairMales, (females + HerdSurplusRules.HerdMalesPerFemales - 1) / HerdSurplusRules.HerdMalesPerFemales),
-                HerdSurplusRules.HerdPairMales,
-                true
+                HerdSurplusRules.HerdPairMales
             );
-        }
-        if (!layer.HensPerRooster.TryGetValue(out var ratio))
-        {
-            return (0, 0, false);
         }
         var keep = HerdSurplusRules.HerdPairMales;
         if (females < h.PopulationMin.GetValueOrDefault(race))
         {
-            keep = Math.Max(HerdSurplusRules.HerdPairMales, (long)Math.Ceiling(females / ratio));
+            keep = Math.Max(HerdSurplusRules.HerdPairMales, (long)Math.Ceiling(females / layer.HensPerRooster));
         }
-        return (keep, keep, true);
+        return (keep, keep);
     }
 }
 

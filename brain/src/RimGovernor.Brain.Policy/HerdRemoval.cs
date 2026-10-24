@@ -56,10 +56,10 @@ public static class HerdRemovalRules
             var sex = SexKey(a);
             // A sterilized animal is no part of a breeding pair.
             var fertile = HerdSurplusRules.HerdFertile(a);
-            // A layer race keeps its rooster ratio (malesKept); an unknown ratio keeps every fertile male.
-            var (_, floorMales, mk) = herd.MalesKept(a.Definition, sexes.GetValueOrDefault((a.Definition, Sex.Female)));
+            // A layer race keeps its rooster ratio (malesKept).
+            var (_, floorMales) = herd.MalesKept(a.Definition, sexes.GetValueOrDefault((a.Definition, Sex.Female)));
             var pair = fertile
-                && ((a.Gender == Sex.Male && (!mk || sexes.GetValueOrDefault(sex) <= floorMales))
+                && ((a.Gender == Sex.Male && sexes.GetValueOrDefault(sex) <= floorMales)
                     || (a.Gender == Sex.Female && sexes.GetValueOrDefault(sex) <= HerdSurplusRules.HerdPairFemales));
             if (herd.Retired.GetValueOrDefault(a.Definition))
             {

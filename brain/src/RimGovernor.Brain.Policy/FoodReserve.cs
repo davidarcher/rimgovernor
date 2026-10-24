@@ -96,7 +96,8 @@ public static class FoodReserveRules
         {
             throw new FoodFactsException();
         }
-        var known = forecast.RunwayDays.TryGetValue(out var days);
+        // A positive target means some consumer eats, so the forecast has a runway.
+        var days = forecast.RunwayDays is FoodRunway.Days { Value: var runway } ? runway : throw new FoodFactsException();
         var complete = deliveryDays.TryGetValue(out var deliveries);
         var arriving = false;
         foreach (var lead in deliveries)
@@ -107,8 +108,8 @@ public static class FoodReserveRules
             }
             arriving = arriving || lead < days;
         }
-        var isShort = known && days < minimumDays;
-        var emergency = known && complete && days < minimumDays && !arriving;
+        var isShort = days < minimumDays;
+        var emergency = complete && days < minimumDays && !arriving;
         var ordered = supply.Stocks.OrderBy(s => s.Reserve ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal).ToList();
         double stockNutrition = 0;
         var byDefinition = new Dictionary<Resource, double>();
@@ -125,7 +126,7 @@ public static class FoodReserveRules
                 continue;
             }
             // The reserve is surplus insurance: below the seasonal minimum (reserve food excluded) every held stack is released to eat.
-            if (emergency || (known && days < minimumDays))
+            if (emergency || days < minimumDays)
             {
                 if (stock.Reserve)
                 {
@@ -157,7 +158,7 @@ public static class FoodReserveRules
             }
             stockNutrition += amount;
             byDefinition[stock.DefName] = byDefinition.GetValueOrDefault(stock.DefName) + amount;
-            if (!stock.Reserve && known && days >= minimumDays)
+            if (!stock.Reserve && days >= minimumDays)
             {
                 hold.Add(stock.Id);
             }

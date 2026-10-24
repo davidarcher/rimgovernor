@@ -217,12 +217,13 @@ public static partial class MedicalRules
         f.AnimalUpkeep.Animals.TryGetValue(out var animals);
         foreach (var a in animals)
         {
-            if (!a.Care.TryGetValue(out var care))
+            // An animal without care settings has no care to set.
+            if (a.Care.Length == 0)
             {
                 continue;
             }
             var (want, capOk) = Capped(AnimalCareBase(a), true, a.Conditions, a.LifeThreatening);
-            Add(a.Id, care != Wire.Name(want), want, capOk);
+            Add(a.Id, a.Care != Wire.Name(want), want, capOk);
         }
         return output;
     }
