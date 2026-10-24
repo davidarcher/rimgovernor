@@ -5,11 +5,15 @@ public static class RitualSitesReads
     /// <summary>
     /// The finished buildings of the frame's building table whose ThingDef a held ritual's pattern requires: the
     /// cells the game offers the begin command at. The required defs are the catalog's ritual defs, never a list
-    /// here. Unknown without the ideoligion or the building table.
+    /// here. None without the Ideology expansion; unknown without the building table.
     /// </summary>
-    internal static Fact<EquatableArray<RitualSite>> RitualSitesOf(BuildingCensus? census, Fact<Ideoligion> ideology)
+    internal static Fact<EquatableArray<RitualSite>> RitualSitesOf(BuildingCensus? census, IdeologyMode ideology)
     {
-        if (!ideology.TryGetValue(out var ideo) || census is null)
+        if (ideology is not IdeologyMode.Installed { Primary: var ideo })
+        {
+            return Known(EquatableArray.From(new List<RitualSite>()));
+        }
+        if (census is null)
         {
             return Unknown<EquatableArray<RitualSite>>();
         }

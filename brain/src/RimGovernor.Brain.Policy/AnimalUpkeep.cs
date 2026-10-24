@@ -111,10 +111,11 @@ public sealed record AnimalUpkeepObservation
 {
     public Fact<FoodForecast> Forecast { get; init; }
 
-    public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
+    /// <summary>The player herd: every animal of the colony's census, an empty array for a colony without one.</summary>
+    public EquatableArray<UpkeepAnimal> Animals { get; init; }
 
     /// <summary>The factionless census the herd Need tames from; it carries no feed or pen facts.</summary>
-    public Fact<EquatableArray<UpkeepAnimal>> WildAnimals { get; init; }
+    public EquatableArray<UpkeepAnimal> WildAnimals { get; init; }
 
     /// <summary>The load's race catalog, read with every routine reading.</summary>
     public AnimalRaceCatalog AnimalRaces { get; init; } = new();
@@ -128,10 +129,10 @@ public sealed record AnimalUpkeepObservation
     public EquatableArray<Resource> DirectedHerds { get; init; }
 }
 
-/// <summary>The animals family's containment read: the pen-bound animals not yet contained, unknown while a row is.</summary>
+/// <summary>The animals family's containment read: the pen-bound animals not yet contained.</summary>
 public sealed record AnimalUpkeepReview
 {
-    public Fact<EquatableArray<PawnId>> Containment { get; init; }
+    public EquatableArray<PawnId> Containment { get; init; }
 }
 
 public enum AnimalContainmentReason
@@ -271,7 +272,7 @@ public sealed record AnimalRace
 
     public double Wildness { get; init; }
 
-    public Fact<double> BodySize { get; init; }
+    public double BodySize { get; init; }
 
     public RaceCombat CombatPower { get; init; } = new RaceCombat.Unrated();
 
@@ -410,14 +411,9 @@ public static class AnimalUpkeepRules
             DomainException.Require(AdmissionRules.ValidResource(race) && !v.DirectedHerds.Take(i).Contains(race), Invalid);
         }
 
-        if (!v.Animals.TryGetValue(out var animals))
-        {
-            return r;
-        }
-
         var seen = new HashSet<PawnId>();
         var containment = new List<PawnId>();
-        foreach (var animal in animals)
+        foreach (var animal in v.Animals)
         {
             DomainException.Require(FoodForecastRules.FoodId(animal.Id.Value) && seen.Add(animal.Id) && AdmissionRules.ValidResource(animal.Definition), Invalid);
             if (animal.RequiresPen && !animal.Contained && !animal.Release && !animal.Slaughter)
@@ -427,7 +423,7 @@ public static class AnimalUpkeepRules
         }
 
         containment.Sort();
-        return r with { Containment = Known(EquatableArray.From(containment)) };
+        return r with { Containment = EquatableArray.From(containment) };
     }
 
     /// <summary>
@@ -436,7 +432,7 @@ public static class AnimalUpkeepRules
     /// stand, the wait is on the native lookup. Native pen eligibility, footprint legality and construction
     /// admission remain the building family's.
     /// </summary>
-    public static AnimalContainmentMethod SelectAnimalContainmentMethod(IEnumerable<UpkeepAnimal> animals, Fact<bool> handlerAvailable, bool pensStand)
+    public static AnimalContainmentMethod SelectAnimalContainmentMethod(IEnumerable<UpkeepAnimal> animals, bool handlerAvailable, bool pensStand)
     {
         var seen = new HashSet<PawnId>();
         var deficit = 0;
@@ -469,10 +465,9 @@ public static class AnimalUpkeepRules
 
         if (allSuitable)
         {
-            DomainException.Require(handlerAvailable.TryGetValue(out var available), "handler availability unknown");
             return new AnimalContainmentMethod
             {
-                Reason = available ? AnimalContainmentReason.WaitingNativePen : AnimalContainmentReason.WaitingHandler,
+                Reason = handlerAvailable ?AnimalContainmentReason.WaitingNativePen : AnimalContainmentReason.WaitingHandler,
             };
         }
 

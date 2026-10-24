@@ -7686,7 +7686,9 @@ public sealed record BundleSnapshot
     /// The player faction's primary ideoligion as it stands: the
     /// precepts and roles in force, ritual state and building precepts.
     /// Omittable like the singleton sections above (watermark "ideology");
-    /// absent, with no watermark, without Ideology or a primary ideoligion.
+    /// absent, with no watermark, without Ideology; with Ideology active the
+    /// section is always present (a colony without a primary ideoligion fails
+    /// the section read).
     /// </summary>
     public IdeologySnapshot? Ideology { get; init; }
 
@@ -7700,8 +7702,9 @@ public sealed record BundleSnapshot
 
     /// <summary>
     /// ModsConfig.IdeologyActive, carried on every frame: false means the
-    /// Ideology expansion is not installed, so an absent ideology section is not
-    /// an unread ideoligion. Absent stays unknown (unread).
+    /// Ideology expansion is not installed and the ideology section is absent;
+    /// true carries the section. A routine frame always carries the flag; the
+    /// brain refuses one without it.
     /// </summary>
     public bool? IdeologyActive { get; init; }
 }

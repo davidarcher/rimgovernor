@@ -18,6 +18,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class WorshipCreditTests
 {
+    private static WorshipFacts WorshipOf(Ideoligion? ideo) =>
+        WorshipRules.FactsOf(ideo is null ? new IdeologyMode.NotInstalled() : new IdeologyMode.Installed(ideo));
+
     private const double Day = GameTime.TicksPerDay;
     private const double Horizon = 10;
     private const string Altar = "Altar_Small", Column = "Column";
@@ -100,7 +103,7 @@ public sealed class WorshipCreditTests
     [Fact]
     public void AnIdeoligionMissingItsAltarIsCreditedThatMoodThroughGainPerDay()
     {
-        var context = Context(WorshipRules.FactsOf(Ideo(Missing())));
+        var context = Context(WorshipOf(Ideo(Missing())));
         Assert.Equal(4, ForecastWorship.Deltas(context)[(1, "WoodLog")]);
         var row = Assert.Single(Credits(Ledger(context)));
         Assert.Equal(("pawn", "worship/1/pawn", Horizon), (row.Pawn, row.Key, row.Units));
@@ -112,7 +115,7 @@ public sealed class WorshipCreditTests
     [Fact]
     public void ARitualEveryFifteenDaysAddsItsExpectedOutcomeAtTheRoomsQuality()
     {
-        var context = Context(WorshipRules.FactsOf(Ideo(Missing(), Gathering)));
+        var context = Context(WorshipOf(Ideo(Missing(), Gathering)));
         // One participant (0.1) and impressiveness 30 (0.12) on a starting quality of 0.2.
         var quality = 0.2 + 0.1 + 0.12;
         Assert.Equal(quality, ForecastWorship.Quality(Gathering.Outcome!, 1, 30, 0), 12);
@@ -127,11 +130,11 @@ public sealed class WorshipCreditTests
     [Fact]
     public void NoIdeoligionEarnsNothing()
     {
-        var ledger = Ledger(Context(WorshipRules.FactsOf(null)));
+        var ledger = Ledger(Context(WorshipOf(null)));
         Assert.Empty(Credits(ledger));
         Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("worship", StringComparison.Ordinal));
         // Nor does an ideoligion that holds no building precept and no ritual needing one: it owes no worship room.
-        var none = WorshipRules.FactsOf(Ideo(null));
+        var none = WorshipOf(Ideo(null));
         Assert.Null(none.Need);
         Assert.Empty(Credits(Ledger(Context(none))));
     }
@@ -140,24 +143,24 @@ public sealed class WorshipCreditTests
     public void ARoomTooSmallForTheDemandOnlyTradesMissingForDisrespected()
     {
         // Area 25 against a 4-cell room: the altar stands but the room is disrespected, -4 for -4.
-        var context = Context(WorshipRules.FactsOf(Ideo(Missing(area: 25))));
+        var context = Context(WorshipOf(Ideo(Missing(area: 25))));
         Assert.Equal(0, ForecastWorship.Deltas(context)[(1, "WoodLog")]);
         Assert.Empty(Credits(Ledger(context)));
         // A demand that does not apply (the colony's expectations are below its minimum) gives no thought either way.
-        Assert.Empty(Credits(Ledger(Context(WorshipRules.FactsOf(Ideo(Missing() with { Applies = false }))))));
+        Assert.Empty(Credits(Ledger(Context(WorshipOf(Ideo(Missing() with { Applies = false }))))));
     }
 
     [Fact]
     public void ARequirementOrRitualThePlanCannotPredictIsNamedNotModelled()
     {
         // #3835: a demand of a requirement kind the plan cannot predict adds nothing, named a not-modelled mechanic.
-        var unread = Context(WorshipRules.FactsOf(Ideo(Missing() with { Unread = ["RoomRequirement_Modded"] })));
+        var unread = Context(WorshipOf(Ideo(Missing() with { Unread = ["RoomRequirement_Modded"] })));
         var ledger = Ledger(unread);
         Assert.Contains(ForecastWorship.RequirementUnmodelled + "RoomRequirement_Modded", ledger.Findings);
         Assert.Empty(Credits(ledger));
         // A ritual whose outcome effect is not drawn from quality adds nothing beside the altar's demand, and is named.
         var worker = Gathering with { Outcome = new RitualOutcomeModel { Unread = "RitualOutcomeEffectWorker_Modded" } };
-        var ritual = Context(WorshipRules.FactsOf(Ideo(Missing(), worker)));
+        var ritual = Context(WorshipOf(Ideo(Missing(), worker)));
         Assert.Equal(4, ForecastWorship.Deltas(ritual)[(1, "WoodLog")]);
         ledger = Ledger(ritual);
         Assert.Contains(ForecastWorship.RitualUnmodelled + "RitualOutcomeEffectWorker_Modded", ledger.Findings);
@@ -200,7 +203,7 @@ public sealed class WorshipCreditTests
         Assert.True(w * d >= 25, $"{w}x{d}");
         Assert.True(shape.Holds(w, d));
         Assert.False(shape.Holds(4, 4));
-        Assert.Equal([Altar, Column], WorshipRules.FactsOf(Ideo(demand)).Definitions);
+        Assert.Equal([Altar, Column], WorshipOf(Ideo(demand)).Definitions);
     }
 
     [Fact]
@@ -281,7 +284,7 @@ public sealed class WorshipCreditTests
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts, which RoundsRead
         // fills from the frame's ideology section (WorshipRules.FactsOf).
-        var worship = WorshipRules.FactsOf(Ideo(Missing()));
+        var worship = WorshipOf(Ideo(Missing()));
         var facts = ForecastCoupledTests.ConstructionReview() with
         {
             PlannedShelters = [new() { Id = 1, Role = PlannedRole.Worship, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],

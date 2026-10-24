@@ -160,8 +160,7 @@ public sealed class IdeoligionGoalReformTests
     private static GoalsFacts GoalFacts(GoalRecord goal, IdeoDevelopment development, DesignChoice? reform, params string[] memes) => new()
     {
         Goals = [goal],
-        IdeologyInstalled = Known(true),
-        Ideology = Known(new Ideoligion(
+        Ideology = new IdeologyMode.Installed(new Ideoligion(
             new IdeologyDefs
             {
                 Precepts = new Dictionary<string, PreceptDef> { [Naked] = new([]) },
@@ -205,7 +204,8 @@ public sealed class IdeoligionGoalReformTests
 
         var animal = new GoalRecord { Id = 1, Kind = GoalKind.VeneratedAnimal, Target = "Muffalo" };
         var facts = GoalFacts(animal, Points(), default);
-        var held = facts with { Ideology = Known(facts.Ideology.Value with { Facts = facts.Ideology.Value.Facts with { VeneratedAnimals = ["Muffalo"] } }) };
+        var primary = ((IdeologyMode.Installed)facts.Ideology).Primary;
+        var held = facts with { Ideology = new IdeologyMode.Installed(primary with { Facts = primary.Facts with { VeneratedAnimals = ["Muffalo"] } }) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(animal, held).State);
     }
 

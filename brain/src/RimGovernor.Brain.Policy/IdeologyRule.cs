@@ -9,9 +9,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The ideoligion's answer to an action.</summary>
 public enum PreceptStance
 {
-    /// <summary>Holds the action: the ideoligion fact is unread (a caller still holding a Fact; #3927).</summary>
-    Unknown,
-
     /// <summary>No precept in force reacts to the action.</summary>
     Allowed,
 
@@ -62,24 +59,24 @@ public sealed record PreceptVerdict
 }
 
 /// <summary>
-/// What the frame says about Ideology: the primary ideoligion fact, and whether the expansion is installed.
-/// An unread ideoligion with the expansion installed (or unknown) is unread; with the expansion absent
-/// there are no precepts, so nothing is forbidden.
+/// What the frame says about Ideology: the expansion is not installed, so there are no precepts and nothing is
+/// forbidden, or it is installed and the player faction's primary ideoligion comes with the catalog's defs.
 /// </summary>
-public readonly record struct IdeologyRead(Fact<Ideoligion> Ideology, Fact<bool> Installed)
+public abstract record IdeologyMode
 {
-    /// <summary>Reports that the Ideology expansion is known not to be installed.</summary>
-    public bool Absent() => Installed.TryGetValue(out var installed) && !installed;
-
-    /// <summary>The stance under the read: allowed without the expansion, else the ideoligion's (unknown when unread).</summary>
-    public PreceptVerdict ActionStance(PreceptAction action, PreceptSubject subject)
+    private IdeologyMode()
     {
-        if (Absent())
-        {
-            return new PreceptVerdict { Stance = PreceptStance.Allowed };
-        }
-        return IdeologyRuleRules.ActionStance(Ideology, action, subject);
     }
+
+    /// <summary>The Ideology expansion is not installed.</summary>
+    public sealed record NotInstalled : IdeologyMode;
+
+    /// <summary>The expansion is installed; Primary is the player faction's primary ideoligion.</summary>
+    public sealed record Installed(Ideoligion Primary) : IdeologyMode;
+
+    /// <summary>The stance under the mode: allowed without the expansion, else the primary ideoligion's.</summary>
+    public PreceptVerdict ActionStance(PreceptAction action, PreceptSubject subject) =>
+        this is Installed installed ? installed.Primary.ActionStance(action, subject) : new PreceptVerdict { Stance = PreceptStance.Allowed };
 }
 
 public static class PreceptStanceExtensions
@@ -175,11 +172,10 @@ public sealed partial record Ideoligion
             PreceptStance.Allowed => 1,
             PreceptStance.Penalised => 2,
             PreceptStance.Forbidden => 3,
-            PreceptStance.Unknown => 4,
             PreceptStance other => throw new InvalidOperationException($"precept stance {other} is not named"),
         };
         var worst = PreceptStance.Approved;
-        var best = PreceptStance.Unknown;
+        var best = PreceptStance.Forbidden;
         foreach (var e in events)
         {
             var s = ActionStance(new PreceptAction(e), new PreceptSubject()).Stance;
@@ -198,19 +194,6 @@ public sealed partial record Ideoligion
 
 public static class IdeologyRuleRules
 {
-    /// <summary>The Ideology reading of the facts.</summary>
-    public static IdeologyRead IdeologyRead(this RoundsFacts f) => new(f.Ideology, f.IdeologyInstalled);
-
-    /// <summary>Evaluates the action under the ideoligion fact; the verdict is Unknown when the ideoligion is unread.</summary>
-    public static PreceptVerdict ActionStance(Fact<Ideoligion> ideology, PreceptAction action, PreceptSubject subject)
-    {
-        if (!ideology.TryGetValue(out var i))
-        {
-            return new PreceptVerdict { Stance = PreceptStance.Unknown };
-        }
-        return i.ActionStance(action, subject);
-    }
-
     internal static bool Cancels(PreceptEffect e, PreceptSubject s)
     {
         foreach (var t in e.NullifyingTraits)

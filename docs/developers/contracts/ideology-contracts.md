@@ -182,8 +182,10 @@ ThingDef names, and the reform state (`fluid`, `can_reform`, development
 points, reform count, next reform points; `policy.IdeoDevelopment`; a fixed
 ideoligion is `IdeoDevelopment.Fixed`, never an unread state). The
 believers are not a second read: the pawn rows' `policy_inputs` (`ideo_id`,
-`ideo_certainty`) say who holds the ideoligion. The section is absent, with no watermark, without Ideology or a primary ideoligion; the brain then holds
-`Facts.Ideology` unknown.
+`ideo_certainty`) say who holds the ideoligion. The section is absent, with no watermark, without Ideology; the brain then holds `Facts.Ideology` as
+`IdeologyMode.NotInstalled`. With Ideology installed the section is always present (the native mod
+fails the frame when the player faction has no primary ideoligion) and the mode is
+`IdeologyMode.Installed(primary)`.
 
 `bridge.DecodeIdeology` resolves every def name against the catalog rows and
 fails the frame on a name the catalog lacks, a repeated precept id, a missing field
@@ -203,7 +205,7 @@ allow, approve, penalise or forbid an action, for the colony or one pawn. The ac
 apparel stays native, so a `PreceptAction` carries only the event. The verdict carries the stance,
 the doer's and witnesses' mood cost (worst stage of each
 penalising thought), the refusal chance of unwilling effects (cancelled by the pawn's nullifying
-traits and hediffs; an unwilling effect without a chance is certain, `PreceptEffect.Certain`) and the effects behind it. An unread ideoligion is `unknown`: callers hold. An
+traits and hediffs; an unwilling effect without a chance is certain, `PreceptEffect.Certain`) and the effects behind it. An
 effect kind the rule does not read (apparel, mental break, development points, goodwill situation) is
 unsupported in the catalog, so a precept carrying one is not offered as a design. There is no `required` stance yet: the apparel, burial and room comps are
 in the rows, no stance reads them.
@@ -217,18 +219,15 @@ diet reads the pawn row's own `precepts` against the catalog defs
 one. Apparel stays native: the nudity requirement is the game's
 `IdeoPrefersNudityForGender`, the apparel precepts and role requirements are
 typed rows on the pawn. Human butchery (`policy.SelectHumanButcher`) skips a worker the rule forbids for
-`HistoryEventDefOf.ButcheredHuman`, or cannot answer for: an unread ideoligion with Ideology
-installed holds. The native disposition still gates the worker. Selling a surplus prisoner to the
+`HistoryEventDefOf.ButcheredHuman`. The native disposition still gates the worker. Selling a surplus prisoner to the
 tribute collector (`policy.FavorPrisonersHeld`) asks the rule about `SoldPrisoner` for the
-colony and sells only when it is allowed or approved: a mood cost, a refusal or an unread ideoligion
-with Ideology installed holds; without Ideology it sells.
+colony and sells only when it is allowed or approved: a mood cost or a refusal holds; without Ideology it sells.
 
 `BundleSnapshot.ideology_active` (`ModsConfig.IdeologyActive`, carried on every frame) is the
-distinct DLC-absent signal: an absent ideology section alone is unread, never absent. `false` is
-`policy.IdeologyRead.Absent`: the rule answers `allowed` ("Ideology not installed") and butchery
-falls through; unknown or `true` with no section stays unread and holds. An ideology section with
-`ideology_active` false fails the frame. Only butchery reads the signal so far
-(`RoundsFacts.IdeologyInstalled`, `IdeologyRead`). The game raises no history event for burying, entombing or
+DLC signal and is required on a routine frame (an absent flag fails the frame). `false` decodes to
+`IdeologyMode.NotInstalled`: the rule answers `allowed` ("Ideology not installed"), butchery falls
+through and the herd, diet, roles and rituals read nothing owed. `true` with no section, or an
+ideology section with `ideology_active` false, fails the frame (`IdeologyDecoder.Mode`). The game raises no history event for burying, entombing or
 burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing to bind to.
 
 ## Role assignment

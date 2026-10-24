@@ -45,7 +45,7 @@ public sealed record StationFacts
     public IReadOnlyList<StationHerd> Herds { get; init; } = [];
 
     public AnimalRaceCatalog Races { get; init; } = default!;
-    public Fact<PastureTable> Pasture { get; init; }
+    public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     /// <summary>Says who is a baby.</summary>
     public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }

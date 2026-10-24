@@ -432,7 +432,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
@@ -925,7 +924,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
@@ -1482,7 +1480,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
@@ -2041,7 +2038,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
@@ -2599,7 +2595,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
@@ -3157,7 +3152,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
@@ -3715,7 +3709,6 @@
         }
       },
       "Findings": [
-        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "break_floor_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",

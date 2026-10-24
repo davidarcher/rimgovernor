@@ -74,4 +74,17 @@ internal static class IdeologyDecoder
         }
         return new P.Ideoligion(defs, facts with { Precepts = precepts, Roles = roles, Rituals = rituals, Buildings = buildings });
     }
+
+    /// <summary>
+    /// The frame's Ideology mode: the expansion's flag every routine frame carries, and with it installed the
+    /// primary ideoligion's section. A frame without the flag, or an installed colony without its section, is a
+    /// contract failure.
+    /// </summary>
+    internal static P.IdeologyMode Mode(bool? active, PbObservations.IdeologySnapshot? section, BridgeCatalog catalog) =>
+        active switch
+        {
+            null => throw BridgeContractException.Contract("routine frame without its ideology flag"),
+            false => section is null ? new P.IdeologyMode.NotInstalled() : throw BridgeContractException.Contract("ideology section with ideology_active false"),
+            true => new P.IdeologyMode.Installed(Decode(section ?? throw BridgeContractException.Contract("ideology installed without its primary ideoligion section"), catalog)),
+        };
 }

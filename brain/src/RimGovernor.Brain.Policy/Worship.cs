@@ -37,13 +37,13 @@ public sealed record WorshipFacts
 public static partial class WorshipRules
 {
     /// <summary>
-    /// The worship facts of <paramref name="ideo"/> (null: none read). The rituals are the held rituals the room lets the
+    /// The worship facts of the ideology mode (none without the expansion). The rituals are the held rituals the room lets the
     /// colony hold on its own (RitualRules.RitualDue's free start): a pattern the catalog has, naming a required building,
     /// startable anytime, on a positive cadence and with an outcome effect.
     /// </summary>
-    public static WorshipFacts FactsOf(Ideoligion? ideo)
+    public static WorshipFacts FactsOf(IdeologyMode mode)
     {
-        if (ideo is null)
+        if (mode is not IdeologyMode.Installed { Primary: var ideo })
         {
             return new WorshipFacts();
         }

@@ -35,19 +35,17 @@ public sealed class AnimalsIdeologyFamilyTests
     [Fact]
     public void ContainmentIsMetUnmetOrUnknownByThePenBoundAnimalsAndThePenStep()
     {
-        var penned = new AnimalsFacts { Uncontained = Known<EquatableArray<PawnId>>([]), Pen = Known(Step(HerdStepKind.None)) };
+        var penned = new AnimalsFacts { Uncontained = EquatableArray.From<PawnId>([]), Pen = Known(Step(HerdStepKind.None)) };
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (Animal(penned, AnimalsFamily.Containment).Satisfaction, Animal(penned, AnimalsFamily.Containment).Tier));
 
-        var loose = Animal(penned with { Uncontained = Known<EquatableArray<PawnId>>([new("cow"), new("pig")]) }, AnimalsFamily.Containment);
+        var loose = Animal(penned with { Uncontained = EquatableArray.From<PawnId>([new("cow"), new("pig")]) }, AnimalsFamily.Containment);
         Assert.Equal((Satisfaction.Unmet, 2.0), (loose.Satisfaction, loose.Deficit.Value));
 
         var owed = Animal(penned with { Pen = Known(Step(HerdStepKind.Reconcile)) }, AnimalsFamily.Containment);
         Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit.Value));
 
-        // No latch: the Need is only what this read shows, and an unread census is unknown.
-        Assert.Equal("uncontained animals", Assert.Throws<RequiredFactException>(() => Animal(penned with { Uncontained = Unknown<EquatableArray<PawnId>>() }, AnimalsFamily.Containment)).Fact);
-        Assert.Equal("pen step", Assert.Throws<RequiredFactException>(() => Animal(penned with { Pen = Unknown<HerdStep>() }, AnimalsFamily.Containment)).Fact);
-        Assert.Equal("uncontained animals", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Containment)).Fact);
+        // No latch: the Need is only what this read shows, and an unread pen step is unknown.
+        Assert.Equal("pen step", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Containment)).Fact);
     }
 
     [Fact]
@@ -65,12 +63,12 @@ public sealed class AnimalsIdeologyFamilyTests
         // The herd ward is sterilize's precondition when the family composes it, and nothing else waits on another Need.
         var settled = new AnimalsFacts
         {
-            Animals = Known<EquatableArray<UpkeepAnimal>>([]),
-            Wild = Known<EquatableArray<UpkeepAnimal>>([]),
+            Animals = EquatableArray.From<UpkeepAnimal>([]),
+            Wild = EquatableArray.From<UpkeepAnimal>([]),
             FeedShort = Known(false),
             Handlers = Known<EquatableArray<PawnProfile>>([]),
             FoodPlan = Known(new FoodPlan()),
-            Uncontained = Known<EquatableArray<PawnId>>([]),
+            Uncontained = EquatableArray.From<PawnId>([]),
             Pen = Known(Step(HerdStepKind.None)),
             Ward = Known(Step(HerdStepKind.None)),
             WardRoom = new AnimalWard { Area = "ward" },
@@ -82,25 +80,24 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.DoesNotContain(new AnimalsFamily(true, false).Derive(settled), n => n.Id == AnimalsFamily.Ward);
 
         var cow = new UpkeepAnimal { Id = new("cow"), Definition = new("Cow"), AllowedArea = "pasture" };
-        var empty = new AnimalsFacts { Animals = Known<EquatableArray<UpkeepAnimal>>([cow]), WardRoom = new AnimalWard { Area = "ward" } };
+        var empty = new AnimalsFacts { Animals = EquatableArray.From<UpkeepAnimal>([cow]), WardRoom = new AnimalWard { Area = "ward" } };
         Assert.Equal(Satisfaction.Met, Animal(empty, AnimalsFamily.Sterilize).Satisfaction);
 
-        var held = empty with { Animals = Known<EquatableArray<UpkeepAnimal>>([cow with { AllowedArea = "ward" }]) };
+        var held = empty with { Animals = EquatableArray.From<UpkeepAnimal>([cow with { AllowedArea = "ward" }]) };
         Assert.Equal(Satisfaction.Unmet, Animal(held, AnimalsFamily.Sterilize).Satisfaction);
 
         Assert.Equal(Satisfaction.Met, Animal(empty with { WardRoom = new AnimalWard() }, AnimalsFamily.Sterilize).Satisfaction);
-        Assert.Equal("animal census", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Sterilize)).Fact);
     }
 
     [Fact]
     public void TheHerdIsUnknownWhileAnyChoiceReadsAnUnreadFactAndMetWithNothingOwed()
     {
-        Assert.Equal("herd deficit", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Herd)).Fact);
+        Assert.Equal("husbandry census", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Herd)).Fact);
 
         var none = new AnimalsFacts
         {
-            Animals = Known<EquatableArray<UpkeepAnimal>>([]),
-            Wild = Known<EquatableArray<UpkeepAnimal>>([]),
+            Animals = EquatableArray.From<UpkeepAnimal>([]),
+            Wild = EquatableArray.From<UpkeepAnimal>([]),
             FeedShort = Known(false),
             Handlers = Known<EquatableArray<PawnProfile>>([]),
         };

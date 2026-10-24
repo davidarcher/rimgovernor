@@ -152,12 +152,9 @@ public sealed class ColonyStatus
                 && id.NativeGeneration.TryGetValue(out var a) && decoded.NativeGeneration.TryGetValue(out var b) && a == b)
             {
                 var labels = new Dictionary<PawnId, string>();
-                if (held.Value.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals))
+                foreach (var animal in held.Value.Facts.AnimalUpkeep.Animals.Where(animal => animal.Label != ""))
                 {
-                    foreach (var animal in animals.Where(animal => animal.Label != ""))
-                    {
-                        labels[animal.Id] = animal.Label;
-                    }
+                    labels[animal.Id] = animal.Label;
                 }
                 report = report with
                 {

@@ -9,9 +9,9 @@ public static class CapabilityMaintenanceRules
 {
     /// <summary>Only actually held active roles establish maintenance requirements. Unfilled roles are
     /// acquisition, and unlocked practice ceilings never establish a desired level.</summary>
-    public static EquatableArray<AssignedCapability> AssignedCombatCapabilities(Fact<Ideoligion> ideology)
+    public static EquatableArray<AssignedCapability> AssignedCombatCapabilities(IdeologyMode ideology)
     {
-        if (!ideology.TryGetValue(out var read)) return [];
+        if (ideology is not IdeologyMode.Installed { Primary: var read }) return [];
         var result = new List<AssignedCapability>();
         foreach (var role in read.Facts.Roles.Where(r => r.Active).OrderBy(r => r.Id, StringComparer.Ordinal))
         {

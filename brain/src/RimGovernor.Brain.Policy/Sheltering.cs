@@ -271,16 +271,13 @@ public static partial class ShelterRules
                 }
             }
         }
-        if (f.AnimalUpkeep.Animals.TryGetValue(out var animals))
+        foreach (var animal in f.AnimalUpkeep.Animals)
         {
-            foreach (var animal in animals)
+            if (!animal.SupportsAreas || animal.RequiresPen)
             {
-                if (!animal.SupportsAreas || animal.RequiresPen)
-                {
-                    continue;
-                }
-                Add(animal.Id, true, trigger != ShelterTrigger.None, animal.AllowedArea);
+                continue;
             }
+            Add(animal.Id, true, trigger != ShelterTrigger.None, animal.AllowedArea);
         }
         // Stable by pawn id.
         return changes.OrderBy(c => c.Pawn).ToList();

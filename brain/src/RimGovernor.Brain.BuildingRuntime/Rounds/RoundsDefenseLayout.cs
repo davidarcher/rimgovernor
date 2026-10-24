@@ -106,11 +106,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static bool DefenseRoamerOwned(ColonyProjection projection)
     {
-        if (!projection.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals))
-        {
-            return false;
-        }
-        foreach (var a in animals)
+        foreach (var a in projection.Facts.AnimalUpkeep.Animals)
         {
             if (a.RequiresPen)
             {

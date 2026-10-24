@@ -19,8 +19,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         var routes = new List<ForecastActivityRoute>(); var roots = new List<ForecastCommitment>();
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>(); var practice = new List<ForecastPracticeTask>();
         var requirements = new List<ForecastMaintenanceRequirement>(); var findings = new SortedSet<string>(StringComparer.Ordinal);
-        if (!facts.Ideology.TryGetValue(out var ideology)) findings.Add("assigned_capability_floor_unknown");
-        else
+        if (facts.Ideology is IdeologyMode.Installed { Primary: var ideology })
             foreach (var role in ideology.Facts.Roles.Where(r => r.Active && r.Pawns.Count == 0))
                 findings.Add("acquisition_requires_assignment:" + role.Id);
         var pawns = facts.ForecastObserved.WorkPawns.TryGetValue(out var rows) ? rows : [];

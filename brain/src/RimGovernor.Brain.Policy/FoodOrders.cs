@@ -181,7 +181,7 @@ public static class FoodOrdersRules
                 {
                     selections.Add(selected);
                 }
-                var (human, ok) = HumanFoodRules.SelectHumanButcher(census, f.IdeologyRead(), f.Preferences);
+                var (human, ok) = HumanFoodRules.SelectHumanButcher(census, f.Ideology, f.Preferences);
                 if (ok)
                 {
                     if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Corpse, "human-butchery"))

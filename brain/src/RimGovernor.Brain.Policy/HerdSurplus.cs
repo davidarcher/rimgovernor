@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Policy;
 /// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
 /// adulthood, veneration and tame danger natively, and Feed from the race and life stage; MeatNutrition merges in
 /// from the colony food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
-/// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). An unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
-/// EatingBarred food slaughter.
+/// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). A barred slaughter leaves removal, sale and slaughter to a
+/// release, a barred meal food slaughter.
 /// </summary>
 public sealed record HerdFacts
 {
@@ -22,8 +22,8 @@ public sealed record HerdFacts
 
     public bool Sick { get; init; }
     public bool Adult { get; init; }
-    public Fact<bool> SlaughterBarred { get; init; }
-    public Fact<bool> EatingBarred { get; init; }
+    public bool SlaughterBarred { get; init; }
+    public bool EatingBarred { get; init; }
     public bool Venerated { get; init; }
 
     public bool Predator { get; init; }
@@ -37,13 +37,8 @@ public sealed record HerdFacts
     /// <summary>The index of the animal's current life stage in the race's LifeStages.</summary>
     public int LifeStageIndex { get; init; }
 
-    /// <summary>Whether slaughter or eating the animal is barred by the player ideo or the precept read is missing.</summary>
-    internal bool FoodBarredOrUnknown()
-    {
-        var sk = SlaughterBarred.TryGetValue(out var slaughter);
-        var ek = EatingBarred.TryGetValue(out var eating);
-        return slaughter || eating || !sk || !ek;
-    }
+    /// <summary>Whether slaughter or eating the animal is barred by the player ideo.</summary>
+    internal bool FoodBarred() => SlaughterBarred || EatingBarred;
 }
 
 /// <summary>
@@ -156,24 +151,19 @@ public static class HerdSurplusRules
 
     /// <summary>
     /// Slaughter whenever SafeToSlaughter allows it (it refuses a bonded animal) and the player ideo's precepts
-    /// neither penalise nor forbid it (SlaughterBarred), else release when native allows that, else none. Not ok
-    /// when the precept stance is unknown.
+    /// neither penalise nor forbid it (SlaughterBarred), else release when native allows that, else none.
     /// </summary>
-    internal static (HusbandryMethod? Method, bool Ok) HerdRemovalMethod(UpkeepAnimal a)
+    internal static HusbandryMethod? HerdRemovalMethod(UpkeepAnimal a)
     {
-        if (!a.Herd.SlaughterBarred.TryGetValue(out var barred))
+        if (a.SafeToSlaughter() && !a.Herd.SlaughterBarred)
         {
-            return (null, false);
-        }
-        if (a.SafeToSlaughter() && !barred)
-        {
-            return (HusbandryMethod.Slaughter, true);
+            return HusbandryMethod.Slaughter;
         }
         if (a.ReleaseAllowed())
         {
-            return (HusbandryMethod.Release, true);
+            return HusbandryMethod.Release;
         }
-        return (null, true);
+        return null;
     }
 
     /// <summary>Ranks plant feed per unit of eaten meat; an animal without both ranks last among its tier.</summary>
@@ -210,10 +200,9 @@ public static class HerdSurplusRules
     /// five females; then untrained adults by highest feed per meat; then trained adults; juveniles only when
     /// juveniles is set (feed short). Ties go to the lowest ID. An animal whose removal would leave its race under
     /// a breeding pair of its own sex is kept, except in a retired race, which keeps no
-    /// pair. A sterilized animal is no part of the pair and is removed freely. Any tracked animal with an unknown
-    /// designation or eligibility fact makes the result unknown.
+    /// pair. A sterilized animal is no part of the pair and is removed freely.
     /// </summary>
-    internal static (IReadOnlyList<HerdRemoval> Removals, bool Unknown) HerdSurplusCandidates(
+    internal static IReadOnlyList<HerdRemoval> HerdSurplusCandidates(
         IReadOnlyList<UpkeepAnimal> rows,
         IReadOnlyDictionary<Resource, long> limits,
         bool juveniles,
@@ -243,12 +232,7 @@ public static class HerdSurplusRules
             {
                 bySex[a.Gender] = bySex.GetValueOrDefault(a.Gender) + 1;
             }
-            var (method, ok) = HerdRemovalMethod(a);
-            if (!ok)
-            {
-                return ([], true);
-            }
-            if (method is { } m && (juveniles || !HerdJuvenile(a) || HerdOld(a)))
+            if (HerdRemovalMethod(a) is { } m &&(juveniles || !HerdJuvenile(a) || HerdOld(a)))
             {
                 if (!eligible.TryGetValue(a.Definition, out var list))
                 {
@@ -318,7 +302,7 @@ public static class HerdSurplusRules
                 surplus--;
             }
         }
-        return (@out.OrderBy(r => r.Animal.Id).ToList(), false);
+        return @out.OrderBy(r => r.Animal.Id).ToList();
     }
 
     /// <summary>Keeps max(floor, breeding pair) of every observed race, none of a retired one: food slaughter never cuts below either.</summary>

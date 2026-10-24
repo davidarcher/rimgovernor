@@ -2,9 +2,8 @@ namespace RimGovernor.Brain.Policy;
 
 // The Ideology facts. Static defs are a view over the definition catalog's mirrored rows (IdeologyDefs,
 // fixed for a load); the primary ideoligion's current state comes from the frame's ideology section
-// (IdeoligionFacts). Both are read from the game's defs: no def name is listed here. Unknown stays unknown:
-// Facts.Ideology is unknown when the frame carries no ideology section (no Ideology, no primary ideoligion,
-// or the section failed to read).
+// (IdeoligionFacts). Both are read from the game's defs: no def name is listed here. A frame always states
+// its mode: Facts.Ideology is NotInstalled without the expansion and Installed with its primary ideoligion.
 
 /// <summary>What a precept comp does, by the class of the comp.</summary>
 public enum PreceptEffectKind

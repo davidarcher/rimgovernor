@@ -15,15 +15,15 @@ public static class HerdMasterRules
     /// or its race is unplanned or retiring. A master who fits is kept and reassigned only when empty or not
     /// fitting. One write per call: master first, then follow_drafted.
     /// </summary>
-    public static HusbandryChoice HerdMasterChoice(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> profiles)
+    public static HusbandryChoice HerdMasterChoice(EquatableArray<UpkeepAnimal> animals, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> profiles)
     {
         var none = new HusbandryChoice.NoDeficit();
-        if (!animals.TryGetValue(out var rows) || !profiles.TryGetValue(out var roster))
+        if (!profiles.TryGetValue(out var roster))
         {
             return none;
         }
 
-        var sorted = rows.OrderBy(a => a.Id).ToList();
+        var sorted = animals.OrderBy(a => a.Id).ToList();
         var (front, _) = PawnRules.FrontLine(roster);
         foreach (var a in sorted)
         {

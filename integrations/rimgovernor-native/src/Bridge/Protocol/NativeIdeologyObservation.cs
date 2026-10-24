@@ -66,13 +66,14 @@ namespace HomeBridge.BridgeTools
         }
 
         // The player faction's primary ideoligion as it stands; null without
-        // Ideology or a primary ideoligion. A fluid ideoligion without its
+        // Ideology. With Ideology active a colony always holds a primary
+        // ideoligion, so its absence, a fluid ideoligion without its
         // development tracker, or a ritual without its pattern, throws.
         internal static Obs.IdeologySnapshot? Build(Map map)
         {
             if (!ModsConfig.IdeologyActive) return null;
-            var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
-            if (ideo == null) return null;
+            var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo
+                ?? throw new InvalidOperationException("Ideology is active but the player faction has no primary ideoligion.");
             Obs.IdeoDevelopment development = new Obs.IdeoDevelopment.Fixed();
             if (ideo.Fluid)
             {

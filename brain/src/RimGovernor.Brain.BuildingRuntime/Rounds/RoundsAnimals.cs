@@ -56,16 +56,7 @@ public sealed class AnimalsReader
         var handlers = projection.WorkPawns.TryGetValue(out var pawns)
             ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
-        Fact<EquatableArray<PawnId>> uncontained;
-        try
-        {
-            uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
-        }
-        catch (DomainException)
-        {
-            // A malformed census row is an unread census, never a contained herd.
-            uncontained = Unknown<EquatableArray<PawnId>>();
-        }
+        var uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
         var (pen, penKnown) = RoundsHerdRooms.PenStepOf(projection);
         var (ward, wardKnown) = RoundsHerdRooms.WardStepOf(projection);
         var elapsed = _reviewer.Clock.Now() - started;
@@ -133,20 +124,12 @@ public sealed class AnimalsReader
             return await ReconcileAsync(work, review, reading, pen, call).ConfigureAwait(false);
         }
         var projection = reading.Projection;
-        if (!projection.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals))
-        {
-            return FieldUnavailable("animal_upkeep");
-        }
         if (!projection.WorkPawns.TryGetValue(out var workPawns))
         {
             return FieldUnavailable("work_pawns");
         }
         var handler = RoundsAnimalContainment.AnimalHandlerAvailable(workPawns);
-        if (!handler.IsKnown)
-        {
-            return FieldUnavailable("animal_handler");
-        }
-        var choice = AnimalUpkeepRules.SelectAnimalContainmentMethod(animals, handler, RoundsAnimalContainment.PensStand(projection));
+        var choice = AnimalUpkeepRules.SelectAnimalContainmentMethod(projection.Facts.AnimalUpkeep.Animals, handler, RoundsAnimalContainment.PensStand(projection));
         return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : RoundsAnimalContainment.ContainmentWait(choice.Reason);
     }
 

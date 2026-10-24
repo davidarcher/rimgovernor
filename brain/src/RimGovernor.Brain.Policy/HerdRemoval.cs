@@ -9,13 +9,9 @@ public static class HerdRemovalRules
     /// controller-history dependency, so Manual edits and save/load use the same rule. Existing valid removals
     /// consume the budget before new work.
     /// </summary>
-    public static HusbandryChoice ReconcileHerdRemoval(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, Fact<FoodPlan> food)
+    public static HusbandryChoice ReconcileHerdRemoval(EquatableArray<UpkeepAnimal> animals, HerdPolicy herd, Fact<FoodPlan> food)
     {
-        if (!animals.TryGetValue(out var unsorted))
-        {
-            return new HusbandryChoice.Unread();
-        }
-        var rows = unsorted.OrderBy(a => a.Id).ToList();
+        var rows = animals.OrderBy(a => a.Id).ToList();
         var counts = new Dictionary<Resource, long>();
         var sexes = new Dictionary<(Resource Race, Sex Sex), long>();
         foreach (var a in rows)

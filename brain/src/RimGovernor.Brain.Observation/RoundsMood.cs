@@ -122,7 +122,7 @@ public static class RoundsMoodReads
         {
             output = output with { Research = new Held<ResearchFacts> { Value = research, AsOf = tick, Complete = true, Source = "rimgovernor/observations_read_research" } };
         }
-        if (projection.Facts.Ideology.TryGetValue(out var ideology))
+        if (projection.Facts.Ideology is IdeologyMode.Installed { Primary: var ideology })
         {
             output = output with { Ideology = new Held<Ideoligion> { Value = ideology, AsOf = tick, Complete = true, Source = "rimgovernor/snapshot_frame_ideology" } };
         }

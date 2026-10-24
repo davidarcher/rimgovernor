@@ -89,10 +89,10 @@ public sealed record PrisonerColony
     public bool BelieversWanted { get; init; }
 
     /// <summary>
-    /// The frame's ideoligion fact: slavery and organ use read it through the shared precept rule. The
-    /// routine reading fills it; unknown without Ideology.
+    /// The frame's ideology mode: slavery and organ use read it through the shared precept rule. The
+    /// routine reading fills it.
     /// </summary>
-    public Fact<Ideoligion> Ideoligion { get; init; }
+    public IdeologyMode Ideoligion { get; init; } = new IdeologyMode.NotInstalled();
 
     /// <summary>The prisoners the player's goals name (#3499): recruited whatever their worth.</summary>
     public IReadOnlyList<PawnId> NamedPrisoners { get; init; } = [];
@@ -117,7 +117,11 @@ public sealed record PrisonerColony
         {
             return false;
         }
-        var stance = IdeologyRuleRules.ActionStance(Ideoligion, new PreceptAction { HistoryEvent = "EnslavedPrisoner" }, new PreceptSubject()).Stance;
+        if (Ideoligion is IdeologyMode.NotInstalled)
+        {
+            return false;
+        }
+        var stance = Ideoligion.ActionStance(new PreceptAction { HistoryEvent = "EnslavedPrisoner" }, new PreceptSubject()).Stance;
         return stance is PreceptStance.Allowed or PreceptStance.Approved;
     }
 }

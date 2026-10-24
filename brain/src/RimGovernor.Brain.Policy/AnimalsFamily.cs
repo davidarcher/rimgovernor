@@ -10,9 +10,9 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record AnimalsFacts
 {
-    public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
+    public EquatableArray<UpkeepAnimal> Animals { get; init; }
 
-    public Fact<EquatableArray<UpkeepAnimal>> Wild { get; init; }
+    public EquatableArray<UpkeepAnimal> Wild { get; init; }
 
     public HerdPolicy Herd { get; init; } = new();
 
@@ -24,7 +24,7 @@ public sealed record AnimalsFacts
     public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
 
     /// <summary>The pen-bound animals not yet contained, released or slaughtered (<see cref="AnimalUpkeepRules.ReviewAnimalUpkeep"/>).</summary>
-    public Fact<EquatableArray<PawnId>> Uncontained { get; init; }
+    public EquatableArray<PawnId> Uncontained { get; init; }
 
     /// <summary>The next pen step (<see cref="HerdRoomsRules.NextPenStep"/>); a no-op step when nothing is owed.</summary>
     public Fact<HerdStep> Pen { get; init; }
@@ -210,20 +210,15 @@ public static class AnimalsFamilyRules
     /// <summary>
     /// The containment Need, a plain threshold (no latch): unmet while a pen-bound animal is uncontained or a pen
     /// step is owed; met otherwise (a colony with no planned pen or no animals has a no-op pen step). With nothing
-    /// owed, either one unread raises <see cref="RequiredFactException"/>. Its deficit is the uncontained animals,
+    /// owed, an unread pen step raises <see cref="RequiredFactException"/>. Its deficit is the uncontained animals,
     /// plus one for an owed pen.
     /// </summary>
     public static Need ContainmentNeedOf(AnimalsFacts f)
     {
-        var known = f.Uncontained.TryGetValue(out var uncontained);
         var penKnown = f.Pen.TryGetValue(out var pen);
         var penOwed = penKnown && pen!.Owed();
-        var count = known ? uncontained!.Count : 0;
+        var count = f.Uncontained.Count;
         var owed = count > 0 || penOwed;
-        if (!owed && !known)
-        {
-            throw new RequiredFactException("uncontained animals");
-        }
         if (!owed && !penKnown)
         {
             throw new RequiredFactException("pen step");
@@ -257,14 +252,11 @@ public static class AnimalsFamilyRules
     /// <summary>
     /// The sterilize Need, waiting on the ward when the family derives it: unmet while an animal the herd plan wants
     /// sterilized is fertile or an animal sits in the hospital area; met otherwise (a map with no hospital area holds
-    /// no animal in it). An unread census raises <see cref="RequiredFactException"/>. Its deficit is the animals wanted.
+    /// no animal in it). Its deficit is the animals wanted.
     /// </summary>
     public static Need SterilizeNeedOf(AnimalsFacts f, bool ward = true)
     {
-        if (!f.Animals.TryGetValue(out var animals))
-        {
-            throw new RequiredFactException("animal census");
-        }
+        var animals = f.Animals;
         var wanted = HerdSterilizeRules.SterilizeWanted(animals, f.Herd).Count;
         var area = f.WardRoom.Area;
         var inWard = area.Length != 0 && animals.Any(a => a.AllowedArea == area);

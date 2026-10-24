@@ -61,15 +61,15 @@ internal static class RoundsHerdRooms
     /// </summary>
     internal static (HerdStep Step, bool Known) PenStepOf(ColonyProjection facts)
     {
-        var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
+        var animals = facts.Facts.AnimalUpkeep.Animals;
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var census = facts.Facts.CurrentConstruction;
-        if (!ak || !pk || census is null)
+        if (!pk || census is null)
         {
             return (default!, false);
         }
 
-        if (animals!.Count == 0 || plan!.RoomsOf(PlannedRole.Pen).Count == 0)
+        if (animals.Count == 0 || plan!.RoomsOf(PlannedRole.Pen).Count == 0)
         {
             return (new HerdStep(), true);
         }
@@ -90,18 +90,18 @@ internal static class RoundsHerdRooms
     /// </summary>
     internal static (HerdStep Step, bool Known) WardStepOf(ColonyProjection facts)
     {
-        var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
+        var animals = facts.Facts.AnimalUpkeep.Animals;
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!ak || !pk || !rk || census is null || !sk)
+        if (!pk || !rk || census is null || !sk)
         {
             return (default!, false);
         }
 
-        var ward = HerdWardRules.WardBeds(animals!, facts.Facts.HerdPolicy());
-        if (animals!.Count == 0 || ward == 0 || plan!.RoomsOf(PlannedRole.Hospital).Count == 0)
+        var ward = HerdWardRules.WardBeds(animals, facts.Facts.HerdPolicy());
+        if (animals.Count == 0 || ward == 0 || plan!.RoomsOf(PlannedRole.Hospital).Count == 0)
         {
             return (new HerdStep(), true);
         }

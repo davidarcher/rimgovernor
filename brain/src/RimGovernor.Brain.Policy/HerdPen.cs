@@ -14,17 +14,9 @@ public sealed record PenWant(string Race, int Cells);
 
 public static class RoundsFactsPenExtensions
 {
-    /// <summary>The pens the layout gives the herd, from the routine reading; none while the animal census or the pasture table is unread.</summary>
-    public static IReadOnlyList<PenWant> PenWants(this RoundsFacts f)
-    {
-        var known = f.AnimalUpkeep.Animals.TryGetValue(out var animals);
-        var pastureKnown = f.Pasture.TryGetValue(out var pasture);
-        if (!known || !pastureKnown)
-        {
-            return [];
-        }
-        return HerdPlanRules.PlanHerd(f.HerdPlanInput()).PenWants(animals!, f.AnimalUpkeep.AnimalRaces, pasture!);
-    }
+    /// <summary>The pens the layout gives the herd, from the routine reading.</summary>
+    public static IReadOnlyList<PenWant> PenWants(this RoundsFacts f) =>
+        HerdPlanRules.PlanHerd(f.HerdPlanInput()).PenWants(f.AnimalUpkeep.Animals, f.AnimalUpkeep.AnimalRaces, f.Pasture);
 }
 
 public sealed partial record HerdPlan

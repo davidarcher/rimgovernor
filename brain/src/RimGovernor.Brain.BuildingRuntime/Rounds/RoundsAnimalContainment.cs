@@ -6,8 +6,8 @@ internal static class RoundsAnimalContainment
     /// <summary>
     /// Whether a free colonist can take animal handling work (a pawn whose work tracker is not initialized has none yet).
     /// </summary>
-    internal static Fact<bool> AnimalHandlerAvailable(IReadOnlyList<WorkPawn> pawns) =>
-        Known(pawns.Any(p => p.Available && p.Work.Priorities().Any(w => Wire.Name(w.Work) == "Handling" && !w.Disabled && w.Priority > 0)));
+    internal static bool AnimalHandlerAvailable(IReadOnlyList<WorkPawn> pawns) =>
+        pawns.Any(p => p.Available && p.Work.Priorities().Any(w => Wire.Name(w.Work) == "Handling" && !w.Disabled && w.Priority > 0));
 
     internal static PlanningDefinition? AnimalContainmentDefinition(IReadOnlyList<PlanningDefinition> definitions, string name)
     {

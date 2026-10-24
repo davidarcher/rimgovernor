@@ -285,18 +285,13 @@ partial class RoundsAcquisitionPlanner
 
     /// <summary>
     /// Finds the unissued (pending or prepared) hunt actions of a pest plan whose animal the wild-animal census
-    /// no longer lists (dead or off the map). The census has to be known: an unknown census is not evidence the
-    /// pack is gone. A pest that is merely ineligible this step (no free hunter) or has wandered off its planned
+    /// no longer lists (dead or off the map). A pest that is merely ineligible this step (no free hunter) or has wandered off its planned
     /// cell keeps its row in the wild census and its hunt, which follows it.
     /// </summary>
-    internal static List<ActionId> GonePestHunts(IReadOnlyList<Progress> progress, Fact<EquatableArray<UpkeepAnimal>> wild)
+    internal static List<ActionId> GonePestHunts(IReadOnlyList<Progress> progress, EquatableArray<UpkeepAnimal> wild)
     {
         var gone = new List<ActionId>();
-        if (!wild.TryGetValue(out var animals))
-        {
-            return gone;
-        }
-        var alive = new HashSet<string>(animals.Select(a => a.Id.ToString()), StringComparer.Ordinal);
+        var alive = new HashSet<string>(wild.Select(a => a.Id.ToString()), StringComparer.Ordinal);
         foreach (var p in progress)
         {
             var acquisition = p.Action.Acquisition;

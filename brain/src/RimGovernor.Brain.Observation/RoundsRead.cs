@@ -239,19 +239,17 @@ public static class RoundsReads
             Facts = p.Facts with
             {
                 QuestColonistsAtHome = QuestReads.FrameQuestColonistsAtHome(frame.Quests, expected.Map, emergency),
-                Ideology = FrameIdeology(frame.Ideology),
+                Ideology = frame.Ideology,
                 Worship = WorshipRules.FactsOf(frame.Ideology),
-                IdeologyInstalled = frame.IdeologyActive,
             },
         };
         p = p with { Facts = DlcSectionReads.Installed(p.Facts, colony) };
         p = p with { Facts = p.Facts with { RitualSites = RitualSitesReads.RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
-        var ideologyDefs = catalog.IdeologyDefs();
         p = p with
         {
             Facts = p.Facts with
             {
-                AnimalUpkeep = p.Facts.AnimalUpkeep with { Animals = HerdPreceptsRules.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, ideologyDefs is not null) },
+                AnimalUpkeep = p.Facts.AnimalUpkeep with { Animals = HerdPreceptsRules.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology) },
             },
         };
         p = p with
@@ -409,9 +407,6 @@ public static class RoundsReads
 
     internal static ResearchFacts FrameResearch(O.ResearchSnapshot read, DefinitionCatalog catalog) =>
         EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog.Research, catalog.KnowledgeOverflow));
-
-    /// <summary>The primary ideoligion; unknown when the frame carries no ideology section.</summary>
-    internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);
 
     /// <summary>The trader census; unknown when the frame carries none.</summary>
     internal static Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> FrameTraders(RimGovernor.Contracts.Wire.Observations.TradersSnapshot? read) =>

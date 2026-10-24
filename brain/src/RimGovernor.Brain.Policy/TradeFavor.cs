@@ -85,7 +85,7 @@ public static partial class TradePolicyRules
     /// refusal), or unread with Ideology installed. Without the expansion, or when precepts only approve, the sale
     /// proceeds.
     /// </summary>
-    public static bool FavorPrisonersHeld(IdeologyRead ideology) =>
+    public static bool FavorPrisonersHeld(IdeologyMode ideology) =>
         ideology.ActionStance(new PreceptAction(SoldPrisonerEvent), new PreceptSubject()).Stance is not (PreceptStance.Allowed or PreceptStance.Approved);
 
     /// <summary>
@@ -98,7 +98,7 @@ public static partial class TradePolicyRules
     {
         var pk = f.Population.TryGetValue(out var census);
         var mk = f.MedicalPawns.TryGetValue(out _);
-        if (!pk || !mk || FavorPrisonersHeld(f.IdeologyRead()))
+        if (!pk || !mk || FavorPrisonersHeld(f.Ideology))
         {
             return new HashSet<PawnId>();
         }

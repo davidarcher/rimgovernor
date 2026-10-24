@@ -103,18 +103,13 @@ public static class HusbandryUpkeepRules
     /// race is below its minimum with a tameable wild candidate while feedShort (the herd's feed forecast
     /// reporting a shortfall) is known false, or -- only when a removal method is allowed and
     /// PopulationMax declares at least one tracked race -- any race has an observed surplus with an
-    /// eligible candidate not yet designated. An unknown census, or any animal whose
-    /// release/slaughter/training facts are incomplete, leaves the whole need unknown rather than
-    /// silently treating it as recovered.
+    /// eligible candidate not yet designated. The deficit is unknown only while a wild candidate waits on an
+    /// unread feed forecast.
     /// </summary>
-    public static Fact<bool> AnimalHerdDeficit(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd)
+    public static Fact<bool> AnimalHerdDeficit(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, Fact<bool> feedShort, HerdPolicy herd)
     {
-        if (!animals.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
         var deficit = false;
-        foreach (var a in rows)
+        foreach (var a in animals)
         {
             if (a.Release || a.Slaughter)
             {
@@ -130,16 +125,7 @@ public static class HusbandryUpkeepRules
         }
         if (herd.PopulationMin.Count > 0)
         {
-            if (!wild.TryGetValue(out var wildRows))
-            {
-                return Unknown<bool>();
-            }
-            var (candidates, unknown) = HerdTameCandidates(rows, wildRows, herd);
-            if (unknown)
-            {
-                return Unknown<bool>();
-            }
-            if (candidates.Count > 0)
+            if (HerdTameCandidates(animals, wild, herd).Count > 0)
             {
                 if (!feedShort.TryGetValue(out var short_))
                 {
@@ -151,12 +137,7 @@ public static class HusbandryUpkeepRules
                 }
             }
         }
-        var (removals, removalUnknown) = HerdSurplusRules.HerdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd);
-        if (removalUnknown)
-        {
-            return Unknown<bool>();
-        }
-        if (removals.Count > 0)
+        if (HerdSurplusRules.HerdSurplusCandidates(animals, herd.PopulationMax, herd.FeedShort, herd).Count > 0)
         {
             deficit = true;
         }
@@ -166,13 +147,11 @@ public static class HusbandryUpkeepRules
     /// <summary>
     /// Computes each tracked race's shortfall (shortfall = target.minimum - kept player animals - pending
     /// tame designations) and returns the best tameable wild animals of that race (HerdTameLess), capped
-    /// to the shortfall. Kept excludes release/slaughter-designated animals, since those are leaving. A
-    /// wild row with an unknown tameable or tame-designation fact, or a player row with unknown
-    /// designation facts, makes the result unknown.
+    /// to the shortfall. Kept excludes release/slaughter-designated animals, since those are leaving.
     /// The shortfall stops at the race's max (pen and feed room), and a dangerous race (HerdDangerous) is
     /// never tamed.
     /// </summary>
-    internal static (IReadOnlyList<UpkeepAnimal> Candidates, bool Unknown) HerdTameCandidates(IReadOnlyList<UpkeepAnimal> rows, IReadOnlyList<UpkeepAnimal> wild, HerdPolicy herd)
+    internal static IReadOnlyList<UpkeepAnimal> HerdTameCandidates(IReadOnlyList<UpkeepAnimal> rows, IReadOnlyList<UpkeepAnimal> wild, HerdPolicy herd)
     {
         var populationMin = herd.PopulationMin;
         var counts = new Dictionary<Resource, long>();
@@ -231,7 +210,7 @@ public static class HusbandryUpkeepRules
             }
             candidates.AddRange(raceRows);
         }
-        return (candidates.SortedBy((a, b) =>
+        return candidates.SortedBy((a, b) =>
         {
             var ra = HerdWantRank(HerdRoleOrZero(herd, a.Definition));
             var rb = HerdWantRank(HerdRoleOrZero(herd, b.Definition));
@@ -244,7 +223,7 @@ public static class HusbandryUpkeepRules
                 return a.Definition < b.Definition;
             }
             return HerdTameLess(HerdRoleOrZero(herd, a.Definition), a, b);
-        }), false);
+        });
     }
 
     /// <summary>
@@ -325,14 +304,10 @@ public static class HusbandryUpkeepRules
     /// -- and only after that to the lowest-Id surplus candidate for the operator's chosen removal method
     /// -- so an operator who opts into tame or removal never loses the pre-existing training behavior.
     /// </summary>
-    public static HusbandryChoice SelectHusbandryMethod(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> handlers)
+    public static HusbandryChoice SelectHusbandryMethod(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, Fact<bool> feedShort, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> handlers)
     {
         var unknownChoice = new HusbandryChoice.Unread();
-        if (!animals.TryGetValue(out var rows))
-        {
-            return unknownChoice;
-        }
-        var sorted = rows.OrderBy(a => a.Id).ToList();
+        var sorted = animals.OrderBy(a => a.Id).ToList();
         foreach (var a in sorted)
         {
             if (a.Release || a.Slaughter)
@@ -353,15 +328,7 @@ public static class HusbandryUpkeepRules
         }
         if (herd.PopulationMin.Count > 0)
         {
-            if (!wild.TryGetValue(out var wildRows))
-            {
-                return unknownChoice;
-            }
-            var (candidates, unknown) = HerdTameCandidates(rows, wildRows, herd);
-            if (unknown)
-            {
-                return unknownChoice;
-            }
+            var candidates = HerdTameCandidates(animals, wild, herd);
             if (candidates.Count > 0)
             {
                 if (!feedShort.TryGetValue(out var short_) || !handlers.TryGetValue(out var profiles))
@@ -379,51 +346,11 @@ public static class HusbandryUpkeepRules
                 }
             }
         }
-        var (removals, removalUnknown) = HerdSurplusRules.HerdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd);
-        if (removalUnknown)
-        {
-            return unknownChoice;
-        }
+        var removals = HerdSurplusRules.HerdSurplusCandidates(animals, herd.PopulationMax, herd.FeedShort, herd);
         if (removals.Count > 0)
         {
             return new HusbandryChoice.Write(removals[0].Animal.Id, removals[0].Method);
         }
         return new HusbandryChoice.NoDeficit();
-    }
-
-    /// <summary>
-    /// Requested training or a standing animal designation. Ordinary native handlers need game time, not
-    /// another write or a forced job.
-    /// </summary>
-    public static bool HerdWorkPending(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, HerdPolicy herd)
-    {
-        if (wild.TryGetValue(out var wildRows))
-        {
-            foreach (var a in wildRows)
-            {
-                if (a.Tame)
-                {
-                    return true;
-                }
-            }
-        }
-        if (animals.TryGetValue(out var rows))
-        {
-            foreach (var a in rows)
-            {
-                if (a.Release || a.Slaughter)
-                {
-                    return true;
-                }
-                foreach (var t in HerdTrainQueue(herd, a))
-                {
-                    if (t.Available && !t.Learned && t.Wanted)
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     }
 }

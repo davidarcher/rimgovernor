@@ -140,8 +140,8 @@ before. Raw facts only; policy decides.
   from food slaughter and from the Prioritize order. Food slaughter also needs `EatingBarred` clear:
   `AteMeat`, plus `AteVeneratedAnimalMeat` for a venerated race, must not be penalised or forbidden.
   Event names are `HistoryEventDefOf` fields; effects come from the catalog's precepts. Without
-  Ideology defs nothing is barred; with them, an unread ideoligion or veneration leaves the bar
-  unknown and fails the removal, food and Prioritize choices (no fallback). Selling is not barred:
+  Ideology (`IdeologyMode.NotInstalled`) nothing is barred; with it, the primary ideoligion answers each
+  event and no choice is left unread. Selling is not barred:
   the game raises no history event for selling an animal. Per-race meat kinds (insect meat) have no
   per-race eating read on the wire, so only `AteMeat` and venerated meat bind. Cull order: old (past 80% of
   `lifeExpectancy`) or sick; males beyond one per five females (a fertilizable egg-laying race follows the rooster rule below); untrained

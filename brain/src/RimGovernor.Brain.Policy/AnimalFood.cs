@@ -159,21 +159,16 @@ public static class AnimalFoodRules
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> SlaughterFoodChannels(
         IEnumerable<SlaughterFoodAnimal> rows,
-        Fact<EquatableArray<UpkeepAnimal>> animals,
+        EquatableArray<UpkeepAnimal> animals,
         HerdPolicy herd
     )
     {
-        if (!animals.TryGetValue(out var observedFact))
-        {
-            return [];
-        }
-
         var pending = new HashSet<PawnId>();
 
         // Re-price existing orders too. These copies are planning offers only; fresh destructive admission
         // still requires SafeToSlaughter.
         var observed = new List<UpkeepAnimal>();
-        foreach (var original in observedFact)
+        foreach (var original in animals)
         {
             var a = original;
             if (a.Slaughter)
@@ -186,16 +181,11 @@ public static class AnimalFoodRules
         }
 
         var floors = HerdSurplusRules.HerdFoodLimits(observed, herd);
-        var (candidates, unknown) = HerdSurplusRules.HerdSurplusCandidates(observed, floors, herd.FeedShort, herd);
-        if (unknown)
-        {
-            return [];
-        }
-
+        var candidates = HerdSurplusRules.HerdSurplusCandidates(observed, floors, herd.FeedShort, herd);
         var safe = new Dictionary<PawnId, bool>();
         foreach (var r in candidates)
         {
-            safe[r.Animal.Id] = r.Method == HusbandryMethod.Slaughter && !r.Animal.Herd.FoodBarredOrUnknown();
+            safe[r.Animal.Id] = r.Method == HusbandryMethod.Slaughter && !r.Animal.Herd.FoodBarred();
         }
 
         var counts = new Dictionary<Resource, long>();
@@ -213,7 +203,7 @@ public static class AnimalFoodRules
                 pending.Contains(a.Id)
                 && !a.Release
                 && counts.GetValueOrDefault(a.Definition) > floors.GetValueOrDefault(a.Definition)
-                && !a.Herd.FoodBarredOrUnknown()
+                && !a.Herd.FoodBarred()
             )
             {
                 safe[a.Id] = true;
@@ -280,21 +270,14 @@ public static class AnimalFoodRules
         return [c];
     }
 
-    public static HusbandryChoice FoodSlaughterChoice(Fact<FoodPlan> plan, Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd)
+    public static HusbandryChoice FoodSlaughterChoice(Fact<FoodPlan> plan, EquatableArray<UpkeepAnimal> animals, HerdPolicy herd)
     {
-        var pk = plan.TryGetValue(out var p);
-        var rk = animals.TryGetValue(out var rows);
-        if (!pk || !rk)
+        if (!plan.TryGetValue(out var p))
         {
             return new HusbandryChoice.Unread();
         }
 
-        var (safe, unknown) = HerdSurplusRules.HerdSurplusCandidates(rows, HerdSurplusRules.HerdFoodLimits(rows, herd), herd.FeedShort, herd);
-        if (unknown)
-        {
-            return new HusbandryChoice.Unread();
-        }
-
+        var safe = HerdSurplusRules.HerdSurplusCandidates(animals, HerdSurplusRules.HerdFoodLimits(animals, herd), herd.FeedShort, herd);
         foreach (var e in p!.Portfolio)
         {
             if (e.Channel.Kind != CandidateKind.Slaughter || e.Decision != FoodPlanDecision.Open || !e.Channel.Id.StartsWith("slaughter:", StringComparison.Ordinal))

@@ -13,23 +13,14 @@ public static class HerdSaleRules
     /// HerdSurplusCandidates lists over each race's ceiling (every animal of a retired race, young ones
     /// included), less any that is bonded (any living Bond relation, whether or not HerdMasterChoice found the
     /// partner on the roster to master it) or, outside a retired race, has a master (HerdMasterChoice gives the
-    /// animals the colony works). Founders and companions have no ceiling, so none is listed. An unread census or
-    /// any unknown designation, bond or master sells nothing. Animals already designated for slaughter or release
+    /// animals the colony works). Founders and companions have no ceiling, so none is listed. A
+    /// bonded or mastered animal is not sold. Animals already designated for slaughter or release
     /// are not listed: the cull owns them. The result is empty when nothing is sold.
     /// </summary>
-    public static IReadOnlySet<PawnId> HerdSaleAnimals(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd)
+    public static IReadOnlySet<PawnId> HerdSaleAnimals(EquatableArray<UpkeepAnimal> animals, HerdPolicy herd)
     {
         var @out = new HashSet<PawnId>();
-        if (!animals.TryGetValue(out var rows))
-        {
-            return @out;
-        }
-        var (removals, unknown) = HerdSurplusRules.HerdSurplusCandidates(rows, herd.PopulationMax, true, herd);
-        if (unknown)
-        {
-            return @out;
-        }
-        foreach (var r in removals)
+        foreach (var r in HerdSurplusRules.HerdSurplusCandidates(animals, herd.PopulationMax, true, herd))
         {
             var a = r.Animal;
             if (a.Bonded || (a.Master.Length != 0 && !herd.Retired.GetValueOrDefault(a.Definition)))

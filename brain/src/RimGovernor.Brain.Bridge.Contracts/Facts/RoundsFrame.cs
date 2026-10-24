@@ -36,11 +36,8 @@ public sealed record RoundsFrame
 
     public WorldProgressionRead? Quests { get; init; }
 
-    /// <summary>The primary ideoligion with the catalog's defs; null when the frame carries no ideology section.</summary>
-    public Ideoligion? Ideology { get; init; }
-
-    /// <summary>Whether the Ideology expansion is installed; unknown when the frame does not say.</summary>
-    public Fact<bool> IdeologyActive { get; init; }
+    /// <summary>The Ideology expansion's mode: not installed, or installed with the primary ideoligion and the catalog's defs; a decoded routine frame always says.</summary>
+    public IdeologyMode Ideology { get; init; } = new IdeologyMode.NotInstalled();
 
     /// <summary>
     /// The frame's all-status player building table, whose blueprint and frame rows carry their undelivered

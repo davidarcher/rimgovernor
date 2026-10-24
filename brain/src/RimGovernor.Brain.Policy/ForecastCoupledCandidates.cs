@@ -165,7 +165,7 @@ public sealed partial record ForecastCoupledCandidates
         if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
         {
             // The effect-source family (#3285): labor-free (tainted filter, insulation floor) candidates per pawn that verified cards price (GearChoices, #3329).
-            var effects = EffectSourcesRules.GenerateEffectSources(EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));
+            var effects = EffectSourcesRules.GenerateEffectSources(EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.Ideology is IdeologyMode.Installed));
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivitiesRules.ClothingActivityRequirements(gear),
                 checked(read.Tick + (long)horizon), resources), effects.Roots);
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
@@ -388,7 +388,7 @@ public sealed partial record ForecastCoupledCandidates
             Findings = EquatableArray.From(findings),
             // Temperature mood (#3327): the gear census's card facts and the mood census's observed thoughts.
             CardPawns = facts.Gear.TryGetValue(out var census)
-                ? EffectSourcesRules.EffectSourceFactsOf(census, facts.MedicalPawns, facts.IdeologyInstalled).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
+                ? EffectSourcesRules.EffectSourceFactsOf(census, facts.MedicalPawns, facts.Ideology is IdeologyMode.Installed).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
                     .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Card, StringComparer.Ordinal)
                 : new Dictionary<string, CardPawnFacts>(),
             // The colonists' thoughts read whole (#3805). Two rows for one pawn are contradictory evidence: no row.

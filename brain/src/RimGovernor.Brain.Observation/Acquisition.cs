@@ -138,7 +138,7 @@ public static class AcquisitionReads
         {
             return false;
         }
-        if (!pawns.TryGetRow(source, out var state) || state.AnimalState is not O.PawnAnimalState.Animal { State: var animal } || !race.BodySize.TryGetValue(out var size))
+        if (!pawns.TryGetRow(source, out var state) || state.AnimalState is not O.PawnAnimalState.Animal { State: var animal })
         {
             return false;
         }
@@ -147,7 +147,7 @@ public static class AcquisitionReads
         {
             return false;
         }
-        return (float)race.LifeStages[index].BodySizeFactor * (float)size <= 1.0f;
+        return (float)race.LifeStages[index].BodySizeFactor * (float)race.BodySize <= 1.0f;
     }
 
     /// <summary>Decodes native's raw hunt facts.</summary>

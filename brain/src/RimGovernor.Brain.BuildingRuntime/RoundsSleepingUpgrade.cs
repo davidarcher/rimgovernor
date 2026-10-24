@@ -88,8 +88,8 @@ partial class RoundsSleepingUpkeepPlanner
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
-        if (!sk || !rk || census is null || !ak)
+        var animals = facts.Facts.AnimalUpkeep.Animals;
+        if (!sk || !rk || census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -104,7 +104,7 @@ partial class RoundsSleepingUpkeepPlanner
             return (new Pol.RoomUpgrade(), false);
         }
         var spot = new Pol.InteriorPieceDef { Def = d.Name, Size = new Cell(size.Width, size.Height) };
-        return HerdCompanionRules.NextCompanionBed(obs!, animals!, FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), facts.Shapes.Furniture, spot, available);
+        return HerdCompanionRules.NextCompanionBed(obs!, animals,FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), facts.Shapes.Furniture, spot, available);
     }
 
     /// <summary>The next beauty lever: a plant pot or a prettier floor for a bedroom whose weakest stat is beauty.</summary>

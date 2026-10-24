@@ -117,13 +117,8 @@ partial class GraphBuilder
     /// <summary>Sizes the pen's hand feeding: the hunger less what PenCells' worth of the weakest grazing terrain grows, hauled in the race's richest feed item (the fewest items) from the store that holds it.</summary>
     private PenNode PenFeed(PenNode node, AnimalRace race)
     {
-        // The pasture table is the food family's read to harden (#3786).
         var hunger = node.Hunger;
-        if (!this.In.Pasture.TryGetValue(out var pasture))
-        {
-            return node;
-        }
-        var (perCell, _) = pasture.Weakest();
+        var (perCell, _) = this.In.Pasture.Weakest();
         var shortfall = Math.Max(hunger - (PenFoodRules.PenCells(hunger, perCell) * perCell), 0);
         if (shortfall <= 0)
         {

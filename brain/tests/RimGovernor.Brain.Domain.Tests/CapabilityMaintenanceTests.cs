@@ -24,18 +24,18 @@ public sealed class CapabilityMaintenanceTests
     [Fact]
     public void OnlyAssignedActiveRequirementsAuthorizeMaintenanceAndPreserveOr()
     {
-        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology())));
-        var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology("pawn"))));
+        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology())));
+        var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology("pawn"))));
         Assert.Equal(2, requirement.Alternatives.Count);
-        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(default));
+        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.NotInstalled()));
         var inactive = Ideology("pawn") with { Facts = new() { Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed, Roles = [new("role", "soldier", false, [new("pawn")])] } };
-        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(inactive)));
+        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(inactive)));
     }
 
     [Fact]
     public void NormalWorkSuppressesPracticeAndUnknownOrBranchDoesNotProveFailure()
     {
-        var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology("pawn"))));
+        var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology("pawn"))));
         WorkSkill[] skills = [new() { Name = "Shooting", Level = 1, Learning = Learning() }, new() { Name = "Melee", Disabled = true }];
         var completed = new Dictionary<string, Fact<bool>> { ["work"] = Known(true) };
         ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)
@@ -61,7 +61,7 @@ public sealed class CapabilityMaintenanceTests
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),
             melee ? "RimGovernor_Spar" : "RimGovernor_TrainRange", melee ? "RimGovernor_Spar" : "RimGovernor_TrainShooting",
             0d, 100d, Learning()) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
-        facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), Ideology = Known(ideology), ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), Ideology = new IdeologyMode.Installed(ideology), ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = Known(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with

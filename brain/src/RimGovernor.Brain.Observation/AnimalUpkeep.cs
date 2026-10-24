@@ -6,7 +6,7 @@ public static class AnimalUpkeepReads
     /// Decodes the player herd, each animal joined to its pawn table row; an animal the table does not hold, or
     /// holds without its animal state, throws.
     /// </summary>
-    internal static Fact<EquatableArray<UpkeepAnimal>> ColonyAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
+    internal static EquatableArray<UpkeepAnimal> ColonyAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
         var u = v.Upkeep;
         var resolved = AnimalRows(u.Animals.Select(a => a.Pawn), pawns);
@@ -67,11 +67,11 @@ public static class AnimalUpkeepReads
             };
             rows.Add(animal);
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     /// <summary>Decodes the factionless census the herd Need tames from; a row the pawn table does not hold as an animal throws.</summary>
-    internal static Fact<EquatableArray<UpkeepAnimal>> ColonyWildAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
+    internal static EquatableArray<UpkeepAnimal> ColonyWildAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
         var resolved = AnimalRows(v.Upkeep.WildAnimals, pawns);
         var rows = new List<UpkeepAnimal>();
@@ -99,7 +99,7 @@ public static class AnimalUpkeepReads
                 Herd = HerdFactsOf(pawn, races),
             });
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     /// <summary>
@@ -171,19 +171,15 @@ public static class AnimalUpkeepReads
     }
 
     /// <summary>Copies each player animal's meat nutrition from the colony food channels, matched by animal ID.</summary>
-    internal static Fact<EquatableArray<UpkeepAnimal>> MergeHerdFoodFacts(Fact<EquatableArray<UpkeepAnimal>> animals, FoodChannels food)
+    internal static EquatableArray<UpkeepAnimal> MergeHerdFoodFacts(EquatableArray<UpkeepAnimal> animals, FoodChannels food)
     {
-        if (!animals.TryGetValue(out var rows))
-        {
-            return animals;
-        }
         var slaughter = new Dictionary<PawnId, SlaughterFoodAnimal>();
         foreach (var s in food.Slaughter)
         {
             slaughter[s.ID] = s;
         }
-        var output = new List<UpkeepAnimal>(rows.Count);
-        foreach (var a in rows)
+        var output = new List<UpkeepAnimal>(animals.Count);
+        foreach (var a in animals)
         {
             var herd = a.Herd;
             if (slaughter.TryGetValue(a.Id, out var s))
@@ -192,7 +188,7 @@ public static class AnimalUpkeepReads
             }
             output.Add(a with { Herd = herd });
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 
 }

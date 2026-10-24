@@ -367,7 +367,7 @@ partial class RoundsWorkPlanner
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, Fact<PrisonerCensus> population, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, Fact<PrisonerCensus> population, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
     {
         if (!population.TryGetValue(out var census) || foods.Count == 0)
         {

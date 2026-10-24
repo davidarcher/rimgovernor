@@ -188,8 +188,8 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
 
 public static class IdeologyFamilyRules
 {
-    /// <summary>Whether the Ideology expansion is active; an unread frame flag raises <see cref="RequiredFactException"/>.</summary>
-    public static bool Installed(RoundsFacts f) => f.IdeologyInstalled.TryGetValue(out var on) ? on : throw new RequiredFactException("ideology installed");
+    /// <summary>Whether the Ideology expansion is active.</summary>
+    public static bool Installed(RoundsFacts f) => f.Ideology is IdeologyMode.Installed;
 
     /// <summary>
     /// The reform Need: met once the pending reform is observed, or while the choice is no reform (no memes, or not an

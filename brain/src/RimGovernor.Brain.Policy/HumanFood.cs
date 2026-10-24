@@ -54,11 +54,11 @@ public static class HumanFoodRules
     /// Whether the pawn's ideoligion costs no mood for butchering a human: it has one, and none of its precepts
     /// has a self-took-action effect on ButcheredHuman with a mood-losing stage. A pawn without an ideoligion is
     /// not acceptable (only a trait qualifies it); with Ideology absent no precept exists to object. Unknown while
-    /// the pawn row or the ideoligion defs are unread.
+    /// the pawn row is unread.
     /// </summary>
-    public static Fact<bool> PreceptAcceptable(Fact<HeldPrecepts> held, IdeologyRead ideology)
+    public static Fact<bool> PreceptAcceptable(Fact<HeldPrecepts> held, IdeologyMode ideology)
     {
-        if (ideology.Absent())
+        if (ideology is not IdeologyMode.Installed { Primary: var i })
         {
             return Known(true);
         }
@@ -69,10 +69,6 @@ public static class HumanFoodRules
         if (h.Ideo.Length == 0)
         {
             return Known(false);
-        }
-        if (!ideology.Ideology.TryGetValue(out var i))
-        {
-            return Unknown<bool>();
         }
         foreach (var e in i.HeldBy(h.Defs).EffectsInForce())
         {
@@ -89,7 +85,7 @@ public static class HumanFoodRules
     /// ideoligion with Ideology installed holds; without the expansion nothing is forbidden and the native
     /// disposition still gates the worker.
     /// </summary>
-    public static (PawnId Worker, bool Ok) QualifyingHumanButcher(IReadOnlyList<HumanButcherCandidate> rows, IdeologyRead ideology)
+    public static (PawnId Worker, bool Ok) QualifyingHumanButcher(IReadOnlyList<HumanButcherCandidate> rows, IdeologyMode ideology)
     {
         var selected = default(PawnId);
         var seen = new HashSet<PawnId>();
@@ -112,7 +108,7 @@ public static class HumanFoodRules
     }
 
     /// <summary>Native candidates already establish disposition, assignment and reachability; execution rechecks them before the write. Never substitute another worker.</summary>
-    public static (BillSelection Selection, bool Ok) SelectHumanButcher(Fact<EquatableArray<ProductionBench>> benches, IdeologyRead ideology, PreferencesRecord preferences)
+    public static (BillSelection Selection, bool Ok) SelectHumanButcher(Fact<EquatableArray<ProductionBench>> benches, IdeologyMode ideology, PreferencesRecord preferences)
     {
         if (preferences.Forbids(ForbiddenMethod.HumanButchery) || !benches.TryGetValue(out var rows))
         {
@@ -172,10 +168,10 @@ public static class HumanFoodRules
     }
 
     /// <summary>
-    /// Whether the precept rule forbids the worker to butcher a human, or cannot say (unread ideoligion, Ideology
-    /// installed). Traits cancel an unwilling effect; unknown traits cancel none.
+    /// Whether the precept rule forbids the worker to butcher a human.
+    /// Traits cancel an unwilling effect; unknown traits cancel none.
     /// </summary>
-    private static bool ButcherHeld(IdeologyRead ideology, Fact<EquatableArray<PawnTrait>> traits)
+    private static bool ButcherHeld(IdeologyMode ideology, Fact<EquatableArray<PawnTrait>> traits)
     {
         var names = new List<string>();
         if (traits.TryGetValue(out var rows))
@@ -187,7 +183,7 @@ public static class HumanFoodRules
         }
         var subject = new PreceptSubject { Pawn = true, Traits = names };
         var stance = ideology.ActionStance(new PreceptAction { HistoryEvent = ButcheredHumanEvent }, subject).Stance;
-        return stance is PreceptStance.Forbidden or PreceptStance.Unknown;
+        return stance is PreceptStance.Forbidden;
     }
 
     /// <summary>Separates the worker's disposition from the colony's response. Other pawns may still receive native butchery memories.</summary>
@@ -220,7 +216,7 @@ public static class HumanFoodRules
     /// available, a worker who qualifies (QualifyingHumanButcher); the morgue holds the corpse. It ignores whether
     /// the human bill stands.
     /// </summary>
-    public static bool HumanButcheryOpen(Fact<EquatableArray<ProductionBench>> benches, IdeologyRead ideology)
+    public static bool HumanButcheryOpen(Fact<EquatableArray<ProductionBench>> benches, IdeologyMode ideology)
     {
         if (!benches.TryGetValue(out var rows))
         {

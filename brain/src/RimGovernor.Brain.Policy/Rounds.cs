@@ -174,7 +174,7 @@ public sealed record RoundsFacts
     public EquatableArray<PenGrazing> PenGrazing { get; init; }
 
     /// <summary>What a cell of each terrain grows for grazing in the worst quadrum, the per-cell term of the game's pen food sum (PastureTable).</summary>
-    public Fact<PastureTable> Pasture { get; init; }
+    public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     public RecoverySafety RecoverySafety { get; init; } = new();
 
@@ -354,11 +354,8 @@ public sealed record RoundsFacts
     /// <summary>The worship room, believers, presence demands and rituals of the frame's ideoligion (#3808); empty without one.</summary>
     public WorshipFacts Worship { get; init; } = new();
 
-    /// <summary>The primary ideoligion from the frame's ideology section with the catalog's defs; unknown when the frame carries no section (no Ideology, or no primary ideoligion).</summary>
-    public Fact<Ideoligion> Ideology { get; init; }
-
-    /// <summary>Whether the Ideology expansion is active; unknown when the frame does not say.</summary>
-    public Fact<bool> IdeologyInstalled { get; init; }
+    /// <summary>The frame's Ideology mode: the expansion is not installed, or it is and the primary ideoligion comes with the catalog's defs.</summary>
+    public IdeologyMode Ideology { get; init; } = new IdeologyMode.NotInstalled();
 
     /// <summary>The colony read's Anomaly section: Inactive without the expansion (the default before the read), and then the anomaly family derives no Needs; Active carries the monolith's state.</summary>
     public AnomalyState Anomaly { get; init; } = new AnomalyState.Inactive();

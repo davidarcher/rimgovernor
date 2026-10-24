@@ -11,7 +11,7 @@ public static class HumanFoodPlanRules
         FoodSupply supply,
         IReadOnlyList<PawnId> humans,
         double targetDays,
-        IdeologyRead ideology
+        IdeologyMode ideology
     )
     {
         SupplyCandidate? none = null;

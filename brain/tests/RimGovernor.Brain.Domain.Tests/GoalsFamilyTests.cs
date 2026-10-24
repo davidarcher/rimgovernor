@@ -33,7 +33,7 @@ public sealed class GoalsFamilyTests
         Tier = Known(TechTier.Camp),
         Stock = Known<EquatableArray<Amount>>([new Amount(new Resource("Steel"), 40)]),
         Colonists = 5L,
-        Animals = Known<EquatableArray<UpkeepAnimal>>([new UpkeepAnimal { Definition = new Resource("Muffalo") }]),
+        Animals = EquatableArray.From<UpkeepAnimal>([new UpkeepAnimal { Definition = new Resource("Muffalo") }]),
     };
 
     private static Need Derive(GoalsFacts facts, GoalRecord goal) => Assert.Single(new GoalsFamily().Derive(facts), n => n.Id == GoalRules.NeedOf(goal));
@@ -206,15 +206,15 @@ public sealed class GoalsFamilyTests
     public void APreceptGoalOnANonFluidIdeoligionReportsNotFluid()
     {
         var goal = Goal(6, GoalKind.Precept, "Slavery_Acceptable");
-        var rigid = Facts(goal) with { Ideology = Known(Ideo(fluid: false)) };
+        var rigid = Facts(goal) with { Ideology = new IdeologyMode.Installed(Ideo(fluid: false)) };
         var status = GoalRules.Evaluate(goal, rigid);
         Assert.Equal((GoalState.NoMethod, "not fluid", Satisfaction.Unmet), (status.State, status.Reason, status.Satisfaction));
         Assert.Equal("no_method:not fluid", Assert.Single(new GoalsFamily().Propose([Derive(rigid, goal)], rigid)).Hold!.Subject);
 
-        Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: false, "Slavery_Acceptable")) }).State);
-        Assert.Equal("ideoligion reform design", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: true)) })).Fact);
-        Assert.Equal("missing_dlc", GoalRules.Evaluate(goal, rigid with { IdeologyInstalled = Known(false) }).Reason);
-        Assert.Equal("ideoligion", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, Facts(goal))).Fact);
+        Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, rigid with { Ideology = new IdeologyMode.Installed(Ideo(fluid: false, "Slavery_Acceptable")) }).State);
+        Assert.Equal("ideoligion reform design", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, rigid with { Ideology = new IdeologyMode.Installed(Ideo(fluid: true)) })).Fact);
+        Assert.Equal("missing_dlc", GoalRules.Evaluate(goal, rigid with { Ideology = new IdeologyMode.NotInstalled() }).Reason);
+        Assert.Equal("missing_dlc", GoalRules.Evaluate(goal, Facts(goal)).Reason);
     }
 
     private static PrisonerFacts Held(string pawn, bool recruitable = true) => PopulationFixtures.Held(pawn, recruitable);

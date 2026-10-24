@@ -190,11 +190,9 @@ public sealed record GoalsFacts
 
     public long Colonists { get; init; }
 
-    public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
+    public EquatableArray<UpkeepAnimal> Animals { get; init; }
 
-    public Fact<Ideoligion> Ideology { get; init; }
-
-    public Fact<bool> IdeologyInstalled { get; init; }
+    public IdeologyMode Ideology { get; init; } = new IdeologyMode.NotInstalled();
 
     /// <summary>The colonists' pawn rows: the believer census a Believers goal is judged by.</summary>
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
@@ -235,7 +233,6 @@ public sealed record GoalsFacts
         Colonists = f.Colonists,
         Animals = f.AnimalUpkeep.Animals,
         Ideology = f.Ideology,
-        IdeologyInstalled = f.IdeologyInstalled,
         Rounds = f,
         Owners = owners,
         StuffResearch = stuffResearch ?? new Dictionary<string, IReadOnlyList<string>>(),
@@ -366,7 +363,7 @@ public static partial class GoalRules
                 owner = JoinersFamily.Offers;
                 break;
             case GoalKind.Animals:
-                standing = Shortfall(goal.Count, f.Animals.TryGetValue(out var animals) ? animals.Count(a => a.Definition == new Resource(goal.Target)) : throw new RequiredFactException("animal census"));
+                standing = Shortfall(goal.Count, f.Animals.Count(a => a.Definition == new Resource(goal.Target)));
                 owner = AnimalsFamily.Herd;
                 break;
             case GoalKind.WornCount:
@@ -635,11 +632,11 @@ public static partial class GoalRules
         }
         if (role == RoomRole.WorshipRoom)
         {
-            if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
+            if (f.Ideology is IdeologyMode.NotInstalled)
             {
                 return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, unmet);
             }
-            if (f.Ideology.TryGetValue(out var ideo) && ideo.RequiredBuildings().Count == 0)
+            if (f.Ideology is IdeologyMode.Installed { Primary: var ideo } && ideo.RequiredBuildings().Count == 0)
             {
                 return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no_required_buildings", default, unmet);
             }
@@ -794,7 +791,7 @@ public static partial class GoalRules
                     break;
             }
         }
-        var believers = f.IdeologyInstalled.TryGetValue(out var installed) && installed && ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns) > 0;
+        var believers = f.Ideology is IdeologyMode.Installed && ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns) > 0;
         return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets }, Values = ValuesOf(f), Training = EquatableArray.From(training), Surgeries = EquatableArray.From(surgeries) };
     }
 
@@ -866,7 +863,7 @@ public static partial class GoalRules
     /// </summary>
     private static GoalStatus Believing(GoalRecord goal, GoalsFacts f)
     {
-        if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
+        if (f.Ideology is IdeologyMode.NotInstalled)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, GoalDeficit.Of(1.0));
         }
@@ -898,13 +895,9 @@ public static partial class GoalRules
 
     private static GoalStatus Adoption(GoalRecord goal, GoalsFacts f)
     {
-        if (f.IdeologyInstalled.TryGetValue(out var installed) && !installed)
+        if (f.Ideology is not IdeologyMode.Installed { Primary: var ideo })
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, GoalDeficit.Of(1.0));
-        }
-        if (!f.Ideology.TryGetValue(out var ideo))
-        {
-            throw new RequiredFactException("ideoligion");
         }
         var held = goal.Kind == GoalKind.Precept ? ideo.Facts.Precepts.Any(p => p.Def == goal.Target)
             : goal.Kind == GoalKind.Meme ? ideo.Facts.Memes.Contains(goal.Target)

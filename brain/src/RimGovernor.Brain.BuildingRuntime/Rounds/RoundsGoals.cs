@@ -57,7 +57,7 @@ public sealed partial class GoalsRounds
         var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms };
         facts = facts with { Infeasible = _reviewer.GoalInfeasible.Get(review.Snapshot), Etas = _reviewer.GoalEta.Get(review.Snapshot) };
         var targets = GoalRules.IdeoTargets(goals.Goals);
-        if (targets.Count > 0 && facts.IdeologyInstalled.TryGetValue(out var installed) && installed)
+        if (targets.Count > 0 && facts.Ideology is IdeologyMode.Installed)
         {
             var reform = Rounder.ReformChoice(reading, scope.World, targets);
             var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false))?.Goal;

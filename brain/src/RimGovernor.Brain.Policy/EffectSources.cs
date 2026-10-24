@@ -70,7 +70,7 @@ public static class EffectSourcesRules
     /// The effect-source facts of the gear census (#3285): every unblocked pawn with a loadout model, with its observed trait names and its hediff names from the medical read. Hediffs are unknown when the medical read, the
     /// pawn's row or a condition's def is; the card's offset is then unknown and the generator records a finding.
     /// </summary>
-    internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, Fact<EquatableArray<CarePawn>> medical, Fact<bool> ideologyActive = default)
+    internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, Fact<EquatableArray<CarePawn>> medical, bool ideologyActive = false)
     {
         var pawns = new List<EffectSourcePawn>();
         foreach (var pawn in gear.Pawns)
@@ -89,7 +89,7 @@ public static class EffectSourcesRules
     /// the medical read, the pawn's row or a condition's def is), whether Ideology is active and its ideo's precepts
     /// (Known(empty) when its policy inputs name no ideo, #3327).
     /// </summary>
-    internal static CardPawnFacts CardPawnFactsOf(PawnId pawn, GearLoadoutInput input, Fact<EquatableArray<CarePawn>> medical, Fact<bool> ideologyActive)
+    internal static CardPawnFacts CardPawnFactsOf(PawnId pawn, GearLoadoutInput input, Fact<EquatableArray<CarePawn>> medical, bool ideologyActive)
     {
         var hediffs = Unknown<EquatableArray<string>>();
         if (medical.TryGetValue(out var rows) && rows.FirstOrDefault(r => r.Id == pawn) is { } care)
@@ -97,7 +97,7 @@ public static class EffectSourcesRules
             hediffs = Known(EquatableArray.From(care.Conditions.Select(c => c.DefName).Distinct().Order(StringComparer.Ordinal)));
         }
         var traits = Known(EquatableArray.From(input.Role.Traits.Select(t => t.Name)));
-        return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = ideologyActive };
+        return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = Known(ideologyActive) };
     }
 
     /// <summary>

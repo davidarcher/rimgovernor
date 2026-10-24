@@ -32,7 +32,7 @@ public sealed class PreferencesFactsTests
 
     private static IReadOnlyList<string> Allowed(IReadOnlyList<PawnTrait> traits, PreferencesRecord preferences)
     {
-        var (diet, ok) = FoodPolicyRules.DietOf(traits, [], default, preferences);
+        var (diet, ok) = FoodPolicyRules.DietOf(traits, [], new IdeologyMode.NotInstalled(), preferences);
         Assert.True(ok);
         return FoodPolicyRules.DietFoods(diet, Foods);
     }
@@ -85,7 +85,7 @@ public sealed class PreferencesFactsTests
     public void ForbiddenHumanButcheryProposesNoButcherBill()
     {
         var benches = Known(EquatableArray.From([Bench()]));
-        var ideology = new IdeologyRead(default, Known(false));
+        var ideology = new IdeologyMode.NotInstalled();
 
         var (selection, ok) = HumanFoodRules.SelectHumanButcher(benches, ideology, None);
         Assert.True(ok);

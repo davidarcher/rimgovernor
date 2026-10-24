@@ -39,8 +39,8 @@ public enum HerdJob
 /// </summary>
 public sealed record HerdPlanInput
 {
-    public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
-    public Fact<EquatableArray<UpkeepAnimal>> Wild { get; init; }
+    public EquatableArray<UpkeepAnimal> Animals { get; init; }
+    public EquatableArray<UpkeepAnimal> Wild { get; init; }
     public required AnimalRaceCatalog Races { get; init; }
     public Fact<double> Budget { get; init; }
     public Fact<WealthFacts> Wealth { get; init; }
@@ -272,12 +272,11 @@ public static class HerdPlanRules
     private static (double Score, bool Ok) HerdScore(HerdJob job, AnimalRace r)
     {
         var (value, _, known) = HerdPerAdult(job, r);
-        var sk = r.BodySize.TryGetValue(out var size);
-        if (!known || !sk || size <= 0)
+        if (!known || r.BodySize <= 0)
         {
             return (0, false);
         }
-        return (value / size, true);
+        return (value / r.BodySize, true);
     }
 
     private static bool HerdLearned(UpkeepAnimal a, string def)
@@ -352,13 +351,9 @@ public static class HerdPlanRules
                 Herds = herds,
             };
         var floors = FoodAnimalProductsRules.FoodHerdPolicy(new HerdPolicy(), input.Food).PopulationMin;
-        if (!input.Animals.TryGetValue(out var rows))
-        {
-            return Result(new HerdPolicy { PopulationMin = min, PopulationMax = max }, []);
-        }
         var stats = new Dictionary<Resource, HerdRaceStats>();
         var order = new List<Resource>();
-        foreach (var a in rows)
+        foreach (var a in input.Animals)
         {
             if (a.Release || a.Slaughter)
             {
@@ -545,7 +540,7 @@ public static class HerdPlanRules
         {
             feedShort = ratio < 1;
             var penned = new Dictionary<Resource, long>();
-            foreach (var a in rows)
+            foreach (var a in input.Animals)
             {
                 if (a.RequiresPen && !a.Herd.Predator)
                 {
@@ -647,7 +642,7 @@ public static class HerdPlanRules
         {
             return none;
         }
-        input.Wild.TryGetValue(out var wild);
+        var wild = input.Wild;
         var best = none;
         var bestSkill = 0;
         var bestWild = 0.0;
@@ -725,7 +720,7 @@ public static class HerdPlanRules
         {
             @out.Add(def);
         }
-        input.Wild.TryGetValue(out var wild);
+        var wild = input.Wild;
         foreach (var a in wild)
         {
             if (a.Tameable && !HerdSurplusRules.HerdDangerous(a))

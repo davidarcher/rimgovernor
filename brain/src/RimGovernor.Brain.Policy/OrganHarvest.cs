@@ -104,8 +104,12 @@ public static partial class OrganHarvestRules
         double mood = 0;
         foreach (var evt in events)
         {
-            var v = IdeologyRuleRules.ActionStance(c.Ideoligion, new PreceptAction { HistoryEvent = evt }, new PreceptSubject());
-            if (v.Stance == PreceptStance.Unknown || v.RefusalChance > 0)
+            if (c.Ideoligion is IdeologyMode.NotInstalled)
+            {
+                return (0, false);
+            }
+            var v = c.Ideoligion.ActionStance(new PreceptAction { HistoryEvent = evt }, new PreceptSubject());
+            if (v.RefusalChance > 0)
             {
                 return (0, false);
             }

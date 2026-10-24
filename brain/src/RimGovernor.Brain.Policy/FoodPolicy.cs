@@ -158,7 +158,7 @@ public static class FoodPolicyRules
     private static readonly string[] FungusEvents = ["AteFungus", "AteFungusAsIngredient"];
 
     /// <summary>Reads the pawn's diet; unknown for a pawn with precepts while the ideoligion defs are.</summary>
-    public static (Diet Diet, bool Ok) PawnDiet(WorkPawn pawn, Fact<Ideoligion> ideology, PreferencesRecord preferences)
+    public static (Diet Diet, bool Ok) PawnDiet(WorkPawn pawn, IdeologyMode ideology, PreferencesRecord preferences)
     {
         var (d, dok) = DietOf(pawn.Traits, pawn.PolicyInputs.Ideo is PawnIdeo.Member member ? member.Precepts : [], ideology, preferences);
         if (!dok)
@@ -177,7 +177,7 @@ public static class FoodPolicyRules
     /// override it: a diet override applies to every pawn, and a forbidden method removes its food whatever the
     /// traits and precepts say.
     /// </summary>
-    public static (Diet Diet, bool Ok) DietOf(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, Fact<Ideoligion> ideology, PreferencesRecord preferences)
+    public static (Diet Diet, bool Ok) DietOf(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, IdeologyMode ideology, PreferencesRecord preferences)
     {
         var (d, ok) = PreceptDiet(traits, precepts, ideology);
         return ok ? (WithPreferences(d, preferences), true) : (d, false);
@@ -209,14 +209,14 @@ public static class FoodPolicyRules
         };
     }
 
-    private static (Diet Diet, bool Ok) PreceptDiet(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, Fact<Ideoligion> ideology)
+    private static (Diet Diet, bool Ok) PreceptDiet(IReadOnlyList<PawnTrait> traits, IReadOnlyList<string> precepts, IdeologyMode ideology)
     {
         var d = TraitDiet(traits);
         if (precepts.Count == 0)
         {
             return (d, true);
         }
-        if (!ideology.TryGetValue(out var i))
+        if (ideology is not IdeologyMode.Installed { Primary: var i })
         {
             return (new Diet(), false);
         }
@@ -323,7 +323,7 @@ public static class FoodPolicyRules
     /// several policies carry waits.
     /// </summary>
     public static IReadOnlyList<FoodPolicyChange> DietPolicyChanges(
-        Fact<Ideoligion> ideology,
+        IdeologyMode ideology,
         IReadOnlyList<WorkPawn> pawns,
         IReadOnlyList<FoodEater> eaters,
         IReadOnlyList<OwnedName> names,

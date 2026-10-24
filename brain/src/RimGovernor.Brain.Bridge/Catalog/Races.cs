@@ -58,7 +58,7 @@ public sealed partial class DefinitionCatalog
         {
             Def = new P.Resource(name),
             Predator = props.predator,
-            BodySize = Known((double)props.baseBodySize),
+            BodySize = props.baseBodySize,
             LifeExpectancy = props.lifeExpectancy,
             ManhunterOnTameFail = props.manhunterOnTameFailChance,
             ManhunterOnDamage = props.manhunterOnDamageChance,

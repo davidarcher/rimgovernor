@@ -2,11 +2,9 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Contracts.Wire;
 using IdeoDevelopment = RimGovernor.Brain.Policy.IdeoDevelopment;
-using WorkPawn = RimGovernor.Brain.Policy.WorkPawn;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -93,6 +91,24 @@ public sealed class IdeologyReadsTests
     }
 
     [Fact]
+    public void TheFramesIdeologyModeIsNotInstalledWithoutTheExpansionAndInstalledWithItsPrimaryIdeoligion()
+    {
+        Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.NotInstalled>(IdeologyDecoder.Mode(false, null, Catalog()));
+
+        var installed = Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.Installed>(IdeologyDecoder.Mode(true, NoPrecepts with { IdeoId = "Ideo_7" }, Catalog()));
+        Assert.Equal("Ideo_7", installed.Primary.Facts.IdeoId);
+    }
+
+    [Fact]
+    public void TheFramesIdeologyModeRefusesAnAbsentFlagAndAFlagThatContradictsItsSection()
+    {
+        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(null, null, Catalog())).Message);
+        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(null, NoPrecepts, Catalog())).Message);
+        Assert.Contains("primary ideoligion", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(true, null, Catalog())).Message);
+        Assert.Contains("ideology_active false", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(false, NoPrecepts, Catalog())).Message);
+    }
+
+    [Fact]
     public void CatalogListsMemePreceptsAndTheMemesGatingAnIssue()
     {
         var defs = Catalog().IdeologyDefs()!;
@@ -133,12 +149,6 @@ public sealed class IdeologyReadsTests
         Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Pure, precepts));
         Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(shrine, precepts));
     }
-
-    private static WorkPawn Pawn(string id, string ideo, double certainty) =>
-        PawnFixtures.Worker(id) with
-        {
-            PolicyInputs = PawnFixtures.Inputs(ideo, certainty),
-        };
 
     private static DefinitionCatalog Catalog()
     {

@@ -214,8 +214,7 @@ public static partial class MedicalRules
             var (want, ok) = Capped(MedicalCare.Normal, true, g.Conditions, g.LifeThreatening);
             Add(g.Id, g.Care != want, want, ok);
         }
-        f.AnimalUpkeep.Animals.TryGetValue(out var animals);
-        foreach (var a in animals)
+        foreach (var a in f.AnimalUpkeep.Animals)
         {
             // An animal without care settings has no care to set.
             if (a.Care.Length == 0)

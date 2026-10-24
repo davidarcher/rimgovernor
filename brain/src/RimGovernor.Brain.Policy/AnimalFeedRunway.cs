@@ -15,7 +15,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What the animal feed runway is computed from.</summary>
 public sealed record AnimalFeedInputs
 {
-    public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
+    public EquatableArray<UpkeepAnimal> Animals { get; init; }
 
     public EquatableArray<Resource> Directed { get; init; }
 
@@ -282,12 +282,7 @@ public static class AnimalFeedRunwayRules
     /// </summary>
     public static AnimalFeedRunway PlanAnimalFeedRunway(AnimalFeedInputs input)
     {
-        if (!input.Animals.TryGetValue(out var animals))
-        {
-            return UnknownFeedRunway();
-        }
-
-        if (!FeedEligible(animals, input.Directed, out var eligible))
+        if (!FeedEligible(input.Animals, input.Directed, out var eligible))
         {
             return UnknownFeedRunway();
         }

@@ -19,26 +19,14 @@ public static class HerdPreceptsRules
     private const string EventAteVeneratedAnimalMeat = "AteVeneratedAnimalMeat";
 
     /// <summary>
-    /// Sets each animal's SlaughterBarred and EatingBarred from the ideoligion.
-    /// ideologyActive is whether the load has Ideology defs: a game without Ideology has no precepts and bars
-    /// nothing; with Ideology, an unread ideoligion or veneration leaves both unknown (the herd plan then holds
-    /// removal, sale and slaughter). A race is barred when any action it raises is not allowed or approved:
-    /// penalised, forbidden or unknown.
+    /// Sets each animal's SlaughterBarred and EatingBarred from the ideoligion. A game without Ideology has no
+    /// precepts and bars nothing. A race is barred when any action it raises is penalised or forbidden.
     /// </summary>
-    public static Fact<EquatableArray<UpkeepAnimal>> ApplyHerdPrecepts(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<Ideoligion> ideology, bool ideologyActive)
+    public static EquatableArray<UpkeepAnimal> ApplyHerdPrecepts(EquatableArray<UpkeepAnimal> animals, IdeologyMode ideology)
     {
-        if (!animals.TryGetValue(out var rows))
+        var @out = new List<UpkeepAnimal>(animals.Count);
+        foreach (var a in animals)
         {
-            return animals;
-        }
-        var @out = new List<UpkeepAnimal>(rows.Count);
-        foreach (var a in rows)
-        {
-            if (!ideologyActive)
-            {
-                @out.Add(a with { Herd = a.Herd with { SlaughterBarred = Known(false), EatingBarred = Known(false) } });
-                continue;
-            }
             @out.Add(
                 a with
                 {
@@ -50,27 +38,21 @@ public static class HerdPreceptsRules
                 }
             );
         }
-        return Known(EquatableArray.From(@out));
+        return EquatableArray.From(@out);
     }
 
-    /// <summary>Whether the colony's precepts bar the action: base for any animal, plus venerated for a venerated race. Unknown when the ideoligion is unread.</summary>
-    private static Fact<bool> PreceptBars(Fact<Ideoligion> ideology, bool venerated, string baseEvent, string veneratedEvent)
+    /// <summary>Whether the colony's precepts bar the action: base for any animal, plus venerated for a venerated race.</summary>
+    private static bool PreceptBars(IdeologyMode ideology, bool venerated, string baseEvent, string veneratedEvent)
     {
         var events = venerated ? new[] { baseEvent, veneratedEvent } : new[] { baseEvent };
-        var barred = false;
         foreach (var ev in events)
         {
-            switch (IdeologyRuleRules.ActionStance(ideology, new PreceptAction { HistoryEvent = ev }, new PreceptSubject()).Stance)
+            var stance = ideology.ActionStance(new PreceptAction { HistoryEvent = ev }, new PreceptSubject()).Stance;
+            if (stance is PreceptStance.Penalised or PreceptStance.Forbidden)
             {
-                case PreceptStance.Allowed or PreceptStance.Approved:
-                    break;
-                case PreceptStance.Penalised or PreceptStance.Forbidden:
-                    barred = true;
-                    break;
-                case PreceptStance.Unknown:
-                    return Unknown<bool>();
+                return true;
             }
         }
-        return Known(barred);
+        return false;
     }
 }

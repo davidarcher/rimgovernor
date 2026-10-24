@@ -176,7 +176,7 @@ public sealed record StationGraphInput
     public AnimalRaceCatalog Races { get; init; } = new();
 
     /// <summary>What a cell of each terrain grows a day in the worst quadrum. An unread Pasture leaves feeding unsized.</summary>
-    public Fact<PastureTable> Pasture { get; init; }
+    public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 }
 
 /// <summary>A class of station and how many the colony needs.</summary>

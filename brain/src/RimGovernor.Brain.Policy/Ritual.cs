@@ -87,18 +87,21 @@ public static partial class RitualRules
     /// Attendees are available believers of the ideoligion: a slot bound to a role precept takes that role's
     /// holders (up to the slot's maximum), a required slot with no role precept takes the most certain
     /// unassigned believer, optional unbound slots stay empty and every other believer attends as a
-    /// spectator. Whether the game accepts a pawn in a slot is its own check when the begin applies. Unknown
-    /// without the ideoligion, the pawn rows, the sites or the calm reading. A held ritual whose pattern the
+    /// spectator. Whether the game accepts a pawn in a slot is its own check when the begin applies. None
+    /// without the Ideology expansion; unknown without the pawn rows, the sites or the calm reading. A held ritual whose pattern the
     /// catalog lacks, or that names no required building, is not planned: nothing says where to hold it.
     /// </summary>
     public static Fact<EquatableArray<RitualPlan>> PlanRituals(
-        Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns, Fact<EquatableArray<RitualSite>> sites, Tick tick, Fact<bool> calm)
+        IdeologyMode ideology, Fact<EquatableArray<WorkPawn>> pawns, Fact<EquatableArray<RitualSite>> sites, Tick tick, Fact<bool> calm)
     {
-        var ik = ideology.TryGetValue(out var ideo);
+        if (ideology is not IdeologyMode.Installed { Primary: var ideo })
+        {
+            return Known(EquatableArray.From(new List<RitualPlan>()));
+        }
         var pk = pawns.TryGetValue(out var rows);
         var sk = sites.TryGetValue(out var known);
         var ck = calm.TryGetValue(out var quiet);
-        if (!ik || !pk || !sk || !ck)
+        if (!pk || !sk || !ck)
         {
             return Unknown<EquatableArray<RitualPlan>>();
         }
@@ -110,14 +113,14 @@ public static partial class RitualRules
         var pool = new List<(PawnId Id, double Certainty)>();
         foreach (var row in rows)
         {
-            if (row.Available && row.PolicyInputs.Ideo is PawnIdeo.Member member && member.IdeoId == ideo!.Facts.IdeoId)
+            if (row.Available && row.PolicyInputs.Ideo is PawnIdeo.Member member && member.IdeoId == ideo.Facts.IdeoId)
             {
                 var certainty = member.Certainty;
                 pool.Add((row.Id, certainty));
             }
         }
         pool = pool.OrderByDescending(b => b.Certainty).ThenBy(b => b.Id).ToList();
-        var rituals = ideo!.Facts.Rituals.OrderBy(r => r.Id, StringComparer.Ordinal).ToList();
+        var rituals = ideo.Facts.Rituals.OrderBy(r => r.Id, StringComparer.Ordinal).ToList();
         var taken = new HashSet<PawnId>();
         foreach (var held in rituals)
         {

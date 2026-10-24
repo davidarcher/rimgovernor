@@ -80,15 +80,7 @@ public sealed partial class FacadeNativeClient
         {
             output = output with { Quests = WorldProgressionRead.DecodeWorldProgressionSnapshot(v.WorldProgression) };
         }
-        if (v.Ideology is not null)
-        {
-            output = output with { Ideology = IdeologyDecoder.Decode(v.Ideology, catalog) };
-        }
-        if (v.IdeologyActive is { } active)
-        {
-            output = output with { IdeologyActive = Fact.Known(active) };
-        }
-        return output with { Zones = v.Zones };
+        return output with { Ideology = IdeologyDecoder.Mode(v.IdeologyActive, v.Ideology, catalog), Zones = v.Zones };
     }
 
     /// <summary>

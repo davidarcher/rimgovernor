@@ -10,9 +10,9 @@ public sealed record AnimalAcquisition
 {
     public required AnimalRaceCatalog Races { get; init; }
 
-    public Fact<EquatableArray<UpkeepAnimal>> Owned { get; init; }
+    public EquatableArray<UpkeepAnimal> Owned { get; init; }
 
-    public Fact<EquatableArray<UpkeepAnimal>> Wild { get; init; }
+    public EquatableArray<UpkeepAnimal> Wild { get; init; }
 
     public required HerdPolicy Herd { get; init; }
 
@@ -31,9 +31,8 @@ public sealed record AnimalAcquisition
             return true;
         }
 
-        Owned.TryGetValue(out var owned);
         var count = 0L;
-        foreach (var a in owned)
+        foreach (var a in Owned)
         {
             if (a.Definition == race && !a.Release)
             {
@@ -196,9 +195,8 @@ public static class AnimalAcquireRules
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> TameFoodChannels(AnimalAcquisition input)
     {
-        var wk = input.Wild.TryGetValue(out var wild);
-        var pk = input.Handlers.TryGetValue(out var profiles);
-        if (!wk || !pk || input.Herd.FeedShort)
+        var wild = input.Wild;
+        if (!input.Handlers.TryGetValue(out var profiles) || input.Herd.FeedShort)
         {
             return [];
         }
@@ -310,16 +308,15 @@ public static class AnimalAcquireRules
     /// <summary>The wild animal the plan opened to tame, while a handler skilled enough exists and the herd's feed is known not short.</summary>
     public static HusbandryChoice FoodTameChoice(
         Fact<FoodPlan> plan,
-        Fact<EquatableArray<UpkeepAnimal>> wild,
+        EquatableArray<UpkeepAnimal> wild,
         Fact<bool> feedShort,
         Fact<EquatableArray<PawnProfile>> handlers
     )
     {
         var pk = plan.TryGetValue(out var p);
-        var rk = wild.TryGetValue(out var rows);
         var fk = feedShort.TryGetValue(out var short_);
         var hk = handlers.TryGetValue(out var profiles);
-        if (!pk || !rk || !fk || !hk)
+        if (!pk || !fk || !hk)
         {
             return new HusbandryChoice.Unread();
         }
@@ -336,7 +333,7 @@ public static class AnimalAcquireRules
                 continue;
             }
 
-            foreach (var a in rows)
+            foreach (var a in wild)
             {
                 var minimum = a.MinimumHandlingSkill;
                 if (PawnRules.TamerFor(profiles, minimum) is not null && e.Channel.Id == "tame:" + a.Id)

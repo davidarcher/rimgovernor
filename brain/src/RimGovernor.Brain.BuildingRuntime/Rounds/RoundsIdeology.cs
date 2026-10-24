@@ -62,7 +62,7 @@ public sealed class IdeologyReader
         {
             return facts;
         }
-        var ideology = projection.Facts.Ideology.TryGetValue(out var held) ? held : throw new RequiredFactException("ideoligion");
+        var ideology = projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
         var pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : throw new RequiredFactException("pawn rows");
         if (_roles)
         {
@@ -122,7 +122,7 @@ public sealed class IdeologyReader
         var goals = _reviewer.Goals ? (await journal.LoadGoalsAsync(Player.PlayerWorld(world), call).ConfigureAwait(false)).Goals : [];
         var choice = Rounder.ReformChoice(read, world, GoalRules.IdeoTargets(goals));
         var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(world), call).ConfigureAwait(false))?.Reform;
-        var ideo = read.Projection.Facts.Ideology.TryGetValue(out var held) ? held : throw new RequiredFactException("ideoligion");
+        var ideo = read.Projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
         var current = Rounder.CurrentDesign(ideo, read.Catalog ?? throw new RequiredFactException("definition catalog"));
         var state = ideo.Facts.Development;
         facts = facts with { Development = state };

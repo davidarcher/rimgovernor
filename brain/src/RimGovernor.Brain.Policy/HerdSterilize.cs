@@ -79,19 +79,18 @@ public static class HerdSterilizeRules
     /// from the animals' current allowed area and sterilize facts alone: let an animal wanted sterilized into the
     /// hospital (allowed_area), queue its bill (sterilize), and let it out once it is sterilized (allowed_area
     /// cleared). One animal is in the room at a time, and an animal with a bill queued is waited on. An animal in
-    /// the area that is no longer wanted and has no bill is let out. An unready or unknown ward room chooses
+    /// the area that is no longer wanted and has no bill is let out. An unready ward room chooses
     /// nothing.
     /// </summary>
-    public static HusbandryChoice SterilizeChoice(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, AnimalWard ward)
+    public static HusbandryChoice SterilizeChoice(EquatableArray<UpkeepAnimal> animals, HerdPolicy herd, AnimalWard ward)
     {
         var none = new HusbandryChoice.NoDeficit();
-        var known = animals.TryGetValue(out var unsorted);
         var area = ward.Area;
-        if (!known || !ward.Ready || area.Length == 0)
+        if (!ward.Ready || area.Length == 0)
         {
             return none;
         }
-        var rows = unsorted!.OrderBy(a => a.Id).ToList();
+        var rows = animals.OrderBy(a => a.Id).ToList();
         var wanted = SterilizeWanted(rows, herd);
         foreach (var a in rows)
         {

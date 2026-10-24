@@ -13,16 +13,9 @@ public static partial class PestRules
 {
     /// <summary>
     /// Counts the pests in the wild-animal census (every living factionless animal on the map, so a pest
-    /// anywhere counts, not only one near the colony). Unknown while the census is unknown.
+    /// anywhere counts, not only one near the colony). The count is a Fact for the Military Need that reads it.
     /// </summary>
-    public static Fact<int> PestCensus(Fact<EquatableArray<UpkeepAnimal>> wild)
-    {
-        if (!wild.TryGetValue(out var rows))
-        {
-            return Unknown<int>();
-        }
-        return Known(rows.Count(row => row.Pest));
-    }
+    public static Fact<int> PestCensus(EquatableArray<UpkeepAnimal> wild) => Known(wild.Count(row => row.Pest));
 
     /// <summary>
     /// Picks the pest hunts to admit: every undesignated, unheld pest row in native order (nearest the colony

@@ -10,7 +10,7 @@ public sealed partial class Rounder
     /// </summary>
     internal static DesignChoice ReformChoice(RoundsReading read, GenerationSnapshot snapshot, IReadOnlyList<IdeoGoalTarget> targets)
     {
-        var ideo = read.Projection.Facts.Ideology.TryGetValue(out var held) ? held : throw new RequiredFactException("ideoligion");
+        var ideo = read.Projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
         var catalog = read.Catalog ?? throw new RequiredFactException("definition catalog");
         var frame = read.Frame.Pawns ?? throw new RequiredFactException("pawn frame");
 
