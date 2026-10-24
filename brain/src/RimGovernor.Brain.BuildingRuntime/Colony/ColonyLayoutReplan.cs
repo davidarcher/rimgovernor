@@ -177,7 +177,7 @@ public sealed partial class Rounder
         tiledAttrs["adopted"] = waited;
         if (pending.Drift.Count > 0)
         {
-            // Which replan inputs drifted since the last replan: the hourly check replans on any of them.
+            // Which replan inputs drifted since the last replan (the hourly check replans on any of them), or "daily".
             tiledAttrs["inputs_changed"] = pending.Drift;
         }
         Tel.Decide(decision with { Verdict = "replanned", Reason = "tiled_plan", Attrs = tiledAttrs });

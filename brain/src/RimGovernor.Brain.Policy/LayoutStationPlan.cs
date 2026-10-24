@@ -104,13 +104,6 @@ public sealed record StationFacts
     /// <summary>The colonists' mean mood level, 0 to 1, the mood price's baseline (#2975, #2878); unknown leaves the comfort tiers and the lost role effects unpriced.</summary>
     public Fact<double> ExpectedMood { get; init; }
 
-    /// <summary>
-    /// The mood the inputs key varies with: ExpectedMood in bands of 0.05, null while unknown. The chain prices mood, it
-    /// sites no room by it, so a drift inside a band would replan the same rooms (every hourly replan of a profiled day
-    /// named expected_mood among its drifted inputs and tiled the same rooms, #3556).
-    /// </summary>
-    public double? ExpectedMoodBand() => ExpectedMood.TryGetValue(out var mood) ? Math.Round(mood * 20) / 20 : null;
-
     /// <summary>What the colony reads for the bed merge's price (#3658); its default prices no sleeper and no wall, which keeps every bed single.</summary>
     public BedMergeFacts BedMerge { get; init; } = new();
 
@@ -257,10 +250,12 @@ public sealed record StationFacts
     }
 
     /// <summary>
-    /// Names what the chain varies with: the graph's population, nutrition, orders and stock (or the unknown fact),
-    /// the dining furniture and roof distance, and the plan with the rooms standing. Two facts with one key give one
-    /// advice over one survey. The definitions (Catalog, Furniture, Items, Recipes and the stack and rot rows of the
-    /// stock) are the load's, so the caller keys the load beside it.
+    /// Names the structural facts a replan varies with (#3739): the graph's population, suites and pasture (or the
+    /// unknown fact), the dining furniture and roof distance, the demand, and the plan with the rooms standing and
+    /// pinned. The facts that drift by the hour (stock, orders, expected mood, nutrition, food reserve, crops, the
+    /// outdoor curve) feed the chain but are left out: the hourly check's daily floor (LayoutPlanning.ReplanDaily)
+    /// carries them to the plan. The definitions (Catalog, Furniture, Items, Recipes) are the load's, so the caller
+    /// keys the load beside it.
     /// </summary>
     public string InputsKey()
     {
@@ -284,8 +279,6 @@ public sealed record StationFacts
             new("roof_distance", KeyText.Of(RoofDistance)),
             new("built", KeyText.Of(Built)),
             new("pinned", KeyText.Of(Pinned)),
-            new("outdoor_curve", KeyText.Of(OutdoorCurve)),
-            new("expected_mood", KeyText.Of(ExpectedMoodBand())),
             new("mismatches", KeyText.Of(Mismatches)),
             new("derive", KeyText.Of(Derive)),
             new("throne_area", KeyText.Of(ThroneArea)),
@@ -299,11 +292,6 @@ public sealed record StationFacts
         {
             var input = GraphInput();
             parts.Add(new("population", KeyText.Of(input.Population)));
-            parts.Add(new("nutrition_per_day", KeyText.Of(input.NutritionPerDay)));
-            parts.Add(new("orders", KeyText.Of(input.Orders)));
-            parts.Add(new("stock", KeyText.Of(input.Stock)));
-            parts.Add(new("food_reserve_days", KeyText.Of(input.FoodReserveDays)));
-            parts.Add(new("crops", KeyText.Of(input.Crops)));
             parts.Add(new("suites", KeyText.Of(input.Suites)));
             parts.Add(new("pasture", KeyText.Of(input.Pasture)));
             parts.Add(new("barracks", KeyText.Of(BarracksSize(input))));

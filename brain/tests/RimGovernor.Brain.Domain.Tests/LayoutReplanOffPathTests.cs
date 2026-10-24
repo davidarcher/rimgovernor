@@ -45,6 +45,28 @@ public sealed class LayoutReplanOffPathTests
     }
 
     [Fact]
+    public void TheHourlyCheckStartsNoReplanForConstructionWithinTheDayAndOneAfterReplanDaily()
+    {
+        // The last replan started at tick 1000; since then a wall went up and a tree was felled (#3739).
+        var last = LayoutInputsChangedTests.Inputs(LayoutInputsChangedTests.Cells());
+        var built = LayoutInputsChangedTests.Cells();
+        built[0] = built[0] with { Built = true };
+        built[1] = built[1] with { Tree = true, Built = true };
+        var now = LayoutInputsChangedTests.Inputs(built);
+        var replanned = new Tick(1000);
+
+        Assert.Empty(LayoutPlanning.ReplanDrift(now, last, new Tick(1000 + LayoutPlanning.ReplanEvery.Value), replanned));
+        Assert.Empty(LayoutPlanning.ReplanDrift(now, last, new Tick(1000 + LayoutPlanning.ReplanDaily.Value - 1), replanned));
+        Assert.Equal(["daily"], LayoutPlanning.ReplanDrift(now, last, new Tick(1000 + LayoutPlanning.ReplanDaily.Value), replanned));
+        // Structural drift replans within the day, named for what drifted.
+        var mined = LayoutInputsChangedTests.Cells();
+        mined[3] = mined[3] with { Rock = false, Walkable = true };
+        Assert.Equal(["survey"], LayoutPlanning.ReplanDrift(LayoutInputsChangedTests.Inputs(mined), last, new Tick(1000 + LayoutPlanning.ReplanEvery.Value), replanned));
+        // A rewind past the last replan replans.
+        Assert.Equal(["daily"], LayoutPlanning.ReplanDrift(now, last, new Tick(500), replanned));
+    }
+
+    [Fact]
     public void ARoomAJournalPlanTookUpAfterTheRunStartedIsOneTheRunDidNotHold()
     {
         // The shell admitted in the review that started the run (#3537): room 5 is in flight now and the run held only

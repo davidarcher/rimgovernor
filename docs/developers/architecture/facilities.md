@@ -312,7 +312,7 @@ demand as stock, and the catalog's recipe flows, stack limits and rot
 (`StationItemFacts`). It writes one `layout_stations` decision: `advised` with
 each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
-(`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
+(`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey's terrain; a review with them unchanged reads the last advice and writes no row), and at least once a game day (the replan triggers, below). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
 A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the survey finds no core) or `failed` (`chain_error`). A fact the colony has not read fails the derive like any advice: the colony's first plan waits for it with the clock held (`first_plan`, #3652). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
 
@@ -432,8 +432,19 @@ room. Stock drains from the old zone as vanilla re-hauls it; bills
 and packed furniture are #2881.
 
 The replan (`policy.ReplanLayout`, #3005, J4 of #2965) is the tiled plan of this
-chain, wholesale, over the plan the colony holds. `reviewLayoutPlan` replans
-every hour the survey, the chain's facts or the tier changed. `ReplanTileFacts`
+chain, wholesale, over the plan the colony holds. `reviewLayoutPlan` checks
+every game hour and replans on structural drift only (#3739): the survey's terrain
+(`LayoutInputs.Terrain`: each cell's Cell, Walkable, Rock, Footing, Hazard, ThickRoof, Ore,
+Bridgeable, Dries and Fertility, compared field for field with no tolerance; Built, Tree,
+Prop and Ruin change with construction and tree felling and are left out), the plan's
+tick, the tier and research, the pawns and geysers, the growth and the structural
+`StationFacts.InputsKeyParts` (population, suites, pasture, pens, child, demand, derive,
+throne area, plan, host build, built, pinned, dining, roof distance, mismatches,
+barracks; the load beside them). The facts that drift by the hour (stock, orders, expected
+mood, nutrition per day, food reserve days, crops, the outdoor curve) feed the chain but
+not the key: a day after the last replan (`LayoutPlanning.ReplanDaily`) the check replans
+with the inputs unchanged, so storage sizing and the mood-priced tiers still reach the plan
+daily (`inputs_changed` `daily`). `ReplanTileFacts`
 gives the tiler the fresh survey's zones as the derive lays them, with the
 saved plan's `Built` rooms and `TilePinned` (the rooms an open journal plan works
 on, the superseded bedrooms a pawn still owns a bed in, the rooms of an ended
@@ -792,7 +803,7 @@ bedrooms that stand or are under construction (`StandingIds`) are committed
 and a size that leaves fewer rooms gives up the least spent of them and pays those
 pieces at the wall and door price. A built bedroom merged back saves only its heat,
 so a mood swinging about the switch line switches once; a bedroom on paper is free
-to drop, its flapping held by `TieResolution` and the replan key's mood band. The k beds are one group
+to drop, its flapping held by `TieResolution` and the daily replan floor (the mood is no part of the replan key). The k beds are one group
 planned `Barracks`, the rest stay single bedrooms; the decision is the advice's
 `bed_merge` attribute. The tiler keeps the cell past each barracks bed's end clear and
 reached from the doors, so no bed is boxed in by the others. The runtime (`reconcileBedroom`) picks the bed from the sleeping

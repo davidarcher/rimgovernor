@@ -132,6 +132,9 @@ public sealed partial class Rounder
     /// <summary>The last replan's survey and inputs; an hourly check that finds them unchanged skips the replan.</summary>
     internal LayoutInputs PlanInputs = LayoutInputs.Empty;
 
+    /// <summary>When the last adopted replan started, for the daily floor (<see cref="LayoutPlanning.ReplanDaily"/>); in memory only, as PlanInputs.</summary>
+    internal Tick PlanReplanned;
+
     /// <summary>The advice of the last station chain run.</summary>
     internal StationAdvice StationLast = new();
 

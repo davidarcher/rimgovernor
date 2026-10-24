@@ -3,7 +3,10 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>What an incremental replan reads; a survey whose inputs match the last replan's (of the same saved plan) replans nothing.</summary>
+/// <summary>
+/// What an incremental replan reads; a survey whose inputs match the last replan's (of the same saved plan) replans
+/// nothing. The record holds the full survey; Same and Changed compare only its terrain (#3739).
+/// </summary>
 internal sealed record LayoutInputs(Tick PlanTick, string Key, Bounds Bounds, EquatableArray<SurveyCell> Cells)
 {
     public static LayoutInputs Empty { get; } = new(default, "", default, default);
@@ -11,21 +14,31 @@ internal sealed record LayoutInputs(Tick PlanTick, string Key, Bounds Bounds, Eq
     /// <summary>The key's named parts (StationFacts.InputsKeyParts and the replan's own), so Changed can name what drifted.</summary>
     public IReadOnlyDictionary<string, string> Parts { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// The survey's structure alone (<see cref="TerrainCell"/>): construction and tree felling change a cell's Built,
+    /// Tree, Prop and Ruin, which replan nothing.
+    /// </summary>
+    public EquatableArray<TerrainCell> Terrain { get; } = EquatableArray.From(Cells.Select(TerrainCell.Of));
+
     public bool Same(LayoutInputs other) =>
-        PlanTick == other.PlanTick && Key == other.Key && Bounds == other.Bounds && Cells.Equals(other.Cells);
+        PlanTick == other.PlanTick && Key == other.Key && SameTerrain(other);
+
+    /// <summary>Whether the bounds and every cell's terrain match other's, field for field.</summary>
+    public bool SameTerrain(LayoutInputs other) => Bounds == other.Bounds && Terrain.Equals(other.Terrain);
 
     /// <summary>
-    /// What differs from other, by name: "plan_tick", "survey" (the bounds or cells) and each key part whose text
-    /// changed or that only one side has; "key" when the keys differ but no part says why.
+    /// What differs from other, by name: "plan_tick", "survey" (the bounds or terrain) and each key part whose text
+    /// changed or that only one side has; "key" when the keys differ but no part says why; "daily" when nothing
+    /// differs and <paramref name="daily"/> (a day passed since the last replan, <see cref="LayoutPlanning.ReplanDaily"/>).
     /// </summary>
-    public IReadOnlyList<string> Changed(LayoutInputs other)
+    public IReadOnlyList<string> Changed(LayoutInputs other, bool daily)
     {
         var names = new List<string>();
         if (PlanTick != other.PlanTick)
         {
             names.Add("plan_tick");
         }
-        if (Bounds != other.Bounds || !Cells.Equals(other.Cells))
+        if (!SameTerrain(other))
         {
             names.Add("survey");
         }
@@ -50,8 +63,22 @@ internal sealed record LayoutInputs(Tick PlanTick, string Key, Bounds Bounds, Eq
         {
             names.Add("key");
         }
+        if (names.Count == 0 && daily)
+        {
+            names.Add("daily");
+        }
         return names;
     }
+}
+
+/// <summary>
+/// One survey cell's structure, what a replan's survey is compared by (#3739): the SurveyCell fields but Built, Tree,
+/// Prop and Ruin, which construction and tree felling change.
+/// </summary>
+internal readonly record struct TerrainCell(Cell Cell, bool Walkable, bool Rock, Footing Footing, bool Hazard, bool ThickRoof, bool Ore, bool Bridgeable, bool Dries, double Fertility)
+{
+    public static TerrainCell Of(SurveyCell c) =>
+        new(c.Cell, c.Walkable, c.Rock, c.Footing, c.Hazard, c.ThickRoof, c.Ore, c.Bridgeable, c.Dries, c.Fertility);
 }
 
 /// <summary>A saved layout plan the world holds, with the tick that recorded it.</summary>
@@ -59,6 +86,24 @@ internal readonly record struct HeldLayout(LayoutPlan Plan, Tick Tick);
 
 internal static class LayoutPlanning
 {
+    /// <summary>
+    /// The daily floor of the hourly check (one game day, #3739): a day after the last replan it replans with the inputs
+    /// unchanged, so the chain's facts the key leaves out (stock, orders, mood, nutrition, food reserve, crops, the
+    /// outdoor curve) still reach the plan once a day.
+    /// </summary>
+    public static readonly Tick ReplanDaily = new(GameTime.TicksPerDay);
+
+    /// <summary>
+    /// What the hourly check replans for, by name (<see cref="LayoutInputs.Changed"/>): the inputs that drifted since the
+    /// last replan, else "daily" once <see cref="ReplanDaily"/> passed since it (<paramref name="replanned"/>; a rewind
+    /// past it counts as passed). Empty starts no replan.
+    /// </summary>
+    public static IReadOnlyList<string> ReplanDrift(LayoutInputs inputs, LayoutInputs last, Tick tick, Tick replanned)
+    {
+        var daily = replanned > tick || tick.Value - replanned.Value >= ReplanDaily.Value;
+        return inputs.Same(last) && !daily ? [] : inputs.Changed(last, daily);
+    }
+
     /// <summary>
     /// The fewest ticks between survey reads for any layout trigger (one game hour): a colony the grown plan still cannot
     /// house waits an hour instead of re-reading the map every review. A first plan that waits for a fact with the
@@ -193,7 +238,7 @@ public sealed partial class Rounder
     /// <summary>
     /// Serves the saved v2 layout plan on the projection. A colony with none saved gets its first plan at the end of
     /// the review (<see cref="ReviewFirstPlanAsync"/>). With one, it re-reads the survey every hour, replanning when a
-    /// pawn, tier, research, need or the terrain changed since the last replan. The replan is the station chain's tiled plan
+    /// pawn, tier, research, need or the terrain changed since the last replan, or a day passed since it. The replan is the station chain's tiled plan
     /// (<c>ReplanLayout</c>): the chain keeps the rooms that stand, the rooms a journal plan works on or a pawn
     /// sleeps in and the rooms it has a node for, and sites the rest again. It runs off the hold path
     /// (<see cref="PendingLayoutReplan"/>, #3565): the hourly check that finds the inputs drifted starts it and
@@ -214,6 +259,7 @@ public sealed partial class Rounder
                 {
                     PlanGrownFor = pending.Grown;
                     PlanPawns = pending.Colonists;
+                    PlanReplanned = pending.Started;
                     (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
                     if (haveLayout)
                     {
@@ -245,8 +291,9 @@ public sealed partial class Rounder
             checkedAt = PlanChecked;
         }
         var hourly = !surveyed || tick.Value - checkedAt.Value >= LayoutPlanning.ReplanEvery.Value;
-        // Every hour a review re-reads the survey and replans when its inputs (the chain's facts, the survey)
-        // changed: a need, a pawn or a room that stands is among them, so no trigger of its own is needed.
+        // Every hour a review re-reads the survey and replans when its inputs (the key's facts, the survey's terrain)
+        // changed: a need, a pawn or a room that stands is among them, so no trigger of its own is needed. Construction
+        // progress is not; a day after the last replan it replans anyway (ReplanDaily) for the facts the key leaves out.
         var terrain = haveLayout && tick.Value - checkedAt.Value >= LayoutPlanning.TerrainCheckEvery.Value;
         // New research or a new tier: other research unlocks rooms too.
         var grown = LayoutPlanning.GrownFor(projection);
@@ -260,15 +307,17 @@ public sealed partial class Rounder
                 var topology = knownTopology ?? new PowerTopology();
                 var colonists = (int)pawns;
                 var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
-                if (!inputs.Same(PlanInputs))
+                var drift = LayoutPlanning.ReplanDrift(inputs, PlanInputs, tick, PlanReplanned);
+                if (drift.Count > 0)
                 {
                     var reason = LayoutPlanning.LayoutReasons(new Dictionary<string, bool>
                     {
-                        ["terrain"] = inputs.Bounds != PlanInputs.Bounds || !inputs.Cells.Equals(PlanInputs.Cells),
+                        ["terrain"] = !inputs.SameTerrain(PlanInputs),
                         ["pawns"] = colonists != PlanPawns,
                         ["research"] = research,
+                        ["daily"] = drift is ["daily"],
                     });
-                    LayoutPending = StartLayoutReplan(snapshot, tick, layout, projection, survey, catalog, growth, facts, colonists, grown, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), inputs.Changed(PlanInputs));
+                    LayoutPending = StartLayoutReplan(snapshot, tick, layout, projection, survey, catalog, growth, facts, colonists, grown, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), drift);
                 }
             }
         }

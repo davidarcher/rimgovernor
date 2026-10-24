@@ -531,8 +531,13 @@ what the defense record holds (`LayPerimeter`). What moves among built rooms is 
 inside the embedder by the switching price (`switchThreshold`, `LayoutBuilt.cs`:
 `ReplanGain` plus `BuiltSwitch` and `BuiltSwitchCell` per cell of the room's area). A failed replan
 (`ReplanEmptyException`, `StationFactsException`) keeps the saved plan. The runtime derives when no
-plan is saved and re-checks every `layoutReplanEvery` (2500 ticks) when the inputs key
-changes (`reviewLayoutPlan`, `ColonyPlan.cs`), journaling `layout_stations`,
+plan is saved and re-checks every `ReplanEvery` (2500 ticks), replanning on structural drift
+only (#3739): the survey's terrain (`LayoutInputs.Terrain`, every `SurveyCell` field but Built,
+Tree, Prop and Ruin, exact equality) or the structural key (`StationFacts.InputsKeyParts`, which
+leaves out stock, orders, expected mood, nutrition, food reserve days, crops and the outdoor
+curve), the plan's tick, the tier, research, pawns, geysers and growth. Construction progress
+alone replans nothing; a day after the last replan (`ReplanDaily`) it replans anyway, so the
+facts the key leaves out still reach the plan (`reviewLayoutPlan`, `ColonyPlan.cs`), journaling `layout_stations`,
 `layout_plan` and `layout_replan_tiled` rows. [Facilities](../architecture/facilities.md)
 holds the station-chain design.
 

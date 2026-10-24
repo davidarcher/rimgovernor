@@ -242,12 +242,13 @@ What the second profile says:
 - **The hourly replan re-tiled the same rooms.** 6 of 8 replans ended same=13 moved=0 new=0 and `inputs_changed` named
   `expected_mood` in every one of them: alone 3 times, with `survey` 3 times, with `stock` once. The mean mood drifts
   every hour and only prices the comfort tiers, so the key now carries it in bands of 0.05
-  (`StationFacts.ExpectedMoodBand`); `survey` (the cells change as the colony builds) and `stock` still replan, as they
+  (a band since deleted, below); `survey` (the cells change as the colony builds) and `stock` still replan, as they
   should. The next day (session `67361dc552c14f0ca972c8027354ee82`, 16 reviews, rounds 2974 ms p50) tested the
   band: every one of its 10 hourly checks still replanned, `survey` at 7 of them and a band edge crossed
   (`expected_mood` alone) at 2, so the band skipped none. While the colony builds, the survey cells change every hour;
-  the hourly replan (0.7 to 0.9 s, the chain and the tiler) stays until the key reads what the chain reads of the
-  survey rather than every cell.
+  the hourly replan (0.7 to 0.9 s, the chain and the tiler) stayed until the key read what the chain reads of the
+  survey rather than every cell. #3739 did that: the survey compares by terrain only, the mood band and the stock left
+  the key (the band is deleted), and a daily floor (`LayoutPlanning.ReplanDaily`) carries the facts that left it.
 - **The step.** `clock_step` p50 6.0 s before the derive cuts, 5.9 s after (7.2 s in the first profile): with rounds at
   3.1 s the planner waves (critical 1.7 s, optional 0.8 s) are the larger half, cuts (2) and (3) above.
 
