@@ -271,16 +271,10 @@ public static class AnimalFoodRules
             return [];
         }
 
-        var c = CandidateRules.FoodCandidate(CandidateKind.Slaughter, "slaughter:" + best.Animal.ID, Unknown<double>());
-        var yields = c.Yields.Items.ToBuilder();
-        yields[0] = yields[0] with { StockCap = Known((long)meat) };
+        var c = CandidateRules.FoodCandidate(CandidateKind.Slaughter, "slaughter:" + best.Animal.ID, new YieldSupply.Stock((long)meat), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0));
         c = c with
         {
-            Yields = yields.ToImmutable(),
-            LaborPerDay = Known(0.0),
-            UpfrontCost = c.UpfrontCost with { LaborTicks = Known(180.0) },
-            LeadDays = Known(0.0),
-            State = CandidateRules.FoodState(Known(false), Known(false)),
+            UpfrontCost = c.UpfrontCost with { LaborTicks = 180.0 },
             Terms = EquatableArray.From([new CandidateTerm("meat_per_daily_feed", best.Efficiency), new CandidateTerm("reproduction_days", best.Reproduction)]),
         };
         return [c];

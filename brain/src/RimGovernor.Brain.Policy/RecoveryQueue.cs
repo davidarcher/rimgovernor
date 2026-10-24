@@ -63,7 +63,8 @@ public sealed record RecoveryThing
     /// <summary>Native ran out of salvage time budget before computing this row; held "salvage_skipped", distinct from "salvage_unknown".</summary>
     public bool Skipped { get; init; }
 
-    public SupplyCandidate Candidate { get; init; } = new();
+    /// <summary>The thing's priced yields; null when no salvage evidence was computed for it.</summary>
+    public SupplyCandidate? Candidate { get; init; }
 
     public string Hold { get; init; } = "";
 
@@ -125,12 +126,16 @@ public sealed record RecoveryQueue
 
 public static partial class RecoveryRules
 {
-    private static List<Resource> RecoveryShort(SupplyCandidate c, IReadOnlySet<Resource> shortSet)
+    private static List<Resource> RecoveryShort(SupplyCandidate? c, IReadOnlySet<Resource> shortSet)
     {
         var output = new List<Resource>();
+        if (c is null)
+        {
+            return output;
+        }
         foreach (var y in c.Yields)
         {
-            if (y.StockCap.TryGetValue(out var n) && n > 0 && shortSet.Contains(y.Good.Def) && !output.Contains(y.Good.Def))
+            if (y.StockOf(out var n) && n > 0 && shortSet.Contains(y.Good.Def) && !output.Contains(y.Good.Def))
             {
                 output.Add(y.Good.Def);
             }
@@ -141,7 +146,7 @@ public static partial class RecoveryRules
 
     private static double RecoveryDistance(RecoveryThing t, RecoveryRequest r)
     {
-        if (t.Candidate.PathDistance.TryGetValue(out var d) && d >= 0)
+        if (t.Candidate?.Path is CandidatePath.Walk { Distance: var d } && d >= 0)
         {
             return d;
         }
@@ -191,16 +196,16 @@ public static partial class RecoveryRules
         return "";
     }
 
-    /// <summary>A thing with yields none of which has known storage headroom. It throttles; it never holds, and no storage is planned for it.</summary>
-    private static bool RecoveryStorageMissing(SupplyCandidate c)
+    /// <summary>A thing with yields none of which storage accepts. It throttles; it never holds, and no storage is planned for it.</summary>
+    private static bool RecoveryStorageMissing(SupplyCandidate? c)
     {
-        if (c.Yields.Count == 0)
+        if (c is null || c.Yields.Count == 0)
         {
             return false;
         }
         foreach (var y in c.Yields)
         {
-            if (y.Headroom.TryGetValue(out var n) && n > 0)
+            if (y.Storage is YieldStorage.Accepts { Units: > 0 } or YieldStorage.InPlace)
             {
                 return false;
             }
@@ -330,10 +335,22 @@ public static partial class RecoveryRules
             Kind = RemoteWorkKind.Loot,
             Cell = row.Supply.Cell,
             Evidenced = true,
-            Candidate = RemoteRules.LootCandidate(row),
+            Candidate = LootCandidate(row),
             RouteSafe = row.SafetyKnown ? Known(row.SafeToHaul) : Unknown<bool>(),
         };
         return (t, true);
+    }
+
+    /// <summary>
+    /// A stack as a supply candidate: its census count, hauled to the storage headroom the census reports
+    /// (unread headroom credits no haul), walked when its path is measured, no labor beyond the haul.
+    /// </summary>
+    private static SupplyCandidate LootCandidate(LootItem row)
+    {
+        CandidatePath path = row.PathLength.TryGetValue(out var walk) ? new CandidatePath.Walk(walk) : new CandidatePath.Unwalked();
+        YieldStorage storage = row.StorageHeadroom.TryGetValue(out var room) ? new YieldStorage.Accepts(room) : new YieldStorage.Unread();
+        return CandidateRules.SourceCandidate(CandidateKind.Loot, row.Supply.Thing, 0, path, true, RemoteRules.LootUnitsPerTrip,
+            CandidateRules.SourceYield(new ResourceKey { Def = new Resource(row.Supply.Definition) }, row.Count, 0, storage));
     }
 
     /// <summary>

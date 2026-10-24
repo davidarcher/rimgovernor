@@ -4,9 +4,9 @@ public static class HumanFoodPlanRules
 {
     /// <summary>
     /// Routes finite stocks. It deliberately contributes no new nutrition/day: the forecast already owns stock,
-    /// and butchery is conversion.
+    /// and butchery is conversion. Null when no qualified butcher, human nutrition or target routes any.
     /// </summary>
-    public static (SupplyCandidate Channel, bool Ok) HumanFoodChannel(
+    public static SupplyCandidate? HumanFoodChannel(
         IReadOnlyList<ProductionBench> benches,
         FoodSupply supply,
         IReadOnlyList<PawnId> humans,
@@ -14,7 +14,7 @@ public static class HumanFoodPlanRules
         IdeologyRead ideology
     )
     {
-        var none = (new SupplyCandidate(), false);
+        SupplyCandidate? none = null;
         if (!FoodForecastRules.FoodNumber(targetDays) || targetDays <= 0)
         {
             return none;
@@ -144,14 +144,10 @@ public static class HumanFoodPlanRules
             terms.Add(new CandidateTerm(Wire.Name(r.Route), r.Nutrition));
         }
         terms.Add(new CandidateTerm("trade_surplus_nutrition", tradeSurplus));
-        var channel = CandidateRules.FoodCandidate(CandidateKind.Corpse, "human-butchery", Known(0.0)) with
+        return CandidateRules.FoodCandidate(CandidateKind.Corpse, "human-butchery", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)) with
         {
-            LaborPerDay = Known(0.0),
-            LeadDays = Known(0.0),
-            State = CandidateRules.FoodState(Known(false), Known(false)),
             Terms = EquatableArray.From(terms),
         };
-        return (channel, true);
     }
 
     /// <summary>

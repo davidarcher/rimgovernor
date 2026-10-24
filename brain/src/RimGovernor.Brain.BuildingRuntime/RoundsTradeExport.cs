@@ -271,7 +271,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                     mines.Add(row);
                 }
             }
-            var sources = AcquisitionCatalogRules.MineCandidates(name, mines, Unknown<long>()).ToList();
+            var sources = AcquisitionCatalogRules.MineCandidates(name, mines, new YieldStorage.Unread()).ToList();
             if (centered)
             {
                 var hand = new List<Pol.AcquisitionSource>();
@@ -282,7 +282,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                         hand.Add(s);
                     }
                 }
-                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand, center, Unknown<long>()));
+                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand, center, new YieldStorage.Unread()));
             }
             candidateSources[name] = sources;
         }

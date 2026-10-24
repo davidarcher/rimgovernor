@@ -228,7 +228,7 @@ public static partial class MealRules
                 return (null, false, false);
             }
             seen.Add(key);
-            if (e.Decision == FoodPlanDecision.Close || !RoundsRules.Positive(c.Open()) || (e.DeliveredPerDay <= 0 && !MealStockAvailable(c)))
+            if (e.Decision == FoodPlanDecision.Close || !c.Open() || (e.DeliveredPerDay <= 0 && !MealStockAvailable(c)))
             {
                 continue;
             }

@@ -135,7 +135,7 @@ internal sealed class ResourceSupplyState
                     continue;
                 }
 
-                e.Candidate.Yields[0].StockCap.TryGetValue(out var units);
+                e.Candidate.Yields[0].StockOf(out var units);
                 if (e.Wanted > 0)
                 {
                     units = Math.Min(units, e.Wanted);
@@ -162,7 +162,7 @@ internal static class DeepDrillReadingExtensions
             return [];
         }
 
-        var headroom = row.SelKnown ? Known(row.Sel.Storage.Capacity) : Unknown<long>();
+        YieldStorage headroom = row.SelKnown ? new YieldStorage.Accepts(row.Sel.Storage.Capacity) : new YieldStorage.Unread();
         var output = new List<SupplyCandidate>();
         foreach (var place in d.Placeable)
         {
@@ -295,7 +295,7 @@ public sealed partial class Rounder
                 (row.Sel, row.SelKnown) = await planner.SourcesForDeficitAsync(identity, resource, target.Target, stock, reach, call).ConfigureAwait(false);
                 if (row.SelKnown)
                 {
-                    candidates.AddRange(AcquisitionCatalogRules.MineCandidates(resource, row.Sel.Selected ?? [], Known(row.Sel.Storage.Capacity)));
+                    candidates.AddRange(AcquisitionCatalogRules.MineCandidates(resource, row.Sel.Selected ?? [], new YieldStorage.Accepts(row.Sel.Storage.Capacity)));
                 }
 
                 if (AcquisitionCatalogRules.ProduceCandidate(row.Choice, deficit, out var produce))
@@ -348,13 +348,12 @@ public sealed partial class Rounder
             need -= row.Standing;
             if (need > 0 && fieldPlanner.Serves(resource))
             {
-                var (candidate, plan, ok) = fieldPlanner.Candidate(resource, need);
-                if (ok)
+                var (candidate, plan) = fieldPlanner.Candidate(resource, need);
+                if (candidate is not null)
                 {
                     candidates.Add(candidate);
                     row.Fields = new Dictionary<string, FieldPlan> { [candidate.Id] = plan };
-                    candidate.LeadDays.TryGetValue(out var lead);
-                    if (lead > input.HorizonDays)
+                    if (candidate.Lead is CandidateLead.Days { Value: var lead } && lead > input.HorizonDays)
                     {
                         input = input with { HorizonDays = lead };
                     }
@@ -364,7 +363,7 @@ public sealed partial class Rounder
             input = input with { Deficit = Math.Max(need, 0) };
             if (centered)
             {
-                candidates.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(resource, priced, center, Known(need)));
+                candidates.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(resource, priced, center, new YieldStorage.Accepts(need)));
             }
 
             candidates.AddRange(output.Drill.Candidates(resource, deficit, row));

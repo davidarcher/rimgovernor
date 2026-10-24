@@ -62,7 +62,7 @@ public sealed class GearStuffChoiceTests
     {
         var deer = new AcquisitionSource { Id = "deer", Hunt = true, Products = [new SourceProduct(Leather, 30)] };
         var hunt = ClothingDemandRules.HuntYieldCandidate(deer);
-        Assert.Equal(Known(0.0), hunt!.LeadDays);
+        Assert.Equal(new CandidateLead.Days(0), hunt!.Lead);
         Assert.Equal(Known(0.0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Id = "doe" })).Of(Shirt(Leather.Value, .1)));
         // One deer's leather is short of the bill.
         Assert.False(Arrival(new(), hunt).Of(Shirt(Leather.Value, .1)).IsKnown);

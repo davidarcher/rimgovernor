@@ -56,7 +56,7 @@ public static class HuntPrerequisiteRules
             // step that lets it hunt could never open.
             output.Add(c with
             {
-                UpfrontCost = c.UpfrontCost with { LaborTicks = Known(HunterWeaponCraftTicks) },
+                UpfrontCost = c.UpfrontCost with { LaborTicks = HunterWeaponCraftTicks },
                 Terms = [.. c.Terms, new CandidateTerm(TermNeedsWeapon, 1), new CandidateTerm("craft_lead_days", HunterWeaponLeadDays)],
             });
         }

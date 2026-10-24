@@ -234,8 +234,6 @@ internal sealed class SupplyCand
 
     public double Dist { get; init; }
 
-    public Fact<double> DistSq { get; init; }
-
     /// <summary>Priced against the full demands.</summary>
     public SupplyShare Full { get; set; } = new(0);
 
@@ -554,20 +552,29 @@ public static partial class SupplyPlanRules
             throw new SupplyPlanFactsException();
         }
         identities.Add((row.Kind, row.Id));
-        static (double Value, bool Ok) Num(Fact<double> f, double max)
+        static double Num(double v, double max)
         {
-            var ok = f.TryGetValue(out var v);
-            if (ok && (!FoodForecastRules.FoodNumber(v) || v > max))
+            if (!FoodForecastRules.FoodNumber(v) || v > max)
             {
                 throw new SupplyPlanFactsException();
             }
-            return (v, ok);
+            return v;
         }
-        var (lead, leadKnown) = Num(row.LeadDays, double.MaxValue);
-        var (work, workKnown) = Num(row.LaborPerDay, double.MaxValue);
-        var (upfront, upKnown) = Num(row.UpfrontCost.LaborTicks, 1e12);
-        var (dist, pathKnown) = Num(row.PathDistance, 1e12);
-        Num(row.DistanceSquared, double.MaxValue);
+        static void Count(long n)
+        {
+            if (!ResourceRules.ValidAcquisitionCount(n))
+            {
+                throw new SupplyPlanFactsException();
+            }
+        }
+        var lead = row.Lead is CandidateLead.Days days ? Num(days.Value, double.MaxValue) : 0;
+        var work = row.Work is CandidateWork.PerDay perDay ? Num(perDay.Ticks, double.MaxValue) : 0;
+        var upfront = Num(row.UpfrontCost.LaborTicks, 1e12);
+        var dist = row.Path is CandidatePath.Walk walk ? Num(walk.Distance, 1e12) : 0;
+        if (row.Nearness is SourceNearness.Measured near)
+        {
+            Num(near.DistanceSquared, double.MaxValue);
+        }
         foreach (var q in row.UpfrontCost.Resources)
         {
             if (!ResourceRules.ValidAcquisitionKey(q.Key) || !ResourceRules.ValidAcquisitionCount(q.Count))
@@ -578,40 +585,51 @@ public static partial class SupplyPlanRules
         var yields = new List<CandidateYield>(row.Yields);
         yields.Sort((a, b) => AcquisitionKeyCompare(a.Good, b.Good));
         var missing = new List<string>();
+        var finite = false;
         for (var i = 0; i < yields.Count; i++)
         {
             var y = yields[i];
-            var (_, rateKnown) = Num(y.PerDay, double.MaxValue);
-            var capKnown = y.StockCap.TryGetValue(out var stock);
-            var roomKnown = y.Headroom.TryGetValue(out var headroom);
             if (!ResourceRules.ValidAcquisitionKey(y.Good)
-                || (capKnown && !ResourceRules.ValidAcquisitionCount(stock))
-                || (roomKnown && !ResourceRules.ValidAcquisitionCount(headroom))
                 || !ResourceRules.FiniteAcquisitionCost(y.UnitValue)
-                || (i > 0 && yields[i - 1].Good == y.Good))
+                || (i > 0 && yields[i - 1].Good == y.Good)
+                || (row.NeedsHaul && y.Storage is YieldStorage.InPlace))
             {
                 throw new SupplyPlanFactsException();
             }
-            if (!rateKnown && !capKnown)
+            if (y.Storage is YieldStorage.Accepts room)
+            {
+                Count(room.Units);
+            }
+            if (y.Supply is YieldSupply.Steady steady)
+            {
+                Num(steady.PerDay, double.MaxValue);
+            }
+            else if (y.Supply is YieldSupply.Bounded bounded)
+            {
+                Num(bounded.PerDay, double.MaxValue);
+                Count(bounded.Cap);
+                finite = true;
+            }
+            else if (y.Supply is YieldSupply.Stock stock)
+            {
+                Count(stock.Count);
+                finite = true;
+            }
+            else if (y.Supply is YieldSupply.Unpriced)
             {
                 missing.Add(GoodName(y.Good) + "_per_day");
             }
         }
-        if (!workKnown && !upKnown)
+        if (row.Work is CandidateWork.Unpriced)
         {
             missing.Add("work_per_day");
         }
-        if (!leadKnown)
+        if (row.Lead is CandidateLead.Unscheduled)
         {
             missing.Add("lead_days");
         }
-        var stateKnown = row.State.TryGetValue(out var state);
-        if (!stateKnown)
-        {
-            missing.Add("open");
-        }
         // A one-shot source prices its distance; a steady flow is priced by labor.
-        if (!pathKnown && (row.NeedsHaul || !workKnown))
+        if (row.Path is CandidatePath.Unwalked && (row.NeedsHaul || row.Work is not CandidateWork.PerDay))
         {
             missing.Add("path_distance");
         }
@@ -633,14 +651,6 @@ public static partial class SupplyPlanRules
                 throw new SupplyPlanFactsException();
             }
         }
-        var finite = false;
-        foreach (var y in yields)
-        {
-            if (y.StockCap.IsKnown)
-            {
-                finite = true;
-            }
-        }
         var entry = new SupplyEntry { Candidate = row };
         entry.AddTerms(row.Terms);
         var c = new SupplyCand
@@ -649,13 +659,12 @@ public static partial class SupplyPlanRules
             Scale = 1,
             Finite = finite,
             Yields = yields,
-            Open = stateKnown && state == CandidateState.Delivering,
+            Open = row.Open(),
             Lead = lead,
             Work = work,
             Upfront = upfront,
             Risk = risk,
             Dist = dist,
-            DistSq = row.DistanceSquared,
             Entry = entry,
         };
         return (c, missing);
@@ -664,28 +673,35 @@ public static partial class SupplyPlanRules
     /// <summary>A yield's risk-adjusted steady contribution toward a flow demand.</summary>
     private static double Rate(SupplyCand c, CandidateYield y, SupplyDemand d)
     {
-        var rateKnown = y.PerDay.TryGetValue(out var rate);
-        var capKnown = y.StockCap.TryGetValue(out var stock);
-        if (rateKnown && capKnown)
+        var keep = Math.Max(0, 1 - c.Risk);
+        if (y.Supply is YieldSupply.Steady s)
         {
-            rate = Math.Min(rate, stock / d.Window);
+            return s.PerDay * keep;
         }
-        else if (capKnown)
+        if (y.Supply is YieldSupply.Bounded b)
         {
-            rate = stock / d.Window;
+            return Math.Min(b.PerDay, b.Cap / d.Window) * keep;
         }
-        return rate * Math.Max(0, 1 - c.Risk);
+        if (y.Supply is YieldSupply.Stock k)
+        {
+            return k.Count / d.Window * keep;
+        }
+        // An unpriced yield is reported missing before pricing.
+        throw new SupplyPlanFactsException();
     }
 
     /// <summary>What a yield can deliver toward a stock demand.</summary>
     private static long Units(SupplyCand c, CandidateYield y, SupplyDemand d)
     {
-        if (y.StockCap.TryGetValue(out var stock))
+        if (y.Supply is YieldSupply.Steady s)
+        {
+            return (long)Math.Floor((s.PerDay * Math.Max(0, 1 - c.Risk) * Math.Max(0, d.Window - c.Lead)) + 1e-9);
+        }
+        if (y.StockOf(out var stock))
         {
             return (long)Math.Floor((stock * c.Scale) + 1e-9);
         }
-        y.PerDay.TryGetValue(out var rate);
-        return (long)Math.Floor((rate * Math.Max(0, 1 - c.Risk) * Math.Max(0, d.Window - c.Lead)) + 1e-9);
+        throw new SupplyPlanFactsException();
     }
 
     /// <summary>
@@ -722,8 +738,8 @@ public static partial class SupplyPlanRules
                 }
                 if (c.C.NeedsHaul)
                 {
-                    y.Headroom.TryGetValue(out var room);
-                    capacity = Math.Min(capacity, room);
+                    // An unread storage census credits no hauled units.
+                    capacity = y.Storage is YieldStorage.Accepts room ? Math.Min(capacity, room.Units) : 0;
                 }
                 var count = Math.Min(capacity - used, left[i]);
                 if (count <= 0)
@@ -835,15 +851,15 @@ public static partial class SupplyPlanRules
             }
             if (c.C.Kind == CandidateKind.Fishing && o.C.Kind == CandidateKind.Fishing)
             {
-                var ak = c.DistSq.TryGetValue(out var da);
-                var bk = o.DistSq.TryGetValue(out var db);
-                if (ak != bk)
+                var a = c.C.Nearness as SourceNearness.Measured;
+                var b = o.C.Nearness as SourceNearness.Measured;
+                if ((a is null) != (b is null))
                 {
-                    return ak ? -1 : 1;
+                    return a is not null ? -1 : 1;
                 }
-                if (da != db)
+                if (a is not null && b is not null && a.DistanceSquared != b.DistanceSquared)
                 {
-                    return da < db ? -1 : 1;
+                    return a.DistanceSquared < b.DistanceSquared ? -1 : 1;
                 }
             }
             if (c.Cost != o.Cost)

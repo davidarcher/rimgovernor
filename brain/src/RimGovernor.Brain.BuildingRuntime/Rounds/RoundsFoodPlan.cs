@@ -190,8 +190,7 @@ partial class Rounder
         if (p.ProductionBenches.TryGetValue(out var benches) && p.FoodSupply.TryGetValue(out human))
         {
             var ids = human.Consumers.Select(c => c.Id).ToList();
-            var (channel, channelOk) = HumanFoodPlanRules.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead());
-            if (channelOk)
+            if (HumanFoodPlanRules.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead()) is { } channel)
             {
                 channels.Add(channel);
             }

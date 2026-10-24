@@ -100,7 +100,7 @@ public sealed record AnimalAcquisition
 
         if (products && rate > feed)
         {
-            result = new AcquiredYield(Known(rate - feed), Unknown<long>(), productLead, feed);
+            result = new AcquiredYield(new YieldSupply.Steady(rate - feed), productLead, feed);
             return true;
         }
 
@@ -117,26 +117,20 @@ public sealed record AnimalAcquisition
             return false;
         }
 
-        result = new AcquiredYield(Unknown<double>(), Known((long)meat), leadDays, feed);
+        result = new AcquiredYield(new YieldSupply.Stock((long)meat), leadDays, feed);
         return true;
     }
 }
 
 /// <summary>What one acquired animal yields: a net rate or a stock.</summary>
-internal readonly record struct AcquiredYield(Fact<double> NutritionPerDay, Fact<long> Stock, double LeadDays, double Feed)
+internal readonly record struct AcquiredYield(YieldSupply Supply, double LeadDays, double Feed)
 {
     internal SupplyCandidate Channel(CandidateKind kind, string id, double upfront, IEnumerable<CandidateTerm> terms)
     {
-        var c = CandidateRules.FoodCandidate(kind, id, NutritionPerDay);
-        var yields = c.Yields.Items.ToBuilder();
-        yields[0] = yields[0] with { StockCap = Stock };
+        var c = CandidateRules.FoodCandidate(kind, id, Supply, CandidateState.Closed, new CandidateLead.Days(LeadDays), new CandidateWork.PerDay(0));
         return c with
         {
-            Yields = yields.ToImmutable(),
-            LaborPerDay = Known(0.0),
-            UpfrontCost = c.UpfrontCost with { LaborTicks = Known(upfront) },
-            LeadDays = Known(LeadDays),
-            State = CandidateRules.FoodState(Known(false), Unknown<bool>()),
+            UpfrontCost = c.UpfrontCost with { LaborTicks = upfront },
             Terms = EquatableArray.From(new[] { new CandidateTerm("feed_per_day", Feed) }.Concat(terms)),
         };
     }
@@ -150,10 +144,13 @@ public static class AnimalAcquireRules
     /// <summary>Ranks acquisitions of equal kind: yield (a rate, else a stock) per unit of upfront work.</summary>
     internal static double AcquisitionValue(SupplyCandidate c)
     {
-        c.Nutrition().PerDay.TryGetValue(out var n);
-        c.Nutrition().StockCap.TryGetValue(out var s);
-        c.UpfrontCost.LaborTicks.TryGetValue(out var u);
-        return (n + s) / Math.Max(1, u);
+        c.NutritionRate(out var n);
+        long s = 0;
+        if (c.Nutrition() is { } y)
+        {
+            y.StockOf(out s);
+        }
+        return (n + s) / Math.Max(1, c.UpfrontCost.LaborTicks);
     }
 
     /// <summary>
@@ -174,7 +171,7 @@ public static class AnimalAcquireRules
         bool rate = false, stock = false;
         foreach (var c in sorted)
         {
-            var isRate = c.Nutrition().PerDay.IsKnown;
+            var isRate = c.NutritionRate(out _);
             if (isRate && !rate)
             {
                 output.Add(c);

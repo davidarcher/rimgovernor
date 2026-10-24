@@ -58,13 +58,15 @@ public static class HuntPlanningRules
         var estimate = selected.Estimate!;
         var prey = roster.Prey.Select(id => sources.FirstOrDefault(s => s.Id == id)).Where(s => s is not null).Select(s => s!).ToArray();
         var downed = estimate.DownedChance;
-        var c = CandidateRules.FoodCandidate(CandidateKind.Hunt, "roster:" + roster.Key, Unknown<double>());
+        var supply = new YieldSupply.Bounded(estimate.ExpectedNutrition / FoodPlanRules.FoodHuntCycleDays, (long)Math.Ceiling(estimate.ExpectedNutrition));
+        var c = CandidateRules.FoodCandidate(
+            CandidateKind.Hunt,
+            "roster:" + roster.Key,
+            supply,
+            CandidateRules.FoodState(false, prey.Length > 0 && prey.All(s => s.Designated)),
+            new CandidateLead.Days(0),
+            new CandidateWork.PerDay(selected.LaborTicks / FoodPlanRules.FoodHuntCycleDays));
         var yields = new List<CandidateYield>(c.Yields);
-        yields[0] = yields[0] with
-        {
-            PerDay = Known(estimate.ExpectedNutrition / FoodPlanRules.FoodHuntCycleDays),
-            StockCap = Known((long)Math.Ceiling(estimate.ExpectedNutrition)),
-        };
         var products = new Dictionary<Resource, double>();
         foreach (var p in prey.SelectMany(s => s.Products))
         {
@@ -72,18 +74,15 @@ public static class HuntPlanningRules
         }
         foreach (var (def, amount) in products.OrderBy(p => p.Key.Value, StringComparer.Ordinal))
         {
-            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(amount / FoodPlanRules.FoodHuntCycleDays) });
+            yields.Add(CandidateRules.ProductYield(new ResourceKey { Def = def }, amount / FoodPlanRules.FoodHuntCycleDays));
         }
         return c with
         {
-            LeadDays = Known(0.0),
             Source = HuntCreditRules.HuntSource,
-            State = CandidateRules.FoodState(Known(false), Known(prey.Length > 0 && prey.All(s => s.Designated))),
             Prey = EquatableArray.From(roster.Prey.Order(StringComparer.Ordinal)),
             Hunters = EquatableArray.From(roster.Gunners.Order(StringComparer.Ordinal)),
             Retrievers = EquatableArray.From(roster.Retrievers.Order(StringComparer.Ordinal)),
             Yields = [.. yields],
-            LaborPerDay = Known(selected.LaborTicks / FoodPlanRules.FoodHuntCycleDays),
             Risk = [new CandidateRisk(CandidateRiskKind.Revenge, Math.Clamp(estimate.HarmChance, 0, 1))],
             Terms =
             [

@@ -73,31 +73,31 @@ public static class FishingRules
             {
                 throw new FoodPlanFactsException();
             }
-            var open = Known(false);
-            var designated = Known(region.Designated);
-            var channel = CandidateRules.FoodCandidate(CandidateKind.Fishing, region.Id, Unknown<double>());
+            var designated = region.Designated;
+            // With no fisher the catch and its work are unpriced until a crew is read.
+            var channel = CandidateRules.FoodCandidate(CandidateKind.Fishing, region.Id, new YieldSupply.Unpriced(), CandidateState.Closed, new CandidateLead.Unscheduled(), new CandidateWork.Unpriced());
             var terms = new List<CandidateTerm> { new("fish_regeneration_fraction", FishingRegenerationPerDay) };
-            channel = channel with { Source = region.Source, DistanceSquared = Known(region.DistanceSquared) };
+            channel = channel with { Source = region.Source, Nearness = new SourceNearness.Measured(region.DistanceSquared) };
             switch (r.Research)
             {
                 case FishingResearch.Researched:
-                    channel = channel with { LeadDays = Known(0.0) };
+                    channel = channel with { Lead = new CandidateLead.Days(0) };
                     break;
                 case FishingResearch.Pending pending:
-                    channel = channel with { LeadDays = Known(pending.LeadDays) };
-                    designated = Known(false);
+                    channel = channel with { Lead = new CandidateLead.Days(pending.LeadDays) };
+                    designated = false;
                     terms.Add(new CandidateTerm("fishing_research_required", 1));
                     break;
                 case FishingResearch.NoProgress:
-                    designated = Known(false);
+                    designated = false;
                     terms.Add(new CandidateTerm("fishing_research_required", 1));
                     break;
             }
             if (!region.Reachable || region.Frozen || population == 0 || maximum == 0)
             {
                 // Preserve an explicit explanation without presenting an unusable region as an observed-open source of food.
-                designated = Known(false);
-                channel = WithFirstYield(channel, Known(0.0), Known(0.0));
+                designated = false;
+                channel = WithFirstYield(channel, 0, 0);
                 if (!region.Reachable)
                 {
                     terms.Add(new CandidateTerm("fishing_unreachable", 1));
@@ -110,7 +110,7 @@ public static class FishingRules
             else if (population <= maximum * ZoneCreateConstants.FishingPopulationFloor)
             {
                 // Native pauses fishing at or below the floor until the lake regrows: no catch, so the zone is not delivering meanwhile.
-                channel = WithFirstYield(channel, Known(0.0), Known(0.0));
+                channel = WithFirstYield(channel, 0, 0);
                 terms.Add(new CandidateTerm("fishing_below_floor", population / maximum));
             }
             else if (region.Crew is FishingCrew.Fishers fishers)
@@ -128,17 +128,17 @@ public static class FishingRules
                 {
                     throw new FoodPlanFactsException();
                 }
-                channel = WithFirstYield(channel, Known(dailyNutrition), Known(dailyWork));
+                channel = WithFirstYield(channel, dailyNutrition, dailyWork);
                 terms.Add(new CandidateTerm("fish_draw_per_day", draw));
                 terms.Add(new CandidateTerm("fish_per_batch", fishers.FishPerBatch));
             }
-            channels.Add(channel with { Terms = [.. terms], State = CandidateRules.FoodState(open, designated) });
+            channels.Add(channel with { Terms = [.. terms], State = CandidateRules.FoodState(false, designated) });
         }
         return channels;
     }
     /// <summary>Sets the first yield's per-day rate and the channel's daily labor.</summary>
-    private static SupplyCandidate WithFirstYield(SupplyCandidate channel, Fact<double> perDay, Fact<double> laborPerDay) =>
-        channel with { Yields = [channel.Yields[0] with { PerDay = perDay }, .. channel.Yields.Skip(1)], LaborPerDay = laborPerDay };
+    private static SupplyCandidate WithFirstYield(SupplyCandidate channel, double perDay, double laborPerDay) =>
+        channel.WithNutritionSupply(new YieldSupply.Steady(perDay)) with { Work = new CandidateWork.PerDay(laborPerDay) };
 
 
     /// <summary>

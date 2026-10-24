@@ -41,13 +41,10 @@ public static partial class MealRules
             var amount = amounts.GetValueOrDefault(kind);
             if (amount > 0)
             {
-                var row = CandidateRules.FoodCandidate(kind, "stored-ingredients", Known(0.0));
+                var row = CandidateRules.FoodCandidate(kind, "stored-ingredients", new YieldSupply.Steady(0), CandidateState.Delivering, new CandidateLead.Days(0), new CandidateWork.PerDay(0));
                 rows.Add(
                     row with
                     {
-                        LaborPerDay = Known(0.0),
-                        LeadDays = Known(0.0),
-                        State = CandidateRules.FoodState(Known(true), Unknown<bool>()),
                         Terms = EquatableArray.From([new CandidateTerm("accessible_ingredient_nutrition", amount)]),
                     }
                 );

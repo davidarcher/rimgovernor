@@ -85,7 +85,7 @@ public sealed class EssentialServicesTests
 
     private static RoundsFacts Kitchen(bool secondChain = false) => Facts() with
     {
-        FoodPlan = Known(new FoodPlan { Portfolio = [new() { Channel = new() { Kind = CandidateKind.Cook, Id = "cooking-capacity" }, Decision = FoodPlanDecision.Open }] }),
+        FoodPlan = Known(new FoodPlan { Portfolio = [new() { Channel = CandidateRules.FoodCandidate(CandidateKind.Cook, "cooking-capacity", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] }),
         ForecastObserved = new() { WorkPawns = Known<EquatableArray<WorkPawn>>([
             Cook("expert", 8), Cook("learner", 1)]) },
         WorkClaims = new([], [], [], []),

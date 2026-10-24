@@ -84,10 +84,10 @@ public sealed class StuffArrival(IReadOnlyDictionary<Resource, long> stock, IRea
         var sources = new List<(double Lead, long Units)>();
         foreach (var c in supply)
         {
-            var yielded = c.Yields.Where(y => y.Good.Def == stuff && y.StockCap.IsKnown).Sum(y => y.StockCap.Value);
-            if (yielded > 0 && c.LeadDays.TryGetValue(out var lead))
+            var yielded = c.Yields.Where(y => y.Good.Def == stuff).Sum(y => y.StockOf(out var cap) ? cap : 0);
+            if (yielded > 0 && c.Lead is CandidateLead.Days lead)
             {
-                sources.Add((Math.Max(0, lead), yielded));
+                sources.Add((Math.Max(0, lead.Value), yielded));
             }
         }
         foreach (var (lead, yielded) in sources.OrderBy(s => s.Lead))
@@ -305,20 +305,25 @@ public static class ClothingDemandRules
         {
             Kind = CandidateKind.Harvest,
             Id = id,
-            State = Known(CandidateState.Closed),
+            State = CandidateState.Closed,
             Yields = EquatableArray.From(
                 [
                     new CandidateYield
                     {
                         Good = new ResourceKey { Def = resource },
-                        PerDay = Known(units / f.GrowDays),
-                        StockCap = Known((long)units),
+                        Supply = new YieldSupply.Bounded(units / f.GrowDays, (long)units),
+                        UnitValue = 0,
+                        Storage = new YieldStorage.InPlace(),
                     },
                 ]
             ),
-            LeadDays = Known(f.GrowDays),
-            LaborPerDay = Known(f.WorkPerDay),
-            UpfrontCost = new CandidateCost { LaborTicks = Known(f.SetupTicks) },
+            Lead = new CandidateLead.Days(f.GrowDays),
+            Work = new CandidateWork.PerDay(f.WorkPerDay),
+            UpfrontCost = new CandidateCost { LaborTicks = f.SetupTicks },
+            Path = new CandidatePath.Unwalked(),
+            Nearness = new SourceNearness.Unmeasured(),
+            NeedsHaul = false,
+            UnitsPerTrip = 0,
         };
     }
 
@@ -328,7 +333,7 @@ public static class ClothingDemandRules
     /// </summary>
     public static SupplyCandidate? GrowingFieldCandidate(Resource resource, string id, double units, Fact<double> lead)
     {
-        if (!(units >= 1) || !lead.IsKnown)
+        if (!(units >= 1) || !lead.TryGetValue(out var days))
         {
             return null;
         }
@@ -336,9 +341,15 @@ public static class ClothingDemandRules
         {
             Kind = CandidateKind.Harvest,
             Id = id,
-            State = Known(CandidateState.Delivering),
-            Yields = [new CandidateYield { Good = new ResourceKey { Def = resource }, StockCap = Known((long)units) }],
-            LeadDays = lead,
+            State = CandidateState.Delivering,
+            Yields = [new CandidateYield { Good = new ResourceKey { Def = resource }, Supply = new YieldSupply.Stock((long)units), UnitValue = 0, Storage = new YieldStorage.InPlace() }],
+            Lead = new CandidateLead.Days(days),
+            Work = new CandidateWork.Unpriced(),
+            UpfrontCost = new CandidateCost { LaborTicks = 0 },
+            Path = new CandidatePath.Unwalked(),
+            Nearness = new SourceNearness.Unmeasured(),
+            NeedsHaul = false,
+            UnitsPerTrip = 0,
         };
     }
 
@@ -348,11 +359,23 @@ public static class ClothingDemandRules
     /// </summary>
     public static SupplyCandidate? CorpseYieldCandidate(string id, EquatableArray<SourceProduct> butchery, double leadDays)
     {
-        var yields = butchery.Where(p => p.Amount >= 1)
-            .Select(p => new CandidateYield { Good = new ResourceKey { Def = p.Def }, StockCap = Known((long)p.Amount) })
-            .ToArray();
-        return yields.Length > 0 ? CandidateRules.SourceCandidate(CandidateKind.Corpse, id, Unknown<double>(), Unknown<double>(), true, 0, yields) with { LeadDays = Known(leadDays) } : null;
+        var yields = ButcheryYields(butchery);
+        return yields.Length > 0 ? ButcheryCandidate(CandidateKind.Corpse, id, leadDays, yields) : null;
     }
+
+    /// <summary>A butchery's products as stock yields, hauled to storage the arrival does not read.</summary>
+    private static CandidateYield[] ButcheryYields(IEnumerable<SourceProduct> products) =>
+        products.Where(p => p.Amount >= 1)
+            .Select(p => CandidateRules.SourceYield(new ResourceKey { Def = p.Def }, (long)p.Amount, 0, new YieldStorage.Unread()))
+            .ToArray();
+
+    /// <summary>A butchery's arrival: its products at <paramref name="leadDays"/>, its work, walk and carry capacity unpriced.</summary>
+    private static SupplyCandidate ButcheryCandidate(CandidateKind kind, string id, double leadDays, CandidateYield[] yields) =>
+        CandidateRules.SourceCandidate(kind, id, 0, new CandidatePath.Unwalked(), true, 0, yields) with
+        {
+            Lead = new CandidateLead.Days(leadDays),
+            Work = new CandidateWork.Unpriced(),
+        };
 
     /// <summary>
     /// A huntable animal as the arrival of what its butchery yields besides meat (its leather), at the hunt channel's lead
@@ -360,11 +383,7 @@ public static class ClothingDemandRules
     /// </summary>
     public static SupplyCandidate? HuntYieldCandidate(AcquisitionSource s)
     {
-        var yields = s.Products.Where(p => p.Amount >= 1)
-            .Select(p => new CandidateYield { Good = new ResourceKey { Def = p.Def }, StockCap = Known((long)p.Amount) })
-            .ToArray();
-        return s.Hunt && yields.Length > 0
-            ? CandidateRules.SourceCandidate(CandidateKind.Hunt, s.Id, Unknown<double>(), Unknown<double>(), true, 0, yields)
-            : null;
+        var yields = ButcheryYields(s.Products);
+        return s.Hunt && yields.Length > 0 ? ButcheryCandidate(CandidateKind.Hunt, s.Id, 0, yields) : null;
     }
 }

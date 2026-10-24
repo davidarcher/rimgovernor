@@ -266,10 +266,10 @@ internal static class ReadProjections
                     c.Id,
                     row.Decision.ToString(),
                     row.Reason,
-                    Value(c.Nutrition().PerDay),
-                    Value(c.LaborPerDay),
-                    Value(c.LeadDays),
-                    Value(c.Open()),
+                    c.NutritionRate(out var rate) ? rate : null,
+                    c.WorkRate(out var work) ? work : null,
+                    c.Lead is CandidateLead.Days lead ? lead.Value : null,
+                    c.Open(),
                     row.DeliveredPerDay,
                     [.. row.Terms.Select(t => new CandidateTermDto(t.Name, t.Value))]);
             })];

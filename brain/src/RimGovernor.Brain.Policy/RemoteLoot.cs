@@ -88,14 +88,6 @@ public static partial class RemoteRules
     internal static string RemoteLootReachHold(RemoteWorkRequest r) => RemoteThreatHold(r.Safety);
 
     /// <summary>
-    /// A stack as a supply candidate: its census count, hauled to the storage headroom the census reports,
-    /// no labor beyond the haul.
-    /// </summary>
-    internal static SupplyCandidate LootCandidate(LootItem row) =>
-        CandidateRules.SourceCandidate(CandidateKind.Loot, row.Supply.Thing, Known(0.0), row.PathLength, true, LootUnitsPerTrip,
-            CandidateRules.SourceYield(new ResourceKey { Def = new Resource(row.Supply.Definition) }, row.Count, 0, row.StorageHeadroom));
-
-    /// <summary>
     /// The remote request the loot filter runs against: safety and the derived extent from the review facts,
     /// and the urgent work competing for the colonists.
     /// </summary>

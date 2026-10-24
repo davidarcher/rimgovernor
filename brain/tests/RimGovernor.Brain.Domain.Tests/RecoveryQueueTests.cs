@@ -22,15 +22,14 @@ public sealed class RecoveryQueueTests
         Cell = new Cell(10, 10),
         Evidenced = true,
         RouteSafe = Known(true),
-        Candidate = new SupplyCandidate
-        {
-            Kind = CandidateKind.Salvage,
-            Id = id,
-            Yields = EquatableArray.From(new List<CandidateYield>
-            {
-                new() { Good = new ResourceKey { Def = Steel }, StockCap = Known(20L), Headroom = Known(100L) },
-            }),
-        },
+        Candidate = CandidateRules.SourceCandidate(
+            CandidateKind.Salvage,
+            id,
+            0,
+            new CandidatePath.Unwalked(),
+            true,
+            0,
+            CandidateRules.SourceYield(new ResourceKey { Def = Steel }, 20, 0, new YieldStorage.Accepts(100))),
     };
 
     [Fact]

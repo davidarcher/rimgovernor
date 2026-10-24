@@ -8,7 +8,7 @@ public sealed record SalvageEvidence
 {
     public Fact<bool> Safe { get; init; }
 
-    public SupplyCandidate Candidate { get; init; } = new();
+    public required SupplyCandidate Candidate { get; init; }
 }
 
 public static partial class RemoteRules
@@ -29,7 +29,7 @@ public static partial class RemoteRules
         var yields = new List<CandidateYield>();
         foreach (var y in e.Candidate.Yields)
         {
-            if (y.StockCap.TryGetValue(out var n) && n > 0 && resources.Contains(y.Good.Def))
+            if (y.StockOf(out var n) && n > 0 && resources.Contains(y.Good.Def))
             {
                 yields.Add(y);
             }

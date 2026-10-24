@@ -31,7 +31,8 @@ public sealed class FoodChannelPolicyTests
     {
         var channel = Assert.Single(FishingRules.FishingChannels(new FishingRequest { Regions = [Lake(capacity)], Research = new FishingResearch.Researched() }));
 
-        Assert.Equal(want, channel.Yields[0].PerDay.ValueOrDefault, 9);
+        Assert.True(channel.NutritionRate(out var rate));
+        Assert.Equal(want, rate, 9);
     }
 
     [Fact]

@@ -33,22 +33,11 @@ public static class AcquisitionCatalogRules
     /// <summary>Bounds one acquisition method, matching SelectResourceSources' native selection cap.</summary>
     public const int MaxCatalogSelection = 8;
 
-    internal static Fact<double> CatalogLabor(CandidateKind kind, long units) =>
-        Known(AcquisitionLaborPerUnit.GetValueOrDefault(kind) * Math.Max(units, 1));
-
-    /// <summary>The one-row demand an economy/resource floor ranks candidates against.</summary>
-    public static Fact<EquatableArray<ResourceDemand>> ResourceDeficitDemand(Resource resource, long deficit)
-    {
-        if (deficit <= 0)
-        {
-            return Known(new EquatableArray<ResourceDemand>());
-        }
-
-        return Known(EquatableArray.From([new ResourceDemand { Key = new ResourceKey { Def = resource }, Count = deficit }]));
-    }
+    internal static double CatalogLabor(CandidateKind kind, long units) =>
+        AcquisitionLaborPerUnit.GetValueOrDefault(kind) * Math.Max(units, 1);
 
     /// <summary>The catalog rows of selected native mine sources; headroom is the storage accepting the output.</summary>
-    public static IReadOnlyList<SupplyCandidate> MineCandidates(Resource resource, IEnumerable<ResourceSource> sources, Fact<long> headroom)
+    public static IReadOnlyList<SupplyCandidate> MineCandidates(Resource resource, IEnumerable<ResourceSource> sources, YieldStorage headroom)
     {
         var output = new List<SupplyCandidate>();
         foreach (var s in sources)
@@ -63,7 +52,7 @@ public static class AcquisitionCatalogRules
                     CandidateKind.Mining,
                     s.ThingId,
                     CatalogLabor(CandidateKind.Mining, s.Yield),
-                    Known(s.Distance),
+                    new CandidatePath.Walk(s.Distance),
                     true,
                     AcquisitionUnitsPerTrip,
                     CandidateRules.SourceYield(new ResourceKey { Def = resource }, s.Yield, 0, headroom)
@@ -79,11 +68,11 @@ public static class AcquisitionCatalogRules
     /// charged. Every ingredient of the recipe is its upfront resource cost, so the plan prices the bill against
     /// the stock the colony holds (UsableIngredients).
     /// </summary>
-    public static bool ProduceCandidate(ResourceMethod m, long units, out SupplyCandidate candidate)
+    public static bool ProduceCandidate(ResourceMethod m, long units, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SupplyCandidate? candidate)
     {
         if (m.Kind != ResourceMethodKind.Produce || units <= 0)
         {
-            candidate = new SupplyCandidate();
+            candidate = null;
             return false;
         }
 
@@ -91,10 +80,10 @@ public static class AcquisitionCatalogRules
             CandidateKind.Produce,
             m.Bench + "/" + m.Recipe,
             CatalogLabor(CandidateKind.Produce, units),
-            Known(0.0),
+            new CandidatePath.Walk(0),
             false,
             0,
-            CandidateRules.SourceYield(new ResourceKey { Def = m.Resource }, units, 0, Unknown<long>())
+            CandidateRules.SourceYield(new ResourceKey { Def = m.Resource }, units, 0, new YieldStorage.InPlace())
         );
         var resources = new List<ResourceQuantity>(c.UpfrontCost.Resources);
         foreach (var ingredient in m.Ingredients)
@@ -158,7 +147,7 @@ public static class AcquisitionCatalogRules
         Resource resource,
         IEnumerable<AcquisitionSource> sources,
         Cell home,
-        Fact<long> headroom
+        YieldStorage headroom
     )
     {
         var output = new List<SupplyCandidate>();
@@ -182,13 +171,13 @@ public static class AcquisitionCatalogRules
                 kind = CandidateKind.Chop;
             }
 
-            CatalogLabor(kind, units).TryGetValue(out var labor);
+            var labor = CatalogLabor(kind, units);
             output.Add(
                 CandidateRules.SourceCandidate(
                     kind,
                     s.Id,
-                    Known(labor * (1 + (2 * risk))),
-                    Known(Math.Sqrt(Math.Pow(s.Cell.X - home.X, 2) + Math.Pow(s.Cell.Z - home.Z, 2))),
+                    labor * (1 + (2 * risk)),
+                    new CandidatePath.Walk(Math.Sqrt(Math.Pow(s.Cell.X - home.X, 2) + Math.Pow(s.Cell.Z - home.Z, 2))),
                     true,
                     AcquisitionUnitsPerTrip,
                     CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, headroom)
@@ -200,11 +189,11 @@ public static class AcquisitionCatalogRules
     }
 
     /// <summary>The catalog row of a drill over a deep lump: units is the lump's yield toward the deficit, distance from home.</summary>
-    public static bool DeepDrillCandidate(Resource resource, string id, long units, double distance, Fact<long> headroom, out SupplyCandidate candidate)
+    public static bool DeepDrillCandidate(Resource resource, string id, long units, double distance, YieldStorage headroom, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SupplyCandidate? candidate)
     {
         if (units <= 0)
         {
-            candidate = new SupplyCandidate();
+            candidate = null;
             return false;
         }
 
@@ -212,7 +201,7 @@ public static class AcquisitionCatalogRules
             CandidateKind.DeepDrill,
             id,
             CatalogLabor(CandidateKind.DeepDrill, units),
-            Known(distance),
+            new CandidatePath.Walk(distance),
             true,
             AcquisitionUnitsPerTrip,
             CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, headroom)
@@ -224,22 +213,22 @@ public static class AcquisitionCatalogRules
     /// The catalog row of buying units of resource from a caravan at price silver each; the goods drop at the
     /// colony, so no haul is charged. Its ID names the trader and the resource (TradeCandidateID), one row per pair.
     /// </summary>
-    public static bool TradeCandidate(Resource resource, string trader, long units, double price, out SupplyCandidate candidate)
+    public static bool TradeCandidate(Resource resource, string trader, long units, double price, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SupplyCandidate? candidate)
     {
         if (units <= 0 || !(price >= 0))
         {
-            candidate = new SupplyCandidate();
+            candidate = null;
             return false;
         }
 
         candidate = CandidateRules.SourceCandidate(
             CandidateKind.Trade,
             TradePolicyRules.TradeCandidateID(trader, resource),
-            Known(price * units * TradeLaborPerSilver),
-            Known(0.0),
+            price * units * TradeLaborPerSilver,
+            new CandidatePath.Walk(0),
             false,
             0,
-            CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, Unknown<long>())
+            CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, new YieldStorage.InPlace())
         );
         return true;
     }

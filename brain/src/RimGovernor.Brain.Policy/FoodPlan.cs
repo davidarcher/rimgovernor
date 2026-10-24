@@ -37,7 +37,7 @@ public enum FoodPlanDecision
 
 public sealed record FoodPlanEntry
 {
-    public SupplyCandidate Channel { get; init; } = new();
+    public required SupplyCandidate Channel { get; init; }
 
     /// <summary>Hold preserves current state: keep an open channel or defer a closed one.</summary>
     public FoodPlanDecision Decision { get; init; }
@@ -277,11 +277,8 @@ public static class FoodPlanRules
     /// preconditions.
     /// </summary>
     public static SupplyCandidate FoodSupportCandidate(CandidateKind kind, string id) =>
-        CandidateRules.FoodCandidate(kind, id, Known(0.0)) with
+        CandidateRules.FoodCandidate(kind, id, new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)) with
         {
-            LaborPerDay = Known(0.0),
-            LeadDays = Known(0.0),
-            State = CandidateRules.FoodState(Known(false), Unknown<bool>()),
             Terms = EquatableArray.From([new CandidateTerm("supporting_method", 1)]),
         };
 
@@ -292,11 +289,14 @@ public static class FoodPlanRules
         {
             if (s.Food && !s.Tree && !s.Hunt)
             {
-                var c = CandidateRules.FoodCandidate(CandidateKind.Forage, s.Id, Known(s.NutritionYield / FoodForageCycleDays)) with
+                var c = CandidateRules.FoodCandidate(
+                    CandidateKind.Forage,
+                    s.Id,
+                    new YieldSupply.Steady(s.NutritionYield / FoodForageCycleDays),
+                    CandidateRules.FoodState(false, s.Designated),
+                    new CandidateLead.Days(0),
+                    new CandidateWork.PerDay(FoodForageWorkTicks / FoodForageCycleDays)) with
                 {
-                    LaborPerDay = Known(FoodForageWorkTicks / FoodForageCycleDays),
-                    LeadDays = Known(0.0),
-                    State = CandidateRules.FoodState(Known(false), Known(s.Designated)),
                     Terms = EquatableArray.From([new CandidateTerm("estimated_cycle_days", FoodForageCycleDays), new CandidateTerm("estimated_work_ticks", FoodForageWorkTicks)]),
                 };
                 if (s.Definition.Length != 0)
@@ -332,17 +332,18 @@ public static class FoodPlanRules
             {
                 continue;
             }
-            var c = PriceCrop(f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking);
             var lead = CropRiskRules.WithCropPause(f.RemainingGrowDays, season.Conditions);
-            c = c with { Id = f.Id, LeadDays = lead, Source = "crop:" + f.Id };
-            c = c with { Risk = EquatableArray.From(CropRiskRules.CropRisks(season, lead, f.Exposure)), State = CandidateRules.FoodState(Known(false), Known(true)) };
-            @out.Add(c);
+            var c = PriceCrop(f.Id, f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking, lead, CandidateState.Designated);
+            @out.Add(c with { Source = "crop:" + f.Id, Risk = EquatableArray.From(CropRiskRules.CropRisks(season, lead, f.Exposure)) });
         }
         return @out;
     }
 
-    /// <summary>The nutrition, work and rot cap of cells of crop, shared by a planted field and a candidate one. baseWork is the daily harvest work.</summary>
-    private static SupplyCandidate PriceCrop(CropChoice crop, int cells, Fact<double> baseWork, Fact<CropCooking> cooking)
+    /// <summary>
+    /// The nutrition, work and rot cap of cells of crop, shared by a planted field and a candidate one. baseWork is the
+    /// daily harvest work; an unread work, nutrition or lead is the candidate's unpriced or unscheduled state.
+    /// </summary>
+    private static SupplyCandidate PriceCrop(string id, CropChoice crop, int cells, Fact<double> baseWork, Fact<CropCooking> cooking, Fact<double> lead, CandidateState state)
     {
         var ek = crop.Edible.TryGetValue(out _);
         var yk = crop.HarvestNutrition.TryGetValue(out var yield);
@@ -377,24 +378,25 @@ public static class FoodPlanRules
                 }
             }
         }
-        var c = CandidateRules.FoodCandidate(CandidateKind.Crop, "", nutrition) with { LaborPerDay = work };
         if (dk && FieldCapacityRules.FieldPositive(days))
         {
             terms.Add(new CandidateTerm("grow_days", days));
         }
-        if (nutrition.TryGetValue(out var n) && FoodForecastRules.FoodNumber(n))
+        YieldSupply supply = new YieldSupply.Unpriced();
+        if (nutrition.TryGetValue(out var n))
         {
+            supply = new YieldSupply.Steady(n);
             var rk = crop.RotDays.TryGetValue(out var rot);
             var pk = crop.Perishable.TryGetValue(out var perishable);
-            if (rk && pk && perishable && FieldCapacityRules.FieldPositive(rot))
+            if (FoodForecastRules.FoodNumber(n) && rk && pk && perishable && FieldCapacityRules.FieldPositive(rot))
             {
-                var yields = c.Yields.Items.ToBuilder();
-                yields[0] = yields[0] with { StockCap = Known((long)Math.Ceiling(n * rot)) };
-                c = c with { Yields = yields.ToImmutable() };
+                supply = new YieldSupply.Bounded(n, (long)Math.Ceiling(n * rot));
                 terms.Add(new CandidateTerm("rot_days", rot));
             }
         }
-        return c with { Terms = EquatableArray.From(terms) };
+        CandidateWork labor = work.TryGetValue(out var perDay) ? new CandidateWork.PerDay(perDay) : new CandidateWork.Unpriced();
+        CandidateLead first = lead.TryGetValue(out var leadDays) ? new CandidateLead.Days(leadDays) : new CandidateLead.Unscheduled();
+        return CandidateRules.FoodCandidate(CandidateKind.Crop, id, supply, state, first, labor) with { Terms = EquatableArray.From(terms) };
     }
 
     /// <summary>The sowing work of one cell (a typical plant's sowWork); the zone itself costs no work.</summary>
@@ -446,17 +448,14 @@ public static class FoodPlanRules
             {
                 work = Known(harvest * v.Needed / v.Days);
             }
-            var c = PriceCrop(v.Crop, v.Needed, work, cooking);
             var lead = CropRiskRules.WithCropPause(NewFieldLeadDays(v.Crop.GrowDays, r.Calendar), r.Conditions);
+            var c = PriceCrop(NewFieldPrefix + v.Crop.Name, v.Crop, v.Needed, work, cooking, lead, CandidateState.Closed);
             // A field not yet sown lies under open sky and carries no blight.
             var open = Known((long)v.Needed);
             c = c with
             {
-                Id = NewFieldPrefix + v.Crop.Name,
-                LeadDays = lead,
                 Risk = EquatableArray.From(CropRiskRules.CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure { ZoneCells = open, UnroofedCells = open })),
-                UpfrontCost = c.UpfrontCost with { LaborTicks = Known(v.Needed * FieldSowTicksPerCell) },
-                State = CandidateRules.FoodState(Known(false), Known(false)),
+                UpfrontCost = c.UpfrontCost with { LaborTicks = v.Needed * FieldSowTicksPerCell },
                 Terms = EquatableArray.From(c.Terms.Append(new CandidateTerm("new_field_cells", v.Needed))),
             };
             @out.Add(c);

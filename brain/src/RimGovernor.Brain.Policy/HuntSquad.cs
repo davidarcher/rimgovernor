@@ -54,7 +54,6 @@ public static class HuntSquadRules
         double nutrition = 0, work = 0, risk = 0, exposure = 0;
         var products = new Dictionary<Resource, double>();
         var defs = new List<Resource>();
-        var c = CandidateRules.FoodCandidate(CandidateKind.Hunt, id, Unknown<double>());
         var designated = true;
         foreach (var s in prey)
         {
@@ -72,16 +71,11 @@ public static class HuntSquadRules
                 products[p.Def] = products.GetValueOrDefault(p.Def) + p.Amount;
             }
         }
-        var yields = new List<CandidateYield>(c.Yields);
         // The animals in reach are all the candidate can deliver: a finite source.
-        yields[0] = yields[0] with
-        {
-            PerDay = Known(nutrition / FoodPlanRules.FoodHuntCycleDays),
-            StockCap = Known((long)Math.Ceiling(nutrition)),
-        };
+        var yields = new List<CandidateYield> { CandidateRules.NutritionYield(new YieldSupply.Bounded(nutrition / FoodPlanRules.FoodHuntCycleDays, (long)Math.Ceiling(nutrition))) };
         foreach (var def in defs)
         {
-            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(products[def] / FoodPlanRules.FoodHuntCycleDays) });
+            yields.Add(CandidateRules.ProductYield(new ResourceKey { Def = def }, products[def] / FoodPlanRules.FoodHuntCycleDays));
         }
         var terms = new List<CandidateTerm>
         {
@@ -97,14 +91,17 @@ public static class HuntSquadRules
             terms.Add(new CandidateTerm("herd_size", s.HerdSize));
             terms.Add(new CandidateTerm("weapon_range", s.WeaponRange));
         }
-        var laborPerDay = Known(work / FoodPlanRules.FoodHuntCycleDays);
+        var c = CandidateRules.FoodCandidate(
+            CandidateKind.Hunt,
+            id,
+            yields[0].Supply,
+            CandidateRules.FoodState(false, designated),
+            new CandidateLead.Days(0),
+            new CandidateWork.PerDay(work / FoodPlanRules.FoodHuntCycleDays));
         return c with
         {
-            LeadDays = Known(0.0),
             Source = HuntCreditRules.HuntSource,
-            State = CandidateRules.FoodState(Known(false), Known(designated)),
             Yields = [.. yields],
-            LaborPerDay = laborPerDay,
             Risk = [new CandidateRisk(CandidateRiskKind.Revenge, Math.Min(1, exposure))],
             Terms = [.. terms],
         };

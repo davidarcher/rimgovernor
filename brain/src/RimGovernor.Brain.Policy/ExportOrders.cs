@@ -405,13 +405,12 @@ public static class ExportOrdersRules
         var found = false;
         foreach (var s in sources ?? [])
         {
-            var lk = s.UpfrontCost.LaborTicks.TryGetValue(out var labor);
-            var pk = s.PathDistance.TryGetValue(out var path);
-            if (s.Yields.Count == 0 || !lk || !pk)
+            var labor = s.UpfrontCost.LaborTicks;
+            if (s.Yields.Count == 0 || s.Path is not CandidatePath.Walk { Distance: var path })
             {
                 continue;
             }
-            if (!s.Yields[0].StockCap.TryGetValue(out var units) || units <= 0)
+            if (!s.Yields[0].StockOf(out var units) || units <= 0)
             {
                 continue;
             }

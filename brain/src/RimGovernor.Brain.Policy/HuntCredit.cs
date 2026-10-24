@@ -158,7 +158,7 @@ public static class HuntCreditRules
         {
             if (HuntScales(c))
             {
-                c.Nutrition().PerDay.TryGetValue(out var n);
+                c.NutritionRate(out var n);
                 rate += n;
                 prey += HuntPreyCount(c);
             }
@@ -181,13 +181,12 @@ public static class HuntCreditRules
                 @out.Add(c);
                 continue;
             }
-            var w = c.LaborPerDay.ValueOrDefault;
-            var yields = c.Yields.Select(y => y.PerDay.TryGetValue(out var pd) ? y with { PerDay = Known(pd * share) } : y);
+            var yields = c.Yields.Select(y => y with { Supply = y.Supply.ScaledRate(share) });
             @out.Add(
                 c with
                 {
                     Yields = EquatableArray.From(yields),
-                    LaborPerDay = Known(w * share),
+                    Work = c.Work is CandidateWork.PerDay w ? new CandidateWork.PerDay(w.Ticks * share) : c.Work,
                     Terms = EquatableArray.From(c.Terms.Append(new CandidateTerm("hunt_throughput_share", share))),
                 }
             );
@@ -202,7 +201,7 @@ public static class HuntCreditRules
         {
             return false;
         }
-        if (!c.Nutrition().PerDay.TryGetValue(out var n) || n <= 0)
+        if (!c.NutritionRate(out var n) || n <= 0)
         {
             return false;
         }

@@ -218,7 +218,7 @@ public sealed class HuntAdmission
             var c = @out[i];
             if (c.Kind == CandidateKind.Hunt && c.Mode() == HuntMode.Formation && c.Prey.Any(_admitted.Contains))
             {
-                @out[i] = c with { State = CandidateRules.FoodState(Known(false), Known(true)) };
+                @out[i] = c with { State = CandidateRules.FoodState(false, true) };
             }
         }
         return @out;

@@ -30,7 +30,7 @@ public sealed class CombatNeedTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Open("rg-combat-hunt-", ct);
-        var formation = new SupplyCandidate { Kind = CandidateKind.Hunt, Id = "roster:a>boar", Prey = ["boar"], Hunters = ["a"] };
+        var formation = CandidateRules.FoodCandidate(CandidateKind.Hunt, "roster:a>boar", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)) with { Prey = ["boar"], Hunters = ["a"] };
         var opened = Known(new FoodPlan { Portfolio = [new() { Channel = formation, Decision = FoodPlanDecision.Open }] });
         var standing = Reviewed(journal, World, 0, 100, ct, opened).Review.Combat;
         Assert.Equal(Situation.Active, standing?.Situation);

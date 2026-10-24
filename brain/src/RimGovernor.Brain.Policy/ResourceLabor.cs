@@ -27,25 +27,18 @@ public static partial class ResourceRules
                 {
                     continue;
                 }
-                var stateKnown = e.Channel.State.TryGetValue(out var state);
-                var committed = e.Selected || (stateKnown && state != CandidateState.Closed);
-                if (!committed)
+                if (!e.Selected && e.Channel.State == CandidateState.Closed)
                 {
-                    if (!stateKnown)
-                    {
-                        known = false;
-                    }
                     continue;
                 }
-                var workKnown = e.Channel.LaborPerDay.TryGetValue(out var work);
-                if (workKnown && !FoodForecastRules.FoodNumber(work))
-                {
-                    throw new SupplyPlanFactsException();
-                }
-                if (!workKnown)
+                if (e.Channel.Work is not CandidateWork.PerDay { Ticks: var work })
                 {
                     known = false;
                     continue;
+                }
+                if (!FoodForecastRules.FoodNumber(work))
+                {
+                    throw new SupplyPlanFactsException();
                 }
                 var id = (Wire.Name(e.Channel.Kind), e.Channel.Id);
                 if (charged.Add(id))

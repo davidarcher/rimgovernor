@@ -227,7 +227,7 @@ internal sealed record FoodPlanEntryDto(
     double? NutritionPerDay,
     double? WorkPerDay,
     double? LeadDays,
-    bool? Open,
+    bool Open,
     double DeliveredPerDay,
     IReadOnlyList<CandidateTermDto> Terms);
 

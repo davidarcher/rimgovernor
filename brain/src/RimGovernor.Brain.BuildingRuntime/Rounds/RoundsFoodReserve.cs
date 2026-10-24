@@ -42,7 +42,7 @@ partial class Rounder
                 continue;
             }
 
-            if (!row.Channel.LeadDays.TryGetValue(out var lead))
+            if (row.Channel.Lead is not CandidateLead.Days { Value: var lead })
             {
                 return Unknown<EquatableArray<double>>();
             }

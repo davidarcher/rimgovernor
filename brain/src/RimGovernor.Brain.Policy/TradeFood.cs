@@ -152,7 +152,7 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            if (entry.Channel.Nutrition().StockCap.TryGetValue(out var stock) && entry.Decision == FoodPlanDecision.Open)
+            if (entry.Channel.Nutrition() is { } yield && yield.StockOf(out var stock) && entry.Decision == FoodPlanDecision.Open)
             {
                 nutrition += stock;
             }

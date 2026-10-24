@@ -168,9 +168,9 @@ public sealed class HuntPlanningTests
         Assert.Equal(["boar"], channel.Prey);
         // The plan's lone channels skip the formation's prey, and the admitted set was cleared with the release: nothing is Designated until the plan opens the new roster.
         var candidates = admission.Apply(HuntSquadRules.HuntCandidates(sources, 1, channel));
-        Assert.Equal(Fact.Known(CandidateState.Closed), Assert.Single(candidates).State);
+        Assert.Equal(CandidateState.Closed, Assert.Single(candidates).State);
         admission.Admit(channel.Prey.Select(id => new Domain.PawnId(id)));
-        Assert.Equal(Fact.Known(CandidateState.Designated), Assert.Single(admission.Apply(HuntSquadRules.HuntCandidates(sources, 1, channel))).State);
+        Assert.Equal(CandidateState.Designated, Assert.Single(admission.Apply(HuntSquadRules.HuntCandidates(sources, 1, channel))).State);
     }
 
     [Fact]

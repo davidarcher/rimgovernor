@@ -69,20 +69,16 @@ public static class FoodAnimalProductsRules
         foreach (var race in byRace.Keys.Order(StringComparer.Ordinal))
         {
             var r = byRace[race];
-            var c = CandidateRules.FoodCandidate(CandidateKind.AnimalProduct, race, Unknown<double>());
+            // A race with an unread animal is unpriced, unscheduled and not committed; a NaN rate still reaches the planner's check.
+            YieldSupply supply = !r.Unknown || double.IsNaN(r.Nutrition) ? new YieldSupply.Steady(Math.Max(0, r.Nutrition - r.Feed)) : new YieldSupply.Unpriced();
+            var c = r.Unknown
+                ? CandidateRules.FoodCandidate(CandidateKind.AnimalProduct, race, supply, CandidateState.Closed, new CandidateLead.Unscheduled(), new CandidateWork.Unpriced())
+                : CandidateRules.FoodCandidate(CandidateKind.AnimalProduct, race, supply, CandidateRules.FoodState(false, true), new CandidateLead.Days(r.Lead), new CandidateWork.PerDay(r.Work));
             c = c with
             {
                 Source = "animal_product:" + race,
                 Terms = [new CandidateTerm("productive_animals", r.Pawns.Count), new CandidateTerm("feed_per_day", r.Feed)],
             };
-            if (!r.Unknown || double.IsNaN(r.Nutrition))
-            {
-                c = c with { Yields = [c.Yields[0] with { PerDay = Known(Math.Max(0, r.Nutrition - r.Feed)) }, .. c.Yields.Skip(1)] };
-            }
-            if (!r.Unknown)
-            {
-                c = c with { LaborPerDay = Known(r.Work), LeadDays = Known(r.Lead), State = CandidateRules.FoodState(Known(false), Known(true)) };
-            }
             channels.Add(c);
         }
         return channels;
@@ -103,8 +99,8 @@ public static class FoodAnimalProductsRules
         var marginalCrop = double.PositiveInfinity;
         foreach (var e in plan.Portfolio)
         {
-            var nk = e.Channel.Nutrition().PerDay.TryGetValue(out var n);
-            var wk = e.Channel.LaborPerDay.TryGetValue(out var w);
+            var nk = e.Channel.NutritionRate(out var n);
+            var wk = e.Channel.WorkRate(out var w);
             if (e.Channel.Kind == CandidateKind.Crop && nk && wk && n > 0 && w > 0)
             {
                 marginalCrop = Math.Min(marginalCrop, n / w);
@@ -120,8 +116,8 @@ public static class FoodAnimalProductsRules
             {
                 continue;
             }
-            var nk = e.Channel.Nutrition().PerDay.TryGetValue(out var n);
-            var wk = e.Channel.LaborPerDay.TryGetValue(out var w);
+            var nk = e.Channel.NutritionRate(out var n);
+            var wk = e.Channel.WorkRate(out var w);
             if (!nk || !wk || n <= 0 || (w > 0 && n / w <= marginalCrop))
             {
                 continue;

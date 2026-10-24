@@ -51,9 +51,9 @@ public static class ClearanceReads
         var yields = new List<CandidateYield>(s.Yields.Count);
         foreach (var y in s.Yields)
         {
-            yields.Add(CandidateRules.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, Known(y.StorageHeadroom)));
+            yields.Add(CandidateRules.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, new YieldStorage.Accepts(y.StorageHeadroom)));
         }
-        var candidate = CandidateRules.SourceCandidate(CandidateKind.Salvage, id, Known(s.Labor), Known(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
+        var candidate = CandidateRules.SourceCandidate(CandidateKind.Salvage, id, s.Labor, new CandidatePath.Walk(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
         return new SalvageEvidence { Safe = Known(s.Safe), Candidate = candidate };
     }
 }

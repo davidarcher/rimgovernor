@@ -432,7 +432,7 @@ release trigger (a gunner downed, breaking or gone, an animal gone, downed, out 
 estimate no longer describes; [forecast-contracts](forecast-contracts.md)) and, like every hunt channel,
 `Delivering` from the first credited ledger KILL ([hunting](../architecture/supply-model.md#hunting));
 Delivering keeps the hunt open while its fight runs, and stall and timeout handling stay
-on `HuntProgress`. Every hunt channel is a finite source (`StockCap`, the nutrition of the
+on `HuntProgress`. Every hunt channel is a finite source (a `Bounded` cap, the nutrition of the
 animals in reach) whose rate is capped by the hunters' kill throughput.
 A formation candidate yields the roster's estimated meat nutrition (net of the chance the prey is not downed) and
 the products of the prey it downed; its labor is the participants' walk plus the estimated encounter, and its risk

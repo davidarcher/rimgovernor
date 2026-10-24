@@ -143,12 +143,13 @@ internal sealed class ResourceFieldPlanner
         return (long)Math.Round(units, MidpointRounding.AwayFromZero);
     }
 
-    public (SupplyCandidate Candidate, FieldPlan Plan, bool Ok) Candidate(Resource resource, long need)
+    /// <summary>The field candidate that grows the resource, with its plan; a null candidate when the site, plan or candidate is missing.</summary>
+    public (SupplyCandidate? Candidate, FieldPlan Plan) Candidate(Resource resource, long need)
     {
         var (siteRequest, isSited) = SiteOf();
         if (!isSited)
         {
-            return (new SupplyCandidate(), new FieldPlan(), false);
+            return (null, new FieldPlan());
         }
 
         var plan = FieldResourceRules.PlanFieldByResource(new ResourceFieldRequest
@@ -162,10 +163,10 @@ internal sealed class ResourceFieldPlanner
         });
         if (plan is null)
         {
-            return (new SupplyCandidate(), new FieldPlan(), false);
+            return (null, new FieldPlan());
         }
 
         var candidate = FieldResourceRules.ResourceFieldCandidate(resource, plan);
-        return candidate is null ? (new SupplyCandidate(), plan, false) : (candidate, plan, true);
+        return (candidate, plan);
     }
 }

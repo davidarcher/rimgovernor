@@ -277,7 +277,7 @@ public sealed class DeliveryCredit
     }
 
     internal static bool Committed(SupplyCandidate c) =>
-        c.State.TryGetValue(out var s) && (s == CandidateState.Designated || s == CandidateState.Delivering);
+        c.State == CandidateState.Designated || c.State == CandidateState.Delivering;
 
     /// <summary>The days between a crop channel's deliveries, from its Terms; hunting is judged over HuntCreditWindowDays.</summary>
     internal static double CycleDays(SupplyCandidate c)
@@ -333,7 +333,7 @@ public static class DeliveryCreditRules
             {
                 continue;
             }
-            if (!c.Nutrition().PerDay.TryGetValue(out var rate) || double.IsNaN(rate) || double.IsInfinity(rate))
+            if (!c.NutritionRate(out var rate) || double.IsNaN(rate) || double.IsInfinity(rate))
             {
                 continue;
             }
@@ -353,7 +353,7 @@ public static class DeliveryCreditRules
                 risk += r.Weight;
             }
             g = g with { Expected = g.Expected + (rate * Math.Max(0, 1 - risk)) };
-            if (c.LeadDays.TryGetValue(out var lead) && lead < g.LeadDays)
+            if (c.Lead is CandidateLead.Days { Value: var lead } && lead < g.LeadDays)
             {
                 g = g with { LeadDays = Math.Max(0, lead) };
             }
@@ -376,10 +376,10 @@ public static class DeliveryCreditRules
             {
                 continue;
             }
-            c = c with { State = Known(r.State) };
-            if (c.Nutrition().PerDay.TryGetValue(out var rate) && !double.IsNaN(rate) && !double.IsInfinity(rate))
+            c = c with { State = r.State };
+            if (c.Nutrition() is { } y && c.NutritionRate(out var rate) && !double.IsNaN(rate) && !double.IsInfinity(rate))
             {
-                c = c.WithNutritionPerDay(Known(rate * r.Factor));
+                c = c.WithNutritionSupply(y.Supply.ScaledRate(r.Factor));
             }
             output[i] = c;
         }

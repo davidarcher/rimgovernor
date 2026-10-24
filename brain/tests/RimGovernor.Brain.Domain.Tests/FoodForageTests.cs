@@ -40,7 +40,7 @@ public sealed class FoodForageTests
         Portfolio =
         [
             new FoodPlanEntry { Channel = FoodPlanRules.ForageChannels([Berries])[0], Decision = FoodPlanDecision.Open },
-            new FoodPlanEntry { Channel = CandidateRules.FoodCandidate(CandidateKind.Hunt, Deer.Id, Known(Deer.NutritionYield)), Decision = FoodPlanDecision.Open },
+            new FoodPlanEntry { Channel = CandidateRules.FoodCandidate(CandidateKind.Hunt, Deer.Id, new YieldSupply.Steady(Deer.NutritionYield), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open },
         ],
     };
 

@@ -10,12 +10,12 @@ source, a bench bill or a trader. The shared flow ranker consumes these candidat
 | Field | Meaning |
 | --- | --- |
 | `Kind`, `ID` | One kind set (`CandidateKind`) covering food and acquisition kinds; a kind both had (hunt, trade) is one value. |
-| `State` | `designated` (committed, not yet delivering), `delivering` (observed), `closed`. A fact; unknown is allowed. |
-| `Yields` | A set of `{Good, PerDay, StockCap, UnitValue, Headroom}`: a deer yields nutrition and leather. `PerDay` is the steady rate; `StockCap` bounds a finite source. |
-| `LeadDays` | Days until the first delivery. A one-shot source is lead 0 with a stock cap and no rate. |
-| `LaborPerDay`, `UpfrontCost` | Steady work of a delivering candidate; labor-equivalent ticks and resources to establish it. |
+| `State` | `designated` (committed, not yet delivering), `delivering` (observed), `closed`. Always read. |
+| `Yields` | A set of `{Good, Supply, UnitValue, Storage}`: a deer yields nutrition and leather. `Supply` is `Steady(PerDay)`, `Bounded(PerDay, Cap)` (a rate a finite source bounds), `Stock(Count)` (a one-shot source) or `Unpriced`. `Storage` is `InPlace` (used where delivered), `Accepts(Units)` (the hauled storage headroom) or `Unread` (a hauled yield is credited no units). |
+| `Lead` | `Days(Value)` until the first delivery, or `Unscheduled`. A one-shot source is lead 0 with a stock and no rate. |
+| `Work`, `UpfrontCost` | `PerDay(Ticks)` of steady work, `OneShot` (the upfront cost is all of it) or `Unpriced`; labor-equivalent ticks (0 when none) and resources to establish it. |
 | `Risk` | `{Kind, Weight}` hazards; summed weights discount the yield. |
-| `PathDistance`, `DistanceSquared`, `NeedsHaul`, `UnitsPerTrip` | Reach and haul. |
+| `Path`, `Nearness`, `NeedsHaul`, `UnitsPerTrip` | Reach and haul: `Walk(Distance)` or `Unwalked`; a fishing ground's `Measured(DistanceSquared)` or `Unmeasured`. |
 | `Terms`, `Prey` | Explanation numbers; a formation hunt's animals (its mode: one without prey is a lone hunt). |
 
 The type carries state, never credit: which states earn credit is the ranker's
@@ -96,7 +96,7 @@ stuff matches any stuff) and `lead <= horizon`. Contribution:
 - toward a flow: `rate * max(0, 1 - sum(risk))`, bounded by the stock cap spread
   over the demand's window `max(1, horizon)`;
 - toward a stock demand: a one-shot source gives `min(stock cap, remaining
-  deficit)`, and `min(headroom)` too when the output is hauled (unknown headroom
+  deficit)`, and `min(headroom)` too when the output is hauled (`Unread` storage
   is none: a hauled candidate must report where it lands); a steady yield gives
   its risk-adjusted rate over `window - lead`.
 
@@ -112,7 +112,7 @@ throws `FoodPlanFactsException`, resource supply `RequiredFactException`). Known
 zero is an exhausted budget.
 
 Resource supply uses pure `ResidualSupplyLabor`: effective workers times 20000,
-less each selected or retained food commitment's `LaborPerDay`, floored at zero
+less each selected or retained food commitment's `PerDay` work, floored at zero
 only when known. Newly selected, designated and delivering work is charged once
 per kind and ID across the food plan's portfolio and unknown entries, regardless
 of yield count. Closed or unselected closed candidates consume nothing. Missing
@@ -145,7 +145,10 @@ credit (`uncredited_until_delivered`) until it delivers.
 Hold reasons are stable words: `no risk-adjusted <good>`, `lead exceeds
 runway`, `target covered`, `labor budget`, `no_demand`, `no_storage_headroom`,
 `competing_urgent_work` (urgent work stands and no matched demand is an emergency),
-`unknown: <facts>` for a candidate missing a fact. Explain terms are `risk_discount`,
+`unknown: <facts>` for a candidate missing a fact (an `Unpriced` yield names
+`<good>_per_day`, `Unpriced` work `work_per_day`, an `Unscheduled` lead
+`lead_days`, and an `Unwalked` path `path_distance` when the candidate hauls or has
+no daily work). Explain terms are `risk_discount`,
 `<good>_per_day` (`<good>_units` for a stock demand), `work_per_day`,
 `lead_days`, `target_cover` and `labor_excess`.
 
@@ -193,7 +196,7 @@ Hunting is hunter throughput over a finite, live stock of wildlife
 (`HuntCredit.cs`, `HuntSquad.cs`):
 
 - **Stock**: each hunt channel (one per lone animal, plus the chosen roster's formation) carries
-  `StockCap`, the nutrition of its animals in reach from the wildlife census,
+  a `Bounded` cap, the nutrition of its animals in reach from the wildlife census,
   rebuilt every Round, so the ranker prices it as a finite source
   (`min(rate, stock / horizon)`). Kills shrink it; regrowth and migration
   refill it through the next census.
@@ -236,7 +239,7 @@ at a usable bench (`CropKitchen.Cooking`); it adds the meal's work per nutrition
 to `WorkPerDay`, needs a usable bench and a cook, and wins only when it beats
 raw and its cook work fits the bench capacity (`CookTicksPerDay` per
 bench-cook pair). Raw needs no cook. A perishable harvest sets the yield's
-`StockCap` to its nutrition per day times the item's rot days, so a harvest
+a `Bounded` cap of its nutrition per day times the item's rot days, so a harvest
 burst is credited no further than what survives to be eaten. An unknown recipe
 or rot fact leaves that facet Unknown (raw stands, no cap), never zero.
 

@@ -171,17 +171,11 @@ public static partial class TradePolicyRules
             var stock = (long)Math.Floor(nutrition);
             if (stock >= 1)
             {
-                var c = CandidateRules.FoodCandidate(CandidateKind.Trade, record.Trader, Unknown<double>());
-                var yields = c.Yields.Items.ToBuilder();
-                yields[0] = yields[0] with { StockCap = Known(stock) };
+                var c = CandidateRules.FoodCandidate(CandidateKind.Trade, record.Trader, new YieldSupply.Stock(stock), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0));
                 output.Add(
                     c with
                     {
-                        Yields = yields.ToImmutable(),
-                        LaborPerDay = Known(0.0),
-                        UpfrontCost = c.UpfrontCost with { LaborTicks = Known(spent * AcquisitionCatalogRules.TradeLaborPerSilver) },
-                        LeadDays = Known(0.0),
-                        State = CandidateRules.FoodState(Known(false), Unknown<bool>()),
+                        UpfrontCost = c.UpfrontCost with { LaborTicks = spent * AcquisitionCatalogRules.TradeLaborPerSilver },
                         Terms = EquatableArray.From([new CandidateTerm("trade_silver", spent)]),
                     }
                 );
@@ -198,8 +192,10 @@ public static partial class TradePolicyRules
         {
             if (e.Channel.Kind == CandidateKind.Trade && e.Channel.Id == trader && e.Decision == FoodPlanDecision.Open)
             {
-                e.Channel.Nutrition().StockCap.TryGetValue(out var stock);
-                total += stock;
+                if (e.Channel.Nutrition() is { } y && y.StockOf(out var stock))
+                {
+                    total += stock;
+                }
             }
         }
         return total;
