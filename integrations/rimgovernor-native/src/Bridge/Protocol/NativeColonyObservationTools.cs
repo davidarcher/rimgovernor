@@ -95,7 +95,8 @@ namespace HomeBridge.BridgeTools
                 PlayerTechLevel = (Defs.TechLevel)(int)player.def.techLevel,
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
-                FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp) };
+                FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
+                DeliveryLedger = NativeDeliveryLedger.Read() };
             result = result with { FoodSupply = new Obs.FoodSupplySection { Outcome = Food(FoodSupplyFacts.Read(people,
                     things.Where(FoodSupplyFacts.SharedFood).ToList())) } };
             Span("cf.foodSupply");
@@ -114,7 +115,6 @@ namespace HomeBridge.BridgeTools
             result = result with { Development = new Obs.DevelopmentSection { Outcome = ReadPower(map) } };
             Span("cf.power");
             result = result with { FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood) };
-            result = result with { DeliveryLedger = NativeDeliveryLedger.Read() };
             Span("cf.foodChannels");
             result = result with { DeepResources = NativeDeepResources.Read(map) };
             result = result with { Policies = NativePolicyFacts.Read(map) };

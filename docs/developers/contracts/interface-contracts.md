@@ -83,6 +83,31 @@ How an `INativeFacade` call reports that it did not answer ([native facade](../a
   `Refused` result are outcomes read per intent beside the applied ones, not a fault of the whole call, so they
   stay values.
 
+## Facts records
+
+How a colony fact travels from native to the planner once its family is total (epic #3753; the delivery ledger
+is the first, #3763). There is no unknown: a fact is read, or it is a named state, or the planner does not plan
+the option.
+
+- **One record per concept, in Contracts.** The record lives in `brain/src/RimGovernor.Brain.Contracts`
+  (`RimGovernor.Contracts.Wire.Observations`), named in the planner's vocabulary (`DeliveryLedger`, `Kill`,
+  `Butcher`). Native builds it, `WireJsonContext` carries it over `/native/<op>`, and Policy reads it directly.
+  There is no Policy or Observation copy and no decoder; a Policy rule over it is a function taking the record.
+- **Every member `required`, none nullable.** A record built without a member does not compile (CS9035), and
+  JSON without one does not decode. Measured values are plain (`long`, `double`, `string`); a nullable reference
+  is allowed only for a real relation (a pawn's equipped weapon). Domain types replace wire shapes: `Tick`,
+  `PawnId` and `Cell`, written as a bare number, a bare id string and `{x,z}`.
+- **Enums.** One enum per concept, declared in Contracts and used by Policy and native alike, with no `Unknown`,
+  `Unspecified` or `None` member and wire names in snake_case (`animal_product`), so `Wire.Name` gives the same
+  string Policy keys on.
+- **A read that cannot be produced throws.** The native producer returns the whole record or throws; it never
+  returns a partial or empty one. A throw inside the colony facts read fails that read
+  (`NativeColonyObservationTools.Read`); there is no per-section "absent" wrapper.
+- **The container holds the record.** `ColonyFactsSnapshot` carries the section as a `required` member of the
+  record's type. The brain's projection (`ColonyProjection`) holds it as a nullable reference until its own family
+  hardens it; a Policy reader of a null raises `RequiredFactException` naming the fact (`delivery_ledger`), which
+  fails tests ([rule 9](../architecture/rules.md#review-items)).
+
 ## Prepared profiles
 
 A rendered prepared baseline may bypass the native mod mismatch only when the sole missing recorded

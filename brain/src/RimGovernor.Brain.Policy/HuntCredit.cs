@@ -1,10 +1,7 @@
+using Butcher = RimGovernor.Contracts.Wire.Observations.Butcher;
+using Kill = RimGovernor.Contracts.Wire.Observations.Kill;
+
 namespace RimGovernor.Brain.Policy;
-
-/// <summary>A ledger kill: the corpse's thing id (the food census's stock id), the meat the corpse would yield and the tick of the kill.</summary>
-public sealed record HuntKill(string CorpseID, double Potential, long Tick);
-
-/// <summary>A ledger butcher record: the meat a corpse's butchering made.</summary>
-public sealed record HuntButcher(string CorpseID, double MeatNutrition);
 
 public static class DeliveryCreditHuntExtensions
 {
@@ -20,8 +17,8 @@ public static class DeliveryCreditHuntExtensions
     /// </summary>
     public static double HuntDelivered(
         this DeliveryCredit? d,
-        IReadOnlyList<HuntKill> kills,
-        IReadOnlyList<HuntButcher> butchers,
+        IReadOnlyList<Kill> kills,
+        IReadOnlyList<Butcher> butchers,
         IReadOnlyList<FoodStock> stocks,
         bool complete
     )
@@ -33,7 +30,7 @@ public static class DeliveryCreditHuntExtensions
         var made = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var b in butchers)
         {
-            made[b.CorpseID] = made.GetValueOrDefault(b.CorpseID) + b.MeatNutrition;
+            made[b.CorpseId] = made.GetValueOrDefault(b.CorpseId) + b.MeatNutrition;
         }
         var corpses = new Dictionary<string, FoodStock>(StringComparer.Ordinal);
         foreach (var s in stocks)
@@ -48,18 +45,18 @@ public static class DeliveryCreditHuntExtensions
         var total = 0.0;
         foreach (var k in kills)
         {
-            if (counted.Contains(k.CorpseID) || !FoodForecastRules.FoodNumber(k.Potential))
+            if (counted.Contains(k.CorpseId) || !FoodForecastRules.FoodNumber(k.PotentialNutrition))
             {
                 continue;
             }
-            counted.Add(k.CorpseID);
-            var listed = corpses.TryGetValue(k.CorpseID, out var corpse);
+            counted.Add(k.CorpseId);
+            var listed = corpses.TryGetValue(k.CorpseId, out var corpse);
             if (listed && corpse!.IsHumanlike)
             {
                 continue;
             }
-            var credit = k.Potential;
-            if (made.TryGetValue(k.CorpseID, out var meat))
+            var credit = k.PotentialNutrition;
+            if (made.TryGetValue(k.CorpseId, out var meat))
             {
                 credit = meat;
             }
@@ -119,7 +116,7 @@ public static class HuntCreditRules
     /// The kills per hunter-day the ledger shows: the kills of the trailing HuntCadenceDays over the hunters and
     /// the days that history spans. Without HuntCadenceMinKills of them it is HuntKillsPerHunterDay.
     /// </summary>
-    public static double HuntCadence(IReadOnlyList<HuntKill> kills, int hunters, long now)
+    public static double HuntCadence(IReadOnlyList<Kill> kills, int hunters, long now)
     {
         if (hunters <= 0)
         {
@@ -130,10 +127,10 @@ public static class HuntCreditRules
         var oldest = now;
         foreach (var k in kills)
         {
-            if (k.Tick >= cutoff)
+            if (k.Tick.Value >= cutoff)
             {
                 n++;
-                oldest = Math.Min(oldest, k.Tick);
+                oldest = Math.Min(oldest, k.Tick.Value);
             }
         }
         if (n < HuntCadenceMinKills)

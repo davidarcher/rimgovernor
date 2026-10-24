@@ -24,8 +24,8 @@ public sealed class ThreatFactsTests
 
         Assert.False(threat.Storyteller.IsKnown);
         Assert.False(threat.DaysPassed.IsKnown);
-        Assert.False(ColonyThreat.ProjectColonyThreat(new ColonyFactsSnapshot()).Storyteller.IsKnown);
+        Assert.False(ColonyThreat.ProjectColonyThreat(new ColonyFactsSnapshot { DeliveryLedger = DeliveryLedgerTests.NoDeliveries }).Storyteller.IsKnown);
     }
 
-    private static ColonyFactsSnapshot Census(ThreatFacts facts) => new() { Threat = new ThreatSection { Observed = facts } };
+    private static ColonyFactsSnapshot Census(ThreatFacts facts) => new() { DeliveryLedger = DeliveryLedgerTests.NoDeliveries, Threat = new ThreatSection { Observed = facts } };
 }

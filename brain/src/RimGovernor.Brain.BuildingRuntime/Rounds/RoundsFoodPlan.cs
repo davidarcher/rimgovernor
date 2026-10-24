@@ -13,13 +13,6 @@ internal sealed record FoodTrade
     public ulong Revision { get; init; }
 }
 
-internal sealed record HuntInput
-{
-    public IReadOnlyList<HuntKill> Kills { get; init; } = [];
-
-    public IReadOnlyList<HuntButcher> Butchers { get; init; } = [];
-}
-
 public sealed partial class Rounder
 {
     /// <summary>Plans food into the projection and marks the traders the offer book has not priced.</summary>
@@ -192,8 +185,8 @@ partial class Rounder
         onHunt?.Invoke(huntPlan, released);
         channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation));
         channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
-        var hunting = FoodHuntInput(p);
-        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();
+        var ledger = p.DeliveryLedger ?? throw new RequiredFactException("delivery_ledger");
+        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(ledger.Kills, hunters, p.Identity.Tick.Value)).ToList();
         if (p.ProductionBenches.TryGetValue(out var benches) && p.FoodSupply.TryGetValue(out human))
         {
             var ids = human.Consumers.Select(c => c.Id).ToList();
@@ -255,7 +248,7 @@ partial class Rounder
         }
 
         channels = hunt.Apply(channels).ToList();
-        channels = credit.Apply(channels, FoodCreditInput(p, credit, hunting)).ToList();
+        channels = credit.Apply(channels, FoodCreditInput(p, credit, ledger)).ToList();
         var seasonal = thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions);
         FoodPlan plan;
         try
@@ -335,33 +328,12 @@ partial class Rounder
         return Known(plan with { Portfolio = portfolio });
     }
 
-    internal static HuntInput FoodHuntInput(ColonyProjection p)
+    internal static CreditInput FoodCreditInput(ColonyProjection p, DeliveryCredit credit, PbObservations.DeliveryLedger ledger)
     {
-        if (!p.DeliveryLedger.TryGetValue(out var ledger))
-        {
-            return new HuntInput();
-        }
-
-        return new HuntInput
-        {
-            Kills = ledger.Kills.Select(k => new HuntKill(k.CorpseID, k.PotentialNutrition, k.Tick)).ToList(),
-            Butchers = ledger.Butchers.Select(b => new HuntButcher(b.CorpseID, b.MeatNutrition)).ToList(),
-        };
-    }
-
-    internal static CreditInput FoodCreditInput(ColonyProjection p, DeliveryCredit credit, HuntInput hunting)
-    {
-        var known = p.DeliveryLedger.TryGetValue(out var ledger);
-        var input = new CreditInput { Tick = p.Identity.Tick, Known = known };
-        if (!known)
-        {
-            return input;
-        }
-
         var delivered = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var (key, count) in ledger!.Counts)
+        foreach (var count in ledger.Counts)
         {
-            var k = Wire.Name(key.Kind) + ":" + key.SourceID;
+            var k = Wire.Name(count.Kind) + ":" + count.Source;
             delivered[k] = delivered.GetValueOrDefault(k) + count.Nutrition;
         }
 
@@ -373,8 +345,8 @@ partial class Rounder
             complete = supply.Complete == Known(true);
         }
 
-        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(hunting.Kills, hunting.Butchers, stocks, complete);
-        return input with { LoadToken = ledger.LoadToken, Delivered = delivered };
+        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(ledger.Kills, ledger.Butchers, stocks, complete);
+        return new CreditInput { Tick = p.Identity.Tick, LoadToken = ledger.LoadToken, Delivered = delivered };
     }
 
     internal static void LogFoodCredit(IReadOnlyList<CreditChange> changes)

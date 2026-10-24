@@ -213,7 +213,7 @@ BuildingRuntime/Rounds/RoundsFishing.cs|Fact|22
 BuildingRuntime/Rounds/RoundsFlooring.cs|Discard|1
 BuildingRuntime/Rounds/RoundsFlooring.cs|Fact|12
 BuildingRuntime/Rounds/RoundsFood.cs|Fact|3
-BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|43
+BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|41
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|Unknown|7
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Fact|7
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Unknown|3
@@ -383,8 +383,8 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|774
-Contracts/Observations.cs|UnknownMember|18
+Contracts/Observations.cs|NullableValue|763
+Contracts/Observations.cs|UnknownMember|17
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
 Contracts/PawnActivities.cs|NullableValue|1
@@ -457,7 +457,7 @@ Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Discard|1
 Observation/Clearance.cs|Fact|6
 Observation/Clearance.cs|Unknown|1
-Observation/Colony.cs|Fact|96
+Observation/Colony.cs|Fact|95
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|55
 Observation/ColonyDecode.cs|Unknown|5
@@ -479,9 +479,6 @@ Observation/Construction.cs|Unknown|4
 Observation/Decode.cs|Fact|3
 Observation/DeepResources.cs|Fact|14
 Observation/Definitions.cs|Fact|8
-Observation/DeliveryLedger.cs|Discard|1
-Observation/DeliveryLedger.cs|Fact|2
-Observation/DeliveryLedger.cs|Unknown|1
 Observation/FacilityUpkeep.cs|Fact|10
 Observation/FacilityUpkeep.cs|Unknown|4
 Observation/Facts/Store.cs|Discard|2

@@ -162,7 +162,7 @@ internal static class FoodHuntRoster
         private string _note = "";
         private HashSet<string> _roster = new(StringComparer.Ordinal);
         private HashSet<string> _admitted = new(StringComparer.Ordinal);
-        private Observations.KillRecord? _kill;
+        private Observations.Kill? _kill;
         private string _corpseCell = "";
         private long _meat;
 
@@ -299,7 +299,7 @@ internal static class FoodHuntRoster
             }
 
             var ledger = await FoodLedger.ReadAsync(s, "ledger-kill", ct).ConfigureAwait(false);
-            var kill = ledger.Kills.FirstOrDefault(k => k.PawnId is { } id && _admitted.Contains(id));
+            var kill = ledger.Kills.FirstOrDefault(k => _admitted.Contains(k.Pawn.Value));
             if (kill is null)
             {
                 return;
@@ -307,7 +307,7 @@ internal static class FoodHuntRoster
 
             _kill = kill;
             s.RecordWire("kill", kill);
-            s.Record("kill_tick", kill.Tick ?? tick);
+            s.Record("kill_tick", kill.Tick.Value);
             _phase = Phase.Release;
         }
 
@@ -349,7 +349,7 @@ internal static class FoodHuntRoster
         // Butchered: the corpse's cells on its way (evidence), then its butcher record and meat in stock.
         private async Task ButcherAsync(long tick, CancellationToken ct)
         {
-            var corpseId = _kill!.CorpseId ?? "";
+            var corpseId = _kill!.CorpseId;
             var corpses = await SuppliesAsync("corpses", new Observations.StockFilter
             {
                 DefNames = ["Corpse_" + BigGame, "Corpse_" + SmallGame],

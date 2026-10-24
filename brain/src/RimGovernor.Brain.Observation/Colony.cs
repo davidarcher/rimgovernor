@@ -210,8 +210,8 @@ public sealed partial record ColonyProjection
 
     public Fact<int> PendingHunts { get; init; }
 
-    /// <summary>Native's cumulative delivery counters; unknown when the census is missing or malformed.</summary>
-    public Fact<DeliveryLedger> DeliveryLedger { get; init; }
+    /// <summary>Native's cumulative delivery counters; null only on a projection no colony facts read built.</summary>
+    public O.DeliveryLedger? DeliveryLedger { get; init; }
 
     public Fact<EquatableArray<AcquisitionSource>> Acquisition { get; init; }
 

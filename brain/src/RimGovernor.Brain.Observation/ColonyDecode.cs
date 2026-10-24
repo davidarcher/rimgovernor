@@ -131,7 +131,7 @@ public static class ColonyDecodeReads
         r = r with
         {
             FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races),
-            DeliveryLedger = DeliveryLedgerReads.ColonyDeliveryLedger(v.DeliveryLedger),
+            DeliveryLedger = v.DeliveryLedger,
             DeepResources = DeepResourcesReads.ColonyDeepResources(v.DeepResources, catalog),
             Policies = PoliciesReads.ColonyPolicies(v.Policies),
         };

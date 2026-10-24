@@ -35,11 +35,10 @@ The food-channels acceptance cases check lab berry-bush forage and a cow's milk 
 
 ## Delivery ledger
 
-`ColonyFactsSnapshot.delivery_ledger` is a keyed section of cumulative production-site
-delivery counters with a load `epoch`; see the
+`ColonyFactsSnapshot.DeliveryLedger` is the required `DeliveryLedger` facts record of cumulative
+production-site delivery counters within a `LoadToken`; see the
 [delivery ledger](../../docs/developers/contracts/forecast-contracts.md#delivery-ledger).
-`NativeDeliveryLedger` counts; `observation.ColonyProjection.DeliveryLedger` is unknown
-unless the section validates (`bridge.ValidDeliveryLedger`).
+`NativeDeliveryLedger` counts and builds it; a read that cannot count throws, which fails the colony facts read.
 
 ## Realized consumption
 

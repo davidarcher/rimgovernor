@@ -50,7 +50,7 @@ public sealed class ColonyStatusTests
             Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context });
 
         public Task<ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct) =>
-            Task.FromResult(new ColonyFactsReply { Outcome = new ColonyFactsSnapshot { Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) } });
+            Task.FromResult(new ColonyFactsReply { Outcome = new ColonyFactsSnapshot { DeliveryLedger = DeliveryLedgerTests.NoDeliveries, Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) } });
 
         public Task<ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct) =>
             Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = Context, Pawns = [.. roster] } });

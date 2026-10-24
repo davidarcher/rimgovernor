@@ -69,12 +69,12 @@ internal static class FoodLedgerHunt
             throw new AcceptanceException($"want one butcher record on corpse {corpse}, got {string.Join("; ", ledger.Butchers)}");
         }
 
-        if (butcher.MeatUnits is not > 0 || butcher.MeatUnits != tally.ButcherMeat || butcher.LeatherUnits is not > 0 || butcher.LeatherUnits != tally.ButcherLeather)
+        if (butcher.MeatUnits <= 0 || butcher.MeatUnits != tally.ButcherMeat || butcher.LeatherUnits <= 0 || butcher.LeatherUnits != tally.ButcherLeather)
         {
             throw new AcceptanceException($"butcher meat {butcher.MeatUnits} and leather {butcher.LeatherUnits} differ from the produced {tally.ButcherMeat} and {tally.ButcherLeather}");
         }
 
-        if (butcher.MeatNutrition is not { } nutrition || !(nutrition > 0) || nutrition > kill.PotentialNutrition * 1.01)
+        if (!(butcher.MeatNutrition > 0) || butcher.MeatNutrition > kill.PotentialNutrition * 1.01)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"butchered nutrition {butcher.MeatNutrition} is not within the kill's potential {kill.PotentialNutrition}"));
         }

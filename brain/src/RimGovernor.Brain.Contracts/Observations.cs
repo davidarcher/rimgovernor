@@ -309,27 +309,16 @@ public enum RouteFacilityKind
 }
 
 /// <summary>
-/// Cumulative deliveries counted at the production site of the player's own work
-/// (a plant harvested, a catch landed, milk or eggs produced), so hauling and
-/// stack merges never double-count. source_id is the growing zone id (CROP), the
-/// water body's root cell "x,z" (FISH), the plant def (FORAGE: a harvested plant
-/// with no zone or basin) or the animal race (ANIMAL_PRODUCT). units are the
-/// produced stack counts and nutrition their human-edible nutrition; last_tick
-/// is the game tick of the latest delivery.
+/// The production a delivery was counted under. Its wire name (<c>crop</c>, <c>fish</c>, <c>forage</c>,
+/// <c>animal_product</c>) also prefixes the brain's counter groups (<c>crop:&lt;zone&gt;</c>).
 /// </summary>
-[JsonConverter(typeof(WireEnumConverter<DeliverySourceKind>))]
-public enum DeliverySourceKind
+[JsonConverter(typeof(WireEnumConverter<DeliveryKind>))]
+public enum DeliveryKind
 {
-    [WireName("DELIVERY_SOURCE_KIND_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("DELIVERY_SOURCE_KIND_CROP")]
-    Crop = 1,
-    [WireName("DELIVERY_SOURCE_KIND_FISH")]
-    Fish = 2,
-    [WireName("DELIVERY_SOURCE_KIND_FORAGE")]
-    Forage = 3,
-    [WireName("DELIVERY_SOURCE_KIND_ANIMAL_PRODUCT")]
-    AnimalProduct = 4,
+    Crop,
+    Fish,
+    Forage,
+    AnimalProduct,
 }
 
 /// <summary>
@@ -6667,89 +6656,79 @@ public sealed record DeepResourcesSection
     public DeepResourcesFacts? Observed { get; init; }
 }
 
-public sealed record DeliveryRow
+/// <summary>
+/// One cumulative counter of the player's own production, counted at the production site (a plant harvested, a
+/// catch landed, milk, wool or eggs produced), so hauling and stack merges never double-count. Source is the
+/// growing zone or plant grower id (crop), the water body's root cell "x,z" (fish), the plant def (forage: a
+/// harvested food plant with no zone or grower) or the animal race (animal product); Units are the produced stack
+/// counts of Def and Nutrition their human-edible nutrition.
+/// </summary>
+public sealed record DeliveryCount
 {
-    public DeliverySourceKind? SourceKind { get; init; }
+    public required DeliveryKind Kind { get; init; }
 
-    public string? SourceId { get; init; }
+    public required string Source { get; init; }
 
-    public string? DefName { get; init; }
+    public required string Def { get; init; }
 
-    public long? Units { get; init; }
+    public required long Units { get; init; }
 
-    public double? Nutrition { get; init; }
-
-    public long? LastTick { get; init; }
+    public required double Nutrition { get; init; }
 }
 
 /// <summary>
-/// Counters only ever grow within one epoch; epoch changes when the game is
-/// loaded or restarted, so a reader re-baselines. Absent means unknown, never zero.
-/// A player pawn killed an animal (a hunt, or a slaughter that leaves a corpse).
-/// corpse_id is the corpse's thing id (the food census's stock id), race the
-/// animal's def, body_size its body size and potential_nutrition the meat it
-/// would yield (meat amount x meat nutrition); tick is the game tick of death and
-/// pawn_id the killed animal's own thing id (a hunt row's source id).
+/// A player pawn killed an animal (a hunt, or a slaughter that leaves a corpse). CorpseId is the corpse's thing id
+/// (the food census's stock id), Pawn the killed animal, Race its def, BodySize its body size, PotentialNutrition the
+/// meat the corpse would yield (meat amount x meat nutrition; zero for a race without meat) and Tick the tick of death.
 /// </summary>
-public sealed record KillRecord
+public sealed record Kill
 {
-    public string? CorpseId { get; init; }
+    public required string CorpseId { get; init; }
 
-    public string? Race { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public double? BodySize { get; init; }
+    public required string Race { get; init; }
 
-    public double? PotentialNutrition { get; init; }
+    public required double BodySize { get; init; }
 
-    public long? Tick { get; init; }
+    public required double PotentialNutrition { get; init; }
 
-    public string? PawnId { get; init; }
+    public required Tick Tick { get; init; }
 }
 
 /// <summary>
-/// A butcher recipe made its products from one corpse, counted where the
-/// products are made (any bill, any butcher). meat_units and meat_nutrition are
-/// the produced meat (meat_def) stack and its nutrition, leather_units the
-/// produced leather; the brain links it to its KillRecord by corpse_id.
+/// A butcher recipe made its products from one corpse, counted where the products are made (any bill, any
+/// butcher): MeatUnits and MeatNutrition are the produced meat stack and its nutrition, LeatherUnits the produced
+/// leather. A reader links it to its <see cref="Kill"/> by CorpseId.
 /// </summary>
-public sealed record ButcherRecord
+public sealed record Butcher
 {
-    public string? CorpseId { get; init; }
+    public required string CorpseId { get; init; }
 
-    public string? Recipe { get; init; }
+    public required long MeatUnits { get; init; }
 
-    public string? MeatDef { get; init; }
+    public required double MeatNutrition { get; init; }
 
-    public long? MeatUnits { get; init; }
-
-    public double? MeatNutrition { get; init; }
-
-    public long? LeatherUnits { get; init; }
-
-    public long? Tick { get; init; }
+    public required long LeatherUnits { get; init; }
 }
 
 /// <summary>
-/// kills and butchers hold every record of the epoch in tick order.
+/// Native's cumulative production-site delivery counters. Counters only grow within one LoadToken, which changes when
+/// the game is loaded or restarted, so a reader diffs successive ledgers of one token and re-baselines on a change.
+/// Kills and Butchers hold every record of the token in tick order. A colony facts read that cannot count fails.
 /// </summary>
-public sealed record DeliveryLedgerFacts
+public sealed record DeliveryLedger
 {
-    public string? Epoch { get; init; }
+    public required string LoadToken { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<DeliveryRow>))]
-    public EquatableArray<DeliveryRow> Rows { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DeliveryCount>))]
+    public required EquatableArray<DeliveryCount> Counts { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<KillRecord>))]
-    public EquatableArray<KillRecord> Kills { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Kill>))]
+    public required EquatableArray<Kill> Kills { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ButcherRecord>))]
-    public EquatableArray<ButcherRecord> Butchers { get; init; }
-}
-
-public sealed record DeliveryLedgerSection
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public DeliveryLedgerFacts? Observed { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Butcher>))]
+    public required EquatableArray<Butcher> Butchers { get; init; }
 }
 
 public sealed record ColonyFactsSnapshot
@@ -6870,10 +6849,8 @@ public sealed record ColonyFactsSnapshot
     /// </summary>
     public RoyaltySection? Royalty { get; init; }
 
-    /// <summary>
-    /// Cumulative production-site delivery counters (DeliveryLedgerFacts); absent means unknown.
-    /// </summary>
-    public DeliveryLedgerSection? DeliveryLedger { get; init; }
+    /// <summary>Cumulative production-site delivery counters.</summary>
+    public required DeliveryLedger DeliveryLedger { get; init; }
 
     /// <summary>
     /// Raw hunt facts for policy.HuntGate; always present on a native read.

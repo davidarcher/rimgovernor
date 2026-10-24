@@ -17,17 +17,15 @@ public sealed record CreditChannel
 
 /// <summary>
 /// One Round's read of the delivery ledger. Delivered is the cumulative nutrition per counter group within the
-/// load token LoadToken. An unavailable ledger is Known false and holds every factor.
+/// load token LoadToken.
 /// </summary>
 public sealed record CreditInput
 {
-    public Tick Tick { get; init; }
+    public required Tick Tick { get; init; }
 
-    public string LoadToken { get; init; } = "";
+    public required string LoadToken { get; init; }
 
-    public bool Known { get; init; }
-
-    public IReadOnlyDictionary<string, double> Delivered { get; init; } = new Dictionary<string, double>();
+    public required IReadOnlyDictionary<string, double> Delivered { get; init; }
 }
 
 /// <summary>A group's standing: Factor in [0,1] scales its expected rate and State is Delivering once counter differences have calibrated the flow.</summary>
@@ -118,12 +116,8 @@ public sealed class DeliveryCredit
         }
         seen = true;
         last = input.Tick;
-        var rebaselined = false;
-        if (input.Known)
-        {
-            rebaselined = loadToken != "" && input.LoadToken != loadToken;
-            loadToken = input.LoadToken;
-        }
+        var rebaselined = loadToken != "" && input.LoadToken != loadToken;
+        loadToken = input.LoadToken;
         var live = new HashSet<string>(StringComparer.Ordinal);
         var previousResults = results;
         results = new Dictionary<string, CreditResult>(StringComparer.Ordinal);
@@ -140,11 +134,7 @@ public sealed class DeliveryCredit
             CandidateState? previous = previousResults.TryGetValue(c.Source, out var pr) ? pr.State : null;
             var reason = DeliveryCreditRules.CreditWindow;
             var cum = input.Delivered.GetValueOrDefault(c.Source);
-            if (!input.Known)
-            {
-                // The ledger is unavailable: every factor holds.
-            }
-            else if (rebaselined)
+            if (rebaselined)
             {
                 h.Samples = [];
                 reason = DeliveryCreditRules.CreditRebaseline;

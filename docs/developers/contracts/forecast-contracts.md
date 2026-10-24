@@ -894,28 +894,29 @@ or stale reviews are null; this read never runs a new food review.
 
 ### Delivery ledger
 
-`ColonyFactsSnapshot.delivery_ledger` carries native's cumulative delivery
+`ColonyFactsSnapshot.DeliveryLedger` is the `DeliveryLedger` facts record: native's cumulative delivery
 counters, latched at the production site of the player's own work: a plant
 harvested (`QuestManager.Notify_PlantHarvested`; a plant outside a growing zone or
 basin is forage, counted only when edible), a catch rolled
-(`FishingUtility.GetCatchesFor`), milk, wool and other gathered body resources
+(`FishingUtility.GetCatchesFor`, counted under its water body), milk, wool and other gathered body resources
 (`CompHasGatherableBodyResource.Gathered`) and eggs (`CompEggLayer.ProduceEgg`).
-Hauling and stack merges never count. Rows are keyed by kind (crop, fish, forage,
-animal product), source (growing zone or basin id, water body root cell `x,z`, plant
-def, animal race) and delivered def, with units, human-edible nutrition and the
-last delivery tick. Keys are unbounded; the set is bounded by the game's defs, zones
-and water bodies. The `epoch` changes on load or restart, so a reader diffs
-within an epoch and re-baselines on a change. The brain maps source to channel from its own
+Hauling and stack merges never count. Each `DeliveryCount` is keyed by `Kind` (`DeliveryKind`: crop, fish, forage,
+animal product), `Source` (growing zone or basin id, water body root cell `x,z`, plant
+def, animal race) and delivered `Def`, with units and human-edible nutrition. Keys are unbounded; the set is
+bounded by the game's defs, zones and water bodies. The `LoadToken` changes on load or restart, so a reader diffs
+within one token and re-baselines on a change. The ledger is always read: a colony facts read that cannot count
+fails ([facts records](interface-contracts.md#facts-records)), and the food plan raises `RequiredFactException`
+(`delivery_ledger`) on a projection without one. The brain maps source to channel from its own
 census: the channel builders name their counter group (`Source`: `crop:<zone>`,
-`fish:<x,z>` as `water-<x>-<z>`, `forage:<plant def>`, `animal_product:<race>`). `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
-unavailable or malformed ledger, never zero, and lives in memory only.
+`fish:<x,z>` as `water-<x>-<z>`, `forage:<plant def>`, `animal_product:<race>`, the kind's wire name before
+the colon). The credit lives in memory only.
 
 Hunting is counted in two stages, each keyed by the corpse's thing id (the food census's
-stock id): a `KillRecord` when a player pawn kills an animal (a hunt, or a slaughter
-that leaves a corpse; the animal's `pawn_id`, race, body size, potential nutrition as meat amount x meat
-nutrition, tick) and a `ButcherRecord` where `GenRecipe.MakeRecipeProducts` makes a
-butcher recipe's products (any bill, any butcher; meat def, units and nutrition,
-leather units, tick). Each window holds every record of the epoch in tick order.
+stock id): a `Kill` when a player pawn kills an animal (a hunt, or a slaughter
+that leaves a corpse; the animal's `Pawn`, race, body size, potential nutrition as meat amount x meat
+nutrition, tick) and a `Butcher` where `GenRecipe.MakeRecipeProducts` makes a
+butcher recipe's products (any bill, any butcher; meat units and nutrition, leather units). The ledger holds
+every record of the load token in tick order.
 The brain links a kill to its butcher by corpse id; hauling a corpse never counts. Rot is read from the existing
 corpse census. The plan credits the `hunt` group from these records: a kill at its
 corpse's potential yield times its rot clock, replaced by the butchered meat; a kill
