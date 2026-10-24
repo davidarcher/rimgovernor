@@ -92,23 +92,24 @@ public sealed class LaboratoryCreditTests
     {
         var ledger = Ledger(Context(InRoom, Unroofed), Outcome(research: false));
         Assert.Empty(Credits(ledger));
-        Assert.DoesNotContain("lab_credit_unassessed:1", ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("lab", StringComparison.Ordinal));
         // Nor does research tier 2 did not value.
         Assert.Empty(Credits(Ledger(Context(InRoom, Unroofed) with { Investment = new Dictionary<string, double>() }, Outcome())));
     }
 
     [Fact]
-    public void AModdedRoomRoleIsUnassessed()
+    public void AModdedRoomRoleIsAProperRoomOfNoLabRoleAndAnUnreadStatPartThrows()
     {
-        var ledger = Ledger(Context(InRoom, Unroofed, Prediction(role: "ModdedRoom")), Outcome());
-        Assert.Contains("lab_credit_unassessed:1", ledger.Findings);
-        Assert.Empty(Credits(ledger));
-        // So is a bench model with a stat part the catalog does not read.
+        // #3835: a predicted role RoomRole does not name (a modded one) is a proper room that is not a laboratory, credited as
+        // any other role's room is.
+        var modded = Assert.Single(Credits(Ledger(Context(Elsewhere, 0.6, Prediction("ModdedRoom")), Outcome())));
+        Assert.Equal(Assert.Single(Credits(Ledger(Context(Elsewhere, 0.6, Prediction("Workshop")), Outcome()))).Value, modded.Value, 12);
+        // A bench model with a stat part the catalog does not read throws a required fact.
         var unread = Context(InRoom, Unroofed) with
         {
             ResearchBenchSpeeds = new Dictionary<string, BenchSpeedModel> { [Bench] = SimpleBench() with { Parts = [new BenchUnreadPart("StatPart_Glow")] } },
         };
-        Assert.Contains("lab_credit_unassessed:1", Ledger(unread, Outcome()).Findings);
+        Assert.Throws<RequiredFactException>(() => Ledger(unread, Outcome()));
     }
 
     [Fact]
@@ -135,8 +136,9 @@ public sealed class LaboratoryCreditTests
         Assert.Same(facts.ResearchBenchSpeeds, context.ResearchBenchSpeeds);
         Assert.Same(facts.Filth, context.Filth);
         // A fresh colony's review (no research yet, no prediction of the planned lab) credits it nothing and throws nothing.
-        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(research: false), context, Day)!);
-        Assert.Null(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(), context with
+        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(research: false), context, Day));
+        // With research but no prediction of the planned lab (a shape whose ring closes no room, #3834), it earns nothing.
+        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(), context with
         {
             Activities = Context(InRoom, Unroofed).Activities, Investment = new Dictionary<string, double> { ["Project"] = PointValue },
         }, Day));

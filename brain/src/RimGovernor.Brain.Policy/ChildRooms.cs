@@ -229,8 +229,9 @@ public static class ChildRoomsRules
     /// one blackboard) while a child does, and a deathrest chamber while a deathrester does: a casket per deathrester, which
     /// does not count toward its deathrest capacity, and the buildings that raise its deathrest efficiency (a factor above 1,
     /// the accelerator) as many as it binds (<see cref="ForecastDeathrest.Binds"/>, the credit's rule: each def's stackLimit
-    /// and the capacity, #3842). Pawns whose developmental stage or deathrest is unknown owe nothing; a deathrester whose
-    /// capacity or whose <paramref name="deathrest"/> defs are unread raises <see cref="RequiredFactException"/>.
+    /// and the capacity, #3842). A pawn without Biotech owes nothing, and one whose developmental stage is unknown owes no child
+    /// room. A pawn whose deathrest section is unread (a failed native read), or a deathrester whose capacity or whose
+    /// <paramref name="deathrest"/> defs are unread, raises <see cref="RequiredFactException"/> (#3835).
     /// </summary>
     public static List<ChildRoomNeed> ChildRoomNeeds(IEnumerable<WorkPawn> pawns, DeathrestDefsRead? deathrest)
     {
@@ -243,7 +244,12 @@ public static class ChildRoomsRules
                 continue;
             }
 
-            if (bt.Deathrest.TryGetValue(out var d) && d is not null)
+            if (!bt.Deathrest.TryGetValue(out var d))
+            {
+                throw new RequiredFactException("deathrest of " + p.Id);
+            }
+
+            if (d is not null)
             {
                 caskets++;
                 var defs = deathrest ?? throw new RequiredFactException("deathrest defs");

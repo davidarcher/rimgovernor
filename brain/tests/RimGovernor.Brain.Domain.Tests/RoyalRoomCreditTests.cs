@@ -85,7 +85,6 @@ public sealed class RoyalRoomCreditTests
         var context = Context(PlannedRole.Suite, impressiveness, cells, KnightBedroom, new MoodThought("TitleBedroomRequirementsNotMet", -6));
         var ledger = ForecastValue.Of(Serving(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
-        Assert.DoesNotContain("suite_credit_unassessed:1", ledger.Findings);
     }
 
     [Fact]
@@ -105,15 +104,13 @@ public sealed class RoyalRoomCreditTests
         Assert.Empty(Rows(Context(PlannedRole.Suite, 60, 30, KnightBedroom), Serving(0, 0.06), "suite"));
         var untitled = ForecastValue.Of(Serving(0, 0.06), Context(PlannedRole.Suite, 60, 30, null), Day);
         Assert.DoesNotContain(untitled.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
-        Assert.DoesNotContain("suite_credit_unassessed:1", untitled.Findings);
     }
 
     [Fact]
-    public void UnreadObservedThoughtsLeaveTheSuiteUnassessed()
+    public void UnreadObservedThoughtsThrowARequiredFact()
     {
-        var ledger = ForecastValue.Of(Serving(0, 0.06), Context(PlannedRole.Suite, 60, 30, KnightBedroom, default(Fact<EquatableArray<MoodThought>>)), Day);
-        Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
-        Assert.Contains("suite_credit_unassessed:1", ledger.Findings);
+        var context = Context(PlannedRole.Suite, 60, 30, KnightBedroom, default(Fact<EquatableArray<MoodThought>>));
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), context, Day));
     }
 
     // The production path (RoundsSleepingUpkeepPlanner.PlannedOccupantsOf): the suite step's claims over the sleeping census as
@@ -180,7 +177,6 @@ public sealed class RoyalRoomCreditTests
         var context = Context(PlannedRole.Suite, 60, 49, null) with { RoyalRooms = rooms };
         var ledger = ForecastValue.Of(Serving(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
-        Assert.DoesNotContain("suite_credit_unassessed:1", ledger.Findings);
     }
 
     // #3826 (epic #3650 P1, P7): a suite relieves its occupant's Greedy and Jealous bedroom thoughts too, title or not.
@@ -253,7 +249,6 @@ public sealed class RoyalRoomCreditTests
         var context = TraitContext(Traited(greedy: false, jealous: false, 90), 60, 4, Untitled, default);
         var ledger = ForecastValue.Of(Serving(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
-        Assert.DoesNotContain("suite_credit_unassessed:1", ledger.Findings);
     }
 
     [Fact]

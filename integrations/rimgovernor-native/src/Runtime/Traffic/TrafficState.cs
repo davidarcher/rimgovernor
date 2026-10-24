@@ -8,8 +8,8 @@ namespace HomeBridge.BridgeTools
 {
     // Observed pawn traffic per layer: every cell a pawn's path
     // follower enters counts once on the pawn's layer, and on the crossing
-    // layer when the step carries soil onto a floor. Counts are not saved
-    // (no ExposeData state): a load starts from zero. The class keeps its
+    // layer when the step carries soil onto a floor. Counts are not saved: a
+    // load starts from zero. The sighting log is saved (#3835). The class keeps its
     // old name so saves listing the component still load, and lives in the
     // Assemblies/ runtime: RimGovernor.Host loads the
     // BridgeTools assembly after a save can already be read, so the type
@@ -29,10 +29,23 @@ namespace HomeBridge.BridgeTools
         // exposure record; SightingLog states its bound.
         public readonly SightingLog Sightings = new SightingLog();
 
+        private System.Collections.Generic.List<int>? savedSightings;
+
         public TrafficState(Map map) : base(map)
         {
             Counts = new TrafficCounts(map.cellIndices.NumGridCells);
             Install();
+        }
+
+        // ExposeData saves the sighting log (#3835) as SightingLog.Export's
+        // flat list; a save without the node loads an empty log.
+        public override void ExposeData()
+        {
+            base.ExposeData();
+            if (Scribe.mode == LoadSaveMode.Saving) savedSightings = Sightings.Export();
+            Scribe_Collections.Look(ref savedSightings, "sightings", LookMode.Value);
+            if (Scribe.mode == LoadSaveMode.LoadingVars) Sightings.Import(savedSightings);
+            if (Scribe.mode == LoadSaveMode.Saving || Scribe.mode == LoadSaveMode.LoadingVars) savedSightings = null;
         }
 
         public override void MapComponentTick()

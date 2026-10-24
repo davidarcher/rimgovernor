@@ -366,7 +366,7 @@ public static partial class ForecastValue
         var goals = Known(-earned);
         var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
         PlannedRoomCredits.Credit(outcome, context, horizon, investmentRows, findings);
-        ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows, findings);
+        ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
         var investment = Known(invested);
@@ -693,29 +693,33 @@ public static partial class ForecastValue
 
     /// <summary>
     /// The price of one poisoned meal in <paramref name="outcome"/> over <paramref name="horizon"/> ticks (#3802), as the
-    /// ledger's poisoning term prices each expected case (<see cref="PoisoningCaseLoss"/>). Null when the poisoning table, the
-    /// pawns or a pawn's capacities are unread.
+    /// ledger's poisoning term prices each expected case (<see cref="PoisoningCaseLoss"/>); 0 with no pawn to poison. Throws
+    /// <see cref="RequiredFactException"/> (#3835) when the poisoning table, the moving minimum or a pawn's capacities are unread.
     /// </summary>
-    internal static double? PoisoningPrice(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static double PoisoningPrice(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
-        if (!index.FoodPoisoning || context.CapacityPenalties.MovingMinForCapable is not { } moving) return null;
+        if (!index.FoodPoisoning) throw new RequiredFactException("food poisoning penalty table");
+        if (context.CapacityPenalties.MovingMinForCapable is not { } moving) throw new RequiredFactException("moving capacity minimum");
         var pawns = outcome.Needs.ToArray();
+        if (pawns.Length == 0) return 0;
         Array.Sort(pawns, static (a, b) => string.CompareOrdinal(a.Key, b.Key));
-        return PoisoningCaseLoss(pawns, index.Pawns, context.CapacityPenalties.FoodPoisoning, moving, horizon, new SortedSet<string>(StringComparer.Ordinal));
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        return PoisoningCaseLoss(pawns, index.Pawns, context.CapacityPenalties.FoodPoisoning, moving, horizon, findings)
+            ?? throw new RequiredFactException(string.Join(",", findings));
     }
 
     /// <summary>
     /// The loss of one escape of an entity of <paramref name="points"/> combatPower in <paramref name="outcome"/> over
     /// <paramref name="horizon"/> ticks (#3811), as the harm term's escape part prices it (<see cref="HarmLedger.FightLoss"/>,
-    /// the worn outfits). Null when the fight cannot be priced.
+    /// the worn outfits). Throws when the fight cannot be priced (<see cref="HarmLedger.FightLoss"/>).
     /// </summary>
-    internal static double? EscapeLoss(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon, double points)
+    internal static double EscapeLoss(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon, double points)
     {
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
         var ordered = outcome.Needs.Keys.ToArray();
         Array.Sort(ordered, StringComparer.Ordinal);
-        return HarmLedger.FightLoss(points, ordered, outcome, context, horizon, index.Harm, index.Rows, null, new SortedSet<string>(StringComparer.Ordinal))?.Loss;
+        return HarmLedger.FightLoss(points, ordered, outcome, context, horizon, index.Harm, index.Rows, null, new SortedSet<string>(StringComparer.Ordinal)).Loss;
     }
 
     /// <summary>

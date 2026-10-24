@@ -64,7 +64,7 @@ public sealed record HarmDetail(double RaidsPerDay, double ExposureLo, double Ex
     /// <summary>The raids' part of the term's loss, in capability-days over the horizon.</summary>
     public double RaidLoss { get; init; }
 
-    /// <summary>The illness part (#3824); null when it is unassessed (the term then holds the raids alone, with an <c>illness_unassessed</c> finding).</summary>
+    /// <summary>The illness part (#3824); null when the disease table does not model the colony's illness (the term then holds the raids alone, with an <c>illness_unmodelled</c> finding).</summary>
     public IllnessTerm? Illness { get; init; }
 
     /// <summary>The escape part (#3811): the held entities' escapes; none without a held entity.</summary>
@@ -77,7 +77,7 @@ public sealed record HarmDetail(double RaidsPerDay, double ExposureLo, double Ex
 /// <summary>
 /// The escape part of the harm term (#3811): the held entities' escapes a day (Σ 1 / InitiateEscapeMtbDays), their loss over
 /// the horizon in capability-days (each escape one fight at the entity's combatPower) and the pawn deaths a day they cause.
-/// An entity whose fight cannot be priced adds nothing and is named <c>escape_unassessed:&lt;entity&gt;</c>.
+/// A fight the exposure model does not cover, or one an unread fact leaves unpriced, throws (<see cref="HarmLedger.FightLoss"/>, #3835).
 /// </summary>
 public sealed record EscapeTerm(double EscapesPerDay, double Loss, double DeathsPerDay);
 
@@ -93,8 +93,9 @@ internal sealed record HarmTerm(Fact<double> Loss, HarmDetail? Detail, IReadOnly
 /// at its whole-horizon loss wherever it falls in the horizon, and the horizon's days of raids are the schedule's expectation
 /// at the observed days passed. The illness term (#3824, <see cref="IllnessForecast"/>) adds disease incidents per day × horizon
 /// days × Σ over pawns of the same risk transform of one incident's loss; its deaths join the raids' in
-/// <see cref="HarmDetail.DeathsPerDay"/>. An unassessed illness leaves the raids' loss alone with <c>illness_unassessed</c> and
-/// the reason; <c>other_threats_unassessed</c> covers the threats other than raids and disease.
+/// <see cref="HarmDetail.DeathsPerDay"/>. An illness the disease table does not model leaves the raids' loss alone with
+/// <c>illness_unmodelled</c> and the reason, and an unread illness fact throws (#3835); <c>other_threats_unassessed</c> covers
+/// the threats other than raids and disease.
 /// </summary>
 internal static class HarmLedger
 {
@@ -263,43 +264,36 @@ internal static class HarmLedger
     /// <summary>
     /// The colony's risked loss of one fight at <paramref name="points"/> (#3811), in capability-days over the horizon, and the pawn
     /// deaths it causes: Σ over <paramref name="ordered"/> of <see cref="PawnFight"/> at points ÷ defense capacity, the raid's
-    /// weapon bins and exposure table standing in for the fight's (the raid-calibration assumption). Null, with the findings, when
-    /// the defense, the bins, a pawn's capacities, outfit or fight is unknown, or there is no pawn.
+    /// weapon bins and exposure table standing in for the fight's (the raid-calibration assumption); none with no pawn to fight.
+    /// The fight is priced where the exposure model covers it (a calibrated cell, <see cref="RaidExposure"/>): a pawn's fight
+    /// outside its coverage, or an unread defense, bins, capacities, outfit, outfit timing or distribution, throws
+    /// <see cref="RequiredFactException"/> naming the finding (#3835, replacing #3811's unassessed escape).
     /// </summary>
-    internal static (double Loss, double Deaths)? FightLoss(double points, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
+    internal static (double Loss, double Deaths) FightLoss(double points, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache,
         IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
     {
-        if (RatioOf(context.Harm, points) is not { } ratio)
-        {
-            findings.Add("defense_capacity_unobserved");
-            return null;
-        }
-
-        if (BinsOf(context.Harm) is not { } bins)
-        {
-            findings.Add(CompositionUnknown);
-            return null;
-        }
-
         if (ordered.Length == 0)
         {
-            findings.Add("harm_unassessed:no_pawns");
-            return null;
+            return (0, 0);
         }
 
+        var ratio = RatioOf(context.Harm, points) ?? throw new RequiredFactException("defense_capacity_unobserved");
+        var bins = BinsOf(context.Harm) ?? throw new RequiredFactException(CompositionUnknown);
         double loss = 0, deaths = 0;
         foreach (var pawn in ordered)
         {
             if (!pawns.TryGetValue(pawn, out var row) || !context.Outfits.TryGetValue(pawn, out var wearing))
             {
-                findings.Add((pawns.ContainsKey(pawn) ? "outfit_unobserved:" : "capacities_unobserved:") + pawn);
-                return null;
+                throw new RequiredFactException((pawns.ContainsKey(pawn) ? "outfit_unobserved:" : "capacities_unobserved:") + pawn);
             }
 
-            if (PawnFight(pawn, row, wearing, ratio, bins, outcome, context, horizon, cache, commitments, findings) is not { } fight)
+            var own = new SortedSet<string>(StringComparer.Ordinal);
+            var read = PawnFight(pawn, row, wearing, ratio, bins, outcome, context, horizon, cache, commitments, own);
+            findings.UnionWith(own);
+            if (read is not { } fight)
             {
-                return null;
+                throw new RequiredFactException(string.Join(",", own.Where(f => f != RaidExposure.LayoutUnassessed)));
             }
 
             loss += fight.Risked;
@@ -312,8 +306,8 @@ internal static class HarmLedger
     /// <summary>
     /// The escape part (#3811): per entity held on a platform, its escapes a day at the platform's strength now
     /// (<see cref="ForecastContainment.EscapesPerDay"/>) times the days of the horizon and the loss of one fight at its combatPower
-    /// (<see cref="FightLoss"/>). No held entity adds nothing; an entity whose fight is unknown adds nothing and is named
-    /// <see cref="ForecastContainment.EscapeUnassessed"/>. Unread entities or curves raise <see cref="RequiredFactException"/>.
+    /// (<see cref="FightLoss"/>). No held entity adds nothing. Unread entities or curves, or a fight <see cref="FightLoss"/>
+    /// cannot price, raise <see cref="RequiredFactException"/>.
     /// </summary>
     private static EscapeTerm Escapes(string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache,
@@ -336,12 +330,7 @@ internal static class HarmLedger
                 continue;
             }
 
-            if (FightLoss(entity.Escape.CombatPower, ordered, outcome, context, horizon, cache, pawns, commitments, findings) is not { } fight)
-            {
-                findings.Add(ForecastContainment.EscapeUnassessed(entity.Id));
-                continue;
-            }
-
+            var fight = FightLoss(entity.Escape.CombatPower, ordered, outcome, context, horizon, cache, pawns, commitments, findings);
             findings.Add(ForecastContainment.NotModelled[0]);
             perDay += rate;
             loss += rate * days * fight.Loss;
@@ -353,7 +342,7 @@ internal static class HarmLedger
 
     /// <summary>
     /// The term of a known raid part with the illness (#3824) and escape (#3811) parts added: the loss is the raids' plus the
-    /// illness's plus the escapes', priced alike; an unassessed illness leaves the others alone with its findings.
+    /// illness's plus the escapes', priced alike; an illness the table does not model leaves the others alone with its findings.
     /// </summary>
     private static HarmTerm WithIllness(HarmDetail raids, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> fights,

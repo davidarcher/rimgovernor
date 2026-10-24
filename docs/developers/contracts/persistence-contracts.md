@@ -242,6 +242,11 @@ stays the only input.
   and when it last probed the turret siting (`Rounder.DefenseVerification`, #3008). It drives the Need's
   Verified fact and the re-verify and siting cadence. It is not saved: a restart or a world change
   empties it and the layout re-verifies. Combat does not read it.
+- **Sighting log (game save).** Native keeps each free colonist's observer passes of the last two days
+  (`SightingLog`, the morgue and tomb credits' exposure record, #3806) and saves it with the map
+  (`TrafficState.ExposeData`, a `sightings` list of ints, #3835). A save from before it loads an
+  empty record, a state the credits price from what it holds (nothing covered, no credit) until the
+  colonists' passes fill it; the traffic counts beside it are not saved.
 
 ## What is re-derived
 

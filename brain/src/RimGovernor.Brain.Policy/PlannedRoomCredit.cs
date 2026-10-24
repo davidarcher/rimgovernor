@@ -25,10 +25,11 @@ public readonly record struct RoomGain(string Subject, string Pawn, double PerDa
 
 /// <summary>
 /// A planned room role's credit (#3796): the gains a day of <paramref name="room"/> serving earns in
-/// <paramref name="outcome"/>, over the tier-1 <paramref name="horizonTicks"/>. Empty earns nothing; null is unassessed
-/// (an unknown fact, epic #3650 P10), which credits nothing.
+/// <paramref name="outcome"/>, over the tier-1 <paramref name="horizonTicks"/>. Empty earns nothing: each credit names the
+/// real states that earn nothing. A fact it needs unread throws <see cref="RequiredFactException"/> (epic #3650 P10 as
+/// revised, #3835): there is no unassessed credit.
 /// </summary>
-public delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
+public delegate IReadOnlyList<RoomGain> RoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
 
 /// <summary>The named findings a served room's credit adds to the ledger (#3811): what it leaves out, or a part it could not price.</summary>
 public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
@@ -78,12 +79,13 @@ public static class PlannedRoomCredits
 
     /// <summary>
     /// The mechanics a role's credit leaves out, named with each room of it served (<see cref="RoomFindings"/>): the hospital's
-    /// (#3804); the containment cell's, with its held entity's unpriced escape fight or knowledge category (#3811); the sparring
-    /// ring's (#3813); the training range's (#3846).
+    /// (#3804); the containment cell's, with its held entity's unpriced knowledge category (#3811); the worship room's demand
+    /// requirements and ritual outcomes it cannot predict (#3835); the sparring ring's (#3813); the training range's (#3846).
     /// </summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomFindings> Unmodelled = new Dictionary<PlannedRole, RoomFindings>
     {
         [PlannedRole.Hospital] = (_, _, _, _) => ForecastHospital.Unmodelled,
+        [PlannedRole.Worship] = ForecastWorship.Unmodelled,
         [PlannedRole.ContainmentCell] = ForecastContainment.CellFindings,
         [PlannedRole.SparringRing] = (_, _, _, _) => ForecastSparring.Unmodelled,
         [PlannedRole.TrainingRange] = (_, _, _, _) => ForecastTrainingRange.Unmodelled,
@@ -129,28 +131,44 @@ public static class PlannedRoomCredits
     /// <summary>The Investment key of one credit row: <c>{role}/{room}/{subject}</c>, the role by its wire name.</summary>
     public static string Key(PlannedRole role, int room, string subject) => FormattableString.Invariant($"{Wire.Name(role)}/{room}/{subject}");
 
-    /// <summary>The finding of a priced room whose credit is unassessed: <c>{role}_credit_unassessed:{room}</c>.</summary>
-    public static string Unassessed(PlannedRole role, int room) => FormattableString.Invariant($"{Wire.Name(role)}_credit_unassessed:{room}");
+    /// <summary>
+    /// The closure prediction a credit reads for planned room <paramref name="room"/> served in <paramref name="stuff"/>
+    /// (#3835): the one in that stuff, else its first by stuff (a room without ring work is predicted once, in stuff "", while
+    /// its service day names its sites' stuff). Every priced room is predicted (PlannedRules.PlannedRoomPredictionRequestOf)
+    /// and native reads each row whole (#3834); null for a shape whose ring closes no room, which native answers no row for,
+    /// so the room changes nothing a closed room would.
+    /// </summary>
+    internal static ForecastPlannedClosure? Prediction(ForecastCoupledContext context, int room, string stuff)
+    {
+        var closures = context.Closures.Where(c => c.Room == room).OrderBy(c => c.Stuff, StringComparer.Ordinal).ToArray();
+        return closures.FirstOrDefault(c => c.Stuff == stuff) ?? closures.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The capability-days a mood <paramref name="delta"/> of <paramref name="pawn"/> gains a day in <paramref name="outcome"/>
+    /// (<see cref="ForecastHousing.GainPerDay"/> over the tier-1 <paramref name="horizon"/>); 0 for no delta. A pawn the
+    /// outcome forecasts no mood for, or whose break risk it left unknown, throws <see cref="RequiredFactException"/> (#3835).
+    /// </summary>
+    internal static double MoodGain(double delta, string pawn, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon) =>
+        ForecastHousing.GainPerDay(delta, outcome.Needs.GetValueOrDefault(pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay)
+            ?? throw new RequiredFactException("mood forecast:" + pawn);
 
     /// <summary>
     /// The credit rows of <paramref name="outcome"/>: per served priced room, its role's gains times the days from its
     /// service day to tier 2's horizon (<see cref="ForecastCoupledContext.InvestmentHorizonDays"/>; none before tier 2
-    /// ran) plus its once gain (<see cref="RoomGain.Once"/>), each a gain (negative), and its role's <see cref="Unmodelled"/> mechanics named. A priced room the projection could not assess, or whose credit is null, is named
-    /// <see cref="Unassessed"/> and credited nothing.
+    /// ran) plus its once gain (<see cref="RoomGain.Once"/>), each a gain (negative), and its role's <see cref="Unmodelled"/> mechanics named.
     /// </summary>
     internal static void Credit(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         List<ForecastInvestmentContribution> rows, SortedSet<string> findings)
     {
         var days = context.InvestmentHorizonDays;
         if (days <= 0) return;
-        foreach (var room in outcome.UnassessedRooms)
-            if (context.PlannedRoomRoles.TryGetValue(room, out var role) && context.RoomCredits.ContainsKey(role)) findings.Add(Unassessed(role, room));
         foreach (var served in outcome.ServedRooms)
         {
             if (!context.PlannedRoomRoles.TryGetValue(served.Room, out var role) || !context.RoomCredits.TryGetValue(role, out var credit)) continue;
-            if (credit(served, outcome, context, horizon) is not { } gains) { findings.Add(Unassessed(role, served.Room)); continue; }
             var units = RingClosure.CreditDays(days, served.ServedAt);
             if (units <= 0) continue;
+            var gains = credit(served, outcome, context, horizon);
             if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named(served, outcome, context, horizon));
             foreach (var gain in gains)
                 rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -((gain.PerDay * units) + gain.Once)));
@@ -190,7 +208,7 @@ public static class PlannedRoomCredits
         foreach (var item in context.RoomItems) Finished(item.Item, item.Finishes);
         var sites = context.PlannedSites.ToLookup(s => s.Room);
         var items = context.RoomItems.SelectMany(i => i.Rooms.Select(r => (Room: r, i.Item))).ToLookup(p => p.Room, p => p.Item);
-        // A prediction without ring work (a kitchen's, read for its cleanliness, #3802) closes nothing and names no stuff.
+        // A prediction without ring work (a priced room's, read for its credit, #3802, #3835) closes nothing and names no stuff.
         var closures = context.Closures.Where(c => c.Ring.Count + c.Placed.Count > 0).ToLookup(c => c.Room);
         Way[] OwnWays(int room)
         {
@@ -231,8 +249,8 @@ public static class PlannedRoomCredits
     }
 
     /// <summary>
-    /// The planned rooms one schedule serves, from the activities it completed (id to tick), and the ones it touches whose
-    /// service day is unassessed (#3796, epic #3650 P2, replacing #3744's ring closure). A room is built by its one
+    /// The planned rooms one schedule serves, from the activities it completed (id to tick) (#3796, epic #3650 P2, replacing
+    /// #3744's ring closure). A room is built by its one
     /// reconcile: per ring stuff (its closure predictions', else its sites'), it owes its planned sites in that stuff or
     /// none, the placed ring sites of that stuff's closure and the room items it holds (<see cref="ForecastCoupledContext.RoomItems"/>),
     /// with every way of each connector serving it (<see cref="ForecastCoupledContext.Connectors"/>, #3815), as one job, less
@@ -244,14 +262,15 @@ public static class PlannedRoomCredits
     /// least, and a stuff with an unfinished item without a row is not projected. The builders first spend the owed work the
     /// schedule finished, then work the open rooms, then the rooms this schedule opens, each group by its remaining work:
     /// the k-th serves at RingClosure.ClosedAt of the cumulative work (an item two rooms share counted once) over
-    /// <see cref="ForecastCoupledContext.PlannedBuilders"/>, never before <paramref name="horizon"/>. No builders, or no
-    /// stuff with every row, leaves the room unassessed.
+    /// <see cref="ForecastCoupledContext.PlannedBuilders"/>, never before <paramref name="horizon"/>. A room no builder can
+    /// finish (no free builder, or no stuff with every row: no option can do an item's work) is never served, and earns
+    /// nothing (#3835); a room needing projecting while the builders are unread throws <see cref="RequiredFactException"/>.
     /// </summary>
-    internal static (EquatableArray<ForecastRoomService> Served, EquatableArray<int> Unassessed) ServiceDays(ForecastCoupledContext context,
+    internal static EquatableArray<ForecastRoomService> ServiceDays(ForecastCoupledContext context,
         IReadOnlyDictionary<string, double> finishedAt, double horizon)
     {
         var owed = Cache.GetValue(context, OwedOf);
-        if (owed.Rooms.Count == 0) return ([], []);
+        if (owed.Rooms.Count == 0) return [];
         double At(string item)
         {
             var at = double.PositiveInfinity;
@@ -267,7 +286,7 @@ public static class PlannedRoomCredits
             return double.IsFinite(at);
         }
         var work = context.OwedWork;
-        var served = new List<ForecastRoomService>(); var unassessed = new List<int>();
+        var served = new List<ForecastRoomService>();
         var queue = new List<(bool Started, double Remaining, int Room, string Stuff, string[] Unfinished)>();
         foreach (var (room, ways) in owed.Rooms)
         {
@@ -285,7 +304,9 @@ public static class PlannedRoomCredits
                 var remaining = unfinished.Sum(i => work[i]);
                 if (best is null || remaining < best.Value.Remaining) best = (remaining, way, unfinished);
             }
-            if (best is not { } chosen || context.PlannedBuilders <= 0) { unassessed.Add(room); continue; }
+            if (best is not { } chosen) continue;
+            if (context.PlannedBuildersUnread) throw new RequiredFactException("planned builders");
+            if (context.PlannedBuilders <= 0) continue;
             queue.Add((started, chosen.Remaining, room, chosen.Way.Stuff, chosen.Unfinished));
         }
         var counted = new HashSet<string>(StringComparer.Ordinal);
@@ -297,6 +318,6 @@ public static class PlannedRoomCredits
             foreach (var item in unfinished) if (counted.Add(item)) cumulative += work[item];
             served.Add(new(room, stuff, Math.Max(horizon, RingClosure.ClosedAt(cumulative, context.PlannedBuilders))));
         }
-        return (EquatableArray.From(served.OrderBy(s => s.Room)), EquatableArray.From(unassessed));
+        return EquatableArray.From(served.OrderBy(s => s.Room));
     }
 }

@@ -544,7 +544,8 @@ unmet-requirement thought it lifts, #3836, and a garment at a title's minimum qu
 quality being its crafter's odds, each mood outcome priced and weighted by its chance, #3850), priced as a bedroom's delta below from the change's
 tick to tier 2's horizon. A pawn's garments are taken in delivery order, each credited the gain its delivery adds; the break
 shifts of every outfit the alternatives can reach are integrated before the search (`ForecastApparel.BreakShifts`, at most 64
-outfits a pawn). A pawn whose apparel facts, outfit, mood, tick or shift is unread is `apparel_credit_unassessed:<pawn>`.
+outfits a pawn). A pawn without an apparel tracker wears nothing to credit; one whose outfit, stage row, mood, tick or shift is
+unread throws `RequiredFactException` (#3835).
 Armor is the harm term's ([harm model](#harm-model)), not a credit.
 
 *Bedroom credit (#3655, #3647).* A planned bedroom the outcome serves (`PlannedRoomCredits.ServiceDays`, logged on the outcome
@@ -581,11 +582,11 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
   timeline integrating each shift with its own clamp at 0 and 1), plus the rest's freed capability-days.
 - *Credit*: the gain × (H − service day), H tier 2's `HorizonDays` (`ForecastCoupledContext.InvestmentHorizonDays`); a gain, so negative.
 
-A room any of whose occupants' stage, bed, observed thoughts or mood is unread, or whose service day is unknown, is named
-`bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. An unread bed term (an occupant's
-planned bed, a memory or comfort row, the comfort curve, the rest fall, the room's temperature) throws `RequiredFactException`
-(#3840, rule 9: no new unassessed path). A bedroom with no occupant, or one
-not served before tier 2's horizon, pays its material with no credit and waits.
+A room whose shape closes no room (native answers no prediction row) earns nothing. An occupant whose stage, sleep
+place, observed thoughts or mood is unread throws
+`RequiredFactException` (#3835), as does an unread bed term (an occupant's planned bed, a memory or comfort row, the comfort
+curve, the rest fall, the room's temperature; #3840). A bedroom with no occupant, or one not served before tier 2's horizon
+(no free builder, or owed work no option can do), pays its material with no credit and waits.
 
 *Storage credit (#3798, epic #3650).* A served planned storage room, meal closet or yard is credited the stock it keeps from
 deteriorating (`ForecastStorage.StorageCredit`), under `storage/<room>/<thing>` (`meal_closet/`, `yard/`); a reserve keeps no
@@ -602,9 +603,10 @@ store and earns nothing.
 - *Capacity and sharing*: each room keeps its largest gains up to its cells; rooms take stacks in id order, each stack once. A food
   stack hunger already debits (a needs food target with a deterioration read) is left to it.
 
-An unread stock (the stockpile review did not run), an unpriced kept stack or an unread rain, map area or environmental part
-names `<role>_credit_unassessed:<room>`. A yard credits only stock its open cells protect more than where it lies, so in
-practice nothing.
+No stockpile request (the stockpile review did not run: no stranded stock to place) is the no-stock state and earns nothing; a
+stack no colonist reaches is not stock a store keeps, and a material with no market value (`MaterialValueBasis.Unpriced`) saves
+nothing. An unread material value, rain, visit rate or environmental part throws `RequiredFactException` (#3835). A yard credits
+only stock its open cells protect more than where it lies, so in practice nothing.
 
 *Kitchen and butchery credit (#3802, epic #3650 P1).* Both are priced by the food poisoning their room changes
 (`KitchenCredits`). A meal's first poisoning roll (`CompFoodPoisonable.Notify_RecipeProduced`) is its bench room's
@@ -613,15 +615,15 @@ practice nothing.
 share of the day its stations' filth stands and its clean value otherwise, the roomless score for a None room. One
 poisoning is priced as the ledger prices an expected case (`ForecastValue.PoisoningPrice`, the poisoning term below).
 
-- *Kitchen*, under `kitchen/<room>/food_poisoning`: the chance at the cook's current room (the `SupportDemand.FoodPoisonChance`
-  of the bench demands of the benches the colony cooks at now, `ForecastCoupledContext.CookingBenches`) less the planned
-  kitchen's, times its meals a day (`PlannedRoom.Meals`, the layout group's exposed stations' meals) and the price.
+- *Kitchen*, under `kitchen/<room>/food_poisoning`: the planned kitchen's own cooking (#3835): its meals a day
+  (`PlannedRoom.Meals`, the layout group's exposed stations' meals) made at the stat's roomless chance
+  (`FilthModel.FoodPoisonRoomless`, its stations standing with no room) less made in the planned kitchen, times the price.
 - *Butchery*, under `butchery/<room>/<kitchen>`: per planned kitchen, its chance with the butchery's filth runs added to its
   own less its chance with its own, times the kitchen's meals and the price.
 
-A kitchen whose layout room, prediction or the filth model is unread, with no bench cooking now (a fresh colony)
-or cooking benches in rooms of different chances, or whose price is unread is named `kitchen_credit_unassessed:<room>`
-(`butchery_credit_unassessed:<room>`) and earns nothing. The dirt pawns track in is not priced (the layout's traffic is
+A kitchen with no planned meals earns nothing, and one whose shape closes no room (native answers no prediction row) leaves
+its stations roomless and saves nothing. One whose layout room or filth model is unread, or whose price is unread, throws
+`RequiredFactException` (#3835). The dirt pawns track in is not priced (the layout's traffic is
 unknown), nor a floor laid in a standing kitchen with no ring left (it is not a served room).
 
 *Throne room and suite credit (#3807).* A planned throne room or suite is credited, through the same seam
@@ -636,8 +638,8 @@ thought defs by worker class) of those of the room's two thoughts the colonist h
 prediction meets both requirements (`Cells >= MinArea`, `round(Impressiveness) >= MinImpressiveness`, the game's
 `RoomRequirement_Area` and `RoomRequirement_Impressiveness`); a partial match earns nothing. The gain per day and credit are the
 bedroom's (`GainPerDay` × (H − service day)). A room serving no title (no Royalty, no titled colonist, no throne owed), or one
-whose colonist has neither thought now, is credited 0; unread observed thoughts or an unread Impressiveness, when a thought is
-held, is `throne_credit_unassessed:<room>` (`suite_credit_unassessed:<room>`).
+whose colonist has neither thought now, or whose shape closes no room, is credited 0; unread observed thoughts or an unread mood throws
+`RequiredFactException` (#3835).
 
 *Greedy and Jealous suite credit (#3826).* A suite also relieves its occupant's trait bedroom thoughts, titled or not:
 `RoyalRoomRules.PlannedRoyalRooms` gives every suite occupant a row (an untitled one with no requirement, 0 and 0), and the
@@ -657,8 +659,9 @@ gains the research its researchers do at it; with none standing, the room's plan
 that bench placed outdoors (no proper room, unroofed) and gains all of the schedule's research. Per day each research allocation
 earns its points over the horizon's days / its bench's factor now × the factor gain × `Investment`'s value of a point of its
 project. No research allocation of a valued project earns nothing. The temperature part and the bookcase reading bonus are held at
-1 and facility offsets (multi-analyzer) are not modelled. A room with no closure prediction, an unread prediction or filth model,
-an unread stat part, or a research bench without a bench row or model is named `lab_credit_unassessed:<room>`.
+1 and facility offsets (multi-analyzer) are not modelled. A room whose shape closes no room earns nothing, and a predicted
+role `RoomRole` does not name (a modded one) is a proper room of no vanilla role. An unread filth model, an unread stat part,
+or a research bench without a bench row or model throws `RequiredFactException` (#3835).
 
 *Morgue and tomb credit (#3806).* A planned morgue or tomb the outcome serves is credited through the same seam
 (`ForecastCorpses.MorgueCredit`, `TombCredit`) under `morgue/<room>/<pawn>` (`tomb/<room>/<pawn>`): the observed-corpse moods
@@ -688,14 +691,15 @@ The forecast's mood timeline renews no observation memory, so it already holds t
 room's gain a day is minus `ForecastHousing.GainPerDay` of the corpse mood (wellbeing and the break days the timeline shifted by
 `mood / 100` costs), credited × (H − service day). A tomb takes the colonist corpses; a morgue takes the strangers', and the
 colonists' too while no priced tomb is planned; with several rooms of a role the lowest id takes them. A fresh colony (no corpse,
-no record) credits nothing. A colonist whose record covers less than a whole day names `morgue_credit_unassessed:<room>`
-(`tomb_credit_unassessed:<room>`). Not modelled: PawnObserver's region-traversal bound (only the radius and line of sight are
+no record) credits nothing. A colonist whose record covers less than a whole day is credited from what it holds: the covered
+ticks are the cycle, and an empty record (no pass yet, an old save) covers nothing and credits nothing (#3835). Not modelled:
+PawnObserver's region-traversal bound (only the radius and line of sight are
 replayed), a corpse moving before the room takes it, the rot stage changing over the horizon, a grave outside a room taking a
 colonist corpse first, a tomb's sarcophagus count, and the exposure a morgue's own haulers still meet.
 
 The sighting log is bounded: one ring per free colonist of its observer passes in the last 2 days (120000 ticks), at most
-120000 / 450 + 1 = 267 entries (about 2 KB a colonist), pruned to the free colonists every game hour and not saved; a load
-starts the record afresh, so the credits read unassessed for a day.
+120000 / 450 + 1 = 267 entries (about 2 KB a colonist), pruned to the free colonists every game hour and saved with the map
+(`TrafficState.ExposeData`, the `sightings` node, #3835); a save from before it loads an empty record.
 
 *Worship credit (#3808).* A planned worship room the outcome serves is credited through the same seam
 (`ForecastWorship.WorshipCredit`) under `worship/<room>/<pawn>`, per believer (`WorshipFacts.Believers`: the free non-slave
@@ -710,9 +714,10 @@ the colony hold (free start, a required building, a positive `IntervalDaysMin`):
 quality (`RitualOutcomeModel`, the catalog's `RitualOutcomeEffectDef` drawn from quality: startingQuality plus the participant
 count's and the room stat's curves at every believer attending and the prediction's impressiveness or steady cleanliness,
 clamped; each outcome weighted chance × quality when positive, chance otherwise), over min(duration, interval) / interval. Other
-quality comps are not modelled. No ideoligion, no believer or no worship room owed earns nothing. A room with no closure
-prediction or an unread one, a demand requirement of a kind the plan cannot predict, missing demand moods or a ritual outcome
-effect not drawn from quality is named `worship_credit_unassessed:<room>`.
+quality comps are not modelled. No ideoligion, no believer or no worship room owed earns nothing. A demand requirement of a
+kind the plan cannot predict adds nothing and is named `worship_requirement_unmodelled:<kind>`, and a ritual outcome effect not
+drawn from quality `ritual_outcome_unmodelled:<effect>`, not-modelled findings of the served room. A room whose shape closes
+no room earns nothing; missing demand moods throw `RequiredFactException` (#3835).
 
 *Deathrest chamber credit (#3810).* A planned deathrest chamber the outcome serves is credited through the same seam
 (`ForecastDeathrest.ChamberCredit`) under `deathrest-chamber/<room>/<pawn>`, per deathrester (a pawn whose needs row carries

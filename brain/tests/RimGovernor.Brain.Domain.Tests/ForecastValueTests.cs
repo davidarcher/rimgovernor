@@ -667,12 +667,15 @@ public sealed class ForecastValueTests
             return ForecastValue.Of(Outcome(Calm()), context, Day, Outcome(Calm()), null);
         }
 
-        var without = Value(IllnessSchedule.Of(new DiseaseTable(), null));
+        // A storyteller the disease table does not model: no illness term, named (#3835).
+        var without = Value(IllnessSchedule.Of(new DiseaseTable(), IllnessForecastTests.Facts()));
         var with = Value(illness);
 
         Assert.Null(without.HarmDetail!.Illness);
-        Assert.Contains("illness_unassessed", without.Findings);
-        Assert.Contains("disease_facts_unobserved", without.Findings);
+        Assert.Contains(IllnessForecast.Unmodelled, without.Findings);
+        Assert.Contains("disease_storyteller_unknown:Cassandra", without.Findings);
+        // Unread disease facts throw a required fact instead.
+        Assert.Throws<RequiredFactException>(() => Value(IllnessSchedule.Of(new DiseaseTable(), null)));
         Assert.Equal(without.Harm.Value, without.HarmDetail.RaidLoss, 9);
         Assert.Equal(without.HarmDetail.RaidLoss, with.HarmDetail!.RaidLoss, 9);
         var term = with.HarmDetail.Illness;
@@ -681,7 +684,7 @@ public sealed class ForecastValueTests
         Assert.True(term.Loss > 0);
         Assert.Equal(with.HarmDetail.RaidLoss + term.Loss, with.Harm.Value, 9);
         Assert.Equal("pawn", Assert.Single(term.Pawns).Pawn);
-        Assert.DoesNotContain("illness_unassessed", with.Findings);
+        Assert.DoesNotContain(IllnessForecast.Unmodelled, with.Findings);
     }
 
     [Fact]

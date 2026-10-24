@@ -37,7 +37,7 @@ public sealed class RingClosureProjectionTests
         done.ToDictionary(d => d.Site.Planned.Finishes[0], d => d.At, StringComparer.Ordinal);
 
     private static EquatableArray<ForecastRoomService> Project(ForecastCoupledContext context, Dictionary<string, double> finished) =>
-        PlannedRoomCredits.ServiceDays(context, finished, Day).Served;
+        PlannedRoomCredits.ServiceDays(context, finished, Day);
 
     /// <summary>Acceptance (a): one builder, ring A open with two days left; finishing B's ring work in the schedule moves A's closure later by B's work.</summary>
     [Fact]
@@ -79,8 +79,8 @@ public sealed class RingClosureProjectionTests
         var closed = Assert.Single(Project(context, Finished((wall, Day / 2))));
         Assert.Equal(3 * Day, closed.ServedAt);
         Assert.Empty(Project(context, []));
-        var unbuilt = PlannedRoomCredits.ServiceDays(context with { PlannedBuilders = 0 }, Finished((wall, Day / 2)), Day);
-        Assert.Equal((0, 1), (unbuilt.Served.Count, Assert.Single(unbuilt.Unassessed)));
+        // No free builder: the room is never served (#3835).
+        Assert.Empty(Project(context with { PlannedBuilders = 0 }, Finished((wall, Day / 2))));
         // The physical closure the per-tick reads use inside the schedule projects nothing.
         Assert.Empty(ForecastRoofConsequences.PlannedClosedRooms(context, Finished((wall, Day / 2))));
         // A short ring is never projected inside the horizon, which the schedule decides.
@@ -101,12 +101,11 @@ public sealed class RingClosureProjectionTests
         Assert.Equal(Day + (2 * Day) + (Day / 2), rooms[3], 6);
     }
 
-    /// <summary>A room owing a site without an owed-work row is unassessed, not projected.</summary>
+    /// <summary>A room owing a site without an owed-work row (no option can do it) is never served (#3835).</summary>
     [Fact]
     public void ARingWithUnknownWorkIsNotProjected()
     {
         var a = Site(1, "wall", 2 * Day) with { Work = null };
-        var service = PlannedRoomCredits.ServiceDays(Context(1, [1], [a], Closure(1, a)), Finished(), Day);
-        Assert.Equal((0, 1), (service.Served.Count, Assert.Single(service.Unassessed)));
+        Assert.Empty(Project(Context(1, [1], [a], Closure(1, a)), Finished()));
     }
 }

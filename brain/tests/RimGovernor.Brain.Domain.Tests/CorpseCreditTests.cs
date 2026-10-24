@@ -64,7 +64,7 @@ public sealed class CorpseCreditTests
         var context = Context(Pawn(), PlannedRole.Morgue, ByTheKitchenDoor(), ByTheKitchenDoor());
         // Each daily sighting holds both memories for half a day: two stacked at -4 x (1 + 0.5) half the time.
         var mood = -4 * (1 + 0.5) * 0.5;
-        Assert.Equal(mood, ForecastCorpses.CorpseMood(context.Needs.Pawns[0], context.Needs.Corpses)!.Value, 12);
+        Assert.Equal(mood, ForecastCorpses.CorpseMood(context.Needs.Pawns[0], context.Needs.Corpses), 12);
         Assert.Equal(new[] { mood / 100 }, PlannedRoomCredits.BreakShifts(context)["pawn"]);
         var row = Assert.Single(Credits(Ledger(context, Outcome(mood / 100)), "morgue"));
         // The room removes the corpses' wellbeing and the break day their mood would cost, from day 2 to the horizon.
@@ -78,7 +78,7 @@ public sealed class CorpseCreditTests
     {
         var ledger = Ledger(Context(Pawn()), Outcome(0));
         Assert.Empty(Credits(ledger, "morgue"));
-        Assert.DoesNotContain("morgue_credit_unassessed:1", ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.Contains("unassessed:", StringComparison.Ordinal));
         Assert.False(PlannedRoomCredits.BreakShifts(Context(Pawn())).ContainsKey("pawn"));
     }
 
@@ -90,20 +90,33 @@ public sealed class CorpseCreditTests
         int[] passes = [.. Enumerable.Range(0, 5).Select(h => h * 2 * GameTime.TicksPerHour + 1)];
         CorpseSightingRead Seen() => new(true, false, [new("pawn", EquatableArray.From(passes))]);
         var active = (8 * GameTime.TicksPerHour + Day / 2) / Day;
-        Assert.Equal(-6 * active, ForecastCorpses.CorpseMood(pawn, [Seen()])!.Value, 12);
+        Assert.Equal(-6 * active, ForecastCorpses.CorpseMood(pawn, [Seen()]), 12);
         // Six rotting corpses seen together stack to the thought's limit of five.
         var group = Enumerable.Range(0, 5).Sum(i => Math.Pow(0.5, i));
-        Assert.Equal(-6 * group * active, ForecastCorpses.CorpseMood(pawn, [.. Enumerable.Range(0, 6).Select(i => Seen())])!.Value, 12);
+        Assert.Equal(-6 * group * active, ForecastCorpses.CorpseMood(pawn, [.. Enumerable.Range(0, 6).Select(i => Seen())]), 12);
         // A colonist whose ideo gives no corpse memory loses nothing.
         Assert.Equal(0, ForecastCorpses.CorpseMood(pawn with { CorpseThoughts = [] }, [Seen()]));
     }
 
     [Fact]
-    public void AColonistWithLessThanADayOfRecordIsUnassessed()
+    public void AColonistWithLessThanADayOfRecordIsCreditedFromWhatItHolds()
     {
-        var ledger = Ledger(Context(Pawn(record: Ticks / 2), PlannedRole.Morgue, ByTheKitchenDoor()), Outcome(-0.02));
-        Assert.Contains("morgue_credit_unassessed:1", ledger.Findings);
-        Assert.Empty(Credits(ledger, "morgue"));
+        // #3835: half a day of record is its own cycle; the pass a quarter day ago holds the fresh memory the whole cycle.
+        var young = Context(Pawn(record: Ticks / 2), PlannedRole.Morgue, ByTheKitchenDoor());
+        Assert.Equal(-4, ForecastCorpses.CorpseMood(young.Needs.Pawns[0], young.Needs.Corpses), 12);
+        var ledger = Ledger(young, Outcome(-0.04));
+        Assert.Equal(-(young.Value.WellbeingWeight * 4 / 100 + young.MoodBreaks.DaysLost([Day, 0, 0])!.Value) * (Horizon - 2),
+            Assert.Single(Credits(ledger, "morgue")).Value, 12);
+        Assert.DoesNotContain(ledger.Findings, f => f.Contains("unassessed:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnEmptySightingRecordCreditsNothing()
+    {
+        // #3835: a colonist with no pass yet, or a save from before the sighting log was saved, covers nothing.
+        var empty = Context(Pawn(record: 0), PlannedRole.Morgue, ByTheKitchenDoor());
+        Assert.Equal(0, ForecastCorpses.CorpseMood(empty.Needs.Pawns[0], empty.Needs.Corpses));
+        Assert.Empty(Credits(Ledger(empty, Outcome(-0.02)), "morgue"));
     }
 
     [Fact]
@@ -121,7 +134,7 @@ public sealed class CorpseCreditTests
         Assert.Equal(-(context.Value.WellbeingWeight * 2 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value) * (Horizon - 2), tomb.Value, 12);
         // With no tomb planned, the morgue takes the colonist corpse too.
         var alone = Context(Pawn(), PlannedRole.Morgue, ByTheKitchenDoor(colonist: true), ByTheKitchenDoor());
-        Assert.Equal(-4 * 1.5 * 0.5, ForecastCorpses.CorpseMood(alone.Needs.Pawns[0], alone.Needs.Corpses)!.Value, 12);
+        Assert.Equal(-4 * 1.5 * 0.5, ForecastCorpses.CorpseMood(alone.Needs.Pawns[0], alone.Needs.Corpses), 12);
         Assert.Equal(new[] { -0.03 }, PlannedRoomCredits.BreakShifts(alone)["pawn"]);
     }
 

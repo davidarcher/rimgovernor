@@ -399,9 +399,9 @@ is active while a worn garment that has a quality is below it. A crafted garment
 is at its crafter's quality odds (above), so the thought is active with the chance
 one is below the minimum and the credit is each outcome's gain (`ForecastApparel.MoodOutcomes`)
 weighted by its chance; apparel whose def has no `CompQuality` is `Qualityless`
-(the census row carries no quality) and counts neither way. A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
-ambient temperature, kind-required apparel), outfit, mood, tick or shift is
-unread is named `apparel_credit_unassessed:<pawn>` and credited nothing. The
+(the census row carries no quality) and counts neither way. A pawn without an apparel
+tracker (`NeedsForecastPawn.Apparel` null) wears nothing to credit; one whose outfit,
+stage row, mood, tick or shift is unread throws `RequiredFactException` (#3835). The
 delivery is no unit of development.
 
 Warmth is not a relief (#3330). Each crafted candidate carries a comfort shift

@@ -7,8 +7,9 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// #3802: a served kitchen is credited the food poisoning its meals avoid, the cook's current room chance less the planned
-/// kitchen's at its predicted cleanliness, times its meals a day and the ledger's price of one poisoning; a served butchery,
+/// #3802: a served kitchen is credited the food poisoning its meals avoid, the stat's roomless chance less the planned
+/// kitchen's at its predicted cleanliness (#3835: its own planned cooking, not the cook's current bench), times its meals a
+/// day and the ledger's price of one poisoning; a served butchery,
 /// the poisoning its blood would cause in the kitchen it keeps it out of.
 /// </summary>
 public sealed class KitchenCreditTests
@@ -27,15 +28,13 @@ public sealed class KitchenCreditTests
         new(room, "WoodLog", [], ["planned/room" + room.ToString(CultureInfo.InvariantCulture) + "/wall/WoodLog"], [],
             PlannedRoomPredictionTests.Closed(room.ToString(CultureInfo.InvariantCulture), "WoodLog", role, 30d, 2, 9, 0, false) with { Cleanliness = cleanliness });
 
-    private static ForecastCoupledContext Context(PlannedRoom[] rooms, ForecastPlannedClosure[] closures, bool cooking = true) =>
+    private static ForecastCoupledContext Context(PlannedRoom[] rooms, ForecastPlannedClosure[] closures) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
             PlannedRoomRoles = rooms.ToDictionary(r => r.Id, r => r.Role),
             LayoutRooms = rooms.ToDictionary(r => r.Id),
             Closures = EquatableArray.From(closures),
             InvestmentHorizonDays = Horizon,
-            Support = new() { Known = true, Demands = [new("campfire", "bench", "campfire", new(1, 1), Campfire, Known(0d))] },
-            CookingBenches = cooking ? ["campfire"] : [],
             Filth = Filth,
         };
 
@@ -51,7 +50,7 @@ public sealed class KitchenCreditTests
     /// <summary>The price of one poisoning: the ledger's poisoning term for one expected case.</summary>
     private static double Price(ForecastCoupledContext context, int room)
     {
-        var price = ForecastValue.PoisoningPrice(Serving(room), context, Day)!.Value;
+        var price = ForecastValue.PoisoningPrice(Serving(room), context, Day);
         Assert.Equal(ForecastValue.Of(Serving(room, poisonCases: 1), context, Day).FoodPoisoning.Value, price, 12);
         return price;
     }
@@ -82,13 +81,31 @@ public sealed class KitchenCreditTests
         Assert.Equal(-(delta * 6 * price) * Horizon, row.Value, 12);
     }
 
-    /// <summary>No bench cooking now leaves the cook's change unknown: the kitchen is named, not credited.</summary>
+    /// <summary>#3835: a kitchen shape whose ring closes no room (native answers no prediction row, #3834) leaves its stations
+    /// roomless, as they are now: it saves no poisoning.</summary>
     [Fact]
-    public void AnUnknownCurrentRoomIsUnassessed()
+    public void AKitchenThatClosesNoRoomSavesNothing()
     {
-        var context = Context([Room(1, PlannedRole.Kitchen, meals: 6)], [Closure(1, 0, "Kitchen")], cooking: false);
+        var context = Context([Room(1, PlannedRole.Kitchen, meals: 6)], []);
+        var row = Assert.Single(ForecastValue.Of(Serving(1), context, Day).InvestmentContributions, r => r.Key.StartsWith("kitchen/", StringComparison.Ordinal));
+        Assert.Equal(0, row.Value, 12);
+    }
+
+    /// <summary>#3835: a kitchen whose layout group plans no meals is the no-cooking state, worth nothing.</summary>
+    [Fact]
+    public void AKitchenWithoutPlannedMealsEarnsNothing()
+    {
+        var context = Context([Room(1, PlannedRole.Kitchen, meals: 0)], [Closure(1, -1)]);
         var ledger = ForecastValue.Of(Serving(1), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("kitchen/", StringComparison.Ordinal));
-        Assert.Contains("kitchen_credit_unassessed:1", ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.Contains("unassessed:", StringComparison.Ordinal));
+    }
+
+    /// <summary>#3835: a planned kitchen without its layout room (a room the plan no longer holds) throws a required fact.</summary>
+    [Fact]
+    public void AKitchenWithoutItsLayoutRoomThrowsARequiredFact()
+    {
+        var context = Context([Room(1, PlannedRole.Kitchen, meals: 6)], [Closure(1, -1)]) with { LayoutRooms = new Dictionary<int, PlannedRoom>() };
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(1), context, Day));
     }
 }

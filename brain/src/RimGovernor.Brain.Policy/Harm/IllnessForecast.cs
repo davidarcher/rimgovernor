@@ -56,9 +56,13 @@ public static class IllnessForecast
 
     private const double Epsilon = 1e-9;
 
+    /// <summary>The finding of a colony whose illness the disease table does not model (its storyteller, biome, incident or course): the term then holds no illness.</summary>
+    public const string Unmodelled = "illness_unmodelled";
+
     /// <summary>
     /// The illness term of <paramref name="ordered"/> pawns tended by <paramref name="support"/> over <paramref name="horizon"/> ticks;
-    /// null, with "illness_unassessed" and the reason in <paramref name="findings"/>, when the schedule or a pawn's facts are absent.
+    /// null, with <see cref="Unmodelled"/> and the reason in <paramref name="findings"/>, when the table does not model the colony's
+    /// illness. A schedule fact or a pawn's fact left unread throws <see cref="RequiredFactException"/> (#3835).
     /// </summary>
     internal static IllnessTerm? Term(IllnessSchedule schedule, IReadOnlyList<string> ordered, IReadOnlyDictionary<string, NeedsForecastPawn> pawns,
         CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon,
@@ -66,7 +70,8 @@ public static class IllnessForecast
     {
         if (!schedule.Assessed)
         {
-            findings.Add("illness_unassessed");
+            if (schedule.Unread) throw new RequiredFactException(string.Join(",", schedule.Findings));
+            findings.Add(Unmodelled);
             findings.UnionWith(schedule.Findings);
             return null;
         }
@@ -75,15 +80,11 @@ public static class IllnessForecast
         var perDay = schedule.IncidentsPerDay(days);
         var rows = new List<IllnessPawn>();
         var risked = 0.0;
-        var assessed = true;
         foreach (var pawn in ordered)
         {
             if (!pawns.TryGetValue(pawn, out var row))
             {
-                assessed = false;
-                findings.Add("illness_unassessed");
-                findings.Add("capacities_unobserved:" + pawn);
-                continue;
+                throw new RequiredFactException("capacities_unobserved:" + pawn);
             }
 
             var key = (pawn, support);
@@ -100,9 +101,7 @@ public static class IllnessForecast
             findings.UnionWith(distribution.Findings);
             if (!distribution.Known)
             {
-                assessed = false;
-                findings.Add("illness_unassessed");
-                continue;
+                throw new RequiredFactException(string.Join(",", distribution.Findings));
             }
 
             var (mean, tail) = HarmLedger.Moments(distribution, policy.HarmRiskAlpha);
@@ -110,7 +109,7 @@ public static class IllnessForecast
             rows.Add(new IllnessPawn(pawn, distribution, perDay));
         }
 
-        return assessed ? new IllnessTerm(perDay, perDay * days * risked, rows) : null;
+        return new IllnessTerm(perDay, perDay * days * risked, rows);
     }
 
     /// <summary>

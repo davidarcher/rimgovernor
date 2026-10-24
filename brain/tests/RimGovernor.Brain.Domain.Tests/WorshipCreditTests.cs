@@ -86,7 +86,7 @@ public sealed class WorshipCreditTests
 
     private static ForecastValueResult Ledger(ForecastCoupledContext context)
     {
-        var delta = ForecastWorship.Deltas(context).GetValueOrDefault((1, "WoodLog")) ?? 0;
+        var delta = ForecastWorship.Deltas(context).GetValueOrDefault((1, "WoodLog"));
         return ForecastValue.Of(Served(delta / 100), context, Day);
     }
 
@@ -117,7 +117,7 @@ public sealed class WorshipCreditTests
         Assert.Equal(quality, ForecastWorship.Quality(Gathering.Outcome!, 1, 30, 0), 12);
         double[] weights = [0.3, 0.5 * quality, 0.2 * quality];
         var expected = ((weights[0] * -5) + (weights[1] * 4) + (weights[2] * 8)) / weights.Sum() * 6 / 15;
-        var delta = ForecastWorship.Deltas(context)[(1, "WoodLog")]!.Value;
+        var delta = ForecastWorship.Deltas(context)[(1, "WoodLog")];
         Assert.Equal(4 + expected, delta, 12);
         var row = Assert.Single(Credits(Ledger(context)));
         Assert.Equal(-PerDay(context, delta) * Horizon, row.Value, 12);
@@ -128,7 +128,7 @@ public sealed class WorshipCreditTests
     {
         var ledger = Ledger(Context(WorshipRules.FactsOf(null)));
         Assert.Empty(Credits(ledger));
-        Assert.DoesNotContain("worship_credit_unassessed:1", ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("worship", StringComparison.Ordinal));
         // Nor does an ideoligion that holds no building precept and no ritual needing one: it owes no worship room.
         var none = WorshipRules.FactsOf(Ideo(null));
         Assert.Null(none.Need);
@@ -147,14 +147,20 @@ public sealed class WorshipCreditTests
     }
 
     [Fact]
-    public void ARequirementThePlanCannotPredictIsUnassessed()
+    public void ARequirementOrRitualThePlanCannotPredictIsNamedNotModelled()
     {
+        // #3835: a demand of a requirement kind the plan cannot predict adds nothing, named a not-modelled mechanic.
         var unread = Context(WorshipRules.FactsOf(Ideo(Missing() with { Unread = ["RoomRequirement_Modded"] })));
-        Assert.Contains("worship_credit_unassessed:1", Ledger(unread).Findings);
-        Assert.Empty(Credits(Ledger(unread)));
-        // So is a ritual whose outcome effect is not drawn from quality.
+        var ledger = Ledger(unread);
+        Assert.Contains(ForecastWorship.RequirementUnmodelled + "RoomRequirement_Modded", ledger.Findings);
+        Assert.Empty(Credits(ledger));
+        // A ritual whose outcome effect is not drawn from quality adds nothing beside the altar's demand, and is named.
         var worker = Gathering with { Outcome = new RitualOutcomeModel { Unread = "RitualOutcomeEffectWorker_Modded" } };
-        Assert.Contains("worship_credit_unassessed:1", Ledger(Context(WorshipRules.FactsOf(Ideo(Missing(), worker)))).Findings);
+        var ritual = Context(WorshipRules.FactsOf(Ideo(Missing(), worker)));
+        Assert.Equal(4, ForecastWorship.Deltas(ritual)[(1, "WoodLog")]);
+        ledger = Ledger(ritual);
+        Assert.Contains(ForecastWorship.RitualUnmodelled + "RitualOutcomeEffectWorker_Modded", ledger.Findings);
+        Assert.Equal(-PerDay(ritual, 4) * Horizon, Assert.Single(Credits(ledger)).Value, 12);
     }
 
     [Fact]
@@ -285,8 +291,8 @@ public sealed class WorshipCreditTests
         Assert.Equal(PlannedRole.Worship, context.LayoutRooms[1].Role);
         // A fresh colony's review (no Ideology: the frame carries no section) credits nothing and throws nothing.
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(ForecastCoupledTests.ConstructionReview())!.Context;
-        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), fresh, Day)!);
-        // With the ideoligion but no prediction of the planned room, it is unassessed.
-        Assert.Null(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), context, Day));
+        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), fresh, Day));
+        // With the ideoligion but no prediction of the planned room (a shape whose ring closes no room, #3834), it earns nothing.
+        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), context, Day));
     }
 }

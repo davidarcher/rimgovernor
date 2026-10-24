@@ -33,7 +33,8 @@ public sealed record ForecastTending(bool Tended, double Quality);
 /// the stocked replacement's probability in one incident, <see cref="HarmDistribution.Replacements"/>), at the replacement recipe's
 /// outcomes and its best doctor's quality.</item>
 /// </list>
-/// Throws a RequiredFactException when a fact the credit reads is unread: the room's prediction or layout room, the filth model's
+/// A shape whose ring closes no room (no prediction row) relieves nothing. Throws a RequiredFactException when a fact the
+/// credit reads is unread: the room's layout room, the filth model's
 /// curves, the threat or disease schedule, a colonist's harm reads, outfit or owned bed room, the tending, the hospital bed, a
 /// thought stage row or a patient's mood.
 /// </summary>
@@ -107,8 +108,7 @@ internal static class ForecastHospital
             var mood = 0.0;
             if (patient.PatientDaysPerDay > 0 && patient.MoodDelta != 0)
             {
-                mood = ForecastHousing.GainPerDay(patient.MoodDelta, outcome.Needs.GetValueOrDefault(patient.Pawn)?.Mood, context.MoodBreaks,
-                    context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay) ?? throw new RequiredFactException("mood:" + patient.Pawn);
+                mood = PlannedRoomCredits.MoodGain(patient.MoodDelta, patient.Pawn, outcome, context, horizon);
             }
 
             var perDay = patient.InfectionPerDay + patient.IllnessPerDay + patient.SurgeryPerDay + (patient.PatientDaysPerDay * mood);
@@ -219,8 +219,12 @@ internal static class ForecastHospital
 
     private static Part PartOf(ForecastCoupledContext context, int room, string stuff)
     {
-        var closures = context.Closures.Where(c => c.Room == room).OrderBy(c => c.Stuff, StringComparer.Ordinal).ToArray();
-        var closure = closures.FirstOrDefault(c => c.Stuff == stuff) ?? closures.FirstOrDefault() ?? throw new RequiredFactException("planned_room_prediction:" + room);
+        // A shape whose ring closes no room (no prediction row, #3834) is no hospital: it relieves nothing.
+        if (PlannedRoomCredits.Prediction(context, room, stuff) is not { } closure)
+        {
+            return new([], []);
+        }
+
         if (!context.LayoutRooms.TryGetValue(room, out var planned))
         {
             throw new RequiredFactException("planned_room_layout:" + room);

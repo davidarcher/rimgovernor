@@ -70,7 +70,6 @@ public sealed class TrainingRangeCreditTests
         Assert.Equal(Horizon - Served, row.Units);
         // The first served day trains it; the six after it hold Shooting 2 against the raids.
         Assert.Equal(-(Horizon - Served - 1) * saved, row.Value, 9);
-        Assert.DoesNotContain(PlannedRoomCredits.Unassessed(PlannedRole.TrainingRange, 1), ledger.Findings);
         Assert.Contains("range_stand_capacity_unmodelled", ledger.Findings);
     }
 

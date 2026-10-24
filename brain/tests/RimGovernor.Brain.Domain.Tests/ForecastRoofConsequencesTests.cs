@@ -87,7 +87,7 @@ public sealed class ForecastRoofConsequencesTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon) };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon).BuildersRead() };
     }
 
     private static PlannedRoomPrediction Closed(string role, int stage)

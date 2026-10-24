@@ -172,7 +172,7 @@ public sealed class ApparelCreditTests
         var context = Context(Pawn(Warm, RequirementThoughts), Shirt(1));
         Assert.Equal(0, ForecastApparel.MoodDelta(context.Needs.Pawns[0], context.Outfits["pawn"], [Crown()]));
         Assert.DoesNotContain(Value(context, Crown()).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
-        Assert.DoesNotContain(ForecastApparel.CreditUnassessed + "pawn", Value(context, Crown()).Findings);
+        Assert.DoesNotContain(Value(context, Crown()).Findings, f => f.StartsWith("apparel", StringComparison.Ordinal));
     }
 
     // #3841: a title's minimum apparel quality thought, active while a worn garment with a quality is below the minimum of a
@@ -251,11 +251,21 @@ public sealed class ApparelCreditTests
     }
 
     [Fact]
-    public void AWearerWithUnreadApparelFactsIsNamedAndNotCredited()
+    public void APawnWithoutAnApparelTrackerIsCreditedNothing()
     {
+        // #3835: no apparel facts is a pawn with no apparel tracker (NativeNeedsForecast reads them whenever it has one): a named
+        // state with no apparel thought, worth zero.
         var value = Value(Context(Pawn(null, Tattered), Shirt(0.15)), Shirt(1));
         Assert.DoesNotContain(value.InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
-        Assert.Contains(ForecastApparel.CreditUnassessed + "pawn", value.Findings);
+        Assert.DoesNotContain(value.Findings, f => f.StartsWith("apparel", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AWearerWhoseOutfitIsUnreadThrowsARequiredFact()
+    {
+        var context = Context(Pawn(Warm, Tattered), Shirt(0.15));
+        context = context with { Outfits = new Dictionary<string, EquatableArray<GearOption>>() };
+        Assert.Throws<RequiredFactException>(() => Value(context, Shirt(1)));
     }
 
     [Fact]

@@ -102,9 +102,9 @@ priced), since its credit already counts them. Its sites are still emitted and e
   as a shared wall does; one serving no priced room keeps that relief in the count like any
   unpriced room.
 - `PlannedRoomCredits.Credit` books each gain as one Investment row `{role}/{room}/{subject}`
-  of `PerDay × RingClosure.CreditDays(InvestmentHorizonDays, serviceDay)` units. A priced room
-  with no builders, an unknown owed work or a null credit is named `{role}_credit_unassessed:{room}`
-  and credited nothing.
+  of `PerDay × RingClosure.CreditDays(InvestmentHorizonDays, serviceDay)` units. A room no free
+  builder or no option can finish is never served and credited nothing; a credit never returns
+  null, and a fact it needs unread throws `RequiredFactException` (#3835).
 
 Work in the closure of a selected planned site root, of a priced room's placed
 ring site (#3537) or room alternative (#3823), or of a commitment that carries

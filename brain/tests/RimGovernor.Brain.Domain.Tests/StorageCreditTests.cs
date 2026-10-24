@@ -64,7 +64,7 @@ public sealed class StorageCreditTests
         var row = Assert.Single(Credits(ledger));
         Assert.Equal(("", "storage/1/" + Cloth, Horizon - Served), (row.Pawn, row.Key, row.Units));
         Assert.Equal(-ClothPerDay * (Horizon - Served), row.Value, 12);
-        Assert.DoesNotContain("storage_credit_unassessed:1", ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("storage", StringComparison.Ordinal));
         // The room's stock is priced with the materials it is charged.
         Assert.Contains(new Resource("Cloth"), ForecastValue.ChargedMaterials(Context(SteelAndCloth)));
         Assert.DoesNotContain(new Resource("Steel"), ForecastValue.ChargedMaterials(Context(SteelAndCloth)));
@@ -77,20 +77,44 @@ public sealed class StorageCreditTests
         var rows = SteelAndCloth.Append(Row(Rice, "RawRice", 75, OpenAir(1, 70))).ToArray();
         var credited = Credits(Ledger(Context(rows, food: food)));
         Assert.Equal(["storage/1/" + Cloth], credited.Select(r => r.Key));
-        // The same lot no pawn would eat is the room's stock (its value unpriced here, so the room is unassessed).
-        Assert.Contains("storage_credit_unassessed:1", Ledger(Context(rows)).Findings);
+        // The same lot no pawn would eat is the room's stock: its value is unread here, so pricing it throws.
+        Assert.Throws<RequiredFactException>(() => Ledger(Context(rows)));
     }
 
     [Fact]
-    public void AnUnknownStackValueLeavesTheStorageCreditUnassessed()
+    public void AnUnknownStackValueOrMapFactThrowsARequiredFact()
     {
-        var ledger = Ledger(Context(SteelAndCloth, cloth: false));
-        Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
+        // #3835: a kept stack's material value or the map's area left unread throws, never an unassessed credit.
+        Assert.Throws<RequiredFactException>(() => Ledger(Context(SteelAndCloth, cloth: false)));
+        var context = Context(SteelAndCloth);
+        Assert.Throws<RequiredFactException>(() => Ledger(context with { Needs = context.Needs with { MapArea = 0 } }));
+    }
+
+    [Fact]
+    public void ADeteriorationStatWithoutAnEnvironmentalPartSavesNothing()
+    {
+        // #3835: a DeteriorationRate stat with no StatPart_EnvironmentalEffects deteriorates the same anywhere, so a room keeps nothing.
+        var context = Context(SteelAndCloth);
+        Assert.Empty(Credits(Ledger(context with { Needs = context.Needs with { Deterioration = null } })));
+    }
+
+    [Fact]
+    public void NoStockpileRequestIsTheNoStockStateWorthNothing()
+    {
+        // #3835 (#3798): the stockpile review placed no stranded stock (no request), so no store keeps any.
+        var ledger = Ledger(Context(SteelAndCloth) with { StoreStock = null });
         Assert.Empty(Credits(ledger));
-        // An unread stock is unassessed too, never thrown.
-        ledger = Ledger(Context(SteelAndCloth) with { StoreStock = null });
-        Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
-        Assert.Empty(Credits(ledger));
+        Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("storage", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnUnpricedMaterialSavesNothing()
+    {
+        // #3835: a material with no source and no market value is charged nothing, so keeping it saves nothing.
+        var context = Context(SteelAndCloth);
+        var unpriced = context with { MaterialValues = context.MaterialValues.ToDictionary(p => p.Key,
+            p => p.Value with { Basis = MaterialValueBasis.Unpriced }) };
+        Assert.Empty(Credits(Ledger(unpriced)));
     }
 
     [Fact]
@@ -111,7 +135,7 @@ public sealed class StorageCreditTests
         var yard = context with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Yard, [2] = PlannedRole.Workshop } };
         var ledger = Ledger(yard);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("yard/", StringComparison.Ordinal));
-        Assert.DoesNotContain("yard_credit_unassessed:1", ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("yard", StringComparison.Ordinal));
     }
 
     [Fact]

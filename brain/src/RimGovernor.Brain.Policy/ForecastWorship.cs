@@ -14,89 +14,96 @@ namespace RimGovernor.Brain.Policy;
 /// at the room's quality (<see cref="Quality"/>), held every IntervalDaysMin days (RitualRules.RitualDue's free start), so
 /// a day earns the expected mood × min(duration, interval) / interval.</item>
 /// </list>
-/// No ideoligion or no believer earns nothing.
+/// No ideoligion or no believer earns nothing. A demand whose requirement the plan cannot predict, and a ritual whose outcome
+/// effect is not drawn from quality, are mechanics the credit leaves out (#3835): they add nothing, and are named
+/// (<see cref="Unmodelled"/>).
 /// </summary>
 internal static class ForecastWorship
 {
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Dictionary<(int Room, string Stuff), double?>> Cache = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Dictionary<(int Room, string Stuff), double>> Cache = new();
+
+    /// <summary>The finding of an applying demand's requirement the plan cannot predict: <c>worship_requirement_unmodelled:{requirement}</c>.</summary>
+    public const string RequirementUnmodelled = "worship_requirement_unmodelled:";
+
+    /// <summary>The finding of a ritual whose outcome effect is not drawn from quality: <c>ritual_outcome_unmodelled:{worker}</c>.</summary>
+    public const string RitualUnmodelled = "ritual_outcome_unmodelled:";
 
     /// <summary>
-    /// The worship room's gains per believer (<see cref="RoomCredit"/>). Null (unassessed) when the room has no closure
-    /// prediction in its stuff or an unread one, a demand has a requirement the plan cannot predict, the catalog lacks
-    /// the demand's moods, a ritual's outcome effect is not drawn from quality, or a believer's mood is unknown.
+    /// The worship room's gains per believer (<see cref="RoomCredit"/>), in the prediction the room is served in
+    /// (<see cref="PlannedRoomCredits.Prediction"/>). None without a believer or an owed worship room. Throws
+    /// <see cref="RequiredFactException"/> (#3835) when the room's prediction or layout room, the filth model, the demand
+    /// moods or a believer's mood is unread.
     /// </summary>
-    internal static IReadOnlyList<RoomGain>? WorshipCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> WorshipCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
         var worship = context.Worship;
         if (worship.Believers.Count == 0 || worship.Need is null) return [];
-        if (!Deltas(context).TryGetValue((room.Room, room.Stuff), out var known) || known is not { } delta) return null;
-        if (delta == 0) return [];
-        var gains = new List<RoomGain>(worship.Believers.Count);
-        foreach (var believer in worship.Believers)
-        {
-            var pawn = believer.Value;
-            if (ForecastHousing.GainPerDay(delta, outcome.Needs.GetValueOrDefault(pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay) is not { } perDay) return null;
-            gains.Add(new(pawn, pawn, perDay));
-        }
-        return gains;
+        if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { Stuff: var stuff }) return [];
+        if (!Deltas(context).TryGetValue((room.Room, stuff), out var delta) || delta == 0) return [];
+        return [.. worship.Believers.Select(b => new RoomGain(b.Value, b.Value, PlannedRoomCredits.MoodGain(delta, b.Value, outcome, context, horizon)))];
+    }
+
+    /// <summary>The worship mechanics the credit leaves out (<see cref="PlannedRoomCredits.Unmodelled"/>), named per served room.</summary>
+    internal static IEnumerable<string> Unmodelled(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    {
+        var worship = context.Worship;
+        if (worship.Believers.Count == 0 || worship.Need is null) return [];
+        return worship.Demands.Where(d => d.Applies).SelectMany(d => d.Unread).Select(r => RequirementUnmodelled + r)
+            .Concat(worship.Rituals.Select(r => r.Outcome?.Unread ?? "").Where(u => u.Length != 0).Select(u => RitualUnmodelled + u))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
     }
 
     /// <summary>
-    /// Per priced planned worship room and per stuff it closes in, each believer's mood delta (<see cref="Delta"/>); null
-    /// when unassessed. Cached per context.
+    /// Per priced planned worship room and per stuff it closes in, each believer's mood delta (<see cref="Delta"/>). Cached per context.
     /// </summary>
-    internal static IReadOnlyDictionary<(int Room, string Stuff), double?> Deltas(ForecastCoupledContext context) => Cache.GetValue(context, DeltasOf);
+    internal static IReadOnlyDictionary<(int Room, string Stuff), double> Deltas(ForecastCoupledContext context) => Cache.GetValue(context, DeltasOf);
 
-    /// <summary>Per believer, the distinct known nonzero worship shifts (delta / 100) its mood timeline integrates breaks at.</summary>
+    /// <summary>Per believer, the distinct nonzero worship shifts (delta / 100) its mood timeline integrates breaks at.</summary>
     internal static IReadOnlyDictionary<string, double[]> Shifts(ForecastCoupledContext context)
     {
-        var shifts = Deltas(context).Values.Where(d => d is { } v && v != 0).Select(d => d!.Value / 100).Distinct().Order().ToArray();
+        var shifts = Deltas(context).Values.Where(v => v != 0).Select(v => v / 100).Distinct().Order().ToArray();
         return shifts.Length == 0 ? new Dictionary<string, double[]>()
             : context.Worship.Believers.ToDictionary(b => b.Value, _ => shifts, StringComparer.Ordinal);
     }
 
-    private static Dictionary<(int Room, string Stuff), double?> DeltasOf(ForecastCoupledContext c)
+    private static Dictionary<(int Room, string Stuff), double> DeltasOf(ForecastCoupledContext c)
     {
-        var output = new Dictionary<(int, string), double?>();
+        var output = new Dictionary<(int, string), double>();
         if (c.Worship.Believers.Count == 0 || c.Worship.Need is null || !c.RoomCredits.ContainsKey(PlannedRole.Worship)) return output;
         foreach (var closure in c.Closures)
         {
             if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role != PlannedRole.Worship) continue;
-            output[(closure.Room, closure.Stuff)] = c.LayoutRooms.TryGetValue(closure.Room, out var planned) ? Delta(closure.Prediction, planned, c.Worship, c.Filth) : null;
+            var planned = c.LayoutRooms.TryGetValue(closure.Room, out var layout) ? layout
+                : throw new RequiredFactException("planned_room_layout:" + closure.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            output[(closure.Room, closure.Stuff)] = Delta(closure.Prediction, planned, c.Worship, c.Filth);
         }
         return output;
     }
 
     /// <summary>
     /// A believer's mood delta from the worship room <paramref name="prediction"/> predicts (see <see cref="ForecastWorship"/>);
-    /// null when unassessed.
+    /// 0 without an owed worship room. A demand or ritual the credit leaves out (<see cref="Unmodelled"/>) adds nothing. Throws
+    /// when the prediction, the demand moods or the filth model is unread.
     /// </summary>
-    internal static double? Delta(PlannedRoomPrediction prediction, PlannedRoom planned, WorshipFacts worship, FilthModel filth)
+    internal static double Delta(PlannedRoomPrediction prediction, PlannedRoom planned, WorshipFacts worship, FilthModel filth)
     {
-        if (worship.Need is not { } need) return null;
+        if (worship.Need is not { } need) return 0;
         double delta = 0;
-        foreach (var demand in worship.Demands.Where(d => d.Applies))
+        foreach (var demand in worship.Demands.Where(d => d.Applies && d.Unread.Count == 0))
         {
-            if (demand.Unread.Count > 0 || worship.Moods is not { } moods) return null;
+            var moods = worship.Moods ?? throw new RequiredFactException("ideo building demand moods");
             var now = !demand.Present ? moods.Missing : !demand.Satisfied ? moods.Disrespected : 0;
             // A building already standing in a room that meets the demand keeps meeting it.
             var after = demand.Satisfied || Meets(demand, prediction, need) ? 0 : moods.Disrespected;
             delta += after - now;
         }
-        if (worship.Rituals.Count > 0)
+        var rituals = worship.Rituals.Where(r => r.Outcome is { Unread.Length: 0 }).ToArray();
+        if (rituals.Length > 0)
         {
-            double cleanliness;
-            try
+            var cleanliness = PlannedRoomCleanlinessRules.Steady(prediction, planned.FilthRuns.Values, filth).Dirty;
+            foreach (var ritual in rituals)
             {
-                cleanliness = PlannedRoomCleanlinessRules.Steady(prediction, planned.FilthRuns.Values, filth).Dirty;
-            }
-            catch (RequiredFactException)
-            {
-                return null;
-            }
-            foreach (var ritual in worship.Rituals)
-            {
-                if (ritual.Outcome is not { Unread.Length: 0 } model) return null;
+                var model = ritual.Outcome!;
                 var quality = Quality(model, worship.Believers.Count, prediction.Impressiveness, cleanliness);
                 delta += ExpectedMood(model, quality, ritual.IntervalDaysMin);
             }

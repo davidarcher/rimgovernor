@@ -55,7 +55,7 @@ public sealed class PlannedRoomCreditTests
         var service = PlannedRoomCredits.ServiceDays(context, finished ?? new Dictionary<string, double>(), Day);
         return new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
         {
-            ServedRooms = service.Served, UnassessedRooms = service.Unassessed,
+            ServedRooms = service,
             RequestedDevelopment = [Wall, Shelf, Roof, ZoneShelf],
         };
     }
@@ -174,10 +174,10 @@ public sealed class PlannedRoomCreditTests
     {
         var context = Connected(PlannedRole.Circulation, BedroomCredit);
         // The ring's two days, then the corridor's wall and floor: a day and a half later.
-        var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day).Served;
+        var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day);
         Assert.Equal(new ForecastRoomService(1, "WoodLog", 3.5 * Day), Assert.Single(served, s => s.Room == 1));
         Assert.Equal(2 * Day, Assert.Single(PlannedRoomCredits.ServiceDays(context with { Connectors = new Dictionary<int, EquatableArray<int>>() },
-            new Dictionary<string, double>(), Day).Served).ServedAt);
+            new Dictionary<string, double>(), Day)).ServedAt);
         // Both rooms' sites and the corridor's floor leave the count with the priced bedroom; the corridor earns no credit.
         Assert.True(context.Priced(2));
         Assert.Equal(0, ConnectedDevelopment(context));
@@ -193,11 +193,11 @@ public sealed class PlannedRoomCreditTests
     public void AnAirlockSealingABedroomServesItAfterTheAirlocksWorkAndLeavesDevelopmentWithIt()
     {
         var context = Connected(PlannedRole.Airlock, BedroomCredit);
-        var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day).Served;
+        var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day);
         Assert.Equal(2.5 * Day, Assert.Single(served, s => s.Room == 1).ServedAt);
         // Inside the schedule the bedroom serves when the later of its ring and the airlock's floor finishes.
         var finished = new Dictionary<string, double> { [BedWall + "/finish"] = 300, ["site-9-finish"] = 700 };
-        Assert.Equal(700, Assert.Single(PlannedRoomCredits.ServiceDays(context, finished, Day).Served, s => s.Room == 1).ServedAt);
+        Assert.Equal(700, Assert.Single(PlannedRoomCredits.ServiceDays(context, finished, Day), s => s.Room == 1).ServedAt);
         Assert.True(context.Priced(2));
         Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedRelief(context));
         Assert.Equal(1, ConnectedDevelopment(context)); // the corridor wall of no room left
@@ -249,36 +249,92 @@ public sealed class PlannedRoomCreditTests
     {
         var blocked = Barracks() with { BlockedItems = new HashSet<string>(StringComparer.Ordinal) { Stove } };
         // Projected: the ring's two days, then the beds' one.
-        var served = Assert.Single(PlannedRoomCredits.ServiceDays(blocked, new Dictionary<string, double>(), Day).Served);
+        var served = Assert.Single(PlannedRoomCredits.ServiceDays(blocked, new Dictionary<string, double>(), Day));
         Assert.Equal(new ForecastRoomService(1, "WoodLog", 3 * Day), served);
         // Inside the schedule: the last of the ring and the beds, the stove never finishing.
         var finished = new Dictionary<string, double> { [BarracksWall + "/finish"] = 300, [Beds + "/finish"] = 900 };
-        Assert.Equal(900, Assert.Single(PlannedRoomCredits.ServiceDays(blocked, finished, Day).Served).ServedAt);
+        Assert.Equal(900, Assert.Single(PlannedRoomCredits.ServiceDays(blocked, finished, Day)).ServedAt);
         var row = Assert.Single(ForecastValue.Of(Outcome(blocked), blocked, Day).InvestmentContributions, r => r.Key == "barracks/1/rest");
         Assert.Equal(Horizon - 3, row.Units, 9);
     }
 
     [Fact]
-    public void ABarracksOwingAStoveWithoutAFinishOptionForAnotherReasonStaysUnassessed()
+    public void ABarracksOwingAStoveNoOptionCanFinishIsNeverServedAndEarnsNothing()
     {
-        // Not blocked (its research done, its steel unread or obtainable): the stove still owes work no row prices.
+        // Not blocked (its research done, its steel unread or obtainable): the stove still owes work no row prices, so no
+        // builder can finish the room (#3835: a named never-served state, no unassessed finding).
         var context = Barracks();
-        var service = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double> { [BarracksWall + "/finish"] = 300, [Beds + "/finish"] = 900 }, Day);
-        Assert.Empty(service.Served);
-        Assert.Equal([1], service.Unassessed);
-        Assert.Contains("barracks_credit_unassessed:1", ForecastValue.Of(Outcome(context), context, Day).Findings);
+        Assert.Empty(PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double> { [BarracksWall + "/finish"] = 300, [Beds + "/finish"] = 900 }, Day));
+        var ledger = ForecastValue.Of(Outcome(context), context, Day);
+        Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("barracks/", StringComparison.Ordinal));
+        Assert.DoesNotContain(ledger.Findings, f => f.Contains("_unassessed:1", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void APricedRoomWithoutBuildersOrWithAnUnknownCreditIsUnassessedAndCreditedNothing()
+    public void APricedRoomWithoutAFreeBuilderIsNeverServedAndEarnsNothing()
     {
         var unbuilt = Context(StorageCredit) with { PlannedBuilders = 0 };
+        Assert.Empty(PlannedRoomCredits.ServiceDays(unbuilt, new Dictionary<string, double>(), Day));
         var ledger = ForecastValue.Of(Outcome(unbuilt), unbuilt, Day);
-        Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("storage/", StringComparison.Ordinal));
-        var unknown = Context(new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Storage] = (_, _, _, _) => null });
-        ledger = ForecastValue.Of(Outcome(unknown), unknown, Day);
-        Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
-        Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("storage/", StringComparison.Ordinal));
+        Assert.DoesNotContain(ledger.Findings, f => f.Contains("_unassessed:1", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ACreditWhoseFactIsUnreadThrowsARequiredFact()
+    {
+        var unread = Context(new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Storage] = (_, _, _, _) => throw new RequiredFactException("stock") });
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Outcome(unread), unread, Day));
+    }
+
+    /// <summary>
+    /// #3835 acceptance: a fresh colony's review, the production way (GenerateCoupledActivities over ConstructionReview's facts,
+    /// one planned room per shipped role, each predicted as native predicts every priced room), runs every shipped credit on
+    /// its served room without a throw: each fresh-colony state is a named state with its true credit, not an unread fact.
+    /// </summary>
+    [Fact]
+    public void AFreshColonyRunsEveryShippedCreditWithoutAThrow()
+    {
+        var roles = PlannedRoomCredits.Shipped.Keys.Select((role, i) => (Room: i + 1, Role: role)).ToArray();
+        var review = ForecastCoupledTests.ConstructionReview();
+        var facts = review with
+        {
+            // RoundsWork reads each work pawn's skills (a fresh colonist here with none it could practise) and health.
+            ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value
+                .Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([]), Health = Known(1d) }))) },
+            PlannedShelters = [.. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
+                Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
+            PlannedRoomPredictions = EquatableArray.From(roles.Select(r => PlannedRoomPredictionTests.Closed(
+                r.Room.ToString(System.Globalization.CultureInfo.InvariantCulture), "", Wire.Name(r.Role), 30d, 0, 9, 0, false))),
+            // RoundsRead furnishes the planned hospital with the catalog's hospital bed.
+            HospitalBed = new RoomFurniture { Beds = [new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07 }] }.HospitalBed(),
+        };
+        // Tier 2 sets the investment horizon and the tending a wound gets now (ColonyValue.TendingNow); the round reads the
+        // storyteller's threat schedule (here a quiet one) and its disease schedule (no disease incident yet); the catalog
+        // carries the capacity penalty tables.
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
+        var context = generated with
+        {
+            InvestmentHorizonDays = Horizon, Tending = new ForecastTending(true, 0.6), CapacityPenalties = ForecastValueTests.Tables(),
+            Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) with { Illness = new IllnessSchedule { Assessed = true }, Containment = generated.Harm.Containment },
+        };
+        Assert.All(roles, r => Assert.Equal(r.Role, context.PlannedRoomRoles[r.Room]));
+        var pawns = context.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
+        Assert.NotEmpty(pawns);
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", default, default), []), [])
+        {
+            Mood = new([], default, default, default, default, default, [])
+            {
+                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0], ShiftedBreakTierTicks = [new(0, [Day, 0, 0])],
+            },
+        }), [])
+        { ServedRooms = [.. roles.Select(r => new ForecastRoomService(r.Room, "", Day))] };
+        foreach (var (room, role) in roles)
+        {
+            var gains = PlannedRoomCredits.Shipped[role](new(room, "", Day), outcome, context, Day);
+            Assert.NotNull(gains);
+        }
+        // The ledger runs them all on the served rooms too.
+        Assert.NotNull(ForecastValue.Of(outcome, context, Day));
     }
 }

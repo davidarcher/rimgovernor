@@ -17,51 +17,46 @@ namespace RimGovernor.Brain.Policy;
 internal static class ForecastLaboratory
 {
     /// <summary>
-    /// The lab's gains per researcher (<see cref="RoomCredit"/>). Null (unassessed) when the room has no closure prediction
-    /// in its stuff, a predicted role RoomRole does not name (a modded one), an unread filth model, an unread stat part, or a research bench without a bench row or bench model.
+    /// The lab's gains per researcher (<see cref="RoomCredit"/>), in the prediction the room is served in
+    /// (<see cref="PlannedRoomCredits.Prediction"/>). None without research, or for a shape that closes no room. Throws <see cref="RequiredFactException"/> (#3835)
+    /// when the room's layout room or filth model, a stat part, or a research bench's row, factor or bench model is unread.
     /// </summary>
-    internal static IReadOnlyList<RoomGain>? LaboratoryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> LaboratoryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
         var tasks = context.Activities.Activities.Where(t => t.ProjectProgress is { } p && !p.Project.StartsWith(ForecastProjectProgress.SowPrefix, StringComparison.Ordinal))
             .GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().ProjectProgress!, StringComparer.Ordinal);
         var research = outcome.Plan.Allocations.Where(a => tasks.TryGetValue(a.Activity, out var work) && context.Investment.ContainsKey(work.Project)).ToArray();
         if (research.Length == 0) return [];
-        if (context.Closures.FirstOrDefault(c => c.Room == room.Room && c.Stuff == room.Stuff) is not { } closure
-            || !context.LayoutRooms.TryGetValue(room.Room, out var planned)) return null;
-        try
+        if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { } closure) return [];
+        if (!context.LayoutRooms.TryGetValue(room.Room, out var planned)) throw new RequiredFactException("planned_room_layout:" + room.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        // A modded role RoomRole does not name is a proper room of no vanilla role: a role part's room is not its role.
+        var role = Wire.TryParse<RoomRole>(closure.Prediction.Role, out var named) ? named : RoomRole.Room;
+        var closed = BenchRoom.Closed(role, PlannedRoomCleanlinessRules.Steady(closure.Prediction, planned.FilthRuns.Values, context.Filth).Dirty);
+        var benches = context.Needs.ResearchBenches.GroupBy(b => b.Bench, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var standing = benches.Values.Where(b => closure.Interior.Contains(b.Position)).Select(b => b.Bench).ToHashSet(StringComparer.Ordinal);
+        // With none standing in the room, its planned bench placed outdoors is what the room changes.
+        double? unhoused = null;
+        if (standing.Count == 0)
         {
-            if (!Wire.TryParse<RoomRole>(closure.Prediction.Role, out var role)) return null;
-            var closed = BenchRoom.Closed(role, PlannedRoomCleanlinessRules.Steady(closure.Prediction, planned.FilthRuns.Values, context.Filth).Dirty);
-            var benches = context.Needs.ResearchBenches.GroupBy(b => b.Bench, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
-            var standing = benches.Values.Where(b => closure.Interior.Contains(b.Position)).Select(b => b.Bench).ToHashSet(StringComparer.Ordinal);
-            // With none standing in the room, its planned bench placed outdoors is what the room changes.
-            double? unhoused = null;
-            if (standing.Count == 0)
-            {
-                if (!context.ResearchBenchSpeeds.TryGetValue(context.LaboratoryBench, out var lab)) return null;
-                unhoused = lab.At(closed) - lab.At(BenchRoom.Outside);
-            }
-            var perDay = new SortedDictionary<string, double>(StringComparer.Ordinal);
-            foreach (var allocation in research)
-            {
-                var work = tasks[allocation.Activity];
-                var bench = context.Activities.Options.FirstOrDefault(o => o.Activity == allocation.Activity && o.Pawn == allocation.Pawn)?.Equipment is { Count: > 0 } equipment
-                    ? equipment[0] : null;
-                if (bench is null || !benches.TryGetValue(bench, out var now) || !(now.Factor > 0)) return null;
-                double gain;
-                if (unhoused is { } outdoors) gain = outdoors;
-                else if (!standing.Contains(bench)) continue;
-                else if (context.ResearchBenchSpeeds.TryGetValue(now.Def, out var model)) gain = model.At(closed) - now.Factor;
-                else return null;
-                var points = allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick;
-                perDay[allocation.Pawn] = perDay.GetValueOrDefault(allocation.Pawn)
-                    + (points / now.Factor * gain * context.Investment[work.Project] * GameTime.TicksPerDay / horizon);
-            }
-            return [.. perDay.Select(p => new RoomGain(p.Key, p.Key, p.Value))];
+            if (!context.ResearchBenchSpeeds.TryGetValue(context.LaboratoryBench, out var lab)) throw new RequiredFactException("research bench speed " + context.LaboratoryBench);
+            unhoused = lab.At(closed) - lab.At(BenchRoom.Outside);
         }
-        catch (RequiredFactException)
+        var perDay = new SortedDictionary<string, double>(StringComparer.Ordinal);
+        foreach (var allocation in research)
         {
-            return null;
+            var work = tasks[allocation.Activity];
+            var bench = context.Activities.Options.FirstOrDefault(o => o.Activity == allocation.Activity && o.Pawn == allocation.Pawn)?.Equipment is { Count: > 0 } equipment
+                ? equipment[0] : throw new RequiredFactException("research bench of " + allocation.Activity);
+            if (!benches.TryGetValue(bench, out var now) || !(now.Factor > 0)) throw new RequiredFactException("research bench factor " + bench);
+            double gain;
+            if (unhoused is { } outdoors) gain = outdoors;
+            else if (!standing.Contains(bench)) continue;
+            else if (context.ResearchBenchSpeeds.TryGetValue(now.Def, out var model)) gain = model.At(closed) - now.Factor;
+            else throw new RequiredFactException("research bench speed " + now.Def);
+            var points = allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick;
+            perDay[allocation.Pawn] = perDay.GetValueOrDefault(allocation.Pawn)
+                + (points / now.Factor * gain * context.Investment[work.Project] * GameTime.TicksPerDay / horizon);
         }
+        return [.. perDay.Select(p => new RoomGain(p.Key, p.Key, p.Value))];
     }
 }

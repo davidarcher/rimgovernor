@@ -129,7 +129,6 @@ public sealed class HospitalCreditTests
         // No raid, no disease and no queued surgery: no patient-day, so nothing to credit.
         var ledger = ForecastValue.Of(Served(0), Context(0), Day);
         Assert.Empty(Credits(ledger));
-        Assert.DoesNotContain("hospital_credit_unassessed:1", ledger.Findings);
     }
 
     [Fact]

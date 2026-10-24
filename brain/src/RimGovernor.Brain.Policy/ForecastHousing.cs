@@ -94,12 +94,11 @@ public static class ForecastHousing
     /// (<see cref="RoyalRoomCredit"/>: per assessed throne room or suite closure, its colonist and the mood the room relieves, 0
     /// for none) and, per pawn, their break shifts; built once per context, as the search reads them per outcome.
     /// </summary>
-    private sealed record Moves(IReadOnlyDictionary<(int Room, string Stuff), Sleeper?[]> Deltas,
+    private sealed record Moves(IReadOnlyDictionary<(int Room, string Stuff), Sleeper[]> Deltas,
         IReadOnlyDictionary<(int Room, string Stuff), (string Pawn, double Delta)> Royal, IReadOnlyDictionary<string, double[]> Shifts);
 
     /// <summary>
-    /// An occupant's move into a planned bedroom or barracks (#3840), null when its room delta (<see cref="BedroomMoodDelta"/>)
-    /// is unread: <see cref="Mood"/> every mood term but the planned room's sleep temperature (the room delta,
+    /// An occupant's move into a planned bedroom or barracks (#3840): <see cref="Mood"/> every mood term but the planned room's sleep temperature (the room delta,
     /// <see cref="BedMoodDelta"/> and the cold or heat memory it sleeps with now relieved), <see cref="Rest"/> its
     /// <see cref="RestDaysFreed"/>, and the temperature memory it would get in the room below its sleep range
     /// (<see cref="Cold"/>, slept_in_cold) or above it (<see cref="Heat"/>, slept_in_heat), null for a pawn without the row.
@@ -361,7 +360,7 @@ public static class ForecastHousing
     {
         // Per priced planned bedroom or barracks with occupants and per stuff it closes in, each occupant's Sleeper at
         // that closure's predicted stage, in its planned bed.
-        var deltas = new Dictionary<(int, string), Sleeper?[]>();
+        var deltas = new Dictionary<(int, string), Sleeper[]>();
         var pawns = c.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         foreach (var closure in c.Closures)
         {
@@ -375,12 +374,11 @@ public static class ForecastHousing
                 : barracks ? owners : owners is [var owner] ? [owner] : [];
             if (occupants.Length == 0) continue;
             var beds = c.PlannedBeds.GetValueOrDefault(closure.Room) ?? [];
-            deltas[(closure.Room, closure.Stuff)] = [.. occupants.Select((occupant, i) => pawns.TryGetValue(occupant, out var pawn)
-                ? SleeperOf(pawn, i < beds.Count ? beds[i] : null, closure, barracks, c) : null)];
+            deltas[(closure.Room, closure.Stuff)] = [.. occupants.Select((occupant, i) => SleeperOf(PawnOf(pawns, occupant), i < beds.Count ? beds[i] : null, closure, barracks, c))];
         }
         var royal = RoyalDeltasOf(c, pawns);
         var gains = new List<(string Pawn, double Delta)>(royal.Values);
-        foreach (var sleeper in deltas.Values.SelectMany(d => d).OfType<Sleeper>())
+        foreach (var sleeper in deltas.Values.SelectMany(d => d))
             foreach (var delta in sleeper.Deltas()) gains.Add((sleeper.Pawn.Pawn, delta));
         var shifts = gains.Where(m => m.Delta != 0).GroupBy(m => m.Pawn, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(m => m.Delta / 100).Distinct().Order().ToArray(), StringComparer.Ordinal);
@@ -393,14 +391,15 @@ public static class ForecastHousing
     /// <summary>
     /// <paramref name="pawn"/>'s move into <paramref name="closure"/>'s room (#3840), sleeping in <paramref name="planned"/> (its
     /// planned bed in occupant order), else in the bed it sleeps in now when that is in the room (a standing room's upgrade:
-    /// its bed terms are 0). A pawn without a rest need never lies down: none of its bed thoughts change. Null when its room
-    /// delta (<see cref="BedroomMoodDelta"/>) or where it sleeps now is unread; throws when a bed term's fact is.
+    /// its bed terms are 0). A pawn without a rest need never lies down: none of its bed thoughts change. Throws when where it
+    /// sleeps now (<see cref="SleepNow"/>), its room delta (<see cref="BedroomMoodDelta"/>) or a bed term's fact is unread (#3835).
     /// </summary>
-    private static Sleeper? SleeperOf(NeedsForecastPawn pawn, SleepingBedFacts? planned, ForecastPlannedClosure closure, bool barracks, ForecastCoupledContext c)
+    private static Sleeper SleeperOf(NeedsForecastPawn pawn, SleepingBedFacts? planned, ForecastPlannedClosure closure, bool barracks, ForecastCoupledContext c)
     {
         if (RestRate(pawn) is not { } rate) return new(pawn, 0, 0, null, null) { Sleeps = false };
-        if (SleepNow(pawn) is not { } now
-            || !BedroomMoodDelta(pawn, Known(closure.Prediction.Stage), c.ObservedThoughts.GetValueOrDefault(pawn.Pawn), barracks).TryGetValue(out var room)) return null;
+        var now = SleepNow(pawn) ?? throw new RequiredFactException("sleep place:" + pawn.Pawn);
+        if (!BedroomMoodDelta(pawn, Known(closure.Prediction.Stage), c.ObservedThoughts.GetValueOrDefault(pawn.Pawn), barracks).TryGetValue(out var room))
+            throw new RequiredFactException("bedroom mood delta:" + pawn.Pawn);
         var (ground, comfort, gain) = planned is not null ? (planned.Ground, planned.Comfort, rate.GainPerTickPerEffectiveness * planned.RestEffectiveness)
             : now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed) ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)
             : throw new RequiredFactException("planned bed of room " + closure.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -429,9 +428,7 @@ public static class ForecastHousing
     /// less the one the colonist has now.</item>
     /// </list>
     /// A thought the colonist cannot get (its rows all 0: no title, no trait) changes nothing, and a colonist with none of them
-    /// is 0 without its thoughts read. For a Greedy or Jealous colonist, unread observed thoughts or stage row throws
-    /// <see cref="RequiredFactException"/>; for a title thought alone, unread thoughts leave the closure out (unassessed, the
-    /// #3807 path #3835 retires).
+    /// is 0 without its thoughts read. Otherwise its unread census row, observed thoughts or stage row throws <see cref="RequiredFactException"/> (#3835).
     /// </summary>
     private static Dictionary<(int, string), (string, double)> RoyalDeltasOf(ForecastCoupledContext c, Dictionary<string, NeedsForecastPawn> pawns)
     {
@@ -439,7 +436,8 @@ public static class ForecastHousing
         foreach (var closure in c.Closures)
         {
             if (!c.RoyalRooms.TryGetValue(closure.Room, out var need) || !c.PlannedRoomRoles.TryGetValue(closure.Room, out var role)
-                || role is not (PlannedRole.Throne or PlannedRole.Suite) || !c.RoomCredits.ContainsKey(role) || !pawns.TryGetValue(need.Pawn, out var pawn)) continue;
+                || role is not (PlannedRole.Throne or PlannedRole.Suite) || !c.RoomCredits.ContainsKey(role)) continue;
+            var pawn = PawnOf(pawns, need.Pawn);
             var key = (closure.Room, closure.Stuff);
             string[] roles = role == PlannedRole.Throne ? [TitleThroneUnmetRole, TitleNoThroneRole] : [TitleBedroomUnmetRole, TitleNoBedroomRole];
             var rows = pawn.ThoughtStages;
@@ -448,13 +446,7 @@ public static class ForecastHousing
             var jealous = role == PlannedRole.Suite && Gets(JealousRole);
             var traits = greedy || jealous;
             if (!traits && !roles.Any(Gets)) { royal[key] = (need.Pawn, 0); continue; }
-            // A trait thought's colonist needs its thoughts read (#3650 P10 as revised: no unassessed in new
-            // code); the title path's unassessed is #3835's to remove.
-            if (!c.ObservedThoughts.GetValueOrDefault(need.Pawn).TryGetValue(out var thoughts))
-            {
-                if (traits) throw new RequiredFactException("observed thoughts");
-                continue;
-            }
+            if (!c.ObservedThoughts.GetValueOrDefault(need.Pawn).TryGetValue(out var thoughts)) throw new RequiredFactException("observed thoughts:" + need.Pawn);
             string[] Defs(string r) => [.. rows.Where(s => s.Role == r).Select(s => s.Thought).Distinct(StringComparer.Ordinal)];
             double Now(string r) => thoughts.Where(t => Defs(r).Contains(t.Def, StringComparer.Ordinal)).Sum(t => t.Offset);
             var relieved = -rows.Where(r => r.Stage == 0 && roles.Contains(r.Role, StringComparer.Ordinal) && thoughts.Any(t => t.Def == r.Thought))
@@ -483,41 +475,37 @@ public static class ForecastHousing
     /// <summary>
     /// The throne room and suite credit (#3807, #3826, on the room credit seam from #3796): the served room's colonist's
     /// <see cref="GainPerDay"/> of the mood the room relieves in its stuff (<see cref="RoyalDeltasOf"/>: its title room thoughts
-    /// and, in a suite, its Greedy and Jealous thoughts, summed), under its own pawn id. None for a room serving nobody, or one
-    /// that changes none of its colonist's thoughts; null (unassessed) when a title colonist's thoughts or closed room, or the
-    /// mood, is unread (a Greedy or Jealous colonist's unread facts throw, <see cref="RoyalDeltasOf"/>).
+    /// and, in a suite, its Greedy and Jealous thoughts, summed), under its own pawn id, in the prediction the room is served in
+    /// (<see cref="PlannedRoomCredits.Prediction"/>). None for a room serving nobody, or one that changes none of its colonist's
+    /// thoughts; throws when a fact it needs is unread (<see cref="RoyalDeltasOf"/>, <see cref="PlannedRoomCredits.MoodGain"/>).
     /// </summary>
-    internal static IReadOnlyList<RoomGain>? RoyalRoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> RoyalRoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
-        if (!context.RoyalRooms.ContainsKey(room.Room)) return [];
-        if (!Cache.GetValue(context, MovesOf).Royal.TryGetValue((room.Room, room.Stuff), out var move)) return null;
-        if (move.Delta == 0) return [];
-        return GainPerDay(move.Delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay)
-            is { } perDay ? [new(move.Pawn, move.Pawn, perDay)] : null;
+        if (!context.RoyalRooms.ContainsKey(room.Room) || PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { Stuff: var stuff }) return [];
+        if (!Cache.GetValue(context, MovesOf).Royal.TryGetValue((room.Room, stuff), out var move) || move.Delta == 0) return [];
+        return [new(move.Pawn, move.Pawn, PlannedRoomCredits.MoodGain(move.Delta, move.Pawn, outcome, context, horizon))];
     }
 
     /// <summary>
     /// The bedroom and barracks credit (#3655, #3658, on the room credit seam since #3796; every bed term since #3840): per
     /// occupant of the served room in its stuff, the <see cref="GainPerDay"/> of its <see cref="Sleeper"/> mood delta at the
     /// room's sleep temperature (<see cref="PlannedSleepTemperature"/>) plus the capability-days its sleep frees
-    /// (<see cref="Sleeper.Rest"/>), under its own pawn id. None without occupants; null (unassessed) when any occupant's room
-    /// delta or mood is unknown; throws when the room's temperature or a memory row it needs is unread.
+    /// (<see cref="Sleeper.Rest"/>), under its own pawn id, in the prediction the room is served in
+    /// (<see cref="PlannedRoomCredits.Prediction"/>). None without occupants; throws when an occupant's fact, the room's
+    /// temperature, a memory row or the mood is unread (#3835).
     /// </summary>
-    internal static IReadOnlyList<RoomGain>? BedroomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> BedroomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
-        if (!Cache.GetValue(context, MovesOf).Deltas.TryGetValue((room.Room, room.Stuff), out var moves)) return [];
-        if (moves.Any(m => m is null)) return null;
-        var temperature = moves.Length == 0 ? 0 : PlannedSleepTemperature(room.Room, outcome, context);
-        var gains = new List<RoomGain>(moves.Length);
-        foreach (var sleeper in moves.OfType<Sleeper>())
-        {
-            var pawn = sleeper.Pawn.Pawn;
-            if (GainPerDay(sleeper.At(temperature), outcome.Needs.GetValueOrDefault(pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay)
-                is not { } perDay) return null;
-            gains.Add(new(pawn, pawn, perDay + sleeper.Rest));
-        }
-        return gains;
+        if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { Stuff: var stuff }) return [];
+        if (!Cache.GetValue(context, MovesOf).Deltas.TryGetValue((room.Room, stuff), out var moves) || moves.Length == 0) return [];
+        var temperature = PlannedSleepTemperature(room.Room, outcome, context);
+        return [.. moves.Select(sleeper => new RoomGain(sleeper.Pawn.Pawn, sleeper.Pawn.Pawn,
+            PlannedRoomCredits.MoodGain(sleeper.At(temperature), sleeper.Pawn.Pawn, outcome, context, horizon) + sleeper.Rest))];
     }
+
+    /// <summary>A credited colonist's needs census row; one the census lacks throws <see cref="RequiredFactException"/> (#3835).</summary>
+    private static NeedsForecastPawn PawnOf(Dictionary<string, NeedsForecastPawn> pawns, string pawn) =>
+        pawns.TryGetValue(pawn, out var row) ? row : throw new RequiredFactException("needs forecast pawn:" + pawn);
 
     /// <summary>
     /// The temperature a planned room's sleepers lie at in an outcome (#3840): its shelter's forecast temperature at the horizon

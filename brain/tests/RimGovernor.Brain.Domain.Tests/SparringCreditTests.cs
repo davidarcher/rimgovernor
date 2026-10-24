@@ -75,7 +75,6 @@ public sealed class SparringCreditTests
         // The first served day trains them; the six after it hold Melee 2 against the raids, the saving shared by the added power.
         Assert.Equal(-(Horizon - Served - 1) * saved, rows.Sum(r => r.Value), 9);
         Assert.Equal(rows[0].Value, rows[1].Value, 12);
-        Assert.DoesNotContain(PlannedRoomCredits.Unassessed(PlannedRole.SparringRing, 1), ledger.Findings);
     }
 
     [Fact]

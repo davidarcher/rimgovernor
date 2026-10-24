@@ -42,8 +42,6 @@ public sealed partial record ForecastCoupledCandidates
         // A gate is keyed by its owner, a migrated family's NeedId (#3250).
         bool NeedEnabled(NeedId need) => !facts.AvailableNeeds.TryGetValue(out var available) || available.Contains(need);
         if (!NeedEnabled(AdminFamily.WorkAssignments)) return null;
-        // The benches the colony cooks at now (#3802), before claims or a held food supply leave this review's conversions out.
-        var cookingBenches = EquatableArray.From(read.FoodConversions.Select(c => c.Bench).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
         read = read with
         {
             Food = read.Food with { Options = EquatableArray.From(read.Food.Options.Where(o =>
@@ -309,6 +307,8 @@ public sealed partial record ForecastCoupledCandidates
             if (LeastWork(item.Finishes) is var work && double.IsFinite(work)) owedWork[item.Item] = work;
         foreach (var (site, finishes) in placedFinishes)
             if (!owedWork.ContainsKey(site) && LeastWork(finishes) is var work && double.IsFinite(work)) owedWork[site] = work;
+        var buildersRead = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
+            pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders);
         var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(allPlannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions,
             facts.CurrentConstruction.TryGetValue(out var placedSites) ? placedSites.Sites : [], placedFinishes) : [];
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
@@ -355,9 +355,8 @@ public sealed partial record ForecastCoupledCandidates
             StoreStock = facts.PlannedStoreStock,
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             Closures = closures,
-            CookingBenches = cookingBenches,
-            PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
-                pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,
+            PlannedBuilders = buildersRead ? builders : 0,
+            PlannedBuildersUnread = !buildersRead,
             OwedWork = owedWork,
             OptionWork = Worked(options).GroupBy(w => (w.Option.Activity, w.Option.Pawn)).ToDictionary(g => g.Key, g => g.Min(w => w.Ticks)),
             LayoutRooms = LayoutRoomsOf(facts),

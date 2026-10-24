@@ -27,8 +27,6 @@ public static class ForecastApparel
     /// <summary>A royal title's minimum apparel quality thought (#3841); see <see cref="NeedApparel.MinimumQuality"/>.</summary>
     public const string TitleApparelQuality = "title_apparel_quality_unmet";
 
-    /// <summary>The finding for a pawn whose garment credit an unread fact leaves unpriced.</summary>
-    public const string CreditUnassessed = "apparel_credit_unassessed:";
 
     private static readonly HashSet<string> Roles = new(StringComparer.Ordinal)
     {
@@ -190,7 +188,7 @@ public static class ForecastApparel
     /// Per pawn, the distinct nonzero apparel mood shifts (delta / 100) the garments <paramref name="alternatives"/> overlay can
     /// bring the worn outfit to, in any order and combination (the outfits reachable by overlaying them, up to
     /// <see cref="ReachableCap"/>): the shifts the pawn's mood timeline integrates breaks at, so <see cref="Credits"/> can price
-    /// each delivery's break days. A combination past the cap has no shift, and its credit is unassessed.
+    /// each delivery's break days. A combination past the cap has no shift, and its credit throws (#3835).
     /// </summary>
     public static IReadOnlyDictionary<string, double[]> BreakShifts(NeedsForecastRead needs, IReadOnlyDictionary<string, EquatableArray<GearOption>> outfits,
         IEnumerable<ForecastCommitment> alternatives)
@@ -230,45 +228,34 @@ public static class ForecastApparel
     /// credited the gain its delivery adds: <see cref="ForecastHousing.GainPerDay"/> of the outfit's apparel mood delta from the
     /// worn outfit's once it is on less that before it, times the days from then to tier 2's horizon, a gain (negative) under
     /// <see cref="CreditKey"/>. For one garment this is its <see cref="MoodDelta"/> priced from its delivery; several share the
-    /// thoughts they change together (a female pawn's shirt and pants together end her nakedness). A pawn whose outfit, apparel
-    /// facts, mood, tick or shift is unread is named <see cref="CreditUnassessed"/> and credited nothing.
+    /// thoughts they change together (a female pawn's shirt and pants together end her nakedness). A pawn without an apparel
+    /// tracker has no apparel thought: its garments earn nothing. Throws <see cref="RequiredFactException"/> (#3835) when the
+    /// pawn's census row, worn outfit, an active thought stage's row, a change tick or the mood is unread.
     /// </summary>
     internal static void Credits(ForecastCoupledOutcome outcome, ForecastCoupledContext context, IEnumerable<ForecastCommitment>? commitments,
-        double horizon, List<ForecastInvestmentContribution> rows, SortedSet<string> findings)
+        double horizon, List<ForecastInvestmentContribution> rows)
     {
         var days = context.InvestmentHorizonDays;
         if (commitments is null || days <= 0) return;
         var changes = commitments.SelectMany(c => c.OutfitChanges.Where(o => o.Overlay).Select(o => (Change: o, At: HarmLedger.ChangeTick(c, outcome.OutfitTicks))));
         foreach (var group in changes.GroupBy(c => c.Change.Pawn, StringComparer.Ordinal))
         {
-            var pawn = context.Needs.Pawns.FirstOrDefault(p => p.Pawn == group.Key);
-            var outfit = pawn is not null && context.Outfits.TryGetValue(group.Key, out var worn) ? worn : (EquatableArray<GearOption>?)null;
-            var before = pawn is not null && outfit is { } o ? MoodOf(pawn, o) : null;
-            if (pawn is null || outfit is not { } current || before is not { } baseline || group.Any(c => c.At is null))
-            {
-                if (outfit is not { } unchanged || group.Any(c => ChangesThoughts(unchanged, c.Change.Items))) findings.Add(CreditUnassessed + group.Key);
-                continue;
-            }
+            var pawn = context.Needs.Pawns.FirstOrDefault(p => p.Pawn == group.Key) ?? throw new RequiredFactException("needs forecast pawn:" + group.Key);
+            if (pawn.Apparel is null) continue;
+            var current = context.Outfits.TryGetValue(group.Key, out var worn) ? worn : throw new RequiredFactException("worn outfit:" + group.Key);
+            var baseline = MoodOf(pawn, current) ?? throw new RequiredFactException("apparel thought stage:" + group.Key);
             double previous = 0;
-            var pending = new List<ForecastInvestmentContribution>();
-            var assessed = true;
-            foreach (var (change, at) in group.OrderBy(c => c.At!.Value))
+            foreach (var (change, tick) in group.Select(c => (c.Change, At: c.At ?? throw new RequiredFactException("outfit change tick:" + group.Key))).OrderBy(c => c.At))
             {
                 current = change.Apply(current);
                 // Expected over the outfit's moods (a crafted garment's quality, #3850), each priced at its own break shift.
-                var moods = MoodOutcomes(pawn, current);
-                double? gain = moods is null ? null : 0;
-                foreach (var (m, chance) in moods ?? [])
-                    gain += chance * ForecastHousing.GainPerDay(m - baseline, outcome.Needs.GetValueOrDefault(group.Key)?.Mood,
-                        context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
-                if (gain is not { } total) { assessed = false; break; }
-                var units = RingClosure.CreditDays(days, at!.Value);
+                var moods = MoodOutcomes(pawn, current) ?? throw new RequiredFactException("apparel thought stage:" + group.Key);
+                var total = moods.Sum(m => m.Chance * PlannedRoomCredits.MoodGain(m.Mood - baseline, group.Key, outcome, context, horizon));
+                var units = RingClosure.CreditDays(days, tick);
                 if (total != previous && units > 0)
-                    pending.Add(new("", group.Key, CreditKey(group.Key, string.Join("+", change.Items.Select(i => i.Definition.Value))), units, -(total - previous) * units));
+                    rows.Add(new("", group.Key, CreditKey(group.Key, string.Join("+", change.Items.Select(i => i.Definition.Value))), units, -(total - previous) * units));
                 previous = total;
             }
-            if (assessed) rows.AddRange(pending);
-            else findings.Add(CreditUnassessed + group.Key);
         }
     }
 }

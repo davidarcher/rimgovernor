@@ -47,15 +47,14 @@ internal static class ForecastDeathrest
     {
         var chamber = Cache.GetValue(context, Of);
         if (chamber.Room != room.Room) return [];
-        var gains = chamber.ByStuff.GetValueOrDefault(room.Stuff)
-            ?? throw new RequiredFactException(FormattableString.Invariant($"closure prediction of deathrest chamber {room.Room} in {room.Stuff}"));
+        // The chamber's prediction in its served stuff, else its first by stuff (#3835: a ringless chamber is predicted in "").
+        if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { Stuff: var stuff }) return [];
+        var gains = chamber.ByStuff.GetValueOrDefault(stuff)
+            ?? throw new RequiredFactException(FormattableString.Invariant($"closure prediction of deathrest chamber {room.Room} in {stuff}"));
         var output = new List<RoomGain>(gains.Length);
         foreach (var gain in gains)
         {
-            var mood = 0d;
-            if (gain.Mood != 0)
-                mood = ForecastHousing.GainPerDay(gain.Mood, outcome.Needs.GetValueOrDefault(gain.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight,
-                    horizon / GameTime.TicksPerDay) ?? throw new RequiredFactException("mood forecast of deathrester " + gain.Pawn);
+            var mood = gain.Mood != 0 ? PlannedRoomCredits.MoodGain(gain.Mood, gain.Pawn, outcome, context, horizon) : 0;
             if (gain.Work + mood != 0) output.Add(new(gain.Pawn, gain.Pawn, gain.Work + mood));
         }
         return output;

@@ -118,7 +118,7 @@ public sealed class PlannedRoomActivitiesTests
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10)
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = Known(true),
                             SourceCount = Known(2d) })) },
-                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d))],
+                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d)) { Thoughts = Known<EquatableArray<NeedMemory>>([]) }],
                     Construction = ConstructionFixtures.NoConstruction() with { Context = Context },
                     // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.
                     Thermal = roofCellWork > 0 ? CoupledThermalTests.NoThermal with { Workers = [new(Pawn, roofCellWork)] } : null,
@@ -126,7 +126,7 @@ public sealed class PlannedRoomActivitiesTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced().BuildersRead() };
     }
 
     /// <summary>The test-only workshop credit: one capability-day a served day, booked to no pawn.</summary>
@@ -659,7 +659,7 @@ public sealed class PlannedRoomActivitiesTests
                 { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        facts = Credited(facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() });
+        facts = Credited(facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced().BuildersRead() });
         var candidates = facts.CoupledAlternatives!;
         var result = Select(facts);
         var why = Why(facts, result) + " selected=" + string.Join(",", result.Selection.Selected);
@@ -706,7 +706,7 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// The wall alone fits the horizon; the door does not. With a builder the priced room's service day is projected past the
     /// horizon, which assesses its whole-room effect (#3796), and its credit selects the wall. With no builder nothing projects
-    /// it: its effect and its credit are unassessed, never zero, and with no development (#3828) the wall is not selected.
+    /// it: the room is never served and earns nothing (#3835), and with no development (#3828) the wall is not selected.
     /// </summary>
     [Fact]
     public void ARoomLeftPartialInTheHorizonIsProjectedOrNamedUnassessed()
@@ -724,7 +724,7 @@ public sealed class PlannedRoomActivitiesTests
             { Context = facts.CoupledAlternatives.Context with { PlannedBuilders = 0 } } };
         var held = Select(unbuilt);
         Assert.False(PlannedSelected(held, "planned/room1/wall/WoodLog"), Why(unbuilt, held));
-        Assert.Contains(held.Rejected, e => e.Consequences?.Value.Ledger.Findings.Contains("workshop_credit_unassessed:1") == true);
+        Assert.DoesNotContain(held.Rejected, e => e.Consequences?.Value.Ledger.InvestmentContributions.Any(c => c.Key.StartsWith("workshop/", StringComparison.Ordinal)) == true);
     }
 
     /// <summary>
@@ -788,17 +788,18 @@ public sealed class PlannedRoomActivitiesTests
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Context;
         Assert.True(fresh.Priced(1));
         Assert.Null(fresh.StoreStock);
-        Assert.Null(ForecastStorage.StorageCredit(served, null!, fresh, Horizon));
+        // No stockpile request (#3835): the no-stock state, worth nothing.
+        Assert.Empty(ForecastStorage.StorageCredit(served, null!, fresh, Horizon));
 
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { PlannedStoreStock = StoreRules.PlannedStoreStock(request, [room]) }, Horizon)!.Context;
         var stock = context.StoreStock![1];
         Assert.Equal(9, stock.Cells);
         Assert.Equal(["Thing_Cloth1", "Thing_Steel1"], stock.Rows.Select(r => r.Supply.Thing).Order(StringComparer.Ordinal));
         Assert.Contains(new Resource("Cloth"), ForecastValue.ChargedMaterials(context));
-        // Unpriced until the round prices the stock with the charged materials; then the cloth alone is credited.
-        Assert.Null(ForecastStorage.StorageCredit(served, null!, context, Horizon));
+        // Unread until the round prices the stock with the charged materials (it throws); then the cloth alone is credited.
+        Assert.Throws<RequiredFactException>(() => ForecastStorage.StorageCredit(served, null!, context, Horizon));
         var priced = context with { MaterialValues = new Dictionary<Resource, ConstructionMaterialValue> { [new("Cloth")] = new(MaterialValueBasis.Market, .01) } };
-        Assert.Equal("Thing_Cloth1", Assert.Single(ForecastStorage.StorageCredit(served, null!, priced, Horizon)!).Subject);
+        Assert.Equal("Thing_Cloth1", Assert.Single(ForecastStorage.StorageCredit(served, null!, priced, Horizon)).Subject);
     }
 
     /// <summary>
@@ -816,7 +817,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.DoesNotContain(unpriced.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
         var counted = Select(Credited(facts));
         var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced().BuildersRead()!;
         Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
         Assert.True(generated.Context.Priced(1));
         var priced = bedroom with { CoupledAlternatives = generated };
@@ -867,7 +868,7 @@ public sealed class PlannedRoomActivitiesTests
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200, count: 20, available: 20)]);
         var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced().BuildersRead()!;
         const double perUnit = 0.001;
         IEnumerable<ForecastConsequenceVector> Vectors(ForecastCoupledSelection result) =>
             result.Rejected.Where(e => e.Consequences is not null).Select(e => e.Consequences!).Append(result.SelectedVector);
@@ -920,7 +921,7 @@ public sealed class PlannedRoomActivitiesTests
             MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced();
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced().BuildersRead()!;
         return facts with
         {
             CoupledAlternatives = generated with
@@ -937,10 +938,9 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
-    /// #3802: the kitchen credit's facts as the round fills them. The layout's kitchen (its meals), native's room prediction,
-    /// the catalog's filth model and the coupled read's cooking benches and their rooms' chance reach the context through
-    /// GenerateCoupledActivities; a kitchen served there is credited. Without a bench that cooks now, as on a fresh colony,
-    /// the cook's current room is unknown and the kitchen is named unassessed, nothing thrown.
+    /// #3802: the kitchen credit's facts as the round fills them. The layout's kitchen (its meals), native's room prediction
+    /// and the catalog's filth model reach the context through GenerateCoupledActivities; a kitchen served there is credited.
+    /// Its own planned cooking is priced (#3835), so a fresh colony with no bench cooking now is credited alike.
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -965,14 +965,14 @@ public sealed class PlannedRoomActivitiesTests
             PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Kitchen, Meals = 6,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
             PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Kitchen", 30d, 2, 9, 0, false) with { Cleanliness = -1 }]),
-            Filth = BedStationPriceTests.Filth,
+            // The catalog's roomless score: a campfire cooking outdoors.
+            Filth = BedStationPriceTests.Filth with { FoodPoisonRoomless = .02 },
             CapacityPenalties = ForecastValueTests.Tables(),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) }, Coupled = coupled },
         };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced().Context with { InvestmentHorizonDays = 10 };
         Assert.Equal(6, context.LayoutRooms[1].Meals);
-        Assert.Equal(cooking ? ["campfire"] : [], context.CookingBenches.ToArray());
-        Assert.Equal(BedStationPriceTests.Filth, context.Filth);
+        Assert.Equal(facts.Filth, context.Filth);
         Assert.Contains(context.Closures, c => c.Room == 1 && c.Prediction.Role == "Kitchen");
 
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
@@ -981,12 +981,7 @@ public sealed class PlannedRoomActivitiesTests
         }, []) { ServedRooms = [new(1, "WoodLog", 0)] };
         var ledger = ForecastValue.Of(outcome, context, GameTime.TicksPerDay);
         var rows = ledger.InvestmentContributions.Where(r => r.Key == PlannedRoomCredits.Key(PlannedRole.Kitchen, 1, KitchenCredits.Poisoning)).ToArray();
-        if (cooking) Assert.True(Assert.Single(rows).Value < 0, string.Join(";", ledger.Findings));
-        else
-        {
-            Assert.Empty(rows);
-            Assert.Contains("kitchen_credit_unassessed:1", ledger.Findings);
-        }
+        Assert.True(Assert.Single(rows).Value < 0, string.Join(";", ledger.Findings));
     }
 
     private static IEnumerable<ForecastInvestmentContribution> BedroomCredits(ForecastCoupledSelection result) =>
@@ -1089,7 +1084,7 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// #3744: planned rings over a one-day horizon. Every colonist sleeps in a barracks at stage 0 now (bed thoughts read);
     /// each room of <paramref name="occupants"/> is a bedroom native predicts at stage 2 in WoodLog, its occupant moving in.
-    /// <paramref name="builders"/> are the projection's builders (unknown when null), <paramref name="open"/> the open rooms
+    /// <paramref name="builders"/> are the projection's builders (none when null), <paramref name="open"/> the open rooms
     /// (observed started and not done); tier 2's horizon is 10 days and wellbeing is weighed a capability-day per mood-day, so a day's
     /// delay of a bedroom is worth more than the ledger's tie resolution.
     /// </summary>
@@ -1114,7 +1109,7 @@ public sealed class PlannedRoomActivitiesTests
             MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!.Priced();
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!.Priced().BuildersRead()!;
         return facts with
         {
             CoupledAlternatives = generated with

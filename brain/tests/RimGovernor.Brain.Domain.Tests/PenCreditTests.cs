@@ -41,7 +41,6 @@ public sealed class PenCreditTests
         Assert.Equal(["cow1", "cow2", "cow3", "cow4"], rows.Select(r => r.Key[(PlannedRoomCredits.Key(PlannedRole.Pen, 1, "").Length)..]));
         Assert.All(rows, r => Assert.Equal(("", Horizon - Served), (r.Pawn, r.Units)));
         Assert.Equal(-4 * CowDays / MtbDays * (Horizon - Served), rows.Sum(r => r.Value), 9);
-        Assert.DoesNotContain(PlannedRoomCredits.Unassessed(PlannedRole.Pen, 1), ledger.Findings);
     }
 
     [Fact]

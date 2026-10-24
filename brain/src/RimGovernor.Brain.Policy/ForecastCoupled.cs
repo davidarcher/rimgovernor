@@ -70,8 +70,11 @@ public sealed record ForecastCoupledContext
     /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
     public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
     /// <summary>The builders a room's owed work is projected over (#3744, #3796): the free colonists of the needs census
-    /// capable of Construction (LayoutClusterRules.BuildersOf). None (none free, or their work facts unread) projects nothing.</summary>
+    /// capable of Construction (LayoutClusterRules.BuildersOf). None free projects nothing.</summary>
     public int PlannedBuilders { get; init; }
+    /// <summary>Whether a work fact <see cref="PlannedBuilders"/> counts was left unread (#3835): a room that then needs
+    /// projecting throws <see cref="RequiredFactException"/> instead of passing for one no builder serves.</summary>
+    public bool PlannedBuildersUnread { get; init; }
     /// <summary>The owed work in ticks (#3744, #3796) of each planned site (by site id: the least finish, a Finishes row's ticks or a
     /// roof's RoofCellWorkTicks per cell, plus the least delivery haul and clearing it was generated with) and of each placed
     /// site and standing removal (by its id: the least work of its finishes). A room owing an item without a row is not projected.</summary>
@@ -148,9 +151,6 @@ public sealed record ForecastCoupledContext
     /// <summary>The planned containment cells, their predicted strength and the entity each already holds (#3811,
     /// <see cref="ForecastContainment.CellsOf"/>); none without a planned cell. Set by the round beside <see cref="DeathrestFurniture"/>.</summary>
     public EquatableArray<PlannedContainmentCell> ContainmentCells { get; init; }
-    /// <summary>The benches the colony cooks at now (the coupled food read's conversion benches, #3802): the kitchen credit's
-    /// current room is theirs (SupportDemand.FoodPoisonChance of their bench demands).</summary>
-    public EquatableArray<string> CookingBenches { get; init; }
     /// <summary>The days a served room's credit runs to (#3655, #3796): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
     /// set beside <see cref="Investment"/>; 0 before tier 2 ran, which credits nothing.</summary>
     public double InvestmentHorizonDays { get; init; }
@@ -213,8 +213,6 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     /// <summary>The planned rooms the schedule serves (PlannedRoomCredits.ServiceDays, #3796): inside the horizon once it
     /// finishes their owed work, past it at their projected service day.</summary>
     public EquatableArray<ForecastRoomService> ServedRooms { get; init; }
-    /// <summary>The planned rooms the schedule touches whose service day is unassessed (no builders, or owed work without a row).</summary>
-    public EquatableArray<int> UnassessedRooms { get; init; }
     /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
     /// room's per-cell roof as its <see cref="ForecastPlannedSite.RoofUnit"/>. One unit each of requested development, except a
     /// planned room's unit (PlannedRoomCredits.PlannedUnits, #3828), which the ranking does not count: a room wins on the ledger only.</summary>

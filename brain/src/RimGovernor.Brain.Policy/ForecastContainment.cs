@@ -118,39 +118,36 @@ public static class ForecastContainment
         if (!Cache.GetValue(context, Assign).TryGetValue(room.Room, out var held)) return [];
         var (cell, entity) = held;
         var curves = Curves(context);
-        var loss = ForecastValue.EscapeLoss(outcome, context, horizon, entity.Escape.CombatPower) ?? 0;
+        double Loss() => ForecastValue.EscapeLoss(outcome, context, horizon, entity.Escape.CombatPower);
         double gain;
         if (entity.Platform is { } platform)
         {
-            gain = (EscapesPerDay(entity, platform.Strength, curves) - EscapesPerDay(entity, cell.Strength, curves)) * loss
+            var escapes = EscapesPerDay(entity, platform.Strength, curves) - EscapesPerDay(entity, cell.Strength, curves);
+            gain = (escapes == 0 ? 0 : escapes * Loss())
                 + StudyPerDay(entity, cell.Strength, context, curves) - StudyPerDay(entity, platform.Strength, context, curves);
         }
         else
         {
             var waiting = Captured(entity);
-            gain = StudyPerDay(waiting, cell.Strength, context, curves) - EscapesPerDay(waiting, cell.Strength, curves) * loss;
+            var escapes = EscapesPerDay(waiting, cell.Strength, curves);
+            gain = StudyPerDay(waiting, cell.Strength, context, curves) - (escapes == 0 ? 0 : escapes * Loss());
         }
         return gain == 0 ? [] : [new(entity.Id, "", gain)];
     }
 
     /// <summary>
     /// The served cell's named findings (<see cref="PlannedRoomCredits.Unmodelled"/>): <see cref="NotModelled"/> for a cell
-    /// that holds an entity, <c>escape_unassessed:&lt;entity&gt;</c> when one escape's fight cannot be priced (the credit then
-    /// counts no escape) and <c>knowledge_unpriced:&lt;category&gt;</c> when tier 2 gave the category no price (no study).
+    /// that holds an entity, and <c>knowledge_unpriced:&lt;category&gt;</c> when tier 2 gave the category no price (no study).
     /// </summary>
     public static IEnumerable<string> CellFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
         if (!Cache.GetValue(context, Assign).TryGetValue(room.Room, out var held)) return [];
         var entity = held.Entity;
         var findings = new List<string>(NotModelled);
-        if (ForecastValue.EscapeLoss(outcome, context, horizon, entity.Escape.CombatPower) is null) findings.Add(EscapeUnassessed(entity.Id));
         if (entity.Study is { Category.Length: > 0 } study && !context.Investment.ContainsKey(ProjectGraph.KnowledgeKey(study.Category)))
             findings.Add("knowledge_unpriced:" + study.Category);
         return findings;
     }
-
-    /// <summary>The finding of an entity whose escape fight cannot be priced.</summary>
-    public static string EscapeUnassessed(string entity) => "escape_unassessed:" + entity;
 
     /// <summary>
     /// The escapes a day of <paramref name="entity"/> held at <paramref name="strength"/>: 1 / its InitiateEscapeMtbDays (see the

@@ -491,10 +491,13 @@ costs each pawn.
   downed), `illness_organ_replacement_wait_unmodelled` (the days to the replacement surgery). A pawn without part rows for a
   part-striking incident throws `RequiredFactException` (`disease_parts:<pawn>:<def>`).
 - `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
-  — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when unassessed; the term's loss is
-  then `HarmDetail.RaidLoss` alone with `illness_unassessed` and the reason. `ColonyValue` prices the doctor and the medicine by the
+  — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when the disease table does not
+  model the colony (its storyteller, biome, incident or course); the term's loss is then `HarmDetail.RaidLoss` alone with
+  `illness_unmodelled` and the reason. An unread schedule fact (`disease_facts_unobserved`, `disease_rate_invalid`,
+  `disease_victims_unobserved:<incident>`) or pawn fact throws `RequiredFactException` (#3835); a pawn with no immunity tracker
+  catches nothing (a point at 0). `ColonyValue` prices the doctor and the medicine by the
   whole term (raid plus illness loss at each tend quality, raid treatments plus `TendsPerDay`, #3829) and throws a
-  `RequiredFactException` when the illness is unassessed. Mirrored literals:
+  `RequiredFactException` when the term holds no illness. Mirrored literals:
   [kept constants](kept-constants.md#mirrored-game-literals-illness-3824).
 
 ### Escape term (#3811)
@@ -514,8 +517,9 @@ The harm term's held-entity part: how often an entity held on a holding platform
 - Escapes a day per held entity: 1 / (base MTB × moving × captivity curve(days) × escape curve(platform strength − need) × cold), 0 for
   one that cannot escape (`ForecastContainment.EscapesPerDay`). Each escape is one fight at the entity's combat power:
   `HarmLedger.FightLoss` prices it as a raid of those points against `DefenseCapacity`, with the raid's weapon bins and the exposure
-  table, Σ over the pawns of the risk transform (`containment_escape_raid_calibration_assumed`). A fight that cannot be priced adds
-  nothing and names `escape_unassessed:<entity>`.
+  table, Σ over the pawns of the risk transform (`containment_escape_raid_calibration_assumed`). No defender prices the fight at 0;
+  a fight fact left unread (the defense ratio, weapon bins, a defender's outfit or capacities, or an exposure cell the table does
+  not calibrate) throws `RequiredFactException` with its findings (#3835).
 - `HarmDetail.Escape` (`EscapeTerm`: escapes a day, the loss — escapes a day × horizon days × one fight — and deaths a day) is zero
   without a held entity; its loss and deaths join the term's.
 

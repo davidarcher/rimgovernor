@@ -89,8 +89,12 @@ public static partial class StoreRules
     /// <summary>The store's stranded loot rows (<see cref="StrandedStacks"/>), one stack each; null (unread) on the same terms.</summary>
     internal static List<LootItem>? StrandedRows(StockpileRequest request, Store store) => StrandedRows(request, StoreGroups(request, store));
 
-    /// <summary>The stranded loot rows one of whose accepting storage groups is in <paramref name="groups"/>; null (unread) on the terms of <see cref="StrandedStacks"/>.</summary>
-    private static List<LootItem>? StrandedRows(StockpileRequest request, HashSet<string> groups)
+    /// <summary>
+    /// The stranded loot rows one of whose accepting storage groups is in <paramref name="groups"/>; null (unread) on the terms of
+    /// <see cref="StrandedStacks"/>. With <paramref name="reachedOnly"/> (a planned store's stock, #3835) a row of unknown safety,
+    /// which no colonist reaches now (HaulingSafety.Safe), is left out: no hauler can carry it to the store.
+    /// </summary>
+    private static List<LootItem>? StrandedRows(StockpileRequest request, HashSet<string> groups, bool reachedOnly = false)
     {
         if (!request.Loot.TryGetValue(out var rows))
         {
@@ -113,6 +117,10 @@ public static partial class StoreRules
             }
             if (!row.SafetyKnown)
             {
+                if (reachedOnly)
+                {
+                    continue;
+                }
                 return null;
             }
             stranded.Add(row);
@@ -125,7 +133,8 @@ public static partial class StoreRules
     /// stack each) and the stranded rows whose accepting storage groups include a zone of the role of a store sited on its
     /// region (or a shelf in one), each row once. Zones of one role carry one filter, so a room whose own zone is not yet
     /// laid is read through its role's standing zones, as StorageOptions prices a successor room. A room no store is
-    /// sited on keeps nothing; a room whose rows are unread (<see cref="StrandedStacks"/>) has no entry.
+    /// sited on keeps nothing, and a stack no colonist reaches is no room's; a room whose rows are unread (the loot census or a
+    /// row's headroom) has no entry.
     /// </summary>
     public static IReadOnlyDictionary<int, PlannedStock> PlannedStoreStock(StockpileRequest request, IReadOnlyList<PlannedRoom> rooms)
     {
@@ -148,7 +157,7 @@ public static partial class StoreRules
                     groups.Add(s.Building);
                 }
             }
-            if (StrandedRows(request, groups) is { } rows)
+            if (StrandedRows(request, groups, reachedOnly: true) is { } rows)
             {
                 output[room.Id] = new PlannedStock(room.Region.Area(), EquatableArray.From(rows));
             }

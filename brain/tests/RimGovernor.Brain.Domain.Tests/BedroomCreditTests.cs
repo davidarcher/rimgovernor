@@ -107,7 +107,7 @@ public sealed class BedroomCreditTests
             OpenRooms = new HashSet<int> { 1 },
             PlannedBuilders = 1,
         };
-        var closed = Assert.Single(PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day).Served);
+        var closed = Assert.Single(PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day));
         Assert.Equal(ringDays * Day, closed.ServedAt);
         var rows = ForecastValue.Of(Closing(closed.ServedAt, 0.06), context, Day).InvestmentContributions
             .Where(r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal)).ToArray();
@@ -120,12 +120,10 @@ public sealed class BedroomCreditTests
     }
 
     [Fact]
-    public void AnOccupantWithUnreadStagesIsNamedAndNotCredited()
+    public void AnOccupantWithUnreadStagesThrowsARequiredFact()
     {
         var context = Context(Pawn(ascetic: false, barracksStage: 1), bedroomStage: 2);
-        var ledger = ForecastValue.Of(Closing(0, 0.06), context, Day);
-        Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal));
-        Assert.Contains("bedroom_credit_unassessed:1", ledger.Findings);
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Closing(0, 0.06), context, Day));
     }
 
     // ----- #3840: the layout/first-bedroom-closes case, every bed term ApplyBedThoughts, the rest tick and the comfort need apply.

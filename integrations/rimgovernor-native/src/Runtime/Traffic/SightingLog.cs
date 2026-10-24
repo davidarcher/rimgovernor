@@ -8,7 +8,9 @@ namespace HomeBridge.BridgeTools
     // PawnObserver.ObserveSurroundingThings sees every corpse within 5 cells in
     // line of sight while the pawn is awake, so a corpse's sightings by one
     // colonist are the passes it stood near enough to see it. Free of game types
-    // so the contract probes can check the ring. Not saved: a load starts empty.
+    // so the contract probes can check the ring. Saved in the map's TrafficState
+    // as Export's flat list (#3835); a save from before it loads empty, and the
+    // brain credits that record from what it holds (nothing yet covered).
     //
     // Bound: one ring per pawn recorded, each Capacity (tick, cell) pairs, so
     // 267 x 8 bytes (about 2 KB) per colonist; Retain drops the rings of pawns
@@ -67,6 +69,50 @@ namespace HomeBridge.BridgeTools
                 if (now - ring.Ticks[at] < WindowTicks && ring.Ticks[at] <= now) passes.Add((ring.Ticks[at], ring.Cells[at]));
             }
             return passes;
+        }
+
+        // Export flattens the log for the save: per pawn its id, Since, the count
+        // of its passes, then each pass's tick and cell, oldest first.
+        public List<int> Export()
+        {
+            var flat = new List<int>();
+            foreach (var pair in rings)
+            {
+                var ring = pair.Value;
+                flat.Add(pair.Key);
+                flat.Add(ring.Since);
+                flat.Add(ring.Count);
+                for (int i = 0; i < ring.Count; i++)
+                {
+                    int at = (ring.Head + i) % Capacity;
+                    flat.Add(ring.Ticks[at]);
+                    flat.Add(ring.Cells[at]);
+                }
+            }
+            return flat;
+        }
+
+        // Import replaces the log with an Export's list; a null list (a save
+        // from before the log was saved) or a malformed one leaves it empty.
+        public void Import(List<int>? flat)
+        {
+            rings.Clear();
+            if (flat == null) return;
+            int i = 0;
+            while (i < flat.Count)
+            {
+                if (flat.Count - i < 3) { rings.Clear(); return; }
+                int pawn = flat[i], since = flat[i + 1], count = flat[i + 2];
+                i += 3;
+                if (count < 0 || count > Capacity || flat.Count - i < 2 * count || rings.ContainsKey(pawn)) { rings.Clear(); return; }
+                var ring = new Ring { Since = since, Count = count };
+                for (int k = 0; k < count; k++, i += 2)
+                {
+                    ring.Ticks[k] = flat[i];
+                    ring.Cells[k] = flat[i + 1];
+                }
+                rings[pawn] = ring;
+            }
         }
 
         // Retain drops every pawn's ring keep refuses.

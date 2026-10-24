@@ -32,6 +32,13 @@ internal static class TestNeed
 
 internal static class WorkResourceTestFacts
 {
+    /// <summary>
+    /// The generated alternatives with their builders read (#3835): <see cref="Create"/>'s pawns carry no work rows, so the
+    /// planned builders are unread and a room left owing would throw; the planned-room fixtures count none read instead.
+    /// </summary>
+    internal static ForecastCoupledCandidates? BuildersRead(this ForecastCoupledCandidates? candidates) =>
+        candidates is null ? null : candidates with { Context = candidates.Context with { PlannedBuildersUnread = false } };
+
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
         Tick = new(100),

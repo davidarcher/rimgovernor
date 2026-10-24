@@ -23,9 +23,24 @@ internal static class NativeSightingLogProbe
         Require(fast.Passes(2, SightingLog.WindowTicks).Count == SightingLog.Capacity - 1, "the fastest cadence's window fits the ring");
         Require(fast.Covered(2, SightingLog.WindowTicks / 2) == SightingLog.WindowTicks / 2, "a young record covers since its first pass");
 
+        // The save round-trips the log; an old save (no node) and a malformed list load empty.
+        var loaded = new SightingLog();
+        loaded.Import(log.Export());
+        Require(loaded.Pawns == 1 && loaded.Covered(1, now) == log.Covered(1, now), "a loaded log keeps each pawn's coverage");
+        var before = log.Passes(1, now);
+        var after = loaded.Passes(1, now);
+        Require(after.Count == before.Count && after[0] == before[0] && after[after.Count - 1] == before[before.Count - 1], "a loaded log keeps the passes in order");
+        loaded.Record(1, now + 600, 9);
+        var recorded = loaded.Passes(1, now + 600);
+        Require(recorded[recorded.Count - 1] == (now + 600, 9), "a loaded ring records on");
+        loaded.Import(null);
+        Require(loaded.Pawns == 0, "a save without the log loads empty");
+        loaded.Import(new System.Collections.Generic.List<int> { 1, 0, 5, 3 });
+        Require(loaded.Pawns == 0, "a malformed list loads empty");
+
         log.Retain(pawn => pawn == 2);
         Require(log.Pawns == 0 && log.Covered(1, now) == 0, "retain drops a refused pawn's ring");
-        Console.WriteLine("native-sighting-log: window, ring order, cadence bound, coverage and retain passed");
+        Console.WriteLine("native-sighting-log: window, ring order, cadence bound, coverage, save round trip and retain passed");
     }
 
     private static void Require(bool condition, string message)

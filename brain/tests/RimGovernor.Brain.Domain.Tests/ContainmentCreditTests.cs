@@ -49,11 +49,10 @@ public sealed class ContainmentCreditTests
         var context = Context([Entity()]);
         var outcome = Outcome();
         var fight = ForecastValue.EscapeLoss(outcome, context, Day, 1000);
-        Assert.NotNull(fight);
         Assert.True(fight > 0);
         // The escapes the cell stops (one per 1.5 days now, one per 30 in the cell) times one fight, plus the study it adds
         // (0.4 knowledge a day at ×0.5 now, at ×1 in the cell, each point worth 3).
-        var avoided = (1 / (MtbDays * 0.05) - 1 / MtbDays) * fight!.Value;
+        var avoided = (1 / (MtbDays * 0.05) - 1 / MtbDays) * fight;
         var study = Knowledge / ForecastContainment.StudiesPerKnowledge * (1 - 0.5) * Price;
         var gain = Assert.Single(ForecastContainment.CellCredit(Cell, outcome, context, Day));
         Assert.Equal(("entity1", ""), (gain.Subject, gain.Pawn));
@@ -64,16 +63,25 @@ public sealed class ContainmentCreditTests
         var ledger = ForecastValue.Of(outcome, context, Day);
         var escape = ledger.HarmDetail!.Escape;
         Assert.Equal(1 / (MtbDays * 0.05), escape.EscapesPerDay, 12);
-        Assert.Equal(escape.EscapesPerDay * fight.Value, escape.Loss, 9);
+        Assert.Equal(escape.EscapesPerDay * fight, escape.Loss, 9);
         Assert.True(escape.DeathsPerDay >= 0);
         Assert.Contains("containment_escape_raid_calibration_assumed", ledger.HarmFindings);
+    }
+
+    [Fact]
+    public void AnEscapeFightWithAnUnreadDefenderThrowsARequiredFact()
+    {
+        // #3835 (#3811's escape_unassessed): a defender whose outfit is unread leaves the fight unpriced, so it throws.
+        var context = Context([Entity()]) with { Outfits = new Dictionary<string, EquatableArray<GearOption>>() };
+        Assert.StartsWith("outfit_unobserved:", Assert.Throws<RequiredFactException>(() => ForecastValue.EscapeLoss(Outcome(), context, Day, 1000)).Fact, StringComparison.Ordinal);
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Outcome(), context, Day));
     }
 
     [Fact]
     public void TheCellCreditRidesTheLedgerFromItsServiceDayWithWhatItLeavesOut()
     {
         // PlannedRoomCreditTests' room 1 serves from day three of a ten-day horizon; its outcome has no pawn, so an escape
-        // fight cannot be priced: the credit is the study alone, and the escape is named.
+        // fights no defender and costs nothing (#3835): the credit is the study alone.
         var context = PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.ContainmentCell, [2] = PlannedRole.Workshop },
@@ -85,9 +93,9 @@ public sealed class ContainmentCreditTests
         var row = Assert.Single(ledger.InvestmentContributions, r => r.Key.StartsWith(Wire.Name(PlannedRole.ContainmentCell) + "/", StringComparison.Ordinal));
         Assert.Equal((PlannedRoomCredits.Key(PlannedRole.ContainmentCell, 1, "entity1"), 7d), (row.Key, row.Units));
         Assert.Equal(-Knowledge / ForecastContainment.StudiesPerKnowledge * 0.5 * Price * 7, row.Value, 9);
-        Assert.Contains(ForecastContainment.EscapeUnassessed("entity1"), ledger.Findings);
+        Assert.Equal(0, ForecastValue.EscapeLoss(PlannedRoomCreditTests.Outcome(context), context, Day, 1000));
         Assert.All(ForecastContainment.NotModelled, f => Assert.Contains(f, ledger.Findings));
-        Assert.DoesNotContain(PlannedRoomCredits.Unassessed(PlannedRole.ContainmentCell, 1), ledger.Findings);
+        Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("escape", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -96,7 +104,7 @@ public sealed class ContainmentCreditTests
         var waiting = Entity("entity2", held: false);
         var context = Context([waiting], held: "");
         var outcome = Outcome();
-        var fight = ForecastValue.EscapeLoss(outcome, context, Day, 1000)!.Value;
+        var fight = ForecastValue.EscapeLoss(outcome, context, Day, 1000);
         var gain = Assert.Single(ForecastContainment.CellCredit(Cell, outcome, context, Day));
         Assert.Equal("entity2", gain.Subject);
         Assert.Equal(Knowledge / ForecastContainment.StudiesPerKnowledge * Price - 1 / MtbDays * fight, gain.PerDay, 9);

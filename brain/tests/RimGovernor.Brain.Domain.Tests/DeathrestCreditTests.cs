@@ -195,6 +195,22 @@ public sealed class DeathrestCreditTests
     }
 
     [Fact]
+    public void AnUnreadDeathrestThrowsWhileReadPawnsStillStageTheirChildRooms()
+    {
+        // #3835: a pawn whose Biotech deathrest section is unread (a failed native read) throws, never a skipped chamber.
+        static WorkPawn Child(string id, Fact<P.PawnDeathrest?> deathrest, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
+            new() { Id = new(id), Biotech = Known(new P.PawnBiotech { Deathrest = deathrest, DevelopmentalStage = Known(stage) }) };
+        var unread = Child("unread", default, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult);
+        Assert.Throws<RequiredFactException>(() => ChildRoomsRules.ChildRoomNeeds([unread], Defs));
+        // Read pawns (no deathrest gene, or no Biotech at all) never throw, and their nursery, playroom and classroom stage.
+        var needs = ChildRoomsRules.ChildRoomNeeds([
+            Child("baby", Known<P.PawnDeathrest?>(null), RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby),
+            Child("child", Known<P.PawnDeathrest?>(null), RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child),
+            new WorkPawn { Id = new("plain") }], Defs);
+        Assert.Equal([RoomRole.Nursery, RoomRole.Playroom, RoomRole.Classroom], needs.Select(n => n.Role));
+    }
+
+    [Fact]
     public void AFreshColonysDeathresterIsStagedFromTheReadsTheRoundDecodes()
     {
         // The production path (#3822): the pawn row's wire Biotech block lifted by BiotechFactsRules, the needs read's deathrest

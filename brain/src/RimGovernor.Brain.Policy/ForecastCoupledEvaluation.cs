@@ -876,7 +876,7 @@ public static partial class ForecastCoupled
                 plannedByDevelopment.Add(developmentId, planned = PlannedOf(plan));
             // A room with a service day (#3796) is assessed by it.
             foreach (var room in planned.Unassessed)
-                if (!service.Served.Any(r => "planned/room" + r.Room == room)) Finding("planned_room_effect_unassessed", room, horizon);
+                if (!service.Any(r => "planned/room" + r.Room == room)) Finding("planned_room_effect_unassessed", room, horizon);
             var servicesId = allocs.Id(serviceRows);
             if (pawns.Support is not { } support && !supportByServices.TryGetValue(servicesId, out support))
                 supportByServices.Add(servicesId, support = ForecastSupport.ForecastSupportConsequencesOf(context, plan, completed, horizon));
@@ -896,7 +896,7 @@ public static partial class ForecastCoupled
                 PlannedRooms = EquatableArray.Wrap(planned.Rooms),
                 RequestedDevelopment = EquatableArray.Wrap(planned.Development),
                 CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
-                ServedRooms = service.Served, UnassessedRooms = service.Unassessed,
+                ServedRooms = service,
             };
             return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, Fact<double>>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds)
                 { Lots = TerminalLots(), FoodComplete = request.Facts.Food.Complete, MedicineComplete = request.Facts.Medicine.Items.IsKnown && physicalCensusComplete,

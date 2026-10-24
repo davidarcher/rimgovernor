@@ -145,11 +145,16 @@ public sealed record IllnessIncident(string Incident, double Share, double Victi
 /// <summary>
 /// The colony's disease incidents: each DiseaseHuman comp's rate (1 ÷ (biome MTB × the difficulty's interval factor) a day) from
 /// the day it starts (its minDaysPassed less the days since settling), and the usable incidents. Unassessed (with
-/// <see cref="Findings"/> naming why) when a fact or table it rests on is absent.
+/// <see cref="Findings"/> naming why) when a fact it rests on is unread (<see cref="Unread"/>) or the table does not model the
+/// colony's storyteller, biome, incident or course.
 /// </summary>
 public sealed record IllnessSchedule
 {
     public bool Assessed { get; init; }
+
+    /// <summary>Whether the schedule is unassessed for a colony fact left unread (the disease facts, an incident's victims or
+    /// a rate input), which the harm term raises as a required fact (#3835); otherwise the table does not model the colony.</summary>
+    public bool Unread { get; init; }
 
     public IReadOnlyList<(double StartDay, double PerDay)> Comps { get; init; } = [];
 
@@ -179,7 +184,7 @@ public sealed record IllnessSchedule
     {
         if (facts is null)
         {
-            return Unassessed("disease_facts_unobserved");
+            return Unassessed("disease_facts_unobserved") with { Unread = true };
         }
 
         if (!table.Storytellers.TryGetValue(facts.Storyteller, out var teller))
@@ -199,7 +204,7 @@ public sealed record IllnessSchedule
 
         if (!double.IsFinite(facts.IntervalFactor) || !double.IsFinite(facts.DaysSinceSettle) || !(biome.MtbDays > 0))
         {
-            return Unassessed("disease_rate_invalid");
+            return Unassessed("disease_rate_invalid") with { Unread = true };
         }
 
         // StorytellerComp_Disease yields nothing with random diseases off or at the difficulty's cutoff; Storyteller.MakeIncidentsForInterval
@@ -226,7 +231,7 @@ public sealed record IllnessSchedule
         {
             if (!rows.TryGetValue(rules.Incident, out var read))
             {
-                return Unassessed("disease_victims_unobserved:" + rules.Incident);
+                return Unassessed("disease_victims_unobserved:" + rules.Incident) with { Unread = true };
             }
 
             // IncidentWorker.CanFireNow and CanFireNowSub: the home map, earliestDay, the biome lists, minPopulation, the game-state
