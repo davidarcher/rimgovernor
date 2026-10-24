@@ -42,7 +42,7 @@ public sealed class HarmConsequencesTests
 
     private static ForecastSupportConsequences Care(double firstCareTicks) => new()
     {
-        CareServices = "demand/tend", FirstCareTicks = firstCareTicks, TendQuality = Known(0.5), CareRoomFactor = Known(0.8),
+        CareServices = "demand/tend", FirstCareTicks = firstCareTicks, TendQuality = 0.5, CareRoom = new CareRoomRead.Assessed(0.8),
     };
 
     private static HarmDistribution Of(HitRange hits, double damage = 2, double bleed = 0.8, NeedsForecastPawn? pawn = null,
@@ -50,6 +50,19 @@ public sealed class HarmConsequencesTests
         HarmConsequences.Of(hits, Bins(damage), Response(damage, bleed), new RaidPartInputs { Catalog = RaidPartLossTests.Catalog }, pawn ?? Pawn(), tables ?? Tables(false), support, new ForecastValuePolicy(), 5 * Day);
 
     private static double Mean(HarmDistribution d) => d.Points.Sum(p => p.Loss * p.Probability);
+
+    [Fact]
+    public void ACareWithoutAnAssessedRoomIsPricedAtOneAndNamed()
+    {
+        var assessed = HarmConsequences.CareOf(Care(0));
+        var unassessed = HarmConsequences.CareOf(Care(0) with { CareRoom = new CareRoomRead.Unassessed() });
+
+        Assert.False(assessed.RoomUnobserved);
+        Assert.Equal(0.8, assessed.RoomFactor, 9);
+        Assert.True(unassessed.RoomUnobserved);
+        Assert.Equal(1, unassessed.RoomFactor);
+        Assert.True(unassessed.Tended);
+    }
 
     [Fact]
     public void ZeroHitsLoseNothing()

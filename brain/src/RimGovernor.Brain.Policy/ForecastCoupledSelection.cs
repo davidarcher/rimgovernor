@@ -1113,8 +1113,7 @@ public sealed partial record ForecastCoupledSelection
             return delta.CompareTo(0);
         var (x, y) = (a.Terms, b.Terms);
         stage = "urgent_first_care";
-        if (x.Support.UrgentFirstCareTicks.IsKnown && y.Support.UrgentFirstCareTicks.IsKnown)
-        { var rank = x.Support.UrgentFirstCareTicks.Value.CompareTo(y.Support.UrgentFirstCareTicks.Value); if (rank != 0) return rank; }
+        { var rank = x.Support.UrgentFirstCareTicks.CompareTo(y.Support.UrgentFirstCareTicks); if (rank != 0) return rank; }
         // Relief is measured against each outcome's own unimproved rooms, so it ranks even when the sleeps differ in time.
         stage = "thermal_relief";
         if (x.Needs[0].IsKnown && y.Needs[0].IsKnown)
@@ -1124,14 +1123,12 @@ public sealed partial record ForecastCoupledSelection
         if (x.Support.CareServices.Length != 0 && x.Support.CareServices == y.Support.CareServices)
         {
             stage = "tend_quality";
-            if (x.Support.TendQuality.IsKnown && y.Support.TendQuality.IsKnown)
-            { var rank = y.Support.TendQuality.Value.CompareTo(x.Support.TendQuality.Value); if (rank != 0) return rank; }
+            { var rank = y.Support.TendQuality.CompareTo(x.Support.TendQuality); if (rank != 0) return rank; }
             stage = "care_room";
-            if (x.Support.CareRoomFactor.IsKnown && y.Support.CareRoomFactor.IsKnown)
-            { var rank = x.Support.CareRoomFactor.Value.CompareTo(y.Support.CareRoomFactor.Value); if (rank != 0) return rank; }
+            if (x.Support.CareRoom is CareRoomRead.Assessed(var xRoom) && y.Support.CareRoom is CareRoomRead.Assessed(var yRoom))
+            { var rank = xRoom.CompareTo(yRoom); if (rank != 0) return rank; }
             stage = "surgery_room";
-            if (x.Support.SurgeryRoomFactor.IsKnown && y.Support.SurgeryRoomFactor.IsKnown)
-            { var rank = y.Support.SurgeryRoomFactor.Value.CompareTo(x.Support.SurgeryRoomFactor.Value); if (rank != 0) return rank; }
+            { var rank = y.Support.SurgeryRoomFactor.CompareTo(x.Support.SurgeryRoomFactor); if (rank != 0) return rank; }
         }
         stage = "maintenance_xp";
         double missing = 0, missingOther = 0;

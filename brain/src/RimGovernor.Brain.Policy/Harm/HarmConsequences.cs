@@ -245,14 +245,14 @@ public static class HarmConsequences
     internal static Care CareOf(ForecastSupportConsequences? support)
     {
         var services = support is null || support.CareServices.Length == 0 ? 0 : support.CareServices.Split(';').Length;
-        if (support is null || services == 0 || !support.TendQuality.TryGetValue(out var quality))
+        if (support is null || services == 0)
         {
             return new Care(false, 0, double.PositiveInfinity, 1);
         }
 
-        var observed = support.CareRoomFactor.TryGetValue(out var room);
-        return new Care(true, Math.Clamp(quality / services, 0, 1), Math.Max(0, support.FirstCareTicks) / GameTime.TicksPerDay,
-            observed ? Math.Max(0, room / services) : 1) { RoomUnobserved = !observed };
+        var room = support.CareRoom as CareRoomRead.Assessed;
+        return new Care(true, Math.Clamp(support.TendQuality / services, 0, 1), Math.Max(0, support.FirstCareTicks) / GameTime.TicksPerDay,
+            room is null ? 1 : Math.Max(0, room.Factor / services)) { RoomUnobserved = room is null };
     }
 
     // TendUtility.GetOptimalHediffsToTendWithSingleTreatment: with medicine, one treatment tends the first injury and each further

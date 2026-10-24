@@ -6,18 +6,30 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Physical support consequences retain their units.</summary>
 public sealed record ForecastSupportConsequences
 {
-    public Fact<double> UrgentFirstCareTicks { get; init; } = Known(0d);
+    public double UrgentFirstCareTicks { get; init; }
     public double PendingCareBatches { get; init; }
     public double FirstCareTicks { get; init; }
     public double UnsuppliedDemand { get; init; }
     /// <summary>The expected poisoned meals of the schedule's completed recipes: each one's bench room FoodPoisonChance (SupportDemand.FoodPoisonChance).</summary>
     public double FoodPoisonExposure { get; init; }
     public string FoodProduction { get; init; } = "";
-    public Fact<double> CareRoomFactor { get; init; }
-    public Fact<double> TendQuality { get; init; }
+    /// <summary>The summed InfectionChanceFactor of the care rooms whose infection check outlasts the tends; Unassessed for a care priced without a room (the colony tend).</summary>
+    public CareRoomRead CareRoom { get; init; } = new CareRoomRead.Unassessed();
+    public double TendQuality { get; init; }
     public string CareServices { get; init; } = "";
-    public Fact<double> SurgeryRoomFactor { get; init; }
+    public double SurgeryRoomFactor { get; init; }
     public EquatableArray<string> Findings { get; init; }
+}
+
+/// <summary>The tending rooms' infection factor a support outcome carries: the summed factor, or Unassessed for a care priced
+/// without a room.</summary>
+public abstract record CareRoomRead
+{
+    private CareRoomRead() { }
+
+    public sealed record Assessed(double Factor) : CareRoomRead;
+
+    public sealed record Unassessed : CareRoomRead;
 }
 
 public static class ForecastSupport
@@ -80,10 +92,10 @@ public static class ForecastSupport
         }
         return new()
         {
-            UrgentFirstCareTicks = Known(urgent), PendingCareBatches = pending, FirstCareTicks = untreated,
+            UrgentFirstCareTicks = urgent, PendingCareBatches = pending, FirstCareTicks = untreated,
             UnsuppliedDemand = unsupplied, FoodPoisonExposure = poison,
-            CareRoomFactor = Known(careFactor), TendQuality = Known(quality),
-            SurgeryRoomFactor = Known(surgery),
+            CareRoom = new CareRoomRead.Assessed(careFactor), TendQuality = quality,
+            SurgeryRoomFactor = surgery,
             CareServices = string.Join(";", careServices.Order(StringComparer.Ordinal)),
             FoodProduction = string.Join(";", production.Order(StringComparer.Ordinal)), Findings = EquatableArray.From(findings)
         };

@@ -59,7 +59,7 @@ public sealed class SupportMethodTests
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d) { Medicine = null, Treatment = CoupledFixtures.Tend() }] };
         var facts = Facts(read); var result = Select(facts);
         Assert.Contains(Tasks(facts, result), t => t.Step.Job == "TendPatient");
-        Assert.Equal(Known(20d), result.SelectedVector.Support.UrgentFirstCareTicks);
+        Assert.Equal(20d, result.SelectedVector.Support.UrgentFirstCareTicks);
     }
 
     private static SupportActivityRead Delivery(int required, double duration = 10) => CoupledFixtures.NoSupport with {
@@ -124,7 +124,7 @@ public sealed class SupportMethodTests
         var facts = Facts(read); var selection = Select(facts);
         Assert.Contains(Tasks(facts, selection), t => t.Step.Job == "TendPatient");
         // A batch with no pending check, or one that fires before the tend ends, leaves the room out: no factor is unknown.
-        Assert.Equal(Known(pending && checkTicks == 100 ? 2d : 0d), selection.SelectedVector.Support.CareRoomFactor);
+        Assert.Equal(new CareRoomRead.Assessed(pending && checkTicks == 100 ? 2d : 0d), selection.SelectedVector.Support.CareRoom);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class SupportMethodTests
                 { Medicine = null, Treatment = CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", [])) }] };
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
         Assert.Equal("selected-medical-bill", Assert.Single(tasks, t => t.Step.Job == "DoBill").Step.Recipe!.Bill);
-        Assert.Equal(Known(.6), result.SelectedVector.Support.SurgeryRoomFactor);
+        Assert.Equal(.6, result.SelectedVector.Support.SurgeryRoomFactor);
     }
 
     [Theory]

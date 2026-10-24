@@ -438,7 +438,7 @@ Policy/ColonyModel/ColonyModelInput.cs|Fact|62
 Policy/ColonyModel/ColonyModelPolicy.cs|Fact|1
 Policy/ColonyModel/ColonyModelState.cs|Fact|18
 Policy/ColonyModel/ColonyTrajectory.cs|NullableValue|1
-Policy/ColonyModel/ColonyValue.cs|Fact|23
+Policy/ColonyModel/ColonyValue.cs|Fact|22
 Policy/ColonyModel/CropGrowthModel.cs|Fact|15
 Policy/ColonyModel/GoalPaths.cs|Discard|1
 Policy/ColonyModel/GoalPaths.cs|Fact|6
@@ -537,7 +537,7 @@ Policy/ForecastCoupledEvaluation.cs|Fact|121
 Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|20
 Policy/ForecastCoupledSelection.cs|Discard|1
-Policy/ForecastCoupledSelection.cs|Fact|68
+Policy/ForecastCoupledSelection.cs|Fact|52
 Policy/ForecastCoupledStock.cs|Fact|80
 Policy/ForecastCurrentWork.cs|Fact|10
 Policy/ForecastHandoff.cs|Fact|64
@@ -551,7 +551,7 @@ Policy/ForecastMood.cs|Fact|21
 Policy/ForecastNeeds.cs|Fact|37
 Policy/ForecastServiceInvestments.cs|Fact|18
 Policy/ForecastShelter.cs|Fact|26
-Policy/ForecastSupport.cs|Fact|11
+Policy/ForecastSupport.cs|Fact|2
 Policy/ForecastSurvivalNeeds.cs|Fact|11
 Policy/ForecastTerminalStock.cs|Fact|17
 Policy/ForecastThermalExposure.cs|Fact|7
@@ -572,7 +572,6 @@ Policy/GoalsFamily.cs|NullableValue|1
 Policy/GoalsFamily.cs|Unknown|1
 Policy/GrowerCrop.cs|Fact|9
 Policy/GrowerCrop.cs|ValueOrDefault|2
-Policy/Harm/HarmConsequences.cs|Fact|2
 Policy/Harm/HarmLedger.cs|Fact|10
 Policy/HerdMaster.cs|Fact|4
 Policy/HerdPen.cs|Fact|2

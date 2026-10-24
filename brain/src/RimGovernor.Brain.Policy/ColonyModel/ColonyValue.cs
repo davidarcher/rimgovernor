@@ -403,7 +403,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     {
         if (!tendedHarm.TryGetValue((quality, shift), out var term))
         {
-            var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = TendCare, TendQuality = Known(quality) };
+            var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = TendCare, TendQuality = quality };
             var needs = rows.Keys.ToDictionary(p => p, _ => NoNeeds, StringComparer.Ordinal);
             var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), needs, []) { Support = support };
             tendedHarm[(quality, shift)] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness, shift);

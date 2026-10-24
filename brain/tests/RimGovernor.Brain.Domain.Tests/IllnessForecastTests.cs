@@ -25,7 +25,7 @@ public sealed class IllnessForecastTests
 
     private static ForecastSupportConsequences Care(double quality = 0.5) => new()
     {
-        CareServices = "demand/tend", FirstCareTicks = 0, TendQuality = Known(quality), CareRoomFactor = Known(0.8),
+        CareServices = "demand/tend", FirstCareTicks = 0, TendQuality = quality, CareRoom = new CareRoomRead.Assessed(0.8),
     };
 
     private static HediffPenaltyTable Table(string hediff, double initial, double? lethal = null, ImmunizableProps? immunizable = null,
