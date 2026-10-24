@@ -143,24 +143,10 @@ public static class InteriorRules
             return (default, false);
         }
         var d = doors[0];
-        int width = r.Width, depth = r.Height, u;
-        switch (side)
-        {
-            case Rotation.South:
-                u = d.X - r.X;
-                break;
-            case Rotation.North:
-                u = r.X + r.Width - 1 - d.X;
-                break;
-            case Rotation.West:
-                (width, depth) = (r.Height, r.Width);
-                u = r.Z + r.Height - 1 - d.Z;
-                break;
-            default:
-                (width, depth) = (r.Height, r.Width);
-                u = d.Z - r.Z;
-                break;
-        }
+        var (width, depth, u) = side == Rotation.South ? (r.Width, r.Height, d.X - r.X)
+            : side == Rotation.North ? (r.Width, r.Height, r.X + r.Width - 1 - d.X)
+            : side == Rotation.West ? (r.Height, r.Width, r.Z + r.Height - 1 - d.Z)
+            : (r.Height, r.Width, d.Z - r.Z);
         return (new RegionFrame(width, depth, Math.Min(u, width - 1 - u)), true);
     }
 
@@ -291,12 +277,7 @@ public static class InteriorRules
         {
             return (0, 0, false);
         }
-        return rot switch
-        {
-            Rotation.North or Rotation.South => (size.X, size.Z, true),
-            Rotation.East or Rotation.West => (size.Z, size.X, true),
-            _ => (0, 0, false),
-        };
+        return rot is Rotation.North or Rotation.South ? (size.X, size.Z, true) : (size.Z, size.X, true);
     }
 
     /// <summary>RimWorld's GenAdj.OccupiedRect: the footprint a building of the given North size occupies when anchored at a cell.</summary>
@@ -347,13 +328,11 @@ public static class InteriorRules
     }
 
     /// <summary>Turns a North offset to a rotation (RimWorld's IntVec3.RotatedBy).</summary>
-    internal static Cell RotateOffset(Cell o, Rotation rot) => rot switch
-    {
-        Rotation.East => new Cell(o.Z, -o.X),
-        Rotation.South => new Cell(-o.X, -o.Z),
-        Rotation.West => new Cell(-o.Z, o.X),
-        _ => o,
-    };
+    internal static Cell RotateOffset(Cell o, Rotation rot) =>
+        rot == Rotation.North ? o
+        : rot == Rotation.East ? new Cell(o.Z, -o.X)
+        : rot == Rotation.South ? new Cell(-o.X, -o.Z)
+        : new Cell(-o.Z, o.X);
 
     /// <summary>The roles a door into counts as an entrance, like a hallway's: rooms colonists cross rather than rooms they work or sleep in.</summary>
     internal static readonly IReadOnlySet<RoomRole> PassThroughRoles = new HashSet<RoomRole>

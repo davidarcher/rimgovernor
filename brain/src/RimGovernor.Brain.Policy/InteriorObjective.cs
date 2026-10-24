@@ -214,13 +214,11 @@ public static class InteriorObjectiveRules
     /// The sleep purpose of the beds a room role holds: the bedroom's and the barracks' are the colonists', the
     /// hospital's medical, the prison cell's the prisoners'. Other roles hold no bed worth a flow.
     /// </summary>
-    public static StationPurpose SleepPurposeOf(RoomRole role) => role switch
-    {
-        RoomRole.Bedroom or RoomRole.Barracks => StationPurpose.Sleep,
-        RoomRole.Hospital => StationPurpose.SleepMed,
-        RoomRole.PrisonCell => StationPurpose.SleepPrison,
-        _ => StationPurpose.None,
-    };
+    public static StationPurpose SleepPurposeOf(RoomRole role) =>
+        role is RoomRole.Bedroom or RoomRole.Barracks ? StationPurpose.Sleep
+        : role == RoomRole.Hospital ? StationPurpose.SleepMed
+        : role == RoomRole.PrisonCell ? StationPurpose.SleepPrison
+        : StationPurpose.None;
 
     internal static bool Sleeps(this StationPurpose p) =>
         p is StationPurpose.Sleep or StationPurpose.SleepMed or StationPurpose.SleepPrison or StationPurpose.SleepBaby;

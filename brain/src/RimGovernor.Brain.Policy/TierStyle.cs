@@ -140,15 +140,12 @@ public static partial class TierStyleRules
     /// not listed (tombs, prison cells) receive no floor.
     /// </summary>
     private static FloorClass FloorClassOf(RoomRole role) =>
-        role switch
-        {
-            RoomRole.None or RoomRole.Storeroom => FloorClass.Aisle,
-            RoomRole.Bedroom or RoomRole.RecRoom => FloorClass.Soft,
-            RoomRole.DiningRoom or RoomRole.Workshop or RoomRole.Laboratory or RoomRole.Barracks or RoomRole.Room => FloorClass.Living,
-            RoomRole.Hospital or RoomRole.Kitchen => FloorClass.Sterile,
-            RoomRole.Barn => FloorClass.Barn,
-            _ => FloorClass.None,
-        };
+        role is RoomRole.None or RoomRole.Storeroom ? FloorClass.Aisle
+        : role is RoomRole.Bedroom or RoomRole.RecRoom ? FloorClass.Soft
+        : role is RoomRole.DiningRoom or RoomRole.Workshop or RoomRole.Laboratory or RoomRole.Barracks or RoomRole.Room ? FloorClass.Living
+        : role is RoomRole.Hospital or RoomRole.Kitchen ? FloorClass.Sterile
+        : role == RoomRole.Barn ? FloorClass.Barn
+        : FloorClass.None;
 
     /// <summary>
     /// The floor rule: nothing at Camp; from Masonry flagstone of the quarried stone on aisles and in storage

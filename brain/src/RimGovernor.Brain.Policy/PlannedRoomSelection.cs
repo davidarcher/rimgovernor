@@ -166,13 +166,13 @@ public static partial class PlannedRules
         var kept = new List<Operation>();
         foreach (var op in ops)
         {
-            var next = op.Kind switch
-            {
-                OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn or OpKind.RoofIn => op with { Cells = [.. op.Cells.Where(c => cells.Contains((op.Kind, c)))] },
-                OpKind.FloorIn => op with { Floors = [.. op.Floors.Where(f => floors.Contains((f.DefName, f.Cell)))] },
-                OpKind.Build or OpKind.Install => op with { Pieces = [.. op.Pieces.Where(p => pieces.Contains((p.DefName, p.Anchor())))] },
-                _ => null,
-            };
+            var next = op.Kind is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn or OpKind.RoofIn
+                ? op with { Cells = [.. op.Cells.Where(c => cells.Contains((op.Kind, c)))] }
+                : op.Kind == OpKind.FloorIn
+                    ? op with { Floors = [.. op.Floors.Where(f => floors.Contains((f.DefName, f.Cell)))] }
+                    : op.Kind is OpKind.Build or OpKind.Install
+                        ? op with { Pieces = [.. op.Pieces.Where(p => pieces.Contains((p.DefName, p.Anchor())))] }
+                        : null;
             if (next is not null && (next.Cells.Count > 0 || next.Floors.Count > 0 || next.Pieces.Count > 0))
             {
                 kept.Add(next);

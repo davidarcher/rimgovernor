@@ -208,12 +208,7 @@ public static class InteriorSearchRules
                 break;
             case 2:
                 kind = "mirror";
-                var rot = p.Rot switch
-                {
-                    Rotation.East => Rotation.West,
-                    Rotation.West => Rotation.East,
-                    _ => p.Rot,
-                };
+                var rot = p.Rot == Rotation.East ? Rotation.West : p.Rot == Rotation.West ? Rotation.East : p.Rot;
                 output[i] = Replaced(p, rot, new Cell((2 * bounds.X) + bounds.Width - p.Rect.X - p.Rect.Width, corner.Z));
                 break;
             case 3:

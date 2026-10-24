@@ -415,13 +415,12 @@ public static partial class PlannedRules
         return facts with { Routes = read.Routes, Findings = EquatableArray.From(all) };
     }
 
-    private static string RingSiteKind(OpKind kind) => kind switch
-    {
-        OpKind.WallIn => "wall",
-        OpKind.DoorIn => "door",
-        OpKind.WallUp => "wallup",
-        _ => "vent",
-    };
+    private static string RingSiteKind(OpKind kind) =>
+        kind == OpKind.WallIn ? "wall"
+        : kind == OpKind.DoorIn ? "door"
+        : kind == OpKind.WallUp ? "wallup"
+        : kind == OpKind.VentIn ? "vent"
+        : throw new DomainException($"operation {Wire.Name(kind)} is not a ring operation");
 
     private static EquatableArray<Cell> Sorted(IEnumerable<Cell> cells) =>
         EquatableArray.From(cells.Distinct().OrderBy(c => c.X).ThenBy(c => c.Z));

@@ -572,11 +572,8 @@ Policy/IdeologyConversion.cs|Fact|8
 Policy/IdeologyFamily.cs|Fact|3
 Policy/IdeologyRule.cs|Fact|5
 Policy/IdeologyRule.cs|UnknownMember|1
-Policy/Interior.cs|Discard|3
 Policy/Interior.cs|NullableValue|1
-Policy/InteriorObjective.cs|Discard|1
 Policy/InteriorOpen.cs|Fact|1
-Policy/InteriorSearch.cs|Discard|1
 Policy/InteriorSlot.cs|NullableValue|1
 Policy/IsolationRoom.cs|Fact|2
 Policy/ItemFacts.cs|Fact|2
@@ -658,13 +655,10 @@ Policy/PerimeterCut.cs|Fact|4
 Policy/Pest.cs|Fact|10
 Policy/Pest.cs|Unknown|1
 Policy/PlacementSearch.cs|Fact|8
-Policy/PlannedRoomAlternatives.cs|Discard|1
 Policy/PlannedRoomAlternatives.cs|Fact|5
 Policy/PlannedRoomAlternatives.cs|Unknown|1
-Policy/PlannedRoomSelection.cs|Discard|1
 Policy/PlannedRoomSelection.cs|Fact|2
 Policy/PlannedShell.cs|Fact|18
-Policy/PlannedSites.cs|Discard|1
 Policy/Pollution.cs|Fact|1
 Policy/PopulationJoiner.cs|Fact|12
 Policy/PopulationJoiner.cs|Unknown|1
@@ -739,7 +733,6 @@ Policy/RoomQualitySuite.cs|Fact|1
 Policy/RoomQualitySwap.cs|Fact|1
 Policy/RoomQualityTarget.cs|Fact|2
 Policy/RoomQualityUpgrade.cs|Fact|1
-Policy/RoomRole.cs|Discard|1
 Policy/Rooms.cs|Fact|1
 Policy/RoomsFamily.cs|Fact|17
 Policy/Rounds.cs|Discard|1
@@ -793,7 +786,6 @@ Policy/TemperatureMethod.cs|UnknownMember|1
 Policy/ThemePresets.cs|Discard|1
 Policy/ThemePresets.cs|NullableValue|6
 Policy/Throne.cs|Fact|4
-Policy/TierStyle.cs|Discard|1
 Policy/TitleClaim.cs|Fact|14
 Policy/TitleClaim.cs|Unknown|2
 Policy/TitleClaim.cs|UnknownMember|1

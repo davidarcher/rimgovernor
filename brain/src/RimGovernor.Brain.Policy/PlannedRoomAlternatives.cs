@@ -21,12 +21,10 @@ public sealed record PlannedRoomAlternative(int Room, string Id, string Stuff, E
 public static partial class PlannedRules
 {
     /// <summary>The kinds of operation a scope builds; Full is every kind the plan owes.</summary>
-    private static bool InScope(PlannedScope scope, OpKind kind) => kind switch
-    {
-        OpKind.FloorIn => scope != PlannedScope.Shell,
-        OpKind.Build => scope == PlannedScope.Full,
-        _ => true,
-    };
+    private static bool InScope(PlannedScope scope, OpKind kind) =>
+        kind == OpKind.FloorIn ? scope != PlannedScope.Shell
+        : kind == OpKind.Build ? scope == PlannedScope.Full
+        : true;
 
     private static bool RingOp(OpKind kind) => kind is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn or OpKind.WallUp;
 

@@ -238,7 +238,8 @@ public static partial class RoomRoleRules
                 case RoleCondition.BedPrisonerMedical:
                     b = b with { Medical = true, Prisoner = true };
                     break;
-                default:
+                case RoleCondition.IdeoAltar:
+                case RoleCondition.Bindable:
                     throw new DomainException($"bed \"{p.Def}\" has state \"{Wire.Name(p.State)}\", not a bed state");
             }
             foreach (var c in st.Contributions)
