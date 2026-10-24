@@ -26,7 +26,7 @@ public sealed class UpkeepFactsTests
         Lighting = LightingTests.NoLighting,
         WildAnimals = [],
         Flooring = new() { Rooms = [] },
-        Routes = new(),
+        Routes = new() { Facilities = [], PawnIds = [], Traffic = [], TrafficSamples = 0 },
         Slaves = [],
         Guests = [],
     };
@@ -130,12 +130,39 @@ public sealed class UpkeepFactsTests
         Assert.Equal(flooring, WireJson.Deserialize<FlooringFacts>(WireJson.Serialize(flooring)));
     }
 
+    /// <summary>Every routes row reads whole (#3903): a pawn's travel is a named state and only a pending door and a facility's room are absent relations.</summary>
+    [Fact]
+    public void RoutesRoundTripExactly()
+    {
+        var routes = new RoutesFacts
+        {
+            PawnIds = ["Colonist1", "Colonist2", "Colonist3", "Colonist4"],
+            Facilities =
+            [
+                new()
+                {
+                    Id = "Thing_Bed1", Kind = RouteFacilityKind.Bed, Cell = new(3, 4), Room = "room-2",
+                    Travel = [new RouteTravel.Measured { Pawn = "Colonist1", Cost = 40, Cells = 12 }, new RouteTravel.Unreachable { Pawn = "Colonist2" }, new RouteTravel.Skipped { Pawn = "Colonist3" }, new RouteTravel.Unpathed { Pawn = "Colonist4" }],
+                    Breaches = [new() { Cell = new(5, 4), Edifice = "Thing_Wall1", Pending = "Thing_Door2", Distance = 2 }, new() { Cell = new(3, 6), Edifice = "Thing_Wall3", Pending = null, Distance = 3 }],
+                },
+                new() { Id = "zone-7", Kind = RouteFacilityKind.Stockpile, Cell = new(9, 9), Room = null, Travel = [], Breaches = [] },
+            ],
+            Traffic = [new() { Cell = new(1, 2), Layer = TrafficLayer.Colonist, Samples = 9, Terrain = "Soil", Home = true, Pending = "WoodPlankFloor" }, new() { Cell = new(1, 3), Layer = TrafficLayer.Hostile, Samples = 1, Terrain = "Soil", Home = false, Pending = null }],
+            TrafficSamples = 30,
+        };
+
+        Assert.Equal(
+            """{"facilities":[{"id":"Thing_Bed1","kind":"bed","cell":{"x":3,"z":4},"room":"room-2","travel":[{"type":"measured","cost":40,"cells":12,"pawn":"Colonist1"},{"type":"unreachable","pawn":"Colonist2"},{"type":"skipped","pawn":"Colonist3"},{"type":"unpathed","pawn":"Colonist4"}],"breaches":[{"cell":{"x":5,"z":4},"edifice":"Thing_Wall1","pending":"Thing_Door2","distance":2},{"cell":{"x":3,"z":6},"edifice":"Thing_Wall3","pending":null,"distance":3}]},{"id":"zone-7","kind":"stockpile","cell":{"x":9,"z":9},"room":null,"travel":[],"breaches":[]}],"pawnIds":["Colonist1","Colonist2","Colonist3","Colonist4"],"traffic":[{"cell":{"x":1,"z":2},"layer":"colonist","samples":9,"terrain":"Soil","home":true,"pending":"WoodPlankFloor"},{"cell":{"x":1,"z":3},"layer":"hostile","samples":1,"terrain":"Soil","home":false,"pending":null}],"trafficSamples":30}""",
+            WireJson.Serialize(routes));
+        Assert.Equal(routes, WireJson.Deserialize<RoutesFacts>(WireJson.Serialize(routes)));
+    }
+
     /// <summary>The routes census is a plain required member (#3782): no section wrapper, and an upkeep read without it is
     /// a contract error, never an unknown census.</summary>
     [Fact]
     public void TheRoutesCensusIsPlainAndRequired()
     {
-        var upkeep = NoUpkeep with { Routes = new() { PawnIds = ["Colonist1"], TrafficSamples = 12 } };
+        var upkeep = NoUpkeep with { Routes = new() { Facilities = [], PawnIds = ["Colonist1"], Traffic = [], TrafficSamples = 12 } };
         var json = WireJson.Serialize(upkeep);
         Assert.Contains("\"routes\":{\"facilities\":[],\"pawnIds\":[\"Colonist1\"],\"traffic\":[],\"trafficSamples\":12}", json, StringComparison.Ordinal);
         Assert.Equal(upkeep.Routes, WireJson.Deserialize<UpkeepFacts>(json).Routes);

@@ -544,41 +544,42 @@ service state from the catalog and building rows).
   floor, never a receipt.
 - A traffic tier joins the routes census: the busiest natural home cells outside tiered rooms
   are deficient once the window holds at least four times the per-cell minimum and the cell
-  at least that minimum; a floor with any path cost never qualifies. A routes census with an unread
-  row makes the flooring census unknown; a routes census native cannot read fails the colony read
-  (#3782).
+  at least that minimum; a floor with any path cost never qualifies. Every traffic row is whole
+  on the wire, and a routes census native cannot read fails the colony read (#3782, #3903).
 
 ### Routes
 
 The `layout/routes` Need (#3265) reasons only from observed reachability and travel, never flood-fill or
 straight-line distance. Native (`UpkeepFacts.routes`) reports every facility a colonist
 must reach (player beds, work benches at their interaction cell, storage buildings, dining
-surfaces, turrets, stockpile zones as `zone-<id>`) with one travel row per mobile colonist
-carrying the game's `CanReach` answer and, for every reachable pair, path cost and node
-count. Path costing is the one bounded part: the snapshot stream request carries
-`route_path_budget_ms` (the brain sets `bridge.RoutePathBudgetMS`, 100; absent measures every
-pair), and a reachable pair native did not path once the budget is spent reports
-`path_skipped` with no numbers (cost: [capped reads](#measured-cost-of-capped-reads-2567)).
+surfaces, turrets, stockpile zones as `zone-<id>`) with one travel row per mobile colonist.
+Each row is a `RouteTravel` state (#3903): `unreachable` (the game's `CanReach` says no),
+`measured` (reachable, with the found path's cost and node count), `unpathed` (reachable, but
+`FindPathNow` found no path) or `skipped`. Path costing is the one bounded part: the snapshot
+stream request carries `route_path_budget_ms` (the brain sets `bridge.RoutePathBudgetMS`, 100;
+absent measures every pair), and a reachable pair native did not path once the budget is spent
+reads `skipped` (cost: [capped reads](#measured-cost-of-capped-reads-2567)).
 It also reports every breach cell of an unreachable facility (one-cell player walls on its
 room border a door would pass straight through, nearest the reaching colonist first),
 pending breaches (ordered doors a measured path crosses, every one) and observed traffic
 (every nonzero cell of each layer, busiest first, sampled every 30 ticks, with sample count
 and window start; the window restarts on load).
 
-- The decoder requires every travel row's reachability and every traffic cell's samples,
-  terrain and home flag, else the census is unknown; the bridge refuses unlisted pawns,
-  path numbers on unreachable rows, duplicate breach or traffic cells and out-of-map cells.
+- Every row is whole on the wire: only a breach or traffic cell's pending door or floor and a
+  facility's room are absent relations. Native reads the traffic counter on every map, so the
+  sample total is a plain count. The policy refuses unlisted pawns, negative path numbers and
+  duplicate breach or traffic cells.
 - A facility is deficient when at least one mobile colonist is listed and none reaches it,
   read fresh each run: no latch and no hysteresis (decision 16). An ordered door does not
-  hold the Need open; its open Method continues by itself until it settles. A skipped row
-  on an unreachable pair, or with path numbers, is refused.
+  hold the Need open; its open Method continues by itself until it settles. A `skipped` or
+  `unpathed` pair counts as reaching the facility.
 - Ranks as development. Serves storage and stockpiles first, then benches, dining, beds,
   defence, opening the room with a `Door` of `WoodLog` on one breach cell (nearest breaches
   previewed north then east; first legal one-cell footprint admitted). The planner treats
   exactly one wiped building with no blueprint, frame or cancelled work as the deliberate
   replacement and marks it safe (`Preview.Blockers`); any other disturbance is refused.
-  Reasons: `route_door_pending`, `route_no_breach`, `route_door_unavailable`. A receipt
-  never clears the deficit.
+  Reasons: `route_door_pending`, `route_no_breach`, `route_door_unavailable`. An unread door
+  availability raises `RequiredFactException`. A receipt never clears the deficit.
 
 ### Comfort
 

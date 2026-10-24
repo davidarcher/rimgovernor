@@ -8,7 +8,7 @@ using WireMedicalCare = RimGovernor.Contracts.Wire.Operations.MedicalCare;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Pawn-setting, skill, waste, bill, combat, route and quest enums on the wire map onto the
+// Pawn-setting, skill, waste, bill, combat and quest enums on the wire map onto the
 // vanilla names the domain and policy layers use; an unspecified or unknown value maps to "" (null for a domain
 // enum with no empty member). The name maps are switches; the domain enums carry their wire names.
 public static class WireEnums
@@ -49,20 +49,6 @@ public static class WireEnums
             Passion.None => "None",
             Passion.Minor => "Minor",
             Passion.Major => "Major",
-            _ => "",
-        };
-
-
-    /// <summary>Policy's route facility kind ("bed", "bench", ...).</summary>
-    public static string RouteKindName(RouteFacilityKind kind) =>
-        kind switch
-        {
-            RouteFacilityKind.Bed => "bed",
-            RouteFacilityKind.Bench => "bench",
-            RouteFacilityKind.Storage => "storage",
-            RouteFacilityKind.Dining => "dining",
-            RouteFacilityKind.Defense => "defense",
-            RouteFacilityKind.Stockpile => "stockpile",
             _ => "",
         };
 }

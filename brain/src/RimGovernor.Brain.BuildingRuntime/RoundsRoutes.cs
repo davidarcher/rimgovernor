@@ -48,14 +48,6 @@ public sealed partial class RoundsBuildingPlanner
         var proposal = RoutesRules.SelectRoutesMethod(review, routes, p);
         switch (proposal.Method)
         {
-            case Pol.RoutesMethod.Build:
-                var resolved = Copy();
-                resolved.Routes = proposal;
-                resolved.Definition = proposal.Definition;
-                return (resolved, new Verdict());
-            case Pol.RoutesMethod.Unknown:
-                // The review is known by here, so the door's availability is what the game did not report.
-                return (null, FieldUnavailable(p.Door + "_availability"));
             case Pol.RoutesMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             case Pol.RoutesMethod.DoorUnavailable:
@@ -65,9 +57,14 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, AwaitingPlan("route_door", "ordered"));
             case Pol.RoutesMethod.NoBreach:
                 return (null, NoSpace("route_breach"));
-            default:
-                return (null, AwaitingMethod(proposal.Method));
+            case Pol.RoutesMethod.Build:
+                break;
         }
+
+        var resolved = Copy();
+        resolved.Routes = proposal;
+        resolved.Definition = proposal.Definition;
+        return (resolved, new Verdict());
     }
 
     /// <summary>

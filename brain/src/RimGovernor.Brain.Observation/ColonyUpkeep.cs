@@ -13,13 +13,12 @@ public static class ColonyUpkeepReads
         {
             Structures = Known(RepairStructures(u, ColonyDecodeReads.RequireCatalog(catalog))),
             Lighting = Known(ColonyLighting(u.Lighting, tables.Buildings, catalog)),
-            Routes = ColonyRoutes(u.Routes),
+            Routes = Known(ColonyRoutes(u.Routes)),
         };
         try
         {
-            // The flooring census joins the routes census's traffic evidence, so a routes census with an unread row leaves
-            // flooring unknown too rather than judging the traffic tier from nothing.
-            return r with { Flooring = ColonyFlooring(u.Flooring, u.Routes, catalog) };
+            // The flooring census joins the routes census's traffic evidence.
+            return r with { Flooring = Known(ColonyFlooring(u.Flooring, u.Routes, catalog)) };
         }
         catch (DomainException e)
         {
@@ -60,30 +59,13 @@ public static class ColonyUpkeepReads
     /// <summary>
     /// Decodes the flooring census; a terrain the catalog has no stat or def row for throws.
     /// </summary>
-    private static Fact<FlooringObservation> ColonyFlooring(O.FlooringFacts f, O.RoutesFacts routes, DefinitionCatalog? catalog)
+    private static FlooringObservation ColonyFlooring(O.FlooringFacts f, O.RoutesFacts routes, DefinitionCatalog? catalog)
     {
         var terrains = ColonyDecodeReads.RequireCatalog(catalog).FloorTerrains();
         var r = new FlooringObservation { Terrains = new Dictionary<string, FloorTerrain>(terrains, StringComparer.Ordinal) };
-        // The traffic tier reads the routes census's observed travel; a routes census with an unread row leaves the whole
-        // flooring census unknown rather than silently dropping the tier. Traffic cells whose terrain the
-        // flooring table does not name are unmeasured and left out.
-        if (!ColonyRoutes(routes).TryGetValue(out var routed))
-        {
-            return default;
-        }
-        r = r with { TrafficSamples = routed.TrafficSamples, Traffic = routed.Traffic };
-        if (r.Traffic.Count > 0)
-        {
-            var kept = new List<TrafficCell>();
-            foreach (var t in r.Traffic)
-            {
-                if (r.Terrains.ContainsKey(t.Terrain))
-                {
-                    kept.Add(t);
-                }
-            }
-            r = r with { Traffic = [.. kept] };
-        }
+        // The traffic tier reads the routes census's observed travel. Traffic cells whose terrain the flooring table does
+        // not name are unmeasured and left out.
+        r = r with { TrafficSamples = routes.TrafficSamples, Traffic = [.. routes.Traffic.Where(t => r.Terrains.ContainsKey(t.Terrain))] };
         var rooms = new List<FloorRoom>();
         foreach (var room in f.Rooms)
         {
@@ -98,85 +80,12 @@ public static class ColonyUpkeepReads
             }
             rooms.Add(new FloorRoom { Id = room.Room, Role = room.Role, Cells = [.. cells] });
         }
-        return Known(r with { Rooms = rooms });
+        return r with { Rooms = rooms };
     }
 
-    /// <summary>
-    /// Decodes the routes census; a travel row missing its reachability leaves the whole census unknown so
-    /// the layout/routes Need reads unknown instead of declaring a facility reachable by omission.
-    /// </summary>
-    private static Fact<RoutesObservation> ColonyRoutes(O.RoutesFacts f)
-    {
-        var facilities = new List<RouteFacility>();
-        var traffic = new List<TrafficCell>();
-        var r = new RoutesObservation { Pawns = [.. f.PawnIds], TrafficSamples = f.TrafficSamples.GetValueOrDefault() };
-        foreach (var row in f.Facilities)
-        {
-            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = WireEnums.RouteKindName(row.Kind.GetValueOrDefault()) };
-            if (row.Room is not null)
-            {
-                output = output with { Room = Known(row.Room.Id ?? "") };
-            }
-            var travels = new List<RouteTravel>();
-            foreach (var t in row.Travel)
-            {
-                if (t.Reachable is null)
-                {
-                    return default;
-                }
-                var travel = new RouteTravel { Pawn = t.PawnId ?? "", Reachable = t.Reachable.GetValueOrDefault(), Skipped = t.PathSkipped.GetValueOrDefault() };
-                if (t.PathCost is not null)
-                {
-                    travel = travel with { Cost = Known(t.PathCost.GetValueOrDefault()) };
-                }
-                if (t.PathCells is not null)
-                {
-                    travel = travel with { Cells = Known(t.PathCells.GetValueOrDefault()) };
-                }
-                travels.Add(travel);
-            }
-            var breaches = new List<RouteBreach>();
-            foreach (var b in row.Breaches)
-            {
-                breaches.Add(new RouteBreach { Cell = ColonyDecodeReads.CellOf(b.Cell), Edifice = b.Edifice ?? "", Pending = b.Pending ?? "", Distance = b.Distance.GetValueOrDefault() });
-            }
-            facilities.Add(output with { Travel = [.. travels], Breaches = [.. breaches] });
-        }
-        foreach (var t in f.Traffic)
-        {
-            if (t.Samples is null || t.Terrain is null || t.Home is null || !TrafficLayerOf(t.Layer, out var layer))
-            {
-                return default;
-            }
-            traffic.Add(new TrafficCell { Cell = ColonyDecodeReads.CellOf(t.Cell), Layer = layer, Samples = t.Samples.GetValueOrDefault(), Terrain = t.Terrain ?? "", Home = t.Home.GetValueOrDefault(), Pending = t.Pending ?? "" });
-        }
-        return Known(r with { Facilities = [.. facilities], Traffic = [.. traffic] });
-    }
-
-    private static bool TrafficLayerOf(O.TrafficLayer wire, out TrafficLayer layer)
-    {
-        switch (wire)
-        {
-            case O.TrafficLayer.Colonist:
-                layer = TrafficLayer.Colonist;
-                return true;
-            case O.TrafficLayer.Crossing:
-                layer = TrafficLayer.Crossing;
-                return true;
-            case O.TrafficLayer.Animal:
-                layer = TrafficLayer.Animal;
-                return true;
-            case O.TrafficLayer.Visitor:
-                layer = TrafficLayer.Visitor;
-                return true;
-            case O.TrafficLayer.Hostile:
-                layer = TrafficLayer.Hostile;
-                return true;
-            default:
-                layer = default;
-                return false;
-        }
-    }
+    /// <summary>The routes census as the layout/routes Need reviews it: every row is whole on the wire.</summary>
+    private static RoutesObservation ColonyRoutes(O.RoutesFacts f) =>
+        new() { Pawns = f.PawnIds, Facilities = f.Facilities, Traffic = f.Traffic };
 
     /// <summary>
     /// Joins the native lighting census to the building rows and catalog rows the lighting rules plan from: each lamp's

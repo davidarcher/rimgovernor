@@ -196,52 +196,51 @@ public enum WorldSiteState
 /// Traffic counts cell changes of moving pawns per layer, each layer
 /// decaying on its own half-life, rebuilt from zero after a load; the
 /// nonzero cells are all reported per layer, busiest first, with their terrain.
+/// Each layer counts cell changes of one pawn class and decays on its own half-life; native's
+/// counter layer index is the member's value minus one.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<TrafficLayer>))]
 public enum TrafficLayer
 {
-    [WireName("TRAFFIC_LAYER_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("TRAFFIC_LAYER_COLONIST")]
+    [WireName("colonist")]
     Colonist = 1,
     /// <summary>
-    /// Any pawn stepping from soil or sand onto a built floor.
+    /// Any pawn stepping from soil or sand onto a built floor: the dirt entry points.
     /// </summary>
-    [WireName("TRAFFIC_LAYER_CROSSING")]
+    [WireName("crossing")]
     Crossing = 2,
     /// <summary>
     /// Colony animals.
     /// </summary>
-    [WireName("TRAFFIC_LAYER_ANIMAL")]
+    [WireName("animal")]
     Animal = 3,
     /// <summary>
     /// Visitors and traders.
     /// </summary>
-    [WireName("TRAFFIC_LAYER_VISITOR")]
+    [WireName("visitor")]
     Visitor = 4,
     /// <summary>
     /// Hostile pawns; slow decay.
     /// </summary>
-    [WireName("TRAFFIC_LAYER_HOSTILE")]
+    [WireName("hostile")]
     Hostile = 5,
 }
 
 [JsonConverter(typeof(WireEnumConverter<RouteFacilityKind>))]
 public enum RouteFacilityKind
 {
-    [WireName("ROUTE_FACILITY_KIND_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("ROUTE_FACILITY_KIND_BED")]
+    [WireName("bed")]
     Bed = 1,
-    [WireName("ROUTE_FACILITY_KIND_BENCH")]
+    [WireName("bench")]
     Bench = 2,
-    [WireName("ROUTE_FACILITY_KIND_STORAGE")]
+    [WireName("storage")]
     Storage = 3,
-    [WireName("ROUTE_FACILITY_KIND_DINING")]
+    [WireName("dining")]
     Dining = 4,
-    [WireName("ROUTE_FACILITY_KIND_DEFENSE")]
+    [WireName("defense")]
     Defense = 5,
-    [WireName("ROUTE_FACILITY_KIND_STOCKPILE")]
+    /// <summary>A stockpile zone, its id <c>zone-&lt;id&gt;</c>, at its first standable cell.</summary>
+    [WireName("stockpile")]
     Stockpile = 6,
 }
 
@@ -6181,78 +6180,113 @@ public sealed record FlooringFacts
 }
 
 /// <summary>
-/// path_skipped: the pair is reachable but its path was not measured because the
-/// stream's route_path_budget_ms ran out; path_cost, path_cells and the ordered
-/// doors the path crosses are then unknown, not absent.
+/// One mobile colonist's travel to a facility: the game's CanReach answer from where the colonist stands and, for a
+/// reachable pair, the path the game itself would walk.
 /// </summary>
-public sealed record RouteTravel
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RouteTravel.Unreachable), "unreachable")]
+[JsonDerivedType(typeof(RouteTravel.Skipped), "skipped")]
+[JsonDerivedType(typeof(RouteTravel.Unpathed), "unpathed")]
+[JsonDerivedType(typeof(RouteTravel.Measured), "measured")]
+public abstract record RouteTravel
 {
-    public string? PawnId { get; init; }
+    private protected RouteTravel() { }
 
-    public bool? Reachable { get; init; }
+    public required string Pawn { get; init; }
 
-    public int? PathCost { get; init; }
+    /// <summary>The colonist cannot reach the facility.</summary>
+    public sealed record Unreachable : RouteTravel;
 
-    public int? PathCells { get; init; }
+    /// <summary>
+    /// Reachable, but not pathed: the stream's route_path_budget_ms ran out first, so the path's cost and the ordered
+    /// doors it crosses were not measured.
+    /// </summary>
+    public sealed record Skipped : RouteTravel;
 
-    public bool? PathSkipped { get; init; }
+    /// <summary>Reachable, but the game's path search (FindPathNow) found no path from where the colonist stands.</summary>
+    public sealed record Unpathed : RouteTravel;
+
+    /// <summary>Reachable along the game's path: its total cost and its length in cells.</summary>
+    public sealed record Measured : RouteTravel
+    {
+        public required int Cost { get; init; }
+
+        public required int Cells { get; init; }
+    }
 }
 
+/// <summary>
+/// A wall cell a door would open the facility's room through, or a door already ordered on a reachable facility's path.
+/// </summary>
 public sealed record RouteBreach
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public string? Edifice { get; init; }
+    /// <summary>The edifice standing on the cell: the wall, or the ordered door's frame or blueprint.</summary>
+    public required string Edifice { get; init; }
 
+    /// <summary>The door already ordered on the cell; null when none is.</summary>
     public string? Pending { get; init; }
 
-    public int? Distance { get; init; }
+    /// <summary>The squared distance from the nearest colonist who reaches the cell's outer side; 0 for an ordered door.</summary>
+    public required int Distance { get; init; }
 }
 
 public sealed record RouteFacility
 {
-    public Common.Ref? Facility { get; init; }
+    /// <summary>The facility's load id, or <c>zone-&lt;id&gt;</c> for a stockpile.</summary>
+    public required string Id { get; init; }
 
-    public RouteFacilityKind? Kind { get; init; }
+    public required RouteFacilityKind Kind { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public Common.Ref? Room { get; init; }
+    /// <summary>The proper indoor room the facility stands in; null when it stands outdoors.</summary>
+    public string? Room { get; init; }
 
+    /// <summary>One row per mobile colonist.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<RouteTravel>))]
-    public EquatableArray<RouteTravel> Travel { get; init; }
+    public required EquatableArray<RouteTravel> Travel { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RouteBreach>))]
-    public EquatableArray<RouteBreach> Breaches { get; init; }
+    public required EquatableArray<RouteBreach> Breaches { get; init; }
 }
 
 public sealed record TrafficCell
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public uint? Samples { get; init; }
+    /// <summary>The pawn class the count belongs to.</summary>
+    public required TrafficLayer Layer { get; init; }
 
-    public string? Terrain { get; init; }
+    public required uint Samples { get; init; }
 
-    public bool? Home { get; init; }
+    public required string Terrain { get; init; }
 
+    public required bool Home { get; init; }
+
+    /// <summary>The floor already ordered on the cell; null when none is.</summary>
     public string? Pending { get; init; }
-
-    public TrafficLayer Layer { get; init; }
 }
 
+/// <summary>
+/// The routes census, read whole. The traffic counter is the map's TrafficState component, which the game builds on
+/// every map, so its counts are always read.
+/// </summary>
 public sealed record RoutesFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<RouteFacility>))]
-    public EquatableArray<RouteFacility> Facilities { get; init; }
+    public required EquatableArray<RouteFacility> Facilities { get; init; }
 
+    /// <summary>The mobile colonists measured.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
+    public required EquatableArray<string> PawnIds { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TrafficCell>))]
-    public EquatableArray<TrafficCell> Traffic { get; init; }
+    public required EquatableArray<TrafficCell> Traffic { get; init; }
 
-    public uint? TrafficSamples { get; init; }
+    /// <summary>The colonist layer's decayed sample total; zero right after a load.</summary>
+    public required uint TrafficSamples { get; init; }
 }
 
 /// <summary>
@@ -7644,7 +7678,7 @@ public sealed record SnapshotStreamRequest
     /// <summary>
     /// Main-thread milliseconds one frame may spend measuring route path costs
     /// (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs
-    /// past it report RouteTravel.path_skipped. Absent: measure every pair.
+    /// past it report RouteTravel.Skipped. Absent: measure every pair.
     /// </summary>
     public uint? RoutePathBudgetMs { get; init; }
 

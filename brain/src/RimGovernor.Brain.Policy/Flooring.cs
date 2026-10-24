@@ -155,7 +155,7 @@ public sealed record FlooringObservation
         foreach (var t in Traffic)
         {
             DomainException.Require(
-                Terrains.ContainsKey(t.Terrain) && t.Layer.Valid() && traffic.Add((t.Layer, t.Cell)) && !(t.Pending.Length != 0 && !FoodForecastRules.FoodId(t.Pending)),
+                Terrains.ContainsKey(t.Terrain) && traffic.Add((t.Layer, t.Cell)) && !(t.Pending is { } pending && !FoodForecastRules.FoodId(pending)),
                 "invalid traffic cell"
             );
         }
@@ -473,11 +473,11 @@ public static class FlooringRules
         var pending = 0;
         foreach (var t in v.Traffic)
         {
-            if (!t.Layer.Colonist() || !t.Home || roomed.Contains(t.Cell) || !FloorDeficient(FloorTier.Traffic, v.TerrainOf(t.Terrain)))
+            if (t.Layer != TrafficLayer.Colonist || !t.Home || roomed.Contains(t.Cell) || !FloorDeficient(FloorTier.Traffic, v.TerrainOf(t.Terrain)))
             {
                 continue;
             }
-            if (t.Pending.Length != 0)
+            if (t.Pending is not null)
             {
                 pending++;
                 continue;

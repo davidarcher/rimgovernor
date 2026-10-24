@@ -35,10 +35,8 @@ public sealed record RoutesObservation
 
     public EquatableArray<RouteFacility> Facilities { get; init; }
 
-    /// <summary>The most-travelled cells observed since the map loaded with TrafficSamples samples in all.</summary>
+    /// <summary>The most-travelled cells observed since the map loaded.</summary>
     public EquatableArray<TrafficCell> Traffic { get; init; }
-
-    public uint TrafficSamples { get; init; }
 
     public void Validate()
     {
@@ -53,11 +51,11 @@ public sealed record RoutesObservation
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var f in Facilities)
         {
-            if (!FoodForecastRules.FoodId(f.Id) || !ids.Add(f.Id) || !FoodForecastRules.FoodId(f.Kind))
+            if (!FoodForecastRules.FoodId(f.Id) || !ids.Add(f.Id))
             {
                 throw new DomainException("invalid routes facility");
             }
-            if (f.Room.TryGetValue(out var room) && !FoodForecastRules.FoodId(room))
+            if (f.Room is { } room && !FoodForecastRules.FoodId(room))
             {
                 throw new DomainException("invalid routes facility room");
             }
@@ -68,23 +66,15 @@ public sealed record RoutesObservation
                 {
                     throw new DomainException("invalid routes travel");
                 }
-                if (t.Cost.TryGetValue(out var cost) && (cost < 0 || !t.Reachable))
+                if (t is RouteTravel.Measured { Cost: < 0 } or RouteTravel.Measured { Cells: < 0 })
                 {
-                    throw new DomainException("invalid routes travel cost");
-                }
-                if (t.Cells.TryGetValue(out var cells) && (cells < 0 || !t.Reachable))
-                {
-                    throw new DomainException("invalid routes travel cells");
-                }
-                if (t.Skipped && (!t.Reachable || t.Cost.IsKnown || t.Cells.IsKnown))
-                {
-                    throw new DomainException("invalid routes skipped travel");
+                    throw new DomainException("invalid routes travel path");
                 }
             }
             var breachCells = new HashSet<Cell>();
             foreach (var b in f.Breaches)
             {
-                if (!FoodForecastRules.FoodId(b.Edifice) || (b.Pending != "" && !FoodForecastRules.FoodId(b.Pending)) || b.Distance < 0 || !breachCells.Add(b.Cell))
+                if (!FoodForecastRules.FoodId(b.Edifice) || (b.Pending is { } pending && !FoodForecastRules.FoodId(pending)) || b.Distance < 0 || !breachCells.Add(b.Cell))
                 {
                     throw new DomainException("invalid routes breach");
                 }
@@ -93,7 +83,7 @@ public sealed record RoutesObservation
         var trafficKeys = new HashSet<(TrafficLayer, Cell)>();
         foreach (var t in Traffic)
         {
-            if (!t.Layer.Valid() || !FoodForecastRules.FoodId(t.Terrain) || !trafficKeys.Add((t.Layer, t.Cell)) || (t.Pending != "" && !FoodForecastRules.FoodId(t.Pending)))
+            if (!FoodForecastRules.FoodId(t.Terrain) || !trafficKeys.Add((t.Layer, t.Cell)) || (t.Pending is { } pending && !FoodForecastRules.FoodId(pending)))
             {
                 throw new DomainException("invalid traffic cell");
             }
@@ -101,106 +91,19 @@ public sealed record RoutesObservation
     }
 }
 
-public sealed record RouteFacility
+public static class RouteTravelExtensions
 {
-    public string Id { get; init; } = "";
-
-    public string Kind { get; init; } = "";
-
-    public Fact<string> Room { get; init; }
-
-    public EquatableArray<RouteTravel> Travel { get; init; }
-
-    public EquatableArray<RouteBreach> Breaches { get; init; }
-}
-
-public sealed record RouteTravel
-{
-    public string Pawn { get; init; } = "";
-
-    public bool Reachable { get; init; }
-
-    /// <summary>The game's own path cost for the reachable pair; unknown when Skipped.</summary>
-    public Fact<int> Cost { get; init; }
-
-    /// <summary>The game's own path length in cells for the reachable pair; unknown when Skipped.</summary>
-    public Fact<int> Cells { get; init; }
-
-    /// <summary>
-    /// Marks a reachable pair native did not path (the stream's route_path_budget_ms ran out): the doors its
-    /// path crosses are unknown, so it can neither raise nor release a door wait.
-    /// </summary>
-    public bool Skipped { get; init; }
-}
-
-public sealed record RouteBreach
-{
-    public Cell Cell { get; init; }
-
-    public string Edifice { get; init; } = "";
-
-    /// <summary>Names the door already ordered on the wall cell, empty when none.</summary>
-    public string Pending { get; init; } = "";
-
-    public int Distance { get; init; }
-}
-
-public sealed record TrafficCell
-{
-    public Cell Cell { get; init; }
-
-    /// <summary>The pawn class the count belongs to.</summary>
-    public TrafficLayer Layer { get; init; }
-
-    public uint Samples { get; init; }
-
-    public string Terrain { get; init; } = "";
-
-    public bool Home { get; init; }
-
-    /// <summary>Names the floor already ordered on the cell, empty when none.</summary>
-    public string Pending { get; init; } = "";
-}
-
-/// <summary>Names a traffic counter layer: each counts cell changes of one pawn class and decays on its own half-life.</summary>
-public enum TrafficLayer
-{
-    /// <summary>Snapshot replays may carry an empty layer: the old sampler counted colonists only.</summary>
-    [WireName("")]
-    None = 0,
-
-    [WireName("colonist")]
-    Colonist,
-
-    /// <summary>Counts any pawn stepping from soil or sand onto a built floor: the dirt entry points.</summary>
-    [WireName("crossing")]
-    Crossing,
-
-    [WireName("animal")]
-    Animal,
-
-    [WireName("visitor")]
-    Visitor,
-
-    [WireName("hostile")]
-    Hostile,
-}
-
-public static class TrafficLayerExtensions
-{
-    extension(TrafficLayer l)
+    extension(RouteTravel t)
     {
-        public bool Valid() => Enum.IsDefined(l);
-
-        /// <summary>Reports a colonist-layer row, including unlayered snapshot rows.</summary>
-        public bool Colonist() => l is TrafficLayer.Colonist or TrafficLayer.None;
+        /// <summary>Reports a pair the game says the colonist can reach, whether or not its path was measured.</summary>
+        public bool Reachable => t is not RouteTravel.Unreachable;
     }
 }
 
 /// <summary>One facility no mobile colonist can reach.</summary>
 public sealed record RouteDeficit
 {
-    public RouteFacility Facility { get; init; } = new();
+    public required RouteFacility Facility { get; init; }
 
     /// <summary>The facility's unordered breach cells nearest first.</summary>
     public EquatableArray<RouteBreach> Breaches { get; init; }
@@ -225,12 +128,6 @@ public sealed record RoutesReview
 
 public enum RoutesMethod
 {
-    [WireName("")]
-    None = 0,
-
-    [WireName("unknown")]
-    Unknown,
-
     [WireName("no_deficit")]
     NoMethod,
 
@@ -249,7 +146,7 @@ public enum RoutesMethod
 
 public sealed record RoutesProposal
 {
-    public RoutesMethod Method { get; init; }
+    public required RoutesMethod Method { get; init; }
 
     public MethodId Key { get; init; }
 
@@ -272,15 +169,24 @@ public static partial class RoutesRules
 {
     public static RoutesPolicy DefaultRoutesPolicy() => new() { Door = "Door", Stuff = "WoodLog", MaxBreaches = 4 };
 
-    private static int RouteKindOrder(string kind) => kind switch
+    private static int RouteKindOrder(RouteFacilityKind kind)
     {
-        "stockpile" or "storage" => 0,
-        "bench" => 1,
-        "dining" => 2,
-        "bed" => 3,
-        "defense" => 4,
-        _ => 0,
-    };
+        switch (kind)
+        {
+            case RouteFacilityKind.Stockpile:
+            case RouteFacilityKind.Storage:
+                return 0;
+            case RouteFacilityKind.Bench:
+                return 1;
+            case RouteFacilityKind.Dining:
+                return 2;
+            case RouteFacilityKind.Bed:
+                return 3;
+            case RouteFacilityKind.Defense:
+                return 4;
+        }
+        throw new DomainException($"route facility kind {(int)kind} is not a RouteFacilityKind member");
+    }
 
     /// <summary>
     /// Measures every facility against the colonists' observed reachability. A facility is deficient when the
@@ -315,7 +221,7 @@ public static partial class RoutesRules
             var breaches = new List<RouteBreach>();
             foreach (var b in f.Breaches)
             {
-                if (b.Pending != "")
+                if (b.Pending is not null)
                 {
                     pending++;
                     continue;
@@ -344,7 +250,8 @@ public static partial class RoutesRules
     /// <summary>
     /// Resolves the first deficit that has a breach to open. A facility whose breaches are all ordered already
     /// waits for them; one with no breach at all (no player wall borders its room, or no colonist stands
-    /// anywhere outside it) is reported so the deficit stays visible.
+    /// anywhere outside it) is reported so the deficit stays visible. The door's availability is a required fact:
+    /// a deficit with the door definition unread raises <see cref="RequiredFactException"/>.
     /// </summary>
     public static RoutesProposal SelectRoutesMethod(RoutesReview review, RoutesFacts facts, RoutesPolicy p)
     {
@@ -358,19 +265,19 @@ public static partial class RoutesRules
         }
         if (!facts.DoorAvailable.TryGetValue(out var available))
         {
-            return new RoutesProposal { Method = RoutesMethod.Unknown };
+            throw new RequiredFactException(p.Door + " availability");
         }
         if (!available)
         {
             return new RoutesProposal { Method = RoutesMethod.DoorUnavailable };
         }
-        var deferred = RoutesMethod.None;
+        RoutesMethod? deferred = null;
         foreach (var d in review.Deficits)
         {
             if (d.Breaches.Count == 0)
             {
                 var next = d.Pending > 0 ? RoutesMethod.DoorPending : RoutesMethod.NoBreach;
-                if (deferred == RoutesMethod.None || deferred == RoutesMethod.NoBreach)
+                if (deferred is null or RoutesMethod.NoBreach)
                 {
                     deferred = next;
                 }
@@ -387,6 +294,6 @@ public static partial class RoutesRules
                 Breaches = EquatableArray.From(cells),
             };
         }
-        return new RoutesProposal { Method = deferred == RoutesMethod.None ? RoutesMethod.NoMethod : deferred };
+        return new RoutesProposal { Method = deferred ?? RoutesMethod.NoMethod };
     }
 }

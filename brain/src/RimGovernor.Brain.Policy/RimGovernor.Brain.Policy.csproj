@@ -79,5 +79,12 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.QuestObjective" Alias="QuestObjective" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.JoinerLetter" Alias="JoinerLetter" />
     <Using Include="RimGovernor.Contracts.Wire.Receipts.QuestStatus" Alias="QuestStatus" />
+    <!-- The routes census rows (#3903). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteFacility" Alias="RouteFacility" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteFacilityKind" Alias="RouteFacilityKind" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteTravel" Alias="RouteTravel" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteBreach" Alias="RouteBreach" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.TrafficCell" Alias="TrafficCell" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.TrafficLayer" Alias="TrafficLayer" />
   </ItemGroup>
 </Project>

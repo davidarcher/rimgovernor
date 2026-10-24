@@ -13,16 +13,23 @@ public static partial class TrafficRules
         TrafficLayer.Hostile,
     ];
 
-    private static OverlayColor HeatColor(TrafficLayer layer) =>
-        layer switch
+    private static OverlayColor HeatColor(TrafficLayer layer)
+    {
+        switch (layer)
         {
-            TrafficLayer.Colonist => new OverlayColor(1, 0.55f, 0.1f, 0),
-            TrafficLayer.Crossing => new OverlayColor(0.55f, 0.35f, 0.15f, 0),
-            TrafficLayer.Animal => new OverlayColor(0.3f, 0.8f, 0.3f, 0),
-            TrafficLayer.Visitor => new OverlayColor(0.3f, 0.6f, 1, 0),
-            TrafficLayer.Hostile => new OverlayColor(1, 0.15f, 0.15f, 0),
-            _ => default,
-        };
+            case TrafficLayer.Colonist:
+                return new OverlayColor(1, 0.55f, 0.1f, 0);
+            case TrafficLayer.Crossing:
+                return new OverlayColor(0.55f, 0.35f, 0.15f, 0);
+            case TrafficLayer.Animal:
+                return new OverlayColor(0.3f, 0.8f, 0.3f, 0);
+            case TrafficLayer.Visitor:
+                return new OverlayColor(0.3f, 0.6f, 1, 0);
+            case TrafficLayer.Hostile:
+                return new OverlayColor(1, 0.15f, 0.15f, 0);
+        }
+        throw new DomainException($"traffic layer {(int)layer} is not a TrafficLayer member");
+    }
 
     /// <summary>The number of opacity steps a heat layer scales over.</summary>
     private const int HeatBands = 4;

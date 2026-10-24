@@ -38,6 +38,7 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.WorldSite" Alias="WorldSite" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.TrafficCell" Alias="TrafficCell" />
     <!-- Observation-local type names for policy values. -->
     <Using Include="RimGovernor.Brain.Policy.RoleScore" Alias="RoleContribution" />
     <!-- Package-level functions with no owning type live on one static partial class per package. -->

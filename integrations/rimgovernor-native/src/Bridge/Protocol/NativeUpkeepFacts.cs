@@ -226,13 +226,13 @@ namespace HomeBridge.BridgeTools
             // colonist's native reachability from where they stand and
             // the cost of the path the game itself would walk (every
             // reachable pair, unless the brain's route_path_budget_ms runs out:
-            // later pairs then report path_skipped, never a silent
+            // later pairs then report Skipped, never a silent
             // absence). A facility no colonist reaches
             // lists breach candidates: player wall cells on its room's
             // border whose outer neighbour some colonist can stand on.
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
             var player = Faction.OfPlayerSilentFail;
-            var facilities = new System.Collections.Generic.List<(Thing thing, Obs.RouteFacilityKind kind, IntVec3 cell)>();
+            var facilities = new List<(Thing thing, Obs.RouteFacilityKind kind, IntVec3 cell)>();
             foreach (var b in sets.PlayerBuildings.OfType<Building_Bed>().Where(b => b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
                 facilities.Add((b, Obs.RouteFacilityKind.Bed, b.Position));
             foreach (var b in sets.PlayerBuildings.OfType<Building_WorkTable>().OrderBy(b => b.thingIDNumber))
@@ -243,66 +243,67 @@ namespace HomeBridge.BridgeTools
                 facilities.Add((b, Obs.RouteFacilityKind.Dining, b.Position));
             foreach (var b in sets.PlayerBuildings.OfType<Building_Turret>().OrderBy(b => b.thingIDNumber))
                 facilities.Add((b, Obs.RouteFacilityKind.Defense, b.Position));
-            var facts = new Obs.RoutesFacts();
-            facts = facts with { PawnIds = [.. facts.PawnIds, .. people.Select(p => Id(p.GetUniqueLoadID()))] };
+            var rows = new List<Obs.RouteFacility>();
             var measured = 0; long pathTicks = 0, reachTicks = 0;
             var skipped = 0;
             var pathBudgetTicks = routePathBudgetMs.HasValue ? routePathBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
-            Obs.RouteFacility Facility(Common.Ref reference, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
+            Obs.RouteFacility Facility(string id, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
             {
-                var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
                 var room = cell.GetRoom(map);
-                if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors) row = row with { Room = NativeRef.Room(room) };
                 // A door frame is walkable before the door stands, so a
                 // measured path may cross an ordered door; those cells are
                 // reported as pending breaches of a reachable facility so
                 // the controller holds its latch until the door lands
                 // instead of releasing on a half-built wall.
                 Thing? PendingDoor(IntVec3 c) => c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is ThingDef td && td.IsDoor);
-                var crossed = new System.Collections.Generic.SortedDictionary<int, (IntVec3 cell, Thing door)>();
-                var anyReach = false;
+                var crossed = new SortedDictionary<int, (IntVec3 cell, Thing door)>();
+                var travel = new List<Obs.RouteTravel>();
                 foreach (var p in people)
                 {
+                    var pawn = Id(p.GetUniqueLoadID());
                     var rf0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var travel = new Obs.RouteTravel { PawnId = Id(p.GetUniqueLoadID()), Reachable = reaches(p) };
+                    var reachable = reaches(p);
                     reachTicks += System.Diagnostics.Stopwatch.GetTimestamp() - rf0;
-                    if (travel.Reachable.GetValueOrDefault())
+                    if (!reachable)
                     {
-                        anyReach = true;
-                        if (pathTicks >= pathBudgetTicks)
+                        travel.Add(new Obs.RouteTravel.Unreachable { Pawn = pawn });
+                        continue;
+                    }
+                    if (pathTicks >= pathBudgetTicks)
+                    {
+                        skipped++;
+                        travel.Add(new Obs.RouteTravel.Skipped { Pawn = pawn });
+                        continue;
+                    }
+                    measured++;
+                    var pf0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    using (var path = map.pathFinder.FindPathNow(p.Position, target(p), TraverseParms.For(p, Danger.Some), peMode: mode))
+                    {
+                        if (path.Found)
                         {
-                            skipped++;
-                            travel = travel with { PathSkipped = true };
+                            travel.Add(new Obs.RouteTravel.Measured { Pawn = pawn, Cost = checked((int)Math.Min(path.TotalCost, int.MaxValue)), Cells = path.NodesLeftCount });
+                            foreach (var node in path.NodesReversed)
+                            {
+                                var door = PendingDoor(node);
+                                if (door != null) crossed[map.cellIndices.CellToIndex(node)] = (node, door);
+                            }
                         }
                         else
                         {
-                            measured++;
-                            var pf0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                            using (var path = map.pathFinder.FindPathNow(p.Position, target(p), TraverseParms.For(p, Danger.Some), peMode: mode))
-                            {
-                                if (path.Found)
-                                {
-                                    travel = travel with { PathCost = checked((int)Math.Min(path.TotalCost, int.MaxValue)) }; travel = travel with { PathCells = path.NodesLeftCount };
-                                    foreach (var node in path.NodesReversed)
-                                    {
-                                        var door = PendingDoor(node);
-                                        if (door != null) crossed[map.cellIndices.CellToIndex(node)] = (node, door);
-                                    }
-                                }
-                            }
-                            pathTicks += System.Diagnostics.Stopwatch.GetTimestamp() - pf0;
+                            travel.Add(new Obs.RouteTravel.Unpathed { Pawn = pawn });
                         }
                     }
-                    row = row with { Travel = [.. row.Travel, travel] };
+                    pathTicks += System.Diagnostics.Stopwatch.GetTimestamp() - pf0;
                 }
-                if (anyReach)
+                var breaches = new List<Obs.RouteBreach>();
+                if (travel.Any(t => t is not Obs.RouteTravel.Unreachable))
                 {
                     foreach (var (bc, door) in crossed.Values)
-                        row = row with { Breaches = [.. row.Breaches, new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 }] };
+                        breaches.Add(new Obs.RouteBreach { Cell = Spot(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 });
                 }
                 else if (people.Count > 0 && room != null && room.ProperRoom && !room.TouchesMapEdge)
                 {
-                    var breaches = new System.Collections.Generic.List<(IntVec3 cell, string edifice, string? pending, int distance)>();
+                    var candidates = new List<(IntVec3 cell, string edifice, string? pending, int distance)>();
                     // BorderCells repeats a corner shared by two regions.
                     foreach (var edge in room.BorderCells.Distinct())
                     {
@@ -326,49 +327,63 @@ namespace HomeBridge.BridgeTools
                         }
                         if (pendingDoor == null && best == int.MaxValue) continue;
                         var edifice = wall != null ? wall.def.defName : pendingDoor!.def.defName;
-                        breaches.Add((edge, edifice, pendingDoor?.def.entityDefToBuild.defName, best == int.MaxValue ? 0 : best));
+                        candidates.Add((edge, edifice, pendingDoor?.def.entityDefToBuild.defName, best == int.MaxValue ? 0 : best));
                     }
-                    foreach (var (bc, edifice, pending, distance) in breaches.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x))
-                    {
-                        var breach = new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(edifice), Distance = distance };
-                        if (pending != null) breach = breach with { Pending = Id(pending) };
-                        row = row with { Breaches = [.. row.Breaches, breach] };
-                    }
+                    foreach (var (bc, edifice, pending, distance) in candidates.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x))
+                        breaches.Add(new Obs.RouteBreach { Cell = Spot(bc), Edifice = Id(edifice), Pending = pending != null ? Id(pending) : null, Distance = distance });
                 }
-                return row;
+                return new Obs.RouteFacility
+                {
+                    Id = id,
+                    Kind = kind,
+                    Cell = Spot(cell),
+                    Room = room != null && room.ProperRoom && !room.PsychologicallyOutdoors ? NativeRef.Room(room).Id : null,
+                    Travel = [.. travel],
+                    Breaches = [.. breaches],
+                };
             }
             foreach (var (thing, kind, cell) in facilities)
             {
                 var mode = thing.def.hasInteractionCell ? PathEndMode.InteractionCell : PathEndMode.Touch;
-                facts = facts with { Facilities = [.. facts.Facilities, Facility(NativeBuildingObservationTools.Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode)] };
+                rows.Add(Facility(NativeBuildingObservationTools.Ref(thing).Id, kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode));
             }
             var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
             foreach (var zone in stockpiles)
             {
                 var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
                 if (cell == default) continue;
-                var reference = new Common.Ref { Id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
-                facts = facts with { Facilities = [.. facts.Facilities, Facility(reference, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell)] };
+                var id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                rows.Add(Facility(id, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
             }
-            var traffic = map.GetComponent<TrafficState>();
-            if (traffic != null)
-            {
-                // Every nonzero cell of each layer, busiest first;
-                // traffic_samples is the colonist layer's decayed total.
-                facts = facts with { TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist) };
-                for (int layer = 0; layer < TrafficCounts.Layers; layer++)
-                    foreach (var index in traffic.Counts.Nonzero(layer))
+            // The game builds every MapComponent on every map, so a map without its traffic counter is a broken read.
+            var counter = map.GetComponent<TrafficState>() ?? throw new InvalidOperationException("Map " + map.uniqueID + " has no TrafficState component.");
+            // Every nonzero cell of each layer, busiest first;
+            // TrafficSamples is the colonist layer's decayed total.
+            var traffic = new List<Obs.TrafficCell>();
+            for (int layer = 0; layer < TrafficCounts.Layers; layer++)
+                foreach (var index in counter.Counts.Nonzero(layer))
+                {
+                    var at = map.cellIndices.IndexToCell(index);
+                    var pending = at.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
+                    traffic.Add(new Obs.TrafficCell
                     {
-                        var at = map.cellIndices.IndexToCell(index);
-                        var cell = new Obs.TrafficCell { Cell = Cell(at), Samples = traffic.Counts[layer, index], Terrain = Id(at.GetTerrain(map).defName), Home = map.areaManager.Home[at], Layer = (Obs.TrafficLayer)(layer + 1) };
-                        var pending = at.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
-                        if (pending != null) cell = cell with { Pending = Id(pending.def.entityDefToBuild.defName) };
-                        facts = facts with { Traffic = [.. facts.Traffic, cell] };
-                    }
-            }
+                        Cell = Spot(at),
+                        Layer = (Obs.TrafficLayer)(layer + 1),
+                        Samples = counter.Counts[layer, index],
+                        Terrain = Id(at.GetTerrain(map).defName),
+                        Home = map.areaManager.Home[at],
+                        Pending = pending != null ? Id(pending.def.entityDefToBuild.defName) : null,
+                    });
+                }
             ObservationWork.Detail("cf.upkeep.routes.path", pathTicks, measured + skipped);
             ObservationWork.Detail("cf.upkeep.routes.reach", reachTicks);
-            return facts;
+            return new Obs.RoutesFacts
+            {
+                Facilities = [.. rows],
+                PawnIds = [.. people.Select(p => Id(p.GetUniqueLoadID()))],
+                Traffic = [.. traffic],
+                TrafficSamples = counter.Counts.Total(TrafficCounts.Colonist),
+            };
         }
 
         private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepPerson> People(IEnumerable<Pawn> people) =>

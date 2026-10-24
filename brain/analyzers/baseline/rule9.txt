@@ -13,7 +13,7 @@ Bridge.Contracts/Facts/FactHelpers.cs|Unknown|2
 Bridge.Contracts/Facts/PlanningWindow.cs|Fact|4
 Bridge.Contracts/Facts/PlanningWindow.cs|Unknown|2
 Bridge.Contracts/Facts/RoundsFrame.cs|Fact|1
-Bridge.Contracts/Facts/WireEnums.cs|Discard|4
+Bridge.Contracts/Facts/WireEnums.cs|Discard|3
 Bridge.Contracts/Foundation/Families.cs|Discard|1
 Bridge/Catalog/DefenseCensus.cs|Fact|2
 Bridge/Catalog/DefenseCensus.cs|ValueOrDefault|4
@@ -226,7 +226,6 @@ BuildingRuntime/Rounds/RoundsRoyalty.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Unknown|4
 BuildingRuntime/RoundsRoomReconcile.cs|Fact|12
-BuildingRuntime/RoundsRoutes.cs|Discard|1
 BuildingRuntime/RoundsRoutes.cs|Fact|5
 BuildingRuntime/RoundsShelter.cs|Fact|4
 BuildingRuntime/RoundsSleeping.cs|Fact|15
@@ -281,8 +280,8 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|68
-Contracts/Observations.cs|UnknownMember|3
+Contracts/Observations.cs|NullableValue|59
+Contracts/Observations.cs|UnknownMember|1
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
 Contracts/Placement.cs|NullableValue|16
@@ -350,8 +349,7 @@ Observation/ColonyProduction.cs|Fact|31
 Observation/ColonyProduction.cs|Unknown|6
 Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
-Observation/ColonyUpkeep.cs|Discard|1
-Observation/ColonyUpkeep.cs|Fact|10
+Observation/ColonyUpkeep.cs|Fact|4
 Observation/Construction.cs|Fact|2
 Observation/Decode.cs|Fact|3
 Observation/Definitions.cs|Fact|8
@@ -877,8 +875,7 @@ Policy/Rounds.cs|Fact|170
 Policy/Rounds.cs|Unknown|6
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7
-Policy/Routes.cs|Fact|12
-Policy/Routes.cs|UnknownMember|1
+Policy/Routes.cs|Fact|4
 Policy/Shelter.cs|Fact|11
 Policy/Shelter.cs|Unknown|1
 Policy/Sheltering.cs|Fact|25
@@ -945,7 +942,6 @@ Policy/TradeOffer.cs|Unknown|2
 Policy/TradePawn.cs|Fact|6
 Policy/TradeRoutine.cs|Fact|31
 Policy/TradeRoutine.cs|Unknown|3
-Policy/TrafficOverlay.cs|Discard|1
 Policy/Training.cs|Fact|5
 Policy/Training.cs|Unknown|2
 Policy/TrainingRange.cs|Discard|1

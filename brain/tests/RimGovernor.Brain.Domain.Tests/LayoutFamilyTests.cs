@@ -199,7 +199,7 @@ public sealed class LayoutFamilyTests
         RoutesObservation Census(bool reachable, string pending = "") => new()
         {
             Pawns = ["a"],
-            Facilities = [new() { Id = "store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = reachable }] }],
+            Facilities = [new() { Id = "store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [reachable ? new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 } : new RouteTravel.Unreachable { Pawn = "a" }], Breaches = [] }],
         };
         LayoutFacts Facts(RoutesObservation census) =>
             new() { Routes = LayoutFamily.RoutesStandingOf(Known(census), default, RoundsRules.DefaultRoundsPolicy()) };

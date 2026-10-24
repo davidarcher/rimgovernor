@@ -145,7 +145,7 @@ public sealed class EssentialServicesTests
     public void LogisticsUsesObservedReachabilityAndAlternatePawns()
     {
         var facts = Facts() with { Upkeep = new() { Routes = Known(new RoutesObservation { Pawns = ["a", "b"],
-            Facilities = [new() { Id = "medicine-store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = true }, new() { Pawn = "b", Reachable = false }] }] }) } };
+            Facilities = [new() { Id = "medicine-store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 }, new RouteTravel.Unreachable { Pawn = "b" }], Breaches = [] }] }) } };
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/a" && s.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(review.Proposals, p => p.Target.Subject == "medicine-store");

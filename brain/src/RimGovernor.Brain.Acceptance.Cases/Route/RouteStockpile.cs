@@ -1,4 +1,4 @@
-using Common = RimGovernor.Contracts.Wire.Common;
+using Cell = RimGovernor.Brain.Domain.Cell;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
@@ -69,21 +69,21 @@ internal static class RouteStockpile
         Observations.RouteFacility Facility(string name)
         {
             var interior = staged.Rooms[name].Interior.ToHashSet();
-            var row = routes.Facilities.FirstOrDefault(f => f.Kind == Observations.RouteFacilityKind.Stockpile && f.Cell is Common.Cell { X: { } x, Z: { } z } && interior.Contains(new(x, z)))
+            var row = routes.Facilities.FirstOrDefault(f => f.Kind == Observations.RouteFacilityKind.Stockpile && interior.Contains(new(f.Cell.X, f.Cell.Z)))
                 ?? throw new AcceptanceException($"routes: no STOCKPILE facility in the {name} room");
             s.RecordWire(name, row);
             return row;
         }
 
         var sealedRow = Facility("sealed");
-        if (colonists == 0 || sealedRow.Travel.Count != colonists || sealedRow.Travel.Any(t => t.Reachable == true))
+        if (colonists == 0 || sealedRow.Travel.Count != colonists || sealedRow.Travel.Any(t => t is not Observations.RouteTravel.Unreachable))
         {
             problems.Add($"sealed: want {colonists} travel rows, none reachable, got {string.Join("; ", sealedRow.Travel)}");
         }
 
-        bool OnBorder(Common.Cell? c, Fx.StageRect r)
+        bool OnBorder(Cell c, Fx.StageRect r)
         {
-            var (x, z) = ((c?.X ?? -1) - site.X, (c?.Z ?? -1) - site.Z);
+            var (x, z) = (c.X - site.X, c.Z - site.Z);
             var inside = x >= r.X && x < r.X + r.Width && z >= r.Z && z < r.Z + r.Height;
             var interior = x > r.X && x < r.X + r.Width - 1 && z > r.Z && z < r.Z + r.Height - 1;
             return inside && !interior;
@@ -95,7 +95,7 @@ internal static class RouteStockpile
         }
 
         var openRow = Facility("open");
-        if (!openRow.Travel.Any(t => t is { Reachable: true, PathCells: > 0 }) || openRow.Breaches.Count != 0)
+        if (!openRow.Travel.Any(t => t is Observations.RouteTravel.Measured { Cells: > 0 }) || openRow.Breaches.Count != 0)
         {
             problems.Add($"open: want a measured reachable path and no breaches, got {string.Join("; ", openRow.Travel)} / {string.Join("; ", openRow.Breaches)}");
         }
