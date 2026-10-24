@@ -543,7 +543,7 @@ and traces the perimeter around
 what the defense record holds (`LayPerimeter`). What moves among built rooms is decided
 inside the embedder by the switching price (`switchThreshold`, `LayoutBuilt.cs`:
 `ReplanGain` plus `BuiltSwitch` and `BuiltSwitchCell` per cell of the room's area). A failed replan
-(`ReplanEmptyException`, `StationFactsException`) keeps the saved plan. The runtime derives when no
+(`ReplanEmptyException`, `RequiredFactException`) keeps the saved plan. The runtime derives when no
 plan is saved and re-checks every `ReplanEvery` (2500 ticks), replanning on structural drift
 only (#3739): the survey's terrain (`LayoutInputs.Terrain`, every `SurveyCell` field but Built,
 Tree, Prop and Ruin, exact equality) or the structural key (`StationFacts.InputsKeyParts`, which

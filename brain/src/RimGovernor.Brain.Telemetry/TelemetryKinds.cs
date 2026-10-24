@@ -26,6 +26,9 @@ public static class TelemetryKinds
     /// <summary>A planner's or the rounds review's step verdict (<see cref="Decision.PlannerStepKind"/>).</summary>
     public static readonly TelemetryKind PlannerStep = new(Decision.PlannerStepKind);
 
+    /// <summary>A planner run skipped for an unread fact (<see cref="RequiredFactTelemetry.Kind"/>): the acceptance runner fails the case on one.</summary>
+    public static readonly TelemetryKind RequiredFact = new(RequiredFactTelemetry.Kind);
+
     /// <summary>One pawn activity interval (<see cref="PawnActivityTelemetry.IntervalKind"/>).</summary>
     public static readonly TelemetryKind PawnActivityInterval = new(PawnActivityTelemetry.IntervalKind);
 

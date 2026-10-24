@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.PlayerApi;
-using RimGovernor.Brain.Telemetry;
 using Xunit;
 using PbCommon = RimGovernor.Contracts.Wire.Common;
 using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -45,7 +44,7 @@ public sealed class AutosaverTests
             order.Add("flush");
             return Task.CompletedTask;
         });
-        return new Autosaver(lifecycle.SaveAsync, new HostLog(new TelemetryEmitter(NullTelemetrySink.Instance), "autosave"));
+        return new Autosaver(lifecycle.SaveAsync, new HostLog(RequiredFactSink.Emitter(), "autosave"));
     }
 
     [Fact]

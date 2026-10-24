@@ -22,9 +22,11 @@ public sealed class LayoutReplanOffPathTests
         var run = Rounder.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog() }, new MapSurvey(), catalog, [], new RoomGrowth());
 
         Assert.False(run.Advised);
-        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind, run.StationRow.Kind);
+        Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Kind, run.StationRow.Kind);
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind, run.StationRow.Target);
         Assert.Equal("skipped", run.StationRow.Verdict);
-        Assert.Equal("facts_unknown", run.StationRow.Reason);
+        Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Reason, run.StationRow.Reason);
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryLevel.Error, run.StationRow.Level);
         Assert.Null(run.Next);
         Assert.Null(run.Error);
     }

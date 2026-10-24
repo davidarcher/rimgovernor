@@ -66,7 +66,7 @@ public static partial class LayoutClusterRules
 
     /// <summary>
     /// The choice the input's free-bed pool takes (#3748, Clusterer.ChooseBeds): null when the graph has no free pool or
-    /// the input prices no merge. A required fact unread fails it with a StationFactsException (#3747).
+    /// the input prices no merge. A required fact unread fails it with a RequiredFactException (#3747).
     /// </summary>
     public static BedMergeChoice? BedMergeChoiceOf(ClusterInput input)
     {
@@ -244,7 +244,7 @@ internal sealed partial class Clusterer
     /// counting only when the placer furnishes its beds (Furnishes); the
     /// singles' area is the one all singles are best at, and each larger size takes its best area beside them. The
     /// incumbent (the plan's barracks, else every bed single) holds unless the best beats it by more than
-    /// ForecastValuePolicy.TieResolution. Every input is required (#3747): one unread throws a StationFactsException naming it.
+    /// ForecastValuePolicy.TieResolution. Every input is required (#3747): one unread throws a RequiredFactException naming it.
     /// </summary>
     /// <remarks>
     /// Switching (#3661). A split of a standing barracks keeps the barracks for the beds that stay (the embedding holds it
@@ -259,36 +259,36 @@ internal sealed partial class Clusterer
         var f = price.Facts;
         if (!f.Sleepers.TryGetValue(out var sleepers))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("sleeper_mood");
+            throw new RequiredFactException("sleeper_mood");
         }
         if (!f.Levels.TryGetValue(out var levels))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("impressiveness_levels");
+            throw new RequiredFactException("impressiveness_levels");
         }
         if (!f.WallCell.TryGetValue(out var wall))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("wall_price");
+            throw new RequiredFactException("wall_price");
         }
         if (!f.Door.TryGetValue(out var door))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("door_price");
+            throw new RequiredFactException("door_price");
         }
         if (!f.WallWork.TryGetValue(out var wallWork) || !f.DoorWork.TryGetValue(out var doorWork))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("ring_work");
+            throw new RequiredFactException("ring_work");
         }
         if (!price.Builders.TryGetValue(out var builders))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("builders");
+            throw new RequiredFactException("builders");
         }
         var walk = LayoutRegroupRules.CellWalkDays(_in.Catalog.Climate.TicksPerSecond);
         if (!QuestCapacityForecast.FinitePositive(walk))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("cell_walk");
+            throw new RequiredFactException("cell_walk");
         }
         if (sleepers.Any(s => s.Bedroom.Count < levels.StageCount || s.Barracks.Count < levels.StageCount))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("sleeper_mood");
+            throw new RequiredFactException("sleeper_mood");
         }
         var rooms = new BedRooms(this, price, levels, sleepers, count, wall, door, wallWork, doorWork, Math.Max(1, builders),
             (PlanWeights.Footprint + (PlanWeights.Soil * BuildGround.SoilCostNormal)) * walk / PlanWeights.Walk);
@@ -362,22 +362,22 @@ internal sealed partial class Clusterer
     /// <summary>
     /// The capability-days a day of holding one bedroom of area cells in the living band behind a closed door to the
     /// outdoors. Every input is required on every map (#3747): an unread outdoor curve, work-day or living band, or a load
-    /// the climate model cannot give, throws a StationFactsException naming it.
+    /// the climate model cannot give, throws a RequiredFactException naming it.
     /// </summary>
     private double HeatPerDay(int area, BedMergePrice price)
     {
         var m = _in.Catalog.Climate;
         if (!price.OutdoorCurve.TryGetValue(out var curve))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("outdoor_curve");
+            throw new RequiredFactException("outdoor_curve");
         }
         if (!price.WorkDayW.TryGetValue(out var workDay))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("work_day");
+            throw new RequiredFactException("work_day");
         }
         if (!m.HasLiving())
         {
-            throw LayoutStationPlanRules.UnknownStationFact("living_band");
+            throw new RequiredFactException("living_band");
         }
         try
         {
@@ -391,7 +391,7 @@ internal sealed partial class Clusterer
         }
         catch (DomainException e)
         {
-            throw LayoutStationPlanRules.UnknownStationFact("bedroom_heat: " + e.Message);
+            throw new RequiredFactException("bedroom_heat: " + e.Message);
         }
     }
 

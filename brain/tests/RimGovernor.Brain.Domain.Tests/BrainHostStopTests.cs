@@ -10,8 +10,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// Stopping a started host drains the worker, player and session, then closes the state database (#3305). The
 /// composition is the production one over a native facade that opens its frame stream and then never answers, so
-/// the run driver, session, player, worker and scheduler loop are all real.
+/// the run driver, session, player, worker and scheduler loop are all real. It opens an OTLP writer and its session
+/// replaces the runtime's static emitter, so it runs with the span writers, alone.
 /// </summary>
+[Collection(SpanWriters.Name)]
 public sealed class BrainHostStopTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -77,6 +79,8 @@ public sealed class BrainHostStopTests
         }
         finally
         {
+            // The host's session installed its own emitter under the runtime's static one: the tests' sink goes back.
+            RequiredFactSink.Install();
             try
             {
                 Directory.Delete(root, true);

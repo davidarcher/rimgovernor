@@ -56,7 +56,7 @@ public static partial class LayoutDeriveRules
     /// (derivePowerSites) are placed beside the rooms by the site embedding and stored with their wind lanes,
     /// and the tiler routes the conduit net to them; the outskirts are rooms of the chain itself. The advice is
     /// returned beside the plan for the caller to journal. Unknown when the survey holds no room for a core; the
-    /// failure is the chain's (StationFactsException for a fact the colony has not read and the chain needs).
+    /// failure is the chain's (RequiredFactException for a fact the colony has not read and the chain needs).
     /// </summary>
     public static (Fact<LayoutPlan> Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
     {
@@ -254,7 +254,7 @@ partial record LayoutPlan
     /// retired (RetiredGround) for clearance; the embedder's switching price (#2877) decides what moves. The
     /// rooms the tiler does not plan are laid over its plan as DeriveLayoutPlan lays them: the
     /// perimeter is traced around what the defense record holds of it (LayPerimeter). The failure is the
-    /// chain's or the tiler's (StationFactsException for a fact the colony has not read, TileException for a
+    /// chain's or the tiler's (RequiredFactException for a fact the colony has not read, TileException for a
     /// plan it cannot tile, ReplanEmptyException); the caller keeps the plan it has and journals the failure.
     /// </summary>
     public static (LayoutPlan Plan, StationAdvice Advice) ReplanLayout(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth)

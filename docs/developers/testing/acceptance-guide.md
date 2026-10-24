@@ -29,6 +29,12 @@ Every case follows these rules. Each one can be checked from the case declaratio
 
 A case that cannot satisfy rules 1–3 is deleted, not given an arbitrary tick-cap override.
 
+**A skipped planner fails every case.** A planner run the brain skipped because a fact it needs was not read
+writes a `required_fact` row ([OTEL signals](../contracts/otel-signals.md#kinds)). After the body, the shared
+runner reads the case's log slice (`<output>/otlp/logs.jsonl`) and fails the case naming each skipped planner and
+fact (`RequiredFactRows`), whatever the body asserted. Stage the fact; never assert around the skip. The xUnit
+tests fail the same way through their telemetry sink (`RequiredFactSink`).
+
 ### Production-horizon observations
 
 `ObservesHorizon` permits a staged case whose native claim requires observing a production-defined horizon:

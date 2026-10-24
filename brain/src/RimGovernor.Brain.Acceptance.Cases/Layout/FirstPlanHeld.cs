@@ -73,7 +73,7 @@ internal static class LayoutFirstPlanHeld
         }
 
         // The bed merge's heat and sleeper prices are required inputs (#3747): the plan recorded is the chain's advice
-        // once they are read, never one made over a skipped (facts_unknown) chain.
+        // once they are read, never one made over a skipped (required_fact) chain.
         if (Text(derive.Fields(), Decision.VerdictKey) != "advised")
         {
             throw new AcceptanceException($"the first plan's derive layout_stations row is {Text(derive.Fields(), Decision.VerdictKey)}/{Text(derive.Fields(), Decision.ReasonKey)}, not advised");

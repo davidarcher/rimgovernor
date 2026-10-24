@@ -69,7 +69,7 @@ public static partial class LayoutPowerDeriveRules
             }
             if (!QuestCapacityForecast.FinitePositive(lamp.PowerW) || !QuestCapacityForecast.FinitePositive(reach))
             {
-                throw LayoutStationPlanRules.UnknownStationFact("lamp");
+                throw new RequiredFactException("lamp");
             }
             demand += lamp.PowerW * Math.Ceiling(g.Area / (Math.PI * reach * reach));
         }
@@ -123,9 +123,9 @@ public static partial class LayoutPowerDeriveRules
         {
             if (SteelValue(f) is null)
             {
-                throw LayoutStationPlanRules.UnknownStationFact("steel value");
+                throw new RequiredFactException("steel value");
             }
-            throw LayoutStationPlanRules.UnknownStationFact("power supply");
+            throw new RequiredFactException("power supply");
         }
         var run = new SiteRun(input);
         foreach (var n in nodes)

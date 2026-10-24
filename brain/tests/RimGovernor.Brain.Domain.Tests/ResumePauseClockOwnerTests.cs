@@ -5,7 +5,6 @@ using RimGovernor.Brain.Host;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
-using RimGovernor.Brain.Telemetry;
 using Xunit;
 using ExecAuthority = RimGovernor.Brain.Executor.Authority;
 using JournalStore = RimGovernor.Brain.Store.Store;
@@ -154,7 +153,7 @@ public sealed class ResumePauseClockOwnerTests
             Session = new FakeSession(Holder);
             _player = Player.Create(new PlayerConfig(timeout, timeout), Journal, Session, new Worlds(), _lifetime.Token);
             var routes = new RouteTable();
-            var control = new HostPlayerControl(_player, Journal, new StepSupervisor(faultLimit: 5), new HostLog(new TelemetryEmitter(NullTelemetrySink.Instance), "player"));
+            var control = new HostPlayerControl(_player, Journal, new StepSupervisor(faultLimit: 5), new HostLog(RequiredFactSink.Emitter(), "player"));
             _ = PlayerRoutes.Register(routes, control, new Reader(Journal));
             _dispatcher = new Dispatcher(routes, 1 << 20);
         }

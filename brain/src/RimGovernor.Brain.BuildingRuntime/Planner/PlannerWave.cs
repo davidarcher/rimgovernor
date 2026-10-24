@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -83,6 +84,7 @@ internal sealed class PlannerWave : IDisposable
             using var runtime = Tel.RuntimeTags(span);
             var reason = default(Verdict);
             Exception? error = null;
+            RequiredFactException? unread = null;
             try
             {
                 await s.Config.Faults.PlannerFault(entry.Name, async () =>
@@ -94,6 +96,10 @@ internal sealed class PlannerWave : IDisposable
             {
                 reason = BuildingReasonExistingWork;
             }
+            catch (RequiredFactException e)
+            {
+                unread = e;
+            }
             catch (Exception e)
             {
                 error = e;
@@ -104,6 +110,16 @@ internal sealed class PlannerWave : IDisposable
             {
                 _took[entry.Name] = took;
                 late = _closed;
+            }
+            if (unread is not null)
+            {
+                // A fact the planner needs was not read (#3753 D3): its run is skipped with the error-level
+                // required_fact row instead of its planner_step row. Nothing of it is merged or filed and it is no
+                // failure; it runs again next step.
+                span?.SetTag("rimgovernor.verdict", RequiredFactTelemetry.Verdict);
+                span?.SetTag("rimgovernor.reason", RequiredFactTelemetry.Reason);
+                Tel.Decide(Scoped(Tallied(RequiredFactTelemetry.Skipped("clock-scheduler", entry.Name, unread.Fact) with { Dur = took }, reads.Tally)));
+                return;
             }
             var decision = Scoped(Tallied(StepDecision(entry, reason, error, took, late), reads.Tally));
             // A family's run files one planner_step row per NeedId, keyed by the NeedId as its concern, so explain

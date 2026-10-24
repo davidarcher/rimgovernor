@@ -161,8 +161,8 @@ public sealed partial class Rounder
         }
         switch (run.Error)
         {
-            case StationFactsException e:
-                Tel.Decide(decision with { Verdict = "skipped", Reason = "facts_unknown", Attrs = new Dictionary<string, object?> { ["fact"] = e.Message, ["adopted"] = waited } });
+            case RequiredFactException unread:
+                Tel.Decide(RequiredFactTelemetry.Skipped("layout", decision.Kind, unread.Fact) with { Dur = decision.Dur });
                 return false;
             case not null:
                 Tel.Decide(decision with { Level = TelemetryLevel.Warn, Verdict = "failed", Reason = "tile_error", Attrs = new Dictionary<string, object?> { ["error"] = run.Error.ToString(), ["adopted"] = waited } });

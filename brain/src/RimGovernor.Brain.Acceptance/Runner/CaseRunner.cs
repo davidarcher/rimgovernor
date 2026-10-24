@@ -156,6 +156,12 @@ public sealed class CaseRunner
             report["case_evidence_error"] = evidenceError;
         }
 
+        // A planner run skipped for an unread fact fails every case, whatever its body asserted (#3753 D3).
+        if (RequiredFactRows.Failure(ServiceLogs.ServiceLogsPath(output)) is { } unread)
+        {
+            error = error is null ? unread : new AcceptanceException(ErrorText(error) + "\n" + ErrorText(unread));
+        }
+
         if (error is not null)
         {
             report["error"] = ErrorText(error);

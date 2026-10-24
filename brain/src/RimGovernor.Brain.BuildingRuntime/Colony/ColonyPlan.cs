@@ -527,8 +527,8 @@ public sealed partial class Rounder
     /// <summary>
     /// Lays a fresh v2 plan over the survey and the reported geysers from the station chain and records it,
     /// reading the resource demand the review derived for <paramref name="demandWorld"/>. It returns what the first
-    /// plan holds the clock for: the fact the colony has not read (the layout_plan row is skipped/facts_unknown and
-    /// nothing is recorded), <see cref="LayoutPlanning.FirstPlanPending"/> when the plan was recorded, and empty when
+    /// plan holds the clock for: the fact the colony has not read (the chain's row is the required_fact row naming it
+    /// and nothing is recorded), <see cref="LayoutPlanning.FirstPlanPending"/> when the plan was recorded, and empty when
     /// the chain failed or the map holds no core (nothing is recorded and the next hourly review derives again).
     /// </summary>
     internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
@@ -557,8 +557,8 @@ public sealed partial class Rounder
         LayoutPlanning.LogConduits(advice);
         switch (error)
         {
-            case StationFactsException unread:
-                Tel.Decide(LayoutPlanning.LayoutPlanDecision("skipped", "facts_unknown", colonists, "", new Dictionary<string, object?> { ["fact"] = error.Message }));
+            case RequiredFactException unread:
+                // The chain's row above is the required_fact row naming it; nothing is recorded.
                 return unread.Fact;
             case not null:
                 Tel.Decide(LayoutPlanning.LayoutPlanDecision("failed", "chain_error", colonists, "", new Dictionary<string, object?> { ["error"] = error.ToString() }));

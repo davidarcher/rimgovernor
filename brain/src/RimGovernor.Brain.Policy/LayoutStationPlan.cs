@@ -5,18 +5,11 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>ErrStationFacts: advice that could not be assembled because a fact it reads is unknown; the message names the fact.</summary>
-public sealed class StationFactsException(string name) : DomainException("station facts unknown: " + name)
-{
-    /// <summary>The unknown fact, by name ("resource demand", "dining furniture"): what a held first plan waits for.</summary>
-    public string Fact { get; } = name;
-}
-
 /// <summary>
 /// What the advice reads, each part from the model that owns it: the catalog rows (Catalog, Furniture, Dining, Items,
 /// Recipes, StackLimit, Perishable), the population censuses, the colonists' food census, the work ledger's orders,
 /// the resource demand and the saved plan with the survey it was grown over. Unknown facts are never zero: a fact the
-/// colony has not read fails the advice with StationFactsException.
+/// colony has not read fails the advice with RequiredFactException.
 /// </summary>
 public sealed record StationFacts
 {
@@ -204,26 +197,26 @@ public sealed record StationFacts
     internal IReadOnlyList<RoomNode> RoomNodes() =>
         [.. LayoutPlan.OutskirtsRoomNodes(Plan, Demand), .. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens)];
 
-    /// <summary>Assembles the graph's input, or throws a StationFactsException naming the unknown fact.</summary>
+    /// <summary>Assembles the graph's input, or throws a RequiredFactException naming the unknown fact.</summary>
     public StationGraphInput GraphInput()
     {
         var population = LayoutStationPlanRules.StationPopulationOf(this);
         if (!Food.TryGetValue(out var supply))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("food census");
+            throw new RequiredFactException("food census");
         }
         var (nutrition, nutritionOk) = LayoutStationPlanRules.HumanNutritionPerDay(supply);
         if (!nutritionOk)
         {
-            throw LayoutStationPlanRules.UnknownStationFact("nutrition per day");
+            throw new RequiredFactException("nutrition per day");
         }
         if (!Orders.TryGetValue(out var orders))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("work ledger orders");
+            throw new RequiredFactException("work ledger orders");
         }
         if (!Stock.TryGetValue(out var stock))
         {
-            throw LayoutStationPlanRules.UnknownStationFact("resource demand");
+            throw new RequiredFactException("resource demand");
         }
         var seed = SeedRoomsOf();
         var (stands, markers) = TrainingAsk();
@@ -301,7 +294,7 @@ public sealed record StationFacts
             parts.Add(new("pasture", KeyText.Of(input.Pasture)));
             parts.Add(new("barracks", BarracksKey(input)));
         }
-        catch (StationFactsException e)
+        catch (RequiredFactException e)
         {
             parts.Add(new("graph", e.Message));
         }
@@ -468,9 +461,6 @@ public sealed record GroupRooms(int Group, IReadOnlyList<int> Rooms, int Capacit
 /// <summary>The station chain over the live colony. The colony is read into StationFacts, the chain (BuildStationGraph, ClusterStations, Embed) runs over it, and each group is matched to the rooms already built for its predicted role.</summary>
 public static partial class LayoutStationPlanRules
 {
-    /// <summary>Names the unknown fact an advice could not be assembled for.</summary>
-    internal static StationFactsException UnknownStationFact(string name) => new(name);
-
     /// <summary>The market value of the steel a site is priced in, 0 while unknown.</summary>
     internal static double SteelValueOrZero(StationFacts f)
     {
@@ -495,15 +485,15 @@ public static partial class LayoutStationPlanRules
         var (ill, ok) = HospitalRules.IllPatients(f.Patients, f.Surgical);
         if (!ok)
         {
-            throw UnknownStationFact("patients");
+            throw new RequiredFactException("patients");
         }
         if (!f.Prisoners.TryGetValue(out var prisoners))
         {
-            throw UnknownStationFact("prisoners");
+            throw new RequiredFactException("prisoners");
         }
         if (!f.WorkPawns.TryGetValue(out var pawns))
         {
-            throw UnknownStationFact("pawn stages");
+            throw new RequiredFactException("pawn stages");
         }
         var babies = BabyCount(pawns);
         return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies, NurseryFloor(f)), Herds = f.Herds };
@@ -583,17 +573,17 @@ public static partial class LayoutStationPlanRules
     {
         if (f.Built is null)
         {
-            throw UnknownStationFact("construction census");
+            throw new RequiredFactException("construction census");
         }
         // Nothing is guessed for a fact left unread: the advice fails naming it.
         var input = f.GraphInput();
         if (string.IsNullOrEmpty(f.Dining.Table.Def))
         {
-            throw UnknownStationFact("dining furniture");
+            throw new RequiredFactException("dining furniture");
         }
         if (f.Derive && f.RoofDistance <= 0)
         {
-            throw UnknownStationFact("roof support distance");
+            throw new RequiredFactException("roof support distance");
         }
         var graph = StationGraph.BuildStationGraph(input);
         var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!);

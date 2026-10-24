@@ -209,7 +209,7 @@ internal static class StationAdviceLog
         },
     };
 
-    /// <summary>Runs the chain over <paramref name="facts"/> (when they were read, <paramref name="error"/> null) and is the layout_stations row of the outcome: advised, skipped for an unknown fact, or failed. The advice is returned when it was made.</summary>
+    /// <summary>Runs the chain over <paramref name="facts"/> (when they were read, <paramref name="error"/> null) and is the layout_stations row of the outcome: advised or failed, or the required_fact row for an unread fact. The advice is returned when it was made.</summary>
     public static (Decision Row, StationAdvice Advice, bool Ok) StationDecision(StationFacts facts, Exception? error)
     {
         var advice = new StationAdvice();
@@ -227,16 +227,14 @@ internal static class StationAdviceLog
         return StationOutcome(advice, error);
     }
 
-    /// <summary>The layout_stations row of advice made (or <paramref name="error"/>, the chain's).</summary>
+    /// <summary>The layout_stations row of advice made (or <paramref name="error"/>, the chain's); an unread fact is the shared required_fact row (target layout_stations).</summary>
     public static (Decision Row, StationAdvice Advice, bool Ok) StationOutcome(StationAdvice advice, Exception? error)
     {
         var decision = new Decision { Kind = TelemetryKinds.LayoutStationsKind, Component = "layout", Target = "plan" };
         switch (error)
         {
-            case StationFactsException:
-                decision = decision with { Verdict = "skipped" };
-                decision = decision with { Reason = "facts_unknown" };
-                decision = decision with { Attrs = new Dictionary<string, object?> { ["fact"] = error.Message } };
+            case RequiredFactException unread:
+                decision = RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, unread.Fact);
                 break;
             case not null:
                 decision = decision with { Level = TelemetryLevel.Warn };

@@ -149,7 +149,7 @@ public sealed class BedMergePriceTests
     public void AnUnreadPriceFactFailsTheClusteringNamingIt()
     {
         // The heat, the work-day, the sleepers' moods and the shell are required on every map (#3747): no plan on a guess.
-        StationFactsException Fails(BedMergePrice price) => Assert.Throws<StationFactsException>(() => LayoutClusterRules.ClusterStations(Input(4, price)));
+        RequiredFactException Fails(BedMergePrice price) => Assert.Throws<RequiredFactException>(() => LayoutClusterRules.ClusterStations(Input(4, price)));
 
         Assert.Equal("outdoor_curve", Fails(Price(Wood(Calm), null)).Fact);
         Assert.Equal("work_day", Fails(Price(Wood(Calm), Temperate) with { WorkDayW = default }).Fact);
@@ -323,10 +323,10 @@ public sealed class BedMergePriceTests
         Assert.StartsWith("6;", Key(f));
         Assert.Equal(3, Key(f).TrimEnd(';').Split(';').Length);
         // The outdoor curve unread on this cold map (#3747): no size is keyed, and the chain fails naming the curve, so
-        // the replan is skipped as facts_unknown and the next hourly check tries again.
+        // the replan is skipped with the required_fact row and the next hourly check tries again.
         var unread = f with { OutdoorCurve = default };
         Assert.NotEqual(Key(f), Key(unread));
-        Assert.Equal("outdoor_curve", Assert.Throws<StationFactsException>(() => LayoutStationPlanRules.AdviseStations(unread)).Fact);
+        Assert.Equal("outdoor_curve", Assert.Throws<RequiredFactException>(() => LayoutStationPlanRules.AdviseStations(unread)).Fact);
     }
 
     [Fact]
