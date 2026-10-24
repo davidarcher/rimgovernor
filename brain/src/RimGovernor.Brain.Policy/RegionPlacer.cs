@@ -87,6 +87,9 @@ public static partial class RegionRules
 {
     private static readonly Rotation[] AllRotations = [Rotation.North, Rotation.East, Rotation.South, Rotation.West];
 
+    /// <summary>The rotations of the turned pass (PlaceOnFloor): each of AllRotations turned half round.</summary>
+    private static readonly Rotation[] TurnedRotations = [Rotation.South, Rotation.West, Rotation.North, Rotation.East];
+
     private static IEnumerable<Cell> FourNeighbours(Cell c)
     {
         yield return new Cell(c.X + 1, c.Z);
@@ -345,8 +348,10 @@ public static partial class RegionRules
     /// Fits furniture into any region: pieces stay on region cells, keep every door threshold clear, give each
     /// interaction cell open floor, and leave all floor that was reachable from the doors still reachable. The
     /// result is deterministic: wants in order, wall-touching anchors before open floor, rotations North, East,
-    /// South, West, then row-major corners. Pieces carry world footprints. It throws when a want places fewer
-    /// than its Min.
+    /// South, West, then row-major corners. When that seats too few, the same greedy turned half round (rotations
+    /// South, West, North, East, then corners from the far end) is tried: a room whose doors stand on its far side
+    /// is filled from the side away from them, as the first pass fills a room with doors on its near side (#3746).
+    /// Pieces carry world footprints. It throws, with the first pass's refusal, when both place fewer than a want's Min.
     /// </summary>
     public static List<InteriorPiece> PlaceInRegion(RegionPlacement req)
     {
@@ -356,8 +361,21 @@ public static partial class RegionRules
         }
         var (floor, seats) = SplitSeats(req.Wants);
         req = req with { Wants = EquatableArray.From(floor) };
-        var output = PlaceOnFloor(req);
-        return SeatAll(req.Region, output, seats);
+        try
+        {
+            return SeatAll(req.Region, PlaceOnFloor(req, false), seats);
+        }
+        catch (DomainException first)
+        {
+            try
+            {
+                return SeatAll(req.Region, PlaceOnFloor(req, true), seats);
+            }
+            catch (DomainException)
+            {
+                throw first;
+            }
+        }
     }
 
     /// <summary>Adds the seat wants' pieces after the floor's, throwing when a want seats fewer than its Min.</summary>
@@ -376,8 +394,8 @@ public static partial class RegionRules
         return output;
     }
 
-    /// <summary>The greedy placement of the wants that take floor.</summary>
-    internal static List<InteriorPiece> PlaceOnFloor(RegionPlacement req)
+    /// <summary>The greedy placement of the wants that take floor; turned scans the rotations and corners from the other end.</summary>
+    internal static List<InteriorPiece> PlaceOnFloor(RegionPlacement req, bool turned)
     {
         var g = req.Region;
         if (g.Empty())
@@ -404,7 +422,11 @@ public static partial class RegionRules
         {
             throw new DomainException("place in region: no door opens into the region");
         }
-        var cells = g.Cells();
+        IReadOnlyList<Cell> cells = g.Cells();
+        if (turned)
+        {
+            cells = [.. cells.Reverse()];
+        }
         var keep = new HashSet<Cell>(thresholds);
         var output = new List<InteriorPiece>();
         foreach (var w in req.Wants)
@@ -412,7 +434,7 @@ public static partial class RegionRules
             var placed = 0;
             while (placed < w.Count)
             {
-                var (piece, ok) = NextRegionPiece(g, cells, blocked, keep, thresholds, output, req.Wants, w, w.SlotName(placed), placed < w.Min);
+                var (piece, ok) = NextRegionPiece(g, cells, blocked, keep, thresholds, output, req.Wants, w, w.SlotName(placed), placed < w.Min, turned ? TurnedRotations : AllRotations);
                 if (!ok)
                 {
                     break;
@@ -446,7 +468,8 @@ public static partial class RegionRules
         IReadOnlyList<RegionWant> wants,
         RegionWant w,
         string slot,
-        bool required)
+        bool required,
+        IReadOnlyList<Rotation>? rotations = null)
     {
         var before = RegionReach(g, blocked, thresholds);
         if (w.Open)
@@ -472,7 +495,7 @@ public static partial class RegionRules
                 {
                     break;
                 }
-                foreach (var rot in AllRotations)
+                foreach (var rot in rotations ?? AllRotations)
                 {
                     foreach (var corner in cells)
                     {

@@ -415,6 +415,7 @@ internal static class StationAdviceLog
                 ["edge"] = s.Edge,
                 ["centre"] = s.Centre,
                 ["walk"] = s.Walk,
+                ["enclosure"] = s.Enclosure,
                 ["unmet_links"] = s.UnmetLinks,
                 ["switch"] = s.Switch,
                 ["built"] = built,

@@ -7,8 +7,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// Replan hysteresis for unbuilt rooms (#3740, D1 of #3738): the temperate first plan of three colonists (bedrooms,
 /// lab, circulation and yard), nothing built, replanned. Over the same facts every room keeps its site and id. A
 /// barren patch (soil that costs nothing to build on) that gives the yard a site more than ReplanGain better moves the
-/// yard alone, under a new id; one that gives the lab a site less than ReplanGain better moves nothing. A role that
-/// left the demand still leaves, and a new one still gets a room, while the rest is kept.
+/// yard, under a new id, and at most a room that comes to share its wall; one that gives the lab a site less than
+/// ReplanGain better moves nothing. A role that left the demand still leaves, and the base closes the hole it leaves
+/// when that saves more than ReplanGain of walls; a new one still gets a room while the rest is kept.
 /// </summary>
 public sealed class ReplanHysteresisTests
 {
@@ -43,7 +44,7 @@ public sealed class ReplanHysteresisTests
     }
 
     [Fact]
-    public void ASiteBetterByMoreThanReplanGainMovesOnlyThatRoom()
+    public void ASiteBetterByMoreThanReplanGainMovesThatRoomAndOnlyARoomThatJoinsItsWall()
     {
         var f = Facts();
         var first = FirstRoomPlanTests.Derive(f);
@@ -64,10 +65,18 @@ public sealed class ReplanHysteresisTests
         kept.Remove(yard.Id);
         var after = Sites(next);
         after.Remove(moved.Id);
-        Assert.Equal(kept, after);
+        // Every other room keeps its site and id, save one the replan stands against the moved yard's wall: the
+        // enclosure is in the objective (#3746), so the room that shares the yard's wall saves the walls it would
+        // otherwise need.
+        var gone = kept.Keys.Where(id => !after.ContainsKey(id)).ToList();
+        var come = after.Where(a => !kept.ContainsKey(a.Key)).ToList();
+        Assert.True(gone.Count <= 1, $"{gone.Count} rooms moved besides the yard");
+        Assert.Equal(gone.Count, come.Count);
+        Assert.All(come, a => Assert.Equal(1, LayoutEmbedRules.GapDist(a.Value, moved.Region.Bounds())));
+        Assert.All(kept.Where(k => after.ContainsKey(k.Key)), k => Assert.Equal(k.Value, after[k.Key]));
         var diff = LayoutPlan.DiffReplanTile(first, new HashSet<int>(), advice);
         Assert.Equal(LayoutReplanTiledRules.IdNew, diff.Rooms.Single(d => d.Room == yard.Id).Identity);
-        Assert.All(diff.Rooms.Where(d => d.Room != yard.Id), d => Assert.Equal(LayoutReplanTiledRules.IdKept, d.Identity));
+        Assert.All(diff.Rooms.Where(d => d.Room != yard.Id && !gone.Contains(d.Room)), d => Assert.Equal(LayoutReplanTiledRules.IdKept, d.Identity));
     }
 
     [Fact]
@@ -89,7 +98,7 @@ public sealed class ReplanHysteresisTests
     }
 
     [Fact]
-    public void ARoleThatLeftTheDemandIsRetiredWhileTheRestIsKept()
+    public void ARoleThatLeftTheDemandIsRetiredAndTheBaseClosesTheHoleItLeaves()
     {
         var f = Facts();
         var first = FirstRoomPlanTests.Derive(f with { GoalBuild = new GoalBuildDemand { HospitalBeds = 1 } });
@@ -97,10 +106,13 @@ public sealed class ReplanHysteresisTests
 
         var (next, advice) = Replan(first, f);
 
-        Assert.Equal(LayoutEmbedRules.ReplanKept, advice.Embedding.Replan!.Verdict);
         Assert.DoesNotContain(next.Rooms, r => r.Id == hospital.Id);
         Assert.Empty(next.RoomsOf(PlannedRole.Hospital));
-        AssertKept(first, next, PlannedRole.Lab, PlannedRole.Yard);
+        // The held rooms stand around the hospital's empty site; the enclosure is in the objective (#3746), so the
+        // new embedding, which closes up the base, saves more than ReplanGain of walls and replaces them.
+        var replan = advice.Embedding.Replan!;
+        Assert.Equal((LayoutEmbedRules.ReplanReplaced, LayoutEmbedRules.ReasonReplanGainAbove), (replan.Verdict, replan.Reason));
+        Assert.True(replan.Held - replan.Tiled >= PlanWeights.ReplanGain);
     }
 
     [Fact]

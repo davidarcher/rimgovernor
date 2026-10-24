@@ -464,6 +464,7 @@ internal sealed partial class Tiler(TileInput input)
         // its role faces outdoors (ExteriorRoles).
         ChooseLinks(true);
         ChooseLinks(false);
+        ChooseCuttingLinks();
         ChooseExteriors(scorer);
         JoinSealed();
         KeepRoutes();
@@ -534,6 +535,17 @@ internal sealed partial class Tiler(TileInput input)
         var run = Adj[k];
         var middle = run[(run.Count - 1) / 2];
         bool Fits(Cell c) => Furnishes(k.Item1, [.. DoorsOf(k.Item1), c]) && Furnishes(k.Item2, [.. DoorsOf(k.Item2), c]);
+        if (Standing.Contains(k.Item1) || Standing.Contains(k.Item2))
+        {
+            // A standing door in the shared wall serves the link: any other cell would cut the standing wall (#3680, #3746).
+            foreach (var c in run)
+            {
+                if (In.StandingDoors.Contains(c))
+                {
+                    return (c, Fits(c));
+                }
+            }
+        }
         if (Fits(middle))
         {
             return (middle, true);
@@ -578,19 +590,52 @@ internal sealed partial class Tiler(TileInput input)
                 continue;
             }
             var (cell, fits) = PickLink(k);
+            if (required && CorridorLink(k) && CutsStanding(k, cell))
+            {
+                Cutting.Add(k); // after the doors its standing doors give, which may already reach the corridor
+                continue;
+            }
             if (!required && (Weight.GetValueOrDefault(k) <= 0 || Find(k.Item1) == Find(k.Item2) || !fits || SleepersUseCirculation(k) || CutsStanding(k, cell)))
             {
                 continue;
             }
-            Links[k] = cell;
-            Parent[Find(k.Item1)] = Find(k.Item2);
-            Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileLinkDoor);
+            OpenLink(k, cell);
         }
     }
 
+    /// <summary>The required corridor pairs whose door would cut a standing wall, opened last (ChooseCuttingLinks).</summary>
+    internal List<(int, int)> Cutting { get; } = [];
+
     /// <summary>
-    /// A flow door at cell of pair k would cut a standing room's wall where its shell holds no door (#3680): the room
-    /// would no longer stand as planned until the wall came down, so the next replan re-sites it as unbuilt.
+    /// Opens each required corridor door that cuts a standing room's wall (#3746), after every other link door: a
+    /// standing room its standing doors already join to the corridor keeps its wall.
+    /// </summary>
+    internal void ChooseCuttingLinks()
+    {
+        foreach (var k in Cutting)
+        {
+            if (Find(k.Item1) != Find(k.Item2))
+            {
+                OpenLink(k, PickLink(k).Cell);
+            }
+        }
+    }
+
+    private void OpenLink((int, int) k, Cell cell)
+    {
+        Links[k] = cell;
+        Parent[Find(k.Item1)] = Find(k.Item2);
+        Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileLinkDoor);
+    }
+
+    /// <summary>Whether pair k joins a room to circulation.</summary>
+    internal bool CorridorLink((int, int) k) =>
+        Plan.Rooms[k.Item1].Role == PlannedRole.Circulation || Plan.Rooms[k.Item2].Role == PlannedRole.Circulation;
+
+    /// <summary>
+    /// A door at cell of pair k would cut a standing room's wall where its shell holds no door (#3680): the room
+    /// would no longer stand as planned until the wall came down, so the next replan re-sites it as unbuilt. A flow
+    /// door is not opened so; a required corridor door only when the standing doors do not already reach the corridor.
     /// </summary>
     internal bool CutsStanding((int, int) k, Cell cell) =>
         (Standing.Contains(k.Item1) || Standing.Contains(k.Item2)) && !In.StandingDoors.Contains(cell);
@@ -663,6 +708,11 @@ internal sealed partial class Tiler(TileInput input)
             cands.Add((new Cell(rc.X - 1, z), new Cell(rc.X - 2, z)));
             cands.Add((new Cell(rc.X + rc.Width, z), new Cell(rc.X + rc.Width + 1, z)));
         }
+        // A standing room keeps the door it stands with while its outside is open (#3680): open ground, or the floor of
+        // an unfenced room placed against it (#3746), which every pawn crosses as open ground.
+        var at = Standing.Contains(i) ? cands.FindIndex(c => In.StandingDoors.Contains(c.Door) && (Free.Contains(c.Out) || OnOpenFloor(c.Out))) : -1;
+        var holds = at >= 0;
+        var standing = holds ? cands[at] : default;
         cands.RemoveAll(c => !Free.Contains(c.Out));
         cands.Sort((a, b) =>
         {
@@ -674,21 +724,22 @@ internal sealed partial class Tiler(TileInput input)
             }
             return CombatManhunterRules.CellLess(a.Door, b.Door) ? -1 : CombatManhunterRules.CellLess(b.Door, a.Door) ? 1 : 0;
         });
-        if (cands.Count == 0 || Open(i))
+        if ((cands.Count == 0 && !holds) || Open(i))
         {
             return false;
         }
 
         // The placer is the judge of a door: each door keeps its threshold clear, so the first door, nearest the
-        // middle, that leaves the group's stations a place is taken, else the nearest. A standing room keeps the
-        // door it stands with while its outside is open (#3680): a door moved off the plan's cell unbuilds the room.
-        var pick = cands[0];
-        var held = Standing.Contains(i) ? cands.FindIndex(c => In.StandingDoors.Contains(c.Door)) : -1;
-        if (held >= 0)
+        // middle, that leaves the group's stations a place is taken, else the nearest. A standing room keeps its
+        // standing door (above): a door moved off the plan's cell unbuilds the room.
+        if (!holds && Standing.Contains(i) && links.Any(In.StandingDoors.Contains))
         {
-            pick = cands[held];
+            // Its standing door is a link door now (a room placed against it, #3746): the room is reached through it,
+            // and a new exterior door would cut its standing wall (#3680).
+            return false;
         }
-        else
+        var pick = holds ? standing : cands[0];
+        if (!holds)
         {
             foreach (var c in cands)
             {
@@ -703,6 +754,20 @@ internal sealed partial class Tiler(TileInput input)
         ExtOut[i] = pick.Out;
         Note(r.Group, -1, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileExteriorDoor);
         return true;
+    }
+
+    /// <summary>Whether cell c is the floor of an unfenced room.</summary>
+    internal bool OnOpenFloor(Cell c)
+    {
+        for (var j = 0; j < Rooms.Count; j++)
+        {
+            var r = Rooms[j].Rect;
+            if (Open(j) && c.X >= r.X && c.Z >= r.Z && c.X < r.X + r.Width && c.Z < r.Z + r.Height)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>The link doors of room i.</summary>

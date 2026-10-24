@@ -226,7 +226,13 @@ Hot and NextRoomID.
   its shell holds while that door's outside is open ground, and no flow link door
   cuts its ring where its shell holds no door (#3680, `TileInput.StandingDoors`): a
   new door there would leave the room unbuilt until the wall came down, so the next
-  replan would re-site it.
+  replan would re-site it. Compact layouts put rooms against standing walls (#3746), so
+  the rule reaches further: the floor of an unfenced room (a yard) placed against a
+  standing door counts as open ground for that door (`OnOpenFloor`); a standing room
+  whose standing door has become a link door gets no new exterior door; a link door in a
+  wall that holds a standing door takes it; and a required corridor door that would cut
+  a standing wall is opened last (`ChooseCuttingLinks`), only when the standing doors
+  have not already joined the room to the corridor.
   A room packed in with no door onto the ground is joined through a neighbour. Each
   tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
   group, not its role: `Cold` (a cooled room: door temperature equalization leaks the
@@ -247,7 +253,10 @@ Hot and NextRoomID.
   `routeTrips` role-pair table. A group's area
   counts the exterior door and one door threshold per required link
   (`RoomGroup.AddRequiredDoors`); flow link doors open only where the placer still
-  furnishes both rooms. A room the placer cannot furnish behind its final doors is never
+  furnishes both rooms. The placer (`PlaceInRegion`) is a greedy pass over rotations and
+  row-major corners; when it seats too few it tries the same pass turned half round, so a
+  room with its doors on the far side furnishes as its mirror does (#3746). A room the
+  placer cannot furnish behind its final doors is never
   built bare: it is dropped (`dropped`/`tile_unfit`, naming the group and the placer's
   refusal) and the other rooms are tiled again without it; its group stays in `Owed`, so
   the next replan tries it again. A standing room is already built and stays pinned
@@ -473,13 +482,18 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   (`RoomNode.Flows`, priced in the embedding as any link is) and, for a room no flow
   reaches, the enclosure it adds to the base. The repo has no corpse or waste volume
   model, so these rooms carry no flow yet: they are unpriced by distance, never forced
-  near or far and never guessed. An unpriced room (`embedder.unpriced`: no link of
-  positive weight) is placed by the cell
+  near or far and never guessed. Such a room is placed by the cell
   terms (soil, edge, centre) plus the marginal Wall and Footprint of the plan score
-  (`enclosureCost`, `LayoutEmbedEnclosure.cs`, `planWeights`, no new constant): the base
+  (`enclosureCost`, `LayoutEmbedEnclosure.cs`, `planWeights`, no new constant), which
+  every room pays, linked or not (#3746): the base
   pays a wall ring for its size, so a room standing apart pays a ring of its own and one
-  beside the rest shares theirs. The ring is read off rectangles (blocks grown by the
-  killbox yard and `perimeterThick`, only on ground a wall can stand on) and ignores
+  beside the rest shares theirs. `EmbedScore.Enclosure` is the rooms' union ring and
+  footprint, `-(Wall x ring cells + Footprint x cells)`, and is part of `Total`, so the
+  embedding, the regroup (`EmbedPts`) and the replan hysteresis (#3740) price the same
+  thing; no saved-walls credit is kept beside it.
+  The ring is read off rectangles (blocks grown by the
+  killbox yard and `perimeterThick`; a ring cell off the map counts one, as
+  `Prefix.SumOpen` reads it) and ignores
   closing, hole filling and shoreline detours, which the plan's own score still prices.
   The morgue is cold, so it
   carries the cooler any cold group carries. Wind is not a constraint: it has no game effect here.

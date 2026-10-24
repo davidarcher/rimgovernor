@@ -206,7 +206,10 @@ edge and centre terms per cell (prefix sums, so pricing a block is O(1)),
 `planWeights` for every weight and the seeded `searchRand`. The walking term is
 `Walk x link weight x (gap - 1)` with the cluster's summed flow weights, so
 adjacent (sharing a wall) is free; a required link not adjacent costs
-`BadRoutes` and is reported. Each seed builds a Prim-like greedy start (heaviest
+`BadRoutes` and is reported. Every room also pays the base wall ring and footprint
+it adds (`enclosureCost`), so sharing walls is priced. Two rooms stand at gap 1 (a
+shared wall) or at least 3 (room for a corridor), never side by side two cells apart, a double wall (`AtDeadGap`, #3746; corner to corner at gap 2 shares the corner wall and stands);
+fields keep their own gap. Each seed builds a Prim-like greedy start (heaviest
 group, then the group with most weight to what is placed, on the smallest ring
 beside its neighbours) and a local search of `siteSearchIters` moves per block
 (beside a linked block, beside any block, a random core cell, a swap) keeps
@@ -230,6 +233,9 @@ room stands on rich soil and a position has less (`embed_built_moved_bad_ground`
 no price). Bad ground first, then the larger margin; the rest wait
 (`embed_built_one_rebuild_at_a_time`); a pinned room (`TilePinned`) is priced like any built room, and a rebuild in flight
 (`EmbedInput.InFlight`: a successor pending, or a pinned room not yet standing) holds all (`embed_built_in_flight`).
+An obstacle level with no core keeps the standing rooms where they stand but leaves a group that outgrew its room
+unplaced (the relocation that would give it a new block needs core), and its run is priced like any other (`Obj`,
+unmet links), so a looser level with core is weighed against it rather than losing to an unpriced zero (#3746).
 A moved block carries `Replaces`, a kept one `Built`; the tiler keeps the standing
 room's id (`tile_room_built`) and sites the mover as a successor
 (`tile_room_successor`). Retired ground not yet cleared takes no new block.

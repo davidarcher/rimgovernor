@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Policy;
 //   sum_b  cells(b) x [Soil x soilCost + Rock x rock + Centre] + padded(b) x Edge
 //   sum_l  Walk x weight(l) x (gap(i, j) - 1)       gap 1 = sharing a wall
 //   sum_l  BadRoutes                                 per required link not adjacent
-//   sum_u  Wall x wall cells + Footprint x cells     the enclosure a room no flow links adds (enclosureCost, #2987)
+//   sum_r  Wall x wall cells + Footprint x cells     the enclosure each room adds (enclosureCost, #2987, #3746)
 //
 // The link weight is the clustering's summed flow weight (movements a day), so the walking term is the same
 // trip-weighted distance PlanScore.Walk prices, with the station graph's flows instead of the role trips. Every
@@ -19,7 +19,8 @@ namespace RimGovernor.Brain.Policy;
 //
 // Heuristic. The graph is built like Prim's tree: the heaviest group first at the nearest fit to a siting seed,
 // then always the group with the most weight to what is placed (required links first), put at the best fitting
-// position on the smallest ring around its placed neighbours that has one. That gives a compact, flow-ordered
+// position on the smallest ring around its placed neighbours that has one. No room stands at gap 2 from another
+// room (one cell no wall shares and no corridor fits); a field keeps its own gap. That gives a compact, flow-ordered
 // start. A seeded local search then lifts one block at a time and puts it back beside a linked block, beside
 // any block, or at a random core cell, or swaps two blocks, keeping only strict gains. The best start wins, so
 // the result never scores below the greedy start of its best seed.
@@ -143,11 +144,19 @@ public sealed record EmbedScore
     /// <summary>The interior area placed.</summary>
     public int Cells { get; set; }
 
+    /// <summary>
+    /// The base enclosure the rooms need, negative: Wall per wall ring cell of their union and Footprint per cell
+    /// that ring encloses (enclosureCost, #3746). Rooms that share walls share ring cells, so it records the walls
+    /// they save; it is the measure the placement prices, so the regroup comparing groupings by Total prices the
+    /// same thing, and a split room pays the walls it adds.
+    /// </summary>
+    public int Enclosure { get; set; }
+
     /// <summary>The cell terms alone: soil, edge, centre.</summary>
     public int SiteTerms() => Soil + Edge + Centre;
 
     /// <summary>The sum of the terms and the required-link charges.</summary>
-    public int Total() => Soil + Edge + Centre + Walk + Switch - (PlanWeights.BadRoutes * UnmetLinks);
+    public int Total() => Soil + Edge + Centre + Walk + Switch + Enclosure - (PlanWeights.BadRoutes * UnmetLinks);
 }
 
 /// <summary>The coarse placement.</summary>
@@ -228,6 +237,13 @@ internal sealed class Prefix
     }
 
     public bool Inside(Rectangle r) => r.X >= 0 && r.Z >= 0 && r.X + r.Width <= W && r.Z + r.Height <= H;
+
+    /// <summary>The total over r, every cell of r off the map counting 1.</summary>
+    public long SumOpen(Rectangle r)
+    {
+        var on = LayoutPerimeterRules.ClipRect(r, new Rectangle(0, 0, W, H));
+        return Sum(on) + ((long)r.Width * r.Height) - ((long)on.Width * on.Height);
+    }
 }
 
 /// <summary>
@@ -385,6 +401,9 @@ internal sealed partial class Embedder : EmbedFixed
 
     internal IReadOnlyList<int> HomeRoom => _homeRoom;
 
+    /// <summary>Whether group i's standing room is smaller than it needs and may be replaced now (Relocate's grown move).</summary>
+    internal bool Grown(int i) => _home[i].Width > 0 && _outgrown[i] && !_inFlight;
+
     internal IReadOnlyList<HeldRoom> Held => _held;
 
     internal Prefix Level => _level;
@@ -410,7 +429,13 @@ internal sealed partial class Embedder : EmbedFixed
         }
         for (var j = 0; j < blocks.Count; j++)
         {
-            if (j != i && blocks[j].Width > 0 && LayoutEmbedRules.Collides(r, blocks[j]))
+            if (j == i || blocks[j].Width == 0)
+            {
+                continue;
+            }
+            // Two rooms share a wall (gap 1) or leave room for a corridor (gap 3 or more): side by side at gap 2 (AtDeadGap) the cell
+            // between them is neither (#3746). A field keeps its own rule.
+            if (LayoutEmbedRules.Collides(r, blocks[j]) || (!IsField(i) && !IsField(j) && LayoutEmbedRules.AtDeadGap(r, blocks[j])))
             {
                 return false;
             }
@@ -422,15 +447,8 @@ internal sealed partial class Embedder : EmbedFixed
     public double BlockCost(int i, Rectangle r, IReadOnlyList<Rectangle> blocks) =>
         BlockCostWith(i, r, blocks, EnclosureFor(i, blocks));
 
-    /// <summary>The enclosureSet group i is priced against, null when the group is not priced by enclosure.</summary>
-    public EnclosureSet? EnclosureFor(int i, IReadOnlyList<Rectangle> blocks)
-    {
-        if (IsField(i) || !Unpriced(i))
-        {
-            return null;
-        }
-        return EnclosureRects(i, blocks);
-    }
+    /// <summary>The enclosureSet room group i is priced against (every room shares walls, #3746), null for a field.</summary>
+    public EnclosureSet? EnclosureFor(int i, IReadOnlyList<Rectangle> blocks) => IsField(i) ? null : EnclosureRects(i, blocks);
 
     /// <summary>BlockCost with the enclosureSet EnclosureFor built, for a loop over candidates against fixed blocks.</summary>
     public double BlockCostWith(int i, Rectangle r, IReadOnlyList<Rectangle> blocks, EnclosureSet? enc)
@@ -755,9 +773,9 @@ internal sealed partial class Embedder : EmbedFixed
                         continue;
                     }
                     var oldJ = blocks[j];
-                    var before = BlockCost(i, old, blocks) + BlockCost(j, oldJ, blocks);
                     blocks[i] = default;
                     blocks[j] = default;
+                    var before = PairCost(i, old, j, oldJ, blocks);
                     var (ri, okI) = PlaceAt(i, blocks, oldJ);
                     if (okI)
                     {
@@ -766,9 +784,11 @@ internal sealed partial class Embedder : EmbedFixed
                     var (rj, okJ) = PlaceAt(j, blocks, old);
                     if (okI && okJ)
                     {
-                        blocks[j] = rj;
-                        if (BlockCost(i, ri, blocks) + BlockCost(j, rj, blocks) < before)
+                        blocks[i] = default;
+                        if (PairCost(i, ri, j, rj, blocks) < before)
                         {
+                            blocks[i] = ri;
+                            blocks[j] = rj;
                             continue;
                         }
                     }
@@ -778,6 +798,19 @@ internal sealed partial class Embedder : EmbedFixed
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The objective's share of groups i at ri and j at rj, with neither in blocks: i against the rest, then j against
+    /// the rest and i, so the link between them and the walls they share count once, as in Objective.
+    /// </summary>
+    private double PairCost(int i, Rectangle ri, int j, Rectangle rj, Rectangle[] blocks)
+    {
+        var c = BlockCost(i, ri, blocks);
+        blocks[i] = ri;
+        c += BlockCost(j, rj, blocks);
+        blocks[i] = default;
+        return c;
     }
 
     /// <summary>Group i's block with its top-left at at's, in the first shape that fits.</summary>
@@ -816,7 +849,7 @@ internal sealed partial class Embedder : EmbedFixed
             {
                 continue;
             }
-            total += BlockCost(i, r, blocks);
+            total += BlockCostWith(i, r, blocks, null);
             // BlockCost counts each link from both ends; the pair is one cost.
             foreach (var l in _groups[i].Links)
             {
@@ -827,7 +860,9 @@ internal sealed partial class Embedder : EmbedFixed
                 }
             }
         }
-        return total;
+        // The enclosure is the ring of the rooms' union, once: each block's marginal against all the others would
+        // count a shared wall as saved by both rooms.
+        return total + EnclosureTotal(blocks);
     }
 
     /// <summary>Counts the required links between placed rooms that are not adjacent, once per pair.</summary>
@@ -954,6 +989,7 @@ internal sealed partial class EmbedRun
                 }
             }
         }
+        output.Score.Enclosure = -(int)e.EnclosureTotal(Blocks);
         return output;
     }
 }
@@ -970,6 +1006,20 @@ public static partial class LayoutEmbedRules
     public const string ReasonEmbedOpenSkyGround = "embed_open_sky_ground";
     public const string ReasonEmbedNoSiteSignal = "embed_no_site_signal";
     public const string ReasonEmbedLinkNotAdjacent = "embed_link_not_adjacent";
+
+    /// <summary>The gap between two rooms that is neither a shared wall (1) nor room for a corridor (3 or more): no room is placed at it (#3746).</summary>
+    internal const int DeadGap = 2;
+
+    /// <summary>
+    /// Reports two interiors at DeadGap that share no wall cell: side by side two cells apart, each behind its own wall,
+    /// so neither a shared wall nor a corridor (#3746). Two rooms at gap 2 corner to corner (one axis gap 1, the other 0
+    /// or 1) share their corner wall cells and are not at it.
+    /// </summary>
+    internal static bool AtDeadGap(Rectangle a, Rectangle b)
+    {
+        int sx = AxisGap(a.X, a.Width, b.X, b.Width), sz = AxisGap(a.Z, a.Height, b.Z, b.Height);
+        return (sx == DeadGap && sz < 0) || (sz == DeadGap && sx < 0);
+    }
 
     internal static int B2i(bool b) => b ? 1 : 0;
 
@@ -1097,8 +1147,12 @@ public static partial class LayoutEmbedRules
         }
         else
         {
-            Product(Xs(r), zNeg); // beside the anchor, overlapping on the other axis
-            Product(xNeg, Zs(r));
+            if (r != DeadGap)
+            {
+                // Beside the anchor, overlapping on the other axis; at DeadGap that is a double wall (AtDeadGap, Embedder.Fits).
+                Product(Xs(r), zNeg);
+                Product(xNeg, Zs(r));
+            }
             if (r >= 2)
             {
                 // Flush on the other axis: the wall counts one.
@@ -1158,13 +1212,17 @@ partial class EmbedRun
             var emptyRun = new EmbedRun { E = e, Level = level, Blocks = empty, Built = new BuiltRun { Moved = -1 } };
             for (var i = 0; i < e.NRooms; i++)
             {
-                // The standing rooms stand with or without core.
-                empty[i] = e.Home[i];
+                // The standing rooms stand with or without core, but a group that outgrew its room needs the new block
+                // the relocation pass gives it (#3020), and no core gives one: the level leaves it unplaced.
+                empty[i] = e.Grown(i) ? default : e.Home[i];
                 if (empty[i].Width == 0)
                 {
                     emptyRun.Unplaced++;
                 }
             }
+            // Priced like any run, so a looser level is weighed against what this one keeps (#3746).
+            emptyRun.Unmet = e.UnmetLinks(empty);
+            emptyRun.Obj = e.Objective(empty);
             return emptyRun;
         }
         var runs = new EmbedRun[e.Seeds.Count];

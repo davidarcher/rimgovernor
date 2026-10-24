@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-// The enclosure price of an unpriced room (#2987). A group the plan links by no flow (an outskirts room whose
-// flows are not modelled) has no walk to price its distance, so it is not placed by the tie-break of the cell
-// terms alone: it is still part of the base, and the base pays the wall around it and the ground that wall
-// encloses. BlockCost therefore adds, for such a group, the marginal Wall and Footprint terms of PlanScore: a
-// room far from the rest needs a ring of its own, one beside them shares the rest's, so scattering costs
-// perimeter. Both weights are planWeights'; no constant is new.
+// The enclosure price of a room (#2987, #3746). Every room is part of the base, and the base pays the wall
+// around it and the ground that wall encloses. BlockCost therefore adds, for every room group, the marginal Wall
+// and Footprint terms of PlanScore: a room far from the rest needs a ring of its own, one beside them shares the
+// rest's, so scattering costs perimeter. A room the plan links by no flow (an outskirts room whose flows are not
+// modelled) has no walk to price its distance, so this is all that places it beyond the cell terms; a linked
+// room weighs it against its walk. Both weights are planWeights'; no constant is new.
 //
 // The terms are read off the rectangles, not the traced ring (coreEnclosure): the enclosure of a block is the
 // block with its wall cells grown by the killbox yard (perimeterGap), the ring the cells within perimeterThick
@@ -60,7 +60,7 @@ internal sealed class CoverScratch
     private readonly List<int> _xs = [];
     private readonly List<(int Lo, int Hi)> _spans = [];
 
-    /// <summary>The number of cells of k, weighted by weight (each counts 1 when null), that none of rects covers. k lies on the map. rects are sorted by X.</summary>
+    /// <summary>The number of cells of k, weighted by weight (each counts 1 when null, and off the map), that none of rects covers. rects are sorted by X.</summary>
     public int Uncovered(Rectangle k, XRects rects, Prefix? weight)
     {
         int Free(int x0, int x1, int z0, int z1)
@@ -73,7 +73,7 @@ internal sealed class CoverScratch
             {
                 return (x1 - x0) * (z1 - z0);
             }
-            return (int)weight.Sum(new Rectangle(x0, z0, x1 - x0, z1 - z0));
+            return (int)weight.SumOpen(new Rectangle(x0, z0, x1 - x0, z1 - z0));
         }
         if (k.Width <= 0 || k.Height <= 0)
         {
@@ -232,7 +232,7 @@ internal sealed class CoverGrid
 
     /// <summary>
     /// The grid over the bounding box of rects: nothing outside it is covered, so a query clipped to it reads the
-    /// same sums as one over the whole map. weight (null: each cell counts 1) reads only cells on the map.
+    /// same sums as one over the whole map. weight (null: each cell counts 1) reads the cells on the map; a cell off it counts 1.
     /// </summary>
     public CoverGrid(Rectangle onMap, XRects rects, Prefix? weight, int[]? buffer = null)
     {
@@ -287,12 +287,8 @@ internal sealed class CoverGrid
                 var v = _s[i];
                 if (v != 0 && weight is not null)
                 {
-                    v = 0;
                     var c = new Rectangle(x + x0, z + z0, 1, 1);
-                    if (LayoutEmbedEnclosureRules.OnMapCell(onMap, c))
-                    {
-                        v = (int)weight.Sum(c);
-                    }
+                    v = LayoutEmbedEnclosureRules.OnMapCell(onMap, c) ? (int)weight.Sum(c) : 1;
                 }
                 _s[i] = v + _s[i - stride] + _s[i - 1] - _s[i - stride - 1];
             }
@@ -327,25 +323,12 @@ internal sealed class CoverGrid
         {
             return (k.Width * k.Height) - Covered(k);
         }
-        return (int)weight.Sum(k) - Covered(k);
+        return (int)weight.SumOpen(k) - Covered(k);
     }
 }
 
 internal sealed partial class Embedder
 {
-    /// <summary>
-    /// Reports a room group none of whose links is a flow (positive weight): nothing prices its distance. A
-    /// required link alone is a structural rule, not a trip.
-    /// </summary>
-    public bool Unpriced(int i)
-    {
-        if (IsField(i))
-        {
-            return false;
-        }
-        return !_groups[i].Links.Any(l => l.Weight > 0);
-    }
-
     /// <summary>The EnclosureSet of group i against the other blocks.</summary>
     public EnclosureSet EnclosureRects(int i, IReadOnlyList<Rectangle> blocks)
     {
@@ -390,13 +373,34 @@ internal sealed partial class Embedder
         }
         if (s.Grids is { } g)
         {
-            var gridWall = g[0].Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), onMap), Walkable) -
-                g[1].Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), Walkable);
+            var gridWall = g[0].Uncovered(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), Walkable) -
+                g[1].Uncovered(LayoutPerimeterRules.Pad(r, yard), Walkable);
             return (PlanWeights.Wall * gridWall) + (PlanWeights.Footprint * g[2].Uncovered(LayoutPerimeterRules.Pad(r, 1), null));
         }
-        var wall = CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), onMap), s.Grown, Walkable) -
-            CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.ClipRect(LayoutPerimeterRules.Pad(r, yard), onMap), s.In, Walkable);
+        var wall = CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.Pad(r, yard + LayoutPerimeterRules.PerimeterThick), s.Grown, Walkable) -
+            CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.Pad(r, yard), s.In, Walkable);
         return (PlanWeights.Wall * wall) + (PlanWeights.Footprint * CoverScratch.ForThread.Uncovered(LayoutPerimeterRules.Pad(r, 1), s.Walls, null));
+    }
+
+    /// <summary>
+    /// The enclosure cost of the placed rooms together (EmbedScore.Enclosure, here positive): the wall ring and
+    /// footprint of their union, the sum of each room's cost against the rooms before it (the terms telescope).
+    /// </summary>
+    public double EnclosureTotal(IReadOnlyList<Rectangle> blocks)
+    {
+        var before = new Rectangle[blocks.Count];
+        var total = 0.0;
+        for (var i = 0; i < _nRooms; i++)
+        {
+            var b = blocks[i];
+            if (b.Width == 0)
+            {
+                continue;
+            }
+            total += EnclosureCost(b, EnclosureRects(i, before));
+            before[i] = b;
+        }
+        return total;
     }
 }
 
