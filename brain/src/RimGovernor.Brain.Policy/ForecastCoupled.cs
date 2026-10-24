@@ -48,6 +48,8 @@ public sealed record ForecastCoupledContext
 {
     public required ForecastActivityProblem Activities { get; init; }
     public ForecastModelBasis? ModelBasis { get; init; }
+    /// <summary>Each skill stock's next level and the days a raise lasts (<see cref="ProjectMarginals.SkillRaises"/>, #3912); what <see cref="SkillValue"/> prices work speed by.</summary>
+    public IReadOnlyDictionary<string, SkillRaise> SkillRaises { get; init; } = new Dictionary<string, SkillRaise>();
     /// <summary>What a joiner's value is priced from beside <see cref="ModelBasis"/> (#3805, <see cref="JoinerMoodRules"/>); null before tier 2 ran.</summary>
     public JoinerBasis? Joiners { get; init; }
     public bool Truncated { get; init; }

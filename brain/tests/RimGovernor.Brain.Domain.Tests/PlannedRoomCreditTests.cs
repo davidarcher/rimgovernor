@@ -827,7 +827,7 @@ public sealed class PlannedRoomCreditTests
         IReadOnlyDictionary<string, double>? investment = null)
     {
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced());
-        if (investment is not null) generated = generated with { Context = generated.Context with { Investment = investment } };
+        if (investment is not null) generated = generated with { Context = (generated.Context with { Investment = investment }).Priced() };
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);

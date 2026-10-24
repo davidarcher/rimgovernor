@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools;
 
 /// <summary>Qualified read-only counterfactual: a pawn's stat value at each stored skill level, with the native
 /// skill term replaced before native finalization. No pawn, skill, definition or stat cache is rewritten.
-/// A pipeline that is not exact for the substitution yields no values and a finding.</summary>
+/// A pipeline that is not exact for the substitution yields no values and a finding. A factor stat (the skill multiplies the sum of every\r\n/// offset and factor, then only linear terms follow) stays exact under hediff, trait, life-stage, precept and gene factors (#3912);\r\n/// an offset stat does not.</summary>
 internal static class NativeSkillStat
 {
     internal const string Provenance = "native stat dependency graph at each stored skill level -> StatWorker.FinalizeValue; observed conditions held";
@@ -146,12 +146,17 @@ internal static class NativeSkillStat
         else return "not a single skill offset or factor";
         if (stat.parts?.Any(p => !AllowedPart(pawn, p)) == true) return "unsupported stat part";
         if (stat.postProcessStatFactors?.Any(f => !Independent(pawn, f, skill)) == true) return "skill-dependent postprocess factor";
-        if (pawn.Inspired) return "inspired";
+        // Everything below is what the substitution can break (#3912). A factor stat's skill factor multiplies the sum of every
+        // offset, trait, hediff, precept, gene and life-stage effect (StatWorker.GetValueUnfinalized applies them first), and the
+        // capacity lerps after it are linear, so none of those disqualifies the ratio. An offset stat's skill offset is multiplied
+        // by the factors that follow it, so each of those still disqualifies it. An inspiration's offset and factor apply after
+        // the skill term, and a comp's modifier is arbitrary code: either disqualifies only where it changes this stat.
+        if (pawn.Inspired && (pawn.InspirationDef.statOffsets.GetStatOffsetFromList(stat) != 0f
+            || pawn.InspirationDef.statFactors.GetStatFactorFromList(stat) != 1f)) return "inspired";
         if (pawn.Stuff != null) return "pawn has stuff";
-        // A hediff's offset adds before the skill offset's sum is finalized, so only a hediff factor on the stat breaks an
-        // offset substitution; a factor stat keeps the stricter rule.
-        if (offsets == 0 && pawn.health.hediffSet.hediffs.Count > 0) return "hediffs present";
-        if (offsets == 1 && pawn.health.hediffSet.hediffs.Any(h => h.CurStage != null
+        if (CompChanges(pawn, stat)) return "comp stat modifier";
+        if (offsets == 0) return null;
+        if (pawn.health.hediffSet.hediffs.Any(h => h.CurStage != null
                 && HediffStatsUtility.GetStatFactorForSeverity(stat, h.CurStage, pawn, h.Severity) != 1f)) return "hediff factor";
         if (pawn.story?.traits.allTraits.Any(t => !t.Suppressed && t.MultiplierOfStat(stat) != 1f) == true) return "trait factor";
         if (pawn.ageTracker.CurLifeStage.statFactors.GetStatFactorFromList(stat) != 1f) return "life stage factor";
@@ -163,8 +168,6 @@ internal static class NativeSkillStat
             return "ideology factor";
         if (pawn.genes?.GenesListForReading.Any(g => g.Active && (Conditional(g.def.conditionalStatAffecters)
                 || g.def.statFactors.GetStatFactorFromList(stat) != 1f)) == true) return "gene factor";
-        if (pawn.AllComps.Any(c => c.GetType().GetMethod(nameof(ThingComp.GetStatOffset))?.DeclaringType != typeof(ThingComp)
-                || c.GetType().GetMethod(nameof(ThingComp.GetStatFactor))?.DeclaringType != typeof(ThingComp))) return "comp stat modifier";
         return null;
     }
 
@@ -188,9 +191,39 @@ internal static class NativeSkillStat
             && factor.parts?.Any(p => !AllowedPart(pawn, p)) != true
             && factor.statFactors?.All(f => Independent(pawn, f, skill, path)) != false
             && factor.postProcessStatFactors?.All(f => Independent(pawn, f, skill, path)) != false
-            && pawn.AllComps.All(c => c.GetType().GetMethod(nameof(ThingComp.GetStatOffset))?.DeclaringType == typeof(ThingComp)
-                && c.GetType().GetMethod(nameof(ThingComp.GetStatFactor))?.DeclaringType == typeof(ThingComp));
+            && !CompChanges(pawn, factor);
         path.Remove(factor);
         return independent;
+    }
+
+    // A comp's modifier is arbitrary code, so a pawn comp qualifies only if it leaves this stat alone as observed.
+    private static bool CompChanges(Pawn pawn, StatDef stat) => pawn.AllComps.Any(c => c.GetStatOffset(stat) != 0f || c.GetStatFactor(stat) != 1f);
+
+    /// <summary>Whether the stat's value reads the skill: its own skill needs or those of any stat it nests.</summary>
+    private static bool DependsOn(StatDef stat, SkillDef skill, System.Collections.Generic.HashSet<StatDef>? path = null)
+    {
+        path ??= new System.Collections.Generic.HashSet<StatDef>();
+        if (!path.Add(stat)) return false;
+        return stat.skillNeedOffsets?.Any(s => s.skill == skill) == true || stat.skillNeedFactors?.Any(s => s.skill == skill) == true
+            || stat.statFactors?.Any(f => DependsOn(f, skill, path)) == true || stat.postProcessStatFactors?.Any(f => DependsOn(f, skill, path)) == true;
+    }
+
+    /// <summary>
+    /// The pawn's value of <paramref name="stat"/> with <paramref name="skill"/> one stored level higher (#3912), or null when the
+    /// stat does not read the skill (its value is the observed one at every level). The skill's top level has no level above:
+    /// its observed value. 0 where the stat is disabled for the pawn, as the upkeep speeds are. Throws when the stat reads the
+    /// skill by a pipeline the substitution cannot hold exact (<see cref="Disqualified"/>).
+    /// </summary>
+    internal static float? OneLevelUp(Pawn pawn, StatDef stat, SkillDef skill)
+    {
+        if (!DependsOn(stat, skill)) return null;
+        if (stat.Worker.IsDisabledFor(pawn)) return 0f;
+        var record = pawn.skills!.GetSkill(skill);
+        // A skill the pawn cannot learn (totally disabled) or has no level above (the top) moves nothing: the observed value.
+        if (record.TotallyDisabled || record.levelInt >= SkillRecord.MaxLevel) return pawn.GetStatValue(stat);
+        var stored = record.levelInt;
+        var levels = Levels(pawn, stat, skill, out var finding)
+            ?? throw new InvalidOperationException($"{stat.defName} at one level more of {skill.defName} is not exact for {pawn.LabelShort}: {finding}");
+        return levels[stored + 1];
     }
 }

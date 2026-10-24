@@ -185,7 +185,7 @@ public static class ForecastClassroom
             var value = 0d;
             foreach (var skill in child.Taught)
             {
-                if (!context.Investment.TryGetValue(ProjectGraph.SkillKey(child.Pawn, skill.Skill), out var perXp)) { states.Add(SkillUnvalued); continue; }
+                if (SkillValue.PerXp(outcome, commitments, context, horizon, child.Pawn, skill.Skill) is not { } perXp) { states.Add(SkillUnvalued); continue; }
                 value += AppliedXpPerDay(child.Pawn, skill, raw / child.Taught.Count) * perXp;
             }
 

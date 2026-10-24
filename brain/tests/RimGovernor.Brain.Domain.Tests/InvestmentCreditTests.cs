@@ -19,11 +19,11 @@ public sealed class InvestmentCreditTests
         [SkillKey] = PerXp, [ProjectGraph.MedicineKey(new Resource(Medicine))] = PerMedicine,
     };
 
-    private static ForecastCoupledContext Context(IReadOnlyDictionary<string, double> investment) => new()
+    private static ForecastCoupledContext Context(IReadOnlyDictionary<string, double> investment) => new ForecastCoupledContext
     {
         Activities = new() { Deadline = 0, Activities = [new("tend/1", "bed", "bed", []) { Inputs = [new(new Resource(Medicine), 1d)] }] },
         Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(), Investment = investment,
-    };
+    }.Priced();
 
     /// <summary>The doctor's tend, its learning projected by <see cref="ForecastProductiveWorkPolicy"/> from <paramref name="todayXp"/> already learned today.</summary>
     private static ForecastValueResult Tend(IReadOnlyDictionary<string, double> investment, double todayXp = 0)

@@ -212,7 +212,25 @@ internal static class NativeNeedsForecast
         var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
         var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
         var mood = needMood is null ? null : new Obs.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
-        return new() { Speeds = speeds, IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
+        return new() { Speeds = speeds, SkillSpeeds = SkillSpeeds(pawn), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
+    }
+    /// <summary>
+    /// For each skill of the pawn and each work speed stat that reads it, the stat's value with the skill one stored level higher
+    /// (#3912, <see cref="NativeSkillStat.OneLevelUp"/>): what one more level adds to the pawn's speed. Throws where the stat's
+    /// pipeline cannot hold that value exact.
+    /// </summary>
+    internal static EquatableArray<Obs.SkillSpeedRead> SkillSpeeds(Pawn pawn)
+    {
+        var rows = new List<Obs.SkillSpeedRead>();
+        if (pawn.skills is null) return default;
+        var names = RimGovernor.Brain.Bridge.DefinitionCatalog.UpkeepStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
+        foreach (var record in pawn.skills.skills.OrderBy(s => s.def.defName, StringComparer.Ordinal))
+            foreach (var name in names)
+            {
+                var stat = DefDatabase<StatDef>.GetNamedSilentFail(name) ?? throw new InvalidOperationException("upkeep stat not loaded: " + name);
+                if (NativeSkillStat.OneLevelUp(pawn, stat, record.def) is { } raised) rows.Add(new(record.def.defName, stat.defName, raised));
+            }
+        return EquatableArray.From(rows);
     }
     /// <summary>
     /// The pawn's value of each work speed stat the catalog maps (<c>DefinitionCatalog.UpkeepStatNames</c>), 0 where the stat is

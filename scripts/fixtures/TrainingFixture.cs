@@ -302,7 +302,7 @@ namespace HomeBridge.BridgeTools
                 return FixtureKit.Reply(new Fx.SkillLearningProbeRead { Samples = samples, Failures = failures });
             }, cancellationToken);
         }
-        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine-, Melee- and Shooting-capable colonists' hediffs and inspiration, compare the first's biography medical, MeleeDPS and ranged defense curves with live native stat calls at each level (temporarily set and restored), then anesthetize the second so its medical pipeline disqualifies. Test builds only.")]
+        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine-, Melee- and Shooting-capable colonists' hediffs and inspiration, anesthetize the second, compare each one's biography medical, MeleeDPS and ranged defense curves with live native stat calls at each level (temporarily set and restored), then check that a Shooting accuracy inspiration disqualifies ShootingAccuracyPawn and no unrelated stat. Test builds only.")]
         public async Task<object> SkillStatCurvePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -315,43 +315,52 @@ namespace HomeBridge.BridgeTools
                     if (pawn.Inspired) pawn.mindState.inspirationHandler.EndInspiration(pawn.Inspiration);
                 }
                 var (qualified, disqualified) = (pawns[0], pawns[1]);
-                var records = new[] { SkillDefOf.Medicine, SkillDefOf.Melee, SkillDefOf.Shooting }.Select(d => qualified.skills.GetSkill(d)).ToArray();
-                var before = records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)).ToArray();
-                var biography = NativePawnDetails.Biography(qualified);
-                var failures = biography.SkillStatFindings.ToList();
-                if (!before.SequenceEqual(records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)))) failures.Add("read_mutated_pawn");
+                // The anesthetic hediff scales the consciousness-fed capacities, a linear term after the skill factor (#3912): the
+                // anesthetized colonist's curves are exact too, so both colonists carry every curve and both equal the live native stat.
+                disqualified.health.AddHediff(HediffDefOf.Anesthetic);
                 var samples = 0;
-                try
+                var failures = new List<string>();
+                void Compare(Pawn subject)
                 {
-                    foreach (var curve in biography.SkillStatCurves)
+                    var records = new[] { SkillDefOf.Medicine, SkillDefOf.Melee, SkillDefOf.Shooting }.Select(d => subject.skills.GetSkill(d)).ToArray();
+                    var before = records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)).ToArray();
+                    var biography = NativePawnDetails.Biography(subject);
+                    failures.AddRange(biography.SkillStatFindings);
+                    if (!before.SequenceEqual(records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)))) failures.Add("read_mutated_pawn");
+                    try
                     {
-                        // The curve names its stat and skill by defName across the wire; the ranged defense curve (#3846) is the
-                        // live ranged DPS at the live hit factor, which reads the pawn's ShootingAccuracyPawn.
-                        var ranged = curve.Stat == RimGovernor.Contracts.Wire.Observations.SkillStatCurve.RangedDefenseDps;
-                        var stat = ranged ? null : DefDatabase<StatDef>.GetNamed(curve.Stat);
-                        var skill = records.Single(r => r.def.defName == curve.Skill);
-                        var saved = skill.levelInt;
-                        try
+                        foreach (var curve in biography.SkillStatCurves)
                         {
-                            foreach (var level in curve.Levels)
+                            // The curve names its stat and skill by defName across the wire; the ranged defense curve (#3846) is the
+                            // live ranged DPS at the live hit factor, which reads the pawn's ShootingAccuracyPawn.
+                            var ranged = curve.Stat == RimGovernor.Contracts.Wire.Observations.SkillStatCurve.RangedDefenseDps;
+                            var stat = ranged ? null : DefDatabase<StatDef>.GetNamed(curve.Stat);
+                            var skill = records.Single(r => r.def.defName == curve.Skill);
+                            var saved = skill.levelInt;
+                            try
                             {
-                                // Disposable fixture mutation only: evaluate the actual native level without stat caching.
-                                skill.levelInt = level.StoredLevel;
-                                var actual = ranged ? (float)(NativeDefenseStats.PawnRangedDps(qualified) * NativeDefenseStats.PawnRangedHitFactor(qualified))
-                                    : stat.Worker.GetValue(StatRequest.For(qualified));
-                                samples++;
-                                if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
-                                    failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");
+                                foreach (var level in curve.Levels)
+                                {
+                                    // Disposable fixture mutation only: evaluate the actual native level without stat caching.
+                                    skill.levelInt = level.StoredLevel;
+                                    var actual = ranged ? (float)(NativeDefenseStats.PawnRangedDps(subject) * NativeDefenseStats.PawnRangedHitFactor(subject))
+                                        : stat.Worker.GetValue(StatRequest.For(subject));
+                                    samples++;
+                                    if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
+                                        failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");
+                                }
                             }
+                            finally { skill.levelInt = saved; }
                         }
-                        finally { skill.levelInt = saved; }
+                    }
+                    finally
+                    {
+                        for (var i = 0; i < records.Length; i++)
+                            (records[i].levelInt, records[i].xpSinceLastLevel, records[i].xpSinceMidnight) = before[i];
                     }
                 }
-                finally
-                {
-                    for (var i = 0; i < records.Length; i++)
-                        (records[i].levelInt, records[i].xpSinceLastLevel, records[i].xpSinceMidnight) = before[i];
-                }
+                Compare(qualified);
+                Compare(disqualified);
                 foreach (var pair in new[] { (StatDefOf.ConstructionSpeed, SkillDefOf.Construction),
                     (StatDefOf.PlantWorkSpeed, SkillDefOf.Plants), (StatDefOf.MiningSpeed, SkillDefOf.Mining),
                     (StatDefOf.ResearchSpeed, SkillDefOf.Intellectual), (StatDefOf.GeneralLaborSpeed, SkillDefOf.Crafting) })
@@ -360,6 +369,10 @@ namespace HomeBridge.BridgeTools
                     var saved = record.levelInt;
                     var curve = NativeSkillStat.Levels(qualified, pair.Item1, pair.Item2, out var finding);
                     if (curve == null) { failures.Add(pair.Item1.defName + ": " + finding); continue; }
+                    // #3912: the work speed read (one level up) is the curve at the stored level + 1, the stat itself at the top.
+                    var up = NativeSkillStat.OneLevelUp(qualified, pair.Item1, pair.Item2);
+                    if (up is not { } raised || Math.Abs(raised - curve[Math.Min(record.levelInt + 1, SkillRecord.MaxLevel)]) > 1e-4 * Math.Max(1, Math.Abs(raised)))
+                        failures.Add(pair.Item1.defName + ": one level up " + up + " vs the curve");
                     try
                     {
                         for (var level = 0; level < curve.Length; level++)
@@ -373,7 +386,22 @@ namespace HomeBridge.BridgeTools
                     }
                     finally { record.levelInt = saved; }
                 }
-                disqualified.health.AddHediff(HediffDefOf.Anesthetic);
+                if (NativeNeedsForecast.SkillSpeeds(qualified).Count == 0) failures.Add("skill_speeds_empty");
+                // An inspiration that changes the stat disqualifies it (#3912): it applies after the skill term, so the substituted value is not exact.
+                var frenzy = DefDatabase<InspirationDef>.AllDefs.First(d => d.statOffsets != null && d.statOffsets.GetStatOffsetFromList(StatDefOf.ShootingAccuracyPawn) != 0f);
+                var handler = qualified.mindState.inspirationHandler;
+                var state = (Inspiration)Activator.CreateInstance(frenzy.inspirationClass);
+                state.def = frenzy;
+                state.pawn = qualified;
+                typeof(InspirationHandler).GetField("curState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(handler, state);
+                try
+                {
+                    if (NativeSkillStat.Levels(qualified, StatDefOf.ShootingAccuracyPawn, SkillDefOf.Shooting, out var inspired) != null || inspired != "inspired")
+                        failures.Add("inspired_shooting_accuracy_not_disqualified: " + inspired);
+                    if (NativeSkillStat.Levels(qualified, StatDefOf.ConstructionSpeed, SkillDefOf.Construction, out var unrelated) == null)
+                        failures.Add("inspiration_disqualified_unrelated_stat: " + unrelated);
+                }
+                finally { handler.Reset(); }
                 return FixtureKit.Reply(new Fx.SkillStatCurvePrepared { Qualified = qualified.GetUniqueLoadID(), Disqualified = disqualified.GetUniqueLoadID(),
                     Samples = samples, Failures = failures });
             }, cancellationToken);

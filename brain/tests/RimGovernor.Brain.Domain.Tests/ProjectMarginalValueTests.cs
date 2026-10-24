@@ -98,6 +98,27 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void EveryStockCarriesTheXpAndDaysOfItsNextLevelWhetherOrNotThePriceReadsIt()
+    {
+        // #3912: the work speed a level adds is priced in tier 1 for every skill, so tier 2 hands over each stock's next level and
+        // the days of the horizon a raise of it lasts, not only the stocks the harm price reads.
+        var input = ProjectGraphTests.Colony() with
+        {
+            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Cooking", "Plants") })),
+        };
+        var policy = Policy(new ProjectGraph());
+
+        var marginals = ProjectMarginalValue.Of(input, policy, new SkillStockTests.LevelDays(CalendarRules.YearDays));
+
+        Assert.Equal(["skill/Anna/Cooking", "skill/Anna/Medicine", "skill/Anna/Plants"], marginals.SkillRaises.Keys);
+        Assert.All(marginals.Trajectory.Skills, track =>
+        {
+            var raise = marginals.SkillRaises[track.Key];
+            Assert.Equal(track.NextLevel is SkillNextLevel.Takes { Xp: var xp } ? xp : 0, raise.Xp);
+            Assert.InRange(raise.Days, 0, policy.HorizonDays);
+        });
+    }
+    [Fact]
     public void ColonyValueReadsADoctorsTendSkillOnlyWhileRaidsAreExpected()
     {
         var curve = new SkillStatCurve(ColonyValue.TendQualityStat, "Medicine", EquatableArray.From(new[] { new SkillStatLevel(0, 0.2) }), "test");

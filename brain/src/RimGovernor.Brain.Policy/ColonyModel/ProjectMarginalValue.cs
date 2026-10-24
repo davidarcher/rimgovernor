@@ -28,6 +28,9 @@ public interface ITrajectoryValue
     bool Reads(SkillTrack track);
 }
 
+/// <summary>What a raise of a skill stock by one stored level is (#3912): the XP the level takes and the days it lasts inside the horizon.</summary>
+public sealed record SkillRaise(double Xp, double Days);
+
 /// <summary>The tier-2 run of a review and what an hour of each valued project is worth in it.</summary>
 public sealed record ProjectMarginals
 {
@@ -51,6 +54,13 @@ public sealed record ProjectMarginals
     /// </summary>
     public IReadOnlyDictionary<string, double> PerUnit { get; init; } = new Dictionary<string, double>();
 
+    /// <summary>
+    /// For each skill stock (<see cref="ProjectGraph.SkillKey"/>), the XP its next level takes and the days of the horizon a raise of one
+    /// stored level lasts before decay takes it back (<see cref="SkillStock.RaisedLasts"/>, #3912); a stock at the top level has
+    /// <see cref="SkillRaise.Xp"/> 0 and no days: there is no level to raise.
+    /// </summary>
+    public IReadOnlyDictionary<string, SkillRaise> SkillRaises { get; init; } = new Dictionary<string, SkillRaise>();
+
     /// <summary>What the run says about each goal given to <see cref="ProjectMarginalValue.Of"/>, by goal need id.</summary>
     public IReadOnlyDictionary<string, GoalProjection> Goals { get; init; } = new Dictionary<string, GoalProjection>();
 }
@@ -68,8 +78,9 @@ public static class ProjectMarginalValue
     public static ProjectMarginals Of(ColonyModelInput input, ColonyModelPolicy policy, ITrajectoryValue valuation, IReadOnlyList<GoalTerminal>? goals = null)
     {
         goals ??= [];
+        IReadOnlyList<ModelPawn> roster = [];
         var cycles = input.Pawns.TryGetValue(out var pawns)
-            ? pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray()
+            ? (roster = pawns).Select(p => PawnCycle.Year(input, p).ToArray()).ToArray()
             : [];
         var start = ColonyModelState.Observed(input, policy);
         var baseline = ColonyModel.Run(input, start, cycles, policy);
@@ -173,7 +184,23 @@ public static class ProjectMarginalValue
 
         // A goal no run completes inside the horizon cannot be priced by the model: it keeps its flat value.
         var projections = goals.ToDictionary(g => g.Goal, g => new GoalProjection { CompletionDay = before[g.Goal], PerUnit = goalUnits[g.Goal], Priced = completes[g.Goal] }, StringComparer.Ordinal);
-        return new ProjectMarginals { Trajectory = baseline, Value = value.Value, Findings = EquatableArray.From(findings), PerHour = perHour, PerUnit = perUnit, Goals = projections };
+        return new ProjectMarginals
+        {
+            Trajectory = baseline, Value = value.Value, Findings = EquatableArray.From(findings), PerHour = perHour, PerUnit = perUnit, Goals = projections,
+            SkillRaises = SkillRaisesOf(roster, policy.HorizonDays),
+        };
+    }
+
+    // Each skill stock of the roster: the native XP its next level takes and the days of the horizon that level lasts (#3912).
+    private static SortedDictionary<string, SkillRaise> SkillRaisesOf(IReadOnlyList<ModelPawn> roster, double horizonDays)
+    {
+        var raises = new SortedDictionary<string, SkillRaise>(StringComparer.Ordinal);
+        foreach (var stock in roster.SelectMany(p => SkillStock.Of(p, new SortedSet<string>(StringComparer.Ordinal))))
+        {
+            raises[stock.Key] = stock.Track().NextLevel is SkillNextLevel.Takes { Xp: var xp } ? new SkillRaise(xp, stock.RaisedLasts(horizonDays)) : new SkillRaise(0, 0);
+        }
+
+        return raises;
     }
 
     /// <summary>The day, from now, the last node of the goal completes in <paramref name="trajectory"/>; null when a node does not.</summary>

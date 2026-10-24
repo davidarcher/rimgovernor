@@ -294,7 +294,7 @@ row `pawn_values` is null and `pawn_values_awaiting_plan` is `layout_plan`. No d
 
 **Not modelled**, named on every value: `comparative_advantage` (a newcomer freeing an existing pawn for other work),
 `effects_on_others` (Abrasive and other traits'
-mood effects on the colony), `skill_growth` (passion's learning over the horizon, #3809) and, when the colony can
+mood effects on the colony) and, when the colony can
 sow no human-edible crop, `food_source_not_crop`.
 
 ## Two-tier horizon
@@ -522,7 +522,17 @@ cooking) moves a stock tier 2 valued gains `-(applied XP × value per XP)` under
 session (#3852) gains the same under its pawn's practised skill, the XP `ForecastMaintenancePolicy.SessionXp` applies from its native
 callbacks within the day and the read's validity (an unread cadence or learning raises `RequiredFactException`). Each
 input an allocation consumes that tier 2 holds as a medicine kind is charged `+(units × value per unit)` under `medicine/<kind>`. Real
-work of every kind earns the same credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
+work of every kind earns the same harm-priced credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
+
+*Work speed of a skill (#3912).* Besides the harm a level saves, one XP of any skill is worth the work its level speeds up
+(`SkillValue.PerXp`, added to `Investment[skill/<pawn>/<skill>]` for every learning, practice and classroom XP). It is the
+pawn's work added (`PawnValueRules.WorkAdded` against the outcome's shortfall) at the work speeds one more stored level gives it, less
+its work added now, over the days that level lasts inside the horizon (`ProjectMarginals.SkillRaises`: the stock raised one level
+and advanced by decay, `SkillStock.RaisedLasts`), over the XP the level takes. The raised speeds are the native read
+(`PawnUpkeepRead.SkillSpeeds`, `NativeSkillStat.OneLevelUp`): the stat with the skill one stored level higher, exact for a
+stat whose later pipeline is linear; a stat the read cannot hold exact fails the read, never a quiet zero. A skill no needed work
+reads gains nothing by its level, so it adds nothing. The pawn's free hours are `PawnCycle.FreeHoursByPawn`; a pawn without
+them, upkeep or raise throws `RequiredFactException`.
 
 *Construction material (#3653, #3647 decision 2).* A delivery composed for a priced planned room (`ForecastCoupledContext.Priced`: its role has a
 credit in `RoomCredits`, #3796) consumes its material, and the Investment term charges `+(units × value per unit)` under `material/<def>`, one
@@ -880,7 +890,7 @@ the jobs it then wins. Its lessons teach `share × BaseFallPerTick × ticks a da
 (the LearningRateFactor cancels), split evenly over the skills its teacher teaches (`ChooseSkill`'s top four of the first standing
 childcarer's skills neither is totally disabled in, age-disabled work included); each skill's XP goes through the skill arithmetic
 over the read's validity (at most a day, as a practice session's, #3852) and is priced at the stock's value per XP
-(`Investment[skill/<child>/<skill>]`; a skill without a marginal adds nothing, `classroom_skill_unvalued`). The teacher's lesson
+(`SkillValue.PerXp`: `Investment[skill/<child>/<skill>]` plus the work its level speeds up, #3912; a skill without a marginal adds nothing, `classroom_skill_unvalued`). The teacher's lesson
 ticks (the child's lesson refill over `NeedSatisfiedPerTick × LearningRateFactor × the desk's SchoolDeskLearningRate`) are charged
 as lost work: the shortfall rows those ticks would fill at the teacher's speeds (`PawnValueRules.WorkAdded` against the outcome's
 shortfall, the same `JoinerMoodRules.ShortfallOf` the prison reads, #3913). The row is the XP value less that work, a day; it can be negative, since tier 2 values a child's

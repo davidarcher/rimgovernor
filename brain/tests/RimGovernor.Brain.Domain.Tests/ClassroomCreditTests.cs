@@ -28,6 +28,15 @@ public sealed class ClassroomCreditTests
         Taught = EquatableArray.From((skills.Length == 0 ? ["Shooting"] : skills).Select(s => new TaughtSkillRead(s, SparringCreditTests.Melee()))),
     };
 
+    private const double ConstructionUp = 1.5;
+
+    // A child of the colony (#3912): a colonist whose Construction one more level speeds from 1 to ConstructionUp.
+    private static NeedsForecastPawn Learner(string pawn) => NeedsFixtures.Pawn() with
+    {
+        Pawn = pawn,
+        Upkeep = NeedsFixtures.Upkeep with { Speeds = [new("ConstructionSpeed", 1.0)], SkillSpeeds = [new("Construction", "ConstructionSpeed", ConstructionUp)] },
+    };
+
     private static SchoolRead School(params SchoolChildRead[] children) => NeedsFixtures.NoSchool with { Teacher = "pawn", Children = [.. children] };
 
     private sealed record Review(ForecastCoupledContext Context, ForecastCoupledOutcome Outcome, ForecastCommitment[] Commitments, double Horizon)
@@ -42,7 +51,7 @@ public sealed class ClassroomCreditTests
     /// room 1 a planned classroom of <paramref name="desks"/> desks served from day 1, the colony's lessons read as <paramref name="school"/>
     /// and the children's Shooting valued at <see cref="Price"/> a XP.
     /// </summary>
-    private static Review Of(SchoolRead school, int desks = 1, bool planned = true)
+    private static Review Of(SchoolRead school, int desks = 1, bool planned = true, bool realMarginals = false)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(1, 100);
@@ -55,7 +64,7 @@ public sealed class ClassroomCreditTests
             {
                 Needs = needs with
                 {
-                    Pawns = [needs.Pawns[0] with { Upkeep = NeedsFixtures.Upkeep with { Speeds = [new("ConstructionSpeed", 1.0), new("CookSpeed", 1.0), new("MoveSpeed", 4.6), new("CarryingCapacity", 75)], FoodPerDay = 1.6, Mood = new(0.6, 0.35) } }],
+                    Pawns = [needs.Pawns[0] with { Upkeep = NeedsFixtures.Upkeep with { Speeds = [new("ConstructionSpeed", 1.0), new("CookSpeed", 1.0), new("MoveSpeed", 4.6), new("CarryingCapacity", 75)], FoodPerDay = 1.6, Mood = new(0.6, 0.35) } }, Learner("child"), Learner("other")],
                     School = school,
                 },
                 Coupled = observed with
@@ -76,13 +85,45 @@ public sealed class ClassroomCreditTests
         {
             Joiners = new() { Roots = [.. coupled.Alternatives, .. coupled.Incumbents], Work = facts.WorkSpeeds, Food = facts.FoodWork },
             Bed = new(true, 0), FoodHaul = planned ? Legs : null, InvestmentHorizonDays = Horizon,
-            Investment = new Dictionary<string, double>(StringComparer.Ordinal) { [ProjectGraph.SkillKey("child", "Shooting")] = Price, [ProjectGraph.SkillKey("other", "Shooting")] = Price / 2 },
+            Investment = new Dictionary<string, double>(StringComparer.Ordinal)
+            {
+                [ProjectGraph.SkillKey("child", "Shooting")] = Price, [ProjectGraph.SkillKey("other", "Shooting")] = Price / 2, [ProjectGraph.SkillKey("child", "Construction")] = 0,
+            },
+            SkillRaises = new Dictionary<string, SkillRaise>(StringComparer.Ordinal)
+            {
+                [ProjectGraph.SkillKey("child", "Shooting")] = new(1000, Horizon), [ProjectGraph.SkillKey("other", "Shooting")] = new(1000, Horizon),
+                [ProjectGraph.SkillKey("child", "Construction")] = new(1000, Horizon),
+            },
+            ModelBasis = new(Colony(), new()),
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Classroom },
             RoomCredits = PlannedRoomCredits.Shipped,
             Closures = [new(1, "", [], [], [], PlannedRoomPredictionTests.Closed("1", "", "Classroom", 40d, 3, 9, 0, false) with { Desks = [.. Enumerable.Repeat(new PlannedRoomDesk(1.4), desks)] })],
         };
+        if (realMarginals)
+        {
+            // The production way (#3822): tier 2 runs over the colony model and hands its marginals and the raise of each stock to the
+            // context, as Rounder does; nothing is set by hand.
+            var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0) };
+            var marginals = ProjectMarginalValue.Of(Colony(true), policy, new SkillStockTests.LevelDays(CalendarRules.YearDays));
+            context = context with { Investment = marginals.PerUnit, SkillRaises = marginals.SkillRaises, ModelBasis = new(Colony(true), policy) };
+        }
+
         return new(context, selected.Selected with { ServedRooms = [Served] },
             [.. coupled.Alternatives.Concat(coupled.Incumbents).Where(c => chosen.Contains(c.Id))], selected.Horizon);
+    }
+
+    // The colony model with the two children as colonists, so their free hours read (PawnCycle.FreeHoursByPawn).
+    private static ColonyModelInput Colony(bool learning = false)
+    {
+        var input = ColonyModelFixtures.Devilstrand();
+        var anna = input.Pawns.Value[0];
+        if (learning)
+        {
+            // Each child holds a Construction stock that does not decay, so a level gained lasts the horizon.
+            anna = anna with { Skills = Known(EquatableArray.From<WorkSkill>([new() { Name = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }])) };
+        }
+
+        return input with { Pawns = Known(EquatableArray.From(new[] { anna with { Pawn = "child" }, anna with { Pawn = "other" } })) };
     }
 
     // The teacher's lost work a day for lesson ticks at the child's learning rate on a 1.4 desk.
@@ -124,6 +165,33 @@ public sealed class ClassroomCreditTests
         var row = Assert.Single(rows);
         Assert.Equal(("classroom/1/child", Horizon - 1), (row.Key, row.Units));
         Assert.Equal(-gain.PerDay * (Horizon - 1), row.Value, 9);
+    }
+
+    [Fact]
+    public void ASkillTheNeededWorkReadsIsCreditedTheWorkSpeedItsLevelAdds()
+    {
+        var child = Child("child", "Construction");
+        var review = Of(School(child));
+        var read = review.Context.Needs.School;
+        var applied = ForecastClassroom.AppliedXpPerDay("child", child.Taught[0], ForecastClassroom.LessonXpPerDay(read, ForecastClassroom.LessonShare(read)));
+        var perXp = SkillValue.PerXp(review.Outcome, review.Commitments, review.Context, review.Horizon, "child", "Construction");
+        Assert.True(perXp > 0, "the colony is short of construction, so a faster builder adds work");
+        Assert.Equal(applied * perXp!.Value - LostWork(review, child), Assert.Single(review.Gains()).PerDay, 9);
+    }
+
+    [Fact]
+    public void AFreshColonyPricesANeededSkillThroughTheRealRead()
+    {
+        // #3822: the marginals and raises come from tier 2 over the colony model, the shortfall from the production selection and the
+        // speeds from the needs read; the classroom credits the child the work speed its Construction level adds on top of tier 2's price.
+        var child = Child("child", "Construction");
+        var review = Of(School(child), realMarginals: true);
+        var key = ProjectGraph.SkillKey("child", "Construction");
+        Assert.True(review.Context.Investment.ContainsKey(key));
+        Assert.True(review.Context.SkillRaises[key].Xp > 0);
+        var perXp = SkillValue.PerXp(review.Outcome, review.Commitments, review.Context, review.Horizon, "child", "Construction");
+        Assert.True(perXp > review.Context.Investment[key], "the colony is short of construction, so the level adds work beyond tier 2's price");
+        Assert.True(Assert.Single(review.Gains()).PerDay is var gain && double.IsFinite(gain));
     }
 
     [Fact]

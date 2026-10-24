@@ -125,6 +125,24 @@ internal sealed class SkillStock
         dates.Add(new SkillLevelDate(day, StoredLevel));
     }
 
+    /// <summary>
+    /// The days of <paramref name="horizonDays"/> a raise of the stock by one stored level lasts (#3912): it is raised at time zero and
+    /// advanced by the decay of each level it passes through, and the raise is over on the first day the stored level falls below the
+    /// raised one. 0 at the top level, where there is no level to raise; the whole horizon when decay never takes it back. Mutates the stock.
+    /// </summary>
+    internal double RaisedLasts(double horizonDays)
+    {
+        if (StoredLevel == mechanics.Levels.Count - 1)
+        {
+            return 0;
+        }
+
+        Raise();
+        var raised = StoredLevel;
+        Advance(0, horizonDays);
+        return dates.Skip(1).FirstOrDefault(d => d.StoredLevel < raised)?.Day ?? horizonDays;
+    }
+
     /// <summary>Moves the stock over <paramref name="span"/> days from <paramref name="from"/> by the decay of each level it passes through.</summary>
     internal void Advance(double from, double span)
     {

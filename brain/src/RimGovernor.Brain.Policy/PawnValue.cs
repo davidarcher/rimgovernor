@@ -110,7 +110,6 @@ public static class PawnValueRules
     [
         "comparative_advantage", // a faster joiner freeing an existing pawn for other work (V2)
         "effects_on_others", // Abrasive and other traits' mood effects on the colony (V5)
-        "skill_growth", // passion's learning over the horizon (lessons are the classroom's, #3809)
     ];
 
     /// <summary>The plan a review's pawn values await before the colony has a layout plan (#3857): its food hauls walk the plan's

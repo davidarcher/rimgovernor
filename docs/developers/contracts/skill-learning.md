@@ -157,7 +157,9 @@ demand for the skill to; a skill at the top level is worth nothing per XP
 Tier 1 credits each allocation's learning evidence in the `Investment` term (#3636):
 the XP `ForecastSkill` applies (after learning factors and saturation, the gain the
 callback adds, not its raw amount) times that value. Every kind of work earns the
-same credit per XP. A skill tier 2 gives no value (no stock or no demand) earns
+same harm-priced credit per XP, plus the work speed its level adds (`SkillValue.PerXp`, #3912: the pawn's
+work added at the stat values one more stored level gives it, `PawnUpkeepRead.SkillSpeeds`, against the outcome's
+work shortfall, over the days that level lasts). A skill tier 2 gives no value (no stock or no demand) earns
 nothing, so XP never wins a comparison on its own. Medicine is the first skill with
 a demand (raid tending); medicine the work consumes is charged by kind in the same
 term.
@@ -178,21 +180,24 @@ copies no curve or formula:
 - **Factor path:** a single `SkillNeed_BaseBonus` or `SkillNeed_Direct` factor (`valuesPerLevel`
   covering every level): the unfinalized value times the native level value over the current
   one, then `FinalizeValue`. This is exact because only linear multipliers follow the factor:
-  `capacityFactors` at observed capacities; inspiration disqualifies.
+  `capacityFactors` at observed capacities, and hediff, trait, life-stage, precept and gene
+  factors, which scale the whole value (#3912). An inspiration that changes the stat, a pawn
+  stuff or a comp that changes it disqualifies.
 
-Everything else must be skill-independent and neutral: exact base worker; nested
+An offset stat's later multipliers are not linear in the substituted offset, so it also needs the rest
+skill-independent and neutral: exact base worker; nested
 `statFactors`/`postProcessStatFactors` with no dependence on the skill; stat parts on the
-inspected allowlist (glow, slave, age, overseer); no hediff, inspiration, pawn stuff,
-nonneutral trait, life-stage, precept, role or gene factor, stat-relevant conditional
-affecter or stat-modifying comp. A pipeline that does not qualify yields no values and a finding.
+inspected allowlist (glow, slave, age, overseer); no hediff, trait, life-stage, precept, role or gene
+factor, stat-relevant conditional affecter. A pipeline that does not qualify yields no values and a finding;
+for the work speed read (`NativeSkillStat.OneLevelUp`, one level up for each skill and upkeep stat) that finding throws.
 
 The pawn biography carries `SkillStatCurves` for MedicalTendQuality, MedicalTendSpeed,
 MedicalOperationSpeed and MedicalSurgerySuccessChance against Medicine, and
 `SkillStatFindings` ("Stat: reason") for each that does not qualify. Curves hold observed
 health, equipment and environment fixed; they are not a forecast of those. Registered
 `lab/skill-stat-curve` compares each curve level with the live native stat at that level
-(set temporarily by the fixture only) and checks that an anesthetized colonist carries
-findings, not curves. Valuing the curves is #3635.
+(set temporarily by the fixture only), checks that an anesthetized colonist carries the same
+curves (#3912) and that a Shooting accuracy inspiration disqualifies that stat and no other. Valuing the curves is #3635.
 It also carries MeleeDPS against Melee (#3813) and `RangedDefenseDps` against Shooting (#3846): the
 primary's ranged DPS times its hit factor at each level's ShootingAccuracyPawn, all zeros without a
 ranged primary. Shooting's `SkillPractice.Range.DailyBudget` is the native `RangeTraining.DailyXpBudget`

@@ -371,8 +371,9 @@ public static partial class ForecastValue
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = -earned;
-        var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
-        PlannedRoomCredits.Credit(outcome, commitments?.ToArray() ?? [], context, horizon, investmentRows, findings);
+        var chosen = commitments?.ToArray() ?? [];
+        var investmentRows = InvestmentOf(outcome, chosen, context, index, horizon, findings);
+        PlannedRoomCredits.Credit(outcome, chosen, context, horizon, investmentRows, findings);
         ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
@@ -454,13 +455,21 @@ public static partial class ForecastValue
     /// FuelPerTick × (horizon − complete) units of its fuel, the same way, on a row of that source with no pawn. A served priced room's credit
     /// (<see cref="PlannedRoomCredits.Credit"/>, #3655, #3796) is added beside these rows.
     /// </summary>
-    private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index,
+    private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, LedgerIndex index,
         double horizon, SortedSet<string> findings)
     {
         var rows = new List<ForecastInvestmentContribution>();
         void Add(ForecastActivityAllocation allocation, string key, double units, double sign)
         {
             if (units > 0 && context.Investment.TryGetValue(key, out var perUnit)) rows.Add(new(allocation.Activity, allocation.Pawn, key, units, sign * units * perUnit));
+        }
+        // XP of a skill stock is priced by what its level saves and the work it speeds up (SkillValue, #3912).
+        void AddXp(ForecastActivityAllocation allocation, string skill, Func<double> xp)
+        {
+            if (!context.Investment.ContainsKey(ProjectGraph.SkillKey(allocation.Pawn, skill))) return;
+            var units = xp();
+            if (units > 0 && SkillValue.PerXp(outcome, commitments, context, horizon, allocation.Pawn, skill) is { } perUnit)
+                rows.Add(new(allocation.Activity, allocation.Pawn, ProjectGraph.SkillKey(allocation.Pawn, skill), units, -units * perUnit));
         }
         void Material(string activity, string pawn, Resource def, double units)
         {
@@ -481,11 +490,11 @@ public static partial class ForecastValue
             var activity = index.Activities.GetValueOrDefault(allocation.Activity);
             if (activity?.ProjectProgress is { } work) Add(allocation, work.Project, (allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick), -1);
             if (allocation.Learning is { } learning)
-                Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), learning.After.AppliedGain - learning.Before.AppliedGain, -1);
+                AddXp(allocation, learning.Skill, () => learning.After.AppliedGain - learning.Before.AppliedGain);
             // A practice session's XP (#3852), priced like any other at the stock's harm-priced value per XP.
-            if (index.Practice.TryGetValue(allocation.Activity, out var session) && context.Investment.ContainsKey(ProjectGraph.SkillKey(allocation.Pawn, session.Worker.Skill)))
-                Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, session.Worker.Skill), index.SessionXp.GetOrAdd((allocation.Activity, allocation.Start, allocation.End, horizon),
-                    _ => ForecastMaintenancePolicy.SessionXp(session, allocation, horizon)), -1);
+            if (index.Practice.TryGetValue(allocation.Activity, out var session))
+                AddXp(allocation, session.Worker.Skill, () => index.SessionXp.GetOrAdd((allocation.Activity, allocation.Start, allocation.End, horizon),
+                    _ => ForecastMaintenancePolicy.SessionXp(session, allocation, horizon)));
             if (activity is null) continue;
             var charged = index.MaterialCharged.Contains(allocation.Activity);
             foreach (var input in activity.Inputs)

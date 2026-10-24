@@ -686,6 +686,9 @@ public sealed record PawnUpkeepRead
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSpeedRead>))]
     public required EquatableArray<WorkSpeedRead> Speeds { get; init; }
+    /// <summary>The speed at each stat that reads one of the pawn's skills with that skill one stored level higher (#3912; NativeSkillStat.OneLevelUp): what one more level adds to the pawn's work. A stat no skill of the pawn reads has no row.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SkillSpeedRead>))]
+    public required EquatableArray<SkillSpeedRead> SkillSpeeds { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> IncapableWork { get; init; }
     public required double FoodPerDay { get; init; }
@@ -693,6 +696,8 @@ public sealed record PawnUpkeepRead
 }
 /// <summary>A pawn's value of one work speed stat (<c>Pawn.GetStatValue</c>).</summary>
 public sealed record WorkSpeedRead(string Stat, double Value);
+/// <summary>A pawn's value of a work speed stat with one skill one stored level higher (#3912); 0 where the stat is disabled for it.</summary>
+public sealed record SkillSpeedRead(string Skill, string Stat, double OneLevelUp);
 /// <summary>The pawn's unclamped mood target (as <see cref="NeedMood.UnclampedTarget"/>) and its minor break threshold (<c>MentalBreaker.BreakThresholdMinor</c>).</summary>
 public sealed record PawnMoodRead(double Target, double Threshold);
 /// <summary>

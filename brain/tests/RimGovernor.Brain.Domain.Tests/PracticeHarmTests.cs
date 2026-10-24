@@ -97,7 +97,7 @@ public sealed class PracticeHarmTests
             {
                 Activities = new() { Deadline = 0, Activities = [new("practice/a", "ring", "ring", [])] }, Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
                 Investment = investment, PracticeTasks = [session],
-            };
+            }.Priced();
             var plan = new ForecastActivityPlan([new("practice/a", "a", 0, 0, 0, 1000, 0, 0, 1000, 1000, 0)], 1000, 1000);
             return ForecastValue.Of(new(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []), context, GameTime.TicksPerDay,
                 new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
@@ -140,7 +140,7 @@ public sealed class PracticeHarmTests
         Assert.Empty(generated.Context.MaintenanceRequirements);
         // A fresh colony's tier 2 prices no fighter's stock (no raid yet): the bout earns nothing and is not scheduled.
         var investment = priced ? roster.ToDictionary(p => ProjectGraph.SkillKey(p.Id.Value, "Melee"), _ => 1d, StringComparer.Ordinal) : new Dictionary<string, double>();
-        generated = generated with { Context = generated.Context with { Investment = investment } };
+        generated = generated with { Context = (generated.Context with { Investment = investment }).Priced() };
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
