@@ -42,6 +42,8 @@ public sealed record NeedsForecastRead
     /// <summary>The lesson mechanics the classroom credit reads (#3809): the learning need's rates, the learning desires, the
     /// colony's school desks, its teacher and every child with a learning need.</summary>
     public required SchoolRead School { get; init; }
+    /// <summary>The baby fit mechanics the nursery credit reads (#3854): the fit defs and every baby with who hears it.</summary>
+    public required BabyFitsRead Babies { get; init; }
 }
 /// <summary>
 /// The lesson mechanics (#3809). A child's learning need (<c>Need_Learning</c>) falls <see cref="FallPerTick"/>
@@ -85,6 +87,71 @@ public sealed record SchoolChildRead
 }
 /// <summary>One skill a lesson may teach a child, by SkillDef name, with the child's learning mechanics of it.</summary>
 public sealed record TaughtSkillRead(string Skill, SkillLearning Learning);
+/// <summary>
+/// The baby fit mechanics (#3854). <c>MentalFitGenerator.TickInterval</c> checks an awake pawn out of any mental state every
+/// <see cref="CheckIntervalTicks"/> (its private <c>CheckInterval</c>), trying each <see cref="Fits"/> def in def order and starting
+/// the first whose <c>Rand.MTBEventOccurs</c> fires; after a mental state ends it waits <see cref="RecoveryAwakeTicks"/> awake ticks
+/// (its private <c>MinTicksSinceRecoveryToHaveFit</c>). A fit (<c>MentalState_BabyFit</c>) gives each hearer within reach one memory.
+/// </summary>
+public sealed record BabyFitsRead
+{
+    public required double CheckIntervalTicks { get; init; }
+    public required double RecoveryAwakeTicks { get; init; }
+    /// <summary>Every <c>MentalFitDef</c> whose <c>developmentalStageFilter</c> holds Baby, in def order. Empty without Biotech.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyFitRead>))]
+    public required EquatableArray<BabyFitRead> Fits { get; init; }
+    /// <summary>Every colonist given whose developmental stage a <see cref="Fits"/> def admits, in pawn id order. Empty means no baby.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyRead>))]
+    public required EquatableArray<BabyRead> Babies { get; init; }
+}
+/// <summary>
+/// A baby fit def: its <c>mtbDaysMoodCurve</c> over <c>Need_Mood.CurLevelPercentage</c>, its mental state's
+/// <c>maxTicksBeforeRecovery</c> (min and max are equal and recovery never comes sooner) and whether that state's hearers gain a
+/// memory (a <c>MentalState_BabyCry</c> or <c>MentalState_BabyGiggle</c>; false for a state class the read does not know).
+/// </summary>
+public sealed record BabyFitRead
+{
+    public required string Def { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
+    public required EquatableArray<CurvePointRead> MtbDaysByMood { get; init; }
+    public required double DurationTicks { get; init; }
+    public required bool Heard { get; init; }
+}
+/// <summary>
+/// One baby (#3854): the fits that can start for it now (<see cref="BabyFitsRead.Fits"/> defs whose state worker's
+/// <c>StateCanOccur</c> holds), whether it lies in a room the game scores a Nursery (<c>RoomRoleWorker_Nursery</c>), and every
+/// colonist given who hears it (<c>GenClamor.DoClamor</c> at <c>MentalState_BabyFit.BabyScreamRadius</c>), with the doors as they are
+/// and with its nursery's doors open.
+/// </summary>
+public sealed record BabyRead
+{
+    public required string Pawn { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Fits { get; init; }
+    public required bool InNursery { get; init; }
+    /// <summary>In pawn id order; empty means nobody hears it either way.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyHearerRead>))]
+    public required EquatableArray<BabyHearerRead> Hearers { get; init; }
+}
+/// <summary>
+/// A colonist who hears a baby: with the doors as they are now (<see cref="Now"/>), with the doors of the baby's nursery open
+/// (<see cref="NurseryOpen"/>; as <see cref="Now"/> for a baby in no nursery), and the memory each heard fit gives it.
+/// </summary>
+public sealed record BabyHearerRead
+{
+    public required string Pawn { get; init; }
+    public required bool Now { get; init; }
+    public required bool NurseryOpen { get; init; }
+    /// <summary>Per heard fit def, the memory it gives this hearer; a fit whose memory it cannot get (ThoughtUtility.CanGetThought) has none.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<HeardMemoryRead>))]
+    public required EquatableArray<HeardMemoryRead> Memories { get; init; }
+}
+/// <summary>
+/// The memory a fit gives its hearer (#3854): the parent's (<c>MyCryingBaby</c>, <c>MyGigglingBaby</c>) or anyone else's
+/// (<c>CryingBaby</c>, <c>GigglingBaby</c>) ThoughtDef, its <c>MoodOffset</c> on the hearer as an unattached memory, its
+/// <c>DurationTicks</c>, <c>stackLimit</c> and <c>stackedEffectMultiplier</c>.
+/// </summary>
+public sealed record HeardMemoryRead(string Fit, string Thought, double Offset, double DurationTicks, int StackLimit, double StackedMultiplier);
 /// <summary>
 /// The recruitment mechanics (#3805), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance is
 /// above 0, each warden chat lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/> at the

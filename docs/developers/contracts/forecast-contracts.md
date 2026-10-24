@@ -381,6 +381,15 @@ unknown. What the game does not have is a case, never an unknown:
   clauses; "" none), and per colonist with a learning need its `LearningRateFactor` stat and the skills that
   teacher's lessons teach it (`JobDriver_Lessongiving.ChooseSkill`: not totally disabled for either, a
   `lessonInteraction`, best first, the private `TopTeachableSkillCount`), each with its `SkillLearning`.
+- `NeedsForecastRead.Babies` (#3854, `BabyFitsRead`): `MentalFitGenerator`'s private `CheckInterval` and
+  `MinTicksSinceRecoveryToHaveFit`; every `MentalFitDef` whose filter admits the Baby stage, in def order, with its
+  `mtbDaysMoodCurve`, its `maxTicksBeforeRecovery` and whether its mental state's memories are known (a
+  `MentalState_BabyCry` or `MentalState_BabyGiggle`); and per pawn a fit admits, in id order, the fits that can start for it
+  (a mood, `CanDoRandomMentalFits`, the stage and the worker's `StateCanOccur`), whether it stands in a nursery
+  (`RoomRoleWorker_Nursery`), and the colonists with a mood its clamor reaches (`GenClamor.DoClamor`'s region walk through
+  open doors, `BabyScreamRadius × Hearing`) now and with that nursery's doors open, each with the memory it would gain per
+  fit (the My* def for a parent, `ThoughtUtility.CanGetThought`): offset, duration, `stackLimit` and
+  `stackedEffectMultiplier`.
 
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).

@@ -14,6 +14,19 @@ internal static class NeedsFixtures
     {
         Tick = new(tick), Pawns = [.. pawns], WeatherThought = "", WeatherThoughtStages = 0, RainRate = 0, MapArea = 0,
         Deterioration = null, ResearchBenches = [], Corpses = [], Deathrest = null, Prison = NoPrison, School = NoSchool,
+        Babies = NoBabies,
+    };
+
+    /// <summary>The baby fit read of no baby, at the game's fits (MentalFitGenerator, MentalStates_BabyFits.xml; Biotech, 1.7).</summary>
+    public static BabyFitsRead NoBabies => new()
+    {
+        CheckIntervalTicks = 150, RecoveryAwakeTicks = 600,
+        Fits =
+        [
+            new() { Def = "Crying", MtbDaysByMood = [new(0, .083), new(.25, .166), new(.5, 1), new(.75, 4), new(1, 8)], DurationTicks = 1200, Heard = true },
+            new() { Def = "Giggling", MtbDaysByMood = [new(0, 8), new(.25, 4), new(.5, 1), new(.75, .5), new(1, .25)], DurationTicks = 1200, Heard = true },
+        ],
+        Babies = [],
     };
 
     /// <summary>The recruitment read of no warden and no prisoner, at the game's curves (InteractionWorker_RecruitAttempt, 1.7).</summary>

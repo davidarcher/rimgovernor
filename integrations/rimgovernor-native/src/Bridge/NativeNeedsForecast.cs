@@ -134,7 +134,7 @@ internal static class NativeNeedsForecast
         return new() { Tick = new(Find.TickManager.TicksGame), Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
             RainRate = F(map.weatherManager.RainRate, "rain rate"), MapArea = map.Area, Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
-            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people) };
+            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people) };
     }
     /// <summary>
     /// The pawn's food, rest and joy rates (Obs.NeedRate), each need it has; joy from <paramref name="joy"/>, the pawn's own or a

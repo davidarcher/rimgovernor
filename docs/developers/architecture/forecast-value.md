@@ -893,6 +893,25 @@ whenever a lesson is wanted, desks shared by turns, a blackboard's `maxSimultane
 term (D3): the learning need, whose level sets a child's growth points, is refilled by the other desires with or without a
 classroom, so growth is unchanged. No playroom is planned (#3809): its role is deleted, and the babies' play is the nursery's (#3854).
 
+*Nursery credit (#3854).* A planned nursery the outcome serves is credited (`ForecastNursery.NurseryCredit`) the crying and
+giggling it moves away from the colonists, per colonist under `nursery/<room>/<colonist>`; the lowest-id planned nursery takes
+every baby (`nursery_babies_housed` on the others). A baby (`NeedsForecastRead.Babies`) fits at the rates its mood gives
+(`ForecastNursery.FitRates`): `MentalFitGenerator` checks an awake baby every `CheckInterval` ticks, trying each fit def in def
+order with the chance `interval / (mtbDaysMoodCurve(mood) × a day)`, then holds the fit for its duration and waits the
+generator's recovery awake ticks; a fit's rate is its share of the fires over that mean cycle, with the awake share the balance of
+the baby's rest fall and its unserved gain. The mood is the baby's observed target, held flat. Each colonist the native sound reach
+finds (`GenClamor.DoClamor`'s region walk through open doors, at most 15 regions, within `BabyScreamRadius × Hearing`) gains the
+fit's memory (CryingBaby, GigglingBaby, the My* defs for a parent); the memories it holds are stacked as the game stacks them
+(`ForecastNursery.HeardMood`): per def, the count heard within a duration is Poisson at the summed rate, the latest
+`stackLimit` count, split binomially over the babies, and a baby's k of them count `offset × Σ_{i<k} stackedEffectMultiplier^i`.
+Before a nursery stands its babies are heard as now without the room and by nobody with it; a baby in a standing nursery is
+heard as now with it and as with the nursery's doors open without it. The row is `MoodGain` of the mood with the room less
+`MoodGain` of the mood without, so a giggling baby's nursery costs the giggles. Named states, each earning nothing: no baby
+(`nursery_no_baby`), no fit can start (`nursery_no_fit`), the same colonists hear the babies either way (`nursery_unheard`), and a
+fit def the read does not know (`nursery_fit_hearers_not_modelled:<def>`). Named as not modelled: crib rest, the babies' play,
+the baby's own room thoughts, a cry's disturbed sleep, the cried and giggled opinion memories, colonists moving from where they
+stand now, and prisoners, guests and slaves in reach.
+
 *Dining and rec credits (#3803).* A planned dining or rec room the outcome serves is credited (`ForecastRoomThoughts.DiningCredit`,
 `RecCredit`) the impressive-room memory it gives, per colonist under `dining/<room>/<pawn>` or `rec/<room>/<pawn>`.
 `Toils_Ingest.FinalizeIngest` gains `AteInImpressiveDiningRoom`, and `JoyUtility.TryGainRecRoomThought` (as a joy job ends)
