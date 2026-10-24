@@ -7,7 +7,9 @@ public sealed partial class JoinersRounds
     {
         var facts = read.Projection.Facts;
         var expedition = QuestExpedition.SelectExpedition(facts, reviewer.Policy);
-        if (facts.QuestExpeditionTrips.TryGetValue(out var trips) && facts.QuestSites.TryGetValue(out var sites))
+        var trips = facts.QuestExpeditionTrips;
+        var sites = facts.QuestSites;
+        if (trips.Count > 0 && sites.Count > 0)
         {
             // A caravan this Need sent that stopped short of its site comes home.
             foreach (var sent in reviewer.Player.Journal.OwnerMethodHistory(work.Owner, call))

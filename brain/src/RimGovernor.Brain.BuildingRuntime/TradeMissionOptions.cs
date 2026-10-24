@@ -15,10 +15,8 @@ public sealed partial class Rounder
                 {
                     Facts = p.Facts with
                     {
-                        QuestColonyCalm = f.QuestColonyCalm,
-                        QuestSparePawns = f.QuestSparePawns,
-                        QuestHomeFloor = f.QuestHomeFloor,
-                        QuestDepartureWork = f.QuestDepartureWork,
+                        QuestCalm = f.QuestCalm,
+                        QuestRoster = f.QuestRoster,
                         WorkRoster = f.WorkRoster,
                     },
                 };

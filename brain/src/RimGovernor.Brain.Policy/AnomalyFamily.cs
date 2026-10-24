@@ -162,10 +162,6 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         {
             return 0;
         }
-        if (!f.Population.TryGetValue(out _))
-        {
-            throw new RequiredFactException("population census");
-        }
         return PopulationRules.LanceCandidate(f) is null ? 0 : 1;
     }
 

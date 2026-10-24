@@ -38,7 +38,7 @@ clock is running to its end tick or stopped; a stopped hold short of completion 
 The joiners family selects joiners first (`joiners/offers`), then, under `joiners/quests`, allowed bestowing claims, then an
 affordable family offer. Feasibility uses the existing work roster and emergency
 decision, protects sole doctors, cooks and builders, and reserves spare capacity
-against open non-automatic quests. The home floor is the count of sole primary owners of doctor, cooking and construction in the roster (`policy.QuestHomeFloor`); a colony with redundant owners may send more, and a departure that would leave fewer at home refuses as `home_capacity`.
+against open non-automatic quests. The home floor is the count of sole primary owners of doctor, cooking and construction in the roster (`QuestRoster.Planned.HomeFloor`); a colony with redundant owners may send more, and a departure that would leave fewer at home refuses as `home_capacity`.
 Unknown demands and unfinished objective drivers prevent acceptance. Native
 CanAcceptQuest remains the final eligibility check at dispatch.
 

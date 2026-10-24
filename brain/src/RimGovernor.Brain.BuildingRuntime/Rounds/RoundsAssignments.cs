@@ -107,10 +107,7 @@ public sealed partial class RoundsWorkPlanner
         var settings = new List<PawnSettings>(HostilityRules.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
         var reserve = MedicalRules.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
         settings.AddRange(MedicineCarryRules.MedicineCarryChanges(MedicineCarryRules.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
-        if (read.Projection.Facts.Population.TryGetValue(out var census))
-        {
-            settings.AddRange(PawnRules.NicknameChanges(census.Names));
-        }
+        settings.AddRange(PawnRules.NicknameChanges(read.Projection.Facts.Population.Names));
         var care = MedicalRules.MedicalCareChanges(read.Projection.Facts, _reviewer.Policy.MedicalReserve).ToList();
         if (care.Count > 8)
         {
@@ -356,9 +353,9 @@ partial class RoundsWorkPlanner
         pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
 
     /// <summary>The reading-policy writes and assignments the review's policies, books and skill goals call for.</summary>
-    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, Fact<PrisonerCensus> population, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
+    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
     {
-        if (!population.TryGetValue(out var census) || books.Count == 0)
+        if (books.Count == 0)
         {
             return [];
         }
@@ -367,9 +364,9 @@ partial class RoundsWorkPlanner
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, Fact<PrisonerCensus> population, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
     {
-        if (!population.TryGetValue(out var census) || foods.Count == 0)
+        if (foods.Count == 0)
         {
             return [];
         }

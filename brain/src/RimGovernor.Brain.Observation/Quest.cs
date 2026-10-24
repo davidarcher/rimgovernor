@@ -5,38 +5,6 @@ namespace RimGovernor.Brain.Observation;
 public static class QuestReads
 {
 
-    internal static Fact<int> FrameQuestColonistsAtHome(WorldProgressionRead? read, MapId home, EmergencyFacts emergency)
-    {
-        if (read is null || !emergency.AllSeen)
-        {
-            return Unknown<int>();
-        }
-        var away = new HashSet<PawnId>(read.Caravans.SelectMany(caravan => caravan.Crew()));
-        foreach (var row in read.Maps)
-        {
-            if (new MapId(row.Id) != home || !row.Home)
-            {
-                continue;
-            }
-            var present = new HashSet<PawnId>(row.Colonists());
-            var n = 0;
-            foreach (var pawn in emergency.Colonists)
-            {
-                if (!present.Contains(pawn.Id) || away.Contains(pawn.Id))
-                {
-                    continue;
-                }
-                if (!pawn.Dead)
-                {
-                    n++;
-                }
-            }
-            return Known(n);
-        }
-        return Unknown<int>();
-    }
-
-
     /// <summary>Preserves the native exact exit cells from the same combat frame. No remote map selection or additional observation is performed.</summary>
     /// <summary>The loaded quest site's exit on this map: its crew and exit cells, empty without a crew extraction; none when the map is no loaded site.</summary>
     public static CombatSiteExit? CombatSiteExitOf(WorldProgressionRead? read, MapId mapId)
@@ -54,12 +22,9 @@ public static class QuestReads
     }
 
 
-    internal static Fact<EquatableArray<ExpeditionTrip>> FrameExpeditionTrips(WorldProgressionRead? read, MapId home)
+    /// <summary>Every caravan on the world map and every caravan being formed on the home map.</summary>
+    internal static EquatableArray<ExpeditionTrip> FrameExpeditionTrips(WorldProgressionRead read, MapId home)
     {
-        if (read is null)
-        {
-            return Unknown<EquatableArray<ExpeditionTrip>>();
-        }
         var rows = new List<ExpeditionTrip>();
         foreach (var caravan in read.Caravans)
         {
@@ -73,7 +38,7 @@ public static class QuestReads
             }
             rows.Add(new ExpeditionTrip.Forming { PawnIds = [.. assembly.Pawns] });
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
 
@@ -81,15 +46,12 @@ public static class QuestReads
     internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
     {
         var ids = QuestHospitality.ProtectedQuestGuestIds(f);
-        if (f.Population.TryGetValue(out var census))
+        var custody = new List<CustodyFacts>(f.Population.Custody.Count);
+        foreach (var row in f.Population.Custody)
         {
-            var rows = new List<CustodyFacts>(census.Custody.Count);
-            foreach (var row in census.Custody)
-            {
-                rows.Add(row with { QuestProtected = ids.Contains(row.Pawn) });
-            }
-            f = f with { Population = Known(census with { Custody = EquatableArray.From(rows) }) };
+            custody.Add(row with { QuestProtected = ids.Contains(row.Pawn) });
         }
+        f = f with { Population = f.Population with { Custody = EquatableArray.From(custody) } };
         if (f.MedicalPawns.TryGetValue(out var medical))
         {
             var rows = new List<CarePawn>(medical.Count);
@@ -106,31 +68,23 @@ public static class QuestReads
     internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
     {
         var refugees = QuestRefugees.QuestRefugeeIds(f);
-        if (f.Population.TryGetValue(out var census))
+        var custody = new List<CustodyFacts>(f.Population.Custody.Count);
+        foreach (var row in f.Population.Custody)
         {
-            var rows = new List<CustodyFacts>(census.Custody.Count);
-            foreach (var row in census.Custody)
-            {
-                rows.Add(row with { QuestRefugee = refugees.TryGetValue(row.Pawn, out var refugeeQuest) && refugeeQuest.Value != "" });
-            }
-            f = f with { Population = Known(census with { Custody = EquatableArray.From(rows) }) };
+            custody.Add(row with { QuestRefugee = refugees.TryGetValue(row.Pawn, out var refugeeQuest) && refugeeQuest.Value != "" });
         }
-        return f;
+        return f with { Population = f.Population with { Custody = EquatableArray.From(custody) } };
     }
 
 
     /// <summary>
-    /// The current map's quest workers and departure rows. A departure row's defense points are the pawn's melee
-    /// power plus ranged DPS in raid points from the defender roster, 0 for a pawn that cannot fight; an unread roster,
-    /// or a fighter it does not list, leaves the departures unread.
+    /// The current map's quest workers and the pawn census built on them. A departure row's defense points are the pawn's melee
+    /// power plus ranged DPS in raid points from the defender roster, 0 for a pawn that cannot fight. The census is unseen when
+    /// the map is not the home map, the emergency census is incomplete, the work pawns are unread, or the defender roster
+    /// misses a fighter.
     /// </summary>
-    internal static (Fact<EquatableArray<QuestWorkCapacity>> Capacity, Fact<EquatableArray<QuestDeparturePawn>> Departures) FrameQuestWorkerCapacity(WorldProgressionRead? read, MapId current, Fact<EquatableArray<DefenderStrength>> defenders)
+    internal static (EquatableArray<QuestWorkCapacity> Capacity, QuestPawns Pawns) FrameQuestPawns(WorldProgressionRead read, MapId current, EmergencyFacts emergency, Fact<EquatableArray<DefenderStrength>> defenders, Fact<EquatableArray<WorkPawn>> workPawns)
     {
-        var unknown = (Unknown<EquatableArray<QuestWorkCapacity>>(), Unknown<EquatableArray<QuestDeparturePawn>>());
-        if (read is null)
-        {
-            return unknown;
-        }
         foreach (var m in read.Maps)
         {
             if (new MapId(m.Id) != current)
@@ -141,7 +95,7 @@ public static class QuestReads
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
             var byId = defenders.TryGetValue(out var fighters) ? fighters.ToDictionary(f => f.Id) : null;
-            var departuresRead = byId is not null;
+            var seen = byId is not null && emergency.AllSeen && m.Home && workPawns.TryGetValue(out _);
             foreach (var p in m.QuestWorkers)
             {
                 capacity.Add(new QuestWorkCapacity { Pawn = p.PawnId, HealthyAdult = p.HealthyAdult, Rates = p.Rates.ToDictionary(r => r.Stat, r => r.Rate, StringComparer.Ordinal) });
@@ -150,7 +104,7 @@ public static class QuestReads
                 {
                     if (byId is null || !byId.TryGetValue(new PawnId(p.PawnId.Value), out var pawn))
                     {
-                        departuresRead = false;
+                        seen = false;
                         continue;
                     }
                     points = (pawn.MeleePower + pawn.RangedDps) * DefenseCapacityPolicy.DefensePointsPerDps;
@@ -167,8 +121,29 @@ public static class QuestReads
                     Negotiation = p.Negotiation,
                 });
             }
-            return (Known(EquatableArray.From(capacity)), departuresRead ? Known(EquatableArray.From(departures)) : unknown.Item2);
+            if (!seen)
+            {
+                return (EquatableArray.From(capacity), new QuestPawns.Unseen());
+            }
+            workPawns.TryGetValue(out var workers);
+            return (EquatableArray.From(capacity), new QuestPawns.Seen { AtHome = ColonistsAtHome(read, m, emergency), Departures = EquatableArray.From(departures), Workers = workers });
         }
-        return unknown;
+        return ([], new QuestPawns.Unseen());
+    }
+
+    /// <summary>The living colonists on the home map who are not away with a caravan.</summary>
+    private static int ColonistsAtHome(WorldProgressionRead read, O.WorldMap row, EmergencyFacts emergency)
+    {
+        var away = new HashSet<PawnId>(read.Caravans.SelectMany(caravan => caravan.Crew()));
+        var present = new HashSet<PawnId>(row.Colonists());
+        var n = 0;
+        foreach (var pawn in emergency.Colonists)
+        {
+            if (present.Contains(pawn.Id) && !away.Contains(pawn.Id) && !pawn.Dead)
+            {
+                n++;
+            }
+        }
+        return n;
     }
 }

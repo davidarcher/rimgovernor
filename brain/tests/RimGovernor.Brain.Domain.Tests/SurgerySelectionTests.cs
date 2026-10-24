@@ -84,7 +84,7 @@ public sealed class SurgerySelectionTests
         Operations = EquatableArray.From(ops),
     };
 
-    private static Fact<PrisonerCensus> Population(PrisonerFacts row, PrisonerColony colony) => Known(PopulationFixtures.Census([row], colony: colony));
+    private static PrisonerCensus Population(PrisonerFacts row, PrisonerColony colony) => PopulationFixtures.Census([row], colony: colony);
 
     /// <summary>A three-colonist colony without Ideology.</summary>
     private static readonly PrisonerColony Colony = new() { Colonists = 3 };

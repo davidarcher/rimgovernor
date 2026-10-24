@@ -24,16 +24,12 @@ public static partial class PrisonerMedicineRules
     /// is chosen or the choice is not blocked by care.
     /// </summary>
     public static OrganHarvest? CareLimitedHarvest(
-        Fact<PrisonerCensus> population,
+        PrisonerCensus census,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyList<OrganNeed> parts,
         IReadOnlyDictionary<PawnId, bool>? inFlight,
         RecipeFacts facts)
     {
-        if (!population.TryGetValue(out var census))
-        {
-            return null;
-        }
         var relaxed = new List<PrisonerFacts>(census.Prisoners.Count);
         var limited = new HashSet<CareOp>();
         foreach (var row in census.Prisoners)
@@ -54,7 +50,7 @@ public static partial class PrisonerMedicineRules
         {
             return null;
         }
-        var relaxedFacts = Known(census with { Prisoners = EquatableArray.From(relaxed) });
+        var relaxedFacts = census with { Prisoners = EquatableArray.From(relaxed) };
         var h = OrganHarvestRules.SelectOrganHarvest(relaxedFacts, needs, inFlight) ?? OrganHarvestRules.SelectPartRecovery(relaxedFacts, parts, inFlight, facts);
         return h is not null && limited.Contains(new CareOp((PawnId)h.Prisoner, h.Recipe, h.Part)) ? h : null;
     }

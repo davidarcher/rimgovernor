@@ -17,10 +17,8 @@ public sealed record PrisonersFacts
 
     public EquatableArray<CustodyFacts> Custody { get; init; } = [];
 
-    /// <summary>The facts a review already holds; a review without the population census raises <see cref="RequiredFactException"/>.</summary>
-    public static PrisonersFacts From(RoundsFacts f) => f.Population.TryGetValue(out var census)
-        ? new() { Prisoners = census.Prisoners, Colony = census.Colony, FoodDays = f.FoodDays, Custody = census.Custody }
-        : throw new RequiredFactException("population census");
+    /// <summary>The facts a review already holds.</summary>
+    public static PrisonersFacts From(RoundsFacts f) => new() { Prisoners = f.Population.Prisoners, Colony = f.Population.Colony, FoodDays = f.FoodDays, Custody = f.Population.Custody };
 }
 
 /// <summary>

@@ -509,11 +509,7 @@ internal static class StationFactsBuilder
         {
             f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
         }
-        if (projection.Facts.Population.TryGetValue(out var census))
-        {
-            f = f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(census.Prisoners)) };
-        }
-        return f;
+        return f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(projection.Facts.Population.Prisoners)) };
     }
 
     /// <summary>

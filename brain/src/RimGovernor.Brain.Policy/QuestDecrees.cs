@@ -62,6 +62,13 @@ public sealed record DecreeDue
 
 public static class QuestDecrees
 {
+    private static readonly Dictionary<QuestFamily, Pb.QuestObjectiveKind> DecreeKinds = new()
+    {
+        [QuestFamily.DecreeProduce] = Pb.QuestObjectiveKind.ProduceItem,
+        [QuestFamily.DecreeHarvest] = Pb.QuestObjectiveKind.HarvestPlant,
+        [QuestFamily.DecreeHunt] = Pb.QuestObjectiveKind.KillAnimals,
+    };
+
     /// <summary>
     /// Identifies outstanding native progress; inventory is never progress for a production or harvest decree.
     /// </summary>
@@ -71,20 +78,9 @@ public static class QuestDecrees
         {
             return null;
         }
-        Pb.QuestObjectiveKind kind;
-        switch (profile.Family)
+        if (!DecreeKinds.TryGetValue(profile.Family, out var kind))
         {
-            case QuestFamily.DecreeProduce:
-                kind = Pb.QuestObjectiveKind.ProduceItem;
-                break;
-            case QuestFamily.DecreeHarvest:
-                kind = Pb.QuestObjectiveKind.HarvestPlant;
-                break;
-            case QuestFamily.DecreeHunt:
-                kind = Pb.QuestObjectiveKind.KillAnimals;
-                break;
-            default:
-                return null;
+            return null;
         }
         foreach (var objective in offer.Objectives)
         {
@@ -98,11 +94,7 @@ public static class QuestDecrees
 
     public static bool DecreeDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        foreach (var offer in rows)
+        foreach (var offer in f.QuestOffers)
         {
             if (DecreeObjective(offer, f) is not null)
             {
@@ -290,12 +282,8 @@ public static class QuestDecrees
     /// </summary>
     public static Declared DeclareDecreeOrders(DecreeOrderRequest r)
     {
-        if (!r.Facts.QuestOffers.TryGetValue(out var offers))
-        {
-            return WorkRules.Abstaining(Cause.UnreadQuestOffers);
-        }
         var output = new Declared();
-        foreach (var offer in offers.OrderBy(o => o.Id))
+        foreach (var offer in r.Facts.QuestOffers.OrderBy(o => o.Id))
         {
             if (DecreeObjective(offer, r.Facts) is not { } objective || objective.Objective.Kind != Pb.QuestObjectiveKind.ProduceItem)
             {

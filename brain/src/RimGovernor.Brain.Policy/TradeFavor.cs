@@ -96,9 +96,9 @@ public static partial class TradePolicyRules
     /// </summary>
     public static IReadOnlySet<PawnId> SurplusPrisoners(this RoundsFacts f, bool silverShort)
     {
-        var pk = f.Population.TryGetValue(out var census);
+        var census = f.Population;
         var mk = f.MedicalPawns.TryGetValue(out _);
-        if (!pk || !mk || FavorPrisonersHeld(f.Ideology))
+        if (!mk || FavorPrisonersHeld(f.Ideology))
         {
             return new HashSet<PawnId>();
         }
@@ -112,13 +112,13 @@ public static partial class TradePolicyRules
         var needs = OrganHarvestRules.OrganNeeds(f.MedicalPawns, wants, silverShort, stock, f.Recipes);
         var parts = OrganHarvestRules.PartRecoveryNeeds(f.MedicalPawns, wants, f.Recipes);
         var output = new HashSet<PawnId>();
-        foreach (var row in census!.Prisoners)
+        foreach (var row in census.Prisoners)
         {
             if (!SurplusPrisoner(row, census.Colony))
             {
                 continue;
             }
-            var one = Known(census with { Prisoners = [row] });
+            var one = census with { Prisoners = [row] };
             var harvest = OrganHarvestRules.SelectOrganHarvest(one, needs, null) is not null;
             var recovery = OrganHarvestRules.SelectPartRecovery(one, parts, null, f.Recipes) is not null;
             if (!harvest && !recovery)

@@ -20,12 +20,10 @@ public static class QuestCapacity
     /// Chooses only from the native eligibility list. The least skilled eligible pawn is preferred; royal favor
     /// goes to an existing title holder when one is eligible.
     /// </summary>
-    public static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(QuestState offer, RoundsFacts facts, Fact<TWorkers> workers)
-        where TWorkers : IReadOnlyList<WorkPawn> =>
-        QuestAccepter(offer, facts, workers, QuestRewards.SelectQuestReward(offer, facts).Choice);
+    public static (PawnId Pawn, bool Ok) QuestAccepter(QuestState offer, RoundsFacts facts) =>
+        QuestAccepter(offer, facts, QuestRewards.SelectQuestReward(offer, facts).Choice);
 
-    private static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(QuestState offer, RoundsFacts facts, Fact<TWorkers> workers, int choice)
-        where TWorkers : IReadOnlyList<WorkPawn>
+    private static (PawnId Pawn, bool Ok) QuestAccepter(QuestState offer, RoundsFacts facts, int choice)
     {
         if (!offer.RequiresAccepter)
         {
@@ -38,7 +36,7 @@ public static class QuestCapacity
         var royal = facts.Royalty is RoyaltyState.Active { Facts: var active } ? active : null;
         long favor = offer.Favor + (choice >= 0 && choice < offer.Rewards.Count ? offer.Rewards[choice].Favor : 0);
         var priorities = new Dictionary<PawnId, int>();
-        if (!workers.TryGetValue(out var pawns))
+        if (facts.QuestPawns is not QuestPawns.Seen { Workers: var pawns })
         {
             return (default, false);
         }
@@ -84,11 +82,7 @@ public static class QuestCapacity
     /// <summary>The Beggars gift the colony owes now: one hauler gives the requested item once stock covers it.</summary>
     public static QuestGiftWork SelectQuestGift(RoundsFacts f, MapId currentMap)
     {
-        if (!f.QuestOffers.TryGetValue(out var offers))
-        {
-            return new QuestGiftWork();
-        }
-        foreach (var offer in offers.OrderBy(o => o.Id))
+        foreach (var offer in f.QuestOffers.OrderBy(o => o.Id))
         {
             if (offer.State != QuestStatus.Ongoing || offer.ScriptDef != "Beggars")
             {
@@ -169,29 +163,11 @@ public static class QuestCapacity
 
     /// <summary>
     /// Uses the roster's intended assignments, including changes that have not been applied yet. Sole primary
-    /// owners of essential work stay home.
+    /// owners of essential work stay home: the home floor counts the sole primary owners of doctor, cooking and
+    /// construction, and follows roster coverage, so a colony with redundant owners may send more. Unplanned when
+    /// the roster is not planned or any pawn, mood row, essential coverage or assignment is missing.
     /// </summary>
-    public static Fact<EquatableArray<PawnId>> QuestSpareColonists<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
-        where TWorkers : IReadOnlyList<WorkPawn>
-        where TMood : IReadOnlyList<MoodPawn>
-    {
-        var (spare, _, known) = QuestRosterSplit(workers, mood, roster);
-        return known ? Known(EquatableArray.From(spare)) : Unknown<EquatableArray<PawnId>>();
-    }
-
-    /// <summary>
-    /// The number of colonists who must stay home: the sole primary owners of doctor, cooking and
-    /// construction. It follows roster coverage, so a colony with redundant owners may send more.
-    /// </summary>
-    public static Fact<int> QuestHomeFloor<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
-        where TWorkers : IReadOnlyList<WorkPawn>
-        where TMood : IReadOnlyList<MoodPawn>
-    {
-        var (_, floor, known) = QuestRosterSplit(workers, mood, roster);
-        return known ? Known(floor) : Unknown<int>();
-    }
-
-    private static (List<PawnId> Spare, int Floor, bool Known) QuestRosterSplit<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
+    public static QuestRoster QuestRosterOf<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
         where TWorkers : IReadOnlyList<WorkPawn>
         where TMood : IReadOnlyList<MoodPawn>
     {
@@ -199,7 +175,7 @@ public static class QuestCapacity
         var mk = mood.TryGetValue(out var states);
         if (!roster.Planned || !wk || !mk)
         {
-            return ([], 0, false);
+            return new QuestRoster.Unplanned();
         }
         var status = new Dictionary<PawnId, MoodPawn>();
         foreach (var pawn in states!)
@@ -215,7 +191,7 @@ public static class QuestCapacity
         {
             if (!essential.ContainsKey(work))
             {
-                return ([], 0, false);
+                return new QuestRoster.Unplanned();
             }
         }
         var assignments = new Dictionary<PawnId, IReadOnlyList<WorkPriority>>();
@@ -233,7 +209,7 @@ public static class QuestCapacity
             }
             if (!status.TryGetValue(pawn.Id, out var state))
             {
-                return ([], 0, false);
+                return new QuestRoster.Unplanned();
             }
             if (state.Dead || state.Downed || state.Drafted || state.Mental)
             {
@@ -241,7 +217,7 @@ public static class QuestCapacity
             }
             if (!assignments.TryGetValue(pawn.Id, out var priorities))
             {
-                return ([], 0, false);
+                return new QuestRoster.Unplanned();
             }
             var needed = false;
             foreach (var setting in priorities)
@@ -261,36 +237,37 @@ public static class QuestCapacity
             }
         }
         spare.Sort();
-        return (spare, floor, true);
+        return new QuestRoster.Planned { Spare = EquatableArray.From(spare), HomeFloor = floor, Work = EquatableArray.From(roster.Assignments) };
     }
 
-    /// <summary>Retains uncertainty from the existing emergency decision.</summary>
-    public static Fact<bool> QuestCalmColony(RoundsFacts f, EmergencyDecision emergency, bool podsPending)
+    /// <summary>Whether the colony is calm: unsettled while the emergency decision rests on stale facts or is not clear.</summary>
+    public static QuestCalm QuestCalmColony(RoundsFacts f, EmergencyDecision emergency, bool podsPending)
     {
         if (podsPending)
         {
-            return Known(false);
+            return new QuestCalm.Busy();
         }
-        var unknown = false;
+        var stale = false;
         foreach (var hold in emergency.Holds)
         {
             if (hold.Reason is EmergencyReason.StaleFacts)
             {
-                unknown = true;
+                stale = true;
             }
             else
             {
-                return Known(false);
+                return new QuestCalm.Busy();
             }
         }
-        if (unknown)
+        if (stale || !emergency.Clear)
         {
-            return Unknown<bool>();
+            return new QuestCalm.Unsettled();
         }
-        if (!emergency.Clear)
+        var cleared = RoundsRules.CombatCleared(f);
+        if (!cleared.TryGetValue(out var calm))
         {
-            return Unknown<bool>();
+            return new QuestCalm.Unsettled();
         }
-        return RoundsRules.CombatCleared(f);
+        return calm ? QuestCalm.Settled : new QuestCalm.Busy();
     }
 }

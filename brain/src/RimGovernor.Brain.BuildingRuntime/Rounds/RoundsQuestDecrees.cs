@@ -7,10 +7,7 @@ public sealed partial class JoinersRounds
     {
         var state = work.State;
         var f = read.Projection.Facts;
-        if (!f.QuestOffers.TryGetValue(out var known))
-        {
-            return (default, false);
-        }
+        var known = f.QuestOffers;
 
         var offers = known.OrderBy(o => o.Id.Value, StringComparer.Ordinal).ToList();
         var lending = false;

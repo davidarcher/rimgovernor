@@ -1013,10 +1013,7 @@ public static partial class WorkRules
         {
             demand = demand with { GrowingCells = cells };
         }
-        if (facts.Population.TryGetValue(out var census))
-        {
-            demand = demand with { Prisoners = census.Prisoners.Count };
-        }
+        demand = demand with { Prisoners = facts.Population.Prisoners.Count };
         if (facts.EventLoot.TryGetValue(out var loot))
         {
             var stacks = 0;

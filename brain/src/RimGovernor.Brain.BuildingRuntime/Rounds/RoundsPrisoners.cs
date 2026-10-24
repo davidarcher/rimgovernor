@@ -103,15 +103,14 @@ public sealed class PrisonersRounds
     internal static JailStep JailStep(ColonyProjection facts)
     {
         var (plan, rooms, known) = RoundsBuildingPlanner.PlannedLayout(facts);
-        var pk = facts.Facts.Population.TryGetValue(out var census);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         var built = facts.Facts.CurrentConstruction;
-        if (!known || !pk || !sk || built is null)
+        if (!known || !sk || built is null)
         {
             return new JailStep();
         }
 
-        return JailRules.NextJailStep(plan, rooms, HeldPrisoners(census!.Prisoners), sleeping!.Beds, built.Buildings);
+        return JailRules.NextJailStep(plan, rooms, HeldPrisoners(facts.Facts.Population.Prisoners), sleeping!.Beds, built.Buildings);
     }
 
     /// <summary>Flags one jail bed for prisoners, once per bed under the Need; nothing when native already has it so.</summary>

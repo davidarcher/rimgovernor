@@ -6,12 +6,8 @@ public sealed partial class JoinersRounds
     internal (Verdict Verdict, bool Handled) AdmitSiteWork(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var f = read.Projection.Facts;
-        if (!f.QuestSites.TryGetValue(out var siteRows) || !f.QuestOffers.TryGetValue(out var offers))
-        {
-            return (default, false);
-        }
-
-        var sites = siteRows.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
+        var offers = f.QuestOffers;
+        var sites = f.QuestSites.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
         foreach (var site in sites)
         {
             if (site.Place is not PbObservations.SitePlace.Loaded loaded || loaded.Map.Id != read.Projection.Identity.Map)

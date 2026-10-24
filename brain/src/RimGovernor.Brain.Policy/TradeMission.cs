@@ -11,7 +11,7 @@ public static partial class TradePolicyRules
     /// </summary>
     public static (IReadOnlyList<PawnId> Crew, QuestSkipReason Reason) TradeMissionCrew(RoundsFacts f, IReadOnlyList<PawnId> claimed)
     {
-        if (!f.QuestDeparturePawns.TryGetValue(out var departure))
+        if (f.QuestPawns is not QuestPawns.Seen { Departures: var departure } || f.QuestRoster is not QuestRoster.Planned planned)
         {
             return ([], "no_departure_census");
         }
@@ -35,17 +35,13 @@ public static partial class TradePolicyRules
                 )
             )
             .ToList();
-        if (!f.QuestSparePawns.TryGetValue(out var spare))
-        {
-            return ([], "no_departure_census");
-        }
         foreach (var row in rows)
         {
-            if (row.Negotiation is not O.QuestNegotiation.Able(var ability, _) || !Finite(ability) || ability <= 0 || claimed.Contains(row.Id) || !spare.Contains(row.Id))
+            if (row.Negotiation is not O.QuestNegotiation.Able(var ability, _) || !Finite(ability) || ability <= 0 || claimed.Contains(row.Id) || !planned.Spare.Contains(row.Id))
             {
                 continue;
             }
-            var candidate = f with { QuestSparePawns = Known(EquatableArray.From([row.Id])) };
+            var candidate = f with { QuestRoster = planned with { Spare = EquatableArray.From([row.Id]) } };
             // A trade caravan is no quest: no open quest's departures are its own.
             var (crew, reason) = QuestDeparture.DepartureSquadFor(default, QuestFamily.BanditCamp, 1, candidate, false, true);
             if (reason.Value.Length == 0)
@@ -72,7 +68,7 @@ public static partial class TradePolicyRules
 
     public static (double Capacity, bool Ok) TradeMissionCarryCapacity(RoundsFacts f, IReadOnlyList<PawnId> crew)
     {
-        if (!f.QuestDeparturePawns.TryGetValue(out var rows))
+        if (f.QuestPawns is not QuestPawns.Seen { Departures: var rows })
         {
             return (0, false);
         }

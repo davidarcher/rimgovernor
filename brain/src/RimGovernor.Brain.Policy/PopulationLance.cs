@@ -39,7 +39,8 @@ public static partial class PopulationRules
     /// </summary>
     public static PawnId? LanceCandidate(RoundsFacts f)
     {
-        if (!f.Population.TryGetValue(out var census) || census.Colony.Colonists >= PopulationTargetFor(f.ColonistGoal))
+        var census = f.Population;
+        if (census.Colony.Colonists >= PopulationTargetFor(f.ColonistGoal))
         {
             return null;
         }

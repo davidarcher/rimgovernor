@@ -201,7 +201,7 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                try { observed = observed with { WorldProgression = NativeWorldProgressionObservation.Build(context) }; } catch (System.Exception ex) { ObservationWork.Failed("worldProgression", ex); }
+                observed = observed with { WorldProgression = SnapshotSectionException.Read("worldProgression", () => NativeWorldProgressionObservation.Build(context)) };
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {

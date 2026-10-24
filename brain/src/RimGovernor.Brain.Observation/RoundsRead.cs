@@ -213,32 +213,29 @@ public static class RoundsReads
             },
         };
         p = p with { TechTier = TechTierRules.SelectTechTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel) };
+        var quests = frame.Quests ?? throw new ObservationContractException("a routine frame carries no world progression");
+        var (questCapacity, questPawns) = QuestReads.FrameQuestPawns(quests, expected.Map, emergency, RoundsMoodReads.RoundsDefenders(colony, emergency, pawns), p.WorkPawns);
         p = p with
         {
             Facts = p.Facts with
             {
                 Traders = FrameTraders(frame.Traders),
-                QuestOffers = FrameQuests(frame.Quests),
-                QuestRoots = FrameQuestRoots(frame.Quests, catalog),
+                QuestOffers = EquatableArray.From(quests.Quests),
+                QuestRoots = FrameQuestRoots(quests, catalog),
                 ColonyMap = expected.Map,
-                QuestSites = WorldSitesReads.FrameWorldSites(frame.Quests),
-                QuestExpeditionTrips = QuestReads.FrameExpeditionTrips(frame.Quests, expected.Map),
-                QuestWorkers = p.WorkPawns,
+                QuestSites = EquatableArray.From(quests.Sites),
+                QuestExpeditionTrips = QuestReads.FrameExpeditionTrips(quests, expected.Map),
+                QuestWorkCapacity = questCapacity,
+                QuestPawns = questPawns,
+                QuestObservedTick = new Tick(quests.Context.Tick),
                 ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast.Needs, Coupled = colony.Forecast.Coupled },
                 EssentialInputs = new() { Benches = p.ProductionBenches, Power = p.PowerPlanning },
             },
         };
-        var (capacity, departures) = QuestReads.FrameQuestWorkerCapacity(frame.Quests, expected.Map, RoundsMoodReads.RoundsDefenders(colony, emergency, pawns));
-        p = p with { Facts = p.Facts with { QuestWorkCapacity = capacity, QuestDeparturePawns = departures } };
-        if (frame.Quests?.Context is { } questContext)
-        {
-            p = p with { Facts = p.Facts with { QuestObservedTick = Known(new Tick(questContext.Tick)) } };
-        }
         p = p with
         {
             Facts = p.Facts with
             {
-                QuestColonistsAtHome = QuestReads.FrameQuestColonistsAtHome(frame.Quests, expected.Map, emergency),
                 Ideology = frame.Ideology,
                 Worship = WorshipRules.FactsOf(frame.Ideology),
             },
@@ -252,18 +249,15 @@ public static class RoundsReads
                 AnimalUpkeep = p.Facts.AnimalUpkeep with { Animals = HerdPreceptsRules.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology) },
             },
         };
+        var population = frame.Population ?? throw new ObservationContractException("a routine frame carries no population census");
         p = p with
         {
             Facts = p.Facts with
             {
                 Royalty = ColonyProjection.RoyaltyOf(p.RoyaltySection, pawns, catalog),
-                Population = default,
+                Population = population with { Colony = population.Colony with { Ideoligion = p.Facts.Ideology } },
             },
         };
-        if (frame.Population is { } population)
-        {
-            p = p with { Facts = p.Facts with { Population = Known(population with { Colony = population.Colony with { Ideoligion = p.Facts.Ideology } }) } };
-        }
         // The frame's rooms census is the one room table: room quality reads it on every reading, the room census
         // sections only when asked.
         if (frame.Rooms is { } frameRooms)
@@ -347,19 +341,15 @@ public static class RoundsReads
             Finished = frame.Research is { } research ? DefinitionsReads.FinishedSet(research.Finished) : default,
         };
 
-    /// <summary>The visible quest census as native reads it; unknown when the frame carries none.</summary>
-    internal static Fact<EquatableArray<O.QuestState>> FrameQuests(WorldProgressionRead? read) =>
-        read is null ? Unknown<EquatableArray<O.QuestState>>() : Known(EquatableArray.From(read.Quests));
-
     /// <summary>
     /// The catalog's classification of every quest root the census holds, once per root: its profile and, for a
     /// ship-only Odyssey root, the space layer (QuestClass). A root the catalog cannot classify carries why the class
     /// failed ("" when only the profile did).
     /// </summary>
-    internal static EquatableArray<QuestRoot> FrameQuestRoots(WorldProgressionRead? read, DefinitionCatalog catalog)
+    internal static EquatableArray<QuestRoot> FrameQuestRoots(WorldProgressionRead read, DefinitionCatalog catalog)
     {
         var roots = new List<QuestRoot>();
-        foreach (var def in (read?.Quests ?? []).Select(q => q.ScriptDef).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        foreach (var def in read.Quests.Select(q => q.ScriptDef).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
             string layer = "", classError = "";
             try

@@ -195,11 +195,11 @@ public static partial class OrganHarvestRules
     /// harvest whose cost reaches its gain, or whose precept refuses, is never chosen. Unknown facts refuse.
     /// </summary>
     public static OrganHarvest? SelectOrganHarvest(
-        Fact<PrisonerCensus> population,
+        PrisonerCensus census,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
-        if (!population.TryGetValue(out var census) || needs.Count == 0
+        if (needs.Count == 0
             || census.Colony.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(census.Prisoners, inFlight))
         {
             return null;
@@ -404,12 +404,12 @@ public static partial class OrganHarvestRules
     /// (lethal included).
     /// </summary>
     public static OrganHarvest? SelectPartRecovery(
-        Fact<PrisonerCensus> population,
+        PrisonerCensus census,
         IReadOnlyList<OrganNeed> needs,
         IReadOnlyDictionary<PawnId, bool>? inFlight,
         RecipeFacts facts)
     {
-        if (!population.TryGetValue(out var census) || census.Colony.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(census.Prisoners, inFlight))
+        if (census.Colony.Preferences.Forbids(ForbiddenMethod.OrganHarvest) || SurgeryInFlight(census.Prisoners, inFlight))
         {
             return null;
         }

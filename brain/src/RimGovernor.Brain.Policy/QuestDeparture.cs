@@ -83,18 +83,13 @@ public static class QuestDeparture
     internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadFor(QuestId self, QuestFamily family, long need, RoundsFacts f, bool strongestFirst, bool allowNonfighters)
     {
         IReadOnlyList<PawnId> none = [];
-        var ck = f.QuestColonyCalm.TryGetValue(out var calm);
-        var hk = f.QuestColonistsAtHome.TryGetValue(out var homeCount);
-        var fk = f.QuestHomeFloor.TryGetValue(out var floor);
-        var sk = f.QuestSparePawns.TryGetValue(out var spare);
-        var rk = f.QuestDeparturePawns.TryGetValue(out var rows);
-        var wk = f.QuestDepartureWork.TryGetValue(out var work);
         var covk = f.WorkRoster.TryGetValue(out var coverage);
-        if (!ck || !hk || !fk || !sk || !rk || !wk || !covk)
+        if (f.QuestCalm is QuestCalm.Unsettled || f.QuestPawns is not QuestPawns.Seen { AtHome: var homeCount, Departures: var rows }
+            || f.QuestRoster is not QuestRoster.Planned { HomeFloor: var floor, Spare: var spare, Work: var work } || !covk)
         {
             return (none, "capacity_unknown");
         }
-        if (!calm)
+        if (f.QuestCalm is QuestCalm.Busy)
         {
             return (none, "colony_busy");
         }
@@ -108,42 +103,39 @@ public static class QuestDeparture
             return (none, "home_capacity");
         }
         var owners = new Dictionary<WorkType, int>();
-        foreach (var row in coverage!)
+        foreach (var row in coverage)
         {
             owners[row.Work] = row.Owners;
         }
         var assignments = new Dictionary<PawnId, IReadOnlyList<WorkPriority>>();
-        foreach (var row in work!)
+        foreach (var row in work)
         {
             assignments[row.Pawn] = row.Priorities;
         }
         var committed = new HashSet<PawnId>();
-        if (f.QuestOffers.TryGetValue(out var offers))
+        foreach (var open in f.QuestOffers)
         {
-            foreach (var open in offers)
+            if (open.State != QuestStatus.Ongoing || open.Id == self)
             {
-                if (open.State != QuestStatus.Ongoing || open.Id == self)
-                {
-                    continue;
-                }
-                foreach (var pawn in open.DeparturePawnIds)
+                continue;
+            }
+            foreach (var pawn in open.DeparturePawnIds)
+            {
+                committed.Add(pawn);
+            }
+            foreach (var shuttle in open.Shuttles)
+            {
+                foreach (var pawn in shuttle.PendingPawnIds)
                 {
                     committed.Add(pawn);
                 }
-                foreach (var shuttle in open.Shuttles)
+                foreach (var pawn in shuttle.LoadedPawnIds)
                 {
-                    foreach (var pawn in shuttle.PendingPawnIds)
-                    {
-                        committed.Add(pawn);
-                    }
-                    foreach (var pawn in shuttle.LoadedPawnIds)
-                    {
-                        committed.Add(pawn);
-                    }
+                    committed.Add(pawn);
                 }
             }
         }
-        var candidates = new List<QuestDeparturePawn>(rows!);
+        var candidates = new List<QuestDeparturePawn>(rows);
         candidates.Sort((x, y) =>
         {
             if (family == QuestFamily.BanditCamp)
@@ -200,7 +192,7 @@ public static class QuestDeparture
             {
                 continue;
             }
-            if (!spare!.Contains(pawn.Id))
+            if (!spare.Contains(pawn.Id))
             {
                 continue;
             }
@@ -271,11 +263,7 @@ public static class QuestDeparture
 
     public static bool DepartureDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        foreach (var offer in rows)
+        foreach (var offer in f.QuestOffers)
         {
             if (f.RootOf(offer) is QuestRoot.Classified { Profile: var profile } && offer.State == QuestStatus.Ongoing
                 && (profile.Family == QuestFamily.PawnLend || profile.Family == QuestFamily.BanditCamp))
@@ -288,11 +276,7 @@ public static class QuestDeparture
 
     public static QuestDepartureWork SelectQuestDeparture(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return new QuestDepartureWork();
-        }
-        foreach (var offer in rows.OrderBy(o => o.Id))
+        foreach (var offer in f.QuestOffers.OrderBy(o => o.Id))
         {
             if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var p } || offer.State != QuestStatus.Ongoing
                 || (p.Family != QuestFamily.PawnLend && p.Family != QuestFamily.BanditCamp))

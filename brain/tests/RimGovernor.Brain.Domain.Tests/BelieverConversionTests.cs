@@ -166,8 +166,8 @@ public sealed class BelieverConversionTests
         Assert.False(GoalRules.DemandOf(GoalFacts(Ideo(Guide("guide")), Pawns(Believer))).Believers);
 
         var census = new PrisonerCensus { Prisoners = [], Custody = [], Colony = new PrisonerColony(), Guests = [], Names = [] };
-        var facts = GoalRules.Stamp(new RoundsFacts { Population = Known(census) }, new GoalDemand { Believers = true });
-        Assert.True(facts.Population.Value.Colony.BelieversWanted);
+        var facts = GoalRules.Stamp(new RoundsFacts { Population = census }, new GoalDemand { Believers = true });
+        Assert.True(facts.Population.Colony.BelieversWanted);
     }
 
     private static (GoalState State, string Reason) Status(IdeologyFacts _, Fact<EquatableArray<WorkPawn>> pawns, IdeologyMode ideo)

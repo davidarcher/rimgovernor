@@ -23,10 +23,7 @@ public static class QuestMonumentPolicy
 {
     public static bool MonumentDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return false;
-        }
+        var rows = f.QuestOffers;
         foreach (var offer in rows)
         {
             if (offer.State != QuestStatus.Ongoing)
@@ -48,14 +45,9 @@ public static class QuestMonumentPolicy
     /// Follows native sketch progress. Queued construction and an intact completed marker remain native
     /// work; receipts never complete it.
     /// </summary>
-    public static QuestMonumentMethod SelectQuestMonument<TOffers>(Fact<TOffers> offers, MapId home, IReadOnlyDictionary<Resource, long> stock, IReadOnlyList<Rectangle> protectedRects)
-        where TOffers : IReadOnlyList<QuestState>
+    public static QuestMonumentMethod SelectQuestMonument(IReadOnlyList<QuestState> offers, MapId home, IReadOnlyDictionary<Resource, long> stock, IReadOnlyList<Rectangle> protectedRects)
     {
-        if (!offers.TryGetValue(out var all))
-        {
-            return new QuestMonumentMethod { Reason = "quest_census_unknown" };
-        }
-        foreach (var offer in all.OrderBy(o => o.Id))
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
             if (offer.State != QuestStatus.Ongoing)
             {
@@ -244,10 +236,7 @@ public static class QuestMonumentPolicy
             available[resource] = available.GetValueOrDefault(resource) - count;
         }
         // Reserve unmet material for earlier nonautomatic quests before this offer.
-        if (!f.QuestOffers.TryGetValue(out var open))
-        {
-            return "open_demands_unknown";
-        }
+        var open = f.QuestOffers;
         foreach (var q in open)
         {
             if (q.State != QuestStatus.Ongoing || q.Id == offer.Id)

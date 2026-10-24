@@ -18,10 +18,7 @@ public static class QuestGravInspection
 {
     public static QuestGravInspectionWork SelectQuestGravInspection(RoundsFacts f, MapId home)
     {
-        if (!f.QuestOffers.TryGetValue(out var offers))
-        {
-            return new QuestGravInspectionWork();
-        }
+        var offers = f.QuestOffers;
         foreach (var offer in offers.OrderBy(o => o.Id))
         {
             if (offer.State != QuestStatus.Ongoing)
@@ -65,10 +62,7 @@ public static class QuestGravInspection
 
     public static bool GravInspectionDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return false;
-        }
+        var rows = f.QuestOffers;
         foreach (var offer in rows)
         {
             if (offer.State != QuestStatus.Ongoing)

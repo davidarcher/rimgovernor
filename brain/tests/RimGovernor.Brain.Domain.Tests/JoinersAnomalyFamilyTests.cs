@@ -20,7 +20,7 @@ public sealed class JoinersAnomalyFamilyTests
     /// <summary>Room for one more colonist: nobody hosted, twenty days of food and a spare unowned bed.</summary>
     private static RoundsFacts Room(RoundsFacts f) => f with
     {
-        Population = Known(PopulationFixtures.Census()),
+        Population = PopulationFixtures.Census(),
         FoodDays = new FoodRunway.Days(20.0),
         Sleeping = Known(new SleepingObservation
         {
@@ -32,8 +32,8 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static RoundsFacts Census(params RimGovernor.Contracts.Wire.Observations.JoinerLetter[] letters) => Room(new RoundsFacts
     {
-        QuestOffers = Known<EquatableArray<RimGovernor.Contracts.Wire.Observations.QuestState>>([]),
-        JoinerLetters = Known<EquatableArray<RimGovernor.Contracts.Wire.Observations.JoinerLetter>>([.. letters]),
+        QuestOffers = [],
+        JoinerLetters = [.. letters],
         Royalty = new RoyaltyState.Active(new RoyaltyFacts()),
     });
 
@@ -54,7 +54,6 @@ public sealed class JoinersAnomalyFamilyTests
 
         // A letter the colony may have no room for, or an unread census, never reads as settled.
         Assert.Equal("population capacity", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
-        Assert.Equal("quest offers", Assert.Throws<RequiredFactException>(() => new JoinersFamily().Derive(new JoinersFacts())).Fact);
         // With Royalty inactive no ceremony can wait, so the Need is met.
         Assert.Equal(Satisfaction.Met, Joiner(Census() with { Royalty = new RoyaltyState.Inactive() }, JoinersFamily.Ceremony).Satisfaction);
     }

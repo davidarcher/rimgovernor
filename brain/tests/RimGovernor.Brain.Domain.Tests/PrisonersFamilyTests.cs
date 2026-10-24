@@ -61,8 +61,7 @@ public sealed class PrisonersFamilyTests
         var unmet = Derive(Census(Colony1, Prisoner("a"), Prisoner("b"), Prisoner("c", PrisonerInteractionMode.Recruit)), PrisonersFamily.Recruit);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit));
 
-        // A review without the population census raises; a prisoner under a mode the colony never sets is left alone.
-        Assert.Equal("population census", Assert.Throws<RequiredFactException>(() => PrisonersFacts.From(new RoundsFacts())).Fact);
+        // A prisoner under a mode the colony never sets is left alone.
         var executing = Prisoner("b") with { CurrentInteraction = new PrisonerHeldInteraction.Other() };
         Assert.Null(PopulationRules.PrisonerIntent(executing, Colony1, new FoodRunway.Days(20.0), Policy));
         Assert.Equal(Satisfaction.Met, Derive(Census(Colony1, executing), PrisonersFamily.Recruit).Satisfaction);

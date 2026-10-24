@@ -37,7 +37,7 @@ public sealed class QuestMonumentHackGiftTests
         QuestStateTests.WithQuests(new RoundsFacts(), [offer], QuestStateTests.Root(offer.ScriptDef, new QuestProfile { Family = family }));
 
     private static QuestMonumentMethod Select(Pb.QuestMonument marker) => QuestMonumentPolicy.SelectQuestMonument(
-        Known<EquatableArray<Pb.QuestState>>([Ongoing("BuildMonument", Objective with { Monument = marker })]),
+        [Ongoing("BuildMonument", Objective with { Monument = marker })],
         new MapId(0), new Dictionary<Resource, long> { [new Resource("Steel")] = 100 }, []);
 
     [Fact]

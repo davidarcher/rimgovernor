@@ -434,7 +434,7 @@ public static class ColonyDecodeReads
         f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
         f = f with { OutdoorsDark = outdoorsDark };
         f = f with { MedicalReserve = ColonyFramesReads.ColonyMedicalReserve(v, tables, catalog) };
-        f = f with { JoinerLetters = Known(v.JoinerLetters) };
+        f = f with { JoinerLetters = v.JoinerLetters };
         if (!HasIssue(v.Issues, "cooking") && Headed(buildings, v.Cooking, b => b.Bench))
         {
             var benches = new List<CookingBench>();

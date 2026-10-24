@@ -570,10 +570,7 @@ public static partial class GoalRules
         var owner = PrisonersFamily.Recruit;
         var one = GoalDeficit.Of(1.0);
         var pawn = new PawnId(goal.Target);
-        if (!f.Rounds.Population.TryGetValue(out var census))
-        {
-            throw new RequiredFactException("population census");
-        }
+        var census = f.Rounds.Population;
         var row = census.Prisoners.FirstOrDefault(p => p.Pawn == pawn);
         if (row is null)
         {
@@ -654,10 +651,7 @@ public static partial class GoalRules
     private static GoalStatus NamedQuest(GoalRecord goal, GoalsFacts f)
     {
         var one = GoalDeficit.Of(1.0);
-        if (!f.Rounds.QuestOffers.TryGetValue(out var offers))
-        {
-            throw new RequiredFactException("quest offers");
-        }
+        var offers = f.Rounds.QuestOffers;
         var quest = new QuestId(goal.Target);
         var offer = offers.FirstOrDefault(o => o.Id == quest);
         if (offer is null)
@@ -802,7 +796,7 @@ public static partial class GoalRules
     public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
     {
         f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build, GoalValues = d.Values, GoalTraining = d.Training, GoalSurgeries = d.Surgeries }, d.Worn);
-        return f.Population.TryGetValue(out var census) ? f with { Population = Fact.Known(census with { Colony = census.Colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers } }) } : f;
+        return f with { Population = f.Population with { Colony = f.Population.Colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers } } };
     }
 
     /// <summary>

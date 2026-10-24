@@ -34,6 +34,9 @@ public sealed record PrisonerCensus
 
     /// <summary>The owned-pawn short-name census.</summary>
     public required EquatableArray<OwnedName> Names { get; init; }
+
+    /// <summary>A census of no one: the facts' value before the frame's census lands.</summary>
+    public static PrisonerCensus Nobody { get; } = new() { Prisoners = [], Custody = [], Colony = new PrisonerColony(), Guests = [], Names = [] };
 }
 
 /// <summary>One pawn's native skill row. Passion is "None", "Minor" or "Major".</summary>

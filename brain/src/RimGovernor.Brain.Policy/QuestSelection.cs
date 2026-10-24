@@ -8,10 +8,7 @@ public static class QuestSelection
     /// <summary>Explains refusals with the same family decision used for admission.</summary>
     public static IReadOnlyList<QuestSkip> QuestSkips(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return [];
-        }
+        var rows = f.QuestOffers;
         var output = new List<QuestSkip>();
         foreach (var offer in rows)
         {
@@ -36,11 +33,11 @@ public static class QuestSelection
     /// <summary>Gates the delayed quest raid using its generated budget.</summary>
     public static QuestSkipReason JoinerThreatReason(QuestState offer, RoundsFacts facts)
     {
-        if (!facts.QuestColonyCalm.TryGetValue(out var calm))
+        if (facts.QuestCalm is QuestCalm.Unsettled)
         {
             return "capacity_unknown";
         }
-        if (!calm)
+        if (facts.QuestCalm is QuestCalm.Busy)
         {
             return "colony_busy";
         }
@@ -134,7 +131,7 @@ public static class QuestSelection
                 return (false, "off_map");
             }
         }
-        if (offer.RequiresAccepter && !QuestCapacity.QuestAccepter(offer, f, f.QuestWorkers).Ok)
+        if (offer.RequiresAccepter && !QuestCapacity.QuestAccepter(offer, f).Ok)
         {
             return (false, "needs_accepter");
         }
@@ -220,22 +217,15 @@ public static class QuestSelection
         {
             return "automatic_trap";
         }
-        var ck = f.QuestColonyCalm.TryGetValue(out var calm);
-        var sk = f.QuestSparePawns.TryGetValue(out var spare);
-        var hk = f.QuestColonistsAtHome.TryGetValue(out var home);
-        var fk = f.QuestHomeFloor.TryGetValue(out var floor);
-        if (!ck || !sk || !hk || !fk)
+        if (f.QuestCalm is QuestCalm.Unsettled || f.QuestRoster is not QuestRoster.Planned { Spare: var spare, HomeFloor: var floor } || f.QuestPawns is not QuestPawns.Seen { AtHome: var home })
         {
             return "capacity_unknown";
         }
-        if (!calm)
+        if (f.QuestCalm is QuestCalm.Busy)
         {
             return "colony_busy";
         }
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return QuestSkipReason.ClassUnknown;
-        }
+        var rows = f.QuestOffers;
         long used = 0, away = 0;
         foreach (var open in rows)
         {
@@ -267,7 +257,7 @@ public static class QuestSelection
         {
             return reason;
         }
-        if (spare!.Count < used + need)
+        if (spare.Count < used + need)
         {
             return "no_spare_pawn";
         }
@@ -334,10 +324,7 @@ public static class QuestSelection
     /// </summary>
     public static JoinerChoice SelectQuestMethod(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            throw new RequiredFactException("quest offers");
-        }
+        var rows = f.QuestOffers;
         // A quest a player goal names goes first, when the same checks every offer passes admit it (#3499).
         QuestState? best = null;
         foreach (var named in f.NamedQuests)
@@ -380,14 +367,13 @@ public static class QuestSelection
         var choice = new JoinerChoice { Quest = best.Id, RewardChoice = QuestRewards.SelectQuestReward(best, f).Choice };
         if (best.RequiresAccepter)
         {
-            choice = choice with { Accepter = QuestCapacity.QuestAccepter(best, f, f.QuestWorkers).Pawn };
+            choice = choice with { Accepter = QuestCapacity.QuestAccepter(best, f).Pawn };
         }
         return choice;
     }
 
     /// <summary>
-    /// Whether a quest is worth accepting, or an accepted one owes hosting, expedition or ideology work; an unread census
-    /// raises <see cref="RequiredFactException"/>.
+    /// Whether a quest is worth accepting, or an accepted one owes hosting, expedition or ideology work; the census is read whole.
     /// </summary>
     public static bool QuestDeficit(RoundsFacts f) =>
         SelectQuestMethod(f).Reason == JoinerPlanReason.None || QuestHospitality.HospitalityDeficit(f) || QuestExpedition.ExpeditionDeficit(f) || QuestHackPolicy.IdeologyWorkDeficit(f);

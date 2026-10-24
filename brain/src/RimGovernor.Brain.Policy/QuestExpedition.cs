@@ -76,12 +76,8 @@ public static class QuestExpedition
     internal static bool QuestExpeditionSite(QuestState offer, RoundsFacts f, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ExpeditionSite? site)
     {
         site = null;
-        if (!f.QuestSites.TryGetValue(out var sites))
-        {
-            return false;
-        }
         WorldSite? selected = null;
-        foreach (var candidate in sites)
+        foreach (var candidate in f.QuestSites)
         {
             if (!candidate.QuestIds.Contains(offer.Id))
             {
@@ -131,26 +127,19 @@ public static class QuestExpedition
 
     public static bool ExpeditionDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var offers))
-        {
-            return false;
-        }
-        foreach (var offer in offers)
+        foreach (var offer in f.QuestOffers)
         {
             if (f.RootOf(offer) is QuestRoot.Classified { Profile: var profile } && !profile.NeverAct && profile.Disposition != QuestDisposition.Refuse)
             {
-                if (f.QuestSites.TryGetValue(out var sites))
+                foreach (var site in f.QuestSites)
                 {
-                    foreach (var site in sites)
+                    if (!site.QuestIds.Contains(offer.Id))
                     {
-                        if (!site.QuestIds.Contains(offer.Id))
-                        {
-                            continue;
-                        }
-                        if (site.Place is Pb.SitePlace.Loaded { Map.Extraction: Pb.QuestSiteExtraction.Crew })
-                        {
-                            return true;
-                        }
+                        continue;
+                    }
+                    if (site.Place is Pb.SitePlace.Loaded { Map.Extraction: Pb.QuestSiteExtraction.Crew })
+                    {
+                        return true;
                     }
                 }
                 if (offer.State != QuestStatus.Ongoing)
@@ -168,11 +157,7 @@ public static class QuestExpedition
 
     public static ExpeditionPlan SelectExpedition(RoundsFacts f, RoundsPolicy p)
     {
-        if (!f.QuestOffers.TryGetValue(out var offers))
-        {
-            return new ExpeditionPlan();
-        }
-        foreach (var offer in offers.OrderBy(o => o.Id))
+        foreach (var offer in f.QuestOffers.OrderBy(o => o.Id))
         {
             if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || profile.NeverAct || profile.Disposition == QuestDisposition.Refuse || offer.State != QuestStatus.Ongoing)
             {
@@ -182,11 +167,7 @@ public static class QuestExpedition
             {
                 continue;
             }
-            if (!f.QuestExpeditionTrips.TryGetValue(out var trips))
-            {
-                return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Reason = "journey_unknown" };
-            }
-            foreach (var trip in trips)
+            foreach (var trip in f.QuestExpeditionTrips)
             {
                 if (trip is ExpeditionTrip.Forming
                     || trip is ExpeditionTrip.OnWorld { Tile: var tile } && tile == site.Tile
@@ -196,19 +177,16 @@ public static class QuestExpedition
                 }
             }
             // A live site map proves arrival; its work belongs to the site driver.
-            if (f.QuestSites.TryGetValue(out var sites))
+            foreach (var row in f.QuestSites)
             {
-                foreach (var row in sites)
+                if (row.Id == site.Id && row.Place is Pb.SitePlace.Loaded)
                 {
-                    if (row.Id == site.Id && row.Place is Pb.SitePlace.Loaded)
+                    if (offer.ScriptDef == "SurveySite")
                     {
-                        if (offer.ScriptDef == "SurveySite")
-                        {
-                            var work = QuestSurvey.SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p);
-                            return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Departure = work.Departure, Reason = work.Reason };
-                        }
-                        return new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
+                        var work = QuestSurvey.SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p);
+                        return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Departure = work.Departure, Reason = work.Reason };
                     }
+                    return new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
                 }
             }
             var terminal = QuestHackPolicy.WorshippedTerminalAdmission(offer);
@@ -297,24 +275,18 @@ public static class QuestExpedition
         var tripTicks = (double)ticks * 2 + hold + GameTime.TicksPerDay;
         // Offer expiry only limits acceptance. Site objective deadlines, when present, limit travel after
         // acceptance.
-        if (f.QuestObservedTick.TryGetValue(out var now))
+        foreach (var objective in offer.Objectives)
         {
-            foreach (var objective in offer.Objectives)
+            if (objective.Timing is Pb.QuestObjectiveTiming.Deadline due && (double)due.Tick - f.QuestObservedTick.Value <= (double)ticks + hold)
             {
-                if (objective.Timing is Pb.QuestObjectiveTiming.Deadline due && (double)due.Tick - now.Value <= (double)ticks + hold)
-                {
-                    return Fail("deadline_capacity");
-                }
+                return Fail("deadline_capacity");
             }
         }
-        if (!f.QuestSparePawns.TryGetValue(out var spare))
+        if (f.QuestRoster is not QuestRoster.Planned planned || f.QuestPawns is not QuestPawns.Seen { Departures: var rows })
         {
             return Fail("capacity_unknown");
         }
-        if (!f.QuestDeparturePawns.TryGetValue(out var rows))
-        {
-            return Fail("capacity_unknown");
-        }
+        var spare = planned.Spare;
         var strength = new Dictionary<PawnId, double>();
         foreach (var pawn in rows)
         {
@@ -332,7 +304,7 @@ public static class QuestExpedition
                 }
                 filtered.Add(id);
             }
-            var (selected, reason) = QuestDeparture.DepartureSquadFor(offer.Id, QuestFamily.BanditCamp, explicitCrew.Count, f with { QuestSparePawns = Known(EquatableArray.From(filtered)) }, false, true);
+            var (selected, reason) = QuestDeparture.DepartureSquadFor(offer.Id, QuestFamily.BanditCamp, explicitCrew.Count, f with { QuestRoster = planned with { Spare = EquatableArray.From(filtered) } }, false, true);
             if (!reason.IsNone)
             {
                 return Fail(reason);

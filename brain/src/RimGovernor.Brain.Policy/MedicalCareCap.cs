@@ -198,8 +198,7 @@ public static partial class MedicalRules
                 }
             }
         }
-        f.Population.TryGetValue(out var census);
-        foreach (var row in census?.Prisoners ?? [])
+        foreach (var row in f.Population.Prisoners)
         {
             if (row.Dead)
             {
@@ -209,7 +208,7 @@ public static partial class MedicalRules
             var (want, ok) = Capped(baseCare, raise, row.Conditions, row.LifeThreatening);
             Add(row.Pawn, row.MedicalCare != want, want, ok);
         }
-        foreach (var g in census?.Guests ?? [])
+        foreach (var g in f.Population.Guests)
         {
             var (want, ok) = Capped(MedicalCare.Normal, true, g.Conditions, g.LifeThreatening);
             Add(g.Id, g.Care != want, want, ok);

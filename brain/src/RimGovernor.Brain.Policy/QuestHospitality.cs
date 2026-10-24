@@ -29,14 +29,11 @@ public static class QuestHospitality
     /// </summary>
     public static HospitalityWork SelectHospitalityWork(RoundsFacts f, Tick tick)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return new HospitalityWork { Reason = "quest_census_unknown" };
-        }
+        var rows = f.QuestOffers;
         var waiting = new HospitalityWork();
         foreach (var offer in rows.OrderBy(o => o.Id))
         {
-            var one = f with { QuestOffers = Known(EquatableArray.From(new[] { offer })) };
+            var one = f with { QuestOffers = EquatableArray.From(new[] { offer }) };
             var work = HospitalityWorkOf(one, tick);
             if (work.Assign is not null || work.Shuttle is not null)
             {
@@ -52,10 +49,7 @@ public static class QuestHospitality
 
     private static HospitalityWork HospitalityWorkOf(RoundsFacts f, Tick tick)
     {
-        if (!f.QuestOffers.TryGetValue(out var offers))
-        {
-            return new HospitalityWork { Reason = "quest_census_unknown" };
-        }
+        var offers = f.QuestOffers;
         foreach (var offer in offers.OrderBy(o => o.Id))
         {
             if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile }
@@ -72,7 +66,7 @@ public static class QuestHospitality
                 {
                     continue;
                 }
-                if (!f.QuestColonyCalm.TryGetValue(out var calm) || !calm)
+                if (f.QuestCalm is not QuestCalm.Calm)
                 {
                     return work with { Waiting = true };
                 }
@@ -218,10 +212,7 @@ public static class QuestHospitality
 
     public static bool HospitalityDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return false;
-        }
+        var rows = f.QuestOffers;
         foreach (var offer in rows)
         {
             if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var p })
@@ -249,10 +240,7 @@ public static class QuestHospitality
     public static HashSet<PawnId> ProtectedQuestGuestIds(RoundsFacts f)
     {
         var ids = new HashSet<PawnId>();
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return ids;
-        }
+        var rows = f.QuestOffers;
         foreach (var offer in rows)
         {
             if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !profile.ProtectGuests || offer.State != QuestStatus.Ongoing)

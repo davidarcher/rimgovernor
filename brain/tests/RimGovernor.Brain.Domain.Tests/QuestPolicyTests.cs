@@ -24,13 +24,13 @@ public sealed class QuestPolicyTests
 
     private static RoundsFacts Calm(params Pb.QuestState[] offers) => QuestStateTests.WithQuests(new RoundsFacts
     {
-        QuestColonyCalm = Known(true),
+        QuestCalm = QuestCalm.Settled,
         DefenseCapacity = Known(500.0),
-        Population = Known(PopulationFixtures.Census()),
+        Population = PopulationFixtures.Census(),
         FoodDays = new FoodRunway.Days(20.0),
     }, offers);
 
-    private static EquatableArray<Pb.QuestState> Offers(RoundsFacts f) => f.QuestOffers.TryGetValue(out var rows) ? rows : [];
+    private static EquatableArray<Pb.QuestState> Offers(RoundsFacts f) => f.QuestOffers;
 
     [Fact]
     public void AJoinerOfferIsAcceptedWithRoomAndLeftWithoutIt()
@@ -195,7 +195,7 @@ public sealed class QuestPolicyTests
 
     private static readonly RoundsFacts Surveying = new()
     {
-        QuestObservedTick = Known(new Tick(100_000)),
+        QuestObservedTick = new Tick(100_000),
     };
 
     private static Pb.QuestState SurveyOffer(Pb.QuestSurveyScanner scanner) => QuestStateTests.NoQuest with

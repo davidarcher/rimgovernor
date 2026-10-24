@@ -87,15 +87,11 @@ public static class QuestCoreSite
             }
         }
         ids.Sort();
-        if (!f.Population.TryGetValue(out var census))
-        {
-            throw new RequiredFactException("population census");
-        }
         if (ids.Count == 0)
         {
             return result with { Reason = "rescue_target_unknown" };
         }
-        var rows = census.Custody;
+        var rows = f.Population.Custody;
         foreach (var id in ids)
         {
             var row = rows.FirstOrDefault(r => r.Pawn == id);
@@ -137,7 +133,7 @@ public static class QuestCoreSite
                 }
                 return result with { Reason = "rescue_actor_unavailable" };
             }
-            foreach (var prisoner in census.Prisoners)
+            foreach (var prisoner in f.Population.Prisoners)
             {
                 if (prisoner.Pawn != id)
                 {

@@ -19,10 +19,7 @@ public static class QuestPeaceTalksPolicy
     {
         ExpeditionPlan Fail(QuestSkipReason reason) => new() { Quest = offer.Id, Site = site.Id, Reason = reason };
 
-        if (!f.QuestSites.TryGetValue(out var sites))
-        {
-            return Fail("diplomacy_unknown");
-        }
+        var sites = f.QuestSites;
         Pb.QuestPeaceTalks? risk = null;
         foreach (var row in sites)
         {
@@ -41,7 +38,7 @@ public static class QuestPeaceTalksPolicy
         {
             return Fail(downside);
         }
-        if (!f.QuestDeparturePawns.TryGetValue(out var departures))
+        if (f.QuestPawns is not QuestPawns.Seen { Departures: var departures })
         {
             return Fail("capacity_unknown");
         }
@@ -99,27 +96,25 @@ public static class QuestPeaceTalksPolicy
             }
             return x.Id.CompareTo(y.Id);
         });
-        var sk = f.QuestSparePawns.TryGetValue(out var spare);
-        var dk = f.QuestDeparturePawns.TryGetValue(out var departures);
         var ck = f.DefenseCapacity.TryGetValue(out var capacity);
         var raid = f.RaidPoints;
-        if (!sk || !dk || !ck || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
+        if (f.QuestRoster is not QuestRoster.Planned planned || f.QuestPawns is not QuestPawns.Seen { Departures: var departures } || !ck || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
         {
             return (default, "capacity_unknown");
         }
         foreach (var pawn in rows)
         {
-            if (!spare!.Contains(pawn.Id))
+            if (!planned.Spare.Contains(pawn.Id))
             {
                 continue;
             }
-            var trial = f with { QuestSparePawns = Known(EquatableArray.From(new[] { pawn.Id })) };
+            var trial = f with { QuestRoster = planned with { Spare = EquatableArray.From(new[] { pawn.Id }) } };
             var (crew, reason) = QuestDeparture.DepartureSquadFor(offer.Id, QuestFamily.PawnLend, 1, trial, false, false);
             if (!reason.IsNone || crew.Count != 1)
             {
                 continue;
             }
-            foreach (var departure in departures!)
+            foreach (var departure in departures)
             {
                 if (departure.Id != pawn.Id)
                 {

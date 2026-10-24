@@ -35,8 +35,7 @@ public static class QuestCapacityForecast
     /// </summary>
     public static QuestSkipReason QuestDeadlineFeasibility(QuestState offer, RoundsFacts f)
     {
-        var nk = f.QuestObservedTick.TryGetValue(out var observed);
-        var now = observed.Value;
+        long now = f.QuestObservedTick.Value;
         var (tasks, reason) = QuestDeadlineTasks(offer, now, f.Recipes);
         if (!reason.IsNone)
         {
@@ -46,22 +45,15 @@ public static class QuestCapacityForecast
         {
             return "";
         }
-        if (!nk)
-        {
-            return "deadline_unknown";
-        }
-        var ck = f.QuestWorkCapacity.TryGetValue(out var capacities);
-        var wk = f.QuestWorkers.TryGetValue(out var workers);
-        var sk = f.QuestSparePawns.TryGetValue(out var spare);
-        var ok = f.QuestOffers.TryGetValue(out var open);
-        if (!ck || !wk || !sk || !ok)
+        var capacities = f.QuestWorkCapacity;
+        if (f.QuestPawns is not QuestPawns.Seen { Workers: var workers } || f.QuestRoster is not QuestRoster.Planned { Spare: var spare })
         {
             return "deadline_unknown";
         }
         // Nonautomatic open work has first claim. Untimed commitments reserve a whole worker; timed work
         // shares the same budgets as the new offer.
         long reserved = 0;
-        foreach (var q in open!)
+        foreach (var q in f.QuestOffers)
         {
             if (q.State != QuestStatus.Ongoing || q.Id == offer.Id)
             {
@@ -95,13 +87,13 @@ public static class QuestCapacityForecast
             }
         }
         var byId = new Dictionary<PawnId, WorkPawn>();
-        foreach (var p in workers!)
+        foreach (var p in workers)
         {
             byId[p.Id] = p;
         }
-        var allowed = new HashSet<PawnId>(spare!);
+        var allowed = new HashSet<PawnId>(spare);
         var eligible = new List<QuestWorkCapacity>();
-        foreach (var p in capacities!.OrderBy(c => c.Pawn))
+        foreach (var p in capacities.OrderBy(c => c.Pawn))
         {
             if (!allowed.Contains(p.Pawn))
             {

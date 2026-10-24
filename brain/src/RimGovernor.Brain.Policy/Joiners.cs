@@ -69,7 +69,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         var f = facts.Rounds;
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         var offers = Offered(f);
-        var letters = f.JoinerLetters.TryGetValue(out var rows) ? rows : throw new RequiredFactException("joiner letters");
+        var letters = f.JoinerLetters;
         return
         [
             Owed(Offers, PopulationRules.JoinerDeficit(offers, capacity, f)),
@@ -98,7 +98,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
             {
                 output.Add(Accept(Offers, AcceptMethod("joiner", joiner.Quest), joiner));
             }
-            else if (need.Id == Letters && f.JoinerLetters.TryGetValue(out var letters) && PopulationRules.SelectJoinerLetter(letters, capacity) is { } letter)
+            else if (need.Id == Letters && PopulationRules.SelectJoinerLetter(f.JoinerLetters, capacity) is { } letter)
             {
                 var answer = DialogAnswer.NewJoinerLetterAnswer(letter.Id, letter.Label, letter.Token);
                 output.Add(new NeedMethod(Letters, LetterMethod(letter.Id), "",
@@ -137,7 +137,6 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     private static Need Ceremonies(RoundsFacts f) =>
         Owed(Ceremony, f.Royalty is RoyaltyState.Active { Facts: var royalty } && CeremonyRules.CeremonyStart(royalty) is not null);
 
-    /// <summary>The quest census; an unread one raises <see cref="RequiredFactException"/>.</summary>
-    private static EquatableArray<QuestState> Offered(RoundsFacts f) =>
-        f.QuestOffers.TryGetValue(out var offers) ? offers : throw new RequiredFactException("quest offers");
+    /// <summary>The quest census.</summary>
+    private static EquatableArray<QuestState> Offered(RoundsFacts f) => f.QuestOffers;
 }

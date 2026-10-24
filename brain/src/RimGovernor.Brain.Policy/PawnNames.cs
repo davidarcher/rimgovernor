@@ -41,13 +41,6 @@ public static partial class PawnRules
         return result;
     }
 
-    /// <summary>The review's NamesOwed fact: a rename is owed. An unknown census owes nothing.</summary>
-    public static Fact<bool> NamesOwed(Fact<PrisonerCensus> population)
-    {
-        if (!population.TryGetValue(out var census))
-        {
-            return Unknown<bool>();
-        }
-        return Known(NicknameChanges(census.Names).Count > 0);
-    }
+    /// <summary>The review's NamesOwed fact: a rename is owed.</summary>
+    public static Fact<bool> NamesOwed(PrisonerCensus population) => Known(NicknameChanges(population.Names).Count > 0);
 }

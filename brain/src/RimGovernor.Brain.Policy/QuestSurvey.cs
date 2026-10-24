@@ -50,11 +50,7 @@ public static class QuestSurvey
         }
         if (scanner.Hold is Pb.SurveyHold.Running running)
         {
-            if (!f.QuestObservedTick.TryGetValue(out var now))
-            {
-                return (site, "survey_duration_unknown");
-            }
-            duration = Math.Max(0L, running.EndTick.Value - now.Value);
+            duration = Math.Max(0L, running.EndTick.Value - f.QuestObservedTick.Value);
         }
         site = site with { HoldTicks = duration };
         var forced = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
@@ -151,21 +147,18 @@ public static class QuestSurvey
     private static bool SurveyReliefFacts(RoundsFacts f, EquatableArray<Domain.PawnId> crew, out RoundsFacts reserve)
     {
         reserve = f;
-        var hk = f.QuestColonistsAtHome.TryGetValue(out var home);
         var ck = f.DefenseCapacity.TryGetValue(out var capacity);
-        var rk = f.QuestDeparturePawns.TryGetValue(out var rows);
-        var wk = f.QuestDepartureWork.TryGetValue(out var work);
         var covk = f.WorkRoster.TryGetValue(out var roster);
-        var sk = f.QuestSparePawns.TryGetValue(out var spare);
-        if (!hk || !ck || !rk || !wk || !covk || !sk)
+        if (f.QuestPawns is not QuestPawns.Seen seen || f.QuestRoster is not QuestRoster.Planned planned || !ck || !covk)
         {
             return false;
         }
-        var coverage = roster!.ToList();
+        var (home, rows, work) = (seen.AtHome, seen.Departures, planned.Work);
+        var coverage = roster.ToList();
         foreach (var id in crew)
         {
             var found = false;
-            foreach (var row in rows!)
+            foreach (var row in rows)
             {
                 if (row.Id == (PawnId)id)
                 {
@@ -177,7 +170,7 @@ public static class QuestSurvey
             {
                 return false;
             }
-            foreach (var row in work!)
+            foreach (var row in work)
             {
                 if (row.Pawn != (PawnId)id)
                 {
@@ -200,11 +193,10 @@ public static class QuestSurvey
         }
         reserve = f with
         {
-            QuestColonistsAtHome = Known(home - crew.Count),
+            QuestPawns = seen with { AtHome = home - crew.Count, Departures = EquatableArray.From(rows.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id))) },
             DefenseCapacity = Known(capacity),
             WorkRoster = Known(EquatableArray.From(coverage)),
-            QuestSparePawns = Known(EquatableArray.From(spare!.Where(id => !crew.Items.Contains((Domain.PawnId)id)))),
-            QuestDeparturePawns = Known(EquatableArray.From(rows!.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id)))),
+            QuestRoster = planned with { Spare = EquatableArray.From(planned.Spare.Where(id => !crew.Items.Contains((Domain.PawnId)id))) },
         };
         return true;
     }
@@ -232,10 +224,7 @@ public static class QuestSurvey
         {
             return result with { Reason = "survey_hold_stopped" };
         }
-        if (!f.QuestObservedTick.TryGetValue(out var now))
-        {
-            return result with { Reason = "survey_duration_unknown" };
-        }
+        var now = f.QuestObservedTick;
         var end = running.EndTick.Value;
         // Elapsed time alone never proves native completion.
         if (end <= now.Value)
@@ -271,11 +260,7 @@ public static class QuestSurvey
         }
         // Relief is an ordinary affordable expedition carrying food for the whole remaining hold and return.
         // Existing journeys prevent duplicate relief.
-        if (!f.QuestExpeditionTrips.TryGetValue(out var trips))
-        {
-            return result with { Reason = "journey_unknown" };
-        }
-        foreach (var trip in trips)
+        foreach (var trip in f.QuestExpeditionTrips)
         {
             if (trip is ExpeditionTrip.Forming || trip is ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Moving { Destination: var destination } } && destination == loaded.Tile)
             {

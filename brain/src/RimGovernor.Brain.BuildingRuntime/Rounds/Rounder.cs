@@ -566,7 +566,7 @@ public sealed partial class Rounder
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         var (hostiles, criticalPatients) = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         reading = reading.WithFacts(rf => rf with { Hostiles = hostiles, CriticalPatients = criticalPatients });
-        reading = reading.WithFacts(rf => rf with { QuestColonyCalm = QuestCapacity.QuestCalmColony(reading.Projection.Facts, EmergencyRules.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
+        reading = reading.WithFacts(rf => rf with { QuestCalm = QuestCapacity.QuestCalmColony(reading.Projection.Facts, EmergencyRules.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
         reading = reading.WithFacts(rf => rf with { DangerSeeds = SafeAreaMemory.DangerSeedFact(reading.Projection.Facts.Hostiles, reading.Emergency.Threats) });
         reading.Projection.Facts.DangerSeeds.TryGetValue(out var seeds);
         reading = reading.WithFacts(rf => rf with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick) });
@@ -666,9 +666,7 @@ public sealed partial class Rounder
                     if (work.Planned)
                     {
                         reading = reading.WithFacts(rf => rf with { WorkRoster = Known<EquatableArray<WorkCoverage>>([.. work.Coverage]) });
-                        reading = reading.WithFacts(rf => rf with { QuestSparePawns = QuestCapacity.QuestSpareColonists(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
-                        reading = reading.WithFacts(rf => rf with { QuestHomeFloor = QuestCapacity.QuestHomeFloor(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
-                        reading = reading.WithFacts(rf => rf with { QuestDepartureWork = Known<EquatableArray<PawnWorkAssignment>>([.. work.Assignments]) });
+                        reading = reading.WithFacts(rf => rf with { QuestRoster = QuestCapacity.QuestRosterOf(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
                         reading = reading.WithFacts(rf => rf with { WorkHelp = work.Help });
                     }
                 }

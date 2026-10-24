@@ -32,23 +32,20 @@ internal static class RoundsCreepJoiner
             }
             work = work with { Drops = drops, Inspections = inspections, Isolation = isolation };
         }
-        if (facts.Facts.Population.TryGetValue(out var census))
+        DisarmWork disarm;
+        try
         {
-            DisarmWork disarm;
-            try
-            {
-                disarm = (catalog ?? throw new ControlException("creepJoiner review: no definition catalog")).CreepJoinerDisarm().Orders(census.Prisoners);
-            }
-            catch (DomainException)
-            {
-                // The disarm recipe is not in the catalog: nothing to order.
-                disarm = new DisarmWork();
-            }
-            work = work with { Disarm = disarm };
-            if (disarm.Orders.Count > 0)
-            {
-                due = true;
-            }
+            disarm = (catalog ?? throw new ControlException("creepJoiner review: no definition catalog")).CreepJoinerDisarm().Orders(facts.Facts.Population.Prisoners);
+        }
+        catch (DomainException)
+        {
+            // The disarm recipe is not in the catalog: nothing to order.
+            disarm = new DisarmWork();
+        }
+        work = work with { Disarm = disarm };
+        if (disarm.Orders.Count > 0)
+        {
+            due = true;
         }
         return work with { Owed = due || hands is not null ? Known(due) : Unknown<bool>() };
     }

@@ -73,7 +73,7 @@ public sealed class QuestStateTests
                 all.Add(Root(def, QuestFamiliesPolicy.QuestFamilyForRoot(def)));
             }
         }
-        return f with { QuestOffers = Known(EquatableArray.From(rows)), QuestRoots = EquatableArray.From(all) };
+        return f with { QuestOffers = EquatableArray.From(rows), QuestRoots = EquatableArray.From(all) };
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class QuestStateTests
 
     private static RoundsFacts Calm(params QuestState[] offers) => WithQuests(new RoundsFacts
     {
-        QuestColonyCalm = Known(true),
+        QuestCalm = QuestCalm.Settled,
         DefenseCapacity = Known(500.0),
     }, offers);
 

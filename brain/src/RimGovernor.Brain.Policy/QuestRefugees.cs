@@ -8,10 +8,7 @@ public static class QuestRefugees
     public static Dictionary<PawnId, QuestId> QuestRefugeeIds(RoundsFacts f)
     {
         var output = new Dictionary<PawnId, QuestId>();
-        if (!f.QuestOffers.TryGetValue(out var rows))
-        {
-            return output;
-        }
+        var rows = f.QuestOffers;
         foreach (var offer in rows)
         {
             if (offer.State != QuestStatus.Ongoing || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile }

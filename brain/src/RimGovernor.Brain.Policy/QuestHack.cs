@@ -37,10 +37,7 @@ public static class QuestHackPolicy
 
     public static bool IdeologyWorkDeficit(RoundsFacts f)
     {
-        if (!f.QuestOffers.TryGetValue(out var offers))
-        {
-            return false;
-        }
+        var offers = f.QuestOffers;
         foreach (var offer in offers)
         {
             if (offer.State != QuestStatus.Ongoing || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
@@ -108,10 +105,7 @@ public static class QuestHackPolicy
 
     public static QuestHackWork SelectQuestHack(RoundsFacts f, MapId currentMap)
     {
-        if (!f.QuestOffers.TryGetValue(out var all))
-        {
-            return new QuestHackWork();
-        }
+        var all = f.QuestOffers;
         foreach (var offer in all.OrderBy(o => o.Id))
         {
             if (offer.State != QuestStatus.Ongoing)
@@ -171,22 +165,19 @@ public static class QuestHackPolicy
         {
             return "";
         }
-        var ck = f.QuestColonyCalm.TryGetValue(out var calm);
-        var sk = f.QuestSparePawns.TryGetValue(out var spare);
-        var wk = f.QuestWorkers.TryGetValue(out var workers);
-        if (!ck || !sk || !wk)
+        if (f.QuestCalm is QuestCalm.Unsettled || f.QuestRoster is not QuestRoster.Planned { Spare: var spare } || f.QuestPawns is not QuestPawns.Seen { Workers: var workers })
         {
             return "capacity_unknown";
         }
-        if (!calm)
+        if (f.QuestCalm is QuestCalm.Busy)
         {
             return "colony_busy";
         }
-        if (spare!.Count == 0)
+        if (spare.Count == 0)
         {
             return "no_spare_pawn";
         }
-        foreach (var worker in workers!)
+        foreach (var worker in workers)
         {
             if (!worker.Available || !spare.Contains(worker.Id))
             {

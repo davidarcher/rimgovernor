@@ -167,7 +167,7 @@ public sealed class GoalsFamilyTests
         // A full hundred hosted people: the bot's own target admits no more; the goal does.
         var full = new RoundsFacts
         {
-            Population = Known(PopulationFixtures.Census(custody: Enumerable.Range(0, 100).Select(i => PopulationFixtures.Admitted("c" + i)))),
+            Population = PopulationFixtures.Census(custody: Enumerable.Range(0, 100).Select(i => PopulationFixtures.Admitted("c" + i))),
             FoodDays = new FoodRunway.Days(30.0),
         };
         Assert.False(PopulationRules.JoinerCapacity(full.JoinerCapacity()).Value);
@@ -222,7 +222,7 @@ public sealed class GoalsFamilyTests
     private static CustodyFacts Colonist(string pawn) => PopulationFixtures.Admitted(pawn);
 
     private static GoalsFacts PrisonersCensus(IEnumerable<PrisonerFacts> prisoners, params CustodyFacts[] custody) =>
-        new() { Rounds = new RoundsFacts { Population = Known(PopulationFixtures.Census(prisoners, custody)) } };
+        new() { Rounds = new RoundsFacts { Population = PopulationFixtures.Census(prisoners, custody) } };
 
     [Fact]
     public void ANamedPrisonerIsPursuedWhileHeldMetOnceAColonistAndHasNoMethodOtherwise()
@@ -236,12 +236,11 @@ public sealed class GoalsFamilyTests
         Assert.Equal((GoalState.NoMethod, "not a prisoner"), (stranger.State, stranger.Reason));
         var unrecruitable = GoalRules.Evaluate(goal, PrisonersCensus([Held("p1", recruitable: false)]));
         Assert.Equal((GoalState.NoMethod, "not_recruitable"), (unrecruitable.State, unrecruitable.Reason));
-        Assert.Equal("population census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);
 
         var demand = GoalRules.DemandOf(PrisonersCensus([Held("p1")]) with { Goals = [goal] });
         Assert.Equal([new PawnId("p1")], demand.Prisoners);
-        var stamped = GoalRules.Stamp(new RoundsFacts { Population = Known(PopulationFixtures.Census()) }, demand);
-        Assert.Equal(demand.Prisoners, stamped.Population.Value.Colony.NamedPrisoners);
+        var stamped = GoalRules.Stamp(new RoundsFacts { Population = PopulationFixtures.Census() }, demand);
+        Assert.Equal(demand.Prisoners, stamped.Population.Colony.NamedPrisoners);
     }
 
     private static (GoalState, Satisfaction) Pair(GoalStatus s) => (s.State, s.Satisfaction);
@@ -286,7 +285,6 @@ public sealed class GoalsFamilyTests
         var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { Expiry = new RimGovernor.Contracts.Wire.Observations.QuestExpiry.ExpiresIn(0) }));
         Assert.Equal((GoalState.NoMethod, "expired"), (lapsed.State, lapsed.Reason));
         Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, QuestFacts(Offer("q1"))).State);
-        Assert.Equal("quest offers", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);
     }
 
     [Fact]

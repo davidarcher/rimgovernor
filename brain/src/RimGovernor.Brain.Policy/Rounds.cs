@@ -332,7 +332,7 @@ public sealed record RoundsFacts
     /// census), so it is the frame's population section: the prisoners, the capture/rescue candidates (every observed
     /// humanlike), the colony side of a prisoner's use, the guests' care cap inputs and the owned-pawn names.
     /// </summary>
-    public Fact<PrisonerCensus> Population { get; init; }
+    public PrisonerCensus Population { get; init; } = PrisonerCensus.Nobody;
 
     /// <summary>The containment cell's inputs and the entity rows the capture rule decides, set by the routine reading.</summary>
     public ContainmentPlanning Containment { get; init; } = new();
@@ -345,7 +345,7 @@ public sealed record RoundsFacts
     /// (rimgovernor/observations_read_world_progression), read per cycle by a RoundsSource offering
     /// RoundsQuestSource, for JoinerDeficit to detect and SelectJoinerMethod to answer a joiner offer from.
     /// </summary>
-    public Fact<EquatableArray<QuestState>> QuestOffers { get; init; }
+    public EquatableArray<QuestState> QuestOffers { get; init; } = [];
 
     /// <summary>The catalog's classification of every quest root the census holds (QuestRoots.RootOf); empty without a census.</summary>
     public EquatableArray<QuestRoot> QuestRoots { get; init; }
@@ -353,7 +353,7 @@ public sealed record RoundsFacts
     /// <summary>The colony's map: a quest on it is a quest at home (QuestSelection's off-map check).</summary>
     public MapId ColonyMap { get; init; }
 
-    public Fact<EquatableArray<WorldSite>> QuestSites { get; init; }
+    public EquatableArray<WorldSite> QuestSites { get; init; } = [];
 
     /// <summary>The royalty read from the pawn rows, the def mirror and the colony section: Inactive without the expansion (the default before the read).</summary>
     public RoyaltyState Royalty { get; init; } = new RoyaltyState.Inactive();
@@ -377,7 +377,7 @@ public sealed record RoundsFacts
     /// <summary>The bestowing-ceremony quests the title claim gate allows to accept now (ClaimQuests); the review fills it once the plan, rooms and royalty read are known.</summary>
     public EquatableArray<QuestId> TitleClaimQuests { get; init; }
 
-    public Fact<EquatableArray<JoinerLetter>> JoinerLetters { get; init; }
+    public EquatableArray<JoinerLetter> JoinerLetters { get; init; } = [];
 
     public double RaidPoints { get; init; }
 
@@ -463,26 +463,23 @@ public sealed record RoundsFacts
     public Fact<EquatableArray<WorkCoverage>> WorkRoster { get; init; }
 
     // Quest capacity is derived from the current roster, world census and emergency review.
-    public Fact<EquatableArray<PawnId>> QuestSparePawns { get; init; }
+    /// <summary>The roster split the work plan implies: spare pawns, the home floor and the intended priorities; Unplanned until the review plans work.</summary>
+    public QuestRoster QuestRoster { get; init; } = new QuestRoster.Unplanned();
 
-    public Fact<EquatableArray<WorkPawn>> QuestWorkers { get; init; }
+    /// <summary>The colony's pawns as quest capacity reads them; Unseen without a complete pawn census.</summary>
+    public QuestPawns QuestPawns { get; init; } = new QuestPawns.Unseen();
 
-    public Fact<EquatableArray<QuestWorkCapacity>> QuestWorkCapacity { get; init; }
+    /// <summary>What the current map's quest workers can do, from the world census.</summary>
+    public EquatableArray<QuestWorkCapacity> QuestWorkCapacity { get; init; } = [];
 
-    public Fact<EquatableArray<QuestDeparturePawn>> QuestDeparturePawns { get; init; }
+    /// <summary>The caravans and forming assemblies the world census holds.</summary>
+    public EquatableArray<ExpeditionTrip> QuestExpeditionTrips { get; init; } = [];
 
-    public Fact<EquatableArray<PawnWorkAssignment>> QuestDepartureWork { get; init; }
+    /// <summary>The tick of the world census the quest rows were read at.</summary>
+    public Tick QuestObservedTick { get; init; }
 
-    public Fact<EquatableArray<ExpeditionTrip>> QuestExpeditionTrips { get; init; }
-
-    public Fact<Tick> QuestObservedTick { get; init; }
-
-    public Fact<int> QuestColonistsAtHome { get; init; }
-
-    /// <summary>The sole essential owners who stay home (QuestHomeFloor).</summary>
-    public Fact<int> QuestHomeFloor { get; init; }
-
-    public Fact<bool> QuestColonyCalm { get; init; }
+    /// <summary>Whether the colony is calm enough to send a quest party out.</summary>
+    public QuestCalm QuestCalm { get; init; } = new QuestCalm.Unsettled();
 
     /// <summary>Every work pawn's typed profile (Profiles); a presentation fact the review records, never a planner input.</summary>
     public Fact<EquatableArray<PawnProfile>> WorkProfiles { get; init; }
