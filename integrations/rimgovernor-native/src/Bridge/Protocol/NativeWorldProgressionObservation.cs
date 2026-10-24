@@ -87,7 +87,8 @@ namespace HomeBridge.BridgeTools
             {
                 var row = new Obs.CaravanState
                 {
-                    Caravan = new Obs.EntityRef { Id = c.GetUniqueLoadID(), DefName = c.def.defName, Label = c.Label ?? "" },
+                    // A caravan is a world object: it is on no map.
+                    Caravan = new Obs.EntityRef { Id = c.GetUniqueLoadID(), DefName = c.def.defName, Label = c.Label ?? throw new InvalidOperationException("Caravan label unavailable."), Place = new Obs.EntityPlace.Unplaced() },
                     Tile = c.Tile.tileId, Moving = c.pather.Moving,
                     MassUsage = c.MassUsage, MassCapacity = c.MassCapacity,
                     FoodDays = c.DaysWorthOfFood.days, FoodRotDays = c.DaysWorthOfFood.tillRot,

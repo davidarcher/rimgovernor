@@ -45,7 +45,7 @@ public static class AcquisitionReads
                 Resource = row.Resource ?? "",
                 Token = row.SourceSnapshot?.Token ?? "",
                 Definition = source?.DefName ?? "",
-                Cell = ColonyDecodeReads.CellOf(source?.Position),
+                Cell = source is null ? default : ColonyDecodeReads.MapCellOf(source),
                 Hunt = row.Hunt.GetValueOrDefault(),
                 Food = row.Food.GetValueOrDefault(),
                 Designated = row.Designated.GetValueOrDefault(),

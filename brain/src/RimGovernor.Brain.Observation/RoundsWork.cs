@@ -25,11 +25,11 @@ public static class RoundsWorkReads
             {
                 continue;
             }
-            if (item.Thing is null || !things.TryRow(item.Thing, out var row) || (row.Entity?.DefName ?? "").Length == 0)
+            if (item.Thing is null || !things.TryRow(item.Thing, out var row))
             {
                 return false;
             }
-            weapon = catalog.WeaponOf(row.Entity?.DefName ?? "");
+            weapon = catalog.WeaponOf(row.Entity.DefName);
             return true;
         }
         return false;

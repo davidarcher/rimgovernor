@@ -227,7 +227,7 @@ public static class ConstructionReads
     /// <summary>Projects one built row for the construction census.</summary>
     internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
     {
-        var building = new Building(row.Building.DefName, ColonyDecodeReads.CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
+        var building = new Building(row.Building.DefName, ColonyDecodeReads.MapCellOf(row.Building), RotationOf(row.Rotation), row.Stuff ?? "");
         return new CurrentBuilding { Id = row.Building.Id, Building = building, Cells = EquatableArray.From(CellsRules.RectCells(row.Occupied)) };
     }
 
@@ -254,7 +254,7 @@ public static class ConstructionReads
             }
             site = new ConstructionSite
             {
-                Building = new Building(build.Definition, ColonyDecodeReads.CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? ""),
+                Building = new Building(build.Definition, ColonyDecodeReads.MapCellOf(row.Building), RotationOf(row.Rotation), row.Stuff ?? ""),
                 Stage = row.Status == O.BuildingStatus.Blueprint ? ConstructionSite.BlueprintStage : "frame",
                 Id = row.Building.Id,
                 ResourcesComplete = Known(build.Resources.All(r => r.StillNeeded == 0)),

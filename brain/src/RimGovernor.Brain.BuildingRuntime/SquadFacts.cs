@@ -40,7 +40,7 @@ internal sealed partial class Armament
         {
             if ((item.Thing?.Id ?? "") == equipment.PrimaryId && item.Thing is not null && Things.TryRow(item.Thing, out var row))
             {
-                return row.Entity?.DefName ?? "";
+                return row.Entity.DefName;
             }
         }
         return "";
@@ -67,11 +67,11 @@ internal sealed partial class Armament
             {
                 continue;
             }
-            if (item.Thing is null || !Things.TryRow(item.Thing, out var row) || (row.Entity?.DefName ?? "").Length == 0)
+            if (item.Thing is null || !Things.TryRow(item.Thing, out var row))
             {
                 return (new Pol.WeaponDef(), false);
             }
-            return (Catalog.WeaponOf(row.Entity?.DefName ?? ""), true);
+            return (Catalog.WeaponOf(row.Entity.DefName), true);
         }
         return (new Pol.WeaponDef(), false);
     }

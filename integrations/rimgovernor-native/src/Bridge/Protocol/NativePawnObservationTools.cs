@@ -218,9 +218,9 @@ namespace HomeBridge.BridgeTools
 
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {
-            var row=new Obs.EntityRef { Id=Id(thing.GetUniqueLoadID()),DefName=Id(thing.def.defName),Label=Text(thing.LabelCap) };
             // A held thing (gear, a buried corpse) is at its holder's cell.
-            if(thing.MapHeld!=null) { row = row with { MapId = thing.MapHeld.uniqueID };row = row with { Position = Cell(thing.PositionHeld) }; } return row;
+            Obs.EntityPlace place = thing.MapHeld is { } map ? new Obs.EntityPlace.OnMap(map.uniqueID, Cell(thing.PositionHeld)) : new Obs.EntityPlace.Unplaced();
+            return new Obs.EntityRef { Id=Id(thing.GetUniqueLoadID()),DefName=Id(thing.def.defName),Label=Text(thing.LabelCap),Place=place };
         }
         internal static Common.Cell Cell(IntVec3 value)=>new Common.Cell {X=value.x,Z=value.z};
         internal static string Id(string? value)=>ProtoBoundary.IsIdentifier(value)?value:throw new InvalidOperationException("Native ID unavailable.");

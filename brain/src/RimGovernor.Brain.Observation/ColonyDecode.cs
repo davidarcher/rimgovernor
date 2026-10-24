@@ -87,6 +87,10 @@ public static class ColonyDecodeReads
 
     internal static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
 
+    /// <summary>The cell of a map census row's head: a map census holds only placed things, so an unplaced head breaks the contract.</summary>
+    internal static Cell MapCellOf(O.EntityRef head) =>
+        head.Place is O.EntityPlace.OnMap at ? CellOf(at.Cell) : throw new ObservationContractException($"{head.Id} is on no map");
+
     /// <summary>The load id of the allowed area labelled <paramref name="label"/>, "" when the map has none.</summary>
     internal static string AllowedAreaID(O.Policies policies, string label)
     {
@@ -270,7 +274,7 @@ public static class ColonyDecodeReads
                 {
                     Id = reference.Id,
                     Definition = reference.DefName,
-                    Cell = CellOf(reference.Position),
+                    Cell = reference.Place is O.EntityPlace.OnMap placed ? CellOf(placed.Cell) : default,
                     Occupied = CellsRules.RectCells(b.Occupied),
                     BaseW = defs.PowerBaseW(def, tables.FinishedResearch),
                     OutputW = s.PowerOutputW.GetValueOrDefault(),
@@ -296,7 +300,7 @@ public static class ColonyDecodeReads
                 {
                     fuel.Add(consumer);
                 }
-                geometryKnown = geometryKnown && reference.Position is not null && site.Occupied.Count > 0;
+                geometryKnown = geometryKnown && reference.Place is O.EntityPlace.OnMap && site.Occupied.Count > 0;
                 sites.Add(site);
                 if (site.TurretDps.IsKnown)
                 {
@@ -314,12 +318,12 @@ public static class ColonyDecodeReads
                 {
                     continue;
                 }
-                if (row.Building.Position is null)
+                if (row.Building.Place is not O.EntityPlace.OnMap at)
                 {
                     geometryKnown = false;
                     continue;
                 }
-                var cell = CellOf(row.Building.Position);
+                var cell = CellOf(at.Cell);
                 conduits.Add(cell);
                 if (row.Building.DefName == "PowerConduit")
                 {
@@ -341,7 +345,7 @@ public static class ColonyDecodeReads
             foreach (var row in development.Geysers)
             {
                 var reference = tables.Entity(row.Geyser);
-                if (reference?.Position is null)
+                if (reference?.Place is not O.EntityPlace.OnMap at)
                 {
                     geometryKnown = false;
                     continue;
@@ -351,7 +355,7 @@ public static class ColonyDecodeReads
                 {
                     geyserCells.Add(CellOf(cell));
                 }
-                geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(reference.Position), Occupied = row.Occupied, Cells = geyserCells });
+                geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(at.Cell), Occupied = row.Occupied, Cells = geyserCells });
             }
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = networks, Geysers = geysers };
             if (geometryKnown)
@@ -545,7 +549,7 @@ public static class ColonyDecodeReads
                 var head = tables.Entity(row.Item);
                 var item = new LootItem
                 {
-                    Supply = new StartingSupply { Thing = row.Item?.Id ?? "", Definition = head?.DefName ?? "", Cell = CellOf(head?.Position) },
+                    Supply = new StartingSupply { Thing = row.Item?.Id ?? "", Definition = head?.DefName ?? "", Cell = MapCellOf(head!) },
                     Forbidden = row.Forbidden.GetValueOrDefault(),
                     SafeToHaul = row.SafeToHaul.GetValueOrDefault(),
                     SafetyKnown = row.SafeToHaul is not null,

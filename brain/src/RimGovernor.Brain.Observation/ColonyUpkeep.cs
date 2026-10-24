@@ -235,7 +235,7 @@ public static class ColonyUpkeepReads
             {
                 Id = reference.Id,
                 Definition = reference.DefName,
-                Cell = ColonyDecodeReads.CellOf(reference.Position),
+                Cell = ColonyDecodeReads.MapCellOf(reference),
                 Radius = radius,
                 Lit = row.Lit,
                 SwitchedOn = s.SwitchedOn,

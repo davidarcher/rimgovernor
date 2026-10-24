@@ -62,7 +62,7 @@ internal static class MovementArrival
         Common.Cell? at = null;
         _ = await s.RunUntilAsync("arrive", 2000, async ct =>
         {
-            at = (await TypedApply.PawnAsync(s, "position", pawnId, ct).ConfigureAwait(false)).Pawn.Position;
+            at = ((await TypedApply.PawnAsync(s, "position", pawnId, ct).ConfigureAwait(false)).Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell;
             return (Wait.Signature(at?.X, at?.Z), at?.X == destination.X && at?.Z == destination.Z);
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("arrived", at);

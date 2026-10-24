@@ -38,7 +38,7 @@ public static class RitualSitesReads
         return Known(EquatableArray.From(output));
     }
 
-    /// <summary>A cell fact: unknown unless both coordinates are present.</summary>
-    internal static Fact<Cell> RowCell(C.Cell? cell) =>
-        cell is null ? Unknown<Cell>() : Known(new Cell(cell.X, cell.Z));
+    /// <summary>A row head's cell as the policy's cell fact: unknown for an unplaced head.</summary>
+    internal static Fact<Cell> RowCell(O.EntityPlace place) =>
+        place is O.EntityPlace.OnMap at ? Known(new Cell(at.Cell.X, at.Cell.Z)) : Unknown<Cell>();
 }

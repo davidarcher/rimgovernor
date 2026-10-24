@@ -76,7 +76,7 @@ internal static class ClearanceRetiredBlueprints
             {
                 Statuses = [Observations.BuildingStatus.Blueprint, Observations.BuildingStatus.Frame],
             }, ct).ConfigureAwait(false);
-            var onCell = pending.Where(b => b.Building.Position is { } p && p.X == cell.X && p.Z == cell.Z).ToList();
+            var onCell = pending.Where(b => b.Building.Place is Observations.EntityPlace.OnMap { Cell: var p } && p.X == cell.X && p.Z == cell.Z).ToList();
             s.Record("on_cell", string.Join(' ', onCell.Select(b => $"{b.Building.Id}:{b.Status}")));
             var gone = onCell.Count == 0 && !pending.Any(b => blueprint.Ids.Contains(b.Building.Id));
             return (string.Create(CultureInfo.InvariantCulture, $"{onCell.Count} {string.Join(',', onCell.Select(b => b.Building.Id))}"), gone);

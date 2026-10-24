@@ -654,7 +654,8 @@ can still be removed. This is an intent precondition, with no additional store.
 ## Obtainable operation preconditions
 
 References are `Ref {id}`; an `EntityRef` is only a row head (id,
-definition, label, map, position). A write's CAS token is a `SnapshotRef`
+definition, label, and its `place`: `on_map` with the map id and cell, or `unplaced`
+for a thing on no map). Every member is required. A write's CAS token is a `SnapshotRef`
 sibling of the reference (`pawn_snapshot`, `source_snapshot`, ...), required,
 context-scoped and bound to the exact ID; a reference without one cannot supply
 an EntityPrecondition. Missing producer support yields unavailable; tokens are

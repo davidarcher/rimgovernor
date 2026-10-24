@@ -224,10 +224,9 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.EntityRef Entity(Thing thing)
         {
-            var row = new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap) };
             // A held thing (gear, a buried corpse) is at its holder's cell.
-            if (thing.MapHeld != null) { row = row with { MapId = thing.MapHeld.uniqueID }; row = row with { Position = Cell(thing.PositionHeld.x,thing.PositionHeld.z) }; }
-            return row;
+            Obs.EntityPlace place = thing.MapHeld is { } map ? new Obs.EntityPlace.OnMap(map.uniqueID, Cell(thing.PositionHeld.x, thing.PositionHeld.z)) : new Obs.EntityPlace.Unplaced();
+            return new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap), Place=place };
         }
         // Self-checked CAS token for one thing (observation rows and combat
         // orders compare it): its version over def, cell, stack, forbidden,

@@ -83,7 +83,7 @@ internal static class RefrigerationBuild
 
         s.RecordWire("cooler", cooler);
 
-        var at = cooler.Building.Position ?? throw new AcceptanceException("the cooler has no position");
+        var at = (cooler.Building.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell ?? throw new AcceptanceException("the cooler has no position");
         var cell = new Cell(at.X, at.Z);
         if (!room.Walls.Contains(new Fx.StageCell(cell.X, cell.Z)) || cooler.Rotation == Placement.Rotation.Unspecified)
         {

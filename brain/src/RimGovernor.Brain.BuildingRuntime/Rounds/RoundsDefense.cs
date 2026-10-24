@@ -664,7 +664,7 @@ partial class RoundsDefensePlanner
                 continue;
             }
             var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead, Wild = true };
-            if (row.Pawn.Position is { } position)
+            if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var position })
             {
                 s = s with { Cell = Known(new Cell(position.X, position.Z)) };
             }
@@ -705,7 +705,7 @@ partial class RoundsDefensePlanner
         foreach (var d in defenders)
         {
             rows.TryGetValue(d.Id.Value, out var row);
-            if (!d.RangedEquipped.TryGetValue(out var ranged) || !ranged || row is null || row.Pawn.Position is null)
+            if (!d.RangedEquipped.TryGetValue(out var ranged) || !ranged || row is null || row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var position })
             {
                 continue;
             }
@@ -714,7 +714,7 @@ partial class RoundsDefensePlanner
             {
                 continue;
             }
-            var at = new Cell(row.Pawn.Position.X, row.Pawn.Position.Z);
+            var at = new Cell(position.X, position.Z);
             if (!shooters.TryGetValue(at, out var list))
             {
                 shooters[at] = list = [];
@@ -774,7 +774,7 @@ partial class RoundsDefensePlanner
         {
             facts = facts with { NearestColonistDistance = Known(nearest.Distance) };
         }
-        if (row.Pawn.Position is { } position)
+        if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var position })
         {
             facts = facts with { Position = Known(new Cell(position.X, position.Z)) };
         }

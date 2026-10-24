@@ -144,7 +144,7 @@ public static class RoundsContainmentReads
         var platforms = new Dictionary<string, EntityPlatform>(StringComparer.Ordinal);
         foreach (var row in buildings)
         {
-            if (row.Anomaly?.Holder is { HeldPawn.Id: { Length: > 0 } held, ContainmentStrength: { } strength } && row.Building.Position is { } at)
+            if (row.Anomaly?.Holder is { HeldPawn.Id: { Length: > 0 } held, ContainmentStrength: { } strength } && row.Building.Place is O.EntityPlace.OnMap { Cell: var at })
             {
                 platforms[held] = new EntityPlatform(new Cell(at.X, at.Z), strength);
             }
@@ -309,7 +309,7 @@ public static class RoundsContainmentReads
                 continue;
             }
             var id = new PawnId(row.Pawn.Id ?? "");
-            var cell = RitualSitesReads.RowCell(row.Pawn.Position);
+            var cell = RitualSitesReads.RowCell(row.Pawn.Place);
             if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist)
             {
                 mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
@@ -328,7 +328,7 @@ public static class RoundsContainmentReads
     }
 
     /// <summary>The pawn row's position.</summary>
-    public static Fact<Cell> RowCellOf(O.PawnState row) => RitualSitesReads.RowCell(row.Pawn.Position);
+    public static Fact<Cell> RowCellOf(O.PawnState row) => RitualSitesReads.RowCell(row.Pawn.Place);
 
 
     internal static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)

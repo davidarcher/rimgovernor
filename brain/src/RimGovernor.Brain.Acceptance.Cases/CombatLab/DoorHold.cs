@@ -101,9 +101,9 @@ internal static class CombatLabDoorHold
 
             foreach (var a in animals)
             {
-                if (pawns.GetValueOrDefault(a) is not { } p || !Inside(p.Pawn.Position))
+                if (pawns.GetValueOrDefault(a) is not { } p || !Inside((p.Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell))
                 {
-                    throw new AcceptanceException($"tick +{tick - start}: husky {a} left the room through the forbidden door: {CombatLabKit.Show(pawns.GetValueOrDefault(a)?.Pawn.Position)}");
+                    throw new AcceptanceException($"tick +{tick - start}: husky {a} left the room through the forbidden door: {CombatLabKit.Show((pawns.GetValueOrDefault(a)?.Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell)}");
                 }
             }
 
@@ -115,7 +115,7 @@ internal static class CombatLabDoorHold
         _ = await s.RunUntilAsync("leave", HoldTicks + CombatLabKit.ProbeTicks, async ct =>
         {
             var pawns = await CombatLabKit.PawnsAsync(s, "leave-pawns", animals, ct).ConfigureAwait(false);
-            var cells = animals.Select(a => pawns.GetValueOrDefault(a)?.Pawn.Position).ToList();
+            var cells = animals.Select(a => (pawns.GetValueOrDefault(a)?.Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell).ToList();
             return (Wait.Signature(string.Join(",", cells.Select(CombatLabKit.Show))), cells.Any(c => c is not null && !Inside(c)));
         }, cancellationToken).ConfigureAwait(false);
     }

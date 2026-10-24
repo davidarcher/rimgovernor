@@ -67,7 +67,7 @@ internal static class Gathering
             var row = await TypedPawnOps.PawnAsync(s, "organizer", organizer, ct).ConfigureAwait(false)
                 ?? throw new AcceptanceException($"organizer {organizer} is gone");
             s.RecordWire("organizer", row);
-            return ($"{row.LordJobClass} {row.Pawn.Position}", row.LordJobClass == PartyLordJob);
+            return ($"{row.LordJobClass} {row.Pawn.Place}", row.LordJobClass == PartyLordJob);
         }, cancellationToken).ConfigureAwait(false);
     }
 }

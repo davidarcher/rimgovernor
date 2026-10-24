@@ -112,7 +112,7 @@ internal static class LayoutFirstBedroomCloses
             {
                 var ring = Ring(r);
                 var (wall, door) = r.RingDefs();
-                var pieces = buildings.Where(b => b.Building.Position is { } at && ring.Contains(CellOf(at))
+                var pieces = buildings.Where(b => b.Building.Place is Observations.EntityPlace.OnMap { Cell: var at } && ring.Contains(CellOf(at))
                     && (b.Construction is Observations.ConstructionState.Build build ? build.Definition : b.Building.DefName) is { } def && (def == wall || def == door)).ToList();
                 if (pieces.Count > 0 && !started.ContainsKey(r.Id))
                 {
@@ -120,7 +120,7 @@ internal static class LayoutFirstBedroomCloses
                 }
                 foreach (var b in pieces.Where(b => b.Status is Observations.BuildingStatus.Frame or Observations.BuildingStatus.Built))
                 {
-                    _ = shell.TryAdd((r.Id, CellOf(b.Building.Position!)), tick);
+                    _ = shell.TryAdd((r.Id, CellOf(((Observations.EntityPlace.OnMap)b.Building.Place).Cell)), tick);
                 }
             }
 

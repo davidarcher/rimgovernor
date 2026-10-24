@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
             var firing = new List<IntVec3>();
             foreach (var row in colonists)
             {
-                if (row.Pawn is not { Position: { } position } pawnRef || row.Equipment is not { PrimaryId: { } primaryId }) continue;
+                if (row.Pawn is not { Place: Obs.EntityPlace.OnMap { Cell: var position } } pawnRef || row.Equipment is not { PrimaryId: { } primaryId }) continue;
                 // The shooter's primary weapon is the live one: the wire rows no
                 // longer carry its class or range, the catalog does.
                 var shooter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == (pawnRef.Id ?? ""));

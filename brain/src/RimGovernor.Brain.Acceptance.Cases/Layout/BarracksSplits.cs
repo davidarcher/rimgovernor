@@ -125,7 +125,7 @@ internal static class LayoutBarracksSplits
             {
                 var buildings = await s.BuildingsAsync("beds", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
                 newBed = buildings.FirstOrDefault(b => (b.Construction is Observations.ConstructionState.Build build ? build.Definition : b.Building.DefName) == "Bed" && !barracksBeds.Contains(b.Building.Id));
-                if (newBed?.Building.Position is { } at)
+                if (newBed?.Building.Place is Observations.EntityPlace.OnMap { Cell: var at })
                 {
                     var request = new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = at, Maximum = at } };
                     var reply = await s.CallAsync("bed-room", NativeOps.ListRooms, request, ct).ConfigureAwait(false);

@@ -525,20 +525,33 @@ public sealed record DefinitionRef
 }
 
 /// <summary>
-/// A row's head: the thing's load id, ThingDef and label, always set; the map and cell are absent
-/// for a thing on no map (a caravan, a world pawn's gear). A held thing reads at its holder's cell.
+/// A row's head: the thing's load id, def name and label, and where it is (<see cref="EntityPlace"/>).
 /// </summary>
 public sealed record EntityRef
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public string Label { get; init; } = "";
+    public required string Label { get; init; }
 
-    public int? MapId { get; init; }
+    public required EntityPlace Place { get; init; }
+}
 
-    public Common.Cell? Position { get; init; }
+/// <summary>
+/// Where a row's thing is: <see cref="OnMap"/> at a map's cell (a held thing reads at its holder's cell), or
+/// <see cref="Unplaced"/> for a thing on no map (a caravan, a world pawn's gear).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(EntityPlace.OnMap), "on_map")]
+[JsonDerivedType(typeof(EntityPlace.Unplaced), "unplaced")]
+public abstract record EntityPlace
+{
+    private protected EntityPlace() { }
+
+    public sealed record OnMap(int MapId, Common.Cell Cell) : EntityPlace;
+
+    public sealed record Unplaced : EntityPlace;
 }
 
 public sealed record TargetRef
@@ -2632,7 +2645,7 @@ public sealed record ListZonesRequest
 public sealed record Thing
 {
     [JsonPropertyName("thing")]
-    public EntityRef Entity { get; init; } = new();
+    public required EntityRef Entity { get; init; }
 
     public long StackCount { get; init; }
 
@@ -3686,7 +3699,7 @@ public sealed record WorldRoute
 
 public sealed record CaravanState
 {
-    public EntityRef? Caravan { get; init; }
+    public required EntityRef Caravan { get; init; }
 
     public int? Tile { get; init; }
 
@@ -7435,7 +7448,7 @@ public sealed record ThreatPawn
 /// </summary>
 public sealed record ThreatBuilding
 {
-    public EntityRef Building { get; init; } = new();
+    public required EntityRef Building { get; init; }
 
     public SnapshotRef BuildingSnapshot { get; init; } = new();
 

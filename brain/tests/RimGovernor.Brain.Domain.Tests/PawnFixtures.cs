@@ -11,7 +11,7 @@ internal static class PawnFixtures
     /// <summary>A live, standing colonist with nothing else read into it: no job, needs, conditions, gear or ideoligion.</summary>
     public static O.PawnState Row(string id) => new()
     {
-        Pawn = new O.EntityRef { Id = id, Label = id },
+        Pawn = new O.EntityRef { Id = id, DefName = "Human", Label = id, Place = new O.EntityPlace.Unplaced() },
         KindDefName = "Colonist",
         Colonist = true,
         FreeColonist = true,

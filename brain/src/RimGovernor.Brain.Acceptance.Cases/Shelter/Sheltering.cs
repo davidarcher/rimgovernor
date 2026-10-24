@@ -120,10 +120,10 @@ internal static class ShelterSheltering
                 }
 
                 var restricted = safe.Contains(id);
-                var inHut = pawn.Pawn.Position is { X: int x, Z: int z } && hut.Contains((x, z));
+                var inHut = pawn.Pawn.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } && hut.Contains((x, z));
                 allIn &= restricted && inHut;
                 noneIn &= !restricted;
-                states.Add(string.Create(CultureInfo.InvariantCulture, $"{id}:{restricted}:{inHut}:{pawn.Pawn.Position}"));
+                states.Add(string.Create(CultureInfo.InvariantCulture, $"{id}:{restricted}:{inHut}:{pawn.Pawn.Place}"));
             }
 
             if (!ended && allIn)

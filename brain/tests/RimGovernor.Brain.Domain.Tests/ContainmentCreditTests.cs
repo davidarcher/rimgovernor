@@ -199,7 +199,7 @@ public sealed class ContainmentCreditTests
 
     private static O.BuildingState Platform(string held, int x, int z, double strength) => new()
     {
-        Building = new O.EntityRef { Id = "platform", Position = new C.Cell { X = x, Z = z } },
+        Building = new O.EntityRef { Id = "platform", DefName = "HoldingPlatform", Label = "holding platform", Place = new O.EntityPlace.OnMap(0, new C.Cell { X = x, Z = z }) },
         Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
         Stuff = null,
         Faction = null,

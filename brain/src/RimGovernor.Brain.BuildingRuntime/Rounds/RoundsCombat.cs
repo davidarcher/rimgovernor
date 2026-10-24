@@ -424,7 +424,7 @@ partial class RoundsDefensePlanner
         {
             var row = rows[id];
             var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead };
-            if (row.Pawn.Position is { } position)
+            if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var position })
             {
                 s = s with { Cell = Known(new Cell(position.X, position.Z)) };
             }

@@ -45,7 +45,7 @@ internal static class EquipCandidates
         {
             facts = facts with { RaidArmor = Known(armor.Mean) };
         }
-        facts = facts with { Position = new Cell(row.Pawn.Position?.X ?? 0, row.Pawn.Position?.Z ?? 0) };
+        facts = facts with { Position = row.Pawn.Place is O.EntityPlace.OnMap { Cell: var at } ? new Cell(at.X, at.Z) : default };
         var capable = true;
         foreach (var tag in row.Biography.DisabledWorkTags)
         {

@@ -118,8 +118,7 @@ namespace HomeBridge.BridgeTools
 
         // Head is a building row's identity: id, definition, label and cell.
         private static Obs.EntityRef Head(Thing thing) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
-            DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = thing.Map.uniqueID,
-            Position = Cell(thing.Position) };
+            DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), Place = new Obs.EntityPlace.OnMap(thing.Map.uniqueID, Cell(thing.Position)) };
 
         // Project is the one building row builder, whole: the bundle's
         // building table and the list read emit it. Every row carries its

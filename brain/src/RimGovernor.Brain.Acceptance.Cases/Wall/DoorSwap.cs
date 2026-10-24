@@ -62,7 +62,7 @@ internal static class WallDoorSwap
             }
 
             var built = await s.BuildingsAsync("swap-probe", new Observations.ListBuildingsRequest { DefNames = ["Wall", "Door"], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
-            var here = built.Where(b => b.Building.Position is { X: { } x, Z: { } z } && x == at.X && z == at.Z).ToList();
+            var here = built.Where(b => b.Building.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } && x == at.X && z == at.Z).ToList();
             var wall = here.Any(b => b.Building.DefName == "Wall" && b.Stuff == "WoodLog");
             var doorStands = here.Any(b => b.Building.DefName == "Door");
             return (Wait.Signature(wall, doorStands), wall && !doorStands);

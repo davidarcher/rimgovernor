@@ -146,7 +146,7 @@ internal static class WallRemoval
     private static async Task<Common.Cell> CellAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [id] }, cancellationToken).ConfigureAwait(false);
-        return rows.FirstOrDefault(r => r.Building.Id == id)?.Building.Position ?? throw new AcceptanceException($"{label}: {id} is not on the building census");
+        return rows.FirstOrDefault(r => r.Building.Id == id)?.Building.Place is Observations.EntityPlace.OnMap { Cell: var at } ? at : throw new AcceptanceException($"{label}: {id} is not on the building census");
     }
 
     /// <summary>Stages finished player granite walls at absolute cells (clearing the leftovers there) and returns their ids in order.</summary>

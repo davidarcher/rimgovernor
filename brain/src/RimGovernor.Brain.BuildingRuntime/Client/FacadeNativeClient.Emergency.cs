@@ -78,7 +78,7 @@ public sealed partial class FacadeNativeClient
                 // A known value is an active state; no mental state reads as unknown to the policy.
                 MentalState = row.MentalState is { } m ? new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks } : null,
             };
-            if (row.Pawn.Position is { } at)
+            if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var at })
             {
                 result = result with { Position = Known(new DomainCell(at.X, at.Z)) };
             }
@@ -169,7 +169,7 @@ public sealed partial class FacadeNativeClient
                     if (state is not null)
                     {
                         threat = threat with { Animal = Known(state.Animal), Fogged = Known(state.Fogged) };
-                        if (state.Pawn.Position is { } at)
+                        if (state.Pawn.Place is O.EntityPlace.OnMap { Cell: var at })
                         {
                             threat = threat with { Position = Known(new DomainCell(at.X, at.Z)) };
                         }

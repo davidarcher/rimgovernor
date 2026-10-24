@@ -135,7 +135,7 @@ internal static class CombatLabKit
     internal static async Task<Observations.BuildingState> BuildingAtAsync(TypedSession s, string label, Common.Cell cell, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
-        return rows.FirstOrDefault(b => b.Building.Position == cell)
+        return rows.FirstOrDefault(b => b.Building.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var at } && at == cell)
             ?? throw new AcceptanceException($"{label}: no player building at {Show(cell)}");
     }
 

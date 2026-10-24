@@ -222,7 +222,7 @@ public sealed class ForecastConstructionTests
     {
         var row = new O.BuildingState
         {
-            Building = new O.EntityRef { Id = "frame", Position = new C.Cell { X = 1, Z = 1 } },
+            Building = new O.EntityRef { Id = "frame", DefName = "Frame_Wall", Label = "wall (building)", Place = new O.EntityPlace.OnMap(0, new C.Cell { X = 1, Z = 1 }) },
             Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
             Stuff = null,
             Faction = null,

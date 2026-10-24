@@ -70,7 +70,7 @@ internal static class Subdue
 
             var aggro = row.MentalState?.IsAggro == true;
             s.RecordWire("contained", row);
-            return (string.Create(CultureInfo.InvariantCulture, $"{row.Downed} {aggro} {row.Pawn.Position}"), row.Downed || !aggro);
+            return (string.Create(CultureInfo.InvariantCulture, $"{row.Downed} {aggro} {row.Pawn.Place}"), row.Downed || !aggro);
         }, cancellationToken).ConfigureAwait(false);
     }
 }

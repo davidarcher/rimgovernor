@@ -57,7 +57,7 @@ partial record WorldProgressionRead
             }
             caravans.Add(new CaravanJourney
             {
-                Id = row.Caravan?.Id ?? "",
+                Id = row.Caravan.Id,
                 Tile = row.Tile.GetValueOrDefault(),
                 Moving = row.Moving.GetValueOrDefault(),
                 PawnIds = [.. row.Pawns.Select(pawn => pawn.Pawn.Id ?? "")],

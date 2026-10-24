@@ -4,15 +4,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
 internal static class BreakDispatch
 {
-    public static Fact<Cell> BreakCell(PbObservations.PawnState row)
-    {
-        var p = row.Pawn.Position;
-        if (p is null)
-        {
-            return Unknown<Cell>();
-        }
-        return Known(new Cell(p.X, p.Z));
-    }
+    public static Fact<Cell> BreakCell(PbObservations.PawnState row) =>
+        row.Pawn.Place is PbObservations.EntityPlace.OnMap { Cell: var p } ? Known(new Cell(p.X, p.Z)) : Unknown<Cell>();
 
     /// <summary>
     /// Releases the breaking pawn's action claims through ordinary cancellation; dispatched attempts remain

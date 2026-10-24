@@ -439,7 +439,7 @@ public sealed partial class Rounder
             {
                 Buildings = reading.Catalog is { } buildingCatalog ? Known(buildingCatalog.WorkBuildingCosts()) : default,
                 Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
-                reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building?.DefName ?? ""))) : default,
+                reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building.DefName))) : default,
                 Bills = ConstructionReads.ProductionBatchStates(reading.Frame.Bills),
             }
         });

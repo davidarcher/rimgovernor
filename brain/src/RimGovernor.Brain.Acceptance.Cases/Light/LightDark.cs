@@ -105,7 +105,7 @@ internal static class LightDark
         }
 
         var rows = await s.BuildingsAsync("lamp", new Observations.ListBuildingsRequest { Ids = [lampId] }, cancellationToken).ConfigureAwait(false);
-        if (rows is not [{ Building: { DefName: var def, Position: { X: { } x, Z: { } z } } }])
+        if (rows is not [{ Building: { DefName: var def, Place: RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } } }])
         {
             throw new AcceptanceException($"lamp {lampId}: want one placed building, got {string.Join("; ", rows)}");
         }

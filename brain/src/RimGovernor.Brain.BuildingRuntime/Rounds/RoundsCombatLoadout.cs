@@ -143,11 +143,11 @@ public sealed partial class RoundsDefensePlanner
                     continue;
                 }
                 things.TryRow(thing, out var row);
-                if (row?.Entity is not { } entity || entity.DefName != ShieldBeltDef || string.IsNullOrEmpty(thing.Id) || !seen.Add(thing.Id))
+                if (row is not { Entity: var entity } || entity.DefName != ShieldBeltDef || string.IsNullOrEmpty(thing.Id) || !seen.Add(thing.Id))
                 {
                     continue;
                 }
-                var cell = entity.Position is { } at ? new Cell(at.X, at.Z) : default;
+                var cell = entity.Place is O.EntityPlace.OnMap { Cell: var at } ? new Cell(at.X, at.Z) : default;
                 output.Add(new LoadoutApparel(thing.Id, ShieldBeltDef, cell));
             }
         }

@@ -365,7 +365,7 @@ Kept, reason recorded:
 | ClearanceTargetsSnapshot | message | 116 | 4 | state | Snapshot of clearance targets chunks and floors |  |  |
 | MapSize | message | 195 | 2 | state | Map width and height |  |  |
 | DefinitionRef | message | 196 | 1 | state | Def name reference (label deleted, #2657) |  |  |
-| EntityRef | message | 197 | 5 | state | Instance id def name label map id and position |  |  |
+| EntityRef | message | 197 | 4 | state | Instance id def name label and place (on a map cell or unplaced) |  |  |
 | TargetRef | message | 204 | 3 | state | Oneof entity or cell or unavailable |  |  |
 | Quantity | message | 205 | 2 | state | Def name with unit count |  |  |
 | JobEvidence | message | 207 | 12 | state | Pawn current job def load id target and priority |  |  |

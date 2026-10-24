@@ -66,8 +66,8 @@ public static class FoodSupplyReads
         var barredStocks = new List<FoodStock>();
         foreach (var s in v.Stocks)
         {
-            rows.TryGetValue(s.Item?.Id ?? "", out var row);
-            row ??= new O.Thing();
+            // The join holds every stock's row.
+            var row = rows[s.Item?.Id ?? ""];
             var def = row.Entity.DefName;
             var defFacts = FoodDefFactsOf(catalog, def, row.Corpse);
             // A thing rots exactly while it has a rot deadline.

@@ -15,7 +15,7 @@ public sealed class BuildingsWireTests
 
     private static O.BuildingState Row(string id, O.BuildingStatus status, O.BuildingHitPoints hitPoints, O.ConstructionState? construction) => new()
     {
-        Building = new O.EntityRef { Id = id, DefName = "Wall", Position = new C.Cell { X = 3, Z = 4 } },
+        Building = new O.EntityRef { Id = id, DefName = "Wall", Label = "wall", Place = new O.EntityPlace.OnMap(0, new C.Cell { X = 3, Z = 4 }) },
         Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
         Stuff = "WoodLog",
         Faction = null,

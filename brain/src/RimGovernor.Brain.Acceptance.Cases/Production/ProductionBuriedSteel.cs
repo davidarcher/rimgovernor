@@ -219,7 +219,7 @@ internal static class ProductionBuriedSteel
             row = site.Cells.Single();
             var buildings = await s.BuildingsAsync("blueprints", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
             wall = buildings.FirstOrDefault(b => b is { Status: Observations.BuildingStatus.Blueprint, Construction: Observations.ConstructionState.Build { Definition: "Wall" } }
-                && b.Building?.Position?.X == at.X && b.Building?.Position?.Z == at.Z);
+                && b.Building.Place is Observations.EntityPlace.OnMap { Cell: var cell } && cell.X == at.X && cell.Z == at.Z);
             var mined = row.Definition is null;
             return (Wait.Signature(row.MineDesignated, row.Definition, wall?.Building?.Id), mined && wall is not null);
         }, cancellationToken).ConfigureAwait(false);

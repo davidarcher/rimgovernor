@@ -91,7 +91,7 @@ public static class SleepingUpkeepReads
                 Room = b.Room,
                 Quality = ColonyDecodeReads.Optional(b.Quality is not null, (int)b.Quality.GetValueOrDefault()),
                 Stuff = ColonyDecodeReads.Optional(b.Stuff is not null, b.Stuff ?? ""),
-                Cell = ColonyDecodeReads.CellOf(head.Position),
+                Cell = ColonyDecodeReads.MapCellOf(head),
             });
         }
         return Known(r with { Beds = EquatableArray.From(beds) });
