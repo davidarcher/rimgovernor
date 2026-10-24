@@ -278,7 +278,7 @@ public sealed partial class Rounder
                 {
                     attrs["held"] = held.Order().ToArray();
                 }
-                Tel.Decide(new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Verdict = "skipped", Reason = held.Count != 0 ? "room_held" : "superseded", Attrs = attrs });
+                Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Verdict = "skipped", Reason = held.Count != 0 ? "room_held" : "superseded", Attrs = attrs });
             }
         }
         var pawns = projection.Facts.Colonists;

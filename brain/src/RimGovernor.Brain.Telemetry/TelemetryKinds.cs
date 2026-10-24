@@ -68,6 +68,12 @@ public static class TelemetryKinds
     /// <summary>One run of the station chain (<see cref="LayoutStationsKind"/>).</summary>
     public static readonly TelemetryKind LayoutStations = new(LayoutStationsKind);
 
+    /// <summary>The kind the tiled replan's verdict row is emitted under.</summary>
+    public const string LayoutReplanTiledKind = "layout_replan_tiled";
+
+    /// <summary>One tiled replan's verdict (<see cref="LayoutReplanTiledKind"/>): its room diff against the held plan.</summary>
+    public static readonly TelemetryKind LayoutReplanTiled = new(LayoutReplanTiledKind);
+
     /// <summary>One rounds review's summary row (<see cref="RoundsReviewTelemetry.Kind"/>): the food plan and the hunt comparison's note.</summary>
     public static readonly TelemetryKind RoundsReview = new(RoundsReviewTelemetry.Kind);
 

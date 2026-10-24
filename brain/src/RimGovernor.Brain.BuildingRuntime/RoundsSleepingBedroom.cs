@@ -187,7 +187,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         // A bed standing in an unenclosed room still owes the room its ring; the diff skips the pieces that stand.
         if (!SleepingRules.BedroomReconcileOwed(step.Room, rooms, furnishing))
         {
-            return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
+            return new RoundsBuildingResult { Verdict = NoSpace(SleepingRules.BedroomTemplateSubject) };
         }
         return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = furnishing.Pieces, Name = RoomReconcileName("bedroom", step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
     }

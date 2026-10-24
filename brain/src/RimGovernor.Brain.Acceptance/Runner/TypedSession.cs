@@ -344,6 +344,22 @@ public sealed class TypedSession
         return await ServiceJournal.TryRoundsAsync(journal, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The layout plan the run's durable journal holds for this colony and map (the newest recorded), null while none was
+    /// recorded or the recorded one does not read: what a served case's probe reads of the brain's planned rooms. Spends no ticks.
+    /// </summary>
+    public async Task<Policy.LayoutPlan?> LayoutPlanAsync(CancellationToken cancellationToken)
+    {
+        using var journal = await ServiceJournal.OpenWithRetryAsync(_s.Config, cancellationToken).ConfigureAwait(false);
+
+        // The plan rows are keyed by colony and map; the plan id and revision only satisfy the snapshot's validation.
+        var world = new Domain.GenerationSnapshot(
+            new Domain.ColonyId(Identity.ColonyId), new Domain.MapId(Identity.MapId), new Domain.LoadId(Identity.LoadToken),
+            new Domain.PlanId("acceptance-layout-read"), new Domain.PlanRevision(1), default);
+        var record = await journal.LayoutPlanAsync(world, new Domain.Tick(long.MaxValue), cancellationToken).ConfigureAwait(false);
+        return record?.Plan;
+    }
+
     /// <summary>Every need_transitions row the run's durable journal holds, oldest first. Spends no ticks.</summary>
     public async Task<IReadOnlyList<Store.NeedTransition>> NeedTransitionsAsync(CancellationToken cancellationToken)
     {

@@ -23,6 +23,7 @@ inside the acceptance tick cap.
 | Case | What only a real game proves | Staged |
 | --- | --- | --- |
 | `layout/first-room-temperate` | A new temperate colony records its first plan and a built sleeping spot stands for every colonist before any roofed proper room. | wood |
+| `layout/first-bedroom-closes` | Under the work, shelter, sleeping and clearance families a new temperate colony of three closes and roofs its first planned Bedroom or Barracks with every colonist owning a bed inside it within 30,000 ticks; no other room's ring wall or door is built or framed before it closes, no started room is re-sited (`tile_sited_again`) and no bedroom step holds on `no_space`/`bedroom_template` (#3752). Nightly. | 600 wood |
 | `shelter/manhunter_waitout`, `shelter/toxic_fallout` | A real threat beside a roofed hut: the served brain restricts every colonist (and, under fallout, a tame dog) to the Safe area, where they stand unhurt in the hut; once the threat ends the restrictions are lifted. | the hut, the pawns and the threat |
 | `shelter/service-investment` | A cold occupied room's partly funded heater frame is finished, powered and warms the room while a competing lower-tier wall frame stays unbuilt. | the room, frames and plan |
 

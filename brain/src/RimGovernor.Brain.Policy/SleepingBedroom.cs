@@ -500,6 +500,9 @@ public static partial class SleepingRules
     public static bool BedroomReconcileOwed(PlannedRoom room, RoomObservation rooms, Furnishing furnishing) =>
         furnishing.Pieces.Count > 0 && (furnishing.Absent || !PlannedRoom.CensusRoomIn(room, rooms).Ok);
 
+    /// <summary>The no_space subject of a bedroom step whose room owes no reconcile (<see cref="BedroomReconcileOwed"/> false).</summary>
+    public const string BedroomTemplateSubject = "bedroom_template";
+
     /// <summary>Unlocks Bed and DoubleBed.</summary>
     public const string BedResearch = "ComplexFurniture";
 

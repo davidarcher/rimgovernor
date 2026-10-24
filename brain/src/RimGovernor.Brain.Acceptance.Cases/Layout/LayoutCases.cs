@@ -14,5 +14,6 @@ public static class LayoutCases
         registry.Register(LayoutFirstRoomTemperate.Case());
         registry.Register(LayoutFirstRoomIce.Case());
         registry.Register(LayoutBarracksSplits.Case());
+        registry.Register(LayoutFirstBedroomCloses.Case());
     }
 }

@@ -142,7 +142,7 @@ public sealed partial class Rounder
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            Tel.Decide(new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Level = TelemetryLevel.Warn, Verdict = "failed", Reason = "tile_error", Attrs = new Dictionary<string, object?> { ["error"] = e.ToString() } });
+            Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Level = TelemetryLevel.Warn, Verdict = "failed", Reason = "tile_error", Attrs = new Dictionary<string, object?> { ["error"] = e.ToString() } });
             return false;
         }
         Tel.Decide(run.StationRow);
@@ -153,7 +153,7 @@ public sealed partial class Rounder
         StationLast = run.Advice;
         StationHeld = run.Advised;
         var waited = tick.Value - pending.Started.Value;
-        var decision = new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Dur = run.ChainDur + run.TileDur };
+        var decision = new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Dur = run.ChainDur + run.TileDur };
         if (!run.Advised)
         {
             Tel.Decide(decision with { Verdict = "skipped", Reason = "station_advice_unavailable", Attrs = new Dictionary<string, object?> { ["adopted"] = waited } });
