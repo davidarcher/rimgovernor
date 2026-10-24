@@ -13,7 +13,7 @@ public static partial class TradePolicyRules
     {
         if (!f.QuestDeparturePawns.TryGetValue(out var departure))
         {
-            return ([], "capacity_unknown");
+            return ([], "no_departure_census");
         }
         var rows = departure
             .OrderBy(
@@ -38,7 +38,7 @@ public static partial class TradePolicyRules
             .ToList();
         if (!f.QuestSparePawns.TryGetValue(out var spare))
         {
-            return ([], "capacity_unknown");
+            return ([], "no_departure_census");
         }
         foreach (var row in rows)
         {
@@ -65,9 +65,13 @@ public static partial class TradePolicyRules
     /// <summary>Uses observed dietary access and rot, leaving every home consumer's reserve. Capacity excludes the observed silver mass.</summary>
     public static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) TradeMissionFood(RoundsFacts f, IReadOnlyList<PawnId> crew, double roundTripDays, double capacity, RoundsPolicy p)
     {
-        if (!f.AnimalUpkeep.Food.TryGetValue(out var supply) || !Finite(capacity) || capacity < 0 || !Finite(roundTripDays) || roundTripDays < 0)
+        if (!f.AnimalUpkeep.Food.TryGetValue(out var supply))
         {
-            return ([], "food_unknown");
+            return ([], "no_food_census");
+        }
+        if (!Finite(capacity) || capacity < 0 || !Finite(roundTripDays) || roundTripDays < 0)
+        {
+            return ([], "invalid_trip");
         }
         return QuestExpedition.ExpeditionFood(supply, crew, Math.Max(1, roundTripDays), p.FoodMinDays, capacity);
     }
@@ -106,40 +110,19 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Admits only a fresh native calculation for the exact final crew and cargo, including both asymmetric routes.</summary>
-    public static bool SafeTradeMissionPack(O.TradePackEstimate? pack, int homeTile, int settlementTile)
+    public static bool SafeTradeMissionPack(O.TradePackEstimate pack)
     {
-        if (
-            pack is not { CanPack: true, MassUsage: { } massUsage, MassCapacity: { } massCapacity, FoodDays: { } foodDays, FoodRotDays: { } foodRotDays }
-            || !FoodForecastRules.FoodNumber(massUsage)
-            || !FoodForecastRules.FoodNumber(massCapacity)
-            || massUsage > massCapacity
-            || !FoodForecastRules.FoodNumber(foodDays)
-            || !FoodForecastRules.FoodNumber(foodRotDays)
-        )
+        if (pack is not O.TradePackEstimate.Packed packed || packed.MassUsage < 0 || packed.MassUsage > packed.MassCapacity)
         {
             return false;
         }
-        var (days, known) = TradeMissionRouteDays(pack, homeTile, settlementTile);
-        return known && foodDays >= Math.Max(1, days) && foodRotDays >= Math.Max(1, days);
+        var (days, reachable) = TradeMissionRouteDays(packed);
+        return reachable && packed.FoodDays >= Math.Max(1, days) && packed.FoodRotDays >= Math.Max(1, days);
     }
 
-    public static (double Days, bool Ok) TradeMissionRouteDays(O.TradePackEstimate? pack, int homeTile, int settlementTile)
-    {
-        if (pack is null)
-        {
-            return (0, false);
-        }
-        double ticks = 0;
-        O.WorldRoute?[] routes = [pack.Outbound, pack.Home];
-        for (var i = 0; i < routes.Length; i++)
-        {
-            var tile = i == 1 ? homeTile : settlementTile;
-            if (routes[i] is not { Destination: { } destination, Reachable: true, EstimatedTicks: >= 0 and var estimated } || destination != tile)
-            {
-                return (0, false);
-            }
-            ticks += estimated;
-        }
-        return (ticks / GameTime.TicksPerDay, true);
-    }
+    /// <summary>The round trip's days, outbound plus home; false while either leg is unreachable.</summary>
+    public static (double Days, bool Reachable) TradeMissionRouteDays(O.TradePackEstimate.Packed pack) =>
+        (pack.Outbound, pack.Home) is (O.PackRoute.Reachable outbound, O.PackRoute.Reachable home)
+            ? ((double)(outbound.EstimatedTicks + home.EstimatedTicks) / GameTime.TicksPerDay, true)
+            : (0, false);
 }

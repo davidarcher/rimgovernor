@@ -48,10 +48,10 @@ partial class RoundsTradePlanner
             throw new DomainException(crewSkip.Value);
         }
         var domainCrew = crew.Select(p => p).ToList();
-        var (capacity, capacityKnown) = Pol.TradePolicyRules.TradeMissionCarryCapacity(facts, crew);
-        if (!capacityKnown)
+        var (capacity, capacityRead) = Pol.TradePolicyRules.TradeMissionCarryCapacity(facts, crew);
+        if (!capacityRead)
         {
-            throw new DomainException("mass_unknown");
+            throw new DomainException("no_crew_carry_capacity");
         }
         // Native packing requires a day of food before it returns route estimates. Seed with that legal minimum;
         // native measures silver mass rather than the brain inventing a unit weight for modded definitions.
@@ -78,16 +78,17 @@ async
                 pack = pack with { Cargo = [.. pack.Cargo, new OperationsPb.DefCount { DefName = item.Definition, Count = (int)item.Count }] };
             }
             var read = await source.ReadTradeAcquisitionAsync(Boundary.Identity(world), pack, ct).ConfigureAwait(false);
-            return read?.Pack ?? throw new DomainException("pack_unknown");
+            return read.Pack ?? throw new BridgeContractException("trade acquisition read omitted the requested pack");
         }
 
-        var seed = await PreviewAsync(departure).ConfigureAwait(false);
-        var (days, daysKnown) = Pol.TradePolicyRules.TradeMissionRouteDays(seed, homeTile, settlement.Tile);
-        if (!daysKnown || seed.MassUsage is null || seed.MassCapacity is null
-            || double.IsNaN(seed.MassUsage.GetValueOrDefault()) || double.IsNaN(seed.MassCapacity.GetValueOrDefault())
-            || double.IsInfinity(seed.MassUsage.GetValueOrDefault()) || double.IsInfinity(seed.MassCapacity.GetValueOrDefault()) || seed.MassUsage.GetValueOrDefault() < 0)
+        if (await PreviewAsync(departure).ConfigureAwait(false) is not ObservationsPb.TradePackEstimate.Packed seed || seed.MassUsage < 0)
         {
-            throw new DomainException("unknown_trip_facts");
+            throw new DomainException("cannot_pack");
+        }
+        var (days, reachable) = Pol.TradePolicyRules.TradeMissionRouteDays(seed);
+        if (!reachable)
+        {
+            throw new DomainException("unreachable_route");
         }
         // Calculate the whole food pack under the original native capacity minus silver. Seed nutrition is not
         // removed from home reserves twice.
@@ -105,11 +106,11 @@ async
             }
             if (mass == double.MaxValue)
             {
-                throw new DomainException("mass_unknown");
+                throw new DomainException("no_seed_food_mass");
             }
             seedFoodMass += mass * item.Count;
         }
-        var (food, foodSkip) = Pol.TradePolicyRules.TradeMissionFood(facts, crew, days, seed.MassCapacity.GetValueOrDefault() - seed.MassUsage.GetValueOrDefault() + seedFoodMass, thresholds);
+        var (food, foodSkip) = Pol.TradePolicyRules.TradeMissionFood(facts, crew, days, seed.MassCapacity - seed.MassUsage + seedFoodMass, thresholds);
         if (!foodSkip.IsNone)
         {
             throw new DomainException(foodSkip.Value);
@@ -119,8 +120,9 @@ async
         {
             throw new DomainException("invalid_trade_pack");
         }
-        var final = await PreviewAsync(departure).ConfigureAwait(false);
-        if (!Pol.TradePolicyRules.SafeTradeMissionPack(final, homeTile, settlement.Tile))
+        if (await PreviewAsync(departure).ConfigureAwait(false) is not ObservationsPb.TradePackEstimate.Packed final
+            || !Pol.TradePolicyRules.SafeTradeMissionPack(final)
+            || (final.Outbound, final.Home) is not (ObservationsPb.PackRoute.Reachable outbound, ObservationsPb.PackRoute.Reachable home))
         {
             throw new DomainException("unsafe_trade_pack");
         }
@@ -145,7 +147,7 @@ async
             ReturnHome = true,
         };
         m.Validate();
-        (days, _) = Pol.TradePolicyRules.TradeMissionRouteDays(final, homeTile, settlement.Tile);
+        (days, _) = Pol.TradePolicyRules.TradeMissionRouteDays(final);
         var option = new Pol.TradeAcquisitionOption
         {
             ID = "settlement:" + settlement.Id,
@@ -153,16 +155,13 @@ async
             Participant = new TradeParticipant(TradeParticipantKind.Settlement, settlement.Id),
             TraderKind = settlement.TraderKind,
             Negotiator = m.Negotiator.Value,
-            Eligible = Fact.Known(true),
-            SafeCrew = Fact.Known(true),
-            Packable = Fact.Known(true),
-            RoutesReachable = Fact.Known(true),
-            LeadDays = Fact.Known(days),
-            OutboundDays = Fact.Known((double)(final.Outbound?.EstimatedTicks ?? 0) / GameTime.TicksPerDay),
-            ReturnDays = Fact.Known((double)(final.Home?.EstimatedTicks ?? 0) / GameTime.TicksPerDay),
-            FoodDays = Fact.Known(final.FoodDays.GetValueOrDefault()),
-            RotDays = Fact.Known(final.FoodRotDays.GetValueOrDefault()),
-            LaborTicks = Fact.Known(days * GameTime.TicksPerDay * crew.Count),
+            Eligible = true,
+            LeadDays = days,
+            OutboundDays = (double)outbound.EstimatedTicks / GameTime.TicksPerDay,
+            ReturnDays = (double)home.EstimatedTicks / GameTime.TicksPerDay,
+            FoodDays = final.FoodDays,
+            RotDays = final.FoodRotDays,
+            LaborTicks = days * GameTime.TicksPerDay * crew.Count,
         };
         return (m, option);
     }

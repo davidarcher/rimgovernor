@@ -130,7 +130,7 @@ internal static class CaravanDeparture
         {
             var pack = new Operations.FormCaravanIntent { PawnIds = [crew], Cargo = [.. cargo], DestinationTile = candidate.Tile };
             var facts = await TradeKit.AcquisitionAsync(s, "reach-" + candidate.Id, pack, cancellationToken).ConfigureAwait(false);
-            if (facts.Pack?.Outbound?.Reachable == true)
+            if (facts.Pack is Observations.TradePackEstimate.Packed { Outbound: Observations.PackRoute.Reachable })
             {
                 return candidate.Tile;
             }

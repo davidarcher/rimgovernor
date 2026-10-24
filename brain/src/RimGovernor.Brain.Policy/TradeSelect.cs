@@ -9,7 +9,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record TradeSheetRowFact
 {
-    public Fact<TradeFoodGood> Food { get; init; }
+    /// <summary>The line's food classification; null for a line that is not food.</summary>
+    public TradeFoodGood? Food { get; init; }
 
     public string LineID { get; init; } = "";
 
@@ -263,8 +264,9 @@ public static partial class TradePolicyRules
             var supply = row.TraderCount;
             var floor = Math.Max(target.Stock, facts.Floors.GetValueOrDefault(target.Item));
             var cropAuthorized = facts.CropSurplusFloors.TryGetValue(target.Item, out var cropFloor);
-            var foodKnown = row.Food.TryGetValue(out var food);
-            cropAuthorized = cropAuthorized && cropFloor > 0 && foodKnown && ValidTradeFood(food!) && food!.Crop;
+            var food = row.Food;
+            var foodKnown = food is not null;
+            cropAuthorized = cropAuthorized && cropFloor > 0 && food is not null && ValidTradeFood(food) && food.Crop;
             if (cropAuthorized)
             {
                 floor = Math.Max(floor, cropFloor);

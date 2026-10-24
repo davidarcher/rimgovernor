@@ -8,6 +8,7 @@ using RimWorld.Planet;
 using Verse;
 using Verse.AI.Group;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
@@ -166,33 +167,34 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static RimGovernor.Contracts.Wire.Observations.TradePackEstimate Preview(Operations.FormCaravanIntent command, Common.ObservationContext context)
+        // The pack is built whole: a pack the game refuses is Unpackable, and a mass or food figure the dialog cannot
+        // give as a finite number is a read failure, never an omitted field.
+        internal static Obs.TradePackEstimate Preview(Operations.FormCaravanIntent command, Common.ObservationContext context)
         {
-            var row = new RimGovernor.Contracts.Wire.Observations.TradePackEstimate();
-            if (!Valid(command)) { row = row with { CanPack = false }; return row; }
+            if (!Valid(command)) return new Obs.TradePackEstimate.Unpackable();
             var failure = PreparePacking(command, context, out var dialog);
-            if (failure != null || dialog == null) { row = row with { CanPack = false }; return row; }
-            row = row with { CanPack = true };
-            row = row with { MassUsage = dialog.MassUsage }; row = row with { MassCapacity = dialog.MassCapacity };
+            if (failure != null || dialog == null) return new Obs.TradePackEstimate.Unpackable();
+            var massUsage = Finite(dialog.MassUsage, "mass usage");
+            var massCapacity = Finite(dialog.MassCapacity, "mass capacity");
             var food = NativeCaravanCatalog.FoodDays(dialog);
-            if (!float.IsNaN(food.days) && !float.IsInfinity(food.days)) row = row with { FoodDays = food.days };
-            if (!float.IsNaN(food.tillRot) && !float.IsInfinity(food.tillRot)) row = row with { FoodRotDays = food.tillRot };
             var map = ProtoBoundary.ResolveMap(context)!;
             var destination = new PlanetTile(command.DestinationTile.GetValueOrDefault());
             var crew = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
-            var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, (float)row.MassUsage.GetValueOrDefault(), (float)row.MassCapacity.GetValueOrDefault());
-            row = row with { Outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs) };
-            row = row with { Home = RouteEstimate(destination, map.Tile, ticks, GenTicks.TicksAbs + (int)row.Outbound.EstimatedTicks.GetValueOrDefault()) };
-            return row;
+            var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, massUsage, massCapacity);
+            var outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs);
+            var home = RouteEstimate(destination, map.Tile, ticks, GenTicks.TicksAbs + (outbound is Obs.PackRoute.Reachable reach ? (int)reach.EstimatedTicks : 0));
+            return new Obs.TradePackEstimate.Packed(massUsage, massCapacity, Finite(food.days, "food days"), Finite(food.tillRot, "food rot days"), outbound, home);
         }
 
-        private static RimGovernor.Contracts.Wire.Observations.WorldRoute RouteEstimate(PlanetTile from, PlanetTile to, int ticksPerMove, int departure)
+        private static float Finite(float value, string what) =>
+            float.IsNaN(value) || float.IsInfinity(value) ? throw new InvalidOperationException("The caravan pack " + what + " is not a finite number.") : value;
+
+        private static Obs.PackRoute RouteEstimate(PlanetTile from, PlanetTile to, int ticksPerMove, int departure)
         {
-            var row = new RimGovernor.Contracts.Wire.Observations.WorldRoute { Destination = to.tileId };
             using var path = from.Layer.Pather.FindPath(from, to, null);
-            row = row with { Reachable = path.Found };
-            if (path.Found) row = row with { EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0, ticksPerMove, departure) };
-            return row;
+            return path.Found
+                ? new Obs.PackRoute.Reachable(CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0, ticksPerMove, departure))
+                : new Obs.PackRoute.Unreachable();
         }
         private static Receipts.EffectEvidence Evidence(Operations.FormCaravanIntent command, Caravan? caravan)
         {

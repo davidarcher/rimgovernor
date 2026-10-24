@@ -31,32 +31,31 @@ partial class RoundsTradePlanner
     }
 
     /// <summary>
-    /// Refreshes asymmetric home routes, current food/rot and capacity after trading. Unknown facts hold an
-    /// order, never admit a trip.
+    /// Refreshes asymmetric home routes, current food/rot and capacity after trading. An unread fact or an
+    /// unreachable home route holds an order, never admits a trip.
     /// </summary>
     public static bool TradeMissionReturnSafe(TradeMission m, CaravanJourney? caravan)
     {
-        if (caravan is null)
+        if (caravan is null || !caravan.FoodDaysKnown || !MissionCaravanLoad(caravan, out var mass, out var capacity, out var rot))
         {
             return false;
         }
-        var input = new Pol.MissionReturnFacts
-        {
-            Mass = caravan.MassUsage,
-            Capacity = caravan.MassCapacity,
-            FoodDays = MissionOptional(caravan.FoodDays, caravan.FoodDaysKnown),
-            RotDays = caravan.FoodRotDays,
-        };
         foreach (var route in caravan.HomeRoutes)
         {
             if (route.DestinationTile == m.HomeTile && route.Reachable && route.EstimatedTicksKnown && route.EstimatedTicks >= 0)
             {
-                input = input with { RouteTicks = Fact.Known(route.EstimatedTicks) };
-                break;
+                return Pol.TradePolicyRules.TradeMissionReturnSafe(new Pol.MissionReturnFacts { Mass = mass, Capacity = capacity, FoodDays = caravan.FoodDays, RotDays = rot, RouteTicks = route.EstimatedTicks });
             }
         }
-        return Pol.TradePolicyRules.TradeMissionReturnSafe(input);
+        return false;
     }
+
+    /// <summary>
+    /// The caravan's mass, capacity and food rot days, the one place the trade mission reads them; false while
+    /// any is unread (the world-progression slice of #3785 makes CaravanJourney total).
+    /// </summary>
+    internal static bool MissionCaravanLoad(CaravanJourney caravan, out double mass, out double capacity, out double rot) =>
+        caravan.MassUsage.TryGetValue(out mass) & caravan.MassCapacity.TryGetValue(out capacity) & caravan.FoodRotDays.TryGetValue(out rot);
 }
 
 partial class RoundsTradePlanner
@@ -80,19 +79,19 @@ partial class RoundsTradePlanner
         return found;
     }
 
-    internal static Fact<T> MissionOptional<T>(T v, bool known) => known ? Fact.Known(v) : Fact.Unknown<T>();
-
-    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog catalog, string def, Bridge.CatalogStat stat)
+    /// <summary>The stat the game shows for a definition; false when it shows none or cannot read it.</summary>
+    internal static bool MissionCatalogStat(Bridge.DefinitionCatalog catalog, string def, Bridge.CatalogStat stat, out double value)
     {
         try
         {
-            // A stat the game does not show for the def is unknown, not an exception per definition.
-            var (value, shown) = catalog.ShownStatValue(def, "", stat);
-            return shown ? Fact.Known((double)value) : Fact.Unknown<double>();
+            var (read, shown) = catalog.ShownStatValue(def, "", stat);
+            value = read;
+            return shown;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Fact.Unknown<double>();
+            value = 0;
+            return false;
         }
     }
 }
@@ -309,16 +308,7 @@ public sealed partial class RoundsTradePlanner
             return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
         var sheet = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-        IReadOnlyList<TradeLine> lines;
-        IReadOnlyList<CargoItem> goods;
-        try
-        {
-            (lines, goods) = await MissionPurchasesAsync(state, review, m, sheet, caravan, call).ConfigureAwait(false);
-        }
-        catch (Pol.TradeMissionFoodDemandUnknownException)
-        {
-            return new RoundsTradeResult { Verdict = FieldUnavailable("food_plan") };
-        }
+        var (lines, goods) = await MissionPurchasesAsync(state, review, m, sheet, caravan, call).ConfigureAwait(false);
         if (TradeTarget.TradeParticipantOf(sheet.Target).Key() != trader || !sheet.CanTradeNow || lines.Count == 0)
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
@@ -371,14 +361,36 @@ public sealed partial class RoundsTradePlanner
             catalog);
         Reviewer.PlanFood(ref projection);
         var targets = Reviewer.ResourceTargets(state.Snapshot);
-        var nutrition = new Dictionary<string, Fact<double>>(StringComparer.Ordinal);
+        var nutrition = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var item in m.Demand)
         {
-            nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, CatalogStats.Nutrition);
+            if (MissionCatalogStat(catalog, item.Definition, CatalogStats.Nutrition, out var shown))
+            {
+                nutrition[item.Definition] = shown;
+            }
+        }
+        var foodGap = 0.0;
+        if (nutrition.Values.Any(n => n > 0))
+        {
+            // A food mission sizes its purchase from the food plan's gap.
+            if (!projection.Facts.FoodPlan.TryGetValue(out var food))
+            {
+                throw new Pol.RequiredFactException("food plan");
+            }
+            foodGap = food.GapPerDay;
+        }
+        if (!projection.Facts.Resources.TryGetValue(out var stock))
+        {
+            throw new Pol.RequiredFactException("resource census");
         }
         var rows = new List<Pol.MissionPurchaseRow>();
         foreach (var row in sheet.Lines)
         {
+            // An offer whose mass the game does not show cannot be fitted to the caravan.
+            if (!MissionCatalogStat(catalog, row.DefName, CatalogStats.Mass, out var unitMass))
+            {
+                continue;
+            }
             rows.Add(new Pol.MissionPurchaseRow
             {
                 LineID = row.LineId,
@@ -388,22 +400,26 @@ public sealed partial class RoundsTradePlanner
                 Currency = row.Currency,
                 BuyPrice = row.BuyPrice,
                 WillTrade = row.TraderWillTrade,
-                UnitMass = MissionCatalogStat(catalog, row.DefName, CatalogStats.Mass),
+                UnitMass = unitMass,
             });
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Lines);
+        if (!known || !MissionCaravanLoad(caravan, out var mass, out var capacity, out _))
+        {
+            return ([], []);
+        }
         return Pol.TradePolicyRules.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
         {
             Mission = m,
             Targets = targets,
-            Stock = projection.Facts.Resources,
-            Food = projection.Facts.FoodPlan,
+            Stock = stock,
+            FoodGapPerDay = foodGap,
             FoodTargetDays = Reviewer.Policy.FoodTargetDays,
             Nutrition = nutrition,
             Rows = rows,
-            Silver = MissionOptional(silver, known),
-            Mass = caravan.MassUsage,
-            Capacity = caravan.MassCapacity,
+            Silver = silver,
+            Mass = mass,
+            Capacity = capacity,
         });
     }
 

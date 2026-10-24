@@ -1,36 +1,29 @@
 namespace RimGovernor.Brain.Policy;
 
 
-/// <summary>Holds a food mission until its owning review measures demand. It is not a known empty purchase plan or a return decision.</summary>
-public sealed class TradeMissionFoodDemandUnknownException() : DomainException("trade mission food demand unknown");
-
-/// <summary>Decoded catalog facts for a settlement. Unknown compatibility or nutrition cannot authorize a food cargo choice.</summary>
+/// <summary>A prepared food a settlement's trader kind supplies, with the nutrition the game shows for it.</summary>
 public sealed record MissionSupplyDefinition
 {
     public string Definition { get; init; } = "";
 
-    public Fact<bool> Prepared { get; init; }
-
-    public Fact<double> Nutrition { get; init; }
-
-    public Fact<bool> CanSupply { get; init; }
+    public double Nutrition { get; init; }
 }
 
 /// <summary>The current native mass, provisions and exact home route.</summary>
 public sealed record MissionReturnFacts
 {
-    public Fact<double> Mass { get; init; }
+    public double Mass { get; init; }
 
-    public Fact<double> Capacity { get; init; }
+    public double Capacity { get; init; }
 
-    public Fact<double> FoodDays { get; init; }
+    public double FoodDays { get; init; }
 
-    public Fact<double> RotDays { get; init; }
+    public double RotDays { get; init; }
 
-    public Fact<long> RouteTicks { get; init; }
+    public long RouteTicks { get; init; }
 }
 
-/// <summary>A live native offer with decoded catalog mass.</summary>
+/// <summary>A live native offer with its catalog unit mass.</summary>
 public sealed record MissionPurchaseRow
 {
     public string LineID { get; init; } = "";
@@ -45,7 +38,7 @@ public sealed record MissionPurchaseRow
 
     public double BuyPrice { get; init; }
 
-    public Fact<double> UnitMass { get; init; }
+    public double UnitMass { get; init; }
 
     public bool WillTrade { get; init; }
 }
@@ -56,29 +49,31 @@ public sealed record MissionPurchaseRequest
 
     public IReadOnlyDictionary<Resource, long> Targets { get; init; } = new Dictionary<Resource, long>();
 
-    public Fact<EquatableArray<Amount>> Stock { get; init; }
+    public IReadOnlyList<Amount> Stock { get; init; } = [];
 
-    public Fact<FoodPlan> Food { get; init; }
+    /// <summary>The food plan's nutrition gap per day; the caller requires the plan when the mission carries food.</summary>
+    public double FoodGapPerDay { get; init; }
 
     public double FoodTargetDays { get; init; }
 
-    public IReadOnlyDictionary<string, Fact<double>> Nutrition { get; init; } = new Dictionary<string, Fact<double>>();
+    /// <summary>The shown nutrition of each demanded definition that has one.</summary>
+    public IReadOnlyDictionary<string, double> Nutrition { get; init; } = new Dictionary<string, double>();
 
     public IReadOnlyList<MissionPurchaseRow> Rows { get; init; } = [];
 
-    public Fact<long> Silver { get; init; }
+    public long Silver { get; init; }
 
-    public Fact<double> Mass { get; init; }
+    public double Mass { get; init; }
 
-    public Fact<double> Capacity { get; init; }
+    public double Capacity { get; init; }
 }
 
 public static partial class TradePolicyRules
 {
-    /// <summary>Sizes saved authorization from the owning supply gaps.</summary>
+    /// <summary>Sizes saved authorization from the owning supply gaps; compatible names the goods the settlement supplies.</summary>
     public static (IReadOnlyList<CargoItem> Cargo, IReadOnlyList<ResourceKey> Goods) TradeMissionCargo(
         IReadOnlyList<SupplyDemandResult> demands,
-        IReadOnlyDictionary<ResourceKey, Fact<bool>> compatible,
+        IReadOnlySet<ResourceKey> compatible,
         IReadOnlyList<MissionSupplyDefinition> definitions,
         double foodTargetDays
     )
@@ -88,8 +83,7 @@ public static partial class TradePolicyRules
         var goods = new List<ResourceKey>();
         foreach (var d in demands)
         {
-            var known = compatible.GetValueOrDefault(d.Demand.Good).TryGetValue(out var can);
-            if (!FoodForecastRules.FoodNumber(d.Gap) || d.Gap <= 0 || !known || !can)
+            if (!FoodForecastRules.FoodNumber(d.Gap) || d.Gap <= 0 || !compatible.Contains(d.Demand.Good))
             {
                 continue;
             }
@@ -100,13 +94,10 @@ public static partial class TradePolicyRules
                 def = "";
                 foreach (var row in ordered)
                 {
-                    var pk = row.Prepared.TryGetValue(out var prepared);
-                    var nk = row.Nutrition.TryGetValue(out var nutrition);
-                    var sk = row.CanSupply.TryGetValue(out var supply);
-                    if (pk && prepared && nk && FoodForecastRules.FoodNumber(nutrition) && nutrition > 0 && sk && supply)
+                    if (FoodForecastRules.FoodNumber(row.Nutrition) && row.Nutrition > 0)
                     {
                         def = row.Definition;
-                        count = Math.Ceiling(d.Gap * Math.Max(1, foodTargetDays) / nutrition);
+                        count = Math.Ceiling(d.Gap * Math.Max(1, foodTargetDays) / row.Nutrition);
                         break;
                     }
                 }
@@ -121,92 +112,56 @@ public static partial class TradePolicyRules
         return (cargo, goods);
     }
 
-    /// <summary>Retains the shared colony silver floor before departure.</summary>
-    public static Fact<long> TradeMissionBudget(Fact<long> silver, long colonists)
+    /// <summary>Retains the shared colony silver floor before departure; zero when the colony size prices no floor.</summary>
+    public static long TradeMissionBudget(long silver, long colonists)
     {
-        var known = silver.TryGetValue(out var amount);
         var (reserve, rk) = TradeSilverReserve(colonists);
-        if (!known || !rk)
-        {
-            return Unknown<long>();
-        }
-        return Known(Math.Min(Math.Max(0, amount - reserve), int.MaxValue));
+        return rk ? Math.Min(Math.Max(0, silver - reserve), int.MaxValue) : 0;
     }
 
     public static bool TradeMissionReturnSafe(MissionReturnFacts r)
     {
-        var mk = r.Mass.TryGetValue(out var mass);
-        var ck = r.Capacity.TryGetValue(out var capacity);
-        var fk = r.FoodDays.TryGetValue(out var food);
-        var rk = r.RotDays.TryGetValue(out var rot);
-        var tk = r.RouteTicks.TryGetValue(out var ticks);
-        if (!mk || !ck || !fk || !rk || !tk || ticks < 0 || !FoodForecastRules.FoodNumber(mass) || !FoodForecastRules.FoodNumber(capacity) || !FoodForecastRules.FoodNumber(food) || !FoodForecastRules.FoodNumber(rot) || mass > capacity)
+        if (r.RouteTicks < 0 || !FoodForecastRules.FoodNumber(r.Mass) || !FoodForecastRules.FoodNumber(r.Capacity) || !FoodForecastRules.FoodNumber(r.FoodDays) || !FoodForecastRules.FoodNumber(r.RotDays) || r.Mass > r.Capacity)
         {
             return false;
         }
-        var days = (double)ticks / GameTime.TicksPerDay;
-        return food >= days && rot >= days;
+        var days = (double)r.RouteTicks / GameTime.TicksPerDay;
+        return r.FoodDays >= days && r.RotDays >= days;
     }
 
-    /// <summary>Bounds live demand by saved authorization, silver and mass. Throws <see cref="TradeMissionFoodDemandUnknownException"/> while a food demand is unmeasured.</summary>
+    /// <summary>Bounds live demand by saved authorization, silver and mass.</summary>
     public static (IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Cargo) PlanTradeMissionPurchases(MissionPurchaseRequest request)
     {
         IReadOnlyList<TradeLine> noLines = [];
         IReadOnlyList<CargoItem> noCargo = [];
         var m = request.Mission;
-        var foodKnown = request.Food.TryGetValue(out var food);
-        foreach (var item in m.Demand)
-        {
-            if (request.Nutrition.GetValueOrDefault(item.Definition).TryGetValue(out var nutrition) && nutrition > 0 && !foodKnown)
-            {
-                throw new TradeMissionFoodDemandUnknownException();
-            }
-        }
-        var current = new Dictionary<string, long>(StringComparer.Ordinal);
-        var known = request.Stock.TryGetValue(out var stocks);
-        var quantities = new List<ResourceQuantity>();
-        foreach (var stock in stocks)
-        {
-            quantities.Add(new ResourceQuantity { Key = new ResourceKey { Def = stock.Resource }, Count = stock.Count });
-        }
-        var resourceTargets = new List<ResourceDemand>();
-        foreach (var (def, target) in request.Targets)
-        {
-            resourceTargets.Add(new ResourceDemand { Key = new ResourceKey { Def = def }, Count = target });
-        }
-        var stockFact = known ? Known(EquatableArray.From(quantities)) : Unknown<EquatableArray<ResourceQuantity>>();
-        var demand = ResourceRules.BuildResourceDemand(new ResourceDemandInput { Targets = EquatableArray.From(resourceTargets), Stock = stockFact });
-        if (!demand.TryGetValue(out var needs))
+        if (!FoodForecastRules.FoodNumber(request.Mass) || !FoodForecastRules.FoodNumber(request.Capacity) || request.Mass > request.Capacity)
         {
             return (noLines, noCargo);
         }
-        foreach (var need in needs)
+        // The resource shortfall: each target less the colony's stock of its definition.
+        var held = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (var stock in request.Stock)
         {
-            current[need.Key.Def.Value] = need.Count;
+            held[stock.Resource.Value] = held.GetValueOrDefault(stock.Resource.Value) + stock.Count;
+        }
+        var current = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach (var (def, target) in request.Targets)
+        {
+            current[def.Value] = Math.Max(0, target - held.GetValueOrDefault(def.Value));
         }
         var demands = new List<SupplyDemand>();
         var candidates = new List<SupplyCandidate>();
         var rows = new Dictionary<string, MissionPurchaseRow>(StringComparer.Ordinal);
-        double budget = m.SilverBudget;
-        var mk = request.Mass.TryGetValue(out var mass);
-        var ck = request.Capacity.TryGetValue(out var capacity);
-        if (!mk || !ck || !FoodForecastRules.FoodNumber(mass) || !FoodForecastRules.FoodNumber(capacity) || mass > capacity)
-        {
-            return (noLines, noCargo);
-        }
-        var headroom = capacity - mass;
-        if (!request.Silver.TryGetValue(out var silver))
-        {
-            return (noLines, noCargo);
-        }
-        budget = Math.Min(budget, silver);
+        var headroom = request.Capacity - request.Mass;
+        var budget = Math.Min((double)m.SilverBudget, request.Silver);
         var wanted = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var item in m.Demand)
         {
             var count = Math.Min((long)item.Count, current.GetValueOrDefault(item.Definition));
-            if (request.Nutrition.GetValueOrDefault(item.Definition).TryGetValue(out var nutrition) && nutrition > 0)
+            if (request.Nutrition.TryGetValue(item.Definition, out var nutrition) && nutrition > 0)
             {
-                var foodWanted = Math.Max(0, food!.GapPerDay) * Math.Max(1, request.FoodTargetDays);
+                var foodWanted = Math.Max(0, request.FoodGapPerDay) * Math.Max(1, request.FoodTargetDays);
                 count = Math.Min((long)item.Count, (long)Math.Ceiling(foodWanted / nutrition));
             }
             if (count > 0)
@@ -218,18 +173,14 @@ public static partial class TradePolicyRules
         foreach (var row in request.Rows)
         {
             var price = row.BuyPrice;
-            if (wanted.GetValueOrDefault(row.DefName) == 0 || row.Pawn || row.Currency || price <= 0 || !FoodForecastRules.FoodNumber(price) || !row.WillTrade)
+            if (wanted.GetValueOrDefault(row.DefName) == 0 || row.Pawn || row.Currency || price <= 0 || !FoodForecastRules.FoodNumber(price) || !row.WillTrade || !FoodForecastRules.FoodNumber(row.UnitMass))
             {
                 continue;
             }
             var count = Math.Min(Math.Min(wanted[row.DefName], row.TraderCount), (long)Math.Floor(budget / price));
-            if (!row.UnitMass.TryGetValue(out var unitMass) || !FoodForecastRules.FoodNumber(unitMass))
+            if (row.UnitMass > 0)
             {
-                continue;
-            }
-            if (unitMass > 0)
-            {
-                count = Math.Min(count, (long)Math.Floor(headroom / unitMass));
+                count = Math.Min(count, (long)Math.Floor(headroom / row.UnitMass));
             }
             if (count <= 0)
             {
@@ -240,7 +191,7 @@ public static partial class TradePolicyRules
                 candidates.Add(candidate);
                 rows[candidate.Id] = row;
                 budget -= count * price;
-                headroom -= count * unitMass;
+                headroom -= count * row.UnitMass;
                 wanted[row.DefName] -= count;
             }
         }

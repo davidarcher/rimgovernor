@@ -191,14 +191,10 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>The nutrition the plan opened to buy from trader.</summary>
-    public static double PlannedTradeNutrition(Fact<FoodPlan> plan, string trader)
+    public static double PlannedTradeNutrition(FoodPlan plan, string trader)
     {
-        if (!plan.TryGetValue(out var p))
-        {
-            return 0;
-        }
         var total = 0.0;
-        foreach (var e in p!.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind == CandidateKind.Trade && e.Channel.Id == trader && e.Decision == FoodPlanDecision.Open)
             {

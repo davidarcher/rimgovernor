@@ -452,7 +452,9 @@ public sealed partial class RoundsTradePlanner
         }
         // A resource is bought only as far as the supply plan opened this trader's offer for it.
         var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
-        need = TradeOfferBook.RestrictToPlan(need, planned, Pol.TradePolicyRules.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
+        // An unread food plan opened no nutrition to buy.
+        var plannedNutrition = projection.Facts.FoodPlan.TryGetValue(out var foodPlan) ? Pol.TradePolicyRules.PlannedTradeNutrition(foodPlan, trader) : 0;
+        need = TradeOfferBook.RestrictToPlan(need, planned, plannedNutrition);
         var economic = Pol.TradePolicyRules.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
         var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Lines);
         var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.TradePolicyRules.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
@@ -619,15 +621,9 @@ partial class RoundsTradePlanner
         return TradeOperationKind.SetLines;
     }
 
-    /// <summary>Classifies a food line from the catalog's rows and the evaluated Nutrition stat; a pawn or currency line is never food.</summary>
-    internal static Fact<Pol.TradeFoodGood> TradeFoodFact(PbObservations.TradeLine row, Bridge.DefinitionCatalog catalog)
-    {
-        if (row.Pawn is not null || row.Currency || row.DefName == "")
-        {
-            return Unknown<Pol.TradeFoodGood>();
-        }
-        return catalog.TradeFood(row.DefName) is { } good ? Known(good) : Unknown<Pol.TradeFoodGood>();
-    }
+    /// <summary>Classifies a food line from the catalog's rows and the evaluated Nutrition stat; null for a line that is not food (a pawn or currency line never is).</summary>
+    internal static Pol.TradeFoodGood? TradeFoodOf(PbObservations.TradeLine row, Bridge.DefinitionCatalog catalog) =>
+        row.Pawn is not null || row.Currency || row.DefName == "" ? null : catalog.TradeFood(row.DefName);
 
     internal static List<Pol.TradeSheetRowFact> TradeSheetRowFacts(IReadOnlyList<PbObservations.TradeLine> rows, Bridge.DefinitionCatalog catalog)
     {
@@ -636,7 +632,7 @@ partial class RoundsTradePlanner
         {
             output.Add(new Pol.TradeSheetRowFact
             {
-                Food = TradeFoodFact(row, catalog),
+                Food = TradeFoodOf(row, catalog),
                 LineID = row.LineId,
                 DefName = row.DefName,
                 ColonyCount = row.ColonyCount,

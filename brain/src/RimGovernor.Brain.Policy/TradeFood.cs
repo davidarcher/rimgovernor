@@ -3,20 +3,21 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Comes from the shared food review, not a second plan made by trade. DesiredIngredients describes the desired
-/// recipe's conjunctive slots; IngredientNutrition is the nutrition to buy for each missing slot. Unknown facts
-/// leave food trading disabled without suppressing other needs.
+/// recipe's conjunctive slots (empty while the benches are unread); IngredientNutrition is the nutrition to buy
+/// for each missing slot. RoundsTradeFood yields none while the plan or its runway is unread, which leaves food
+/// trading disabled without suppressing other needs.
 /// </summary>
 public sealed record TradeFoodContext
 {
-    public Fact<FoodPlan> Plan { get; init; }
+    public required FoodPlan Plan { get; init; }
 
-    public Fact<double> RunwayDays { get; init; }
+    public double RunwayDays { get; init; }
 
     public double MinDays { get; init; }
 
     public double TargetDays { get; init; }
 
-    public Fact<EquatableArray<FoodIngredientSlot>> DesiredIngredients { get; init; }
+    public IReadOnlyList<FoodIngredientSlot> DesiredIngredients { get; init; } = [];
 
     public double IngredientNutrition { get; init; }
 }
@@ -53,28 +54,27 @@ public static partial class TradePolicyRules
     /// Uses the shared tick plan and the observed active meal recipe. One day's ingredient buffer bridges a
     /// missing source without pretending a proposed channel is already producing stock.
     /// </summary>
-    public static TradeFoodContext RoundsTradeFood(RoundsFacts f, RoundsPolicy p)
+    public static TradeFoodContext? RoundsTradeFood(RoundsFacts f, RoundsPolicy p)
     {
-        var r = new TradeFoodContext
+        if (!f.FoodPlan.TryGetValue(out var plan))
         {
-            Plan = f.FoodPlan,
-            RunwayDays = f.FoodDays,
+            return null;
+        }
+        // The plan's forecast runway, else the observed accessible runway.
+        if (!plan.Forecast.RunwayDays.TryGetValue(out var runway) && !f.FoodDays.TryGetValue(out runway))
+        {
+            return null;
+        }
+        EquatableArray<FoodIngredientSlot> slots = f.TradeMealIngredients.TryGetValue(out var read) ? read : [];
+        return new TradeFoodContext
+        {
+            Plan = plan,
+            RunwayDays = runway,
             MinDays = p.FoodMinDays,
             TargetDays = p.FoodTargetDays,
-            DesiredIngredients = f.TradeMealIngredients,
+            DesiredIngredients = slots,
+            IngredientNutrition = slots.Count > 0 ? plan.DemandPerDay / slots.Count : 0,
         };
-        if (f.FoodPlan.TryGetValue(out var plan))
-        {
-            if (plan!.Forecast.RunwayDays.IsKnown)
-            {
-                r = r with { RunwayDays = plan.Forecast.RunwayDays };
-            }
-            if (r.DesiredIngredients.TryGetValue(out var slots) && slots!.Count > 0)
-            {
-                r = r with { IngredientNutrition = plan.DemandPerDay / slots.Count };
-            }
-        }
-        return r;
     }
 
     /// <summary>
@@ -130,19 +130,19 @@ public static partial class TradePolicyRules
     /// </summary>
     internal static TradeFoodNeed ReviewTradeFood(TradeFoodContext r)
     {
-        var pk = r.Plan.TryGetValue(out var plan);
-        var rk = r.RunwayDays.TryGetValue(out var runway);
-        if (!pk || !rk || !FoodForecastRules.FoodNumber(runway) || !FieldCapacityRules.FieldPositive(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays <= r.MinDays)
+        var plan = r.Plan;
+        var runway = r.RunwayDays;
+        if (!FoodForecastRules.FoodNumber(runway) || !FieldCapacityRules.FieldPositive(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays <= r.MinDays)
         {
             return new TradeFoodNeed();
         }
-        var (sources, _, valid) = MealRules.MealIngredientSources(plan!);
+        var (sources, _, valid) = MealRules.MealIngredientSources(plan);
         if (!valid)
         {
             return new TradeFoodNeed();
         }
         var nutrition = 0.0;
-        foreach (var entry in plan!.Portfolio)
+        foreach (var entry in plan.Portfolio)
         {
             if (entry.Channel.Kind != CandidateKind.Trade)
             {
@@ -159,14 +159,14 @@ public static partial class TradePolicyRules
         {
             return need;
         }
-        var known = r.DesiredIngredients.TryGetValue(out var slots);
+        var slots = r.DesiredIngredients;
         var all = new HashSet<FoodIngredientClass> { FoodIngredientClass.Meat, FoodIngredientClass.Vegetable, FoodIngredientClass.AnimalProduct };
-        if (!known || !MealRules.MealSlotsSupported(slots!, all))
+        if (slots.Count == 0 || !MealRules.MealSlotsSupported(slots, all))
         {
             return need;
         }
         var missing = new List<FoodIngredientSlot>();
-        foreach (var slot in slots!)
+        foreach (var slot in slots)
         {
             if (MealRules.MealSlotsSupported([slot], sources!))
             {
@@ -204,10 +204,9 @@ public static partial class TradePolicyRules
         var candidates = new List<TradeSheetRowFact>();
         foreach (var row in rows)
         {
-            var known = row.Food.TryGetValue(out var g);
             if (
-                !known
-                || !ValidTradeFood(g!)
+                row.Food is not { } g
+                || !ValidTradeFood(g)
                 || counts[row.DefName] != 1
                 || row.ColonyCount < 0
                 || row.TraderCount <= 0
@@ -236,8 +235,8 @@ public static partial class TradePolicyRules
             Comparer<TradeSheetRowFact>.Create(
                 (a, b) =>
                 {
-                    var ga = a.Food.ValueOrDefault!;
-                    var gb = b.Food.ValueOrDefault!;
+                    var ga = a.Food!;
+                    var gb = b.Food!;
                     var ra = Rank(a, ga);
                     var rb = Rank(b, gb);
                     if (ra != rb)
@@ -263,7 +262,7 @@ public static partial class TradePolicyRules
             }
             foreach (var row in candidates)
             {
-                var g = row.Food.ValueOrDefault!;
+                var g = row.Food!;
                 if (slot is not null && (g.Prepared || !MealRules.MealSlotsSupported([slot], new HashSet<FoodIngredientClass> { g.Class })))
                 {
                     continue;
@@ -292,8 +291,7 @@ public static partial class TradePolicyRules
             var remaining = need.IngredientNutrition;
             foreach (var row in rows)
             {
-                var known = row.Food.TryGetValue(out var g);
-                if (known && ValidTradeFood(g!) && !g!.Prepared && row.ColonyCount > 0 && counts[row.DefName] == 1 && MealRules.MealSlotsSupported([missing], new HashSet<FoodIngredientClass> { g.Class }))
+                if (row.Food is { } g && ValidTradeFood(g) && !g.Prepared && row.ColonyCount > 0 && counts[row.DefName] == 1 && MealRules.MealSlotsSupported([missing], new HashSet<FoodIngredientClass> { g.Class }))
                 {
                     remaining -= row.ColonyCount * g.Nutrition;
                 }
@@ -347,8 +345,7 @@ public static partial class TradePolicyRules
                 {
                     continue;
                 }
-                var known = row.Food.TryGetValue(out var g);
-                if (known && ValidTradeFood(g!) && !g!.Prepared && g.Class is FoodIngredientClass.Meat or FoodIngredientClass.AnimalProduct)
+                if (row.Food is { } g && ValidTradeFood(g) && !g.Prepared && g.Class is FoodIngredientClass.Meat or FoodIngredientClass.AnimalProduct)
                 {
                     return true;
                 }

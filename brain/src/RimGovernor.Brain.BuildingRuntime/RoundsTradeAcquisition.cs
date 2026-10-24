@@ -16,7 +16,7 @@ internal sealed partial class TradeAcquisitionMemory
     /// </summary>
     public Bridge.DefinitionCatalog? SupplyCatalog;
     public Dictionary<string, IReadOnlyList<Pol.MissionSupplyDefinition>> SupplyDefinitions = new(StringComparer.Ordinal);
-    public Dictionary<(string Kind, Pol.ResourceKey Good), Fact<bool>> SupplyCompatible = [];
+    public Dictionary<(string Kind, Pol.ResourceKey Good), bool> SupplyCompatible = [];
 
     /// <summary>Forgets the supply facts of another catalog (a new load). Call under Mu.</summary>
     public void ForCatalog(Bridge.DefinitionCatalog catalog)
@@ -161,9 +161,11 @@ public sealed partial class Rounder
                 }
             }
         }
+        // No attempt is proposed while the colony's silver is unread or its size prices no reserve.
         var (reserve, known) = Pol.TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
-        var rf = known ? Known(reserve) : Unknown<long>();
-        var plan = Pol.TradePolicyRules.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = rf, ActiveID = active });
+        var plan = known && p.Facts.Silver().TryGetValue(out var silver)
+            ? Pol.TradePolicyRules.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = silver, Reserve = reserve, ActiveID = active })
+            : new Pol.TradeAcquisitionPlan();
         lock (m.Mu)
         {
             m.Proposals[owner] = plan;
@@ -185,14 +187,14 @@ partial class TradeAcquisitionMemory
                 Faction = row.FactionId,
                 TraderKind = row.TraderKind,
                 PassingShips = facts.PassingShips.Count,
-                LaborTicks = Known(0.0),
+                LaborTicks = 0,
                 Kind = row.Kind == CommonPb.TradeRequestKind.Orbital ? Pol.TradeAcquisitionKind.Orbital : Pol.TradeAcquisitionKind.Caravan,
-                Eligible = Known(row.Eligible),
-                LeadDays = Known((double)row.ArrivalMaxTicks / GameTime.TicksPerDay),
-                GoodwillCost = Known(row.GoodwillCost),
-                RelationAfterPayment = Known(row.RelationAfterPayment),
-                CooldownTicks = Known(row.CooldownRemainingTicks),
-                OrbitalAvailable = Known(facts.OrbitalAvailable),
+                Eligible = row.Eligible,
+                LeadDays = (double)row.ArrivalMaxTicks / GameTime.TicksPerDay,
+                GoodwillCost = row.GoodwillCost,
+                RelationAfterPayment = row.RelationAfterPayment,
+                CooldownTicks = row.CooldownRemainingTicks,
+                OrbitalAvailable = facts.OrbitalAvailable,
             };
             var negotiators = row.NegotiatorIds.OrderBy(n => n, StringComparer.Ordinal).ToList();
             foreach (var console in consoles)
@@ -215,14 +217,14 @@ partial class TradeAcquisitionMemory
             {
                 if (queued.FactionId == row.FactionId && queued.Kind == row.Kind)
                 {
-                    option = option with { Eligible = Known(false) };
+                    option = option with { Eligible = false };
                 }
             }
             foreach (var work in facts.CommsWork)
             {
                 if (work.FactionId == row.FactionId)
                 {
-                    option = option with { Eligible = Known(false) };
+                    option = option with { Eligible = false };
                 }
             }
             var compatible = new List<Pol.ResourceKey>();

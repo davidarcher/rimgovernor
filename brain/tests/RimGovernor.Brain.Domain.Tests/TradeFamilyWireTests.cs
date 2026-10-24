@@ -114,4 +114,20 @@ public sealed class TradeFamilyWireTests
 
     [Fact]
     public void TheAcquisitionRoundTripsExactly() => RoundTrips(Acquisition);
+
+    // #3785: the pack estimate is Packed with both legs, or Unpackable; a leg is Reachable with its ticks or Unreachable.
+    [Fact]
+    public void EveryPackEstimateStateRoundTripsExactly()
+    {
+        var packed = Acquisition with
+        {
+            Pack = new O.TradePackEstimate.Packed(84.5, 210, 6.25, 12.5, new O.PackRoute.Reachable(90000), new O.PackRoute.Unreachable()),
+        };
+        var refused = Acquisition with { Pack = new O.TradePackEstimate.Unpackable() };
+        RoundTrips(packed);
+        RoundTrips(refused);
+        Assert.Contains("\"type\":\"packed\"", WireJson.Serialize(packed));
+        Assert.Contains("\"type\":\"unreachable\"", WireJson.Serialize(packed));
+        Assert.Contains("\"type\":\"unpackable\"", WireJson.Serialize(refused));
+    }
 }

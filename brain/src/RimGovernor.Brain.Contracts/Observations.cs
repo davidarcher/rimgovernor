@@ -4643,21 +4643,33 @@ public sealed record TradeCommsWork
     public required string FactionId { get; init; }
 }
 
-public sealed record TradePackEstimate
+/// <summary>
+/// Native's caravan-formation calculation for one exact crew and cargo: Unpackable when the game refuses the pack,
+/// otherwise its mass, the days of food and till rot it carries, and both legs of the round trip.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TradePackEstimate.Packed), "packed")]
+[JsonDerivedType(typeof(TradePackEstimate.Unpackable), "unpackable")]
+public abstract record TradePackEstimate
 {
-    public bool? CanPack { get; init; }
+    private protected TradePackEstimate() { }
 
-    public double? MassUsage { get; init; }
+    public sealed record Packed(double MassUsage, double MassCapacity, double FoodDays, double FoodRotDays, PackRoute Outbound, PackRoute Home) : TradePackEstimate;
 
-    public double? MassCapacity { get; init; }
+    public sealed record Unpackable : TradePackEstimate;
+}
 
-    public double? FoodDays { get; init; }
+/// <summary>One leg of a packed trip: the estimated ticks to arrive, or Unreachable when the world pather finds no path.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PackRoute.Reachable), "reachable")]
+[JsonDerivedType(typeof(PackRoute.Unreachable), "unreachable")]
+public abstract record PackRoute
+{
+    private protected PackRoute() { }
 
-    public double? FoodRotDays { get; init; }
+    public sealed record Reachable(long EstimatedTicks) : PackRoute;
 
-    public WorldRoute? Outbound { get; init; }
-
-    public WorldRoute? Home { get; init; }
+    public sealed record Unreachable : PackRoute;
 }
 
 public sealed record FoodConsumer
