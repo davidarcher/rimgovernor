@@ -1,6 +1,7 @@
 #nullable disable
 using System;
 using HomeBridge.BridgeTools;
+using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Wire = RimGovernor.Contracts.Wire.Authority;
@@ -26,31 +27,37 @@ internal static class NativeAuthorityStatusProbe
         return status;
     }
     // The /native/{op} route decodes the request with WireJson before the core runs.
-    private static Wire.StatusReply Read(Wire.StatusRequest request) => NativeAuthorityTools.HandleReadStatus(
+    private static Wire.Status Read(Wire.StatusRequest request) => NativeAuthorityTools.HandleReadStatus(
         RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.StatusRequest>(RimGovernor.Contracts.Wire.WireJson.Serialize(request)));
+    // A refusal is a thrown NativeFailureException; null when the read answered.
+    private static Common.Failure Refusal(Wire.StatusRequest request)
+    {
+        try { Read(request); return null; }
+        catch (NativeFailureException e) { return e.Value; }
+    }
     private static void EndpointAdmission()
     {
         var game = new Game(); Current.Game = game; Find.CurrentMap = new Map { uniqueID = 0 };
         Find.TickManager = new TickManager { TicksGame = 0 };
-        var missing = Read(new Wire.StatusRequest());
-        Check(missing.Failure != null, "Missing identity reaches typed failure");
+        var missing = Refusal(new Wire.StatusRequest());
+        Check(missing != null, "Missing identity reaches typed failure");
         Check(!NativeControlAuthority.TryGetForGame(game, out _), "Missing identity allocated authority");
         var request = new Wire.StatusRequest { Identity = Context.Identity };
         for (int i = 0; i < 2; i++)
         {
             var absent = Read(request);
-            Check(absent.Status.Unavailable != null
-                && absent.Status.Unavailable.Reason == Common.UnavailableReason.NotObserved, "Missing state did not report unavailable");
-            Check(absent.Status.Context.NativeGeneration == null, "Missing state fabricated authority generation");
+            Check(absent.Unavailable != null
+                && absent.Unavailable.Reason == Common.UnavailableReason.NotObserved, "Missing state did not report unavailable");
+            Check(absent.Context.NativeGeneration == null, "Missing state fabricated authority generation");
             Check(!NativeControlAuthority.TryGetForGame(game, out _), "Read allocated native authority");
         }
-        var stale = Read(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "stale", MapId = 0 } });
-        Check(stale.Failure.Code == Common.FailureCode.StaleIdentity, "Stale identity accepted");
+        var stale = Refusal(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "stale", MapId = 0 } });
+        Check(stale != null && stale.Code == Common.FailureCode.StaleIdentity, "Stale identity accepted");
         Check(!NativeControlAuthority.TryGetForGame(game, out _), "Stale read allocated authority");
         var existing = NativeControlAuthority.ForGame(game);
         var known = Read(request);
-        Check(known.Status.Context.NativeGeneration == 1, "Existing generation omitted");
-        Check(known.Status.Unavailable != null
+        Check(known.Context.NativeGeneration == 1, "Existing generation omitted");
+        Check(known.Unavailable != null
             && !existing.Status().Available && !existing.Status().Active, "Read enabled unverified authority");
     }
     // Orderly exit: an unloaded game's final authority stays readable for
@@ -76,12 +83,12 @@ internal static class NativeAuthorityStatusProbe
 
         Current.Game = null; Find.CurrentMap = null; Find.TickManager = null;
         var read = Read(new Wire.StatusRequest { Identity = Context.Identity });
-        Check(read.Status != null && read.Status.Inactive != null
-            && read.Status.Inactive.Reason == Wire.RevocationReason.Shutdown, "Unloaded game reads Inactive(SHUTDOWN)");
-        Check(read.Status.Context.Identity.Equals(Context.Identity) && read.Status.Context.Tick == 43
-            && read.Status.Context.NativeGeneration == 3, "Retained context carries the final identity, tick and generation");
-        var unknown = Read(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "other", MapId = 0 } });
-        Check(unknown.Failure != null && unknown.Failure.Code == Common.FailureCode.Unavailable,
+        Check(read != null && read.Inactive != null
+            && read.Inactive.Reason == Wire.RevocationReason.Shutdown, "Unloaded game reads Inactive(SHUTDOWN)");
+        Check(read.Context.Identity.Equals(Context.Identity) && read.Context.Tick == 43
+            && read.Context.NativeGeneration == 3, "Retained context carries the final identity, tick and generation");
+        var unknown = Refusal(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "other", MapId = 0 } });
+        Check(unknown != null && unknown.Code == Common.FailureCode.Unavailable,
             "Another identity still fails with no game loaded");
 
         // Manual before the unload: the retained reason is Manual, not Shutdown.

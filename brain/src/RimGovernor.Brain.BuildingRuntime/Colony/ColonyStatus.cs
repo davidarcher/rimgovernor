@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IColonyStatusNative
 {
-    Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct);
+    Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct);
 
     Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
 

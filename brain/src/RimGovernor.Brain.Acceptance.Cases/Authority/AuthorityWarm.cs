@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire;
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
@@ -54,9 +55,9 @@ internal static class AuthorityWarm
                 // A review a day out: the case runs an hour and drops the session before the clock reaches it.
                 HoldAtTick = (ulong)(Math.Max(before.Context?.Tick ?? 0, 0) + 60_000),
             }, cancellationToken).ConfigureAwait(false);
-            if (run.Outcome?.Status is not { State: Clock.ClockState.Running } running)
+            if (run is not { State: Clock.ClockState.Running } running)
             {
-                throw new AcceptanceException($"p1-clock-run: want a running clock, got {run.Outcome}");
+                throw new AcceptanceException($"p1-clock-run: want a running clock, got {WireJson.Serialize(run)}");
             }
 
             s.RecordWire("p1_clock", running);

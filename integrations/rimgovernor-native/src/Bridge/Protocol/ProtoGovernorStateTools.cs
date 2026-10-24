@@ -2,15 +2,22 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
+using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
     internal static class ProtoGovernorStateTools
     {
-        // On the game thread: the typed core of the read, shared with the in-process facade.
-        internal static Lifecycle.GovernorStateReply HandleRead() => Reply();
+        // On the game thread: the read of the in-process facade. No game throws the not-loaded exception.
+        internal static Lifecycle.GovernorStateBlobs HandleRead()
+        {
+            if (Current.Game == null)
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." });
+            return new Lifecycle.GovernorStateBlobs { Blobs = new System.Collections.Generic.Dictionary<string, string>(GovernorState.For(Current.Game).Blobs) };
+        }
 
         // Off the game thread: validates the batch and stages it when the game already carries the component.
         // Null means a save that predates the component needs the game thread to attach it: PutOnGameThread(set).
@@ -55,12 +62,5 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool Ascii(string value) => value.All(c => c < 128);
-
-        private static Lifecycle.GovernorStateReply Reply()
-        {
-            if (Current.Game == null) return NotLoaded("governor_state_read");
-            var loaded = new Lifecycle.GovernorStateBlobs { Blobs = new System.Collections.Generic.Dictionary<string, string>(GovernorState.For(Current.Game).Blobs) };
-            return new Lifecycle.GovernorStateReply { Loaded = loaded };
-        }
     }
 }

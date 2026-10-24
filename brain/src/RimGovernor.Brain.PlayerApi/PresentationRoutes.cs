@@ -50,13 +50,13 @@ public static class PresentationRoutes
         {
             registrations.Add(routes.Map("GET", CameraPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadCameraAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
-                return (reply, reply.Outcome?.Camera?.Context);
+                var camera = await reader.ReadCameraAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
+                return (camera, camera.Context);
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", SelectionPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadSelectionAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
-                return (reply, reply.Outcome?.Selection?.Context);
+                var selection = await reader.ReadSelectionAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
+                return (selection, selection.Context);
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", ColonistsPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
@@ -65,8 +65,8 @@ public static class PresentationRoutes
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", RenderStatePath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadRenderStateAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
-                return (reply, reply.Outcome?.Status?.Context);
+                var status = await reader.ReadRenderStateAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
+                return (status, status.Context);
             }, ct), Bounded));
         }
 
@@ -74,7 +74,7 @@ public static class PresentationRoutes
         {
             registrations.Add(routes.Map("GET", NotificationsPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await notifications.ReadNotificationsAsync(
+                var snapshot = await notifications.ReadNotificationsAsync(
                     new NotificationsRequest
                     {
                         Identity = id,
@@ -86,16 +86,14 @@ public static class PresentationRoutes
                         AlertLimit = 40,
                     },
                     token).ConfigureAwait(false);
-                var snapshot = reply.Outcome?.Notifications;
-                if (snapshot is null
-                    || (snapshot.Letters?.Outcome?.Observed is null && snapshot.Letters?.Outcome?.Unavailable is null)
+                if ((snapshot.Letters?.Outcome?.Observed is null && snapshot.Letters?.Outcome?.Unavailable is null)
                     || (snapshot.Messages?.Outcome?.Observed is null && snapshot.Messages?.Outcome?.Unavailable is null)
                     || (snapshot.Alerts?.Outcome?.Observed is null && snapshot.Alerts?.Outcome?.Unavailable is null))
                 {
                     throw new InvalidOperationException("requested notification section missing");
                 }
 
-                return (reply, snapshot.Context);
+                return (snapshot, snapshot.Context);
             }, ct), Bounded));
         }
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
@@ -255,10 +256,13 @@ public static class StartOps
 
     private static async Task<JsonObject> LoadLoadedAsync(Session session, CancellationToken cancellationToken)
     {
-        var reply = await session.Harness.CallAsync("loaded-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        if (reply.Loaded is null)
+        try
         {
-            throw new AcceptanceException("no game is loaded in the kept process; start from a save instead");
+            _ = await session.Harness.CallAsync("loaded-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        }
+        catch (BridgeUnavailableException e)
+        {
+            throw new AcceptanceException("no game is loaded in the kept process; start from a save instead", e);
         }
 
         return new JsonObject { { "kind", "loaded" } };

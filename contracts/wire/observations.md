@@ -273,9 +273,7 @@ not offer for the def (a scenario's jade knife). An unknown def or stuff, a
 stat the game hides for the def and a non-finite value are errors, never a
 default. `DeteriorationRate`, which a planner
 reads of every `ThingDef` and the game hides for a def that does not set it,
-is read whether shown or not. The `EvaluateStat` read stays as the parity oracle: the
-`stats/evaluate-stat` acceptance case compares the catalog's answer with the
-game's own.
+is read whether shown or not.
 ### Game-computed race facts
 
 What the game's own race code says about each race (`RaceGameFacts`: the foods `RaceProperties.CanEverEat`
@@ -665,7 +663,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | AssignIntent.pawn_id/thing_id/expected_previous | ListPawns.pawn and owned bed; ListBuildings.building; ColonyFactsSnapshot.royalty.thrones.thing for a throne |
 | NeedReliefIntent.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | PawnOrderIntent WEAR pawn/target | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
-| HusbandryIntent.animal_id/target_id | ReadHusbandry.pawn (same animal ID), allowed area and master IDs |
+| HusbandryIntent.animal_id/target_id | ListPawns pawn with animal details (same animal ID), allowed area and master IDs |
 | PrisonerInteractionIntent.pawn_id | ReadPopulation.pawn and current interaction |
 | SetDrafted/AttackTarget/PawnOrderIntent | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
@@ -685,4 +683,3 @@ Clearance: `GetClearanceTargets` reads visible, deconstructible non-player build
 
 Trade session and sheet headers carry one `common.TradeTarget`, whose settlement arm names the player caravan. `ReadTradeAcquisition` exposes native request prerequisites, all passing ships, queued arrivals/comms work and optional exact-crew packing estimates. Presence remains significant; [controllable trade](../../docs/developers/contracts/controllable-trade.md) defines eligibility and reconciliation.
 
-`EvaluateStat(stat, subject)` is the game's own evaluation of one stat for a definition (with optional stuff and quality), a thing id or a pawn id: the final value, the per-part explanation lines and `ShouldShowFor`. A definition subject without quality equals the definition catalog stat table value. An unknown stat or subject is a `NOT_FOUND` failure. It is scaffolding and the oracle for the stat evaluator (epic #2621); it is read-only.

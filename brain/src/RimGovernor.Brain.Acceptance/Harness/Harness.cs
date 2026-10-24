@@ -4,6 +4,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire;
@@ -195,8 +196,9 @@ public sealed partial class Harness : IAsyncDisposable
             result = e.Result;
             callError = e;
         }
-        catch (Exception e) when (e is NativeTransportException or OperationCanceledException)
+        catch (Exception e) when (e is NativeTransportException or OperationCanceledException or NativeFailureException or BridgeUnavailableException)
         {
+            // A native op's thrown refusal reaches the caller as itself, recorded like every other call error.
             callError = e;
         }
 
@@ -207,7 +209,7 @@ public sealed partial class Harness : IAsyncDisposable
             {
                 callError = Refine(tool, callError, result);
                 row.Set("error", callError.Message);
-                throw callError is NativeRefusedException or NativeTransportException or OperationCanceledException ? callError : new AcceptanceException(callError.Message, callError);
+                throw callError is NativeRefusedException or NativeTransportException or OperationCanceledException or NativeFailureException or BridgeUnavailableException ? callError : new AcceptanceException(callError.Message, callError);
             }
 
             var structured = result?.Structured;

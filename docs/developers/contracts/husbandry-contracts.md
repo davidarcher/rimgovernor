@@ -361,7 +361,7 @@ does not establish indefinite herd sustainability.
 ## Acceptance
 
 `husbandry/dispatch` proves each method's native write on a fixture colony,
-read back through `observations_read_husbandry`. `animals/containment` proves
+read back through `observations_list_pawns` with animal details. `animals/containment` proves
 a staged pen contains a player cow and that a pet needs no pen. Snapshot tests
 own the herd planner's decisions (founders, sterilization, taming, retirement).
 

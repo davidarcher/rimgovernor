@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.HttpChannel;
 
@@ -14,7 +15,8 @@ public interface INativeOpInvoker
 
     /// <summary>
     /// Runs one op on its JSON request body and answers its JSON reply. A body that does not fit the op's request
-    /// throws <see cref="JsonException"/> (a 400); any other failure is the op's own (a 500).
+    /// throws <see cref="JsonException"/> (a 400); a native refusal throws <see cref="NativeFailureException"/> (a 422)
+    /// and an unavailable game <see cref="BridgeUnavailableException"/> (a 503); any other failure is the op's own (a 500).
     /// </summary>
     Task<string> InvokeAsync(string op, string body, CancellationToken cancellationToken);
 }
@@ -28,6 +30,19 @@ public static class NativeRoutes
 
     /// <summary>The longest a native call may run. Lifecycle calls (load, new colony) legitimately take minutes.</summary>
     public static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The status of a native refusal (<see cref="NativeFailureException"/>): the body's code is the
+    /// <c>FailureCode</c> name and its detail the failure's detail.
+    /// </summary>
+    public const int RefusedStatus = 422;
+
+    /// <summary>
+    /// The status of an unavailable game (<see cref="NativeUnavailableException"/>, <see cref="NotLoadedException"/>):
+    /// the body's code is the <c>UnavailableReason</c> name and its detail the unavailable detail (the whole message for
+    /// <see cref="NotLoadedException"/>).
+    /// </summary>
+    public const int UnavailableStatus = 503;
 
     public static IDisposable Register(RouteTable routes, INativeOpInvoker invoker)
     {
@@ -109,6 +124,18 @@ public static class NativeRoutes
         catch (JsonException e)
         {
             return ChannelResponse.Failure(400, "invalid_request", e.Message);
+        }
+        catch (NativeFailureException e)
+        {
+            return ChannelResponse.Failure(RefusedStatus, e.Value.Code?.ToString() ?? "", e.Value.Detail ?? "");
+        }
+        catch (NativeUnavailableException e)
+        {
+            return ChannelResponse.Failure(UnavailableStatus, e.Value.Reason?.ToString() ?? "", e.Value.Detail ?? "");
+        }
+        catch (NotLoadedException e)
+        {
+            return ChannelResponse.Failure(UnavailableStatus, nameof(RimGovernor.Contracts.Wire.Common.UnavailableReason.NotLoaded), e.Message);
         }
 #pragma warning disable CA1031 // The op's own failure text goes back to the caller as a 500.
         catch (Exception e)

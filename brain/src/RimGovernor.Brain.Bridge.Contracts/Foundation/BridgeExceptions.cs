@@ -57,6 +57,27 @@ public sealed class NativeUnavailableException(Unavailable value, Result receipt
             : "native read unavailable: " + value.Reason.GetValueOrDefault();
 }
 
+/// <summary>
+/// What a native call throws instead of answering a refusal or an unavailable reply: a facade read returns its payload
+/// or throws one of these, and the HTTP channel maps them to a status and back (<c>NativeRoutes</c>).
+/// </summary>
+public static class NativeFaults
+{
+    /// <summary>The refusal <paramref name="failure"/> describes: a <see cref="NativeFailureException"/> carrying its code and detail.</summary>
+    public static NativeFailureException Refused(Failure failure) => new(failure, Result.Empty);
+
+    /// <summary>
+    /// The unavailability <paramref name="unavailable"/> describes: <see cref="NotLoadedException"/> when no colony map is
+    /// loaded (an expected state a caller may skip on), else a <see cref="NativeUnavailableException"/>.
+    /// </summary>
+    public static BridgeUnavailableException Unavailable(Unavailable unavailable)
+    {
+        ArgumentNullException.ThrowIfNull(unavailable);
+        var value = new NativeUnavailableException(unavailable, Result.Empty);
+        return unavailable.Reason == UnavailableReason.NotLoaded ? new NotLoadedException(value.Message) : value;
+    }
+}
+
 /// <summary>A named read the native side refused, with the refusal's own account of itself.</summary>
 public sealed class ReadRefusedException : BridgeRefusedException
 {

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Bridge;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -54,8 +55,17 @@ internal static class LifecycleCheckpoint
             600,
             async ct =>
             {
-                var clock = await s.CallAsync("save-running-tick", NativeOps.ReadTick, new Lifecycle.TickRequest(), ct).ConfigureAwait(false);
-                if (clock.Outcome?.Loaded is not { Paused: false })
+                Lifecycle.LoadedTick? clock;
+                try
+                {
+                    clock = await s.CallAsync("save-running-tick", NativeOps.ReadTick, new Lifecycle.TickRequest(), ct).ConfigureAwait(false);
+                }
+                catch (BridgeUnavailableException)
+                {
+                    clock = null;
+                }
+
+                if (clock is not { Paused: false })
                 {
                     return (Wait.Signature("paused"), false);
                 }

@@ -112,7 +112,6 @@ public static class CaseCatalog
         RouteCases.Register(registry);
         ServiceCases.Register(registry);
         SmokeCases.Register(registry);
-        StatsCases.Register(registry);
         StorageCases.Register(registry);
         SuppliesCases.Register(registry);
         TemperatureCases.Register(registry);

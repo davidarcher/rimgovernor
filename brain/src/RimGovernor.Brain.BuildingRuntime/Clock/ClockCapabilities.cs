@@ -6,9 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native clock reads the session makes.</summary>
 public interface IClockNative
 {
-    Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct);
-
-    Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken ct);
+    Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct);
 }
 
 /// <summary>The native clock writes the session makes.</summary>

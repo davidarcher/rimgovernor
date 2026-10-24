@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;
 using Fx = RimGovernor.Fixtures.Contracts;
@@ -93,14 +94,20 @@ internal static class MapscopeIsolation
             throw new AcceptanceException($"roster-second-only: want no colonists on the generated map, got {secondOnly.Count}");
         }
 
-        // Presentation state lives on the viewed map: the home identity is stale there with the viewed map's context; the
-        // second identity passes the identity check (a snapshot when rendered, the graphical-only refusal headless).
-        var homeSelection = await s.CallAsync("selection-home-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = home }, cancellationToken).ConfigureAwait(false);
-        StaleOn("selection-home-while-second-viewed", homeSelection.Outcome?.Failure, second.MapId, homeSelection.Outcome);
-        var secondSelection = await s.CallAsync("selection-second-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = second }, cancellationToken).ConfigureAwait(false);
-        if (secondSelection.Outcome?.Selection is null && secondSelection.Outcome?.Failure?.Code != Common.FailureCode.Unavailable)
+        // Presentation state lives on the viewed map: the home identity is stale there (the HTTP refusal carries its code
+        // and detail, not the viewed map's context); the second identity passes the identity check (a snapshot when
+        // rendered, the graphical-only refusal headless).
+        await TypedLifecycle.ExpectRefusedAsync(
+            "selection-home-while-second-viewed",
+            () => s.CallAsync("selection-home-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = home }, cancellationToken),
+            Common.FailureCode.StaleIdentity).ConfigureAwait(false);
+        try
         {
-            throw new AcceptanceException($"selection-second-while-second-viewed: want a selection or the headless refusal, got {secondSelection.Outcome}");
+            _ = await s.CallAsync("selection-second-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = second }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (NativeFailureException e) when (e.Value.Code == Common.FailureCode.Unavailable)
+        {
+            s.RecordWire("selection-second-headless-refusal", e.Value);
         }
 
         // An identity naming a map that is not loaded is stale, with the viewed map's context to re-anchor on.

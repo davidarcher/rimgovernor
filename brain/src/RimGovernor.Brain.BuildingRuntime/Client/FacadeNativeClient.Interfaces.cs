@@ -28,8 +28,8 @@ public sealed partial class FacadeNativeClient :
     IRoundsDefenseSource
 {
     /// <summary>
-    /// The client over <paramref name="facade"/>: the facade is wrapped in <see cref="CountingNativeFacade"/> so every
-    /// native call is tallied, and <see cref="FrameSections"/> is bound to the decoders of the other core files.
+    /// The client over <paramref name="facade"/> (which tallies every native call itself), with
+    /// <see cref="FrameSections"/> bound to the decoders of the other core files.
     /// </summary>
     /// <param name="facade">The in-process native facade.</param>
     /// <param name="catalogFactory">
@@ -41,7 +41,7 @@ public sealed partial class FacadeNativeClient :
     {
         ArgumentNullException.ThrowIfNull(facade);
         FacadeNativeClient? client = null;
-        client = new FacadeNativeClient(new CountingNativeFacade(facade))
+        client = new FacadeNativeClient(facade)
         {
             CatalogFactory = catalogFactory,
         };
@@ -50,7 +50,7 @@ public sealed partial class FacadeNativeClient :
 
     // ---- Observation ----------------------------------------------------------------------------------------
 
-    Task<LifecyclePb.IdentityReply> IColonySource.IdentityAsync(CancellationToken cancellationToken) =>
+    Task<LifecyclePb.LoadedIdentity> IColonySource.IdentityAsync(CancellationToken cancellationToken) =>
         IdentityAsync(cancellationToken);
 
     Task<O.ColonyFactsReply> IColonySource.ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
@@ -59,7 +59,7 @@ public sealed partial class FacadeNativeClient :
     Task<Tables> IColonySource.FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) =>
         FrameTablesAsync(identity, cancellationToken);
 
-    Task<LifecyclePb.TickReply> ISource.TickAsync(CancellationToken cancellationToken) =>
+    Task<LifecyclePb.LoadedTick> ISource.TickAsync(CancellationToken cancellationToken) =>
         TickAsync(cancellationToken);
 
     async Task<BridgeCatalog?> IDefinitionSource.DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) =>
@@ -85,11 +85,8 @@ public sealed partial class FacadeNativeClient :
 
     // ---- Clock ----------------------------------------------------------------------------------------------
 
-    Task<LifecyclePb.IdentityReply> IClockNative.IdentityAsync(CancellationToken ct) =>
+    Task<LifecyclePb.LoadedIdentity> IClockNative.IdentityAsync(CancellationToken ct) =>
         IdentityAsync(ct);
-
-    Task<PbClock.StatusReply> IClockNative.ReadClockStatusAsync(C.Identity identity, CancellationToken ct) =>
-        ReadClockStatusAsync(identity, ct);
 
     Task<EntityRows<O.BuildingState>> IEntityNative.ReadBuildingsAsync(C.Identity identity, CancellationToken ct) =>
         ReadBuildingsAsync(identity, ct);
@@ -119,7 +116,7 @@ public sealed partial class FacadeNativeClient :
 
     // ---- Colony and presentation ----------------------------------------------------------------------------
 
-    Task<LifecyclePb.IdentityReply> IColonyStatusNative.IdentityAsync(CancellationToken ct) =>
+    Task<LifecyclePb.LoadedIdentity> IColonyStatusNative.IdentityAsync(CancellationToken ct) =>
         IdentityAsync(ct);
 
     Task<O.ColonyFactsReply> IColonyStatusNative.ReadColonyFactsAsync(C.Identity identity, bool full, CancellationToken ct) =>

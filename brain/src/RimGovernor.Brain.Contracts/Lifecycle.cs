@@ -89,17 +89,12 @@ public enum NewColonyPhase
 
 public sealed record IdentityRequest;
 
+/// <summary>The identity read's payload; a game with no colony map throws the unavailable exception instead.</summary>
 public sealed record LoadedIdentity
 {
     public Common.ObservationContext? Context { get; init; }
 
     public bool? Paused { get; init; }
-}
-
-/// <summary>The identity read; <c>Loaded</c> is absent when native could not read it (native logs the reason).</summary>
-public sealed record IdentityReply
-{
-    public LoadedIdentity? Loaded { get; init; }
 }
 
 /// <summary>
@@ -136,36 +131,6 @@ public sealed record LoadedTick
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PausingWindow>))]
     public EquatableArray<PausingWindow> PausingWindows { get; init; }
-}
-
-public sealed record TickReply
-{
-    public TickReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="TickReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TickReplyOutcome.LoadedCase), "loaded")]
-[JsonDerivedType(typeof(TickReplyOutcome.UnavailableCase), "unavailable")]
-public abstract record TickReplyOutcome
-{
-    private protected TickReplyOutcome() { }
-
-    /// <summary>The <c>Loaded</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public LoadedTick? Loaded => (this as LoadedCase)?.Value;
-
-    public sealed record LoadedCase(LoadedTick Value) : TickReplyOutcome;
-
-    public static implicit operator TickReplyOutcome(LoadedTick value) => new LoadedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : TickReplyOutcome;
-
-    public static implicit operator TickReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
 }
 
 /// <summary>
@@ -683,7 +648,7 @@ public sealed record GovernorStateBlobs
     public IReadOnlyDictionary<string, string> Blobs { get; init; } = new Dictionary<string, string>();
 }
 
-/// <summary>The blobs read or staged; <c>Loaded</c> is absent when native could not (native logs the reason).</summary>
+/// <summary>The PutBatch reply; <c>Loaded</c> is absent when native staged nothing (native logs the reason).</summary>
 public sealed record GovernorStateReply
 {
     public GovernorStateBlobs? Loaded { get; init; }

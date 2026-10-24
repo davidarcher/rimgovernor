@@ -32,6 +32,7 @@
     <Reference Include="RimGovernor.Brain.Contracts"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Contracts.dll</HintPath></Reference>
     <Reference Include="RimGovernor.Brain.Domain"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Domain.dll</HintPath></Reference>
     <Reference Include="RimGovernor.Brain.HttpChannel"><HintPath>$(ChannelBinDir)/RimGovernor.Brain.HttpChannel.dll</HintPath></Reference>
+    <Reference Include="RimGovernor.Brain.Bridge.Contracts"><HintPath>$(ChannelBinDir)/RimGovernor.Brain.Bridge.Contracts.dll</HintPath></Reference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 

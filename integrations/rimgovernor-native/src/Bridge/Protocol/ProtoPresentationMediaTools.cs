@@ -2,6 +2,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -13,13 +14,12 @@ namespace HomeBridge.BridgeTools
     // PresentationReads' RenderState, both over RenderDemandDriver.
     internal static class ProtoPresentationMediaTools
     {
-        // On the game thread: the typed core of the tool.
-        internal static Presentation.RenderReply HandleRenderState(Presentation.ReadRequest parsed)
+        // On the game thread: the render-state read of the in-process facade. A refusal throws.
+        internal static Presentation.RenderStatus HandleRenderState(Presentation.ReadRequest parsed)
         {
-            if (!NativePresentationReadTools.ValidateRead(parsed, out var failure0)) return new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure0) };
-            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                return new Presentation.RenderReply { Outcome = error };
-            return new Presentation.RenderReply { Outcome = Status(context, RenderDemandDriver.Peek()) };
+            if (!NativePresentationReadTools.ValidateRead(parsed, out var failure0)) throw NativeFaults.Refused(failure0);
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error)) throw NativeFaults.Refused(error);
+            return Status(context, RenderDemandDriver.Peek());
         }
 
         // On the game thread: the typed core of the tool.

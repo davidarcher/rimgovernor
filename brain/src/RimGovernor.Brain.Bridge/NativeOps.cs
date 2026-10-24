@@ -38,7 +38,8 @@ public abstract class NativeOp
 
     /// <summary>
     /// The HTTP edge: deserializes <paramref name="body"/> as the request record (a body that does not fit throws
-    /// <see cref="System.Text.Json.JsonException"/>), calls the facade, and serializes the reply record.
+    /// <see cref="System.Text.Json.JsonException"/>), calls the facade, and serializes the reply record. A refusal or
+    /// unavailability the call throws propagates for the route to map to its HTTP status.
     /// </summary>
     public abstract Task<string> InvokeJsonAsync(INativeFacade facade, string body, CancellationToken cancellationToken);
 }
@@ -85,9 +86,9 @@ public static class NativeOps
     private static readonly List<NativeOp> Ops = [];
 
     // Lifecycle.
-    public static readonly NativeOp<Lifecycle.IdentityRequest, Lifecycle.IdentityReply> ReadIdentity = Op<Lifecycle.IdentityRequest, Lifecycle.IdentityReply>("lifecycle_read_identity", (f, r, c) => f.ReadIdentityAsync(r, c));
-    public static readonly NativeOp<Lifecycle.TickRequest, Lifecycle.TickReply> ReadTick = Op<Lifecycle.TickRequest, Lifecycle.TickReply>("lifecycle_read_tick", (f, r, c) => f.ReadTickAsync(r, c));
-    public static readonly NativeOp<Lifecycle.GovernorStateRequest, Lifecycle.GovernorStateReply> ReadGovernorState = Op<Lifecycle.GovernorStateRequest, Lifecycle.GovernorStateReply>("lifecycle_read_governor_state", (f, r, c) => f.ReadGovernorStateAsync(r, c));
+    public static readonly NativeOp<Lifecycle.IdentityRequest, Lifecycle.LoadedIdentity> ReadIdentity = Op<Lifecycle.IdentityRequest, Lifecycle.LoadedIdentity>("lifecycle_read_identity", (f, r, c) => f.ReadIdentityAsync(r, c));
+    public static readonly NativeOp<Lifecycle.TickRequest, Lifecycle.LoadedTick> ReadTick = Op<Lifecycle.TickRequest, Lifecycle.LoadedTick>("lifecycle_read_tick", (f, r, c) => f.ReadTickAsync(r, c));
+    public static readonly NativeOp<Lifecycle.GovernorStateRequest, Lifecycle.GovernorStateBlobs> ReadGovernorState = Op<Lifecycle.GovernorStateRequest, Lifecycle.GovernorStateBlobs>("lifecycle_read_governor_state", (f, r, c) => f.ReadGovernorStateAsync(r, c));
     public static readonly NativeOp<Lifecycle.PutGovernorStateBatchRequest, Lifecycle.GovernorStateReply> PutGovernorStateBatch = Op<Lifecycle.PutGovernorStateBatchRequest, Lifecycle.GovernorStateReply>("lifecycle_put_governor_state_batch", (f, r, c) => f.PutGovernorStateBatchAsync(r, c));
     public static readonly NativeOp<Lifecycle.WaitSaveSignalRequest, Lifecycle.WaitSaveSignalReply> WaitSaveSignal = Op<Lifecycle.WaitSaveSignalRequest, Lifecycle.WaitSaveSignalReply>("lifecycle_wait_save_signal", (f, r, c) => f.WaitSaveSignalAsync(r, c));
     public static readonly NativeOp<Lifecycle.FlushDoneRequest, Lifecycle.FlushDoneReply> FlushDone = Op<Lifecycle.FlushDoneRequest, Lifecycle.FlushDoneReply>("lifecycle_flush_done", (f, r, c) => f.FlushDoneAsync(r, c));
@@ -101,7 +102,7 @@ public static class NativeOps
     public static readonly NativeOp<Lifecycle.RequestStatus, Lifecycle.SaveReply> PollSave = Op<Lifecycle.RequestStatus, Lifecycle.SaveReply>("lifecycle_read_save", (f, r, c) => f.PollSaveAsync(r, c));
 
     // Authority.
-    public static readonly NativeOp<Authority.StatusRequest, Authority.StatusReply> ReadAuthorityStatus = Op<Authority.StatusRequest, Authority.StatusReply>("authority_read_status", (f, r, c) => f.ReadAuthorityStatusAsync(r, c));
+    public static readonly NativeOp<Authority.StatusRequest, Authority.Status> ReadAuthorityStatus = Op<Authority.StatusRequest, Authority.Status>("authority_read_status", (f, r, c) => f.ReadAuthorityStatusAsync(r, c));
     public static readonly NativeOp<Authority.ControlRequest, Authority.ControlReply> ControlAuthority = Op<Authority.ControlRequest, Authority.ControlReply>("authority_control", (f, r, c) => f.ControlAuthorityAsync(r, c));
 
     // Placement and zones.
@@ -128,11 +129,9 @@ public static class NativeOps
     public static readonly NativeOp<Obs.StorageOccupancyRequest, Obs.StorageOccupancyReply> ReadStorageOccupancy = Op<Obs.StorageOccupancyRequest, Obs.StorageOccupancyReply>("observations_read_storage_occupancy", (f, r, c) => f.ReadStorageOccupancyAsync(r, c));
     public static readonly NativeOp<Obs.DefenseSiteRequest, Obs.DefenseSiteReply> ReadDefenseSite = Op<Obs.DefenseSiteRequest, Obs.DefenseSiteReply>("observations_read_defense_site", (f, r, c) => f.ReadDefenseSiteAsync(r, c));
     public static readonly NativeOp<Obs.LinesOfFireRequest, Obs.LinesOfFireReply> ReadLinesOfFire = Op<Obs.LinesOfFireRequest, Obs.LinesOfFireReply>("observations_read_lines_of_fire", (f, r, c) => f.ReadLinesOfFireAsync(r, c));
-    public static readonly NativeOp<Obs.HusbandryRequest, Obs.HusbandryReply> ReadHusbandry = Op<Obs.HusbandryRequest, Obs.HusbandryReply>("observations_read_husbandry", (f, r, c) => f.ReadHusbandryAsync(r, c));
     public static readonly NativeOp<Obs.PopulationRequest, Obs.PopulationReply> ReadPopulation = Op<Obs.PopulationRequest, Obs.PopulationReply>("observations_read_population", (f, r, c) => f.ReadPopulationAsync(r, c));
     public static readonly NativeOp<Obs.ResourceSourcesRequest, Obs.ResourceSourcesReply> ListResourceSources = Op<Obs.ResourceSourcesRequest, Obs.ResourceSourcesReply>("observations_list_resource_sources", (f, r, c) => f.ListResourceSourcesAsync(r, c));
     public static readonly NativeOp<Obs.SpatialAccessRequest, Obs.SpatialAccessReply> ReadSpatialAccess = Op<Obs.SpatialAccessRequest, Obs.SpatialAccessReply>("observations_read_spatial_access", (f, r, c) => f.ReadSpatialAccessAsync(r, c));
-    public static readonly NativeOp<Obs.EvaluateStatRequest, Obs.EvaluateStatReply> EvaluateStat = Op<Obs.EvaluateStatRequest, Obs.EvaluateStatReply>("observations_evaluate_stat", (f, r, c) => f.EvaluateStatAsync(r, c));
     public static readonly NativeOp<Obs.TradeAcquisitionRequest, Obs.TradeAcquisitionReply> ReadTradeAcquisition = Op<Obs.TradeAcquisitionRequest, Obs.TradeAcquisitionReply>("observations_read_trade_acquisition", (f, r, c) => f.ReadTradeAcquisitionAsync(r, c));
     public static readonly NativeOp<Obs.TradersRequest, Obs.TradersReply> ListTraders = Op<Obs.TradersRequest, Obs.TradersReply>("observations_list_traders", (f, r, c) => f.ListTradersAsync(r, c));
     public static readonly NativeOp<Obs.TradeSessionRequest, Obs.TradeSessionReply> ReadTradeSession = Op<Obs.TradeSessionRequest, Obs.TradeSessionReply>("observations_read_trade_session", (f, r, c) => f.ReadTradeSessionAsync(r, c));
@@ -147,18 +146,18 @@ public static class NativeOps
     public static readonly NativeOp<Operations.ApplyRequest, Operations.ApplyReply> Apply = Op<Operations.ApplyRequest, Operations.ApplyReply>("operations_apply", (f, r, c) => f.ApplyAsync(r, c));
 
     // Clock.
-    public static readonly NativeOp<Clock.RunRequest, Clock.StatusReply> RunClock = Op<Clock.RunRequest, Clock.StatusReply>("clock_run", (f, r, c) => f.RunClockAsync(r, c));
-    public static readonly NativeOp<Clock.HoldRequest, Clock.StatusReply> HoldClock = Op<Clock.HoldRequest, Clock.StatusReply>("clock_hold", (f, r, c) => f.HoldClockAsync(r, c));
-    public static readonly NativeOp<Clock.HeartbeatRequest, Clock.HeartbeatReply> HeartbeatClock = Op<Clock.HeartbeatRequest, Clock.HeartbeatReply>("clock_heartbeat", (f, r, c) => f.HeartbeatClockAsync(r, c));
-    public static readonly NativeOp<Clock.StatusRequest, Clock.StatusReply> ReadClockStatus = Op<Clock.StatusRequest, Clock.StatusReply>("clock_read_status", (f, r, c) => f.ReadClockStatusAsync(r, c));
+    public static readonly NativeOp<Clock.RunRequest, Clock.Status> RunClock = Op<Clock.RunRequest, Clock.Status>("clock_run", (f, r, c) => f.RunClockAsync(r, c));
+    public static readonly NativeOp<Clock.HoldRequest, Clock.Status> HoldClock = Op<Clock.HoldRequest, Clock.Status>("clock_hold", (f, r, c) => f.HoldClockAsync(r, c));
+    public static readonly NativeOp<Clock.HeartbeatRequest, Clock.HeartbeatAck> HeartbeatClock = Op<Clock.HeartbeatRequest, Clock.HeartbeatAck>("clock_heartbeat", (f, r, c) => f.HeartbeatClockAsync(r, c));
+    public static readonly NativeOp<Clock.StatusRequest, Clock.Status> ReadClockStatus = Op<Clock.StatusRequest, Clock.Status>("clock_read_status", (f, r, c) => f.ReadClockStatusAsync(r, c));
 
     // Presentation.
-    public static readonly NativeOp<Presentation.ReadRequest, Presentation.CameraReply> ReadCamera = Op<Presentation.ReadRequest, Presentation.CameraReply>("presentation_camera", (f, r, c) => f.ReadCameraAsync(r, c));
-    public static readonly NativeOp<Presentation.ReadRequest, Presentation.SelectionReply> ReadSelection = Op<Presentation.ReadRequest, Presentation.SelectionReply>("presentation_selection", (f, r, c) => f.ReadSelectionAsync(r, c));
+    public static readonly NativeOp<Presentation.ReadRequest, Presentation.CameraState> ReadCamera = Op<Presentation.ReadRequest, Presentation.CameraState>("presentation_camera", (f, r, c) => f.ReadCameraAsync(r, c));
+    public static readonly NativeOp<Presentation.ReadRequest, Presentation.SelectionSnapshot> ReadSelection = Op<Presentation.ReadRequest, Presentation.SelectionSnapshot>("presentation_selection", (f, r, c) => f.ReadSelectionAsync(r, c));
     public static readonly NativeOp<Presentation.ColonistRosterRequest, Presentation.ColonistRosterReply> ReadColonists = Op<Presentation.ColonistRosterRequest, Presentation.ColonistRosterReply>("presentation_colonists", (f, r, c) => f.ReadColonistsAsync(r, c));
-    public static readonly NativeOp<Presentation.NotificationsRequest, Presentation.NotificationsReply> ReadNotifications = Op<Presentation.NotificationsRequest, Presentation.NotificationsReply>("presentation_notifications", (f, r, c) => f.ReadNotificationsAsync(r, c));
+    public static readonly NativeOp<Presentation.NotificationsRequest, Presentation.NotificationsSnapshot> ReadNotifications = Op<Presentation.NotificationsRequest, Presentation.NotificationsSnapshot>("presentation_notifications", (f, r, c) => f.ReadNotificationsAsync(r, c));
     public static readonly NativeOp<Presentation.OverlayRequest, Presentation.OverlayReply> ApplyOverlay = Op<Presentation.OverlayRequest, Presentation.OverlayReply>("presentation_overlay", (f, r, c) => f.ApplyOverlayAsync(r, c));
-    public static readonly NativeOp<Presentation.ReadRequest, Presentation.RenderReply> ReadRenderState = Op<Presentation.ReadRequest, Presentation.RenderReply>("presentation_render_state", (f, r, c) => f.ReadRenderStateAsync(r, c));
+    public static readonly NativeOp<Presentation.ReadRequest, Presentation.RenderStatus> ReadRenderState = Op<Presentation.ReadRequest, Presentation.RenderStatus>("presentation_render_state", (f, r, c) => f.ReadRenderStateAsync(r, c));
     public static readonly NativeOp<Presentation.RenderDemand, Presentation.RenderReply> DemandRendering = Op<Presentation.RenderDemand, Presentation.RenderReply>("presentation_render_demand", (f, r, c) => f.DemandRenderingAsync(r, c));
 
     // Frames.

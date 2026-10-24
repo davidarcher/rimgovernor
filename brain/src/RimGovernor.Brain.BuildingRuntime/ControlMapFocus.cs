@@ -14,7 +14,7 @@ public sealed partial class Session : IPlayerMapFocusConfirmation
         }
         await _control.Config.StopWrites(ct).ConfigureAwait(false);
         var reply = await _control.Native.ReadAuthorityAsync(Control.ControlIdentity(target), ct).ConfigureAwait(false);
-        var status = reply.Outcome?.Status ?? throw new ControlException();
+        var status = reply;
         Control.ControlStatus(reply, target);
         if ((status.Context?.NativeGeneration).GetValueOrDefault() != generation.Value || status.State?.Inactive?.Reason != PbAuthority.RevocationReason.IdentityChanged)
         {

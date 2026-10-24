@@ -37,11 +37,8 @@ internal static class LetterNotifications
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        async Task<Presentation.NotificationsSnapshot> Notifications(string label, Presentation.NotificationsRequest request, CancellationToken ct)
-        {
-            var reply = await s.CallAsync(label, NativeOps.ReadNotifications, request, ct).ConfigureAwait(false);
-            return reply.Outcome?.Notifications ?? throw new AcceptanceException($"{label}: expected notifications, got {reply.Outcome}");
-        }
+        Task<Presentation.NotificationsSnapshot> Notifications(string label, Presentation.NotificationsRequest request, CancellationToken ct) =>
+            s.CallAsync(label, NativeOps.ReadNotifications, request, ct);
 
         var alertsOnly = new Presentation.NotificationsRequest { Identity = s.Identity, IncludeLetters = false, IncludeMessages = false };
         _ = await s.RunUntilAsync("alerts-listed", AlertTicks, async ct =>

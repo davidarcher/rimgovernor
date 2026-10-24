@@ -166,8 +166,7 @@ public sealed class TypedSession
         {
             // Native requires both: the review tick is the budget's end (the wait's own ceiling), the hold serial the
             // one the clock holds under now, so a hold that entered between the read and the Run refuses it.
-            var before = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
-            var current = before.Outcome?.Status ?? throw new AcceptanceException($"{label}: no clock status before the run: {before.Outcome}");
+            var current = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
             request = request with
             {
                 HoldAtTick = request.HoldAtTick ?? (ulong)(Math.Max(current.Context?.Tick ?? 0, 0) + ticks),
@@ -175,9 +174,9 @@ public sealed class TypedSession
             };
         }
         var run = await CallAsync(label + "-run", NativeOps.RunClock, request with { Identity = Identity }, cancellationToken).ConfigureAwait(false);
-        var status = run.Outcome?.Status is { State: Clock.ClockState.Running } started
-            ? started
-            : throw new AcceptanceException($"{label}: clock run refused or left held: {run.Outcome}");
+        var status = run is { State: Clock.ClockState.Running }
+            ? run
+            : throw new AcceptanceException($"{label}: clock run left held: {WireJson.Serialize(run)}");
         try
         {
             // Each round reads the status (the wait's tick), then beats while it still runs: the native ceiling drops to
@@ -187,8 +186,7 @@ public sealed class TypedSession
                 ticks,
                 async ct =>
                 {
-                    var reply = await CallAsync(label + "-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, ct).ConfigureAwait(false);
-                    status = reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: no clock status: {reply.Outcome}");
+                    status = await CallAsync(label + "-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, ct).ConfigureAwait(false);
                     return (ulong)Math.Max(status.Context?.Tick ?? 0, 0);
                 },
                 async ct =>
@@ -198,8 +196,7 @@ public sealed class TypedSession
                         return (string.Empty, true);
                     }
 
-                    var beat = await CallAsync(label + "-heartbeat", NativeOps.HeartbeatClock, new Clock.HeartbeatRequest { Identity = Identity }, ct).ConfigureAwait(false);
-                    _ = beat.Outcome?.Ack ?? throw new AcceptanceException($"{label}: heartbeat refused: {beat.Outcome}");
+                    _ = await CallAsync(label + "-heartbeat", NativeOps.HeartbeatClock, new Clock.HeartbeatRequest { Identity = Identity }, ct).ConfigureAwait(false);
                     return (Wait.Signature(status.Context?.Tick, status.State), false);
                 },
                 ClockWait(TimeSpan.FromMilliseconds(250)),

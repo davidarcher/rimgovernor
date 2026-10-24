@@ -3496,33 +3496,6 @@ public abstract record StorageOccupancyReplyOutcome
     public static implicit operator StorageOccupancyReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
 }
 
-public sealed record HusbandryAnimal
-{
-    public Common.Ref? Pawn { get; init; }
-
-    public AnimalState? Animal { get; init; }
-
-}
-
-public sealed record HusbandrySnapshot
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HusbandryAnimal>))]
-    public EquatableArray<HusbandryAnimal> Animals { get; init; }
-}
-
-public sealed record HusbandryRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public bool? IncludeWild { get; init; }
-}
-
-public sealed record HusbandryReply
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public HusbandrySnapshot? Observed { get; init; }
-}
-
 /// <summary>
 /// One corpse the census counts: the corpse, its inner pawn's class and, for
 /// a buried body, the grave holding it (absent while unburied).
@@ -4521,100 +4494,6 @@ public abstract record RecipesReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : RecipesReplyOutcome;
 
     public static implicit operator RecipesReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
-/// <summary>
-/// EvaluateStat is the game's own stat evaluation for one subject: a definition
-/// (with optional stuff and quality category), a thing, or a pawn. A definition
-/// subject without quality is the live parity oracle of the stat evaluator (epic #2621); it carries no new action.
-/// </summary>
-public sealed record StatDefSubject
-{
-    public string DefName { get; init; } = "";
-
-    public string? Stuff { get; init; }
-
-    public int? Quality { get; init; }
-}
-
-public sealed record StatSubject
-{
-    public StatSubjectSubject? Subject { get; init; }
-}
-
-/// <summary>The <c>subject</c> choice of <see cref="StatSubject"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(StatSubjectSubject.DefinitionCase), "definition")]
-[JsonDerivedType(typeof(StatSubjectSubject.ThingIdCase), "thingId")]
-[JsonDerivedType(typeof(StatSubjectSubject.PawnIdCase), "pawnId")]
-public abstract record StatSubjectSubject
-{
-    private protected StatSubjectSubject() { }
-
-    public sealed record DefinitionCase(StatDefSubject Value) : StatSubjectSubject;
-
-    public sealed record ThingIdCase(string Value) : StatSubjectSubject;
-
-    public sealed record PawnIdCase(string Value) : StatSubjectSubject;
-}
-
-/// <summary>
-/// value is the final stat value (StatWorker.GetValue); explanation_lines are
-/// the game's per-part breakdown before final adjustment
-/// (GetExplanationUnfinalized), one line per entry; shown is
-/// StatWorker.ShouldShowFor for the subject. A stat that is not shown still
-/// carries its value.
-/// </summary>
-public sealed record StatEvaluation
-{
-    public string Stat { get; init; } = "";
-
-    public double Value { get; init; }
-
-    public bool Shown { get; init; }
-}
-
-public sealed record EvaluateStatRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public string Stat { get; init; } = "";
-
-    public StatSubject? Subject { get; init; }
-}
-
-/// <summary>
-/// An unknown stat or subject is a NOT_FOUND failure; an absent subject or an
-/// invalid quality is INVALID_REQUEST.
-/// </summary>
-public sealed record EvaluateStatReply
-{
-    public EvaluateStatReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="EvaluateStatReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(EvaluateStatReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(EvaluateStatReplyOutcome.FailureCase), "failure")]
-public abstract record EvaluateStatReplyOutcome
-{
-    private protected EvaluateStatReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public StatEvaluation? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(StatEvaluation Value) : EvaluateStatReplyOutcome;
-
-    public static implicit operator EvaluateStatReplyOutcome(StatEvaluation value) => new ObservedCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : EvaluateStatReplyOutcome;
-
-    public static implicit operator EvaluateStatReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 public sealed record GearCandidate

@@ -26,20 +26,24 @@ namespace RimGovernor.Brain.Bridge;
 /// convention: nobody mutates a reply after it is returned.
 /// </para>
 /// <para>
-/// Failure: a refusal the capability would have sent (invalid request, stale identity, unavailable fact) is the
-/// reply's <c>Failure</c> or <c>Unavailable</c> arm, exactly as before. A fault inside the hop (a bug) faults the
-/// task. Cancelling the token before the call runs cancels the task; once it ran, its effects stand.
+/// Failure: a converted read returns its payload record. A refusal (invalid request, stale identity) faults the task
+/// with <c>BridgeRefusedException</c> (<c>NativeFailureException</c>, carrying the failure code and detail) and an
+/// unavailable game with <c>BridgeUnavailableException</c> (<c>NotLoadedException</c> when no colony map is loaded);
+/// <c>NativeFaults</c> builds both. A method whose reply still declares <c>Failure</c> or <c>Unavailable</c> arms
+/// (the family reads not yet converted, and <see cref="ApplyAsync"/>, whose per-action refusals are results) answers
+/// them in the reply. A fault inside the hop (a bug) faults the task. Cancelling the token before the call runs
+/// cancels the task; once it ran, its effects stand.
 /// </para>
 /// </remarks>
 public interface INativeFacade
 {
     // Lifecycle.
 
-    Task<Lifecycle.IdentityReply> ReadIdentityAsync(Lifecycle.IdentityRequest request, CancellationToken cancellationToken);
+    Task<Lifecycle.LoadedIdentity> ReadIdentityAsync(Lifecycle.IdentityRequest request, CancellationToken cancellationToken);
 
-    Task<Lifecycle.TickReply> ReadTickAsync(Lifecycle.TickRequest request, CancellationToken cancellationToken);
+    Task<Lifecycle.LoadedTick> ReadTickAsync(Lifecycle.TickRequest request, CancellationToken cancellationToken);
 
-    Task<Lifecycle.GovernorStateReply> ReadGovernorStateAsync(Lifecycle.GovernorStateRequest request, CancellationToken cancellationToken);
+    Task<Lifecycle.GovernorStateBlobs> ReadGovernorStateAsync(Lifecycle.GovernorStateRequest request, CancellationToken cancellationToken);
 
     /// <summary>Replaces the whole governor-state blob set; staging is lock-guarded and needs the game thread only to attach the component to an older save.</summary>
     Task<Lifecycle.GovernorStateReply> PutGovernorStateBatchAsync(Lifecycle.PutGovernorStateBatchRequest request, CancellationToken cancellationToken);
@@ -51,7 +55,7 @@ public interface INativeFacade
 
     // Authority.
 
-    Task<Authority.StatusReply> ReadAuthorityStatusAsync(Authority.StatusRequest request, CancellationToken cancellationToken);
+    Task<Authority.Status> ReadAuthorityStatusAsync(Authority.StatusRequest request, CancellationToken cancellationToken);
 
     Task<Authority.ControlReply> ControlAuthorityAsync(Authority.ControlRequest request, CancellationToken cancellationToken);
 
@@ -94,13 +98,13 @@ public interface INativeFacade
 
     // Clock.
 
-    Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken);
+    Task<Clock.Status> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken);
 
-    Task<Clock.StatusReply> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken);
+    Task<Clock.Status> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken);
 
-    Task<Clock.HeartbeatReply> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken);
+    Task<Clock.HeartbeatAck> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken);
 
-    Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken);
+    Task<Clock.Status> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Opens the colony events native pushes (<see cref="ColonyEventChannel"/>): swaps in a fresh queue, completes the
@@ -115,9 +119,9 @@ public interface INativeFacade
 
     // Presentation reads.
 
-    Task<Presentation.CameraReply> ReadCameraAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
+    Task<Presentation.CameraState> ReadCameraAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
 
-    Task<Presentation.SelectionReply> ReadSelectionAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
+    Task<Presentation.SelectionSnapshot> ReadSelectionAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
 
     Task<Presentation.ColonistRosterReply> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken);
 
@@ -135,17 +139,13 @@ public interface INativeFacade
 
     Task<Obs.LinesOfFireReply> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.HusbandryReply> ReadHusbandryAsync(Obs.HusbandryRequest request, CancellationToken cancellationToken);
-
-    Task<Presentation.NotificationsReply> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken);
+    Task<Presentation.NotificationsSnapshot> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken);
 
     Task<Obs.PopulationReply> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ResourceSourcesReply> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken);
 
     Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken);
-
-    Task<Obs.EvaluateStatReply> EvaluateStatAsync(Obs.EvaluateStatRequest request, CancellationToken cancellationToken);
 
     Task<Obs.TradeAcquisitionReply> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken);
 
@@ -183,7 +183,7 @@ public interface INativeFacade
 
     Task<Presentation.OverlayReply> ApplyOverlayAsync(Presentation.OverlayRequest request, CancellationToken cancellationToken);
 
-    Task<Presentation.RenderReply> ReadRenderStateAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
+    Task<Presentation.RenderStatus> ReadRenderStateAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
 
     Task<Presentation.RenderReply> DemandRenderingAsync(Presentation.RenderDemand request, CancellationToken cancellationToken);
 

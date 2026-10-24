@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Observation;
 /// </summary>
 public interface IColonySource : ISource
 {
-    Task<L.IdentityReply> IdentityAsync(CancellationToken cancellationToken);
+    Task<L.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken);
 
     Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken);
 

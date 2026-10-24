@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
@@ -61,13 +62,13 @@ internal static class LifecycleQuietStoryteller
                     async ct =>
                     {
                         var (_, tick, _) = await TypedLifecycle.IdentityAsync(s, "day-tick", ct).ConfigureAwait(false);
-                        var reply = await s.CallAsync(
+                        var snapshot = await s.CallAsync(
                             "day-letters",
                             NativeOps.ReadNotifications,
                             new Presentation.NotificationsRequest { Identity = loaded, IncludeMessages = false, IncludeAlerts = false },
                             ct).ConfigureAwait(false);
-                        var letters = reply.Outcome?.Notifications?.Letters?.Outcome?.Observed?.Items
-                            ?? throw new AcceptanceException($"day-letters: no letter section: {reply.Outcome}");
+                        var letters = snapshot.Letters?.Outcome?.Observed?.Items
+                            ?? throw new AcceptanceException($"day-letters: no letter section: {WireJson.Serialize(snapshot)}");
                         if (letters.Count > 0)
                         {
                             throw new AcceptanceException(string.Create(

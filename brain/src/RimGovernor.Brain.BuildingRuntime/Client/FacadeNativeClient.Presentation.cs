@@ -2,34 +2,22 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// (PresentationMedia.DemandRendering) and ReadNotifications. A failure arm throws what Failure
-// builds.
+// (PresentationMedia.DemandRendering) and ReadNotifications. The camera, selection, render-state and notification
+// reads answer their payload (the facade throws a refusal); a failure arm of the others throws what Failure builds.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>The camera, observation only.</summary>
-    internal async Task<PbPresentation.CameraReply> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
+    internal Task<PbPresentation.CameraState> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var reply = await Facade.ReadCameraAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        return reply;
+        return Facade.ReadCameraAsync(request, cancellationToken);
     }
 
     /// <summary>The selection, observation only.</summary>
-    internal async Task<PbPresentation.SelectionReply> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
+    internal Task<PbPresentation.SelectionSnapshot> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var reply = await Facade.ReadSelectionAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        return reply;
+        return Facade.ReadSelectionAsync(request, cancellationToken);
     }
 
     /// <summary>The colonist roster.</summary>
@@ -54,11 +42,10 @@ public sealed partial class FacadeNativeClient
     /// A zero-side-effect observation that never extends or shortens the native rendering
     /// lease. <see cref="DemandRenderingAsync"/> is the only call that changes lease state.
     /// </summary>
-    internal async Task<PbPresentation.RenderReply> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
+    internal Task<PbPresentation.RenderStatus> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var reply = await Facade.ReadRenderStateAsync(request, cancellationToken).ConfigureAwait(false);
-        return PresentationRenderOutcome(reply);
+        return Facade.ReadRenderStateAsync(request, cancellationToken);
     }
 
     /// <summary>
@@ -78,11 +65,6 @@ public sealed partial class FacadeNativeClient
         }
 
         var reply = await Facade.DemandRenderingAsync(request, cancellationToken).ConfigureAwait(false);
-        return PresentationRenderOutcome(reply);
-    }
-
-    private static PbPresentation.RenderReply PresentationRenderOutcome(PbPresentation.RenderReply reply)
-    {
         if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
@@ -95,7 +77,7 @@ public sealed partial class FacadeNativeClient
     /// Only observes. Partial listings and unknown optional facts remain partial or
     /// unknown; this read never acknowledges or dismisses anything.
     /// </summary>
-    internal async Task<PbPresentation.NotificationsReply> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken)
+    internal Task<PbPresentation.NotificationsSnapshot> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         foreach (var limit in new[] { request.LetterLimit, request.MessageLimit, request.AlertLimit })
@@ -106,12 +88,6 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        var reply = await Facade.ReadNotificationsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        return reply;
+        return Facade.ReadNotificationsAsync(request, cancellationToken);
     }
 }

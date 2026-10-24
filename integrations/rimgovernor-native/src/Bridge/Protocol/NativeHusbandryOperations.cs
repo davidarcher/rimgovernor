@@ -12,7 +12,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // The herd Need's animal facts and eligibility rules, shared by the
-    // husbandry census (NativeHusbandryObservation) and HusbandryIntent.
+    // pawn animal details (NativePawnDetails.Animal) and HusbandryIntent.
     // Master and following are refused unless Obedience is learned, because
     // RimWorld's own Master setter Log.ErrorOnce's (pausing the colony)
     // otherwise.
@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
         internal static bool SafeToRelease(Pawn animal) => !animal.Dead && new Designator_ReleaseAnimalToWild().CanDesignateThing(animal).Accepted;
 
         // Current Animals-tab settings, always the real GetUniqueLoadID()
-        // identities NativeHusbandryObservation publishes ("" when unset).
+        // identities the pawn animal details publish ("" when unset).
         internal static string AreaId(Pawn animal) => animal.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "";
         internal static string MasterId(Pawn animal) => animal.playerSettings?.Master?.GetUniqueLoadID() ?? "";
         internal static bool Obedient(Pawn animal) => animal.training != null && animal.training.HasLearned(TrainableDefOf.Obedience);

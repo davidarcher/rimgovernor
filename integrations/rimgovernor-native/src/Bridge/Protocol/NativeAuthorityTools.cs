@@ -2,6 +2,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Authority = RimGovernor.Contracts.Wire.Authority;
@@ -11,8 +12,8 @@ namespace HomeBridge.BridgeTools
     internal static class NativeAuthorityTools
     {
 
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Authority.StatusReply HandleReadStatus(Authority.StatusRequest parsed)
+        // On the game thread: the status read of the in-process facade. A refusal throws.
+        internal static Authority.Status HandleReadStatus(Authority.StatusRequest parsed)
         {
             // The game this identity names has exited or been unloaded: its
             // retained final authority is the only thing left to report,
@@ -20,24 +21,20 @@ namespace HomeBridge.BridgeTools
             if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
                 && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
                 && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
-                return new Authority.StatusReply { Outcome = ProjectShutdown(shutdown, parsed.Identity) };
+                return ProjectShutdown(shutdown, parsed.Identity);
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
-                return new Authority.StatusReply { Outcome = invalid };
+                throw NativeFaults.Refused(invalid);
             var game = Current.Game;
             if (game == null)
-                return new Authority.StatusReply { Outcome = new Common.Failure
-                {
-                    Code = Common.FailureCode.Unavailable, Detail = "No game is loaded."
-                } };
+                throw NativeFaults.Refused(new Common.Failure { Code = Common.FailureCode.Unavailable, Detail = "No game is loaded." });
             if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
-                return new Authority.StatusReply { Outcome = new Authority.Status
+                return new Authority.Status
                 {
                     Context = context,
                     State = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
                         Detail = "Native control hooks and trusted admission have not been initialized." }
-                } };
-            var snapshot = state.Status();
-            return new Authority.StatusReply { Outcome = Project(snapshot, context) };
+                };
+            return Project(state.Status(), context);
         }
 
         // This projection does not initialize hooks or grant authority.

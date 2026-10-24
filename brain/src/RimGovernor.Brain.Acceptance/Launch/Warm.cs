@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Wl = RimGovernor.Contracts.Wire.Lifecycle;
@@ -381,8 +382,17 @@ public sealed class Game
     /// </summary>
     private static async Task<Wl.MenuRequest> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync(label + "-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Loaded?.Context?.Identity is { } identity
+        Wl.LoadedIdentity loaded;
+        try
+        {
+            loaded = await h.CallAsync(label + "-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        }
+        catch (BridgeUnavailableException)
+        {
+            return new Wl.MenuRequest { RequestId = requestId };
+        }
+
+        return loaded.Context?.Identity is { } identity
             ? new Wl.MenuRequest { RequestId = requestId, ExpectedPlayer = new() { Identity = identity, PlayerDirection = 1, RequestId = requestId } }
             : new Wl.MenuRequest { RequestId = requestId };
     }

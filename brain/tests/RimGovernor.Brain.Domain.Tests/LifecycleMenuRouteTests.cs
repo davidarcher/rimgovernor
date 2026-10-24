@@ -164,11 +164,10 @@ public sealed class LifecycleMenuRouteTests
     [Fact]
     public void ATickReadAtTheMainMenuIsTheExpectedNotLoadedState()
     {
-        var reply = new PbLifecycle.TickReply { Outcome = new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." } };
-        _ = Assert.Throws<NotLoadedException>(() => DecodeReads.DecodeTick(reply));
+        // The facade's tick read throws what NativeFaults builds from the native unavailable state.
+        _ = Assert.IsType<NotLoadedException>(NativeFaults.Unavailable(new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." }));
 
-        var other = new PbLifecycle.TickReply { Outcome = new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.Stale } };
-        var thrown = Assert.ThrowsAny<BridgeUnavailableException>(() => DecodeReads.DecodeTick(other));
-        Assert.IsNotType<NotLoadedException>(thrown);
+        var other = NativeFaults.Unavailable(new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.Stale });
+        Assert.IsNotType<NotLoadedException>(other);
     }
 }

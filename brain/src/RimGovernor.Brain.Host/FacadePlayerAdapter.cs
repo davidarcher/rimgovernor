@@ -10,22 +10,22 @@ namespace RimGovernor.Brain.Host;
 /// </summary>
 internal sealed class FacadePlayerAdapter(FacadeNativeClient client) : IPresentationReader, IPresentationMediaWriter, INotificationReader, ILifecycleWriter
 {
-    public Task<PbPresentation.CameraReply> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
+    public Task<PbPresentation.CameraState> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
         client.ReadCameraAsync(request, cancellationToken);
 
-    public Task<PbPresentation.SelectionReply> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
+    public Task<PbPresentation.SelectionSnapshot> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
         client.ReadSelectionAsync(request, cancellationToken);
 
     public Task<PbPresentation.ColonistRosterReply> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken) =>
         client.ReadColonistRosterAsync(request, cancellationToken);
 
-    public Task<PbPresentation.RenderReply> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
+    public Task<PbPresentation.RenderStatus> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
         client.ReadRenderStateAsync(request, cancellationToken);
 
     public Task<PbPresentation.RenderReply> DemandRenderingAsync(PbPresentation.RenderDemand request, CancellationToken cancellationToken) =>
         client.DemandRenderingAsync(request, cancellationToken);
 
-    public Task<PbPresentation.NotificationsReply> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken) =>
+    public Task<PbPresentation.NotificationsSnapshot> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken) =>
         client.ReadNotificationsAsync(request, cancellationToken);
 
     public Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) =>

@@ -138,6 +138,7 @@
       "rimgovernor.brain.httpchannel": {
         "type": "Project",
         "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
         }
       },

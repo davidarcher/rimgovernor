@@ -1,5 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 
@@ -104,10 +105,14 @@ public sealed class ClockRate
         ArgumentNullException.ThrowIfNull(h);
         try
         {
-            var reply = await h.CallAsync("clock-rate-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-            return reply.Outcome?.Status is { } status ? Describe(status) : $"clock status refused: {reply.Outcome}";
+            var status = await h.CallAsync("clock-rate-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
+            return Describe(status);
         }
-        catch (AcceptanceException e)
+        catch (BridgeRefusedException e)
+        {
+            return "clock status refused: " + e.Message;
+        }
+        catch (Exception e) when (e is AcceptanceException or BridgeUnavailableException)
         {
             return "clock status unreadable: " + e.Message;
         }

@@ -18,16 +18,11 @@ internal sealed class FacadeSaveUncertainException(PbLifecycle.SaveUncertain val
 internal static class FacadeWriteChecks
 {
     /// <summary>
-    /// The status of a status reply, after the typed failure arm and an unavailable status
-    /// are turned into exceptions.
+    /// The clock status the facade answered (a refusal is already thrown), after an unavailable status is turned
+    /// into an exception.
     /// </summary>
-    internal static PbClock.Status ClockStatusReply(PbClock.StatusReply reply)
+    internal static PbClock.Status ClockStatus(PbClock.Status status)
     {
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw FacadeNativeClient.Failure(failure);
-        }
-        var status = reply.Outcome.Status!;
         if (status.Unavailable is { } unavailable)
         {
             throw FacadeNativeClient.Unavailable(unavailable);

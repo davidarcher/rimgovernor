@@ -71,6 +71,18 @@ speed and its clamp relies on.
   - The over-budget frame share and the queued-command dispatch wait (the manual-command dispatch bound) have no
     check; the hazard gaps are checked only by the `hazard/*` cases (one staged Hyperfast run per class).
 
+## Native facade refusals
+
+How an `INativeFacade` call reports that it did not answer ([native facade](../architecture/native-facade.md)).
+
+- **Reads throw.** A converted read (identity, tick, governor state, authority status, the clock calls and the
+  presentation reads) returns its payload, and a refusal throws `NativeFailureException` with the wire `Failure`, an
+  unavailable game `NativeUnavailableException` or `NotLoadedException`. Over `POST /native/<op>` they are a 422 and a
+  503 with `{"code","detail"}` ([HTTP channel](../architecture/http-channel.md)).
+- **Apply keeps a typed refusal.** `ApplyAsync` still answers an `ApplyReply`: a batch failure and each intent's
+  `Refused` result are outcomes read per intent beside the applied ones, not a fault of the whole call, so they
+  stay values.
+
 ## Prepared profiles
 
 A rendered prepared baseline may bypass the native mod mismatch only when the sole missing recorded

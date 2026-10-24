@@ -48,11 +48,11 @@ reported in `BrainHost.Status()`.
 (request, facade call, outcome unwrap, the reply validators). A BuildingRuntime interface survives only where a test
 fake or a second implementer satisfies it (the clock, boundary, colony-status and building-preview natives, the
 defense source, the writers, the session and player seams); those are bound to the core methods in
-`FacadeNativeClient.Interfaces*.cs`, with explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above BuildingRuntime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm throws
+`FacadeNativeClient.Interfaces*.cs`, with explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above BuildingRuntime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm (or a converted facade read's own throw) is
 `NativeFailureException` / `NativeUnavailableException`; a malformed reply throws the contract exception. Writes go
-through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). `CountingNativeFacade` wraps
-the facade so every native round trip is counted into the attached `ReadTally` (`ReadTallyRules.CountNativeRead`, under
-the brain's `rimgovernor/*` tool names), which is how a scheduler step reports its reads.
+through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). The native
+`InProcessNativeFacade` counts every call into the attached `ReadTally` in its Read/Write helpers
+(`ReadTallyRules.CountNativeRead`, under the facade method name), which is how a scheduler step reports its reads.
 
 `ClockRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target
 speed under the watch policy the facts imply (`Run`), takes the brain's own holds (a coupled order, a review, an autosave),

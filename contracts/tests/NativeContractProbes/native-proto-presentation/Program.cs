@@ -53,11 +53,8 @@ internal static class NativeProtoPresentationProbe
         var listing = tools.GetMethod("Listing", Flags)!.Invoke(null, new object[] { 0 })!;
         Check(Get(listing, "TotalCount") is uint totalCount && totalCount == 0
             && Get(listing, "Complete") is true && Get(listing, "Truncated") is false, "Complete empty selection differs from unavailable");
-        var reply = Wire("SelectionReply", "{\"outcome\":{\"type\":\"selection\",\"value\":{\"listing\":{\"totalCount\":0,\"returnedCount\":0,\"complete\":true,\"truncated\":false}}}}");
-        var selected = Get(Get(reply, "Outcome"), "Selection");
-        Check(Get(selected, "Fingerprint") == null, "Unproven optional selection fingerprint remains absent");
-        var unavailable = Wire("CameraReply", "{\"outcome\":{\"type\":\"failure\",\"value\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\"}}}");
-        Check(Get(Get(unavailable, "Outcome"), "Camera") == null, "Unavailable camera never becomes zero geometry");
+        var selected = Wire("SelectionSnapshot", "{\"listing\":{\"totalCount\":0,\"returnedCount\":0,\"complete\":true,\"truncated\":false}}");
+        Check(selected.GetType().GetProperty("Fingerprint")!.GetValue(selected) == null, "Unproven optional selection fingerprint remains absent");
         Console.WriteLine(checks + " compiled presentation assertions passed; no gameplay assertions.");
         return 0;
     }

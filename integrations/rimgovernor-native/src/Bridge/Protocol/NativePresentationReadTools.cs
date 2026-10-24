@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -16,35 +17,37 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePresentationReadTools
     {
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Presentation.CameraReply HandleCamera(Presentation.ReadRequest parsed)
+        // On the game thread: the camera read of the in-process facade. A refusal throws.
+        internal static Presentation.CameraState HandleCamera(Presentation.ReadRequest parsed)
         {
-            if (!ValidateRead(parsed, out var invalidRequest)) return new Presentation.CameraReply { Outcome = invalidRequest };
-            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                return new Presentation.CameraReply { Outcome = error };
+            if (!ValidateRead(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error)) throw NativeFaults.Refused(error);
+            Common.Failure refusal;
             try
             {
                 var driver = Find.CameraDriver;
-                if (HeadlessRim.HeadlessMode.Active || Find.Camera == null || driver?.config == null)
-                    return new Presentation.CameraReply { Outcome = Unavailable("Graphical map camera unavailable.") };
-                return new Presentation.CameraReply { Outcome = new Presentation.CameraState { Context = context } };
+                if (!HeadlessRim.HeadlessMode.Active && Find.Camera != null && driver?.config != null)
+                    return new Presentation.CameraState { Context = context };
+                refusal = Unavailable("Graphical map camera unavailable.");
             }
-            catch (Exception errorRead) { return new Presentation.CameraReply { Outcome = ReadFailure(errorRead) }; }
+            catch (Exception errorRead) { refusal = ReadFailure(errorRead); }
+            throw NativeFaults.Refused(refusal);
         }
 
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Presentation.SelectionReply HandleSelection(Presentation.ReadRequest parsed)
+        // On the game thread: the selection read of the in-process facade. A refusal throws.
+        internal static Presentation.SelectionSnapshot HandleSelection(Presentation.ReadRequest parsed)
         {
-            if (!ValidateRead(parsed, out var invalidRequest)) return new Presentation.SelectionReply { Outcome = invalidRequest };
-            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
-                return new Presentation.SelectionReply { Outcome = error };
+            if (!ValidateRead(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error)) throw NativeFaults.Refused(error);
+            Common.Failure refusal;
             try
             {
-                if (HeadlessRim.HeadlessMode.Active || Find.Selector == null)
-                    return new Presentation.SelectionReply { Outcome = Unavailable("Graphical native selection unavailable.") };
-                return new Presentation.SelectionReply { Outcome = new Presentation.SelectionSnapshot { Context = context } };
+                if (!HeadlessRim.HeadlessMode.Active && Find.Selector != null)
+                    return new Presentation.SelectionSnapshot { Context = context };
+                refusal = Unavailable("Graphical native selection unavailable.");
             }
-            catch (Exception errorRead) { return new Presentation.SelectionReply { Outcome = ReadFailure(errorRead) }; }
+            catch (Exception errorRead) { refusal = ReadFailure(errorRead); }
+            throw NativeFaults.Refused(refusal);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.

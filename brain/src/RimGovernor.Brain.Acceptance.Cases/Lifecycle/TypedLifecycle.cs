@@ -1,5 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
@@ -25,9 +26,9 @@ internal static class TypedLifecycle
     /// <summary>The loaded game's identity, tick and pause state from <c>lifecycle_read_identity</c>.</summary>
     internal static async Task<(Common.Identity Identity, long Tick, bool Paused)> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        var context = reply.Loaded?.Context ?? throw new AcceptanceException($"{label}: no loaded game");
-        return (context.Identity, context.Tick, reply.Loaded.Paused == true);
+        var loaded = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        var context = loaded.Context ?? throw new AcceptanceException($"{label}: no loaded game");
+        return (context.Identity, context.Tick, loaded.Paused == true);
     }
 
     /// <summary>A trusted checkpoint save of the paused game; anything but a completed save fails <paramref name="label"/>.</summary>
@@ -98,5 +99,25 @@ internal static class TypedLifecycle
         {
             throw new AcceptanceException($"{label}: expected {want}, got {reply}");
         }
+    }
+
+    /// <summary>Asserts <paramref name="call"/> is refused (a thrown <see cref="NativeFailureException"/>) with code <paramref name="want"/>.</summary>
+    internal static async Task ExpectRefusedAsync<T>(string label, Func<Task<T>> call, Common.FailureCode want)
+    {
+        T answered;
+        try
+        {
+            answered = await call().ConfigureAwait(false);
+        }
+        catch (NativeFailureException e) when (e.Value.Code == want)
+        {
+            return;
+        }
+        catch (NativeFailureException e)
+        {
+            throw new AcceptanceException($"{label}: expected {want}, got {e.Message}", e);
+        }
+
+        throw new AcceptanceException($"{label}: expected {want}, got {answered}");
     }
 }

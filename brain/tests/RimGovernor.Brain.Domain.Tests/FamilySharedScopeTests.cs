@@ -31,10 +31,10 @@ public sealed class FamilySharedScopeTests
     {
         public int Hops { get; private set; }
 
-        public Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken)
+        public Task<PbLifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken)
         {
             Hops++;
-            return Task.FromResult(new PbLifecycle.TickReply { Outcome = new PbLifecycle.LoadedTick { Context = Context } });
+            return Task.FromResult(new PbLifecycle.LoadedTick { Context = Context });
         }
     }
 

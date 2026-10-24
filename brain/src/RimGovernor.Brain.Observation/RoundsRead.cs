@@ -40,9 +40,9 @@ public sealed record RoundsReading
 /// <summary>Answers ObserveColony's colony facts and zone reads from the frame.</summary>
 internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : IColonySource, IZonesNative, IZonesSource, IDefinitionSource, IResearchSource
 {
-    public Task<L.TickReply> TickAsync(CancellationToken cancellationToken) => inner.TickAsync(cancellationToken);
+    public Task<L.LoadedTick> TickAsync(CancellationToken cancellationToken) => inner.TickAsync(cancellationToken);
 
-    public Task<L.IdentityReply> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
+    public Task<L.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
 
     public Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
         Task.FromResult(new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : new C.Unavailable { Reason = C.UnavailableReason.NotObserved, Detail = "The frame holds no colony facts." } });

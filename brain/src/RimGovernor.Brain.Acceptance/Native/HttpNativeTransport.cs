@@ -3,7 +3,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.HttpChannel;
+using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -60,6 +62,8 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     /// request record), and its reply's structured content is <c>{"payload": "&lt;JSON reply record&gt;"}</c>.
     /// </summary>
     /// <exception cref="NativeRefusedException">The game refused the call.</exception>
+    /// <exception cref="NativeFailureException">A native op refused (a 422 from <see cref="NativeRoutes"/>).</exception>
+    /// <exception cref="BridgeUnavailableException">A native op found the game unavailable (a 503 from <see cref="NativeRoutes"/>).</exception>
     /// <exception cref="NativeTransportException">The call did not reach the game or the channel does not route the tool.</exception>
     public async Task<NativeResult> CallAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
     {
@@ -74,7 +78,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
             Interlocked.Exchange(ref _failures, 0);
             return result;
         }
-        catch (NativeRefusedException)
+        catch (Exception e) when (e is NativeRefusedException or NativeFailureException or BridgeUnavailableException)
         {
             // The game answered.
             Interlocked.Exchange(ref _failures, 0);
@@ -266,6 +270,18 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         }
 
         var (code, detail) = ReadFailure(text);
+        if ((int)status == NativeRoutes.RefusedStatus && TryName<Common.FailureCode>(code, out var failureCode))
+        {
+            throw NativeFaults.Refused(new Common.Failure { Code = failureCode, Detail = detail });
+        }
+
+        if ((int)status == NativeRoutes.UnavailableStatus && TryName<Common.UnavailableReason>(code, out var reason))
+        {
+            throw reason == Common.UnavailableReason.NotLoaded
+                ? new NotLoadedException(detail)
+                : new NativeUnavailableException(new Common.Unavailable { Reason = reason, Detail = detail }, RimGovernor.Brain.Bridge.Contracts.Result.Empty);
+        }
+
         if (status is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)
         {
             throw new NativeToolNotRoutedException($"native transport failure: {tool}: the channel does not route this tool ({(int)status} {code}: {detail})");
@@ -280,6 +296,10 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         var failed = new NativeResult(Envelope(true, text, refusal), refusal);
         throw new NativeRefusedException(tool, Refusals.Cause(refusal), failed);
     }
+
+    /// <summary>Reads an enum member by its exact C# name (the code <see cref="NativeRoutes"/> writes), never a number.</summary>
+    private static bool TryName<T>(string code, out T value) where T : struct, Enum =>
+        Enum.TryParse(code, ignoreCase: false, out value) && string.Equals(value.ToString(), code, StringComparison.Ordinal);
 
     /// <summary>The tool-call envelope of one reply: its error flag, the raw text as content and the structured body.</summary>
     private static JsonObject Envelope(bool isError, string text, JsonNode? structured) => new()

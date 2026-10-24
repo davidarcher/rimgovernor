@@ -383,7 +383,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|776
+Contracts/Observations.cs|NullableValue|774
 Contracts/Observations.cs|UnknownMember|18
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
@@ -441,7 +441,6 @@ Executor/SnapshotFirebreak.cs|Fact|4
 Executor/SnapshotLayout.cs|Fact|1
 Executor/SnapshotRounds.cs|Fact|2
 Executor/SnapshotRounds.cs|Unknown|1
-Host/FacadeAdapters.cs|Discard|1
 Host/HostProviders.cs|Fact|9
 Host/HostProviders.cs|Unknown|2
 Host/HostSnapshots.cs|Fact|8
@@ -477,7 +476,6 @@ Observation/Combat.cs|Fact|2
 Observation/Construction.cs|Discard|3
 Observation/Construction.cs|Fact|26
 Observation/Construction.cs|Unknown|4
-Observation/Decode.cs|Discard|1
 Observation/Decode.cs|Fact|3
 Observation/DeepResources.cs|Fact|14
 Observation/Definitions.cs|Fact|8

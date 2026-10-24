@@ -1,19 +1,17 @@
 #nullable enable
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
     internal static class ProtoIdentityTools
     {
-        // On the game thread: the tick read, shared by the tool and the in-process facade.
-        internal static Lifecycle.TickReply HandleReadTick(Lifecycle.TickRequest parsed)
+        // On the game thread: the tick read of the in-process facade. No colony map throws the unavailable exception.
+        internal static Lifecycle.LoadedTick HandleReadTick(Lifecycle.TickRequest parsed)
         {
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
-                return new Lifecycle.TickReply { Outcome = unavailable };
+                throw NativeFaults.Unavailable(unavailable);
             var tickManager = Find.TickManager;
             var loaded = new Lifecycle.LoadedTick
             {
@@ -32,18 +30,15 @@ namespace HomeBridge.BridgeTools
                     }] };
                 }
             }
-            return new Lifecycle.TickReply { Outcome = loaded };
+            return loaded;
         }
 
-        // On the game thread: the identity read, shared by the tool and the in-process facade.
-        internal static Lifecycle.IdentityReply HandleReadIdentity(Lifecycle.IdentityRequest parsed)
+        // On the game thread: the identity read of the in-process facade. No colony map throws the unavailable exception.
+        internal static Lifecycle.LoadedIdentity HandleReadIdentity(Lifecycle.IdentityRequest parsed)
         {
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
-            {
-                ReadFailureLog.Note("lifecycle_read_identity", unavailable.Reason + ": " + unavailable.Detail);
-                return new Lifecycle.IdentityReply();
-            }
-            return new Lifecycle.IdentityReply { Loaded = new Lifecycle.LoadedIdentity { Context = context, Paused = Find.TickManager.Paused } };
+                throw NativeFaults.Unavailable(unavailable);
+            return new Lifecycle.LoadedIdentity { Context = context, Paused = Find.TickManager.Paused };
         }
     }
 }

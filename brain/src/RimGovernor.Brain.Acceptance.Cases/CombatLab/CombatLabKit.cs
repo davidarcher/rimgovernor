@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
@@ -155,8 +156,8 @@ internal static class CombatLabKit
     /// <summary>The loaded game's tick.</summary>
     internal static async Task<long> TickAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadTick, new Lifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Loaded?.Context?.Tick ?? throw new AcceptanceException($"{label}: no loaded tick: {reply.Outcome}");
+        var loaded = await s.CallAsync(label, NativeOps.ReadTick, new Lifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
+        return loaded.Context?.Tick ?? throw new AcceptanceException($"{label}: no loaded tick: {WireJson.Serialize(loaded)}");
     }
 
     /// <summary>A cell as text.</summary>

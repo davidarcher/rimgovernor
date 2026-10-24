@@ -31,8 +31,7 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
             throw BridgeContractException.Contract("clock run planned hold serial");
         }
         ClockValidation.ValidateClockPolicy(request.Policy);
-        var reply = await _facade.RunClockAsync(request, ct).ConfigureAwait(false);
-        return FacadeWriteChecks.ClockStatusReply(reply);
+        return FacadeWriteChecks.ClockStatus(await _facade.RunClockAsync(request, ct).ConfigureAwait(false));
     }
 
     /// <inheritdoc />
@@ -43,19 +42,13 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeContractException.Contract("clock hold reason");
         }
-        var reply = await _facade.HoldClockAsync(request, ct).ConfigureAwait(false);
-        return FacadeWriteChecks.ClockStatusReply(reply);
+        return FacadeWriteChecks.ClockStatus(await _facade.HoldClockAsync(request, ct).ConfigureAwait(false));
     }
 
     /// <inheritdoc />
     public async Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var reply = await _facade.HeartbeatClockAsync(request, ct).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw FacadeNativeClient.Failure(failure);
-        }
-        return reply.Outcome.Ack!;
+        return await _facade.HeartbeatClockAsync(request, ct).ConfigureAwait(false);
     }
 }

@@ -1,4 +1,3 @@
-using RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.Observation;
 
 public static class DecodeReads
@@ -17,40 +16,29 @@ public static class DecodeReads
         return result;
     }
 
-    public static Identity DecodeIdentity(L.IdentityReply? reply)
+    public static Identity DecodeIdentity(L.LoadedIdentity? loaded)
     {
-        if (reply is null)
+        if (loaded is null)
         {
             throw new ObservationContractException("missing identity");
         }
-        // Native read failed; it logged the reason.
-        var loaded = reply.Loaded ?? throw new BridgeUnavailableException();
+
         var result = ContextIdentity(loaded.Context);
         return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
     }
 
-    /// <summary>The identity a lifecycle_read_tick reply reports; it is what <see cref="DecodeIdentity"/> reads.</summary>
-    public static Identity DecodeTick(L.TickReply? reply)
+    /// <summary>
+    /// The identity a lifecycle_read_tick reply reports; it is what <see cref="DecodeIdentity"/> reads. No colony map
+    /// (the main menu, between loads) is thrown by the facade as <see cref="NotLoadedException"/>, the expected state.
+    /// </summary>
+    public static Identity DecodeTick(L.LoadedTick? loaded)
     {
-        if (reply is null)
+        if (loaded is null)
         {
             throw new ObservationContractException("missing tick");
         }
-        switch (reply.Outcome)
-        {
-            case TickReplyOutcome.LoadedCase:
-            {
-                var loaded = reply.Outcome?.Loaded ?? throw new ObservationContractException("missing loaded tick");
-                var result = ContextIdentity(loaded.Context);
-                return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
-            }
-            case TickReplyOutcome.UnavailableCase { Value: var unavailable }:
-                // No colony map (the main menu, between loads) is the expected NotLoaded state, not a fault.
-                throw unavailable.Reason == C.UnavailableReason.NotLoaded
-                    ? new NotLoadedException("native observation unavailable: no colony map is loaded")
-                    : new BridgeUnavailableException();
-            default:
-                throw new ObservationContractException("tick outcome");
-        }
+
+        var result = ContextIdentity(loaded.Context);
+        return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
     }
 }

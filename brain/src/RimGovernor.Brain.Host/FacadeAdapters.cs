@@ -6,7 +6,7 @@ using RimGovernor.Brain.Store;
 
 namespace RimGovernor.Brain.Host;
 
-/// <summary>What a reply that is neither the loaded arm nor a sentinel turns into: the exceptions the bridge reads throw.</summary>
+/// <summary>The refusal a write reply's failure arm turns into.</summary>
 internal static class FacadeReplies
 {
     /// <summary>The refusal a reply's failure arm is.</summary>
@@ -16,17 +16,6 @@ internal static class FacadeReplies
             : failure.Detail is not null && (failure.Detail ?? "").Length != 0
                 ? $"{call}: native read refused: {failure.Code.GetValueOrDefault()}: {(failure.Detail ?? "")}"
                 : $"{call}: native read refused: {failure.Code.GetValueOrDefault()}");
-
-    /// <summary>The unavailability a reply's unavailable arm is.</summary>
-    public static BridgeUnavailableException Unavailable(string call, PbCommon.Unavailable? unavailable)
-    {
-        var message = unavailable is null
-            ? $"{call}: native observation unavailable"
-            : unavailable.Detail is not null && (unavailable.Detail ?? "").Length != 0
-                ? $"{call}: native read unavailable: {unavailable.Reason.GetValueOrDefault()}: {(unavailable.Detail ?? "")}"
-                : $"{call}: native read unavailable: {unavailable.Reason.GetValueOrDefault()}";
-        return unavailable?.Reason == PbCommon.UnavailableReason.NotLoaded ? new NotLoadedException(message) : new BridgeUnavailableException(message);
-    }
 }
 
 /// <summary>
@@ -35,7 +24,7 @@ internal static class FacadeReplies
 /// </summary>
 internal sealed class FacadeAuthority(INativeFacade facade) : INativeAuthority
 {
-    public Task<PbAuthority.StatusReply> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct) =>
+    public Task<PbAuthority.Status> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct) =>
         facade.ReadAuthorityStatusAsync(new PbAuthority.StatusRequest { Identity = identity }, ct);
 
     public Task<PbAuthority.ControlReply> SetModeAsync(PbAuthority.SetMode request, CancellationToken ct) =>
@@ -54,17 +43,8 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
     /// <summary>The observation context of the loaded game: its identity, tick and native generation.</summary>
     public async Task<PbCommon.ObservationContext> ReadContextAsync(CancellationToken ct)
     {
-        var reply = await facade.ReadTickAsync(new PbLifecycle.TickRequest(), ct).ConfigureAwait(false);
-        switch (reply.Outcome)
-        {
-            case PbLifecycle.TickReplyOutcome.LoadedCase loaded:
-                var context = loaded.Value.Context;
-                return context!;
-            case PbLifecycle.TickReplyOutcome.UnavailableCase unavailable:
-                throw FacadeReplies.Unavailable("ReadTick", unavailable.Value);
-            default:
-                throw new BridgeContractException("ReadTick reply carried no outcome");
-        }
+        var loaded = await facade.ReadTickAsync(new PbLifecycle.TickRequest(), ct).ConfigureAwait(false);
+        return loaded.Context ?? throw new BridgeContractException("ReadTick reply carried no context");
     }
 
     public async Task<World> ReadWorldAsync(CancellationToken ct)
@@ -86,9 +66,7 @@ internal sealed class FacadeGovernorState(INativeFacade facade)
 {
     public async Task<IReadOnlyDictionary<string, string>> ReadAsync(CancellationToken ct)
     {
-        var reply = await facade.ReadGovernorStateAsync(new PbLifecycle.GovernorStateRequest(), ct).ConfigureAwait(false);
-        // Absent when native could not read it; native logged the reason.
-        var loaded = reply.Loaded ?? throw new BridgeUnavailableException("GovernorState: native gave no state");
+        var loaded = await facade.ReadGovernorStateAsync(new PbLifecycle.GovernorStateRequest(), ct).ConfigureAwait(false);
         return new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal);
     }
 

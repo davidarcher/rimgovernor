@@ -69,11 +69,24 @@ public sealed class ClockRunDriverTests
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
             targetMethod?.Name switch
             {
-                nameof(INativeFacade.RunClockAsync) => Task.FromResult(Game.Run((PbClock.RunRequest)args![0]!)),
-                nameof(INativeFacade.HoldClockAsync) => Task.FromResult(Game.Hold((PbClock.HoldRequest)args![0]!)),
-                nameof(INativeFacade.HeartbeatClockAsync) => Task.FromResult(Game.Heartbeat()),
+                nameof(INativeFacade.RunClockAsync) => Answer(() => Game.Run((PbClock.RunRequest)args![0]!)),
+                nameof(INativeFacade.HoldClockAsync) => Answer(() => Game.Hold((PbClock.HoldRequest)args![0]!)),
+                nameof(INativeFacade.HeartbeatClockAsync) => Answer(Game.Heartbeat),
                 _ => throw new NotSupportedException(targetMethod?.Name + " is outside the clock rig"),
             };
+
+        /// <summary>The game's answer as the facade's task: a refusal is a faulted task, as the facade throws it.</summary>
+        private static Task<T> Answer<T>(Func<T> answer)
+        {
+            try
+            {
+                return Task.FromResult(answer());
+            }
+            catch (NativeFailureException e)
+            {
+                return Task.FromException<T>(e);
+            }
+        }
     }
 #pragma warning restore CA1852
 
@@ -233,28 +246,28 @@ public sealed class ClockRunDriverTests
         /// The native Run: a stale generation, a refusal or a resume planned before the latest hold entry changes
         /// nothing; otherwise a held clock resumes and the speed is the request's.
         /// </summary>
-        public PbClock.StatusReply Run(PbClock.RunRequest request)
+        public PbClock.Status Run(PbClock.RunRequest request)
         {
             lock (_mu)
             {
                 if (RefuseRun is { } refusal)
                 {
                     RefuseRun = null;
-                    return Failure(refusal);
+                    throw Failure(refusal);
                 }
                 if (request.ExpectedGeneration.GetValueOrDefault() != _generation)
                 {
-                    return Failure(PbCommon.FailureCode.StaleGeneration);
+                    throw Failure(PbCommon.FailureCode.StaleGeneration);
                 }
                 if (request.HoldAtTick is null)
                 {
                     // Native requires the review tick on every Run (#3556).
-                    return Failure(PbCommon.FailureCode.InvalidRequest);
+                    throw Failure(PbCommon.FailureCode.InvalidRequest);
                 }
                 if (_held && request.PlannedHoldSerial.GetValueOrDefault() != _holdSerial)
                 {
                     _staleSerials.Add(request.PlannedHoldSerial.GetValueOrDefault());
-                    return Failure(PbCommon.FailureCode.Unavailable);
+                    throw Failure(PbCommon.FailureCode.Unavailable);
                 }
                 _runs++;
                 _runRequests.Add(request);
@@ -267,12 +280,12 @@ public sealed class ClockRunDriverTests
                     _held = false;
                     AfterResume?.Invoke();
                 }
-                return new PbClock.StatusReply { Outcome = new PbClock.StatusReplyOutcome.StatusCase(Status()) };
+                return Status();
             }
         }
 
         /// <summary>The native Hold: a clock already held keeps its first reason.</summary>
-        public PbClock.StatusReply Hold(PbClock.HoldRequest request)
+        public PbClock.Status Hold(PbClock.HoldRequest request)
         {
             lock (_mu)
             {
@@ -285,7 +298,7 @@ public sealed class ClockRunDriverTests
                     _holds++;
                     TakeHold(request.Reason.GetValueOrDefault(), new NativeEvents.PauseEvidence(true, true, null, null));
                 }
-                return new PbClock.StatusReply { Outcome = new PbClock.StatusReplyOutcome.StatusCase(Status()) };
+                return Status();
             }
         }
 
@@ -314,20 +327,17 @@ public sealed class ClockRunDriverTests
             Append(o => new NativeEvents.HoldEntered(o, "", reason, evidence, o.Tick, null, heldAt, new NativeEvents.RunSegment(0, 0, 0, 0, 0)));
         }
 
-        public PbClock.HeartbeatReply Heartbeat()
+        public PbClock.HeartbeatAck Heartbeat()
         {
             lock (_mu)
             {
                 _heartbeats++;
-                return new PbClock.HeartbeatReply
-                {
-                    Outcome = new PbClock.HeartbeatReplyOutcome.AckCase(new PbClock.HeartbeatAck()),
-                };
+                return new PbClock.HeartbeatAck();
             }
         }
 
-        private PbClock.StatusReply Failure(PbCommon.FailureCode code) =>
-            new() { Outcome = new PbClock.StatusReplyOutcome.FailureCase(new PbCommon.Failure { Code = code, Detail = "refused by the fake native", ObservedContext = Context() }) };
+        private NativeFailureException Failure(PbCommon.FailureCode code) =>
+            NativeFaults.Refused(new PbCommon.Failure { Code = code, Detail = "refused by the fake native", ObservedContext = Context() });
 
         private bool TakeContextTimeout()
         {
@@ -382,17 +392,14 @@ public sealed class ClockRunDriverTests
 
         public long ColonyEventsLost => _channel.Lost;
 
-        public Task<PbAuthority.StatusReply> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct)
+        public Task<PbAuthority.Status> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct)
         {
             lock (_mu)
             {
                 PbAuthority.StatusState state = _active
                     ? new PbAuthority.ActiveAuthority { Mode = PbAuthority.Mode.Auto }
                     : new PbAuthority.InactiveAuthority { Reason = PbAuthority.RevocationReason.Manual };
-                return Task.FromResult(new PbAuthority.StatusReply
-                {
-                    Outcome = new PbAuthority.StatusReplyOutcome.StatusCase(new PbAuthority.Status { Context = Context(), State = state }),
-                });
+                return Task.FromResult(new PbAuthority.Status { Context = Context(), State = state });
             }
         }
 

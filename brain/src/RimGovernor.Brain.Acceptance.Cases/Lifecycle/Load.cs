@@ -111,7 +111,7 @@ internal static class LifecycleLoad
 
     private static async Task<IReadOnlyDictionary<string, string>> GovernorStateAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Loaded?.Blobs ?? throw new AcceptanceException($"{label}: no governor state");
+        var loaded = await s.CallAsync(label, NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
+        return loaded.Blobs;
     }
 }

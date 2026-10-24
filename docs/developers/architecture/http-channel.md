@@ -22,8 +22,12 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
   (`POST /native/test/lab_start`) or any other name routes to the host's tool registry (the host's lifecycle tools and the
   `test/*` fixtures): the body is the JSON object of the named arguments and a non-object result is wrapped as
   `{"result": ...}`. `GET /api/tools` lists the routable names (`{"tools":[...]}`, sorted; a `rimgovernor/` name is
-  listed without its prefix). A refusal inside the reply (its failure arm) is a 200; an exception is a 500
-  `tool_failed`; an unknown name is a 404. No headers carry timing, admission class or trace. Nothing streams over
+  listed without its prefix). A refusal inside the reply (its failure arm) is a 200. A thrown
+  `NativeFailureException` is a 422 whose code is the `FailureCode` name and detail the failure's; a thrown
+  `NativeUnavailableException` is a 503 with the `UnavailableReason` name, and `NotLoadedException` a 503 `NotLoaded`
+  with its message. `HttpNativeTransport` throws the same exceptions back from those codes (only the code and
+  detail cross: a failure's observed context does not). Any other exception is a 500 `tool_failed`; an unknown name
+  is a 404. No headers carry timing, admission class or trace. Nothing streams over
   HTTP; frame and clock-event handoff is in-process ([native facade](native-facade.md)).
 - **Failure shape.** `{"code","detail"}`. Bodies are bounded per route (8 MiB for `/native`, 8192 bytes for the
   player routes), responses at 16 MiB, handlers have a per-route timeout (5 minutes for `/native`, 30 s otherwise);
@@ -35,7 +39,7 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
 
 | Project | Ships with the mod | Holds |
 | --- | --- | --- |
-| `RimGovernor.Brain.HttpChannel` | yes, beside the other brain DLLs (with `Brain.Telemetry`) | `HttpChannelServer`, `RequestGuard`, `RouteTable`, `Dispatcher`, `EndpointFile`, `NativeRoutes` and `INativeOpInvoker`. Game-free. |
+| `RimGovernor.Brain.HttpChannel` | yes, beside the other brain DLLs (with `Brain.Telemetry`) | `HttpChannelServer`, `RequestGuard`, `RouteTable`, `Dispatcher`, `EndpointFile`, `NativeRoutes` and `INativeOpInvoker`. Game-free; depends on Bridge.Contracts for the native fault exceptions it maps to statuses. |
 | `RimGovernor.Brain.PlayerApi` | no: the brain host loads it (#3082) | The provider interfaces (`IPlayerControl`, `ISnapshotProvider`, `ILifecycleWriter` and the rest, in `PlayerProviders.cs`) and the player, read, presentation and lifecycle routes over them. Depends on HttpChannel, Domain, Store, Policy, Facts, Observation, Bridge.Contracts, BuildingRuntime and Wire. |
 
 The mod side is `HttpChannelHost.cs` in the Bridge: `NativeOpTable` is an explicit table, compile-checked by the
@@ -79,8 +83,8 @@ reloads. A route family whose provider is null is not registered, so it answers 
   where the brain matched them case-insensitively. A new-colony body is decoded into the wire request and validated by
   `NewColonyValidation.ValidateNewColonyRequest`; `ScenarioParts.ApplyRhadamant` is the port of `RhadamantParts`.
 - `ReadTally` (`Bridge.Contracts`) counts the native reads of one scope in an ambient tally; the clock scheduler
-  opens the scope with `ReadTallyScope.WithReadTally()` and the native call layer calls
-  `ReadTallyRules.CountNativeRead(tool)` (the #3082 host wires that call).
+  opens the scope with `ReadTallyScope.WithReadTally()` and the native `InProcessNativeFacade` calls
+  `ReadTallyRules.CountNativeRead(tool)` once per facade call.
 
 `PlayerState`, `ControllerSnapshot` and `RoundsStatus` are the small projections the routes show; the brain host
 builds them from its own control state.

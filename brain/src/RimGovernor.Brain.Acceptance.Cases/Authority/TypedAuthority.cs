@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire;
 using RimGovernor.Brain.Bridge;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -23,19 +24,13 @@ internal static class TypedAuthority
         return await GrantAsync(s, "acquire", s.Identity, generation, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The authority status <c>authority_read_status</c> reports for <paramref name="identity"/>; a refusal fails <paramref name="label"/>.</summary>
-    internal static async Task<Control.Status> StatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
-    {
-        var reply = await s.CallAsync(label, NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a status, got {reply.Outcome}");
-    }
+    /// <summary>The authority status <c>authority_read_status</c> reports for <paramref name="identity"/>; a refusal throws.</summary>
+    internal static Task<Control.Status> StatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken) =>
+        s.CallAsync(label, NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, cancellationToken);
 
-    /// <summary>The clock status <c>clock_read_status</c> reports for <paramref name="identity"/>; a refusal fails <paramref name="label"/>.</summary>
-    internal static async Task<Clock.Status> ClockStatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
-    {
-        var reply = await s.CallAsync(label, NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a clock status, got {reply.Outcome}");
-    }
+    /// <summary>The clock status <c>clock_read_status</c> reports for <paramref name="identity"/>; a refusal throws.</summary>
+    internal static Task<Clock.Status> ClockStatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken) =>
+        s.CallAsync(label, NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken);
 
     /// <summary>
     /// The generation a fresh SetMode expects: the status's native generation, or 1 when authority is not yet initialized
@@ -68,8 +63,8 @@ internal static class TypedAuthority
     internal static async Task RevokeManualAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var status = await s.CallAsync("release-status", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = s.Identity }, cancellationToken).ConfigureAwait(false);
-        var generation = status.Outcome?.Status?.Context?.NativeGeneration
-            ?? throw new AcceptanceException($"release-status: no native generation: {status.Outcome}");
+        var generation = status.Context?.NativeGeneration
+            ?? throw new AcceptanceException($"release-status: no native generation: {WireJson.Serialize(status)}");
         var control = await s.CallAsync(
             "release",
             NativeOps.ControlAuthority,

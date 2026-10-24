@@ -52,7 +52,13 @@ refusals and replies are identical.
 - Not on the game thread: `WaitSaveSignalAsync`, `FlushDoneAsync`, `FlushFramesAsync`, `OpenColonyEventsAsync`, and
   `PutGovernorStateBatchAsync` unless a save that predates the component needs it attached.
 - Callers must not be on the game thread (they would wait on themselves).
-- A refusal is the reply's `Failure` or `Unavailable` arm, exactly as before. A bug inside the hop faults the task.
+- The lifecycle, authority, clock and presentation reads (`ReadIdentity`, `ReadTick`, `ReadGovernorState`,
+  `ReadAuthorityStatus`, `ReadClockStatus`, `RunClock`, `HoldClock`, `HeartbeatClock`, `ReadCamera`, `ReadSelection`,
+  `ReadNotifications`, `ReadRenderState`) return their payload. A refusal throws `NativeFailureException` (a
+  `BridgeRefusedException`) and an unavailable game `BridgeUnavailableException` (`NotLoadedException` when no game
+  is loaded), built by `NativeFaults`. `ApplyAsync` keeps its typed refusal result
+  ([interface contracts](../contracts/interface-contracts.md#native-facade-refusals)); a family-owned read still
+  answers its reply's `Failure` or `Unavailable` arm. A bug inside the hop faults the task.
 
 ## Frame handoff
 

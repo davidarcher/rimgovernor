@@ -116,7 +116,7 @@ public sealed record Snapshot
 /// <summary>Implemented by the bridge client. Typed observation code never receives arbitrary call names or arguments through this interface.</summary>
 public interface ISource
 {
-    Task<L.TickReply> TickAsync(CancellationToken cancellationToken);
+    Task<L.LoadedTick> TickAsync(CancellationToken cancellationToken);
 }
 
 public sealed record Reading

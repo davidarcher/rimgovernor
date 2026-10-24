@@ -54,69 +54,9 @@ public sealed record CameraState
     public Common.ObservationContext? Context { get; init; }
 }
 
-public sealed record CameraReply
-{
-    public CameraReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="CameraReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(CameraReplyOutcome.CameraCase), "camera")]
-[JsonDerivedType(typeof(CameraReplyOutcome.FailureCase), "failure")]
-public abstract record CameraReplyOutcome
-{
-    private protected CameraReplyOutcome() { }
-
-    /// <summary>The <c>Camera</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CameraState? Camera => (this as CameraCase)?.Value;
-
-    public sealed record CameraCase(CameraState Value) : CameraReplyOutcome;
-
-    public static implicit operator CameraReplyOutcome(CameraState value) => new CameraCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : CameraReplyOutcome;
-
-    public static implicit operator CameraReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
 public sealed record SelectionSnapshot
 {
     public Common.ObservationContext? Context { get; init; }
-}
-
-public sealed record SelectionReply
-{
-    public SelectionReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="SelectionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(SelectionReplyOutcome.SelectionCase), "selection")]
-[JsonDerivedType(typeof(SelectionReplyOutcome.FailureCase), "failure")]
-public abstract record SelectionReplyOutcome
-{
-    private protected SelectionReplyOutcome() { }
-
-    /// <summary>The <c>Selection</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SelectionSnapshot? Selection => (this as SelectionCase)?.Value;
-
-    public sealed record SelectionCase(SelectionSnapshot Value) : SelectionReplyOutcome;
-
-    public static implicit operator SelectionReplyOutcome(SelectionSnapshot value) => new SelectionCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : SelectionReplyOutcome;
-
-    public static implicit operator SelectionReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 public sealed record ColonistRosterRequest
@@ -327,36 +267,6 @@ public sealed record NotificationsRequest
     public bool? IncludeMessages { get; init; }
 
     public bool? IncludeAlerts { get; init; }
-}
-
-public sealed record NotificationsReply
-{
-    public NotificationsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="NotificationsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(NotificationsReplyOutcome.NotificationsCase), "notifications")]
-[JsonDerivedType(typeof(NotificationsReplyOutcome.FailureCase), "failure")]
-public abstract record NotificationsReplyOutcome
-{
-    private protected NotificationsReplyOutcome() { }
-
-    /// <summary>The <c>Notifications</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public NotificationsSnapshot? Notifications => (this as NotificationsCase)?.Value;
-
-    public sealed record NotificationsCase(NotificationsSnapshot Value) : NotificationsReplyOutcome;
-
-    public static implicit operator NotificationsReplyOutcome(NotificationsSnapshot value) => new NotificationsCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : NotificationsReplyOutcome;
-
-    public static implicit operator NotificationsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Control = RimGovernor.Contracts.Wire.Authority;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -54,16 +55,18 @@ internal static class LifecycleShutdown
             "status-after-unload",
             async ct =>
             {
-                var reply = await s.CallAsync("status-after-unload", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, ct).ConfigureAwait(false);
-                if (reply.Outcome?.Status is { } status)
+                Control.Status status;
+                try
                 {
-                    ended = status;
-                    return (Wait.Signature(status.State), status.State?.Inactive is not null);
+                    status = await s.CallAsync("status-after-unload", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, ct).ConfigureAwait(false);
+                }
+                catch (NativeFailureException e) when (e.Value.Code == Common.FailureCode.Unavailable)
+                {
+                    return (Wait.Signature("unavailable"), false);
                 }
 
-                return reply.Outcome?.Failure?.Code == Common.FailureCode.Unavailable
-                    ? (Wait.Signature("unavailable"), false)
-                    : throw new AcceptanceException($"status-after-unload: expected a status or a transient unavailable failure, got {reply.Outcome}");
+                ended = status;
+                return (Wait.Signature(status.State), status.State?.Inactive is not null);
             },
             cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_after_unload", ended);
@@ -81,8 +84,10 @@ internal static class LifecycleShutdown
             throw new AcceptanceException($"load-after: expected a fresh identity, got the ended game's {next}");
         }
 
-        var stale = await s.CallAsync("status-old-identity", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        TypedLifecycle.ExpectFailure("status-old-identity", stale.Outcome?.Failure, Common.FailureCode.StaleIdentity, stale.Outcome);
+        await TypedLifecycle.ExpectRefusedAsync(
+            "status-old-identity",
+            () => s.CallAsync("status-old-identity", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, cancellationToken),
+            Common.FailureCode.StaleIdentity).ConfigureAwait(false);
 
         var fresh = await TypedAuthority.StatusAsync(s, "status-next", next, cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_next", fresh);

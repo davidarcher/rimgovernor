@@ -12,11 +12,6 @@ internal static class WireProbeAccessors
         public Authority.SetMode SetMode => (r.Operation as Authority.ControlRequestOperation.SetModeCase)?.Value;
         public Authority.Revoke Revoke => (r.Operation as Authority.ControlRequestOperation.RevokeCase)?.Value;
     }
-    extension(Authority.StatusReply r)
-    {
-        public Authority.Status Status => r.Outcome?.Status;
-        public Common.Failure Failure => r.Outcome?.Failure;
-    }
     extension(Authority.ControlReply r)
     {
         public Authority.Granted Granted => r.Outcome?.Granted;

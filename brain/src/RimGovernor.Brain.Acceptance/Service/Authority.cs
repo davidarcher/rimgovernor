@@ -22,8 +22,7 @@ public static class Authority
         ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(identity);
         var wire = Harness.IdentityOf(identity);
-        var reply = await harness.CallAsync("release-authority-status", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = wire }, cancellationToken).ConfigureAwait(false);
-        var status = reply.Outcome?.Status ?? throw new AcceptanceException($"authority status: {WireJson.Serialize(reply)}");
+        var status = await harness.CallAsync("release-authority-status", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = wire }, cancellationToken).ConfigureAwait(false);
         if (status.State?.Active is null)
         {
             return null;

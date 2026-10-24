@@ -44,48 +44,59 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ConstructionActivityRead> ReadConstructionActivityAsync(Obs.ConstructionActivityRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadConstructionActivity, request, () => NativeConstructionActivity.Read(request), cancellationToken);
 
-        // A hop for a read (observation class) or a write (control class, which runs ahead of queued reads).
-        private static Task<T> Read<TRequest, T>(NativeOp<TRequest, T> op, TRequest request, Func<T> core, CancellationToken cancellationToken) where TRequest : class where T : class
+        // A hop for a read (observation class) or a write (control class, which runs ahead of queued reads). Each call
+        // is counted once into the attached read tally under the facade method called, errors and cancellations included.
+        private static Task<T> Read<TRequest, T>(NativeOp<TRequest, T> op, TRequest request, Func<T> core, CancellationToken cancellationToken,
+            [CallerMemberName] string tool = "") where TRequest : class where T : class
         {
+            Count(tool);
             ArgumentNullException.ThrowIfNull(request);
             return ProtoBoundary.OnGameThread("facade/" + op.Name, core, cancellationToken, Observation);
         }
 
-        private static Task<T> Write<TRequest, T>(NativeOp<TRequest, T> op, TRequest request, Func<T> core, CancellationToken cancellationToken) where TRequest : class where T : class
+        private static Task<T> Write<TRequest, T>(NativeOp<TRequest, T> op, TRequest request, Func<T> core, CancellationToken cancellationToken,
+            [CallerMemberName] string tool = "") where TRequest : class where T : class
         {
+            Count(tool);
             ArgumentNullException.ThrowIfNull(request);
             return ProtoBoundary.OnGameThread("facade/" + op.Name, core, cancellationToken, Control);
         }
 
+        // The calls that never hop count here; opening the colony events reads nothing from the game and is not counted.
+        private static void Count([CallerMemberName] string tool = "") => RimGovernor.Brain.Bridge.Contracts.ReadTallyRules.CountNativeRead(tool);
+
         // Lifecycle.
 
-        public Task<Lifecycle.IdentityReply> ReadIdentityAsync(Lifecycle.IdentityRequest request, CancellationToken cancellationToken)
+        public Task<Lifecycle.LoadedIdentity> ReadIdentityAsync(Lifecycle.IdentityRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadIdentity, request, () => ProtoIdentityTools.HandleReadIdentity(request), cancellationToken);
 
-        public Task<Lifecycle.TickReply> ReadTickAsync(Lifecycle.TickRequest request, CancellationToken cancellationToken)
+        public Task<Lifecycle.LoadedTick> ReadTickAsync(Lifecycle.TickRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadTick, request, () => ProtoIdentityTools.HandleReadTick(request), cancellationToken);
 
-        public Task<Lifecycle.GovernorStateReply> ReadGovernorStateAsync(Lifecycle.GovernorStateRequest request, CancellationToken cancellationToken)
+        public Task<Lifecycle.GovernorStateBlobs> ReadGovernorStateAsync(Lifecycle.GovernorStateRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadGovernorState, request, ProtoGovernorStateTools.HandleRead, cancellationToken);
 
         public Task<Lifecycle.GovernorStateReply> PutGovernorStateBatchAsync(Lifecycle.PutGovernorStateBatchRequest request, CancellationToken cancellationToken)
         {
+            Count();
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
             var reply = ProtoGovernorStateTools.TryPut(request, out var set);
             if (reply != null) return Task.FromResult(reply);
-            // A save that predates the component needs the game thread to attach it.
-            return Write(NativeOps.PutGovernorStateBatch, request, () => ProtoGovernorStateTools.PutOnGameThread(set), cancellationToken);
+            // A save that predates the component needs the game thread to attach it; the call is already counted.
+            return ProtoBoundary.OnGameThread("facade/" + NativeOps.PutGovernorStateBatch.Name, () => ProtoGovernorStateTools.PutOnGameThread(set), cancellationToken, Control);
         }
 
         public Task<Lifecycle.WaitSaveSignalReply> WaitSaveSignalAsync(Lifecycle.WaitSaveSignalRequest request, CancellationToken cancellationToken)
         {
+            Count();
             ArgumentNullException.ThrowIfNull(request);
             return ProtoLifecycleSaveSignalTools.WaitCore(request, cancellationToken);
         }
 
         public Task<Lifecycle.FlushDoneReply> FlushDoneAsync(Lifecycle.FlushDoneRequest request, CancellationToken cancellationToken)
         {
+            Count();
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(ProtoLifecycleSaveSignalTools.FlushDoneCore(request));
@@ -93,7 +104,7 @@ namespace HomeBridge.BridgeTools
 
         // Authority.
 
-        public Task<Authority.StatusReply> ReadAuthorityStatusAsync(Authority.StatusRequest request, CancellationToken cancellationToken)
+        public Task<Authority.Status> ReadAuthorityStatusAsync(Authority.StatusRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadAuthorityStatus, request, () => NativeAuthorityTools.HandleReadStatus(request), cancellationToken);
 
         public Task<Authority.ControlReply> ControlAuthorityAsync(Authority.ControlRequest request, CancellationToken cancellationToken)
@@ -149,16 +160,16 @@ namespace HomeBridge.BridgeTools
 
         // Clock.
 
-        public Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken)
+        public Task<Clock.Status> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken)
             => Write(NativeOps.RunClock, request, () => NativeClockTools.HandleRun(request), cancellationToken);
 
-        public Task<Clock.StatusReply> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken)
+        public Task<Clock.Status> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken)
             => Write(NativeOps.HoldClock, request, () => NativeClockTools.HandleHold(request), cancellationToken);
 
-        public Task<Clock.HeartbeatReply> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken)
+        public Task<Clock.HeartbeatAck> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken)
             => Write(NativeOps.HeartbeatClock, request, () => NativeClockTools.HandleHeartbeat(request), cancellationToken);
 
-        public Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken)
+        public Task<Clock.Status> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadClockStatus, request, () => NativeClockTools.HandleReadStatus(request), cancellationToken);
 
         // The queue is lock-free and native-owned: opening it needs no game-thread hop.
@@ -172,10 +183,10 @@ namespace HomeBridge.BridgeTools
 
         // Presentation reads.
 
-        public Task<Presentation.CameraReply> ReadCameraAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
+        public Task<Presentation.CameraState> ReadCameraAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadCamera, request, () => NativePresentationReadTools.HandleCamera(request), cancellationToken);
 
-        public Task<Presentation.SelectionReply> ReadSelectionAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
+        public Task<Presentation.SelectionSnapshot> ReadSelectionAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadSelection, request, () => NativePresentationReadTools.HandleSelection(request), cancellationToken);
 
         public Task<Presentation.ColonistRosterReply> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
@@ -201,10 +212,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.LinesOfFireReply> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadLinesOfFire, request, () => NativeDefenseObservationTools.HandleReadLinesOfFire(request), cancellationToken);
 
-        public Task<Obs.HusbandryReply> ReadHusbandryAsync(Obs.HusbandryRequest request, CancellationToken cancellationToken)
-            => Read(NativeOps.ReadHusbandry, request, () => NativeHusbandryObservation.HandleReadHusbandry(request), cancellationToken);
-
-        public Task<Presentation.NotificationsReply> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken)
+        public Task<Presentation.NotificationsSnapshot> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadNotifications, request, () => NativeNotificationReadTools.HandleNotifications(request), cancellationToken);
 
         public Task<Obs.PopulationReply> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken)
@@ -215,9 +223,6 @@ namespace HomeBridge.BridgeTools
 
         public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadSpatialAccess, request, () => NativeSpatialAccessTool.HandleReadSpatialAccess(request), cancellationToken);
-
-        public Task<Obs.EvaluateStatReply> EvaluateStatAsync(Obs.EvaluateStatRequest request, CancellationToken cancellationToken)
-            => Read(NativeOps.EvaluateStat, request, () => NativeStatTool.HandleEvaluateStat(request), cancellationToken);
 
         public Task<Obs.TradeAcquisitionReply> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadTradeAcquisition, request, () => NativeTradeAcquisitionTools.HandleReadTradeAcquisition(request), cancellationToken);
@@ -273,7 +278,7 @@ namespace HomeBridge.BridgeTools
         public Task<Presentation.OverlayReply> ApplyOverlayAsync(Presentation.OverlayRequest request, CancellationToken cancellationToken)
             => Write(NativeOps.ApplyOverlay, request, () => ProtoOverlayTools.Apply(request), cancellationToken);
 
-        public Task<Presentation.RenderReply> ReadRenderStateAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
+        public Task<Presentation.RenderStatus> ReadRenderStateAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadRenderState, request, () => ProtoPresentationMediaTools.HandleRenderState(request), cancellationToken);
 
         public Task<Presentation.RenderReply> DemandRenderingAsync(Presentation.RenderDemand request, CancellationToken cancellationToken)
@@ -282,13 +287,11 @@ namespace HomeBridge.BridgeTools
         // Frame handoff.
 
         public Task<Obs.SnapshotStreamReply> OpenFramesAsync(Obs.SnapshotStreamRequest request, CancellationToken cancellationToken)
-        {
-            ArgumentNullException.ThrowIfNull(request);
-            return Read(NativeOps.OpenFrames, request, () => SnapshotStream.Open(request), cancellationToken);
-        }
+            => Read(NativeOps.OpenFrames, request, () => SnapshotStream.Open(request), cancellationToken);
 
         public Task<Obs.FlushSnapshotReply> FlushFramesAsync(Obs.FlushSnapshotRequest request, CancellationToken cancellationToken)
         {
+            Count();
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new Obs.FlushSnapshotReply { Flushed = SnapshotStream.Flush() });

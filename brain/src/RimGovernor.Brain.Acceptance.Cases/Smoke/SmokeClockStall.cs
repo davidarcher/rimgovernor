@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire;
 using System.Diagnostics;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
@@ -74,9 +75,9 @@ internal static class SmokeClockStall
                             HoldAtTick = (ulong)(Math.Max(running.Context?.Tick ?? 0, 0) + s.TicksLeft),
                         },
                         token).ConfigureAwait(false);
-                    var status = reply.Outcome?.Status is { State: Clock.ClockState.Running, TargetSpeed: Clock.Speed.Normal } normal
-                        ? normal
-                        : throw new AcceptanceException($"slow: want a running clock at Normal, got {reply.Outcome}");
+                    var status = reply is { State: Clock.ClockState.Running, TargetSpeed: Clock.Speed.Normal }
+                        ? reply
+                        : throw new AcceptanceException($"slow: want a running clock at Normal, got {WireJson.Serialize(reply)}");
                     s.RecordWire("slowed", status);
                     slowed = true;
                     clock.Restart();

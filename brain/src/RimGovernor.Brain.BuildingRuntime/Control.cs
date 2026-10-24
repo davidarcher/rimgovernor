@@ -34,7 +34,7 @@ internal static class ErrorJoin
 /// </summary>
 public interface INativeAuthority
 {
-    Task<PbAuthority.StatusReply> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct);
+    Task<PbAuthority.Status> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct);
 
     Task<PbAuthority.ControlReply> SetModeAsync(PbAuthority.SetMode request, CancellationToken ct);
 
@@ -180,12 +180,12 @@ public sealed partial class Control : IDisposable
         using var entry = observed.Entry;
         var epoch = observed.Epoch;
         var status = observed.Status;
-        var generation = status.Outcome?.Status?.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
+        var generation = status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
         if (generation == ulong.MaxValue)
         {
             throw new ControlException("Acquire: generation == ^uint64(0)");
         }
-        if (status.Outcome?.Status?.State?.Inactive is null)
+        if (status.State?.Inactive is null)
         {
             // Auto authority observed before this process ever targeted the world is what a killed controller
             // leaves behind. This process is the only author, so it reclaims by revoking at the observed
@@ -194,7 +194,7 @@ public sealed partial class Control : IDisposable
             // accepted, is re-acquired in place: one SetMode, one generation, no Manual round trip. Once this
             // process has targeted the world, any other Active is its own uncertain grant, which only Manual
             // reconciles.
-            var active = status.Outcome?.Status?.State?.Active;
+            var active = status.State?.Active;
             if (active is null || active.Mode != PbAuthority.Mode.Auto)
             {
                 throw new ControlException("Acquire: active == nil || active.GetMode() != a.Mode_MODE_AUTO");
@@ -292,7 +292,7 @@ public sealed partial class Control : IDisposable
     /// <summary>Bounds how often ObserveForAcquire starts over after its epoch was invalidated underneath the status read.</summary>
     private const int AcquireObservationRetries = 3;
 
-    private sealed record AcquireObservation(Entry Entry, bool EverTargeted, PbAuthority.StatusReply Status, CancellationToken Epoch);
+    private sealed record AcquireObservation(Entry Entry, bool EverTargeted, PbAuthority.Status Status, CancellationToken Epoch);
 
     /// <summary>
     /// Acquire's read phase: a fresh epoch, the gate, owned cleanup and the authority status read, before any
@@ -341,7 +341,7 @@ public sealed partial class Control : IDisposable
                 try
                 {
                     ControlStatus(status, requested);
-                    if (handoff is { } required && (required.Value == 0 || (status.Outcome?.Status?.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL) != required.Value))
+                    if (handoff is { } required && (required.Value == 0 || (status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL) != required.Value))
                     {
                         throw new ControlException();
                     }
@@ -713,7 +713,7 @@ public sealed partial class Control : IDisposable
         {
             return;
         }
-        PbAuthority.StatusReply reply;
+        PbAuthority.Status reply;
         try
         {
             reply = await _native.ReadAuthorityAsync(ControlIdentity(snapshot), ct).ConfigureAwait(false);
@@ -724,7 +724,7 @@ public sealed partial class Control : IDisposable
             throw FailedObservation(e, epoch);
         }
         ct.ThrowIfCancellationRequested();
-        var status = reply.Outcome?.Status ?? throw new ControlException("revoke: status == nil");
+        var status = reply;
         var statusGeneration = status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
         if (status.State?.Inactive is not null)
         {
@@ -795,7 +795,7 @@ public sealed partial class Control : IDisposable
                 throw new ControlException("ObserveTarget: control.closing || epoch.Err() != nil || control.epoch != epoch || control.liveLocked()");
             }
         }
-        PbAuthority.StatusReply? reply = null;
+        PbAuthority.Status? reply = null;
         Exception? err = null;
         try
         {
@@ -821,11 +821,11 @@ public sealed partial class Control : IDisposable
             {
                 throw FailedObservationLocked(err);
             }
-            requested = requested with { Native = new NativeGeneration(reply!.Outcome?.Status?.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL) };
+            requested = requested with { Native = new NativeGeneration(reply!.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL) };
             // The target plan is only a read scope; the grant this process holds is world-scoped and still
             // stands while native reports it Auto at the generation it accepted (the worker retargets reads
             // under a hold).
-            var still = _granted && _haveTarget && _snapshot.SameWorld(requested) && _snapshot.Native == requested.Native && reply.Outcome?.Status?.State?.Active is not null;
+            var still = _granted && _haveTarget && _snapshot.SameWorld(requested) && _snapshot.Native == requested.Native && reply.State?.Active is not null;
             _snapshot = requested;
             _haveTarget = true;
             _granted = still;
@@ -853,7 +853,7 @@ public sealed partial class Control : IDisposable
         }
         using var entry = await EnterAsync(ct, epoch).ConfigureAwait(false);
         var call = entry.Token;
-        PbAuthority.StatusReply? reply = null;
+        PbAuthority.Status? reply = null;
         Exception? err = null;
         try
         {
@@ -879,7 +879,7 @@ public sealed partial class Control : IDisposable
             {
                 throw FailedObservationLocked(err);
             }
-            var status = reply!.Outcome?.Status ?? throw new ControlException("Refresh: status == nil");
+            var status = reply!;
             var active = status.State?.Active;
             var statusGeneration = status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
             if (statusGeneration != snapshot.Native.Value || active is null || active.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
@@ -894,9 +894,8 @@ public sealed partial class Control : IDisposable
         }
     }
 
-    internal static void ControlStatus(PbAuthority.StatusReply reply, GenerationSnapshot snapshot)
+    internal static void ControlStatus(PbAuthority.Status? status, GenerationSnapshot snapshot)
     {
-        var status = reply.Outcome?.Status;
         if (status is null || status.Context is null || !Equals(status.Context.Identity, ControlIdentity(snapshot)) || status.Context.NativeGeneration is null)
         {
             throw new ControlException("controlStatus: status == nil || status.Context == nil || !proto.Equal(status.Context.Identity, ...");

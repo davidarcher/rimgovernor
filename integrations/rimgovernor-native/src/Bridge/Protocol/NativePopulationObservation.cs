@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     // colony/upkeep census NativeUpkeepFacts populates has no guest section --
     // so this is the one native read the routine planner needs to detect and
     // select a prisoner-interaction write. Single complete page, like
-    // ReadStatus/ReadHusbandry/ReadPrisonerInteraction; a paginated population
+    // ReadStatus/ReadPrisonerInteraction; a paginated population
     // is deferred to whatever candidate search eventually needs one.
     internal static class NativePopulationObservation
     {

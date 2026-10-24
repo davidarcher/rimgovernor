@@ -101,7 +101,7 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
     private async Task GrantAsync(CancellationToken ct)
     {
         var read = await CallAsync("acquire-status", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = Identity }, ct).ConfigureAwait(false);
-        var generation = read.Outcome?.Status?.Context?.NativeGeneration ?? throw new InvalidOperationException($"acquire-status: no native generation: {read}");
+        var generation = read.Context?.NativeGeneration ?? throw new InvalidOperationException($"acquire-status: no native generation: {read}");
         var granted = await CallAsync("acquire", NativeOps.ControlAuthority, new Control.ControlRequest
         {
             Operation = new Control.SetMode { Identity = Identity, ExpectedGeneration = generation, Mode = Control.Mode.Auto },

@@ -146,13 +146,13 @@ public interface IColonyStatusReader
 /// <summary>Validated fixed native presentation reads; owns no input capability. A native failure is thrown.</summary>
 public interface IPresentationReader
 {
-    Task<CameraReply> ReadCameraAsync(ReadRequest request, CancellationToken cancellationToken);
+    Task<CameraState> ReadCameraAsync(ReadRequest request, CancellationToken cancellationToken);
 
-    Task<SelectionReply> ReadSelectionAsync(ReadRequest request, CancellationToken cancellationToken);
+    Task<SelectionSnapshot> ReadSelectionAsync(ReadRequest request, CancellationToken cancellationToken);
 
     Task<ColonistRosterReply> ReadColonistRosterAsync(ColonistRosterRequest request, CancellationToken cancellationToken);
 
-    Task<RenderReply> ReadRenderStateAsync(ReadRequest request, CancellationToken cancellationToken);
+    Task<RenderStatus> ReadRenderStateAsync(ReadRequest request, CancellationToken cancellationToken);
 }
 
 /// <summary>The one active presentation capture the player API serves: a rendering lease. A native failure is thrown.</summary>
@@ -164,7 +164,7 @@ public interface IPresentationMediaWriter
 /// <summary>Notification reads preserve unavailable sections and grant no acknowledgement. A native failure is thrown.</summary>
 public interface INotificationReader
 {
-    Task<NotificationsReply> ReadNotificationsAsync(NotificationsRequest request, CancellationToken cancellationToken);
+    Task<NotificationsSnapshot> ReadNotificationsAsync(NotificationsRequest request, CancellationToken cancellationToken);
 }
 
 /// <summary>

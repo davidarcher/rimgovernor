@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Wl = RimGovernor.Contracts.Wire.Lifecycle;
@@ -14,18 +15,30 @@ public sealed partial class Harness
     public async Task<ulong> TickAsync(CancellationToken cancellationToken) =>
         (ulong)Context(await LoadedAsync("tick", cancellationToken).ConfigureAwait(false), "tick").Tick;
 
-    /// <summary>lifecycle_read_identity's <c>loaded</c> arm; any other arm fails <paramref name="label"/> with the reply.</summary>
+    /// <summary>lifecycle_read_identity's loaded identity; an unavailable game fails <paramref name="label"/> with its reason.</summary>
     public async Task<Wl.LoadedIdentity> LoadedAsync(string label, CancellationToken cancellationToken)
     {
-        var reply = await CallAsync(label, NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Loaded ?? throw new AcceptanceException($"{label}: {NativeOps.ReadIdentity.Name} is not loaded: {WireJson.Serialize(reply)}");
+        try
+        {
+            return await CallAsync(label, NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        }
+        catch (BridgeUnavailableException e)
+        {
+            throw new AcceptanceException($"{label}: {NativeOps.ReadIdentity.Name} is not loaded: {e.Message}", e);
+        }
     }
 
-    /// <summary>lifecycle_read_tick's <c>loaded</c> arm; any other arm fails <paramref name="label"/> with the reply.</summary>
+    /// <summary>lifecycle_read_tick's loaded tick; an unavailable game fails <paramref name="label"/> with its reason.</summary>
     public async Task<Wl.LoadedTick> LoadedTickAsync(string label, CancellationToken cancellationToken)
     {
-        var reply = await CallAsync(label, NativeOps.ReadTick, new Wl.TickRequest(), cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Loaded ?? throw new AcceptanceException($"{label}: {NativeOps.ReadTick.Name} is not loaded: {WireJson.Serialize(reply)}");
+        try
+        {
+            return await CallAsync(label, NativeOps.ReadTick, new Wl.TickRequest(), cancellationToken).ConfigureAwait(false);
+        }
+        catch (BridgeUnavailableException e)
+        {
+            throw new AcceptanceException($"{label}: {NativeOps.ReadTick.Name} is not loaded: {e.Message}", e);
+        }
     }
 
     /// <summary>

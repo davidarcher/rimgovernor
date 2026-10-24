@@ -5,7 +5,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>animals/containment</c>: a handler ropes an uncontained pen animal into a standing pen, and the husbandry read then
+/// <c>animals/containment</c>: a handler ropes an uncontained pen animal into a standing pen, and the pawn read's animal details then
 /// shows it contained with a pen id; the colony facts' upkeep census reads a pet as not requiring a pen, with none. The pen
 /// is staged finished (the 8-day build the old case played is construction, covered elsewhere).
 /// </summary>
@@ -19,7 +19,7 @@ internal static class AnimalsContainment
     {
         Name = "animals/containment",
         Scope = "Over a staged finished 6x6 WoodLog Fence ring with a FenceGate and a PenMarker, a colonist on Handling ropes a "
-            + "staged uncontained player Cow into the pen: observations_read_husbandry reads it Contained with a pen id and no "
+            + "staged uncontained player Cow into the pen: observations_list_pawns animal details read it Contained with a pen id and no "
             + "release or slaughter designation, and observations_read_colony_facts' upkeep animals read the staged Husky "
             + "RequiresPen=false with no pen.",
         Ticks = 15000,
@@ -78,9 +78,10 @@ internal static class AnimalsContainment
         Observations.AnimalState? cow = null;
         _ = await s.RunUntilAsync("roped-in", s.TicksLeft, async ct =>
         {
-            var reply = await s.CallAsync("husbandry", NativeOps.ReadHusbandry, new Observations.HusbandryRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-            cow = TypedReads.Observed("husbandry", NativeOps.ReadHusbandry, reply, reply.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == cowId)?.Animal
-                ?? throw new AcceptanceException($"husbandry: the staged cow {cowId} is not in the census");
+            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [cowId] }, Details = new Observations.PawnDetails { Animals = true } };
+            var reply = await s.CallAsync("cow-animal", NativeOps.ListPawns, request, ct).ConfigureAwait(false);
+            cow = TypedReads.Observed("cow-animal", NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns.FirstOrDefault(p => p.Pawn?.Id == cowId)?.AnimalState
+                ?? throw new AcceptanceException($"cow-animal: the staged cow {cowId} has no animal details");
             return (Wait.Signature(cow.Contained, cow.PenId), cow is { Contained: true, PenId.Length: > 0 });
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("cow", cow);

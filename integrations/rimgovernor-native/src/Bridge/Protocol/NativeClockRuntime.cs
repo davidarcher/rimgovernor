@@ -10,6 +10,7 @@ using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Authority = RimGovernor.Contracts.Wire.Authority;
@@ -95,14 +96,15 @@ namespace HomeBridge.BridgeTools
         /// the review tick in place. Idempotent. Refused while a long event or a
         /// force-pausing window holds the game. The segment holds for Review on
         /// the first tick at or past the request's hold tick (TickBody).
-        internal static Clock.StatusReply TypedRun(Clock.RunRequest request, Common.ObservationContext context)
+        internal static Clock.Status TypedRun(Clock.RunRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
                 var typed = new TypedEpoch(context, request.ExpectedGeneration.GetValueOrDefault(), request.Policy ?? throw new InvalidOperationException("Missing policy"));
                 var holdAt = (int)Math.Min(request.HoldAtTick.GetValueOrDefault(), int.MaxValue);
                 var failure = RunClock(typed, request.Speed.GetValueOrDefault(), request.PlannedHoldSerial.GetValueOrDefault(), holdAt);
-                return new Clock.StatusReply { Outcome = failure != null ? failure : (Clock.StatusReplyOutcome)TypedStatus(context) };
+                if (failure != null) throw NativeFaults.Refused(failure);
+                return TypedStatus(context);
             }
         }
 

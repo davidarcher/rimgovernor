@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -29,11 +30,10 @@ namespace HomeBridge.BridgeTools
         private static readonly FieldInfo? ActiveAlertsField = BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
 
-        internal static Presentation.NotificationsReply HandleNotifications(Presentation.NotificationsRequest request)
+        internal static Presentation.NotificationsSnapshot HandleNotifications(Presentation.NotificationsRequest request)
         {
-            if (!Validate(request, out var failure0)) return new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(failure0) };
-            if (!ProtoBoundary.ValidateIdentity(request.Identity, out var context, out var error))
-                return new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(error) };
+            if (!Validate(request, out var failure0)) throw NativeFaults.Refused(failure0);
+            if (!ProtoBoundary.ValidateIdentity(request.Identity, out var context, out var error)) throw NativeFaults.Refused(error);
             try
             {
                 var snapshot = new Presentation.NotificationsSnapshot { Context = context };
@@ -46,12 +46,12 @@ namespace HomeBridge.BridgeTools
                 if (request.IncludeAlerts ?? true)
                     snapshot = snapshot with { Alerts = Section(() => ReadAlerts(Limit(request.AlertLimit, DefaultAlertLimit)),
                         (Presentation.Alerts v) => new Presentation.AlertSection { Outcome = v }, u => new Presentation.AlertSection { Outcome = u }) };
-                return new Presentation.NotificationsReply { Outcome = snapshot };
+                return snapshot;
             }
             catch (Exception)
             {
-                return new Presentation.NotificationsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
-                    "Native notifications could not be read completely.") };
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.Unavailable,
+                    "Native notifications could not be read completely."));
             }
         }
 

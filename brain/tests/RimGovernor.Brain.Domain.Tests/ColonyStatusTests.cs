@@ -46,8 +46,8 @@ public sealed class ColonyStatusTests
 
     private sealed class Native(params PawnState[] roster) : IColonyStatusNative
     {
-        public Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.IdentityReply { Loaded = new PbLifecycle.LoadedIdentity { Context = Context } });
+        public Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
+            Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context });
 
         public Task<ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct) =>
             Task.FromResult(new ColonyFactsReply { Outcome = new ColonyFactsSnapshot { Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) } });

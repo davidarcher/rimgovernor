@@ -31,8 +31,7 @@ wait. The creation-time ideoligion choice reads no stats and uses `DefStatTable.
 
 The values are taken as fixed for a load: stat parts read the scenario and difficulty of the loaded game, so a new
 load rebuilds the table. Stats that depend on a live thing or pawn are not in the table: the brain reads them from
-the snapshot frame (pawn, room and building rows), and the acceptance stat tool (`NativeStatTool`) evaluates a live
-thing or pawn on the game thread through its own hop.
+the snapshot frame (pawn, room and building rows).
 
 ## Failures
 

@@ -541,9 +541,7 @@ public sealed class GameReuse : IAsyncDisposable
         var identity = context.Identity;
         var scope = new Wo.ReadScope { ExpectedIdentity = identity };
 
-        var statusReply = await h.CallAsync(label + "-authority", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        var status = statusReply.Outcome?.Status
-            ?? throw new AcceptanceException($"{label}-authority: {NativeOps.ReadAuthorityStatus.Name}: {WireJson.Serialize(statusReply)}");
+        var status = await h.CallAsync(label + "-authority", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
 
         var pawnsReply = await h.CallAsync(
             label + "-pawns",

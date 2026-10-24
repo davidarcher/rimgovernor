@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>husbandry/dispatch</c>: every direct-write animal order (train, slaughter, tame, release, allowed area, master,
 /// following and the designation cancels) is one HusbandryIntent on <c>operations_apply</c>, an immediate settings write
-/// with no native job, so the case reads each back at once through <c>observations_read_husbandry</c>. The bespoke
+/// with no native job, so the case reads each back at once through <c>observations_list_pawns</c> with animal details. The bespoke
 /// <c>test/husbandry_setup</c> prepares the herd: a one-step-short trainable, a pregnant mother, a slaughterable cow, a
 /// releasable father, a factionless tameable muffalo, an obedient guard and an allowed area are not stage primitives.
 /// </summary>
@@ -23,9 +23,9 @@ internal static class HusbandryDispatch
         Name = "husbandry/dispatch",
         Scope = "HusbandryIntents on operations_apply over the test/husbandry_setup herd: train, slaughter, tame, release, allowed "
             + "area (set and clear), master, follow-drafted, follow-fieldwork and the slaughter/release cancels apply and read back "
-            + "at once through observations_read_husbandry (no native job), resends apply again, and taming a player animal, "
-            + "an untrained master or follow and a missing area refuse by code; the wild muffalo is in the includeWild read and "
-            + "the colony facts' wild census only.",
+            + "at once through observations_list_pawns animal details (no native job), resends apply again, and taming a player animal, "
+            + "an untrained master or follow and a missing area refuse by code; the wild muffalo is in the colony facts' wild "
+            + "census only.",
         Ticks = 0,
         Tier = CaseTier.Smoke,
         Ops = [Setup.Tool],
@@ -44,14 +44,13 @@ internal static class HusbandryDispatch
         s.Record("fixture", ServedOps.Json(herd));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<Observations.AnimalState?> FindAsync(string label, string id, bool includeWild)
+        async Task<Observations.AnimalState> AnimalAsync(string label, string id)
         {
-            var reply = await s.CallAsync(label, NativeOps.ReadHusbandry, new Observations.HusbandryRequest { Scope = s.Scope, IncludeWild = includeWild ? true : null }, cancellationToken).ConfigureAwait(false);
-            return TypedReads.Observed(label, NativeOps.ReadHusbandry, reply, reply.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == id)?.Animal;
+            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] }, Details = new Observations.PawnDetails { Animals = true } };
+            var reply = await s.CallAsync(label, NativeOps.ListPawns, request, cancellationToken).ConfigureAwait(false);
+            return TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns.FirstOrDefault(p => p.Pawn?.Id == id)?.AnimalState
+                ?? throw new AcceptanceException($"{label}: animal {id} has no animal details");
         }
-
-        async Task<Observations.AnimalState> AnimalAsync(string label, string id, bool includeWild = false) =>
-            await FindAsync(label, id, includeWild).ConfigureAwait(false) ?? throw new AcceptanceException($"{label}: animal {id} not in the husbandry census");
 
         async Task<Operations.ActionResultOutcome?> ApplyAsync(string key, Operations.HusbandryIntent intent)
         {
@@ -118,9 +117,8 @@ internal static class HusbandryDispatch
         cow = await AnimalAsync("cow-after-slaughter", herd.Cow).ConfigureAwait(false);
         Want(cow.Slaughter, "cow-after-slaughter: want the designation observable", cow);
 
-        // Tame: the factionless muffalo is only in the includeWild read and the wild census.
-        Want(await FindAsync("wild-plain-read", herd.Wild, false).ConfigureAwait(false) is null, "wild-plain-read: a factionless animal is in the player herd read", herd.Wild);
-        var wild = await AnimalAsync("wild-before", herd.Wild, includeWild: true).ConfigureAwait(false);
+        // Tame: the factionless muffalo is only in the colony facts' wild census.
+        var wild = await AnimalAsync("wild-before", herd.Wild).ConfigureAwait(false);
         Want(wild is { Tameable: true } && wild.Tame != true, "wild-before: want a tameable, undesignated muffalo", wild);
         var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var upkeep = TypedReads.Observed("colony-facts-wild", NativeOps.ReadColonyFacts, factsReply, factsReply.Outcome?.Observed).Upkeep?.Outcome
@@ -134,7 +132,7 @@ internal static class HusbandryDispatch
             Want(effect.TameDesignated == true, $"{key}: want a tame designation", effect);
         }
 
-        wild = await AnimalAsync("wild-after-tame", herd.Wild, includeWild: true).ConfigureAwait(false);
+        wild = await AnimalAsync("wild-after-tame", herd.Wild).ConfigureAwait(false);
         Want(wild is { Tame: true } && wild.Tameable != true, "wild-after-tame: want the designation observable and no longer a candidate", wild);
 
         // Release on the unbonded, unmastered father.

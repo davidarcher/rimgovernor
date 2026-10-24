@@ -121,13 +121,11 @@ public static class RunAt
     public static async Task<IReadOnlyList<Wp.Letter>> ReadLettersAsync(Harness h, string label, Common.Identity? identity, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
-        var reply = await h.CallAsync(
+        var snapshot = await h.CallAsync(
             label + "-letters",
             NativeOps.ReadNotifications,
             new Wp.NotificationsRequest { Identity = identity, IncludeMessages = false, IncludeAlerts = false },
             cancellationToken).ConfigureAwait(false);
-        var snapshot = reply.Outcome?.Notifications
-            ?? throw new AcceptanceException($"{label}: {NativeOps.ReadNotifications.Name}: {WireJson.Serialize(reply)}");
         var observed = snapshot.Letters?.Outcome?.Observed
             ?? throw new AcceptanceException($"{label}: letter section not observed: {WireJson.Serialize(snapshot)}");
         return [.. observed.Items];

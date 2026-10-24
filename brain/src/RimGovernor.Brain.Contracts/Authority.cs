@@ -115,36 +115,6 @@ public sealed record StatusRequest
     public Common.Identity? Identity { get; init; }
 }
 
-public sealed record StatusReply
-{
-    public StatusReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="StatusReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(StatusReplyOutcome.StatusCase), "status")]
-[JsonDerivedType(typeof(StatusReplyOutcome.FailureCase), "failure")]
-public abstract record StatusReplyOutcome
-{
-    private protected StatusReplyOutcome() { }
-
-    /// <summary>The <c>Status</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Status? Status => (this as StatusCase)?.Value;
-
-    public sealed record StatusCase(Status Value) : StatusReplyOutcome;
-
-    public static implicit operator StatusReplyOutcome(Status value) => new StatusCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : StatusReplyOutcome;
-
-    public static implicit operator StatusReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
 /// <summary>
 /// SetMode is the only way to change authority explicitly. Auto grants the bot
 /// authority outright; Manual revokes it. There is no acquire/renew handshake.

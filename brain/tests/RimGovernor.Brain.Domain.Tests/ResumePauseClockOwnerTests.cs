@@ -49,11 +49,8 @@ public sealed class ResumePauseClockOwnerTests
 
         public bool Held { get; private set; } = true;
 
-        public Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.IdentityReply { Loaded = new PbLifecycle.LoadedIdentity { Context = Context, Paused = Held } });
-
-        public Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken ct) =>
-            Task.FromResult(new PbClock.StatusReply { Outcome = new PbClock.StatusReplyOutcome.StatusCase(Status()) });
+        public Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
+            Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context, Paused = Held });
 
         public Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct)
         {

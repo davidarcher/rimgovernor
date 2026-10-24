@@ -21,13 +21,13 @@ public sealed partial class FacadeNativeClient
     };
 
     /// <summary>The loaded identity.</summary>
-    internal Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken cancellationToken) =>
+    internal Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken) =>
         Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken);
 
     /// <summary>
     /// The bare observation scope, the identity's context and pause state.
     /// </summary>
-    internal Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken) =>
+    internal Task<PbLifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken) =>
         Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken);
 
     /// <summary>The colony census: the planning form from the newest frame, the other form read live.</summary>
@@ -53,20 +53,14 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken cancellationToken)
     {
-        var tick = await TickAsync(cancellationToken).ConfigureAwait(false);
-        var outcome = tick.Outcome;
-        if (outcome.Unavailable is { } tickUnavailable)
-        {
-            throw Unavailable(tickUnavailable);
-        }
-        var loaded = outcome.Loaded!;
+        var loaded = await TickAsync(cancellationToken).ConfigureAwait(false);
         var identity = loaded.Context!.Identity!;
         var step = new PbObservations.BundleSnapshot { Context = loaded.Context };
         if (request.ClockStatus)
         {
             try
             {
-                step = step with { ClockStatus = await ReadOwnedClockStatusAsync(identity, cancellationToken).ConfigureAwait(false) };
+                step = step with { ClockStatus = await ReadClockStatusAsync(identity, cancellationToken).ConfigureAwait(false) };
             }
             catch (BridgeUnavailableException)
             {
