@@ -773,6 +773,59 @@ public sealed class PlannedRoomActivitiesTests
         };
     }
 
+    /// <summary>
+    /// #3802: the kitchen credit's facts as the round fills them. The layout's kitchen (its meals), native's room prediction,
+    /// the catalog's filth model and the coupled read's cooking benches and their rooms' chance reach the context through
+    /// GenerateCoupledActivities; a kitchen served there is credited. Without a bench that cooks now, as on a fresh colony,
+    /// the cook's current room is unknown and the kitchen is named unassessed, nothing thrown.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AKitchensCreditReadsItsFactsAsTheRoundFillsThem(bool cooking)
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 60, count: 10, available: 50)]);
+        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p with
+        {
+            Consciousness = Known(1d), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d), FoodPoisoningSeverity = Known(0d),
+        });
+        var coupled = facts.ForecastObserved.Coupled! with
+        {
+            Support = new() { Known = true, Demands = [new("campfire", "bench", "campfire", new(1, 1), .02, Known(0d))] },
+            FoodConversions = cooking ? [new("rice", Pawn, "campfire", "CookMeal", "Rice", 4, "Meal", 1,
+                new(1, 1), new(1, 1), new(1, 1), Known(0d), Known(1d), Known(10d), Known(1d), 4, 4)
+                { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }] : [],
+        };
+        facts = facts with
+        {
+            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Kitchen)] }),
+            PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Kitchen, Meals = 6,
+                Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
+            PlannedRoomPredictions = Known(EquatableArray.From([new PlannedRoomPrediction("1", "WoodLog", "Kitchen", Known(30d), Known(2), 9, 0, false) { Cleanliness = -1 }])),
+            Filth = BedStationPriceTests.Filth,
+            CapacityPenalties = ForecastValueTests.Tables(),
+            ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) }, Coupled = coupled },
+        };
+        var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced().Context with { InvestmentHorizonDays = 10 };
+        Assert.Equal(6, context.LayoutRooms[1].Meals);
+        Assert.Equal(cooking ? ["campfire"] : [], context.CookingBenches.ToArray());
+        Assert.Equal(BedStationPriceTests.Filth, context.Filth);
+        Assert.Contains(context.Closures, c => c.Room == 1 && c.Prediction.Role == "Kitchen");
+
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        {
+            [Pawn] = new([], default, default, new(new(Pawn, "", default, default), []), []),
+        }, []) { ServedRooms = [new(1, "WoodLog", 0)] };
+        var ledger = ForecastValue.Of(outcome, context, GameTime.TicksPerDay);
+        var rows = ledger.InvestmentContributions.Where(r => r.Key == PlannedRoomCredits.Key(PlannedRole.Kitchen, 1, KitchenCredits.Poisoning)).ToArray();
+        if (cooking) Assert.True(Assert.Single(rows).Value < 0, string.Join(";", ledger.Findings));
+        else
+        {
+            Assert.Empty(rows);
+            Assert.Contains("kitchen_credit_unassessed:1", ledger.Findings);
+        }
+    }
+
     private static IEnumerable<ForecastInvestmentContribution> BedroomCredits(ForecastCoupledSelection result) =>
         result.SelectedVector.Value.Ledger.InvestmentContributions.Where(c => c.Key.StartsWith("bedroom/", StringComparison.Ordinal));
 

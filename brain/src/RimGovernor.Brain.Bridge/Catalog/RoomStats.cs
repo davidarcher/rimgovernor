@@ -99,6 +99,7 @@ public sealed partial class DefinitionCatalog
             Poisoning = PoisoningModel(),
             Cleanliness = blood.statBases.Seq().LastOrDefault(modifier => modifier.stat?.defName == StatNames.Cleanliness)?.value ?? 0,
             FoodPoison = [.. stat.curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []],
+            FoodPoisonRoomless = stat.roomlessScore,
             CleaningWork = blood.filth?.cleaningWorkToReduceThickness ?? 0,
             CleaningSpeed = DefRow<StatDef>(P.LayoutFilthRules.FilthGameTable().SpeedStat)?.defaultBaseValue ?? 0,
             StandTicks = GameConstants.MinTicksSinceThickened,

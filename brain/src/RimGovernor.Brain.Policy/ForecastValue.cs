@@ -299,10 +299,8 @@ public static partial class ForecastValue
         var poisoning = default(Fact<double>);
         if (!index.FoodPoisoning || tables.MovingMinForCapable is not { } poisonMoving)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.FoodPoisoning));
-        else if (!outcome.Support.FoodPoisonExposure.TryGetValue(out var cases))
-            findings.Add("food_poison_exposure_unassessed");
-        else
-            poisoning = FoodPoisoningLoss(cases, pawns, observed, tables.FoodPoisoning, poisonMoving, horizon, findings);
+        else if (PoisoningCaseLoss(pawns, observed, tables.FoodPoisoning, poisonMoving, horizon, findings) is { } perCase)
+            poisoning = Known(outcome.Support.FoodPoisonExposure * perCase);
 
         var thermal = default(Fact<double>);
         if (!index.Thermal || tables.MovingMinForCapable is not { } thermalMoving)
@@ -680,28 +678,42 @@ public static partial class ForecastValue
     }
 
     /// <summary>
-    /// The expected cases times the capability-days one case loses: its severity starts at the def's initial severity and
-    /// follows the SeverityPerDay comp until it is gone, the Disappears comp's mean ends it, or the horizon does. The case
-    /// lands on one of the colony's pawns, unknown which, so it is the mean over them; it is counted from the horizon's
-    /// start, as the meal that causes it is not placed.
+    /// The price of one poisoned meal in <paramref name="outcome"/> over <paramref name="horizon"/> ticks (#3802), as the
+    /// ledger's poisoning term prices each expected case (<see cref="PoisoningCaseLoss"/>). Null when the poisoning table, the
+    /// pawns or a pawn's capacities are unread.
     /// </summary>
-    private static Fact<double> FoodPoisoningLoss(double cases, KeyValuePair<string, ForecastNeedsResult>[] pawns,
+    internal static double? PoisoningPrice(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    {
+        var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+        if (!index.FoodPoisoning || context.CapacityPenalties.MovingMinForCapable is not { } moving) return null;
+        var pawns = outcome.Needs.ToArray();
+        Array.Sort(pawns, static (a, b) => string.CompareOrdinal(a.Key, b.Key));
+        return PoisoningCaseLoss(pawns, index.Pawns, context.CapacityPenalties.FoodPoisoning, moving, horizon, new SortedSet<string>(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// The capability-days one poisoning case loses: its severity starts at the def's initial severity and follows the
+    /// SeverityPerDay comp until it is gone, the Disappears comp's mean ends it, or the horizon does. The case lands on one
+    /// of the colony's pawns, unknown which, so it is the mean over them; it is counted from the horizon's start, as the
+    /// meal that causes it is not placed. Null, with its finding, without pawns or with a pawn's capacities unobserved.
+    /// </summary>
+    private static double? PoisoningCaseLoss(KeyValuePair<string, ForecastNeedsResult>[] pawns,
         Dictionary<string, ObservedPawn> observed, HediffPenaltyTable table, double movingMin, double horizon, SortedSet<string> findings)
     {
-        if (pawns.Length == 0) { findings.Add("food_poisoning_unassessed:no_pawns"); return default; }
+        if (pawns.Length == 0) { findings.Add("food_poisoning_unassessed:no_pawns"); return null; }
         var length = table.DisappearsAfterTicks is { } gone ? Math.Min(horizon, (gone.Min + gone.Max) / 2) : horizon;
         double sum = 0;
         foreach (var (pawn, _) in pawns)
         {
             if (!observed.TryGetValue(pawn, out var seen) || seen.Levels is not { } levels)
-            { findings.Add("capacities_unobserved:" + pawn); return default; }
+            { findings.Add("capacities_unobserved:" + pawn); return null; }
             // The pawn's own current poisoning, if any, is the stage its capacities already carry.
             var course = new Course(table, levels, movingMin, seen.Pawn.FoodPoisoningSeverity.ValueOrDefault) { Severity = table.InitialSeverity };
             course.Advance(length, table.SeverityPerDay ?? 0);
             course.Report(pawn, findings);
             sum += course.LostTicks / GameTime.TicksPerDay;
         }
-        return Known(cases * sum / pawns.Length);
+        return sum / pawns.Length;
     }
 
     /// <summary>The pawn's five observed capacity levels, in <see cref="Capacities"/> order; null when any is unobserved.</summary>

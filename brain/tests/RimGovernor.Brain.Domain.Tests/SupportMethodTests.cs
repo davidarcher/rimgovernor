@@ -44,12 +44,12 @@ public sealed class SupportMethodTests
         ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
 
     [Fact]
-    public void UnknownBenchFoodPoisonRiskStaysUnknown()
+    public void ACookedMealIsExposedToItsBenchRoomsPoisonChance()
     {
-        var read = new SupportActivityRead { Known = true, Demands = [new("bench", "bench", "bench", new(1, 1), default, Known(0d))] };
+        var read = new SupportActivityRead { Known = true, Demands = [new("bench", "bench", "bench", new(1, 1), .02, Known(0d))] };
         var facts = Facts(read, true); var result = Select(facts);
         Assert.Contains(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);
-        Assert.Contains(result.SelectedVector.Unknown, f => f.StartsWith("food_poison_effect_unknown:"));
+        Assert.Equal(.02, result.SelectedVector.Support.FoodPoisonExposure, 9);
     }
 
     [Fact]

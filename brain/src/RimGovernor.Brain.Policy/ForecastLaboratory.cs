@@ -31,7 +31,7 @@ internal static class ForecastLaboratory
         try
         {
             if (!Wire.TryParse<RoomRole>(closure.Prediction.Role, out var role)) return null;
-            var closed = BenchRoom.Closed(role, PlannedRoomCleanlinessRules.Steady(closure.Prediction, planned, context.Filth));
+            var closed = BenchRoom.Closed(role, PlannedRoomCleanlinessRules.Steady(closure.Prediction, planned.FilthRuns.Values, context.Filth).Dirty);
             var benches = context.Needs.ResearchBenches.GroupBy(b => b.Bench, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
             var standing = benches.Values.Where(b => closure.Interior.Contains(b.Position)).Select(b => b.Bench).ToHashSet(StringComparer.Ordinal);
             // With none standing in the room, its planned bench placed outdoors is what the room changes.

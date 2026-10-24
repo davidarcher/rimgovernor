@@ -171,6 +171,9 @@ public sealed record RoomGroup
     /// <summary>Each filthy node's butchering load in the group (GroupEval.Runs), by node id; the tiler keeps it on the room (PlannedRoom.FilthRuns).</summary>
     public IReadOnlyDictionary<string, FilthRuns> FilthRuns { get; set; } = new Dictionary<string, FilthRuns>();
 
+    /// <summary>The meals a day the group's exposed stations make (GroupEval.Meals); the tiler keeps it on the room (PlannedRoom.Meals).</summary>
+    public double Meals { get; set; }
+
     /// <summary>
     /// Counts the door each required link opens: tiling opens a door on every adjacent required pair, and a
     /// door keeps the cell inside it clear, so the group's floor grows by one threshold per required link
@@ -721,6 +724,7 @@ public static partial class LayoutClusterRules
                 Filth = e.FilthCosts,
                 Cleaning = e.Cleaning,
                 FilthRuns = new Dictionary<string, FilthRuns>(e.Runs, StringComparer.Ordinal),
+                Meals = e.Meals,
             };
             var byNode = new Dictionary<int, int>();
             foreach (var m in members[r]!)

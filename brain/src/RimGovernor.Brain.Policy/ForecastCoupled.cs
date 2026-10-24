@@ -89,14 +89,18 @@ public sealed record ForecastCoupledContext
     /// (#3807, RoundsSleepingUpkeepPlanner.PlannedOccupantsOf); a room without a row serves no title and earns no credit.</summary>
     public IReadOnlyDictionary<int, RoyalRoomNeed> RoyalRooms { get; init; } = new Dictionary<int, RoyalRoomNeed>();
     /// <summary>The layout plan's rooms by id (RoundsFacts.PlannedShelters, #3800): what a planned room's predicted
-    /// cleanliness reads beside its closure prediction (PlannedRoomCleanlinessRules.Steady).</summary>
+    /// cleanliness reads beside its closure prediction (PlannedRoomCleanlinessRules.Steady); the kitchen and butchery credits
+    /// read their stations' meals and filth runs (#3802).</summary>
     public IReadOnlyDictionary<int, PlannedRoom> LayoutRooms { get; init; } = new Dictionary<int, PlannedRoom>();
-    /// <summary>The catalog's filth model (RoundsFacts.Filth) a planned room's predicted cleanliness reads (#3797, #3800).</summary>
+    /// <summary>The catalog's filth model (RoundsFacts.Filth) a planned room's predicted cleanliness and its poisoning chance read (#3797, #3800, #3802).</summary>
     public FilthModel Filth { get; init; } = new();
     /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (RoundsFacts.ResearchBenchSpeeds, #3800).</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
+    /// <summary>The benches the colony cooks at now (the coupled food read's conversion benches, #3802): the kitchen credit's
+    /// current room is theirs (SupportDemand.FoodPoisonChance of their bench demands).</summary>
+    public EquatableArray<string> CookingBenches { get; init; }
     /// <summary>The days a served room's credit runs to (#3655, #3796): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
     /// set beside <see cref="Investment"/>; 0 before tier 2 ran, which credits nothing.</summary>
     public double InvestmentHorizonDays { get; init; }

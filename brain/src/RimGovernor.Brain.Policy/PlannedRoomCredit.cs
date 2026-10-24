@@ -35,7 +35,7 @@ public static class PlannedRoomCredits
 {
     /// <summary>The shipped credits: Bedroom by its occupant's mood gain (#3655), Barracks by each sleeper's (#3658), Lab by
     /// the research speed its room gives the bench (#3800), Throne and Suite by the title room thoughts their colonist loses once
-    /// the room meets its title's requirement (#3807).</summary>
+    /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -43,6 +43,8 @@ public static class PlannedRoomCredits
         [PlannedRole.Lab] = ForecastLaboratory.LaboratoryCredit,
         [PlannedRole.Throne] = ForecastHousing.RoyalRoomCredit,
         [PlannedRole.Suite] = ForecastHousing.RoyalRoomCredit,
+        [PlannedRole.Kitchen] = KitchenCredits.KitchenCredit,
+        [PlannedRole.Butchery] = KitchenCredits.ButcheryCredit,
     };
 
     /// <summary>
@@ -128,7 +130,8 @@ public static class PlannedRoomCredits
         foreach (var item in context.RoomItems) Finished(item.Item, item.Finishes);
         var sites = context.PlannedSites.ToLookup(s => s.Room);
         var items = context.RoomItems.SelectMany(i => i.Rooms.Select(r => (Room: r, i.Item))).ToLookup(p => p.Room, p => p.Item);
-        var closures = context.Closures.ToLookup(c => c.Room);
+        // A prediction without ring work (a kitchen's, read for its cleanliness, #3802) closes nothing and names no stuff.
+        var closures = context.Closures.Where(c => c.Ring.Count + c.Placed.Count > 0).ToLookup(c => c.Room);
         Way[] OwnWays(int room)
         {
             var stuffs = closures[room].Any() ? closures[room].Select(c => c.Stuff).Distinct().ToArray()

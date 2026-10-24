@@ -45,7 +45,7 @@ public sealed class ForecastNeedThoughtTests
 
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs) =>
         new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
-        { Support = new() { FoodPoisonExposure = Known(0d) }, ThermalExposure = [new("pawn", H, 0, 0, 0)] };
+        { Support = new() { FoodPoisonExposure = 0 }, ThermalExposure = [new("pawn", H, 0, 0, 0)] };
 
     [Fact]
     public void TheFoodThoughtFollowsTheNeedsTimelineStageByStage()

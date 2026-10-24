@@ -44,7 +44,8 @@ public static partial class PlannedRules
     /// <summary>
     /// The closed-room predictions one round asks native for (#3339): every enclosed planned room that still owes a wall or
     /// door site, or a standing one offered a wall swap (#3657), or whose ring a placed blueprint or frame stands on (#3537),
-    /// once per ring stuff (PlannedRoomAlternatives' stuffs), its interior the room's region and its pieces the cells of its
+    /// and every kitchen, whose predicted cleanliness the kitchen and butchery credits read even when it owes only floor or
+    /// nothing (#3802), once per ring stuff (PlannedRoomAlternatives' stuffs), its interior the room's region and its pieces the cells of its
     /// wall, door and swap sites in that stuff (a stuff-less ring site in every stuff) and of its placed ring sites
     /// (<see cref="PlacedRing"/>, in their own stuff), plus in every stuff the cells of its FloorIn sites with their terrain
     /// (#3797), which native counts in the room's Cleanliness only; native counts a piece in place of what stands on its
@@ -62,7 +63,7 @@ public static partial class PlannedRules
         {
             var ring = closing[room.Id].ToList();
             var placedRing = PlacedRing(room, standing);
-            if (ring.Count == 0 && placedRing.Count == 0) continue;
+            if (ring.Count == 0 && placedRing.Count == 0 && room.Role != PlannedRole.Kitchen) continue;
             var interior = EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z));
             foreach (var stuff in RingStuffs(ring))
             {

@@ -54,6 +54,13 @@ public sealed partial record PlannedRoom
     /// </summary>
     public IReadOnlyDictionary<string, FilthRuns> FilthRuns { get; init; } = new Dictionary<string, FilthRuns>();
 
+    /// <summary>
+    /// The meals a day the stations of the room's station group make whose effect reads the room's cleanliness (RoomGroup.Meals,
+    /// #3802), set by the tiler on every replan; 0 for a room that cooks nothing. The kitchen and butchery credits price the
+    /// poisoning of these meals (KitchenCredits).
+    /// </summary>
+    public double Meals { get; init; }
+
     /// <summary>The herd a pen belongs to: the race of its unit, empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = "";
 

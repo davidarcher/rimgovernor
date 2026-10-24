@@ -756,7 +756,8 @@ definition, stuff) the planned wall and door sites would build, plus one piece p
 cell of the room's planned `FloorIn` sites (the floor's `TerrainDef`, no stuff, in
 every ring stuff, #3797). Rounds ask it in the
 same read as the thermal read, for every enclosed unplaced planned room with ring
-sites, once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
+sites, and every planned kitchen even with none (its cleanliness is priced, #3802; a
+ringless prediction owes no work), once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
 `ConstructionActivityRead.RoomPredictions` answers one `PlannedRoomPrediction` per
 shape:
 

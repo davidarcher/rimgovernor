@@ -130,7 +130,7 @@ internal static class NativeSupportActivities
         string AddRoom(Thing target, IntVec3 location, string kind, string suffix = "")
         {
             var id = kind + ":" + target.GetUniqueLoadID() + (suffix.Length == 0 ? "" : ":" + suffix); var room = location.GetRoom(map);
-            var poison = room == null ? Fact.Known((double)RoomStatDefOf.FoodPoisonChance.roomlessScore) : Fact.Known((double)room.GetStat(RoomStatDefOf.FoodPoisonChance));
+            var poison = room == null ? (double)RoomStatDefOf.FoodPoisonChance.roomlessScore : (double)room.GetStat(RoomStatDefOf.FoodPoisonChance);
             var surgeryFactor = DefDatabase<RoomStatDef>.GetNamedSilentFail("SurgerySuccessChanceCleanlinessFactor");
             demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), poison,
                 target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default)

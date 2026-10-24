@@ -397,7 +397,7 @@ Contracts/RecipeActivities.cs|Fact|7
 Contracts/ResearchActivities.cs|Fact|1
 Contracts/SkillLearning.cs|Fact|24
 Contracts/SowingActivities.cs|Fact|2
-Contracts/SupportActivities.cs|Fact|11
+Contracts/SupportActivities.cs|Fact|10
 Contracts/SupportActivities.cs|NullableValue|1
 Domain/Actions/Ability.cs|Discard|2
 Domain/Actions/Acquisition.cs|Discard|1
@@ -840,11 +840,11 @@ Policy/ForecastServiceInvestments.cs|Fact|22
 Policy/ForecastShelter.cs|Fact|36
 Policy/ForecastSkill.cs|Fact|64
 Policy/ForecastSkillCursor.cs|Fact|39
-Policy/ForecastSupport.cs|Fact|21
+Policy/ForecastSupport.cs|Fact|18
 Policy/ForecastSurvivalNeeds.cs|Fact|19
 Policy/ForecastTerminalStock.cs|Fact|51
 Policy/ForecastThermalExposure.cs|Fact|13
-Policy/ForecastValue.cs|Fact|84
+Policy/ForecastValue.cs|Fact|82
 Policy/ForecastValue.cs|ValueOrDefault|1
 Policy/ForecastValueMaterial.cs|Fact|2
 Policy/ForecastValueThermal.cs|Fact|2

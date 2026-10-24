@@ -42,6 +42,8 @@ public sealed partial record ForecastCoupledCandidates
         // A gate is keyed by its owner, a migrated family's NeedId (#3250).
         bool NeedEnabled(NeedId need) => !facts.AvailableNeeds.TryGetValue(out var available) || available.Contains(need);
         if (!NeedEnabled(AdminFamily.WorkAssignments)) return null;
+        // The benches the colony cooks at now (#3802), before claims or a held food supply leave this review's conversions out.
+        var cookingBenches = EquatableArray.From(read.FoodConversions.Select(c => c.Bench).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
         read = read with
         {
             Food = read.Food with { Options = EquatableArray.From(read.Food.Options.Where(o =>
@@ -352,6 +354,7 @@ public sealed partial record ForecastCoupledCandidates
             PlannedRoomRoles = PlannedRoomRolesOf(facts),
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             Closures = closures,
+            CookingBenches = cookingBenches,
             PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
                 pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,
             OwedWork = owedWork,

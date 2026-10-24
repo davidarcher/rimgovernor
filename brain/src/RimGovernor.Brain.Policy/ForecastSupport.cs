@@ -9,7 +9,8 @@ public sealed record ForecastSupportConsequences
     public double PendingCareBatches { get; init; }
     public double FirstCareTicks { get; init; }
     public double UnsuppliedDemand { get; init; }
-    public Fact<double> FoodPoisonExposure { get; init; }
+    /// <summary>The expected poisoned meals of the schedule's completed recipes: each one's bench room FoodPoisonChance (SupportDemand.FoodPoisonChance).</summary>
+    public double FoodPoisonExposure { get; init; }
     public string FoodProduction { get; init; } = "";
     public Fact<double> CareRoomFactor { get; init; }
     public Fact<double> TendQuality { get; init; }
@@ -29,7 +30,7 @@ public static class ForecastSupport
             .Where(p => p.Binding is not null).Select(p => (p.Allocation, Binding: p.Binding!)).ToArray();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
         double urgent = 0, pending = 0, untreated = 0, unsupplied = 0, poison = 0;
-        var urgencyKnown = true; var poisonKnown = true; var careKnown = true; var qualityKnown = true;
+        var urgencyKnown = true; var careKnown = true; var qualityKnown = true;
         var careServices = new List<string>(); var careFactor = 0d; var quality = 0d; var surgery = 0d; var surgeryKnown = true;
         foreach (var demand in read.Demands.Where(d => d.Kind is "care" or "surgery"))
         {
@@ -86,13 +87,12 @@ public static class ForecastSupport
             var demand = read.Demands.FirstOrDefault(d => d.Kind == "bench" && d.Target == task.Binding.Target);
             if (demand is null) continue;
             production.Add(task.Binding.Target + "/" + (task.Binding.Recipe?.Recipe ?? task.Binding.Cooking?.Continuation.Recipe ?? ""));
-            if (demand.FoodPoisonChance.TryGetValue(out var value)) poison += value;
-            else { poisonKnown = false; findings.Add("food_poison_effect_unknown:" + demand.Id); }
+            poison += demand.FoodPoisonChance;
         }
         return new()
         {
             UrgentFirstCareTicks = urgencyKnown ? Known(urgent) : default, PendingCareBatches = pending, FirstCareTicks = untreated,
-            UnsuppliedDemand = unsupplied, FoodPoisonExposure = poisonKnown ? Known(poison) : default,
+            UnsuppliedDemand = unsupplied, FoodPoisonExposure = poison,
             CareRoomFactor = careKnown ? Known(careFactor) : default, TendQuality = qualityKnown ? Known(quality) : default,
             SurgeryRoomFactor = surgeryKnown ? Known(surgery) : default,
             CareServices = string.Join(";", careServices.Order(StringComparer.Ordinal)),

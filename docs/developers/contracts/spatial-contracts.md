@@ -236,7 +236,7 @@ Hot and NextRoomID.
   A room packed in with no door onto the ground is joined through a neighbour. Each
   tiled room carries `PlannedRoom.FilthRuns` (its station group's butchering load by
   filthy node, #3797; the room's steady-state cleanliness reads it,
-  [facilities](../architecture/facilities.md)) and `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
+  [facilities](../architecture/facilities.md)), `PlannedRoom.Meals` (its group's meals a day, #3802) and `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
   group, not its role: `Cold` (a cooled room: door temperature equalization leaks the
   cold), `Beds` (player-faction beds: clamor within 7 cells gives the sleeper the
   SleepDisturbed memory, -1 mood) and `Clean` (a station's effect scales with room

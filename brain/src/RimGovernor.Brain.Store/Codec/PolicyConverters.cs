@@ -1570,6 +1570,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
             Herd = e.Str("Herd"),
             WorkChairs = e.Get<IReadOnlyDictionary<string, string>>("WorkChairs", o),
             FilthRuns = e.Get<IReadOnlyDictionary<string, FilthRuns>>("FilthRuns", o),
+            Meals = e.Dbl("Meals"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PlannedRoom v, Codecs o)
@@ -1599,6 +1600,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         w.WriteString("Herd", v.Herd);
         w.Put("WorkChairs", v.WorkChairs, o);
         w.Put("FilthRuns", v.FilthRuns, o);
+        w.WriteNum("Meals", v.Meals);
     }
 }
 

@@ -39,8 +39,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 34 adds the step's <c>FullLoad</c> and <c>Collect</c> to journaled activity steps (#3046): a remote Supply's full carry.
     /// Version 35 adds <c>CancelsBlueprint</c> to the journaled deconstruction action (#3742): a retired room's blueprint is cancelled.
     /// Version 36 adds <c>FilthRuns</c> to the planned room (#3797): the station group's butchering load the room's cleanliness reads.
+    /// Version 37 adds <c>Meals</c> to the planned room (#3802): the meals a day its stations make, which the kitchen credit prices.
     /// </summary>
-    public const int SchemaVersion = 36;
+    public const int SchemaVersion = 37;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

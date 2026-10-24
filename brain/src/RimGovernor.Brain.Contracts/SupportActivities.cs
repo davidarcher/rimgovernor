@@ -13,8 +13,13 @@ public sealed record SupportActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
 }
+/// <summary>
+/// One support demand. <see cref="FoodPoisonChance"/> is the RoomStatDefOf.FoodPoisonChance of the room at
+/// <see cref="Location"/> (the stat's roomlessScore without a proper room), the chance CompFoodPoisonable.Notify_RecipeProduced
+/// first rolls for a meal made there; 0 on a delivery row.
+/// </summary>
 public sealed record SupportDemand(string Id, string Kind, string Target, Cell Location,
-    Fact<double> FoodPoisonChance, Fact<double> BleedRate)
+    double FoodPoisonChance, Fact<double> BleedRate)
 {
     public Fact<double> InfectionChanceFactor { get; init; }
     public Fact<double> SurgerySuccessFactor { get; init; }

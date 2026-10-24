@@ -18,6 +18,10 @@ public sealed record FilthModel
     /// <summary>The curve of RoomStatDefOf.FoodPoisonChance (a RoomStatWorker_FromStatByCurve over Cleanliness), points by rising X.</summary>
     public IReadOnlyList<CurvePoint> FoodPoison { get; init; } = [];
 
+    /// <summary>RoomStatDefOf.FoodPoisonChance's roomlessScore: the chance a meal made outside a proper room (Room.GetStat without stats, at
+    /// the map edge or over 60 regions) is poisoned by the room (CompFoodPoisonable.Notify_RecipeProduced, #3802).</summary>
+    public double FoodPoisonRoomless { get; init; }
+
     /// <summary>What one poisoned meal costs the eater (the FoodPoisoning hediff); the zero value prices no poisoning.</summary>
     public PoisoningModel Poisoning { get; init; } = new();
 

@@ -410,7 +410,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802).
 Each fueled source with a known burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 with the native `ThermalSource.Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -442,6 +442,24 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
 A room any of whose occupants' stage, bed, observed thoughts or mood is unread, or whose service day is unknown, is named
 `bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. A bedroom with no occupant, or one
 not served before tier 2's horizon, pays its material with no credit and waits.
+
+*Kitchen and butchery credit (#3802, epic #3650 P1).* Both are priced by the food poisoning their room changes
+(`KitchenCredits`). A meal's first poisoning roll (`CompFoodPoisonable.Notify_RecipeProduced`) is its bench room's
+`RoomStatDefOf.FoodPoisonChance`; the planned room's is `PlannedRoomCleanlinessRules.FoodPoisonChance`: the stat's curve
+(`FilthModel.FoodPoison`) at the room's steady-state cleanliness ([facilities](facilities.md)), at its dirty value for the
+share of the day its stations' filth stands and its clean value otherwise, the roomless score for a None room. One
+poisoning is priced as the ledger prices an expected case (`ForecastValue.PoisoningPrice`, the poisoning term below).
+
+- *Kitchen*, under `kitchen/<room>/food_poisoning`: the chance at the cook's current room (the `SupportDemand.FoodPoisonChance`
+  of the bench demands of the benches the colony cooks at now, `ForecastCoupledContext.CookingBenches`) less the planned
+  kitchen's, times its meals a day (`PlannedRoom.Meals`, the layout group's exposed stations' meals) and the price.
+- *Butchery*, under `butchery/<room>/<kitchen>`: per planned kitchen, its chance with the butchery's filth runs added to its
+  own less its chance with its own, times the kitchen's meals and the price.
+
+A kitchen whose layout room, prediction (`Role` "") or the filth model is unread, with no bench cooking now (a fresh colony)
+or cooking benches in rooms of different chances, or whose price is unread is named `kitchen_credit_unassessed:<room>`
+(`butchery_credit_unassessed:<room>`) and earns nothing. The dirt pawns track in is not priced (the layout's traffic is
+unknown), nor a floor laid in a standing kitchen with no ring left (it is not a served room).
 
 *Throne room and suite credit (#3807).* A planned throne room or suite is credited, through the same seam
 (`ForecastHousing.RoyalRoomCredit`), under `throne/<room>/<pawn>` (`suite/<room>/<pawn>`), with the mood its titled colonist

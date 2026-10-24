@@ -43,7 +43,7 @@ public sealed class ForecastValueTests
     // By default the pawn's whole day is assessed with no span outside its comfort range, so the thermal term is a known 0.
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs, double poisonCases = 0, ForecastThermalExposure? exposure = null) =>
         new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
-        { Support = new() { FoodPoisonExposure = Known(poisonCases) }, ThermalExposure = [exposure ?? new("pawn", Day, 0, 0, 0)] };
+        { Support = new() { FoodPoisonExposure = poisonCases }, ThermalExposure = [exposure ?? new("pawn", Day, 0, 0, 0)] };
 
     private static HediffPenaltyTable Malnutrition(params PenaltyStage[] stages) => new()
     {
@@ -54,7 +54,7 @@ public sealed class ForecastValueTests
 
     private static CapacityModifier Half(string capacity) => new(capacity, 0, null, 0.5);
 
-    private static CapacityPenaltyTables Tables(HediffPenaltyTable? malnutrition = null, HediffPenaltyTable? poisoning = null) => new()
+    internal static CapacityPenaltyTables Tables(HediffPenaltyTable? malnutrition = null, HediffPenaltyTable? poisoning = null) => new()
     {
         Malnutrition = malnutrition ?? Malnutrition(Stage(0, Half("Consciousness"))),
         FoodPoisoning = poisoning ?? new() { Known = true, Hediff = "FoodPoisoning", InitialSeverity = 1, SeverityPerDay = -1, Stages = [Stage(0, Half("Consciousness"))] },

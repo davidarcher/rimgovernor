@@ -211,7 +211,7 @@ public sealed partial class Rounder
         ["support_pending_care_batches"] = vector.Support.PendingCareBatches,
         ["support_first_care_ticks"] = vector.Support.FirstCareTicks,
         ["support_unsupplied_demand"] = vector.Support.UnsuppliedDemand,
-        ["support_food_poison_exposure"] = Number(vector.Support.FoodPoisonExposure),
+        ["support_food_poison_exposure"] = vector.Support.FoodPoisonExposure,
         ["support_food_production"] = vector.Support.FoodProduction,
         ["support_care_services"] = vector.Support.CareServices,
         ["support_care_room_factor"] = Number(vector.Support.CareRoomFactor),

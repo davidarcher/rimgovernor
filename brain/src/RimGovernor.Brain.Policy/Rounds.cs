@@ -135,7 +135,7 @@ public sealed record RoundsFacts
     /// <summary>The bench a planned laboratory is furnished with (RoomFurniture.BenchFor of Laboratory, #3800); "" without a catalog.</summary>
     public string LaboratoryBench { get; init; } = "";
 
-    /// <summary>The catalog's filth model (StationCatalog.Filth) a planned room's predicted cleanliness reads (#3797, #3800); the zero model without a catalog.</summary>
+    /// <summary>The catalog's filth model (StationCatalog.Filth) a planned room's predicted cleanliness reads (#3797, #3800), and the kitchen and butchery credits its poisoning (#3802); the zero model without a catalog.</summary>
     public FilthModel Filth { get; init; } = new();
 
     /// <summary>The hospital's animal ward; unread (the zero value) until the layout exposes it, which keeps sterilize off.</summary>
