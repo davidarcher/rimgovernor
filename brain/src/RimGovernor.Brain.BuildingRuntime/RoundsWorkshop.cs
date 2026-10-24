@@ -101,17 +101,19 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
         var defs = await RoundsGear.GearDefinitionsOfAsync(Native, identity, call).ConfigureAwait(false);
-        if (defs.Catalog is null || !defs.Finished.TryGetValue(out var finished))
+        if (defs is null)
         {
             throw new ControlException("prepareWorkshop: the recipe hosts need the definition catalog and the finished research");
         }
+        var finished = defs.Finished;
         Pol.Resource resource;
         List<Pol.Resource> products = [];
         if (GearLadder())
         {
             var things = await RoundsGear.FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
-            var (facts, factsKnown) = RoundsGear.GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things, [.. finished.Order(StringComparer.Ordinal)]), defs);
-            if (!factsKnown)
+            // The step's own colony facts read reads no zones: a growing field offers no stuff arrival here.
+            var tables = new Tables(Buildings.Of(), Pawns.Of(), things, [.. finished.Order(StringComparer.Ordinal)]);
+            if (!ColonyGearReads.GearFacts(observed, tables, defs, [], []).TryGetValue(out var facts))
             {
                 return (null, FieldUnavailable("gear_census"));
             }
@@ -122,7 +124,7 @@ public sealed partial class RoundsBuildingPlanner
                     return (null, BuildingReasonExistingWork);
                 }
             }
-            var needs = GearRules.GearReplacementNeeds(Known<Pol.GearObservation>(facts));
+            var needs = GearRules.GearReplacementNeeds(facts);
             if (needs.Count == 0)
             {
                 return (null, BuildingReasonNoDeficit);

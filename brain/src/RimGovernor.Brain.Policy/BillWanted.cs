@@ -17,20 +17,19 @@ public static class BillWantedRules
     /// </summary>
     public static (HashSet<Resource>? Wanted, bool Known) GearBillsWanted(Fact<GearObservation> gear)
     {
-        var review = GearRules.ReviewGear(gear);
-        if (!review.Recovered.IsKnown)
+        if (!gear.TryGetValue(out var v))
         {
             return (null, false);
         }
 
+        var review = GearRules.ReviewGear(v);
         var wanted = new HashSet<Resource>();
-        if (RoundsRules.Positive(review.Recovered))
+        if (review.Recovered)
         {
             return (wanted, true);
         }
 
-        gear.TryGetValue(out var v);
-        foreach (var p in GearLoadoutRules.ModeledGearPawns(v!, review.Loadouts))
+        foreach (var p in GearLoadoutRules.ModeledGearPawns(v, review.Loadouts))
         {
             foreach (var n in p.Replacements)
             {

@@ -92,7 +92,7 @@ public static class ColonyReads
                 // The furniture the room planners place is the catalog's rules too (DefinitionCatalog.RoomFurniture).
                 var shapes = facts.Catalog.PieceShapes();
                 definitions = facts.AppendDefinitions(definitions, shapes.Furniture.Definitions());
-                gearDefs = new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished };
+                gearDefs = GearDefinitionsReads.GearDefinitionsOf(facts);
                 projection = projection with { Definitions = definitions, Shapes = shapes };
             }
         }

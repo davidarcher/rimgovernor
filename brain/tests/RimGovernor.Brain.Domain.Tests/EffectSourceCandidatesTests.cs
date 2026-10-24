@@ -215,7 +215,7 @@ public sealed class EffectSourceCandidatesTests
 
         var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [new GearChoice("pawn", true)]).Gear;
         Assert.True(Assert.Single(allowed.Value.Pawns).AllowTainted);
-        Assert.Equal(Known(true), GearRules.ReviewGear(allowed).Recovered);
+        Assert.True(GearRules.ReviewGear(allowed).Recovered);
         Assert.Empty(GearRules.GearReplacementNeeds(allowed));
         var (wanted, known) = BillWantedRules.GearBillsWanted(allowed);
         Assert.True(known);

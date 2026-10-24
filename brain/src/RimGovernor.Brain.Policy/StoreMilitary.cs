@@ -15,14 +15,14 @@ internal sealed class MilitaryOwner : IStoreOwner
         }
         var patches = StoreRules.GearPatchesOf(view.Layout);
         var output = new List<Store>();
-        (string Role, Rectangle? Patch, StockpileFilter Filter)[] gears =
+        (string Role, GearPatch Patch, StockpileFilter Filter)[] gears =
         [
             (StockpileRolesConstants.WeaponsRole, patches.Weapons, view.Gear.Weapons),
             (StockpileRolesConstants.ApparelRole, patches.Apparel, view.Gear.Apparel),
         ];
         foreach (var (role, patch, filter) in gears)
         {
-            if (patch is not { } rect)
+            if (patch is not GearPatch.Placed { Square: var rect })
             {
                 continue;
             }

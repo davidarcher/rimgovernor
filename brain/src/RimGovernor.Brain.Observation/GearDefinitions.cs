@@ -3,12 +3,12 @@ namespace RimGovernor.Brain.Observation;
 // Apparel facts use catalog rows for layers, body groups, wear filters, outfit tags, equipped offsets and
 // components. Armor, insulation and market value use native stat values for the exact def/stuff pair.
 
-/// <summary>What a gear census is decoded against: the load's catalog and its finished research projects (unknown without a research read).</summary>
+/// <summary>What a gear census is decoded against: the load's catalog and its finished research projects.</summary>
 public sealed record GearDefinitions
 {
-    public DefinitionCatalog? Catalog { get; init; }
+    public required DefinitionCatalog Catalog { get; init; }
 
-    public Fact<IReadOnlySet<string>> Finished { get; init; }
+    public required IReadOnlySet<string> Finished { get; init; }
 }
 
 /// <summary>A pawn's wear inputs: what the apparel rows cannot say.</summary>
@@ -49,13 +49,14 @@ public static class GearDefinitionsReads
 
     /// <summary>
     /// Reads the gear definitions from <paramref name="source"/>: its catalog and, when it is a research source,
-    /// the finished projects. A source with no catalog yields none, which leaves every gear fact unknown.
+    /// the finished projects. Null, with no census to decode, when the source serves no catalog or no research read.
     /// </summary>
-    public static async Task<GearDefinitions> ReadGearDefinitions(object source, C.Identity id, CancellationToken cancellationToken)
-    {
-        var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, null, cancellationToken).ConfigureAwait(false);
-        return new GearDefinitions { Catalog = facts?.Catalog, Finished = facts?.Finished ?? default };
-    }
+    public static async Task<GearDefinitions?> ReadGearDefinitions(object source, C.Identity id, CancellationToken cancellationToken) =>
+        GearDefinitionsOf(await DefinitionsReads.ReadDefinitionFacts(source, id, null, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>The gear definitions of a definitions read; null when there is none or its research read failed (DefinitionFacts.Finished).</summary>
+    internal static GearDefinitions? GearDefinitionsOf(DefinitionFacts? facts) =>
+        facts is not null && facts.Finished.TryGetValue(out var finished) ? new GearDefinitions { Catalog = facts.Catalog, Finished = finished } : null;
 
     /// <summary>The wear inputs of one gear row.</summary>
     internal static GearWearer WearerOf(O.GearLoadout p)

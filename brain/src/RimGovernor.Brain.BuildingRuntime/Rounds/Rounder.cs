@@ -826,7 +826,7 @@ public sealed partial class Rounder
         ClockEvents.Event("routine", RoundsReviewTelemetry.Kind, "rounds ran", [.. attrs]);
         if (Needs.Contains(MilitaryFamily.Equipment))
         {
-            LogGearSearch(GearRules.ReviewGear(reading.Projection.Facts.Gear).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn), ct);
+            LogGearSearch(GearRules.ExhaustedGearSearches(reading.Projection.Facts.Gear), ct);
         }
         RecordRoundsSnapshot(state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection, ct);
         await DrawSafetyOverlayAsync(state.Snapshot, reading.Projection, reading.Emergency, ct).ConfigureAwait(false);

@@ -66,16 +66,34 @@ public sealed record GearPawn
     /// </summary>
     public bool AllowTainted { get; init; }
 
-    /// <summary>The pawn's insulation floor as the comparator chose it (GearChoices, #3329); null is its worn insulation, the default.</summary>
-    public double? ColdFloor { get; init; }
+    /// <summary>The pawn's cold insulation floor (GearChoices, #3329): its worn insulation unless the comparator chose one.</summary>
+    public InsulationFloor ColdFloor { get; init; } = new InsulationFloor.Worn();
 
-    public double? HeatFloor { get; init; }
+    /// <summary>The pawn's heat insulation floor, as <see cref="ColdFloor"/> is.</summary>
+    public InsulationFloor HeatFloor { get; init; } = new InsulationFloor.Worn();
     public string Loadout { get; init; } = "";
     public bool Blocked { get; init; }
 
     public EquatableArray<GearCandidate> Candidates { get; init; }
     public EquatableArray<GearApparel> Apparel { get; init; }
 
+}
+
+/// <summary>An insulation floor the loadout model dresses a pawn to (<see cref="GearPawn.ColdFloor"/>, <see cref="GearPawn.HeatFloor"/>).</summary>
+public abstract record InsulationFloor
+{
+    private InsulationFloor()
+    {
+    }
+
+    /// <summary>The pawn's worn insulation, the default: warmth never drops without the comparator.</summary>
+    public sealed record Worn : InsulationFloor;
+
+    /// <summary>The floor the latest review's coupled comparator chose (GearChoices).</summary>
+    public sealed record Chosen(double Value) : InsulationFloor;
+
+    /// <summary>The floor in degrees: the chosen one, else <paramref name="worn"/>.</summary>
+    public double Or(double worn) => this is Chosen c ? c.Value : worn;
 }
 
 /// <summary>A census pawn's loadout model (<see cref="GearPawn.LoadoutModel"/>).</summary>
@@ -185,9 +203,13 @@ public sealed record GearObservation
 /// </summary>
 public sealed record GearReview
 {
-    public IReadOnlyList<GearLoadout> Loadouts { get; init; } = [];
-    public Fact<bool> Recovered { get; init; }
-    public Fact<double> Deficit { get; init; }
+    public required IReadOnlyList<GearLoadout> Loadouts { get; init; }
+
+    /// <summary>No pawn wants a gap filled or an apparel policy, and no outfit is owed a prune.</summary>
+    public required bool Recovered { get; init; }
+
+    /// <summary>The share of census pawns short of gear or policy; an outfit prune alone counts as one pawn.</summary>
+    public required double Deficit { get; init; }
 }
 
 /// <summary>Observed or proposed production supply for a loadout requirement; not a pawn labor winner.</summary>
@@ -314,8 +336,10 @@ public sealed record RecipeHost
 
 public sealed record GearPlanningRequest
 {
-    public Fact<GearObservation> Observation { get; init; }
-    public Fact<EquatableArray<GearBench>> Benches { get; init; }
+    public required GearObservation Observation { get; init; }
+
+    /// <summary>The bench readback: every standing workbench with its bills and recipes.</summary>
+    public required EquatableArray<GearBench> Benches { get; init; }
 
     /// <summary>The catalog's market values: the member a bill's filter picks in each slot (GearFilter).</summary>
     public ItemFacts Items { get; init; } = new();
@@ -350,20 +374,29 @@ public static class GearRules
     private static readonly List<(EquatableArray<GearPawn> Pawns, IReadOnlyList<GearLoadout> Loadouts)> s_loadouts = [];
 
     /// <summary>
-    /// Matches the complete census used by equipment upkeep. An unknown or empty census cannot establish
-    /// recovery; a pawn the loadout model refuses throws naming the cause. The loadouts are planned once per
-    /// distinct set of pawn rows (<see cref="SharedColonyGear"/>).
+    /// <see cref="ReviewGear(GearObservation)"/> of the rounds census (RoundsFacts.Gear, a #3784 container); an unread
+    /// census raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static GearReview ReviewGear(Fact<GearObservation> f)
+    public static GearReview ReviewGear(Fact<GearObservation> f) =>
+        ReviewGear(f.TryGetValue(out var v) ? v : throw new RequiredFactException("gear review"));
+
+    /// <summary>
+    /// The pawns of the rounds census whose loadout search spent its budget; none while the census (a #3784 container) is unread.
+    /// </summary>
+    public static IEnumerable<PawnId> ExhaustedGearSearches(Fact<GearObservation> f) =>
+        f.TryGetValue(out var v) ? ReviewGear(v).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn) : [];
+
+    /// <summary>
+    /// Matches the complete census used by equipment upkeep. A census with no pawns has none short of gear and owes no
+    /// outfit prune (OutfitKeep settles nothing), so it is recovered; a pawn the loadout model refuses throws naming the
+    /// cause. The loadouts are planned once per distinct set of pawn rows (<see cref="SharedColonyGear"/>).
+    /// </summary>
+    public static GearReview ReviewGear(GearObservation v)
     {
-        if (!f.TryGetValue(out var v))
-        {
-            return new GearReview();
-        }
         v.Validate();
         if (v.Pawns.Count == 0)
         {
-            return new GearReview();
+            return new GearReview { Loadouts = [], Recovered = true, Deficit = 0 };
         }
         using var span = s_spans.StartActivity("gear.review");
         span?.SetTag("rimgovernor.pawns", v.Pawns.Count);
@@ -400,8 +433,8 @@ public static class GearRules
         return new GearReview
         {
             Loadouts = loadouts,
-            Recovered = Known(missing == 0),
-            Deficit = Known(missing / n),
+            Recovered = missing == 0,
+            Deficit = missing / n,
         };
     }
 
@@ -441,22 +474,27 @@ public static class GearRules
     }
 
     /// <summary>
+    /// <see cref="GearReplacementNeeds(GearObservation)"/> of the rounds census (RoundsFacts.Gear, a #3784 container);
+    /// none while it is unread, when the equipment Need is not unmet.
+    /// </summary>
+    public static IReadOnlyList<Resource> GearReplacementNeeds(Fact<GearObservation> f) => f.TryGetValue(out var v) ? GearReplacementNeeds(v) : [];
+
+    /// <summary>
     /// The definitions the census asks a bench to produce for pawns in deficit (replacement needs with no loose
-    /// candidate to wear), sorted and deduplicated. Empty unless the census is known, valid and not recovered,
+    /// candidate to wear), sorted and deduplicated. Empty unless the census is valid and not recovered,
     /// so the work planner enables a bench's work type exactly while the equipment Need is unmet and could
     /// raise a bill. A pawn the loadout model refuses throws, not an empty answer.
     /// </summary>
-    public static IReadOnlyList<Resource> GearReplacementNeeds(Fact<GearObservation> f)
+    public static IReadOnlyList<Resource> GearReplacementNeeds(GearObservation observed)
     {
-        var review = ReviewGear(f);
-        if (!review.Recovered.TryGetValue(out var recovered) || recovered)
+        var review = ReviewGear(observed);
+        if (review.Recovered)
         {
             return [];
         }
-        f.TryGetValue(out var observed);
         var seen = new HashSet<Resource>();
         var @out = new List<Resource>();
-        foreach (var p in GearLoadoutRules.ModeledGearPawns(observed!, review.Loadouts))
+        foreach (var p in GearLoadoutRules.ModeledGearPawns(observed, review.Loadouts))
         {
             if (!p.Deficit)
             {
@@ -522,21 +560,17 @@ public static class GearRules
 
     /// <summary>
     /// The bench census sorted by id and, per definition, how many items the needs still lack after netting the
-    /// stored stock of any stuff. Known is false while the bench census is unread.
+    /// stored stock of any stuff.
     /// </summary>
-    internal static (IReadOnlyList<GearBench> Benches, Dictionary<Resource, int> Demand, bool Known) GearBenchDemand(
+    internal static (IReadOnlyList<GearBench> Benches, Dictionary<Resource, int> Demand) GearBenchDemand(
         IReadOnlyList<GearNeed> needs,
         GearObservation v,
         GearReview review,
         GearPlanningRequest r
     )
     {
-        if (!r.Benches.TryGetValue(out var all))
-        {
-            return ([], [], false);
-        }
-        ValidateGearProduction(all);
-        var benches = all.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
+        ValidateGearProduction(r.Benches);
+        var benches = r.Benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         var demand = new Dictionary<Resource, int>();
         foreach (var n in needs)
         {
@@ -554,7 +588,7 @@ public static class GearRules
         {
             DomainException.Require(count <= int.MaxValue, "gear batch exceeds bill bound");
         }
-        return (benches, demand, true);
+        return (benches, demand);
     }
 
     /// <summary>

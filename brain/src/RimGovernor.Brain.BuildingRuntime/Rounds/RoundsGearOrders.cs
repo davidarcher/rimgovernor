@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsGearPlanner
 {
-    internal static GearPlanningRequest GearRequest(ColonyProjection projection, IReadOnlyList<GearBench> benches) => new()
+    internal static GearPlanningRequest GearRequest(ColonyProjection projection, GearObservation census, IReadOnlyList<GearBench> benches) => new()
     {
-        Observation = projection.Facts.Gear,
-        Benches = Known(EquatableArray.From(benches)),
+        Observation = census,
+        Benches = EquatableArray.From(benches),
         Items = projection.Facts.Items,
         Crafts = projection.Facts.Crafts,
     };
@@ -28,8 +28,11 @@ public static partial class RoundsGearPlanner
     public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         DeclareOrdersInner(snapshot, projection, benches, ct).For(MilitaryFamily.Equipment.FilingKey.Value);
 
+    /// <summary>Abstains while the rounds census is unread.</summary>
     internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        GearOrdersRules.DeclareGearOrders(GearRequest(projection, benches));
+        projection.Facts.Gear.TryGetValue(out var census)
+            ? GearOrdersRules.DeclareGearOrders(GearRequest(projection, census, benches))
+            : WorkRules.Abstaining(Cause.UnreadGearRecover);
 }
 
 public sealed partial class RoundsArmoryPlanner
@@ -69,6 +72,6 @@ public sealed partial class RoundsArmoryPlanner
             return WorkRules.Abstaining(Cause.UnreadShells);
         }
 
-        return GearOrdersRules.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, benches), tier, MergeAmounts(fighters, hunters), shells);
+        return GearOrdersRules.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, census, benches), tier, MergeAmounts(fighters, hunters), shells);
     }
 }

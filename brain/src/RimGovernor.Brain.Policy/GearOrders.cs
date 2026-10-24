@@ -10,19 +10,13 @@ public static class GearOrdersRules
     /// <summary>
     /// Retain standing ordinary clothing intent without choosing new production. Exact new recipes and
     /// materials are selected through clothing activities; armor and weapons remain the armory's.
-    /// Abstain while the census or the bench readback is unread.
     /// </summary>
     public static Declared DeclareGearOrders(GearPlanningRequest r)
     {
-        var (_, v, _, unread) = GearOrderCensus(r);
-        if (unread is { } cause)
-        {
-            return WorkRules.Abstaining(cause);
-        }
-        var clothing = v!.Pawns.SelectMany(p => p.Model?.Options ?? [])
+        var clothing = r.Observation.Pawns.SelectMany(p => p.Model?.Options ?? [])
             .Select(o => o.Definition).Where(d => !GearArmorRules.ArmoryArmor(d)).ToHashSet();
         var orders = new List<OrderSpec>();
-        foreach (var bench in r.Benches.Value)
+        foreach (var bench in r.Benches)
         {
             foreach (var bill in bench.Bills.Where(b => !b.Spent && b.Products.Any(clothing.Contains)))
             {
@@ -35,26 +29,14 @@ public static class GearOrdersRules
     /// <summary>
     /// The armory's wanted orders at tier: the weapon batches (weapons is ArmoryWeaponDemand), the armor ladder the
     /// tier allows (each armor definition falls back down its family's rungs to the best one a bench recipe makes)
-    /// and the stock-target mortar shells. Abstain while the tier, the census or the bench readback is unread.
+    /// and the stock-target mortar shells. Armor and shells abstain while the tier is unread.
     /// </summary>
     public static Declared DeclareArmoryOrders(GearPlanningRequest r, ArmoryTier tier, IReadOnlyList<Amount> weapons, IReadOnlyList<Amount> shells)
     {
-        var (review, v, modeled, unread) = GearOrderCensus(r);
-        if (unread is { } cause)
-        {
-            return WorkRules.Abstaining(cause);
-        }
-        r.Benches.TryGetValue(out var benches);
-
+        var v = r.Observation;
+        var review = GearRules.ReviewGear(v);
+        var modeled = GearLoadoutRules.ModeledGearPawns(v, review.Loadouts);
         var @out = new Declared();
-        void Collect(IReadOnlyList<OrderSpec> orders, Cause? unreadCause)
-        {
-            @out.Orders.AddRange(orders);
-            if (unreadCause is { } c)
-            {
-                @out.Unread(c);
-            }
-        }
         var needs = new List<GearNeed>();
         foreach (var d in weapons)
         {
@@ -64,15 +46,14 @@ public static class GearOrdersRules
                 needs.Add(new GearNeed(new PawnId("weapon-batch"), new GearReplacement { Definition = d.Resource, Reason = "unarmed" }));
             }
         }
-        var (weaponOrders, weaponUnknown) = GearOrders(needs, v!, modeled!, review!, r);
-        Collect(weaponOrders, weaponUnknown);
+        @out.Orders.AddRange(GearOrders(needs, v, modeled, review, r));
         // Armor and shells follow the tier; weapons stand without it.
         if (tier == ArmoryTier.Unknown)
         {
             return @out.Unread(Cause.UnreadArmoryTier);
         }
         var armor = new Dictionary<Resource, int>();
-        foreach (var p in modeled!)
+        foreach (var p in modeled)
         {
             foreach (var n in p.Replacements)
             {
@@ -92,36 +73,16 @@ public static class GearOrdersRules
                 {
                     rungNeeds.Add(new GearNeed(new PawnId("armor-batch"), new GearReplacement { Definition = rung, Reason = "armory" }));
                 }
-                var (orders, unknown) = GearOrders(rungNeeds, v!, modeled, review!, r);
-                Collect(orders, unknown);
-                if (orders.Count > 0 || unknown is not null)
+                var orders = GearOrders(rungNeeds, v, modeled, review, r);
+                @out.Orders.AddRange(orders);
+                if (orders.Count > 0)
                 {
                     break;
                 }
             }
         }
-        var (stocked, shellUnknown) = ShellOrders(benches, r.Crafts, shells);
-        Collect(stocked, shellUnknown);
+        @out.Orders.AddRange(ShellOrders(r.Benches, r.Crafts, shells));
         return @out;
-    }
-
-    /// <summary>
-    /// The reviewed, loadout-modelled census a declaration reads; Unread names the fact the review cannot
-    /// establish (recovery or the bench readback), null when both are read.
-    /// </summary>
-    private static (GearReview? Review, GearObservation? Observation, IReadOnlyList<ModeledGearPawn>? Modeled, Cause? Unread) GearOrderCensus(GearPlanningRequest r)
-    {
-        var review = GearRules.ReviewGear(r.Observation);
-        if (!review.Recovered.IsKnown)
-        {
-            return (null, null, null, Cause.UnreadGearRecover);
-        }
-        if (!r.Benches.IsKnown)
-        {
-            return (null, null, null, Cause.UnreadBenches);
-        }
-        r.Observation.TryGetValue(out var observed);
-        return (review, observed, GearLoadoutRules.ModeledGearPawns(observed!, review.Loadouts), null);
     }
 
     /// <summary>Orders needs by pawn, definition and reason.</summary>
@@ -135,21 +96,16 @@ public static class GearOrdersRules
     /// <summary>
     /// Turns needs into the orders that make them: per definition and stuff, the bill that already makes it
     /// (declared as it stands) or the first funded recipe's batch sized to the demand left after stored stock.
-    /// Unknown names the fact left unread (a bench census, bills or a recipe's facts).
     /// </summary>
-    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) GearOrders(List<GearNeed> needs, GearObservation v, IReadOnlyList<ModeledGearPawn> modeled, GearReview review, GearPlanningRequest r)
+    private static List<OrderSpec> GearOrders(List<GearNeed> needs, GearObservation v, IReadOnlyList<ModeledGearPawn> modeled, GearReview review, GearPlanningRequest r)
     {
         var orders = new List<OrderSpec>();
         if (needs.Count == 0)
         {
-            return (orders, null);
+            return orders;
         }
         needs = SortGearNeeds(needs);
-        var (benches, demand, known) = GearRules.GearBenchDemand(needs, v, review, r);
-        if (!known)
-        {
-            return (orders, Cause.UnreadBenches);
-        }
+        var (benches, demand) = GearRules.GearBenchDemand(needs, v, review, r);
         var pending = false;
         foreach (var p in modeled)
         {
@@ -191,7 +147,7 @@ public static class GearOrdersRules
                     break;
             }
         }
-        return (orders, null);
+        return orders;
     }
 
     internal static string GearBenchDef(IReadOnlyList<GearBench> benches, string id)
@@ -211,7 +167,7 @@ public static class GearOrdersRules
     /// makes is declared as that bill stands, else the first bench (by id) with an available recipe makes it, else
     /// an available catalog recipe no bench lists, with no bench kind (#3659). A target no recipe makes is skipped.
     /// </summary>
-    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) ShellOrders(IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, IReadOnlyList<Amount> targets)
+    private static List<OrderSpec> ShellOrders(IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, IReadOnlyList<Amount> targets)
     {
         var orders = new List<OrderSpec>();
         var sorted = benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
@@ -264,6 +220,6 @@ public static class GearOrdersRules
                 orders.Add(new OrderSpec { Recipe = craft.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = GearRules.CraftBench });
             }
         }
-        return (orders, null);
+        return orders;
     }
 }

@@ -139,11 +139,13 @@ apparel policy (it cannot wear apparel) is `GearModel.NoOutfit` and is skipped w
 blocked, an error otherwise. The replacements and deficit a modeled pawn needs are
 derived per Round (`ModeledGearPawns`), never carried on the census row. A frame without the definition catalog, finished research
 or stock census leaves the whole census unknown; a census missing a colonist raises
-`RequiredFactException`.
+`RequiredFactException`. A census of no pawns is recovered (`GearReview.Recovered`, no
+`Deficit`): there is no one to outfit.
 
 Each bill option carries the day its stuff arrives (`GearOption.Arrival`, from
-`policy.StuffArrival`, #2467/#3619), and it is eligible to plan or craft only when that day
-is known and within the tier-1 horizon (`ForecastCoupled.TierOneHorizonDays`, one day); the
+`policy.StuffArrival`, #2467/#3619): `GearArrival.InDays`, or `GearArrival.NoKnownDay` when no
+source covers it. It is eligible to plan or craft only when it arrives in days within the
+tier-1 horizon (`ForecastCoupled.TierOneHorizonDays`, one day); the
 colony model still values a later option as a project's product. The stock census covering
 the units the option takes is now. Otherwise the supply that yields the stuff is taken in
 lead order until, with the stock, it covers the units: a growing field's standing crop
@@ -286,7 +288,8 @@ memory for the review's world (`ReviewMemory`, empty after a restart). A review 
 no coupled selection compared nothing and leaves the last outcome standing. The rounds
 census read (`ObserveRoundsAsync`, taken by the review and by a planner's own read) is
 the one place that stamps it onto `GearPawn.AllowTainted`, `ColdFloor` and
-`HeatFloor`, so every gear reader plans inside the same filter and floor:
+`HeatFloor` (an `InsulationFloor`: `Chosen` at the comparator's floor, or `Worn`, the worn
+insulation, for a pawn it left there), so every gear reader plans inside the same filter and floor:
 `DesiredApparelPolicy` (`ApparelPolicyIntent.allowTainted`),
 `ApparelQualityFloor`, `OutfitKeep`, `PlanColonyGear`, and through it the equip
 candidates, the replacement bill demand, the gear declarers and the gear search log.

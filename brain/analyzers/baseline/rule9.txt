@@ -156,9 +156,6 @@ BuildingRuntime/Rounds/RoundsFoodStores.cs|Fact|5
 BuildingRuntime/Rounds/RoundsFoodStores.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsGathering.cs|Fact|2
 BuildingRuntime/Rounds/RoundsGathering.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsGear.cs|Fact|1
-BuildingRuntime/Rounds/RoundsGear.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsGear.cs|ValueOrDefault|1
 BuildingRuntime/Rounds/RoundsGearOrders.cs|Fact|3
 BuildingRuntime/Rounds/RoundsGoals.cs|Discard|1
 BuildingRuntime/Rounds/RoundsGoals.cs|Fact|4
@@ -190,7 +187,7 @@ BuildingRuntime/Rounds/RoundsMedical.cs|Discard|1
 BuildingRuntime/Rounds/RoundsMedical.cs|Fact|7
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsMilitary.cs|Fact|11
+BuildingRuntime/Rounds/RoundsMilitary.cs|Fact|10
 BuildingRuntime/Rounds/RoundsMilitary.cs|Unknown|5
 BuildingRuntime/Rounds/RoundsPartySpot.cs|Fact|6
 BuildingRuntime/Rounds/RoundsPartySpot.cs|Unknown|2
@@ -267,7 +264,7 @@ BuildingRuntime/RoundsTradeExport.cs|Fact|19
 BuildingRuntime/RoundsTradeExport.cs|Unknown|11
 BuildingRuntime/RoundsWorkProjects.cs|Fact|17
 BuildingRuntime/RoundsWorkProjects.cs|Unknown|5
-BuildingRuntime/RoundsWorkshop.cs|Fact|9
+BuildingRuntime/RoundsWorkshop.cs|Fact|8
 BuildingRuntime/RoundsWorkshop.cs|Unknown|1
 BuildingRuntime/SafetyOverlay.cs|Fact|1
 BuildingRuntime/StockOverlay.cs|Fact|5
@@ -354,9 +351,9 @@ Observation/ColonyDecode.cs|Fact|54
 Observation/ColonyDecode.cs|Unknown|5
 Observation/ColonyFrames.cs|Fact|20
 Observation/ColonyFrames.cs|Unknown|3
-Observation/ColonyGear.cs|Fact|23
+Observation/ColonyGear.cs|Fact|22
 Observation/ColonyGear.cs|Unknown|4
-Observation/ColonyGear.cs|ValueOrDefault|2
+Observation/ColonyGear.cs|ValueOrDefault|1
 Observation/ColonyProduction.cs|Fact|31
 Observation/ColonyProduction.cs|Unknown|6
 Observation/ColonyRead.cs|Fact|3
@@ -428,7 +425,7 @@ Policy/BasicComfort.cs|Fact|6
 Policy/BasicComfort.cs|Unknown|2
 Policy/BasicDefense.cs|Fact|6
 Policy/BillDemand.cs|Fact|1
-Policy/BillWanted.cs|Fact|3
+Policy/BillWanted.cs|Fact|2
 Policy/BiotechFamily.cs|Fact|8
 Policy/Blight.cs|Fact|4
 Policy/Blight.cs|Unknown|1
@@ -639,13 +636,10 @@ Policy/FuelRunway.cs|Fact|19
 Policy/FuelRunway.cs|Unknown|3
 Policy/Gathering.cs|Fact|17
 Policy/Gathering.cs|Unknown|2
-Policy/Gear.cs|Fact|12
-Policy/Gear.cs|NullableValue|2
+Policy/Gear.cs|Fact|6
 Policy/GearClimate.cs|Fact|2
-Policy/GearLoadout.cs|Discard|3
-Policy/GearLoadout.cs|Fact|4
+Policy/GearLoadout.cs|Fact|1
 Policy/GearLoadout.cs|ValueOrDefault|6
-Policy/GearOrders.cs|Fact|5
 Policy/GearSurplus.cs|Fact|1
 Policy/GeneBankConcern.cs|Fact|4
 Policy/GeneBankConcern.cs|Unknown|1
@@ -803,7 +797,7 @@ Policy/Methods/Generation/PracticeMethodCandidates.cs|Fact|8
 Policy/Methods/Generation/ResearchMethodCandidates.cs|Fact|2
 Policy/Methods/Generation/SowingMethodCandidates.cs|Fact|2
 Policy/Methods/Generation/SupportMethodCandidates.cs|Fact|22
-Policy/Military.cs|Fact|36
+Policy/Military.cs|Fact|32
 Policy/Military.cs|Unknown|2
 Policy/Military.cs|ValueOrDefault|1
 Policy/Monolith.cs|Fact|12
@@ -957,7 +951,6 @@ Policy/StoreCapacity.cs|Fact|21
 Policy/StoreCapacity.cs|Unknown|4
 Policy/StoreDepartment.cs|Fact|4
 Policy/StoreDepartment.cs|Unknown|1
-Policy/StoreGear.cs|NullableValue|2
 Policy/StoreGeometry.cs|Fact|3
 Policy/StoreIndustry.cs|Fact|1
 Policy/StoreInflow.cs|Fact|6

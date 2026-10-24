@@ -244,27 +244,16 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     /// <summary>
     /// The equipment predicate: the gear review recovered and no mortar short of shells. A shell shortage is unmet
-    /// whatever the gear census says; otherwise an unknown gear review is unknown.
+    /// whatever the gear census says; otherwise an unread gear census raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<bool> EquipmentMet(MilitaryFacts f)
-    {
-        if (Positive(f.ShellsShort))
-        {
-            return Known(false);
-        }
-        return GearRules.ReviewGear(f.Gear).Recovered;
-    }
+    public static bool EquipmentMet(MilitaryFacts f) => !Positive(f.ShellsShort) && GearRules.ReviewGear(f.Gear).Recovered;
 
     private static Need EquipmentNeed(MilitaryFacts f)
     {
-        var gear = GearRules.ReviewGear(f.Gear);
-        if (!EquipmentMet(f).TryGetValue(out var ok))
-        {
-            throw new RequiredFactException("gear review");
-        }
+        var ok = EquipmentMet(f);
         // The gear review's deficit while gear is short; a retire or a shell shortage alone is a whole deficit.
-        var deficit = ok ? Known(0.0) : gear.Recovered.TryGetValue(out var recovered) && !recovered ? gear.Deficit : Known(1.0);
-        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit };
+        var deficit = ok ? 0.0 : f.Gear.IsKnown && GearRules.ReviewGear(f.Gear) is { Recovered: false } gear ? gear.Deficit : 1.0;
+        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = Known(deficit) };
     }
 
     /// <summary>

@@ -156,7 +156,21 @@ public sealed record GearOption
     /// A bill whose stuff arrives after the tier-1 horizon (<see cref="ForecastCoupled.TierOneHorizonDays"/>), or at no
     /// known day, is never eligible to plan or craft, however good its stats. The colony model still values it as a project's product.
     /// </summary>
-    public Fact<double> Arrival { get; init; } = Known(0.0);
+    public GearArrival Arrival { get; init; } = new GearArrival.InDays(0);
+}
+
+/// <summary>When a gear option's stuff is in hand (<see cref="GearOption.Arrival"/>).</summary>
+public abstract record GearArrival
+{
+    private GearArrival()
+    {
+    }
+
+    /// <summary>In hand after <see cref="Days"/>: zero for an item, a stuffless bill or stuff in stock.</summary>
+    public sealed record InDays(double Days) : GearArrival;
+
+    /// <summary>No supply the colony sees brings the stuff in at any known day.</summary>
+    public sealed record NoKnownDay : GearArrival;
 }
 
 public sealed record GearLoadoutInput
@@ -375,13 +389,21 @@ public static class GearLoadoutRules
     /// benches, beds and research happen indoors; everything else (building, mining, growing, hauling, handling,
     /// fishing) is outdoor labour.
     /// </summary>
-    private static GearRole GearWorkRole(WorkType w) =>
-        w switch
+    private static GearRole GearWorkRole(WorkType w)
+    {
+        switch (w)
         {
-            WorkType.Hunting => GearRole.Hunter,
-            WorkType.Crafting or WorkType.Tailoring or WorkType.Smithing or WorkType.Research or WorkType.Art or WorkType.Cooking or WorkType.Doctor or WorkType.Warden => GearRole.Indoor,
-            _ => GearRole.Worker,
-        };
+            case WorkType.Hunting:
+                return GearRole.Hunter;
+            case WorkType.Crafting or WorkType.Tailoring or WorkType.Smithing or WorkType.Research or WorkType.Art or WorkType.Cooking or WorkType.Doctor or WorkType.Warden:
+                return GearRole.Indoor;
+            case WorkType.None or WorkType.Construction or WorkType.Mining or WorkType.PlantCutting or WorkType.Hauling or WorkType.Cleaning or WorkType.Basic
+                or WorkType.Handling or WorkType.Firefighter or WorkType.Fishing or WorkType.Growing or WorkType.Patient or WorkType.PatientBedRest
+                or WorkType.BedRest or WorkType.Childcare or WorkType.DarkStudy or WorkType.Violent:
+                return GearRole.Worker;
+        }
+        throw new DomainException($"undefined work type {(int)w}");
+    }
 
     internal static int GearPassionRank(string? passion) =>
         passion switch
@@ -422,14 +444,21 @@ public static class GearLoadoutRules
         return (armor, insulation);
     }
 
-    public static double GearGapThreshold(GearRole role) =>
-        role switch
+    public static double GearGapThreshold(GearRole role)
+    {
+        switch (role)
         {
-            GearRole.Soldier => .05,
-            GearRole.Hunter => .1,
-            GearRole.Slave or GearRole.Prisoner => .5,
-            _ => .2,
-        };
+            case GearRole.Soldier:
+                return .05;
+            case GearRole.Hunter:
+                return .1;
+            case GearRole.Slave or GearRole.Prisoner:
+                return .5;
+            case GearRole.Worker or GearRole.Indoor or GearRole.Child or GearRole.NonCombatant:
+                return .2;
+        }
+        throw new DomainException($"undefined gear role {(int)role}");
+    }
 
     /// <summary>Whether a gap is acted on: it is needed for the insulation floor, or it gains more than the role's threshold.</summary>
     internal static bool GearGapWanted(GearRole role, GearGap g) => g.Floor || g.Gain > GearGapThreshold(role);
@@ -508,7 +537,7 @@ public static class GearLoadoutRules
     /// <summary><see cref="GearEligible(GearLoadoutInput, GearOption)"/> for a pawn whose <paramref name="role"/> is already derived.</summary>
     private static bool GearEligible(GearLoadoutInput p, GearRole role, GearOption o)
     {
-        if (!o.Arrival.TryGetValue(out var arrival) || arrival > ForecastCoupled.TierOneHorizonDays)
+        if (o.Arrival is not GearArrival.InDays { Days: <= ForecastCoupled.TierOneHorizonDays })
         {
             return false;
         }
@@ -763,15 +792,21 @@ public static class GearLoadoutRules
     /// </summary>
     public const int GearSearchBudget = 200000;
 
-    private static int GearSourceRank(GearSource s) =>
-        s switch
+    private static int GearSourceRank(GearSource s)
+    {
+        switch (s)
         {
-            GearSource.Worn => 0,
-            GearSource.Loose => 1,
-            GearSource.Stored => 2,
-            GearSource.Bill => 3,
-            _ => 4,
-        };
+            case GearSource.Worn:
+                return 0;
+            case GearSource.Loose:
+                return 1;
+            case GearSource.Stored:
+                return 2;
+            case GearSource.Bill:
+                return 3;
+        }
+        throw new DomainException($"undefined gear source {(int)s}");
+    }
 
     /// <summary>
     /// Searches compatible ensembles, retaining forced/locked items. Equal scores retain worn gear, then the cheaper option
@@ -1064,7 +1099,7 @@ public static class GearLoadoutRules
             // The pawn's outfit filter: tainted apparel is out unless the comparator allowed it (DesiredApparelPolicy).
             var (cold, heat) = GearInsulation(input.Worn);
             using var span = s_spans.StartActivity("gear.loadout");
-            var l = PlanGearLoadout(input, p.AllowTainted ? null : o => o.Tainted, (p.ColdFloor ?? cold, p.HeatFloor ?? heat)) with { Pawn = p.Pawn };
+            var l = PlanGearLoadout(input, p.AllowTainted ? null : o => o.Tainted, (p.ColdFloor.Or(cold), p.HeatFloor.Or(heat))) with { Pawn = p.Pawn };
             if (l.Findings.Count > 0)
             {
                 span?.SetTag("rimgovernor.findings", string.Join(",", l.Findings));

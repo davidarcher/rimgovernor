@@ -9,14 +9,20 @@ public static class ColonyGearReads
     /// Decodes the gear census against the frame's definitions: the catalog's apparel rows and stat table give every
     /// garment's layers, groups and stats, and the finished research its bill options need. Each bill option carries the
     /// arrival of its stuff (<see cref="StuffArrivalFacts"/>), counting the growing <paramref name="fields"/> of the
-    /// <paramref name="crops"/>' plants. A frame without a catalog, finished research or stock census leaves the census
-    /// unknown; a census whose rows are not the frame's colonists raises <see cref="RequiredFactException"/>. A pawn the
-    /// loadout model refuses is <see cref="GearModel.Refused"/> with the cause.
+    /// <paramref name="crops"/>' plants; unread fields (the projection's FoodFields) offer nothing. A frame without a
+    /// stock census leaves the census unknown; a census whose rows are not the frame's colonists raises
+    /// <see cref="RequiredFactException"/>. A pawn the loadout model refuses is <see cref="GearModel.Refused"/> with the cause.
     /// </summary>
-    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
+    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops) =>
+        GearFacts(v, tables, defs, fields.TryGetValue(out var read) ? read : [], crops);
+
+    /// <summary><see cref="GearFacts(O.ColonyFactsSnapshot, Tables, GearDefinitions, Fact{EquatableArray{FoodField}}, IReadOnlyList{PlanningDefinition})"/> counting <paramref name="fields"/>.</summary>
+    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, IReadOnlyList<FoodField> fields, IReadOnlyList<PlanningDefinition> crops)
     {
         var gear = PlanningWindowReads.RequirePlanning(v).Gear;
-        if (defs.Catalog is not { } catalog || !defs.Finished.TryGetValue(out var finished) || !ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
+        var catalog = defs.Catalog;
+        var finished = defs.Finished;
+        if (!ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
         {
             return Unknown<GearObservation>();
         }
@@ -113,10 +119,10 @@ public static class ColonyGearReads
     /// each its race's butchery yields after one butchering's work at speed 1 (none without the census, the butcher
     /// recipe's work or the race's row); and the growing <paramref name="fields"/>, each its standing crop (the growing
     /// cells times the plant's harvest yield) at its harvest lead. A field whose crop the <paramref name="crops"/> lack,
-    /// or whose product or yield is unread, offers nothing; unknown fields offer nothing.
+    /// or whose product or yield is unread, offers nothing.
     /// </summary>
     internal static StuffArrival StuffArrivalFacts(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog catalog, IReadOnlyDictionary<Resource, long> stock,
-        Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
+        IReadOnlyList<FoodField> fields, IReadOnlyList<PlanningDefinition> crops)
     {
         var supply = new List<SupplyCandidate>();
         foreach (var s in AcquisitionReads.ColonyAcquisition(v, tables, catalog).ValueOrDefault)
@@ -137,7 +143,7 @@ public static class ColonyGearReads
                 supply.Add(corpse);
             }
         }
-        foreach (var f in fields.ValueOrDefault)
+        foreach (var f in fields)
         {
             var crop = crops.FirstOrDefault(d => d.Name == f.Plan.Crop.Name);
             if (crop is not null && crop.HarvestedThingDef.TryGetValue(out var product) && crop.HarvestYield.TryGetValue(out var yield)
@@ -177,12 +183,8 @@ public static class ColonyGearReads
         {
             return new GearModel.NoOutfit();
         }
-        var catalog = defs.Catalog ?? throw new DomainException("gear loadout model needs a definition catalog");
-        if (!defs.Finished.TryGetValue(out var finished))
-        {
-            throw new DomainException("gear loadout model needs the finished research");
-        }
-        var research = new List<string>(finished);
+        var catalog = defs.Catalog;
+        var research = new List<string>(defs.Finished);
         research.Sort(StringComparer.Ordinal);
         var input = new GearLoadoutInput
         {
@@ -232,7 +234,7 @@ public static class ColonyGearReads
         {
             if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains(x.DefName)))
             {
-                options.Add(option with { Arrival = arrival.Of(option) });
+                options.Add(option with { Arrival = arrival.Of(option).TryGetValue(out var days) ? new GearArrival.InDays(days) : new GearArrival.NoKnownDay() });
             }
         }
         input = input with { Worn = EquatableArray.From(worn), Options = EquatableArray.From(options) };
@@ -599,14 +601,15 @@ public static class ColonyGearReads
     /// <summary>
     /// The garments the colonists' outfits allow that cover a core body-part group, each with its first available
     /// recipe's ingredient slots (PlanClothingRunway prices the replacement from them). A definition without a known
-    /// available recipe is left out; an unread census or catalog yields none.
+    /// available recipe is left out; an unread census yields none.
     /// </summary>
     public static IReadOnlyList<ClothingGarment> ClothingGarments(GearDefinitions defs, Fact<GearObservation> gear)
     {
-        if (!gear.TryGetValue(out var observed) || !defs.Finished.TryGetValue(out var finished) || defs.Catalog is not { } catalog)
+        if (!gear.TryGetValue(out var observed))
         {
             return [];
         }
+        var (catalog, finished) = (defs.Catalog, defs.Finished);
         var allowed = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in observed.Pawns)
         {

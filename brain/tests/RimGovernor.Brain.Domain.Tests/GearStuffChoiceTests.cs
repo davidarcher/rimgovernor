@@ -32,7 +32,7 @@ public sealed class GearStuffChoiceTests
 
     private static StuffArrival Arrival(Dictionary<Resource, long> stock, params SupplyCandidate?[] supply) => new(stock, [.. supply.Select(c => c!)]);
 
-    private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o) };
+    private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o).TryGetValue(out var days) ? new GearArrival.InDays(days) : new GearArrival.NoKnownDay() };
 
     private static Resource? Planned(params GearOption[] options) =>
         GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = EquatableArray.From(options) })

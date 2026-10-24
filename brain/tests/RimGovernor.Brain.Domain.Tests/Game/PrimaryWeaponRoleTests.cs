@@ -67,7 +67,7 @@ public sealed class PrimaryWeaponRoleTests
         }
         var tables = new Tables(default, default, Things.Of(things), []);
         var row = GearFixtures.Loadout("pawn") with { Equipment = equipment, ApparelPolicy = PoliciesTests.EmptyOutfit };
-        var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
+        var defs = new GearDefinitions { Catalog = Catalog(), Finished = new HashSet<string>() };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, new RimGovernor.Brain.Policy.ApparelPolicyState(), ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long>(), []));
         return ColonyModelFixtures.NoGear() with
         {

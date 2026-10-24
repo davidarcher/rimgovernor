@@ -259,7 +259,8 @@ public sealed class MilitaryRounds
             var result = await _workshop.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
             verdicts.Add(result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict);
         }
-        return EquipmentVerdict(verdicts, GearRules.ReviewGear(facts.Gear).Recovered);
+        // An unread census holds no replacement, as a recovered one does.
+        return EquipmentVerdict(verdicts, !facts.Gear.IsKnown || GearRules.ReviewGear(facts.Gear).Recovered);
     }
 
     /// <summary>
@@ -267,7 +268,7 @@ public sealed class MilitaryRounds
     /// otherwise gear the review does not find recovered is held as the unsupported apparel replacement, and the
     /// rest (shells, which the ledger orders) is no method.
     /// </summary>
-    internal static Verdict EquipmentVerdict(IReadOnlyList<Verdict> verdicts, Fact<bool> gearRecovered)
+    internal static Verdict EquipmentVerdict(IReadOnlyList<Verdict> verdicts, bool gearRecovered)
     {
         foreach (var verdict in verdicts)
         {
@@ -283,7 +284,7 @@ public sealed class MilitaryRounds
                 return verdict;
             }
         }
-        if (gearRecovered.TryGetValue(out var recovered) && !recovered)
+        if (!gearRecovered)
         {
             return AwaitingPlan(MilitaryFamily.UnsupportedApparelReplacement,
                 "Observed apparel replacement demand requires shared forecast worker, timing and outcome alternatives.");

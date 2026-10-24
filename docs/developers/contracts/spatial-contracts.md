@@ -651,7 +651,8 @@ things and waste beside the items safe outside. Warehouse gear (apparel or weapo
 unknown hit points or quality is not sale gear.
 
 **Gear zones.** Gear is warehouse zones, not rooms: a 3x3 `apparel` zone and a 3x3 `weapons` zone
-sited inside the planned warehouse (`policy.GearPatchesOf`), which leaves their cells out. The
+sited inside the planned warehouse (`policy.GearPatchesOf`, each a `GearPatch.Placed` square or
+`GearPatch.NoRoom`), which leaves their cells out. The
 weapons zone takes no cell within six of a prison (the weapon clearance); a warehouse with no such
 square hosts none, and the next warehouse is tried.
 

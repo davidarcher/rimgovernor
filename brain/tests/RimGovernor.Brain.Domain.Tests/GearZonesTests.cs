@@ -28,8 +28,8 @@ public sealed class GearZonesTests
     {
         var plan = Plan(Room(1, LayoutSurveyRules.PlannedStorage, 10, 10, 15, 7), Room(2, LayoutSurveyRules.PlannedPrison, 26, 10, 5, 5));
         var patches = StoreRules.GearPatchesOf(plan);
-        var weapons = Assert.IsType<Rectangle>(patches.Weapons);
-        Assert.NotNull(patches.Apparel);
+        var weapons = Assert.IsType<GearPatch.Placed>(patches.Weapons).Square;
+        Assert.IsType<GearPatch.Placed>(patches.Apparel);
         Assert.DoesNotContain(Cells(weapons), c => WithinClearance(c, PrisonLayoutRules.PrisonCells(plan)));
 
         // The warehouse leaves both patches out, and the declared gear zones stand on exactly them.
@@ -46,8 +46,8 @@ public sealed class GearZonesTests
     {
         var plan = Plan(Room(1, LayoutSurveyRules.PlannedStorage, 10, 10, 8, 5), Room(2, LayoutSurveyRules.PlannedPrison, 19, 10, 5, 5));
         var patches = StoreRules.GearPatchesOf(plan);
-        Assert.Null(patches.Weapons);
-        Assert.NotNull(patches.Apparel);
+        Assert.IsType<GearPatch.NoRoom>(patches.Weapons);
+        Assert.IsType<GearPatch.Placed>(patches.Apparel);
         var declared = StoreRules.DeclareStores(View(plan));
         Assert.DoesNotContain(declared.Stores, s => s.Role == StockpileRolesConstants.WeaponsRole);
         Assert.Contains(declared.Stores, s => s.Role == StockpileRolesConstants.ApparelRole);
@@ -57,7 +57,7 @@ public sealed class GearZonesTests
     public void TheWeaponsZoneMovesToAWarehouseClearOfEveryPrison()
     {
         var plan = Plan(Room(1, LayoutSurveyRules.PlannedStorage, 10, 10, 8, 5), Room(2, LayoutSurveyRules.PlannedPrison, 19, 10, 5, 5), Room(3, LayoutSurveyRules.PlannedStorage, 60, 10, 15, 7));
-        var weapons = Assert.IsType<Rectangle>(StoreRules.GearPatchesOf(plan).Weapons);
+        var weapons = Assert.IsType<GearPatch.Placed>(StoreRules.GearPatchesOf(plan).Weapons).Square;
         Assert.True(weapons.X >= 60);
     }
 }

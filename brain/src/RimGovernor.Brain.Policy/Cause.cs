@@ -96,7 +96,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     // site picks one, so the ledger view can say which input was missing instead of only who abstained.
     public static readonly Cause UnreadReview = new("review");
     public static readonly Cause UnreadStock = new("stock");
-    public static readonly Cause UnreadBenches = new("benches");
     public static readonly Cause UnreadBenchDef = new("bench_definition");
     public static readonly Cause UnreadRecipes = new("recipes");
     public static readonly Cause UnreadDefinitions = new("definitions");
@@ -140,7 +139,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         CriticalMedical, MaterialRequired, DependencyBlocked, GeometryBlocked, InvalidHeld,
         ExcavationUnsupported, ExcavationGeometryChanged, UnsafeRoute, RoofSupportRisk, StorageMissing,
         UrgentCompetingWork,
-        UnreadReview, UnreadStock, UnreadBenches, UnreadBenchDef, UnreadRecipes,
+        UnreadReview, UnreadStock, UnreadBenchDef, UnreadRecipes,
         UnreadDefinitions, UnreadNativeRead, UnreadMedicine, UnreadArtists, UnreadArtNeed,
         UnreadGearRecover, UnreadGearDemand, UnreadArmoryTier, UnreadWeapons,
         UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
@@ -279,7 +278,6 @@ public static class CauseRules
 
         [Cause.UnreadReview] = UnreadWording("the Round's review"),
         [Cause.UnreadStock] = UnreadWording("the stock census"),
-        [Cause.UnreadBenches] = UnreadWording("the bench readback"),
         [Cause.UnreadBenchDef] = UnreadWording("a bench's kind"),
         [Cause.UnreadRecipes] = UnreadWording("a recipe's facts"),
         [Cause.UnreadDefinitions] = UnreadWording("the game's definitions"),

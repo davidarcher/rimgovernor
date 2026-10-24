@@ -36,20 +36,34 @@ public sealed record GearStore
     }
 }
 
-/// <summary>Where the gear zones stand: each a fixed patch inside a planned warehouse, null when no warehouse has a place for it.</summary>
-public readonly record struct GearPatches(Rectangle? Apparel, Rectangle? Weapons)
+/// <summary>Where one gear zone stands (<see cref="GearPatches"/>).</summary>
+public abstract record GearPatch
+{
+    private GearPatch()
+    {
+    }
+
+    /// <summary>A fixed square inside a planned warehouse.</summary>
+    public sealed record Placed(Rectangle Square) : GearPatch;
+
+    /// <summary>No planned warehouse has a place for the zone.</summary>
+    public sealed record NoRoom : GearPatch;
+}
+
+/// <summary>Where the gear zones stand: each a fixed patch inside a planned warehouse, or no room for it.</summary>
+public readonly record struct GearPatches(GearPatch Apparel, GearPatch Weapons)
 {
     /// <summary>The cells both patches take, which the warehouse zone leaves out.</summary>
     internal List<Cell> Cells()
     {
         var cells = new List<Cell>();
-        if (Apparel is { } a)
+        if (Apparel is GearPatch.Placed a)
         {
-            cells.AddRange(PlannedRules.RectCells(a));
+            cells.AddRange(PlannedRules.RectCells(a.Square));
         }
-        if (Weapons is { } w)
+        if (Weapons is GearPatch.Placed w)
         {
-            cells.AddRange(PlannedRules.RectCells(w));
+            cells.AddRange(PlannedRules.RectCells(w.Square));
         }
         return cells;
     }
@@ -70,19 +84,25 @@ public static partial class StoreRules
     {
         var prisons = PrisonLayoutRules.PrisonCells(plan);
         var rooms = plan.Rooms.Where(p => p.Role == PlannedRole.Storage).ToList();
-        Rectangle? apparel = null;
-        Rectangle? weapons = null;
+        GearPatch apparel = new GearPatch.NoRoom();
+        GearPatch weapons = new GearPatch.NoRoom();
         foreach (var room in rooms)
         {
             var floor = StockpileRules.CellSet(room.Region.Cells());
-            apparel ??= FirstSquare(floor, [], []);
-            weapons ??= FirstSquare(floor, apparel is { } a ? PlannedRules.RectCells(a) : [], prisons);
+            if (apparel is GearPatch.NoRoom)
+            {
+                apparel = FirstSquare(floor, [], []);
+            }
+            if (weapons is GearPatch.NoRoom)
+            {
+                weapons = FirstSquare(floor, apparel is GearPatch.Placed a ? PlannedRules.RectCells(a.Square) : [], prisons);
+            }
         }
         return new GearPatches(apparel, weapons);
     }
 
-    /// <summary>The first GearPatchSize square, in row order, whose cells all lie in floor, none in taken and none near a prison.</summary>
-    private static Rectangle? FirstSquare(HashSet<Cell> floor, IReadOnlyList<Cell> taken, IReadOnlyList<Cell> prisons)
+    /// <summary>The first GearPatchSize square, in row order, whose cells all lie in floor, none in taken and none near a prison; no room when there is none.</summary>
+    private static GearPatch FirstSquare(HashSet<Cell> floor, IReadOnlyList<Cell> taken, IReadOnlyList<Cell> prisons)
     {
         var skip = StockpileRules.CellSet(taken);
         foreach (var origin in floor.OrderBy(c => c.Z).ThenBy(c => c.X))
@@ -91,10 +111,10 @@ public static partial class StoreRules
             var cells = PlannedRules.RectCells(square);
             if (cells.All(floor.Contains) && !cells.Any(skip.Contains) && (prisons.Count == 0 || !PrisonLayoutRules.NearPrison(cells, prisons)))
             {
-                return square;
+                return new GearPatch.Placed(square);
             }
         }
-        return null;
+        return new GearPatch.NoRoom();
     }
 
     /// <summary>The weapons zone's and the apparel zone's filters for the catalog's armor defs.</summary>

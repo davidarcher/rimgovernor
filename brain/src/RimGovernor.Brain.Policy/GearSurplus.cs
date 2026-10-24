@@ -36,7 +36,7 @@ public static class GearSurplusRules
         GearReview review;
         try
         {
-            review = GearRules.ReviewGear(input.Gear);
+            review = GearRules.ReviewGear(gear);
         }
         catch (DomainException)
         {

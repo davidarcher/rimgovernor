@@ -110,7 +110,9 @@ public sealed class MilitaryFamilyTests
     public void EquipmentIsUnmetByAShellShortageAndOtherwiseUnknownWithoutTheGearReview()
     {
         Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Equipment)).Fact);
-        Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts { Gear = Known(ColonyModelFixtures.NoGear()) }, MilitaryFamily.Equipment)).Fact);
+        // An empty census has every pawn outfitted (#3904).
+        var empty = Derive(new MilitaryFacts { Gear = Known(ColonyModelFixtures.NoGear()) }, MilitaryFamily.Equipment);
+        Assert.Equal((Satisfaction.Met, 0.0), (empty.Satisfaction, empty.Deficit.Value));
 
         var shells = Derive(new MilitaryFacts { ShellsShort = Known(true) }, MilitaryFamily.Equipment);
         Assert.Equal((Satisfaction.Unmet, 1.0), (shells.Satisfaction, shells.Deficit.Value));
@@ -172,12 +174,11 @@ public sealed class MilitaryFamilyTests
     {
         var spot = Verdict.BuildingReasonNoDeficit;
         var bench = Verdict.BuildingReasonAdmitted;
-        Assert.Equal(bench, MilitaryRounds.EquipmentVerdict([spot, bench], Known(false)));
-        var held = MilitaryRounds.EquipmentVerdict([spot, Verdict.BuildingReasonDisabled], Known(false));
+        Assert.Equal(bench, MilitaryRounds.EquipmentVerdict([spot, bench], false));
+        var held = MilitaryRounds.EquipmentVerdict([spot, Verdict.BuildingReasonDisabled], false);
         Assert.True(held.Is(Cause.AwaitingPlan));
         Assert.Equal(MilitaryFamily.UnsupportedApparelReplacement, held.Refusal.Subject);
-        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], Known(true)).Refusal.Subject);
-        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], default).Refusal.Subject);
+        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], true).Refusal.Subject);
     }
 
     private static AcquisitionSource Pest(string id, int x) =>
