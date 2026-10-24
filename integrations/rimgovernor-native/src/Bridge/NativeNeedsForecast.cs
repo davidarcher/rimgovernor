@@ -178,17 +178,17 @@ internal static class NativeNeedsForecast
     /// <summary>PawnObserver.ObservationRadius (a private const in 1.7): the observer sees a thing within this many cells (InHorDistOf).</summary>
     internal const float ObservationRadius = 5f;
     /// <summary>
-    /// The pawn's value reads (#3825, Obs.PawnUpkeepRead): its speed at each work speed stat the catalog maps, 0 where the stat is
+    /// The pawn's value reads (#3825, Obs.PawnUpkeepRead): its speed at each work speed stat the catalog maps and its move speed and carrying capacity (#3849), 0 where the stat is
     /// disabled for it; the work types it is incapable of; its food fall at the Fed category over a day; its mood target and minor
     /// break threshold, null without a mood need or a mental breaker. A mood need whose target was not read is a broken read.
     /// </summary>
     private static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Fact<double> moodTarget)
     {
-        var names = RimGovernor.Brain.Bridge.DefinitionCatalog.WorkSpeedStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
+        var names = RimGovernor.Brain.Bridge.DefinitionCatalog.UpkeepStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
         var speeds = new List<Obs.WorkSpeedRead>();
         foreach (var name in names)
         {
-            var stat = DefDatabase<StatDef>.GetNamedSilentFail(name) ?? throw new InvalidOperationException("work speed stat not loaded: " + name);
+            var stat = DefDatabase<StatDef>.GetNamedSilentFail(name) ?? throw new InvalidOperationException("upkeep stat not loaded: " + name);
             speeds.Add(new(stat.defName, stat.Worker.IsDisabledFor(pawn) ? 0 : pawn.GetStatValue(stat)));
         }
         var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);

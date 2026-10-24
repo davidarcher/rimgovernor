@@ -33,9 +33,13 @@ public sealed partial class DefinitionCatalog
         (typeof(JobDriver_CleanFilth), nameof(StatDefOf.CleaningSpeed)),
     ];
 
-    /// <summary>The work speed stats a pawn's value reads per pawn (#3825): every mapped job driver's and every recipe's, by name.</summary>
-    public static IReadOnlyList<string> WorkSpeedStatNames(IEnumerable<RecipeDef> recipes) =>
+    /// <summary>
+    /// The stats a pawn's value reads per pawn: every mapped job driver's and every recipe's work speed (#3825), and the move speed
+    /// and carrying capacity its food's hauling walks and carries at (#3849), by name.
+    /// </summary>
+    public static IReadOnlyList<string> UpkeepStatNames(IEnumerable<RecipeDef> recipes) =>
         [.. DriverSpeedStats.Select(d => d.Stat).Concat(recipes.Select(r => r.workSpeedStat?.defName).OfType<string>())
+            .Append(nameof(StatDefOf.MoveSpeed)).Append(nameof(StatDefOf.CarryingCapacity))
             .Distinct().Order(StringComparer.Ordinal)];
 
     /// <summary>
@@ -69,6 +73,9 @@ public sealed partial class DefinitionCatalog
     /// (sowWork + harvestWork) / (harvestYield x the harvest's Nutrition), and the meal recipe (one IsMeal product, ingredients counted
     /// by IngredientValueGetter_Nutrition) with the least work per nutrition made, with the ingredient nutrition it takes per nutrition
     /// made. With no such recipe the colony eats its crop raw (no cooking); with no such crop there is nothing to grow food with.
+    /// Its hauling (#3849): the harvest and the meal as carried (Nutrition, stackLimit, VolumePerUnit), whether the harvest rots
+    /// (CompProperties_Rottable), the meal recipe's product count, its benches (recipeUsers and every ThingDef listing it in its
+    /// recipes, as RecipeDef.AllRecipeUsers) and the move and carry stats.
     /// </summary>
     public P.FoodWorkFacts FoodWork(IReadOnlySet<string> finished)
     {
@@ -78,19 +85,29 @@ public sealed partial class DefinitionCatalog
         var crop = _thingDefs.Values
             .Where(t => t.plant is { Sowable: true, Harvestable: true, harvestedThingDef: { ingestible.HumanEdible: true } } plant && !plant.IsTree
                 && Nutrition(plant.harvestedThingDef) > 0 && Researched(plant.sowResearchPrerequisites))
-            .Select(t => (t.defName, Ticks: (t.plant.sowWork + t.plant.harvestWork) / (t.plant.harvestYield * Nutrition(t.plant.harvestedThingDef))))
+            .Select(t => (t.defName, Ticks: (t.plant.sowWork + t.plant.harvestWork) / (t.plant.harvestYield * Nutrition(t.plant.harvestedThingDef)), Harvest: t.plant.harvestedThingDef))
             .OrderBy(c => c.Ticks).ThenBy(c => c.defName, StringComparer.Ordinal).FirstOrDefault();
         var meal = Rows<RecipeDef>().Values
             .Where(r => r.products is [{ thingDef.ingestible.IsMeal: true } product] && product.count > 0 && Nutrition(product.thingDef) > 0
                 && r.workAmount > 0 && r.ingredients.Count > 0 && r.IngredientValueGetter is IngredientValueGetter_Nutrition
                 && Researched(r.researchPrerequisite is null ? r.researchPrerequisites : [r.researchPrerequisite, .. r.researchPrerequisites ?? []]))
-            .Select(r => (r.defName, Made: r.products[0].count * Nutrition(r.products[0].thingDef), r.workAmount, Ingredients: r.ingredients.Sum(i => (double)i.GetBaseCount())))
+            .Select(r => (r.defName, Made: r.products[0].count * Nutrition(r.products[0].thingDef), r.workAmount, Ingredients: r.ingredients.Sum(i => (double)i.GetBaseCount()), Recipe: r))
             .OrderBy(m => m.workAmount / m.Made).ThenBy(m => m.defName, StringComparer.Ordinal).FirstOrDefault();
+        P.CarriedFood Carried(ThingDef def) => new(Nutrition(def), def.stackLimit, def.VolumePerUnit);
+        string[] benches = meal.Recipe is not { } recipe ? []
+            : (recipe.recipeUsers ?? []).Concat(_thingDefs.Values.Where(t => t.recipes?.Contains(recipe) == true))
+                .Select(t => t.defName).Distinct().Order(StringComparer.Ordinal).ToArray();
         return new P.FoodWorkFacts
         {
             Crop = crop.defName ?? "", GrowTicksPerNutrition = crop.defName is null ? 0 : crop.Ticks,
             Meal = meal.defName ?? "", CookTicksPerNutrition = meal.defName is null ? 0 : meal.workAmount / meal.Made,
             IngredientPerNutrition = meal.defName is null ? 1 : meal.Ingredients / meal.Made,
+            Harvest = crop.Harvest is null ? null : Carried(crop.Harvest),
+            HarvestRots = crop.Harvest?.GetCompProperties<CompProperties_Rottable>() is not null,
+            Dish = meal.Recipe is null ? null : Carried(meal.Recipe.products[0].thingDef),
+            DishesPerRun = meal.Recipe is null ? 0 : meal.Recipe.products[0].count,
+            Benches = EquatableArray.From(benches),
+            MoveStat = nameof(StatDefOf.MoveSpeed), CarryStat = nameof(StatDefOf.CarryingCapacity),
         };
     }
 }

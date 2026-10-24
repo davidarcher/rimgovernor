@@ -82,6 +82,9 @@ public sealed record ForecastCoupledContext
     /// <summary>What a pawn's bed costs the colony (#3825, <see cref="PawnValueRules"/>), set by the review beside <see cref="MaterialValues"/>;
     /// null before the review priced it.</summary>
     public PawnBedFacts? Bed { get; init; }
+    /// <summary>The planned layout's food walks a pawn's food upkeep hauls over (#3849, <see cref="FoodHaulRules.Legs"/>), set by the
+    /// review beside <see cref="Bed"/>; null before a layout is planned.</summary>
+    public FoodHaulLegs? FoodHaul { get; init; }
     /// <summary>The placed sites and standing removals the planned rooms hold (#3796, epic #3650 P4), by the rooms whose
     /// interior or ring cells hold them: part of those rooms' owed work.</summary>
     public EquatableArray<ForecastRoomItem> RoomItems { get; init; }

@@ -7,6 +7,9 @@ namespace RimGovernor.Brain.Policy;
 /// research finished: the cheapest crop's sowing and harvest per nutrition harvested (<see cref="Crop"/>, "" when the colony can sow
 /// no human-edible crop) and the cheapest meal recipe's work per nutrition made with the ingredient
 /// nutrition it takes per nutrition made (<see cref="Meal"/>, "" when the colony can cook none: it eats its crop raw).
+/// Its hauling (#3849): the crop's harvested thing (<see cref="Harvest"/>, null without a crop) and whether it rots, the meal's
+/// product (<see cref="Dish"/>, null without a meal) and the dishes a run makes, the benches that cook it, and the stats a pawn
+/// walks and carries at (<see cref="MoveStat"/>, <see cref="CarryStat"/>), which the needs read reads per pawn.
 /// </summary>
 public sealed record FoodWorkFacts
 {
@@ -19,6 +22,22 @@ public sealed record FoodWorkFacts
     public double CookTicksPerNutrition { get; init; }
 
     public double IngredientPerNutrition { get; init; } = 1;
+
+    public CarriedFood? Harvest { get; init; }
+
+    /// <summary>Whether the harvest rots (its def has CompProperties_Rottable), so it is stored cold.</summary>
+    public bool HarvestRots { get; init; }
+
+    public CarriedFood? Dish { get; init; }
+
+    public int DishesPerRun { get; init; }
+
+    /// <summary>The ThingDefs that cook <see cref="Meal"/> (RecipeDef.AllRecipeUsers).</summary>
+    public EquatableArray<string> Benches { get; init; }
+
+    public string MoveStat { get; init; } = "";
+
+    public string CarryStat { get; init; } = "";
 }
 
 /// <summary>What a pawn's bed costs (#3825, V6): whether a colonist bed stands vacant (SleepingRules.VacantColonistBed) and the
@@ -38,6 +57,9 @@ public sealed record PawnValueColony
     public MoodBreakModel Breaks { get; init; } = new();
 
     public PawnBedFacts? Bed { get; init; }
+
+    /// <summary>The planned layout's food walks (<see cref="FoodHaulRules.Legs"/>); null before a layout is planned.</summary>
+    public FoodHaulLegs? Haul { get; init; }
 
     public double HorizonDays { get; init; }
 }
@@ -73,6 +95,9 @@ public sealed record PawnValue(string Pawn, double WorkAdded, double FoodUpkeep,
 
     public EquatableArray<string> NotModelled { get; init; }
 
+    /// <summary>The part of <see cref="FoodUpkeep"/> that is hauling the food (#3849), in capability-days a day.</summary>
+    public double FoodHaul { get; init; }
+
     /// <summary>Work added less upkeep; negative for a pawn who costs more than it adds.</summary>
     public double PerDay => WorkAdded - FoodUpkeep - BreakUpkeep - BedUpkeep;
 }
@@ -83,7 +108,6 @@ public static class PawnValueRules
     public static readonly EquatableArray<string> NotModelled =
     [
         "comparative_advantage", // a faster joiner freeing an existing pawn for other work (V2)
-        "food_hauling", // carrying the pawn's food from field to kitchen to table (V4)
         "effects_on_others", // Abrasive and other traits' mood effects on the colony (V5)
         "skill_growth", // passion's learning over the horizon (#3809)
     ];
@@ -94,12 +118,14 @@ public static class PawnValueRules
     /// <item>work added (V1, V2): the colony's shortfall rows of a work type the pawn is capable of, filled from the pawn's free ticks
     /// at its fastest stat first, each capped at its row, in ticks at speed 1; the rest of its time adds nothing;</item>
     /// <item>food (V4): the nutrition it eats a day times the work a unit costs (cooking it plus growing its ingredients, or growing
-    /// it eaten raw when the colony can cook no meal);</item>
+    /// it eaten raw when the colony can cook no meal) and hauling it (#3849, <see cref="FoodHaulRules.TicksPerNutrition"/>) over the
+    /// planned layout's walks, at the pawn's own MoveSpeed and CarryingCapacity: the pawn is priced as hauling its own food;</item>
     /// <item>breaks (V5): <see cref="MoodBreakModel.DaysLost"/> of a day held at its mood target under its threshold;</item>
     /// <item>bed (V6): nothing while a colonist bed stands vacant, else the bed's build over the horizon.</item>
     /// </list>
-    /// A stat the shortfall needs that the pawn's speeds lack, an unpriced break curve, the colony's bed unread or a horizon of no days
-    /// throws <see cref="RequiredFactException"/>.
+    /// A stat the shortfall needs that the pawn's speeds lack, an unpriced break curve, the colony's bed unread, a horizon of no days,
+    /// no planned layout, a meal with no planned bench to cook it, a planned walk no route joins, or the pawn's move or carry stat unread
+    /// throws <see cref="RequiredFactException"/>. A crop with no planned field names <c>food_field_unplanned</c>: its harvest is not hauled.
     /// </summary>
     public static PawnValue Of(PawnValueFacts pawn, PawnValueColony colony)
     {
@@ -124,13 +150,20 @@ public static class PawnValueRules
         var perNutrition = food.Meal.Length != 0
             ? food.CookTicksPerNutrition + (food.IngredientPerNutrition * food.GrowTicksPerNutrition)
             : food.GrowTicksPerNutrition;
-        var notModelled = food.Crop.Length == 0 ? [.. NotModelled, "food_source_not_crop"] : NotModelled;
+        var legs = colony.Haul ?? throw new RequiredFactException("planned layout of the food's hauls");
+        DomainException.Require(food.MoveStat.Length > 0 && food.CarryStat.Length > 0, "food haul stats");
+        if (food.Dish is not null && !legs.Bench) throw new RequiredFactException("planned bench of " + food.Meal);
+        if (!double.IsFinite(legs.FieldToStore) || !double.IsFinite(legs.SourceToBench) || !double.IsFinite(legs.BenchToDish))
+            throw new RequiredFactException("planned route of the food's hauls");
+        var haul = FoodHaulRules.TicksPerNutrition(food, legs, FoodHaulRules.TicksPerCell(Speed(food.MoveStat)), Speed(food.CarryStat));
+        var notModelled = food.Crop.Length == 0 ? [.. NotModelled, "food_source_not_crop"]
+            : !legs.Field ? [.. NotModelled, "food_field_unplanned"] : NotModelled;
         var bed = colony.Bed ?? throw new RequiredFactException("colony bed");
         if (!bed.Vacant && !(colony.HorizonDays > 0)) throw new RequiredFactException("bed horizon");
-        return new PawnValue(pawn.Pawn, shares.Sum(s => s.TicksPerDay) / GameTime.TicksPerDay, pawn.FoodPerDay * perNutrition / GameTime.TicksPerDay,
+        return new PawnValue(pawn.Pawn, shares.Sum(s => s.TicksPerDay) / GameTime.TicksPerDay, pawn.FoodPerDay * (perNutrition + haul) / GameTime.TicksPerDay,
             BreakDaysPerDay(pawn.Mood, colony.Breaks), bed.Vacant ? 0 : bed.BuildDays / colony.HorizonDays)
         {
-            Work = EquatableArray.From(shares), NotModelled = notModelled,
+            Work = EquatableArray.From(shares), NotModelled = notModelled, FoodHaul = pawn.FoodPerDay * haul / GameTime.TicksPerDay,
         };
     }
 
@@ -162,7 +195,7 @@ public static class PawnValueRules
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         var shortfall = WorkShortfallRules.Of(candidates, selection, work, speeds);
         var hours = PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays);
-        var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, HorizonDays = context.InvestmentHorizonDays };
+        var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = context.FoodHaul, HorizonDays = context.InvestmentHorizonDays };
         var values = needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
         {
             Speeds = speeds[p.Pawn], Incapable = p.Upkeep.IncapableWork, FoodPerDay = p.Upkeep.FoodPerDay, Mood = p.Upkeep.Mood,

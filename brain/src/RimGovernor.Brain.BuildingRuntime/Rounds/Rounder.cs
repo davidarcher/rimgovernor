@@ -730,6 +730,8 @@ public sealed partial class Rounder
             var materials = await MaterialValuesAsync(state.Snapshot, coupled.Context, reading.Projection.Stations, reading.Projection.Facts.Items, ct).ConfigureAwait(false);
             // A pawn's bed (#3825, V6), which its value charges unless one stands vacant.
             var bed = await PawnBedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+            // The food's hauls over the planned layout (#3849), which a pawn's food upkeep prices.
+            var foodHaul = layoutPlan is null ? null : FoodHaulRules.Legs(layoutPlan, reading.Projection.Facts.FoodWork);
             var occupantFindings = new SortedSet<string>(coupled.Context.Findings, StringComparer.Ordinal);
             var (occupants, royal) = RoundsSleepingUpkeepPlanner.PlannedOccupantsOf(reading.Projection, occupantFindings);
             // The open planned rooms, whose rings close first in the ring-closure projection (#3744, #3754): started and not
@@ -754,7 +756,7 @@ public sealed partial class Rounder
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, Tending = model.Tending, Bed = bed, BedroomOccupants = occupants, RoyalRooms = royal, DeathrestFurniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(reading.Projection), ContainmentCells = RoundsSleepingUpkeepPlanner.ContainmentCellsOf(reading.Projection), OpenRooms = open, BlockedItems = blocked, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, Tending = model.Tending, Bed = bed, FoodHaul = foodHaul, BedroomOccupants = occupants, RoyalRooms = royal, DeathrestFurniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(reading.Projection), ContainmentCells = RoundsSleepingUpkeepPlanner.ContainmentCellsOf(reading.Projection), OpenRooms = open, BlockedItems = blocked, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);

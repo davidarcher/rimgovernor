@@ -330,7 +330,8 @@ public sealed record NeedsForecastPawn
 }
 /// <summary>
 /// What a pawn's value (<c>PawnValueRules</c>, #3825) reads of one pawn: its work speed at each stat a job driver or recipe the
-/// catalog maps applies (<c>DefinitionCatalog.WorkSpeedStatNames</c>; 0 where <c>StatWorker.IsDisabledFor</c> the pawn), the work types it
+/// catalog maps applies and its MoveSpeed and CarryingCapacity, which its food's hauling walks and carries at (#3849;
+/// <c>DefinitionCatalog.UpkeepStatNames</c>; 0 where <c>StatWorker.IsDisabledFor</c> the pawn), the work types it
 /// is incapable of (<c>Pawn.WorkTypeIsDisabled</c>), the nutrition it eats a day (<c>Need_Food.FoodFallPerTickAssumingCategory</c> at
 /// Fed, a day of ticks; 0 without a food need) and its mood (null without a mood need or a mental breaker: it never breaks).
 /// </summary>

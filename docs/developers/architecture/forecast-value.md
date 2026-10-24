@@ -250,7 +250,7 @@ twelfth's cycle weighted by the investment horizon's days in it, known on a colo
 the walk's joy gain in the weather that allows it) fill
 the shortfall rows of the work types it is capable of. Its fastest stat goes first, and each row is capped at its
 size. One work tick is one capability-tick, the same price as `MaterialValueOf`. The rest of its time adds nothing.
-The native needs read carries each colonist's side (`NeedsForecastPawn.Upkeep`): its value of every work speed stat (0
+The native needs read carries each colonist's side (`NeedsForecastPawn.Upkeep`): its value of every work speed stat, its move speed and carrying capacity (0
 where the stat is disabled for it), the work types it is incapable of, the nutrition it eats a day and its mood target and
 break threshold. A stat the game has not loaded makes the read throw.
 
@@ -259,17 +259,32 @@ break threshold. A stat the game has not loaded makes the read throw.
 - Food: the nutrition it eats a day (`Need_Food.FoodFallPerTickAssumingCategory(Fed)`) times the work a nutrition
   costs. That is the cheapest researched meal recipe's work per nutrition made, plus its ingredients' growing at the
   cheapest researched human-edible crop's sow and harvest work (`DefinitionCatalog.FoodWork`). Without a meal recipe it
-  is the crop's growing alone.
+  is the crop's growing alone. Plus hauling it (#3849, `FoodHaulRules`, the `food_haul` part), at the colonist's own
+  `MoveSpeed` and `CarryingCapacity`: the colonist is priced as hauling its own food.
+  - The walks come from the planned layout (`FoodHaulRules.Legs`, set on the coupled context beside the bed). Each is
+    the mean shortest walk over the plan's route cells, a diagonal step 1.41421. A field cell reaches the base over open
+    ground through its nearest entrance. The legs are: a field cell to the nearest store of the harvest (a cold store
+    when it rots, a plain one otherwise); the store (the field without one) to the nearest stove that cooks the meal;
+    and the stove to the meal's place (the table, else a meal closet, else a store).
+  - A cell costs `Pawn.TicksPerMove`: 60 over the pawn's move speed, clamped to 1..450. Terrain cost and the weather's
+    slowing of unroofed cells are not priced.
+  - A carry holds `Pawn_CarryTracker.MaxStackSpaceEver` units: the stack limit or the carrying capacity over the
+    thing's volume, whichever is less.
+  - Each trip is the walk there and back. Picking up and putting down take no tick. A haul job (the harvest to its
+    store, the meal to its place) lasts at least `JobDriver_HaulToCell.MinimumHaulingJobTicks`, 30 ticks. The cook's
+    ingredient fetch (`JobDriver_DoBill`) carries a run's ingredients, one carry at a time, with no floor.
+  - The eater's own walk to its food and on to the table is its meal's time (the eating hours), not hauling.
+  - A plan with no field hauls no harvest and names `food_field_unplanned`.
 - Breaks: `MoodBreakModel.DaysLost` of a day held at its observed mood target under its minor break threshold.
 - Bed: nothing while a colonist bed stands vacant (`SleepingRules.VacantColonistBed`). Otherwise it is the primary
   bed's build (`LayoutClusterRules.PiecePrice`, cheapest common stuff) over tier 2's horizon.
 
 A fact the value needs and lacks throws `RequiredFactException`. That covers a stat the shortfall needs but the pawn's
 read lacks, a giver, job or recipe the defs do not map, a colonist tier 2 gives no free hours, an unpriced break curve
-or an unread bed. The value never falls back to nothing.
+or an unread bed. It also covers no planned layout, a meal with no planned stove, a planned walk no route joins, and a
+move speed or carrying capacity the read lacks. The value never falls back to nothing.
 
 **Not modelled**, named on every value: `comparative_advantage` (a newcomer freeing an existing pawn for other work),
-`food_hauling` (carrying the food from field to kitchen to table: its trips' distances are no read the colony has),
 `effects_on_others` (Abrasive and other traits'
 mood effects on the colony), `skill_growth` (passion's learning over the horizon, #3809) and, when the colony can
 sow no human-edible crop, `food_source_not_crop`.

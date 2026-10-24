@@ -115,7 +115,7 @@ public sealed partial class Rounder
         yield return (RoundsReviewTelemetry.WorkShortfallKey, findings.WorkShortfall?.Rows.ToDictionary(r => r.WorkType + "/" + r.Stat, r => (object?)r.TicksPerDay));
         yield return (RoundsReviewTelemetry.PawnValuesKey, findings.WorkShortfall is null ? null : findings.PawnValues.ToDictionary(v => v.Pawn, v => (object?)new Dictionary<string, object?>
         {
-            ["per_day"] = v.PerDay, ["work"] = v.WorkAdded, ["food"] = v.FoodUpkeep, ["breaks"] = v.BreakUpkeep, ["bed"] = v.BedUpkeep,
+            ["per_day"] = v.PerDay, ["work"] = v.WorkAdded, ["food"] = v.FoodUpkeep, ["food_haul"] = v.FoodHaul, ["breaks"] = v.BreakUpkeep, ["bed"] = v.BedUpkeep,
             ["shares"] = v.Work.ToDictionary(s => s.WorkType + "/" + s.Stat, s => (object?)s.TicksPerDay), ["not_modelled"] = v.NotModelled.ToArray(),
         }));
     }

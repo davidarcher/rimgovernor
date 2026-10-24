@@ -263,6 +263,19 @@ The model's own choices, not game rules: the sum of the hits is a 32-point damag
 5th, 50th and 95th percentiles with the Pearson-Tukey weights 0.185, 0.63 and 0.185 (Keefer and Bodily 1983); a hit's damage is its bin's
 armor-adjusted expectation and bleeds with the bin's bleed chance at the bin's full damage; healing is integrated in 48 steps.
 
+## Mirrored game rules: food hauling (#3849)
+
+`FoodHaulRules` (`brain/src/RimGovernor.Brain.Policy/FoodHaul.cs`) mirrors the hauling rules no def carries. A pawn's food
+upkeep prices hauling its food over the planned layout. Read with ilspycmd on the installed Assembly-CSharp.
+
+| Literal | Value | Member |
+| --- | --- | --- |
+| `MoveTicksPerSpeed`, `MaxTicksPerCell` | ticks a cell `60 / MoveSpeed`, clamped to 1..450, and 450 at no speed (the weather's unroofed slowing and terrain cost are not priced) | `Pawn.TicksPerMove` |
+| `DiagonalFactor` | 1.41421: a diagonal step's ticks over a cardinal one's | `Pawn.TicksPerMove` |
+| `HaulJobMinTicks` | 30: a haul job lasts at least this long | `JobDriver_HaulToCell.MinimumHaulingJobTicks` (the `PossiblyDelay` toil) |
+| Units a carry holds | `min(stackLimit, round(CarryingCapacity / VolumePerUnit))` (`VolumePerUnit` 0.1 for a small-volume thing, else 1) | `Pawn_CarryTracker.MaxStackSpaceEver` |
+| Pick up and put down | no ticks | `Toils_Haul.StartCarryThing`, `Toils_Haul.PlaceHauledThingInCell` |
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)
