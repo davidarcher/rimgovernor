@@ -1,5 +1,7 @@
-namespace RimGovernor.Brain.Policy;
+using HomeCoverageFacts = RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts;
+using HomeCoverageTarget = RimGovernor.Contracts.Wire.Observations.HomeCoverageTarget;
 
+namespace RimGovernor.Brain.Policy;
 
 public enum ExtentOrigin
 {
@@ -18,20 +20,6 @@ public enum ExtentOrigin
     Margin,
 }
 
-/// <summary>
-/// Complete, unbatched geometry for one building, using the same enclosed roofed interiors and internal-door
-/// connectivity as Home. A known empty value means only the occupied footprint belongs. Corridors must be
-/// observed connecting geometry, never interpolated between facilities. <see cref="Zone"/> is a stockpile
-/// target's whole footprint; a building leaves it empty.
-/// </summary>
-public sealed record HomeExtentGeometry
-{
-    public EquatableArray<Cell> EnclosedInterior { get; init; }
-
-    public EquatableArray<Cell> Corridor { get; init; }
-
-    public EquatableArray<Cell> Zone { get; init; }
-}
 
 public sealed record ExtentProvenance
 {
@@ -75,7 +63,8 @@ public sealed record ColonyExtentRequest
 
     public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
 
-    public Fact<HomeCoverageObservation> Home { get; init; }
+    /// <summary>The Home census; null when no colony facts read built the projection.</summary>
+    public HomeCoverageFacts? Home { get; init; }
 
     /// <summary>A Chebyshev radius, from zero through eight cells.</summary>
     public int Margin { get; init; }
@@ -96,13 +85,13 @@ public static class ColonyExtentRules
 
         var bk = r.Bounds.TryGetValue(out var bounds);
         var ck = r.Construction.TryGetValue(out var census);
-        var hk = r.Home.TryGetValue(out var home);
+        var home = r.Home;
         if (r.Margin < 0 || r.Margin > 8)
         {
             throw Invalid();
         }
 
-        if (!bk || !ck || !hk || !census!.Colony)
+        if (!bk || !ck || home is null || !census!.Colony)
         {
             return unknown;
         }
@@ -130,9 +119,8 @@ public static class ColonyExtentRules
         }
 
         var owned = ConstructionOwnershipRules.OwnedConstructions(r.Claims, r.Construction);
-        FacilityUpkeepRules.ReviewHomeCoverage(r.Home);
         owned.TryGetValue(out var buildings);
-        if (home!.Revision < 0)
+        if (home.Revision < 0)
         {
             throw Invalid();
         }
@@ -169,14 +157,12 @@ public static class ColonyExtentRules
 
         foreach (var b in buildings.Items)
         {
-            var exists = targets.TryGetValue(b.Identity.Current, out var target);
-            var known = exists && target!.ExtentGeometry.IsKnown;
-            if (!exists || !known || target!.Blocker.Length != 0)
+            // A building outside the census, or one without bounded visible geometry, cannot establish territory.
+            if (!targets.TryGetValue(b.Identity.Current, out var target) || target is not HomeCoverageTarget.Scoped { Extent: var geometry })
             {
                 return unknown;
             }
 
-            target.ExtentGeometry.TryGetValue(out var geometry);
             var p = new ExtentProvenance
             {
                 Origin = ExtentOrigin.Facility,
@@ -189,7 +175,7 @@ public static class ColonyExtentRules
             var groups = new (ExtentOrigin Origin, IReadOnlyList<Cell> Cells)[]
             {
                 (ExtentOrigin.Facility, b.Cells.Items),
-                (ExtentOrigin.EnclosedInterior, geometry!.EnclosedInterior.Items),
+                (ExtentOrigin.EnclosedInterior, geometry.EnclosedInterior.Items),
                 (ExtentOrigin.Corridor, geometry.Corridor.Items),
             };
             foreach (var group in groups)
@@ -233,11 +219,11 @@ public static class ColonyExtentRules
         }
 
         // Every census stockpile is territory at its whole current footprint, whoever zoned it. A target that
-        // is not a building and carries no zone geometry (blocked, legacy or batched) adds nothing.
+        // is not a building and has no bounded visible geometry adds nothing.
         var facility = new HashSet<string>(buildings.Items.Select(b => b.Identity.Current), StringComparer.Ordinal);
         foreach (var target in home.Targets)
         {
-            if (facility.Contains(target.Id) || !target.ExtentGeometry.TryGetValue(out var geometry) || target.Blocker.Length != 0)
+            if (facility.Contains(target.Id) || target is not HomeCoverageTarget.Scoped { Extent: var geometry })
             {
                 continue;
             }

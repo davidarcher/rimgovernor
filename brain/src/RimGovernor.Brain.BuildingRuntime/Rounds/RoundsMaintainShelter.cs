@@ -81,7 +81,7 @@ public sealed partial class SafeAreaMemory
                 Plan(IsolationRoomRules.IsolationAreaKey, isolation);
             }
 
-            if (projection.Facts.HomeCoverage.TryGetValue(out var census) && census.Home.TryGetValue(out var home) && home.Count > 0)
+            if (projection.Facts.HomeCoverage is { HomeCells: { Count: > 0 } home })
             {
                 Plan(ShelterRules.NoDangerAreaKey, ShelterRules.NoDangerCells(home, killbox, SafeAreaMemory.SortedSeeds(danger)));
             }

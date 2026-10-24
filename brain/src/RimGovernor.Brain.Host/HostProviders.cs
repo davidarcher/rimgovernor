@@ -65,14 +65,14 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                     cancellationToken).ConfigureAwait(false);
                 var extent = new ColonyExtent { Regions = EquatableArray.From(history.Select(row => row.Region)) };
                 var eligibility = new ExtentEligibilityRequest { Extent = Known(extent), Threat = threat };
-                if (f.CurrentConstruction.TryGetValue(out var buildings) && buildings.Colony && f.HomeCoverage.TryGetValue(out var home))
+                if (f.CurrentConstruction.TryGetValue(out var buildings) && buildings.Colony && f.HomeCoverage is { } home)
                 {
                     var ids = new List<string>(buildings.Buildings.Select(b => b.Id));
 
                     // Every census stockpile: a target with zone geometry.
                     foreach (var target in home.Targets)
                     {
-                        if (target.ExtentGeometry.TryGetValue(out var geometry) && geometry.Zone.Count > 0)
+                        if (target is RimGovernor.Contracts.Wire.Observations.HomeCoverageTarget.Scoped { Extent.Zone.Count: > 0 })
                         {
                             ids.Add(target.Id);
                         }

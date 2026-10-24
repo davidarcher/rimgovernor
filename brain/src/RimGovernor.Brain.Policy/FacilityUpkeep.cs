@@ -1,36 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record HomeCoverageTarget
-{
-    /// <summary>Complete, unbatched geometry. Legacy Home batches leave it unknown and cannot establish colony territory.</summary>
-    public Fact<HomeExtentGeometry> ExtentGeometry { get; init; }
-
-    public string Id { get; init; } = "";
-
-    public Fact<string> Shape { get; init; }
-
-    public Fact<long> Missing { get; init; }
-
-    public Fact<long> Excluded { get; init; }
-
-    public IReadOnlyList<Cell> Cells { get; init; } = [];
-
-    public string Blocker { get; init; } = "";
-}
-
-public sealed record HomeCoverageObservation
-{
-    public long Revision { get; init; }
-
-    public IReadOnlyList<HomeCoverageTarget> Targets { get; init; } = [];
-
-    /// <summary>Every current home-area cell.</summary>
-    public Fact<EquatableArray<Cell>> Home { get; init; }
-
-    /// <summary>The game's auto-expand setting.</summary>
-    public Fact<bool> AutoHome { get; init; }
-}
-
 public sealed record StoneStructure
 {
     public string Id { get; init; } = "";
@@ -60,43 +29,6 @@ public static class FacilityUpkeepRules
             }
         }
         return true;
-    }
-
-    /// <summary>
-    /// Lists every census target (all colonist buildings and every stockpile: the
-    /// governor owns them whoever built them) still missing Home, at its current geometry. Throws
-    /// <see cref="DomainException"/>.
-    /// </summary>
-    public static Fact<EquatableArray<HomeCoverageTarget>> ReviewHomeCoverage(Fact<HomeCoverageObservation> observed)
-    {
-        var unknown = Unknown<EquatableArray<HomeCoverageTarget>>();
-        if (!observed.TryGetValue(out var census))
-        {
-            return unknown;
-        }
-        DomainException.Require(census.Revision >= 0, "invalid Home census");
-        var result = new List<HomeCoverageTarget>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in census.Targets)
-        {
-            DomainException.Require(FoodForecastRules.FoodId(row.Id) && seen.Add(row.Id), "invalid Home target identity");
-            var mk = row.Missing.TryGetValue(out var missing);
-            var ek = row.Excluded.TryGetValue(out var excluded);
-            var sk = row.Shape.TryGetValue(out var shape);
-            if (!mk || !ek || !sk || !FacilityCells(row.Cells))
-            {
-                return unknown;
-            }
-            DomainException.Require(
-                FoodForecastRules.FoodId(shape!) && excluded >= 0 && excluded <= missing && missing >= 0 && missing <= row.Cells.Count,
-                "invalid Home target geometry or counts"
-            );
-            if (missing > 0 || row.Blocker.Length != 0)
-            {
-                result.Add(row with { Cells = [.. row.Cells] });
-            }
-        }
-        return Known<EquatableArray<HomeCoverageTarget>>([.. result.OrderBy(t => t.Id, StringComparer.Ordinal)]);
     }
 
     /// <summary>Throws <see cref="DomainException"/>.</summary>

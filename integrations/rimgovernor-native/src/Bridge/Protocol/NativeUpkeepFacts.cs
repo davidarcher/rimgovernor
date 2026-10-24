@@ -8,6 +8,7 @@ using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
@@ -46,6 +47,44 @@ namespace HomeBridge.BridgeTools
                 return sets;
             }
         }
+
+        // The Home census, read whole: a failed read throws and the upkeep section fails with it (#3771).
+        internal static Obs.HomeCoverageFacts ReadHomeCoverage(Map map)
+        {
+            var home = map.areaManager.Home;
+            var state = HomeCoverage.State(map);
+            var targets = new List<Obs.HomeCoverageTarget>();
+            foreach (var target in HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal)) {
+                var full = HomeCoverage.FullScope(map, target);
+                if (full == null) {
+                    targets.Add(new Obs.HomeCoverageTarget.Unscoped(Id(target)));
+                    continue;
+                }
+                var corridor = new List<DomainCell>();
+                var enclosedInterior = new List<DomainCell>();
+                var zone = new List<DomainCell>();
+                var building = map.listerBuildings.allBuildingsColonist.ById(target);
+                if (building != null) {
+                    var footprint = new HashSet<IntVec3>(building.OccupiedRect());
+                    foreach (var cell in full.Where(c => !footprint.Contains(c))) {
+                        // Internal doors are the observed connections between enclosed rooms.
+                        if (cell.GetEdifice(map) is Building_Door) corridor.Add(Spot(cell));
+                        else enclosedInterior.Add(Spot(cell));
+                    }
+                } else {
+                    // A stockpile's whole footprint, unbatched: colony extent takes every census stockpile.
+                    zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Spot));
+                }
+                targets.Add(new Obs.HomeCoverageTarget.Scoped(Id(target), new Obs.HomeExtentGeometry([.. enclosedInterior], [.. corridor], [.. zone])));
+            }
+            var settings = Find.PlaySettings ?? throw new InvalidOperationException("Find.PlaySettings is unavailable");
+            return new Obs.HomeCoverageFacts {
+                Revision = state.Revision, AutoHomeArea = settings.autoHomeArea,
+                HomeCells = [.. home.ActiveCells.Select(Spot)], Targets = [.. targets]
+            };
+        }
+
+        private static DomainCell Spot(IntVec3 c) => new DomainCell(c.x, c.z);
 
         internal static Obs.UpkeepFacts Populate(Map map, List<Thing> things, Obs.UpkeepFacts result, uint? routePathBudgetMs = null)
         {
@@ -101,47 +140,6 @@ namespace HomeBridge.BridgeTools
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
                 }).ToList();
                 result = result with { Structures = [.. result.Structures, .. values] };
-            });
-            // Home-area auto-expand, a save-level setting.
-            Read("auto_home_area", () => { if (Find.PlaySettings != null) result = result with { AutoHomeArea = Find.PlaySettings.autoHomeArea }; });
-            // Current home cells: the planner diffs its target against them.
-            Read("home_cells", () => { result = result with { HomeCells = [.. result.HomeCells, .. map.areaManager.Home.ActiveCells.Select(Cell)] }; });
-            Read("home_coverage", () => {
-                var state = HomeCoverage.State(map);
-                var targets = HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal).ToList();
-                var facts = new Obs.HomeCoverageFacts { Revision = state.Revision };
-                foreach (var target in targets) {
-                    var full = HomeCoverage.FullScope(map, target);
-                    if (full == null) {
-                        facts = facts with { Targets = [.. facts.Targets, new Obs.HomeCoverageTarget { Id = Id(target), Blocker = "Bounded visible native facility geometry unavailable" }] };
-                        continue;
-                    }
-                    var cells = HomeCoverageGeometry.Batch(full, c => map.areaManager.Home[c]).OrderBy(c => c.x).ThenBy(c => c.z).ToList();
-                    var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
-                    // Retained wire field: autonomous Home has no exclusions.
-                    var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
-                        MissingCells = checked((uint)missing.Count), ExcludedCells = 0 };
-                    row = row with { Cells = [.. row.Cells, .. cells.Select(Cell)] };
-                    var corridor = new List<Common.Cell>();
-                    var enclosedInterior = new List<Common.Cell>();
-                    var zone = new List<Common.Cell>();
-                    var building = map.listerBuildings.allBuildingsColonist.ById(target);
-                    if (building != null) {
-                        var footprint = new HashSet<IntVec3>(building.OccupiedRect());
-                        foreach (var cell in full.Where(c => !footprint.Contains(c))) {
-                            // Internal doors are the observed connections between enclosed rooms.
-                            if (cell.GetEdifice(map) is Building_Door) corridor.Add(Cell(cell));
-                            else enclosedInterior.Add(Cell(cell));
-                        }
-                    } else {
-                        // A stockpile's whole footprint, unbatched: colony extent
-                        // takes every census stockpile.
-                        zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Cell));
-                    }
-                    row = row with { ExtentGeometry = new Obs.HomeExtentGeometry { Corridor = [.. corridor], EnclosedInterior = [.. enclosedInterior], Zone = [.. zone] } };
-                    facts = facts with { Targets = [.. facts.Targets, row] };
-                }
-                result = result with { HomeCoverage = new Obs.HomeCoverageSection { Outcome = facts } };
             });
             Read("lighting", () => {
                 // Work cells are the interaction cells of colonist benches (work

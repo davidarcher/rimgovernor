@@ -12,7 +12,7 @@ internal static class UpkeepAutoHomeArea
     {
         Name = "upkeep/auto-home-area",
         Scope = "AutoHomeAreaIntent on Actions/Apply (#1322): flipping Find.PlaySettings.autoHomeArea applies, the same value "
-            + "again is UNCHANGED, and UpkeepFacts.auto_home_area reads each value back.",
+            + "again is UNCHANGED, and the Home census reads each value back.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Run = RunAsync,
@@ -26,9 +26,7 @@ internal static class UpkeepAutoHomeArea
         {
             var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
             var upkeep = facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable");
-
-            // A set optional is emitted even when false.
-            return upkeep.AutoHomeArea ?? throw new AcceptanceException($"{label}: auto_home_area absent");
+            return upkeep.HomeCoverage.AutoHomeArea;
         }
 
         async Task ApplyAsync(string key, bool enabled, Receipts.FieldOutcome outcome)

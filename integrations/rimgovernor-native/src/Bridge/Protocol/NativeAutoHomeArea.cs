@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools
     // AutoHomeAreaIntent on Actions/Apply: the game's home-area
     // auto-expand (Find.PlaySettings.autoHomeArea), a save-level setting. A
     // value that already holds applies again (UNCHANGED). The colony read
-    // reports the value (UpkeepFacts.auto_home_area).
+    // reports the value (HomeCoverageFacts.AutoHomeArea).
     internal static class NativeAutoHomeArea
     {
         internal static Common.Failure? Validate(Operations.AutoHomeAreaIntent? intent) =>

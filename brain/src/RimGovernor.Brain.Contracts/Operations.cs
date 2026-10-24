@@ -1810,7 +1810,7 @@ public sealed record FoodPolicyIntent
 /// Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
 /// save-level setting). Evidence is a SettingsEffect with the
 /// AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
-/// held. The colony read reports the value (UpkeepFacts.auto_home_area).
+/// held. The colony read reports the value (HomeCoverageFacts.AutoHomeArea).
 /// </summary>
 public sealed record AutoHomeAreaIntent
 {

@@ -50,15 +50,7 @@ namespace HomeBridge.BridgeTools
         //.
         internal static IEnumerable<string> Targets(Map map) => map.listerBuildings.allBuildingsColonist
             .Select(b => b.GetUniqueLoadID()).Concat(map.zoneManager.AllZones.OfType<Zone_Stockpile>().Select(z => z.GetUniqueLoadID()));
-        internal static List<IntVec3>? Scope(Map map, string target)
-        {
-            var cells = FullScope(map, target);
-            if (cells == null) return null;
-            return HomeCoverageGeometry.Batch(cells, c => map.areaManager.Home[c])
-                .OrderBy(c => c.x).ThenBy(c => c.z).ToList();
-        }
-
-        // Derive the complete geometry before choosing a write batch. Crossing
+        // Derive the complete geometry. Crossing
         // doors is allowed only between visible enclosed roofed rooms, never
         // through an outside doorway or an open gap between buildings.
         internal static List<IntVec3>? FullScope(Map map, string target)
@@ -97,8 +89,6 @@ namespace HomeBridge.BridgeTools
             if (cells.Count == 0 || cells.Any(c => !c.InBounds(map) || c.Fogged(map))) return null;
             return cells.OrderBy(c => c.x).ThenBy(c => c.z).ToList();
         }
-        internal static string Shape(string target, List<IntVec3> cells) =>
-            NativeSnapshotVersions.Token("home-shape", null, target, string.Join(";", cells.Select(c => c.x + "," + c.z)));
         internal static HomeCoverageState State(Map map)
         {
             Install();

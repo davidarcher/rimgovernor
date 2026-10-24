@@ -181,7 +181,8 @@ public sealed record RoundsFacts
     /// <summary>Where the colony loses mood, built each review from the mood census and the catalog thought facts; unknown with the census.</summary>
     public Fact<MoodLedger> MoodLedger { get; init; }
 
-    public Fact<HomeCoverageObservation> HomeCoverage { get; init; }
+    /// <summary>The Home census (#3771); null only on a projection that no colony facts read built.</summary>
+    public RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts? HomeCoverage { get; init; }
 
     public Fact<EquatableArray<StoneStructure>> StoneStructures { get; init; }
 

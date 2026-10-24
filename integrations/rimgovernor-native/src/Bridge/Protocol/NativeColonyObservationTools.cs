@@ -241,8 +241,10 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
-            var result = new Obs.UpkeepFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
+            var result = new Obs.UpkeepFacts { HomeCoverage = NativeUpkeepFacts.ReadHomeCoverage(map) };
+            ObservationWork.Detail("cf.upkeep.home_coverage", System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result = result with { Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) } }; }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); ReadFailureLog.Note("comfort", error); result = result with { Comfort = new Obs.ComfortSection() }; }
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);

@@ -5,12 +5,10 @@ using System.Linq;
 
 namespace HomeBridge.BridgeTools
 {
-    // Geometry and batching are independent of Home mutation. Traversable
-    // cells come only from visible enclosed roofed rooms and internal doors.
+    // Geometry is independent of Home mutation. Traversable cells come only
+    // from visible enclosed roofed rooms and internal doors.
     internal static class HomeCoverageGeometry
     {
-        internal const int BatchSize = 256;
-
         internal static HashSet<T> Connected<T>(IEnumerable<T> footprint,
             Func<T, IEnumerable<T>> neighbors, Func<T, bool> interior) where T : notnull
         {
@@ -27,14 +25,5 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // Prefer outstanding work so covered cells cannot starve the rest of
-        // the base. Stable geometry ordering breaks ties; the chosen batch is
-        // the shape-bound target.
-        internal static List<T> Batch<T>(IEnumerable<T> ordered,
-            Func<T, bool> home)
-        {
-            return ordered.OrderBy(c => home(c) ? 1 : 0)
-                .Take(BatchSize).ToList();
-        }
     }
 }

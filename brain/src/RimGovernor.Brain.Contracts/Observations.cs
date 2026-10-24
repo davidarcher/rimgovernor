@@ -5764,52 +5764,51 @@ public sealed record DevelopmentSection
 }
 
 /// <summary>
-/// Present geometry is complete and independent of the bounded Home write batch.
-/// zone is a stockpile target's full native footprint: colony extent
-/// takes every stockpile from the census, not only zones the autopilot created.
+/// The Home census (#3771): the Home revision (every Home edit advances it), the game's auto-expand setting
+/// (Find.PlaySettings.autoHomeArea: the game expands Home around new player buildings while true), every current Home
+/// cell (unordered; the home-area planner diffs its target against them), and one row per census target: every
+/// colonist building and every stockpile, the governor owns them whoever built them. The native read throws when it
+/// cannot read the census.
 /// </summary>
-public sealed record HomeExtentGeometry
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> EnclosedInterior { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Corridor { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Zone { get; init; }
-}
-
-public sealed record HomeCoverageTarget
-{
-    public string? Id { get; init; }
-
-    public string? ShapeToken { get; init; }
-
-    public uint? MissingCells { get; init; }
-
-    public uint? ExcludedCells { get; init; }
-
-    public string? Blocker { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
-
-    public HomeExtentGeometry? ExtentGeometry { get; init; }
-}
-
 public sealed record HomeCoverageFacts
 {
-    public long? Revision { get; init; }
+    public required long Revision { get; init; }
+
+    public required bool AutoHomeArea { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> HomeCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<HomeCoverageTarget>))]
-    public EquatableArray<HomeCoverageTarget> Targets { get; init; }
+    public required EquatableArray<HomeCoverageTarget> Targets { get; init; }
 }
 
-public sealed record HomeCoverageSection
+/// <summary>One Home census target (a colonist building or a stockpile) by its unique load id.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HomeCoverageTarget.Scoped), "scoped")]
+[JsonDerivedType(typeof(HomeCoverageTarget.Unscoped), "unscoped")]
+public abstract record HomeCoverageTarget(string Id)
 {
-    public HomeCoverageFacts Outcome { get; init; } = null!;
+    /// <summary>A target whose bounded visible geometry was read: its complete geometry.</summary>
+    public sealed record Scoped(string Id, HomeExtentGeometry Extent) : HomeCoverageTarget(Id);
+
+    /// <summary>
+    /// A target with no bounded visible geometry (a forbidden or burning building, a fogged or empty footprint): it cannot
+    /// establish colony territory and is reported, never covered.
+    /// </summary>
+    public sealed record Unscoped(string Id) : HomeCoverageTarget(Id);
 }
+
+/// <summary>
+/// A target's complete geometry: a building's enclosed roofed interior and
+/// the internal doors connecting it (its occupied footprint excluded), or a stockpile's whole footprint
+/// (<see cref="Zone"/>; a building leaves it empty). Colony extent takes every stockpile from the census, not only the
+/// zones the autopilot created.
+/// </summary>
+public sealed record HomeExtentGeometry(
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> EnclosedInterior,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Corridor,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Zone);
 
 /// <summary>
 /// Lighting facts: the measured ground glow at every colonist work bench
@@ -6008,7 +6007,7 @@ public sealed record UpkeepFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
 
-    public HomeCoverageSection? HomeCoverage { get; init; }
+    public required HomeCoverageFacts HomeCoverage { get; init; }
 
     public LightingSection? Lighting { get; init; }
 
@@ -6025,18 +6024,6 @@ public sealed record UpkeepFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepPerson>))]
     public EquatableArray<UpkeepPerson> Slaves { get; init; }
 
-    /// <summary>
-    /// Find.PlaySettings.autoHomeArea: the game expands the home area around
-    /// new player buildings while true (AutoHomeAreaIntent).
-    /// </summary>
-    public bool? AutoHomeArea { get; init; }
-
-    /// <summary>
-    /// Every cell of the map's home area, unordered; the home-area
-    /// planner diffs its target against it.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> HomeCells { get; init; }
 
     /// <summary>
     /// Hosted guests (HostFaction == player, quest lodgers included):

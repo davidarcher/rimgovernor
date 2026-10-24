@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using HomeCoverageFacts = RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -51,22 +52,16 @@ public static class HomeAreaRules
     /// <summary>How far (Chebyshev) an extent region may lie from the largest one and still be home; farther regions are outposts, not base.</summary>
     public const int HomeAreaOutlier = 16;
 
-    /// <summary>Derives the home-area diff. Unknown when the extent, the current home cells or the auto-expand setting is unknown.</summary>
+    /// <summary>Derives the home-area diff. Unknown when the extent is unknown or no Home census was read.</summary>
     public static Fact<HomeAreaPlan> PlanHomeArea(
         Fact<Bounds> bounds,
         Fact<CurrentConstruction> construction,
         Fact<EquatableArray<ConstructionClaim>> claims,
-        Fact<HomeCoverageObservation> home
+        HomeCoverageFacts? home
     )
     {
         var unknown = Unknown<HomeAreaPlan>();
-        if (!home.TryGetValue(out var census))
-        {
-            return unknown;
-        }
-        var ck = census.Home.TryGetValue(out var current);
-        var ak = census.AutoHome.TryGetValue(out var auto);
-        if (!ck || !ak)
+        if (home is null)
         {
             return unknown;
         }
@@ -88,7 +83,7 @@ public static class HomeAreaRules
         var set = new List<Cell>();
         var clear = new List<Cell>();
         var have = new HashSet<Cell>();
-        foreach (var c in current!)
+        foreach (var c in home.HomeCells)
         {
             if (!have.Add(c))
             {
@@ -112,7 +107,7 @@ public static class HomeAreaRules
         return Known(
             new HomeAreaPlan
             {
-                AutoOff = auto,
+                AutoOff = home.AutoHomeArea,
                 Set = EquatableArray.From(set),
                 Clear = EquatableArray.From(clear),
             }

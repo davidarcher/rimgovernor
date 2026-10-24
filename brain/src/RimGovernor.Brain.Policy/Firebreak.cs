@@ -45,7 +45,8 @@ public sealed record FirebreakRequest
 
     public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
 
-    public Fact<HomeCoverageObservation> Home { get; init; }
+    /// <summary>The Home census; null when no colony facts read built the projection.</summary>
+    public RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts? Home { get; init; }
 
     /// <summary>The cells of every growing zone; they join the footprint so a field is enclosed rather than cut.</summary>
     public Fact<EquatableArray<Cell>> GrowingZones { get; init; }
