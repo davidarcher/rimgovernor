@@ -206,15 +206,7 @@ public static class AnimalFeedRunwayRules
         eligible = [];
         foreach (var a in animals)
         {
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
-            if (!rk || !sk)
-            {
-                eligible = [];
-                return false;
-            }
-
-            if (!release && !slaughter && !skip.Contains(a.Definition))
+            if (!a.Release && !a.Slaughter && !skip.Contains(a.Definition))
             {
                 eligible.Add(a);
             }

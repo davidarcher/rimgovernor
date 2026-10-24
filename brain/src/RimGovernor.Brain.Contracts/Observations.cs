@@ -1218,13 +1218,13 @@ public sealed record InventoryStockSetting
 
 public sealed record TrainingEntry
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public bool Learned { get; init; }
+    public required bool Learned { get; init; }
 
-    public bool Wanted { get; init; }
+    public required bool Wanted { get; init; }
 
-    public bool Available { get; init; }
+    public required bool Available { get; init; }
 }
 
 /// <summary>
@@ -1232,32 +1232,33 @@ public sealed record TrainingEntry
 /// the husbandry read: body, herd and training facts for every animal; the player-animal
 /// settings, guards and care only for a live player animal (absent otherwise).
 /// Training is empty for an animal without a training tracker; release and
-/// slaughter are the live designations (false off a map).
+/// slaughter are the live designations (false off a map). Bonded (a Bond relation to a
+/// living pawn) and Sterilized (the Sterilized hediff) are read for every animal.
 /// </summary>
 public sealed record AnimalState
 {
-    public Defs.Gender Gender { get; init; }
+    public required Defs.Gender Gender { get; init; }
 
-    public double AgeYears { get; init; }
+    public required double AgeYears { get; init; }
 
-    public bool Pregnant { get; init; }
+    public required bool Pregnant { get; init; }
 
-    public string? PenId { get; init; }
+    public required string? PenId { get; init; }
 
-    public bool? Contained { get; init; }
+    public required bool? Contained { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TrainingEntry>))]
-    public EquatableArray<TrainingEntry> Training { get; init; }
+    public required EquatableArray<TrainingEntry> Training { get; init; }
 
-    public bool Release { get; init; }
+    public required bool Release { get; init; }
 
-    public bool Slaughter { get; init; }
+    public required bool Slaughter { get; init; }
 
-    public bool Tameable { get; init; }
+    public required bool Tameable { get; init; }
 
-    public bool Tame { get; init; }
+    public required bool Tame { get; init; }
 
-    public bool? SafeToRelease { get; init; }
+    public required bool? SafeToRelease { get; init; }
 
     /// <summary>
     /// Player-animal settings the SetAnimalArea/Master/Following writes target:
@@ -1265,17 +1266,17 @@ public sealed record AnimalState
     /// flags, whether Obedience is learned (master/follow eligibility) and
     /// whether native lets this animal carry an allowed area at all.
     /// </summary>
-    public string? AllowedAreaId { get; init; }
+    public required string? AllowedAreaId { get; init; }
 
-    public string? MasterId { get; init; }
+    public required string? MasterId { get; init; }
 
-    public bool? FollowDrafted { get; init; }
+    public required bool? FollowDrafted { get; init; }
 
-    public bool? FollowFieldwork { get; init; }
+    public required bool? FollowFieldwork { get; init; }
 
-    public bool? Obedient { get; init; }
+    public required bool? Obedient { get; init; }
 
-    public bool? SupportsAllowedAreas { get; init; }
+    public required bool? SupportsAllowedAreas { get; init; }
 
     /// <summary>
     /// Herd sizing facts: any hediff that makes colonists feel sick, the
@@ -1284,30 +1285,30 @@ public sealed record AnimalState
     /// numbers (body size, life expectancy, minimum handling skill, tame-failure
     /// manhunter chance) are the catalog's race rows.
     /// </summary>
-    public bool? Sick { get; init; }
+    public required bool? Sick { get; init; }
 
-    public bool? Venerated { get; init; }
+    public required bool? Venerated { get; init; }
 
-    public bool Adult { get; init; }
+    public required bool Adult { get; init; }
 
     /// <summary>
     /// Medical care cap inputs, for a player animal: its
     /// MedicalCareCategory name, a Bond relation to any living pawn, and the
     /// same conditions block the population read's PersonCustody carries.
     /// </summary>
-    public Operations.MedicalCare? MedicalCare { get; init; }
+    public required Operations.MedicalCare? MedicalCare { get; init; }
 
-    public bool? Bonded { get; init; }
+    public required bool Bonded { get; init; }
 
-    public PawnConditions? Conditions { get; init; }
+    public required PawnConditions? Conditions { get; init; }
 
     /// <summary>
     /// Sterilized hediff present, and a queued sterilize surgery bill on the
     /// animal (the husbandry sterilize order).
     /// </summary>
-    public bool? Sterilized { get; init; }
+    public required bool Sterilized { get; init; }
 
-    public bool? SterilizeQueued { get; init; }
+    public required bool? SterilizeQueued { get; init; }
 
     /// <summary>
     /// Raw slaughter facts of a player animal; policy decides who is protected
@@ -1316,13 +1317,13 @@ public sealed record AnimalState
     /// non-empty, slaughter_designatable is Designator_Slaughter's own
     /// acceptance (false while a slaughter designation stands).
     /// </summary>
-    public bool Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public bool InMentalState { get; init; }
+    public required bool InMentalState { get; init; }
 
-    public bool? ColonistBonded { get; init; }
+    public required bool? ColonistBonded { get; init; }
 
-    public bool? SlaughterDesignatable { get; init; }
+    public required bool? SlaughterDesignatable { get; init; }
 
     /// <summary>
     /// Herd growth events: game ticks until a pregnant animal gives birth
@@ -1333,18 +1334,18 @@ public sealed record AnimalState
     /// BiologicalTicksPerTick), absent in the last stage. The litter size is rolled
     /// at birth and the stage rows are the catalog's, so neither is sent.
     /// </summary>
-    public long? TicksToBirth { get; init; }
+    public required long? TicksToBirth { get; init; }
 
-    public int LifeStageIndex { get; init; }
+    public required int LifeStageIndex { get; init; }
 
-    public long? TicksToNextLifeStage { get; init; }
+    public required long? TicksToNextLifeStage { get; init; }
 
     /// <summary>
     /// Ids of the living humanlike pawns this animal has a Bond relation with
     /// (any faction or status; the planner keeps those on the colony roster).
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> BondedPawnIds { get; init; }
+    public required EquatableArray<string> BondedPawnIds { get; init; }
 }
 
 /// <summary>

@@ -47,46 +47,33 @@ namespace HomeBridge.BridgeTools
             && !Designated(animal, DesignationDefOf.Tame) && !Designated(animal, DesignationDefOf.Hunt)
             && new Designator_Tame().CanDesignateThing(animal).Accepted;
 
-        // Herd sizing facts the herd Need reads from the colony census:
-        // age against RaceProps.lifeExpectancy, sickness, adulthood, tame
-        // danger, and whether the player's primary ideo venerates the race.
-        // What precepts make of slaughter and eating comes from the catalog's
+        // Whether the player's primary ideo venerates the animal's race. What
+        // precepts make of slaughter and eating comes from the catalog's
         // precept effects (policy.ActionStance), not from here.
-        internal static RimGovernor.Contracts.Wire.Observations.AnimalState HerdFacts(Pawn animal, RimGovernor.Contracts.Wire.Observations.AnimalState state)
+        internal static bool Venerated(Pawn animal)
         {
-            state = state with { AgeYears = animal.ageTracker.AgeBiologicalYearsFloat };
-            state = state with { Adult = animal.ageTracker.Adult };
-            state = state with { Gender = (RimGovernor.Contracts.Wire.Defs.Gender)(int)animal.gender };
-            state = state with { Downed = animal.Downed, InMentalState = animal.InMentalState,
-                Pregnant = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any() };
-            // The next life stage: its index and the ticks until
-            // Pawn_AgeTracker reaches the next stage's minAge, absent in the last.
-            var tracker = animal.ageTracker;
-            state = state with { LifeStageIndex = tracker.CurLifeStageIndex };
-            var stages = animal.RaceProps.lifeStageAges;
-            if (stages != null && tracker.CurLifeStageIndex + 1 < stages.Count && tracker.BiologicalTicksPerTick > 0f)
-                state = state with { TicksToNextLifeStage = Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick)) };
-            if (animal.Faction != Faction.OfPlayer) return state;
-            state = state with { Sick = animal.health.hediffSet.AnyHediffMakesSickThought };
-            state = state with { Sterilized = Sterilized(animal) };
-            state = state with { SterilizeQueued = SterilizeBill(animal) != null };
             var ideo = ModsConfig.IdeologyActive ? Faction.OfPlayer.ideos?.PrimaryIdeo : null;
-            state = state with { Venerated = ideo != null && ideo.IsVeneratedAnimal(animal) };
-            return state;
+            return ideo != null && ideo.IsVeneratedAnimal(animal);
         }
 
-        // Raw slaughter facts; policy decides which animals are protected.
-        internal static RimGovernor.Contracts.Wire.Observations.AnimalState SlaughterFacts(Pawn animal, RimGovernor.Contracts.Wire.Observations.AnimalState state)
+        // The ticks until Pawn_AgeTracker reaches the next stage's minAge,
+        // absent in the last stage or while the animal does not age.
+        internal static long? TicksToNextLifeStage(Pawn animal)
+        {
+            var tracker = animal.ageTracker;
+            var stages = animal.RaceProps.lifeStageAges;
+            if (stages == null || tracker.CurLifeStageIndex + 1 >= stages.Count || tracker.BiologicalTicksPerTick <= 0f) return null;
+            return Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick));
+        }
+
+        // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
+        // gestationPeriodDays * 60000 per tick; absent without a pregnancy.
+        internal static long? TicksToBirth(Pawn animal)
         {
             var pregnancy = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
-            // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
-            // gestationPeriodDays * 60000 per tick.
             var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
-            if (pregnancy != null && speed > 0f)
-                state = state with { TicksToBirth = Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed)) };
-            state = state with { ColonistBonded = TrainableUtility.GetAllColonistBondsFor(animal).Any() };
-            state = state with { SlaughterDesignatable = new Designator_Slaughter().CanDesignateThing(animal).Accepted };
-            return state;
+            if (pregnancy == null || speed <= 0f) return null;
+            return Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed));
         }
 
         // The release designator's own acceptance and nothing more; which

@@ -33,7 +33,7 @@ public static class HerdSaleRules
         {
             var a = r.Animal;
             var mk = a.Master.TryGetValue(out var master);
-            if (!a.Bonded.TryGetValue(out var bonded) || bonded || !mk || (!string.IsNullOrEmpty(master) && !herd.Retired.GetValueOrDefault(a.Definition)))
+            if (a.Bonded || !mk || (!string.IsNullOrEmpty(master) && !herd.Retired.GetValueOrDefault(a.Definition)))
             {
                 continue;
             }

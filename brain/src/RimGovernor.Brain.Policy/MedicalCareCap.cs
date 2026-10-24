@@ -154,20 +154,15 @@ public static partial class MedicalRules
         return false;
     }
 
-    /// <summary>An animal's standing cap: NormalOrWorse when bonded or trained in Release, else HerbalOrWorse; unknown without the bond read.</summary>
-    public static (MedicalCare Care, bool Ok) AnimalCareBase(UpkeepAnimal a)
+    /// <summary>An animal's standing cap: NormalOrWorse when bonded or trained in Release, else HerbalOrWorse.</summary>
+    public static MedicalCare AnimalCareBase(UpkeepAnimal a)
     {
-        if (!a.Bonded.TryGetValue(out var bonded))
-        {
-            return (MedicalCare.None, false);
-        }
         var combat = false;
         foreach (var t in a.Training)
         {
-            t.Learned.TryGetValue(out var learned);
-            combat = combat || (t.Def == "Release" && learned);
+            combat = combat || (t.Def == "Release" && t.Learned);
         }
-        return bonded || combat ? (MedicalCare.Normal, true) : (MedicalCare.Herbal, true);
+        return a.Bonded || combat ? MedicalCare.Normal : MedicalCare.Herbal;
     }
 
     /// <summary>The care settings to write: every pawn whose known care differs from its cap. A pawn with unknown care, unknown cap inputs or an unknown census is left alone.</summary>
@@ -234,11 +229,7 @@ public static partial class MedicalRules
         f.AnimalUpkeep.Animals.TryGetValue(out var animals);
         foreach (var a in animals)
         {
-            var (baseCare, ok) = AnimalCareBase(a);
-            if (!ok)
-            {
-                continue;
-            }
+            var baseCare = AnimalCareBase(a);
             var (want, capOk) = Capped(baseCare, true, a.Conditions, a.LifeThreatening);
             Add(a.Id, a.Care, want, capOk);
         }

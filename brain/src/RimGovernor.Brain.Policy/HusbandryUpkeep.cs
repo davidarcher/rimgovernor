@@ -125,31 +125,13 @@ public static class HusbandryUpkeepRules
         var deficit = false;
         foreach (var a in rows)
         {
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
-            if (!rk || !sk)
-            {
-                return Unknown<bool>();
-            }
-            if (release || slaughter)
+            if (a.Release || a.Slaughter)
             {
                 continue;
             }
             foreach (var t in HerdTrainQueue(herd, a))
             {
-                if (!t.Available.TryGetValue(out var avail))
-                {
-                    return Unknown<bool>();
-                }
-                if (!avail)
-                {
-                    continue;
-                }
-                if (!t.Learned.TryGetValue(out var learned))
-                {
-                    return Unknown<bool>();
-                }
-                if (!learned)
+                if (t.Available && !t.Learned)
                 {
                     deficit = true;
                 }
@@ -210,13 +192,7 @@ public static class HusbandryUpkeepRules
             {
                 continue;
             }
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
-            if (!rk || !sk)
-            {
-                return ([], true);
-            }
-            if (release || slaughter)
+            if (a.Release || a.Slaughter)
             {
                 continue;
             }
@@ -325,8 +301,8 @@ public static class HusbandryUpkeepRules
         {
             return wa;
         }
-        var ra = a.Herd.ManhunterOnTameFail.ValueOrDefault;
-        var rb = b.Herd.ManhunterOnTameFail.ValueOrDefault;
+        var ra = a.Herd.ManhunterOnTameFail;
+        var rb = b.Herd.ManhunterOnTameFail;
         if (ra != rb)
         {
             return ra < rb;
@@ -374,25 +350,15 @@ public static class HusbandryUpkeepRules
         var sorted = rows.OrderBy(a => a.Id).ToList();
         foreach (var a in sorted)
         {
-            if (a.Release.TryGetValue(out var release) && release)
-            {
-                continue;
-            }
-            if (a.Slaughter.TryGetValue(out var slaughter) && slaughter)
+            if (a.Release || a.Slaughter)
             {
                 continue;
             }
             foreach (var t in HerdTrainQueue(herd, a))
             {
-                var ak = t.Available.TryGetValue(out var avail);
-                var lk = t.Learned.TryGetValue(out var learned);
-                if (ak && avail && lk && !learned)
+                if (t.Available && !t.Learned)
                 {
-                    if (!t.Wanted.TryGetValue(out var wanted))
-                    {
-                        return unknownChoice;
-                    }
-                    if (wanted)
+                    if (t.Wanted)
                     {
                         continue;
                     }
@@ -460,20 +426,13 @@ public static class HusbandryUpkeepRules
         {
             foreach (var a in rows)
             {
-                if (a.Release.TryGetValue(out var release) && release)
-                {
-                    return true;
-                }
-                if (a.Slaughter.TryGetValue(out var slaughter) && slaughter)
+                if (a.Release || a.Slaughter)
                 {
                     return true;
                 }
                 foreach (var t in HerdTrainQueue(herd, a))
                 {
-                    var ak = t.Available.TryGetValue(out var available);
-                    var lk = t.Learned.TryGetValue(out var learned);
-                    var wk = t.Wanted.TryGetValue(out var wanted);
-                    if (ak && available && lk && !learned && wk && wanted)
+                    if (t.Available && !t.Learned && t.Wanted)
                     {
                         return true;
                     }

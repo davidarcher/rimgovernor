@@ -53,8 +53,13 @@ public static class AnimalFoodExtensions
     public static Fact<bool> SafeToSlaughter(this UpkeepAnimal a)
     {
         var f = a.SlaughterFacts;
+        if (a.Release)
+        {
+            return Known(false);
+        }
+
         var unknown = false;
-        foreach (var blocker in new[] { f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded, a.Release })
+        foreach (var blocker in new[] { f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded })
         {
             if (!blocker.TryGetValue(out var v))
             {
@@ -87,8 +92,13 @@ public static class AnimalFoodExtensions
     public static Fact<bool> ReleaseAllowed(this UpkeepAnimal a)
     {
         var f = a.SlaughterFacts;
+        if (a.Release || a.Slaughter)
+        {
+            return Known(false);
+        }
+
         var unknown = false;
-        foreach (var blocker in new[] { f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded, a.Release, a.Slaughter })
+        foreach (var blocker in new[] { f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded })
         {
             if (!blocker.TryGetValue(out var v))
             {
@@ -206,10 +216,10 @@ public static class AnimalFoodRules
         foreach (var original in observedFact)
         {
             var a = original;
-            if (a.Slaughter.TryGetValue(out var slaughter) && slaughter)
+            if (a.Slaughter)
             {
                 pending.Add(a.Id);
-                a = a with { Slaughter = Known(false), SlaughterFacts = a.SlaughterFacts with { Designatable = Known(true) } };
+                a = a with { Slaughter = false, SlaughterFacts = a.SlaughterFacts with { Designatable = Known(true) } };
             }
 
             observed.Add(a);
@@ -231,7 +241,7 @@ public static class AnimalFoodRules
         var counts = new Dictionary<Resource, long>();
         foreach (var a in observed)
         {
-            if (a.Release.TryGetValue(out var release) && !release)
+            if (!a.Release)
             {
                 counts[a.Definition] = counts.GetValueOrDefault(a.Definition) + 1;
             }
@@ -241,8 +251,7 @@ public static class AnimalFoodRules
         {
             if (
                 pending.Contains(a.Id)
-                && a.Release.TryGetValue(out var release)
-                && !release
+                && !a.Release
                 && counts.GetValueOrDefault(a.Definition) > floors.GetValueOrDefault(a.Definition)
                 && !a.Herd.FoodBarredOrUnknown()
             )

@@ -201,7 +201,6 @@ public static class HerdPlanRules
         public long Males { get; set; }
         public long Females { get; set; }
         public long Asexual { get; set; }
-        public bool Unsexed { get; set; }
         public bool Bonded { get; set; }
 
         /// <summary>The summed per-adult capacity by job over adult animals holding it.</summary>
@@ -210,7 +209,7 @@ public static class HerdPlanRules
         /// <summary>Whether any animal holds the job.</summary>
         public HashSet<HerdJob> Holds { get; } = [];
 
-        public bool Paired() => !Unsexed && (Asexual > 0 || (Males > 0 && Females > 0));
+        public bool Paired() => Asexual > 0 || (Males > 0 && Females > 0);
     }
 
     /// <summary>Maps a race product to the job it serves.</summary>
@@ -293,7 +292,7 @@ public static class HerdPlanRules
     {
         foreach (var t in a.Training)
         {
-            if (t.Learned.TryGetValue(out var learned) && learned && t.Def == def)
+            if (t.Learned && t.Def == def)
             {
                 return true;
             }
@@ -365,9 +364,7 @@ public static class HerdPlanRules
         var order = new List<Resource>();
         foreach (var a in rows)
         {
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
-            if ((rk && release) || (sk && slaughter))
+            if (a.Release || a.Slaughter)
             {
                 continue;
             }
@@ -380,11 +377,7 @@ public static class HerdPlanRules
                 s.Race = race;
             }
             s.N++;
-            if (a.Gender is null)
-            {
-                s.Unsexed = true;
-            }
-            else if (!HerdSurplusRules.HerdFertile(a))
+            if (!HerdSurplusRules.HerdFertile(a))
             {
                 // a sterilized animal is no part of a pair
             }
@@ -400,7 +393,7 @@ public static class HerdPlanRules
             {
                 s.Asexual++;
             }
-            if (a.Bonded.ValueOrDefault)
+            if (a.Bonded)
             {
                 s.Bonded = true;
             }
@@ -506,7 +499,7 @@ public static class HerdPlanRules
             {
                 role = role with { Job = HerdJob.Companion };
             }
-            if (role.Preferred && s.N > 0 && !s.Unsexed && !s.Paired())
+            if (role.Preferred && s.N > 0 && !s.Paired())
             {
                 role = role with { Founder = true, WantMale = s.Males == 0, WantFemale = s.Females == 0 };
             }

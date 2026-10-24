@@ -45,8 +45,8 @@ public static class HerdCompanionRules
         var owed = new Dictionary<PawnId, int>();
         foreach (var a in animals)
         {
-            var release = a.Release.ValueOrDefault;
-            var slaughter = a.Slaughter.ValueOrDefault;
+            var release = a.Release;
+            var slaughter = a.Slaughter;
             var (master, ok) = CompanionMaster(a, obs.People);
             if (ok && !release && !slaughter)
             {

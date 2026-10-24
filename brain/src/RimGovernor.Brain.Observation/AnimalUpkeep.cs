@@ -27,9 +27,9 @@ public static class AnimalUpkeepReads
                 training.Add(new HusbandryTrainable
                 {
                     Def = entry.DefName,
-                    Available = Known(entry.Available),
-                    Learned = Known(entry.Learned),
-                    Wanted = Known(entry.Wanted),
+                    Available = entry.Available,
+                    Learned = entry.Learned,
+                    Wanted = entry.Wanted,
                 });
             }
             var animal = new UpkeepAnimal
@@ -42,8 +42,8 @@ public static class AnimalUpkeepReads
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = a.Roping is O.AnimalRoping.Roped,
                 Contained = ColonyDecodeReads.Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
-                Release = Known(state.Release),
-                Slaughter = Known(state.Slaughter),
+                Release = state.Release,
+                Slaughter = state.Slaughter,
                 Pen = Known((state.PenId ?? "")),
                 SuitablePen = Known(a.Roping is O.AnimalRoping.Roped { SuitablePen: { } suitable } ? suitable : ""),
                 SlaughterFacts = new SlaughterFacts
@@ -59,13 +59,13 @@ public static class AnimalUpkeepReads
                 Herd = HerdFactsOf(pawn, races),
                 Training = EquatableArray.From(training),
                 Care = RoundsWorkReads.CareName(state.MedicalCare is not null ? state.MedicalCare.GetValueOrDefault() : null),
-                Bonded = ColonyDecodeReads.Optional(state.Bonded is not null, state.Bonded.GetValueOrDefault()),
+                Bonded = state.Bonded,
                 BondedPawns = EquatableArray.From(state.BondedPawnIds),
                 Master = ColonyDecodeReads.Optional(state.MasterId is not null, (state.MasterId ?? "")),
                 FollowDrafted = ColonyDecodeReads.Optional(state.FollowDrafted is not null, state.FollowDrafted.GetValueOrDefault()),
                 FollowFieldwork = ColonyDecodeReads.Optional(state.FollowFieldwork is not null, state.FollowFieldwork.GetValueOrDefault()),
                 Obedient = ColonyDecodeReads.Optional(state.Obedient is not null, state.Obedient.GetValueOrDefault()),
-                Sterilized = ColonyDecodeReads.Optional(state.Sterilized is not null, state.Sterilized.GetValueOrDefault()),
+                Sterilized = state.Sterilized,
                 SterilizeQueued = ColonyDecodeReads.Optional(state.SterilizeQueued is not null, state.SterilizeQueued.GetValueOrDefault()),
             };
             if (state.Conditions is not null)
@@ -93,8 +93,10 @@ public static class AnimalUpkeepReads
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = false,
                 Contained = Known(false),
-                Release = Known(false),
-                Slaughter = Known(false),
+                Release = state.Release,
+                Slaughter = state.Slaughter,
+                Bonded = state.Bonded,
+                Sterilized = state.Sterilized,
                 Pen = Known(""),
                 SuitablePen = Known(""),
                 Gender = state.Gender,

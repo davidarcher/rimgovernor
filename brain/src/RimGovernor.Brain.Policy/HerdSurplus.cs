@@ -14,7 +14,7 @@ public sealed record HerdFacts
 {
     public Fact<double> AgeYears { get; init; }
     public Fact<double> LifeExpectancy { get; init; }
-    public Fact<double> ManhunterOnTameFail { get; init; }
+    public double ManhunterOnTameFail { get; init; }
     public Fact<double> MeatNutrition { get; init; }
     public Fact<double> FeedPerDay { get; init; }
     public Fact<bool> Sick { get; init; }
@@ -79,7 +79,7 @@ public static class HerdSurplusRules
     internal const double HerdTameDanger = 0.2;
 
     /// <summary>Whether the animal can still breed: anything not read as sterilized, so a census without the fact counts every animal.</summary>
-    internal static bool HerdFertile(UpkeepAnimal a) => !a.Sterilized.ValueOrDefault;
+    internal static bool HerdFertile(UpkeepAnimal a) => !a.Sterilized;
 
     /// <summary>The layer rule of a race, not ok for a race that does not lay fertilizable eggs.</summary>
     internal static (HerdLayer Layer, bool Ok) HerdLayerOf(AnimalRace race)
@@ -114,7 +114,7 @@ public static class HerdSurplusRules
     internal static bool HerdJuvenile(UpkeepAnimal a) => a.Herd.Adult.TryGetValue(out var adult) && !adult;
 
     /// <summary>A predator, or a race whose failed tame turns manhunter at least HerdTameDanger of the time. Such a race is never tamed.</summary>
-    internal static bool HerdDangerous(UpkeepAnimal a) => a.Herd.Predator || a.Herd.ManhunterOnTameFail.ValueOrDefault >= HerdTameDanger;
+    internal static bool HerdDangerous(UpkeepAnimal a) => a.Herd.Predator || a.Herd.ManhunterOnTameFail >= HerdTameDanger;
 
     /// <summary>Pasture supply over pen demand; not ok when any pen fact is unknown, or no pen has demand.</summary>
     internal static (double Ratio, bool Ok) HerdPastureRatio(Fact<EquatableArray<PenGrazing>> pens)
@@ -151,7 +151,7 @@ public static class HerdSurplusRules
     {
         foreach (var t in a.Training)
         {
-            if (t.Learned.TryGetValue(out var learned) && learned && HerdTrainables.Contains(t.Def))
+            if (t.Learned && HerdTrainables.Contains(t.Def))
             {
                 return true;
             }
@@ -224,7 +224,7 @@ public static class HerdSurplusRules
     /// falls to the limit. Cull order: old (past 80% of life expectancy) or sick first; then males beyond one per
     /// five females; then untrained adults by highest feed per meat; then trained adults; juveniles only when
     /// juveniles is set (feed short). Ties go to the lowest ID. An animal whose removal would leave its race under
-    /// a breeding pair of its own sex (or whose sex is unknown) is kept, except in a retired race, which keeps no
+    /// a breeding pair of its own sex is kept, except in a retired race, which keeps no
     /// pair. A sterilized animal is no part of the pair and is removed freely. Any tracked animal with an unknown
     /// designation or eligibility fact makes the result unknown.
     /// </summary>
@@ -244,13 +244,7 @@ public static class HerdSurplusRules
             {
                 continue;
             }
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
-            if (!rk || !sk)
-            {
-                return ([], true);
-            }
-            if (release || slaughter)
+            if (a.Release || a.Slaughter)
             {
                 continue;
             }
@@ -260,9 +254,9 @@ public static class HerdSurplusRules
                 bySex = [];
                 sexes[a.Definition] = bySex;
             }
-            if (HerdFertile(a) && a.Gender is { } sex)
+            if (HerdFertile(a))
             {
-                bySex[sex] = bySex.GetValueOrDefault(sex) + 1;
+                bySex[a.Gender] = bySex.GetValueOrDefault(a.Gender) + 1;
             }
             var (method, ok) = HerdRemovalMethod(a);
             if (!ok)
@@ -329,7 +323,7 @@ public static class HerdSurplusRules
                 }
                 else if ((g == Sex.Male && bySex.GetValueOrDefault(Sex.Male) > floorMales) || (g == Sex.Female && bySex.GetValueOrDefault(Sex.Female) > HerdPairFemales))
                 {
-                    bySex[g.GetValueOrDefault()]--;
+                    bySex[g]--;
                 }
                 else if (g == Sex.None)
                 {

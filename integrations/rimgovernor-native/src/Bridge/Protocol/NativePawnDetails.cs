@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -429,45 +430,58 @@ namespace HomeBridge.BridgeTools
         // and the release/slaughter guards; for a wild one its tame facts.
         internal static Obs.AnimalState Animal(Pawn pawn)
         {
-            var row=NativeHusbandryOperations.HerdFacts(pawn,new Obs.AnimalState());
+            var training=new List<Obs.TrainingEntry>();
             if(pawn.training!=null) {
-                var defs=DefDatabase<TrainableDef>.AllDefsListForReading;
-                foreach(var def in defs) {
+                foreach(var def in DefDatabase<TrainableDef>.AllDefsListForReading) {
                     var report=pawn.training.CanAssignToTrain(def,out var visible);
-                    var item=new Obs.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible};
-                    row = row with { Training = [.. row.Training, item] };
+                    training.Add(new Obs.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible});
                 }
             }
-            var map=pawn.MapHeld;
-            if(map?.designationManager!=null) {
-                var all=map.designationManager.AllDesignationsOn(pawn);
-                row = row with { Slaughter = all.Any(d=>d.def==DesignationDefOf.Slaughter), Release = all.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild),
-                    Tame = all.Any(d=>d.def==DesignationDefOf.Tame) };
-            }
-            row = row with { Tameable = NativeHusbandryOperations.Tameable(pawn) };
-            // Live spawned animals only: the guards and pen reads assume one.
-            if(pawn.Dead || !pawn.Spawned) return row;
-            if(pawn.Faction!=null && pawn.Faction==Faction.OfPlayerSilentFail) {
-                var eligible=NativeHusbandryOperations.Eligible(pawn);
-                row = row with { SafeToRelease = eligible && NativeHusbandryOperations.SafeToRelease(pawn) };
-                if(eligible) row = NativeHusbandryOperations.SlaughterFacts(pawn,row) with {
-                    FollowDrafted = pawn.playerSettings?.followDrafted ?? false, FollowFieldwork = pawn.playerSettings?.followFieldwork ?? false,
-                    Obedient = NativeHusbandryOperations.Obedient(pawn) };
+            var designations=pawn.MapHeld?.designationManager?.AllDesignationsOn(pawn).ToList() ?? [];
+            var player=pawn.Faction!=null && pawn.Faction==Faction.OfPlayerSilentFail;
+            // Live spawned player animals only: the guards and pen reads assume one.
+            var live=player && !pawn.Dead && pawn.Spawned;
+            var eligible=live && NativeHusbandryOperations.Eligible(pawn);
+            var roped=live && AnimalPenUtility.NeedsToBeManagedByRope(pawn);
+            var pen=roped ? AnimalPenUtility.GetCurrentPenOf(pawn,false) : null;
+            var herdPlayer=pawn.Faction==Faction.OfPlayer;
+            return new Obs.AnimalState {
+                Gender=(RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender,
+                AgeYears=pawn.ageTracker.AgeBiologicalYearsFloat,
+                Adult=pawn.ageTracker.Adult,
+                Pregnant=pawn.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any(),
+                Downed=pawn.Downed,
+                InMentalState=pawn.InMentalState,
+                LifeStageIndex=pawn.ageTracker.CurLifeStageIndex,
+                TicksToNextLifeStage=NativeHusbandryOperations.TicksToNextLifeStage(pawn),
+                Training=[.. training],
+                Slaughter=designations.Any(d=>d.def==DesignationDefOf.Slaughter),
+                Release=designations.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild),
+                Tame=designations.Any(d=>d.def==DesignationDefOf.Tame),
+                Tameable=NativeHusbandryOperations.Tameable(pawn),
+                Bonded=pawn.relations?.DirectRelations.Any(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead)==true,
+                Sterilized=NativeHusbandryOperations.Sterilized(pawn),
+                Sick=herdPlayer ? pawn.health.hediffSet.AnyHediffMakesSickThought : null,
+                SterilizeQueued=herdPlayer ? NativeHusbandryOperations.SterilizeBill(pawn)!=null : null,
+                Venerated=herdPlayer ? NativeHusbandryOperations.Venerated(pawn) : null,
+                SafeToRelease=live ? eligible && NativeHusbandryOperations.SafeToRelease(pawn) : null,
+                TicksToBirth=eligible ? NativeHusbandryOperations.TicksToBirth(pawn) : null,
+                ColonistBonded=eligible ? TrainableUtility.GetAllColonistBondsFor(pawn).Any() : null,
+                SlaughterDesignatable=eligible ? new Designator_Slaughter().CanDesignateThing(pawn).Accepted : null,
+                FollowDrafted=eligible ? pawn.playerSettings?.followDrafted ?? false : null,
+                FollowFieldwork=eligible ? pawn.playerSettings?.followFieldwork ?? false : null,
+                Obedient=eligible ? NativeHusbandryOperations.Obedient(pawn) : null,
                 // Medical care cap inputs.
-                if(pawn.playerSettings!=null) row = row with { MedicalCare = NativeEnums.Care(pawn.playerSettings.medCare) };
-                var bondPartners=pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal).ToList();
-                row = row with { Bonded = pawn.relations?.DirectRelations.Any(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead)==true };
-                if(bondPartners!=null) row = row with { BondedPawnIds = [.. row.BondedPawnIds, .. bondPartners] };
-                row = row with { Conditions = Conditions(pawn) };
-                if(AnimalPenUtility.NeedsToBeManagedByRope(pawn)) {
-                    var pen=AnimalPenUtility.GetCurrentPenOf(pawn,false);
-                    row = row with { Contained = pen!=null };
-                    if(pen!=null) row = row with { PenId = Id(pen.parent.GetUniqueLoadID()) };
-                }
+                MedicalCare=live && pawn.playerSettings!=null ? NativeEnums.Care(pawn.playerSettings.medCare) : null,
+                BondedPawnIds=live ? [.. pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal) ?? Enumerable.Empty<string>()] : [],
+                Conditions=live ? Conditions(pawn) : null,
+                Contained=roped ? pen!=null : null,
+                PenId=pen!=null ? Id(pen.parent.GetUniqueLoadID()) : null,
                 // Area reconciliation: the saved restriction.
-                if(eligible) {row = row with { MasterId = NativeHusbandryOperations.MasterId(pawn) };row = row with { AllowedAreaId = NativeHusbandryOperations.AreaId(pawn) };row = row with { SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(pawn) };}
-            }
-            return row;
+                MasterId=eligible ? NativeHusbandryOperations.MasterId(pawn) : null,
+                AllowedAreaId=eligible ? NativeHusbandryOperations.AreaId(pawn) : null,
+                SupportsAllowedAreas=eligible ? NativeHusbandryOperations.SupportsAllowedAreas(pawn) : null,
+            };
         }
         // Non-mutating: never calls Pawn_RelationsTracker.OpinionOf or anything that
         // recalculates situational social thoughts -- see PawnConfigTool's class

@@ -17,13 +17,9 @@ public static class HerdRemovalRules
         }
         var rows = unsorted.OrderBy(a => a.Id).ToList();
         var counts = new Dictionary<Resource, long>();
-        var sexes = new Dictionary<(Resource Race, Sex? Sex), long>();
+        var sexes = new Dictionary<(Resource Race, Sex Sex), long>();
         foreach (var a in rows)
         {
-            if (!a.Release.IsKnown || !a.Slaughter.IsKnown)
-            {
-                return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
-            }
             counts[a.Definition] = counts.GetValueOrDefault(a.Definition) + 1;
             if (HerdSurplusRules.HerdFertile(a))
             {
@@ -49,8 +45,8 @@ public static class HerdRemovalRules
         var unknown = false;
         foreach (var a in rows)
         {
-            var release = a.Release.ValueOrDefault;
-            var slaughter = a.Slaughter.ValueOrDefault;
+            var release = a.Release;
+            var slaughter = a.Slaughter;
             if (!release && !slaughter)
             {
                 continue;
@@ -111,5 +107,5 @@ public static class HerdRemovalRules
     }
 
     /// <summary>The race-and-sex key the pair counts are kept under.</summary>
-    private static (Resource Race, Sex? Sex) SexKey(UpkeepAnimal a) => (a.Definition, a.Gender);
+    private static (Resource Race, Sex Sex) SexKey(UpkeepAnimal a) => (a.Definition, a.Gender);
 }

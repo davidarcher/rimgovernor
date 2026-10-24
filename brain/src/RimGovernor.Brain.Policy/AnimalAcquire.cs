@@ -35,7 +35,7 @@ public sealed record AnimalAcquisition
         var count = 0L;
         foreach (var a in owned)
         {
-            if (a.Release.TryGetValue(out var release) && a.Definition == race && !release)
+            if (a.Definition == race && !a.Release)
             {
                 count++;
             }
@@ -262,7 +262,7 @@ public static class AnimalAcquireRules
             }
 
             var attempts = 1 / Math.Min(1, factor);
-            race.ManhunterOnTameFail.TryGetValue(out var manhunter);
+            var manhunter = race.ManhunterOnTameFail;
             var c = y.Channel(
                 CandidateKind.Tame,
                 "tame:" + a.Id,

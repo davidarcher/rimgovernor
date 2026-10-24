@@ -33,10 +33,8 @@ public static class HerdMasterRules
             }
 
             var ok = a.Obedient.TryGetValue(out var obedient);
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
             var mk = a.Master.TryGetValue(out var master);
-            if (!ok || !obedient || !rk || !sk || release || slaughter || !mk)
+            if (!ok || !obedient || a.Release || a.Slaughter || !mk)
             {
                 continue;
             }
@@ -46,13 +44,7 @@ public static class HerdMasterRules
             var war = false;
             if (!found)
             {
-                var (training, trainingKnown) = HerdUnlearned(herd, a);
-                if (!trainingKnown)
-                {
-                    continue;
-                }
-
-                if (training)
+                if (HerdUnlearned(herd, a))
                 {
                     fit = HerdMasters(roster, null);
                 }
@@ -93,26 +85,18 @@ public static class HerdMasterRules
         return none;
     }
 
-    /// <summary>Reports whether the animal has a wanted, available trainable it has not learned; known is false when one of those facts is unread.</summary>
-    private static (bool Unlearned, bool Known) HerdUnlearned(HerdPolicy herd, UpkeepAnimal a)
+    /// <summary>Reports whether the animal has a wanted, available trainable it has not learned.</summary>
+    private static bool HerdUnlearned(HerdPolicy herd, UpkeepAnimal a)
     {
-        var unlearned = false;
         foreach (var t in HusbandryUpkeepRules.HerdTrainQueue(herd, a))
         {
-            var ak = t.Available.TryGetValue(out var avail);
-            var lk = t.Learned.TryGetValue(out var learned);
-            if (!ak || (avail && !lk))
+            if (t.Available && !t.Learned)
             {
-                return (false, false);
-            }
-
-            if (avail && !learned)
-            {
-                unlearned = true;
+                return true;
             }
         }
 
-        return (unlearned, true);
+        return false;
     }
 
     /// <summary>The handling-capable colonists, limited to <paramref name="only"/> when it is not null (the front line for a war animal).</summary>

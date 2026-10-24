@@ -56,7 +56,7 @@ public sealed partial class DefinitionCatalog
             Predator = props.predator,
             BodySize = Known((double)props.baseBodySize),
             LifeExpectancy = Known((double)props.lifeExpectancy),
-            ManhunterOnTameFail = Known((double)props.manhunterOnTameFailChance),
+            ManhunterOnTameFail = props.manhunterOnTameFailChance,
             ManhunterOnDamage = Known((double)props.manhunterOnDamageChance),
             Edible = new([.. facts.EdibleDefs]),
             Trainables = new([.. RaceTrainables(props)]),

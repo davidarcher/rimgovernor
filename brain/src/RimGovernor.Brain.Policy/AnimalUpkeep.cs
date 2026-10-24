@@ -19,16 +19,18 @@ public sealed record UpkeepAnimal
     /// <summary>The native display name; empty when the census omits it.</summary>
     public string Label { get; init; } = "";
 
-    /// <summary>The game Gender; null when unread.</summary>
-    public Sex? Gender { get; init; }
+    /// <summary>The game Gender.</summary>
+    public Sex Gender { get; init; }
 
     public bool RequiresPen { get; init; }
 
     public Fact<bool> Contained { get; init; }
 
-    public Fact<bool> Release { get; init; }
+    /// <summary>A standing release-to-wild designation.</summary>
+    public bool Release { get; init; }
 
-    public Fact<bool> Slaughter { get; init; }
+    /// <summary>A standing slaughter designation.</summary>
+    public bool Slaughter { get; init; }
 
     public Fact<string> Pen { get; init; }
 
@@ -61,7 +63,7 @@ public sealed record UpkeepAnimal
     public Fact<string> Care { get; init; }
 
     /// <summary>Care cap input: a bond to a living pawn.</summary>
-    public Fact<bool> Bonded { get; init; }
+    public bool Bonded { get; init; }
 
     /// <summary>The living humanlike pawns the animal has a Bond relation with (any status); a companion's master is one on the roster.</summary>
     public EquatableArray<string> BondedPawns { get; init; }
@@ -70,7 +72,7 @@ public sealed record UpkeepAnimal
     public Fact<string> Master { get; init; }
 
     /// <summary>The Sterilized hediff.</summary>
-    public Fact<bool> Sterilized { get; init; }
+    public bool Sterilized { get; init; }
 
     /// <summary>A sterilize surgery bill waiting on the animal.</summary>
     public Fact<bool> SterilizeQueued { get; init; }
@@ -92,11 +94,11 @@ public sealed record HusbandryTrainable
 {
     public string Def { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
-    public Fact<bool> Learned { get; init; }
+    public bool Learned { get; init; }
 
-    public Fact<bool> Wanted { get; init; }
+    public bool Wanted { get; init; }
 }
 
 public sealed record AnimalUpkeepObservation
@@ -228,7 +230,8 @@ public sealed record AnimalRace
     /// <summary>RaceProperties.lifeExpectancy in years.</summary>
     public Fact<double> LifeExpectancy { get; init; }
 
-    public Fact<double> ManhunterOnTameFail { get; init; }
+    /// <summary>RaceProperties.manhunterOnTameFailChance.</summary>
+    public double ManhunterOnTameFail { get; init; }
 
     public Fact<double> ManhunterOnDamage { get; init; }
 
@@ -362,13 +365,11 @@ public static class AnimalUpkeepRules
             DomainException.Require(FoodForecastRules.FoodId(animal.Id.Value) && seen.Add(animal.Id) && AdmissionRules.ValidResource(animal.Definition), Invalid);
             var pen = animal.RequiresPen;
             var ck = animal.Contained.TryGetValue(out var contained);
-            var rk = animal.Release.TryGetValue(out var release);
-            var sk = animal.Slaughter.TryGetValue(out var slaughter);
-            if (pen && (!ck || !rk || !sk))
+            if (pen && !ck)
             {
                 containmentKnown = false;
             }
-            else if (pen && !contained && !release && !slaughter)
+            else if (pen && !contained && !animal.Release && !animal.Slaughter)
             {
                 containment.Add(animal.Id);
             }
@@ -404,10 +405,8 @@ public static class AnimalUpkeepRules
             }
 
             var ck = a.Contained.TryGetValue(out var contained);
-            var rk = a.Release.TryGetValue(out var release);
-            var sk = a.Slaughter.TryGetValue(out var slaughter);
-            DomainException.Require(ck && rk && sk, "animal containment state unknown");
-            if (contained || release || slaughter)
+            DomainException.Require(ck, "animal containment state unknown");
+            if (contained || a.Release || a.Slaughter)
             {
                 continue;
             }
