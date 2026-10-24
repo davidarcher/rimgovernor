@@ -5,19 +5,19 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// A standing barracks splits by replan (#3661): three calm colonists on a treeless temperate map (logs at market, so the
-/// first plan is one four-bed barracks) keep it when it stands; one pawn near its break gets a bedroom while the barracks
+/// A standing barracks splits by replan (#3661): four calm colonists on a treeless temperate map (logs at market, so the
+/// first plan is one four-bed barracks, one bed a colonist, #3749) keep it when it stands; one pawn near its break gets a bedroom while the barracks
 /// keeps the other beds where it stands; and that pawn's mood swinging about the switch line across six replans switches
 /// once, since a merge back pays for the built bedroom it gives up (#3675), where a bedroom still on paper merges back.
 /// </summary>
 public sealed class BarracksSwitchTests
 {
-    private static readonly double[] Calm = [0.004, 0.004, 0.004];
+    private static readonly double[] Calm = [0.004, 0.004, 0.004, 0.004];
 
     /// <summary>The first plan's barracks and rooms all standing, with the colonists' losses a day in a barracks.</summary>
     private static (LayoutPlan Plan, StationFacts Facts) Standing()
     {
-        var f = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild", treeless: true);
+        var f = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild", treeless: true, colonists: Calm.Length);
         var plan = FirstRoomPlanTests.Derive(f);
         Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
         Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));
@@ -40,7 +40,7 @@ public sealed class BarracksSwitchTests
         return f with { Built = built, ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
     }
 
-    private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = f.BedMerge with { Losses = Known(EquatableArray.From([Calm[0], Calm[1], c])) } };
+    private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = f.BedMerge with { Losses = Known(EquatableArray.From([.. Calm[..^1], c])) } };
 
     private static LayoutPlan Replan(LayoutPlan prev, StationFacts f) =>
         LayoutPlan.ReplanLayout(prev, f with { Plan = prev }, f.Survey, [], new RoomGrowth { Fixed = [] }).Plan;

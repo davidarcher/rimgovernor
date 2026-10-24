@@ -60,7 +60,6 @@ public sealed partial class BrainComposition
         var shelter = sc.Shelter;
         var comfort = sc.Comfort;
         var hospital = sc.Hospital;
-        var expansion = sc.Expansion;
         var power = sc.Power;
         var temperature = sc.Temperature;
         var defense = sc.Defense;
@@ -96,7 +95,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || sc.Mood || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets || sc.Goals))
+        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || sc.Mood || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets || sc.Goals))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -255,13 +254,13 @@ public sealed partial class BrainComposition
             // and work assignments.
             families.Add(new AdminRounds(reviewer, admin, supplies ? client : null, stockpiles ? client : null).Runner());
         }
-        if (sleeping || shelter || expansion || temperature || sc.Sheltering)
+        if (sleeping || shelter || temperature || sc.Sheltering)
         {
             // The housing, temperature and safe-area toggles compose the shelter family's Needs (#3257): sleeping with
-            // the shelter or sleeping toggle (its stand-in spots are the day-one floor, #3659), the spare room,
+            // the shelter or sleeping toggle (its stand-in spots are the day-one floor, #3659),
             // temperature and the safe area.
-            families.Add(new ShelterRounds(reviewer, sleeping || shelter || expansion || temperature ? client : null,
-                sleeping || shelter, expansion, temperature, sc.Sheltering).Runner());
+            families.Add(new ShelterRounds(reviewer, sleeping || shelter || temperature ? client : null,
+                sleeping || shelter, temperature, sc.Sheltering).Runner());
         }
         if (power)
         {
@@ -298,7 +297,7 @@ public sealed partial class BrainComposition
             // The goals toggle composes the goals family: status for the player's goals, whose demand the review injects (#3494).
             families.Add(new GoalsRounds(reviewer, context.GoalStatuses).Runner());
         }
-        if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes)
+        if (sleeping || cooking || shelter || comfort || workshop || hospital || power || temperature || lighting || flooring || routes)
         {
             if (lighting)
             {
@@ -489,10 +488,6 @@ public sealed partial class BrainComposition
         if (sc.Sleeping || sc.Shelter)
         {
             needs.Add(ShelterFamily.Sleeping);
-        }
-        if (sc.Expansion)
-        {
-            needs.Add(ShelterFamily.Expansion);
         }
         if (sc.Temperature)
         {

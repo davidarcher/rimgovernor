@@ -36,7 +36,7 @@ public static class FindingExtensions
 public static class FindingConstants
 {
     /// <summary>
-    /// The bot's own colony size target. The colony grows toward it only as fast as policy.JoinerCapacity's bed
+    /// The bot's own colony size target. The colony grows toward it only as fast as policy.JoinerCapacity's population
     /// and food gates allow, so in practice the target rises with the colony's means.
     /// </summary>
     public const int PopulationTarget = 100;

@@ -7,16 +7,14 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The shelter and power families (#3257): every Need has a pure met, unmet and unknown predicate; housing's
-/// preconditions replace the phase latch; the safe area is SeriousHarm and so also runs in the immediate pass.
+/// The shelter and power families (#3257): every Need has a pure met, unmet and unknown predicate; the plan houses
+/// the colonists exactly, with no spare place (#3749); the safe area is SeriousHarm and so also runs in the immediate pass.
 /// </summary>
 public sealed class ShelterFamilyTests
 {
     private static readonly ShelterFacts Housed = new()
     {
         SleepingRecovered = Known(true),
-        Colonists = 3L,
-        IndoorCapacity = 3L + LayoutGraphRules.HousingSparePlaces,
         SleepingMin = Known(20.0),
         SleepingMax = Known(22.0),
         TemperatureOwed = Known(false),
@@ -27,17 +25,17 @@ public sealed class ShelterFamilyTests
     };
 
     private static Need Of(ShelterFacts facts, NeedId id) =>
-        Assert.Single(new ShelterFamily(true, true, true, true).Derive(facts), n => n.Id == id);
+        Assert.Single(new ShelterFamily(true, true, true).Derive(facts), n => n.Id == id);
 
     [Fact]
     public void EveryComposedNeedIsDerivedAndMetForAHousedColony()
     {
-        var needs = new ShelterFamily(true, true, true, true).Derive(Housed);
-        Assert.Equal([ShelterFamily.SafeArea, ShelterFamily.Sleeping, ShelterFamily.Expansion, ShelterFamily.Temperature], needs.Select(n => n.Id));
+        var needs = new ShelterFamily(true, true, true).Derive(Housed);
+        Assert.Equal([ShelterFamily.SafeArea, ShelterFamily.Sleeping, ShelterFamily.Temperature], needs.Select(n => n.Id));
         Assert.All(needs, n => Assert.Equal(Satisfaction.Met, n.Satisfaction));
         Assert.All(needs, n => Assert.Equal(Known(0.0), n.Deficit));
-        Assert.Empty(new ShelterFamily(false, false, false, false).Derive(Housed));
-        Assert.Equal([ShelterFamily.Temperature], new ShelterFamily(false, false, true, false).Derive(Housed).Select(n => n.Id));
+        Assert.Empty(new ShelterFamily(false, false, false).Derive(Housed));
+        Assert.Equal([ShelterFamily.Temperature], new ShelterFamily(false, true, false).Derive(Housed).Select(n => n.Id));
     }
 
     [Fact]
@@ -49,24 +47,17 @@ public sealed class ShelterFamilyTests
     }
 
     [Fact]
-    public void ExpansionKeepsOneSparePlaceAndWaitsOnSleeping()
+    public void AColonyOfThreeSleepsInThreePlacesWithNoSpare()
     {
-        var short1 = Of(Housed with { IndoorCapacity = 3L }, ShelterFamily.Expansion);
-        Assert.Equal(Satisfaction.Unmet, short1.Satisfaction);
-        Assert.True(short1.Deficit.TryGetValue(out var d) && d > 0 && d <= 1);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { Colonists = 0L }, ShelterFamily.Expansion).Satisfaction);
-        Assert.Equal([ShelterFamily.Sleeping], Of(Housed, ShelterFamily.Expansion).Preconditions);
-        Assert.Empty(Assert.Single(new ShelterFamily(false, true, false, false).Derive(Housed)).Preconditions);
-        Assert.Equal(NeedTier.Development, Of(Housed, ShelterFamily.Expansion).Tier);
-    }
+        // The station graph's sleep nodes count the colonists exactly (#3749): three colonists, three sleep slots.
+        var input = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild").GraphInput();
+        Assert.Equal(3, input.Population.Colonists);
+        Assert.Equal(3, StationGraph.SleepGraph(input).Nodes.Where(n => n.Purpose == StationPurpose.Sleep).Sum(n => n.Count));
 
-    [Fact]
-    public void PreconditionsHoldExpansionBehindUnmetSleeping()
-    {
-        var needs = new ShelterFamily(true, true, false, false).Derive(Housed with { SleepingRecovered = Known(false), IndoorCapacity = 0L });
-        var standings = NeedsRules.NeedStandings(ShelterFamily.FamilyId, needs);
-        Assert.Equal([NeedReadiness.Ready, NeedReadiness.Waiting], standings.Select(s => s.Readiness));
-        Assert.Equal(ShelterFamily.Sleeping, standings[1].WaitingOn);
+        // The shelter target is the colonist count: three places for three colonists owe nothing, two owe one.
+        var housed = new RoundsFacts { Colonists = 3L, BedCapacity = 3L, IndoorCapacity = 3L };
+        Assert.Equal(0, ShelterRules.StandInsOwed(housed).Missing);
+        Assert.Equal((3L, 1), ShelterRules.StandInsOwed(housed with { BedCapacity = 2L, IndoorCapacity = 2L }));
     }
 
     [Fact]
@@ -87,10 +78,10 @@ public sealed class ShelterFamilyTests
         Assert.Equal(NeedTier.SeriousHarm, need.Tier);
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Of(Housed with { SafeAreaOwed = Unknown<bool>() }, ShelterFamily.SafeArea).Satisfaction);
-        Assert.NotEmpty(new ShelterFamily(false, false, false, true).SeriousHarmReads);
-        Assert.Empty(new ShelterFamily(true, true, true, false).SeriousHarmReads);
+        Assert.NotEmpty(new ShelterFamily(false, false, true).SeriousHarmReads);
+        Assert.Empty(new ShelterFamily(true, true, false).SeriousHarmReads);
         // Only the safe area is SeriousHarm: the immediate pass keeps it alone.
-        Assert.Equal([ShelterFamily.SafeArea], new ShelterFamily(true, true, true, true).Derive(Housed).Where(n => n.Tier == NeedTier.SeriousHarm).Select(n => n.Id));
+        Assert.Equal([ShelterFamily.SafeArea], new ShelterFamily(true, true, true).Derive(Housed).Where(n => n.Tier == NeedTier.SeriousHarm).Select(n => n.Id));
     }
 
     [Fact]
@@ -105,15 +96,6 @@ public sealed class ShelterFamilyTests
         memory.Commit("w");
         Assert.Equal(Known(false), memory.Owed("w"));
         Assert.False(memory.Review("w", new ColonyProjection()).IsKnown);
-    }
-
-    [Fact]
-    public void HousingNamesTheTwoHousingNeedsOnly()
-    {
-        Assert.True(ShelterFamily.Housing(ShelterFamily.Sleeping.FilingKey));
-        Assert.True(ShelterFamily.Housing(ShelterFamily.Expansion.FilingKey));
-        Assert.False(ShelterFamily.Housing(ShelterFamily.Temperature.FilingKey));
-        Assert.False(ShelterFamily.Housing(ShelterFamily.SafeArea.FilingKey));
     }
 
     [Fact]

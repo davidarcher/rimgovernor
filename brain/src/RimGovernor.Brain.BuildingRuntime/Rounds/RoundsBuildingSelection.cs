@@ -153,7 +153,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (1, new MethodId("laboratory-" + Definition), default);
         }
-        if (ShelterFamily.Housing(c))
+        if (c == ShelterFamily.Sleeping.FilingKey)
         {
             if (Phase == Phase.HousingSleeping)
             {
@@ -164,21 +164,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"sleeping-{Definition}-{Sleeping.Unhoused}")), default);
             }
             var capacity = facts.Facts.IndoorCapacity;
-            var prefix = "";
-            if (Phase == Phase.HousingExpansion)
-            {
-                if (facts.Facts.FoodPlan.TryGetValue(out var foodPlan) && foodPlan.GapPerDay > 0)
-                {
-                    return (0, default, AwaitingFoodPlan("housing_expansion"));
-                }
-                if (count >= long.MaxValue)
-                {
-                    return (0, default, FieldUnavailable("colonist_count"));
-                }
-                count++;
-                prefix = "expansion-";
-            }
-            else if (facts.Facts.HousingTarget.TryGetValue(out var target))
+            if (facts.Facts.HousingTarget.TryGetValue(out var target))
             {
                 count = Math.Max(count, target);
             }
@@ -191,7 +177,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, NoSpace("housing_bound"));
             }
-            return (missing, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{prefix}indoor-sleeping-{count}-{missing}")), default);
+            return (missing, new MethodId(string.Create(CultureInfo.InvariantCulture, $"indoor-sleeping-{count}-{missing}")), default);
         }
         if (c == FoodRules.CookingNeed.FilingKey)
         {

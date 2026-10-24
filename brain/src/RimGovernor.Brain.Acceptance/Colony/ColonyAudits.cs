@@ -23,7 +23,6 @@ public static class ColonyAudits
     public static readonly IReadOnlyList<string> ColonyConcerns =
     [
         ShelterFamily.Sleeping.Value,
-        ShelterFamily.Expansion.Value,
         FoodRules.CookingNeed.Value,
         ShelterFamily.Temperature.Value,
         EconomyFamily.Resource.Value,

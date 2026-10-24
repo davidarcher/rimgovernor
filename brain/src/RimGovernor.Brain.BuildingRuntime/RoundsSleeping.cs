@@ -79,7 +79,7 @@ public sealed partial class RoundsBuildingPlanner
     internal Pol.SleepingChoice? Sleeping { get; set; }
 
     /// <summary>
-    /// The step this planner serves: a shelter housing planner (sleeping, expansion, the stand-in spots), which its Need's
+    /// The step this planner serves: a shelter housing planner (sleeping, the stand-in spots), which its Need's
     /// preconditions order, or, for a rooms comfort Need, which of its planners this is. Empty for every other goal.
     /// </summary>
     internal Pol.Phase Phase { get; set; }
@@ -602,7 +602,7 @@ public sealed partial class RoundsBuildingPlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
-        if (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        if (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             var pendingPlanner = r;
             bool Pending(Progress progress)
@@ -626,7 +626,7 @@ public sealed partial class RoundsBuildingPlanner
                     }
                     return PendingFacility(progress, "PowerConduit") || PendingFacility(progress, "HiddenConduit") || PendingFacility(progress, "WaterproofConduit");
                 }
-                if (pendingPlanner.Phase == Pol.Phase.HousingExpansion || pendingPlanner.Concern == MedicalRules.MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
+                if (pendingPlanner.Concern == MedicalRules.MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
                 {
                     return PendingFacility(progress, "SleepingSpot") || PendingFacility(progress, "Bed") || PendingFacility(progress, "DoubleBed") || PendingFacility(progress, "RoyalBed");
                 }
@@ -865,9 +865,9 @@ public sealed partial class RoundsBuildingPlanner
         }
         // A loose sleeping spot stands only in a room planned to sleep in; the basic-comfort table and seat keep
         // out of the rooms that must stay clear.
-        var looseSpot = ShelterFamily.Housing(Concern) && Definition == "SleepingSpot" && Facility is null && Cells is null;
+        var looseSpot = Concern == ShelterFamily.Sleeping.FilingKey && Definition == "SleepingSpot" && Facility is null && Cells is null;
         IReadOnlyList<Cell> protectedSet = protectedCells;
-        if (!looseSpot && (ShelterFamily.Housing(Concern) || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
+        if (!looseSpot && (Concern == ShelterFamily.Sleeping.FilingKey || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
         {
             // Housing furniture and the basic-comfort table and seat stay out of a standing kitchen, lab, storage
             // or other planned room: beds there make it a sleeping room and block the room's own furnishing, and

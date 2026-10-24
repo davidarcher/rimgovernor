@@ -615,9 +615,9 @@ Needs are derived only for their composed toggles. There is no starter shelter
 bedrooms and upgrades) waits on nothing and, while a sleeping and an indoor place do
 not stand for everyone, first places the missing stand-in sleeping spots in the first
 selected sleeping room at Survive tier (`ShelterRules.StandInsOwed`,
-`RoundsSleepingStandIn`); `shelter/expansion` (one spare indoor place) waits on it:
-that precondition replaces the Housing phase latch, and the cold, hot and sleeping
-latches are deleted. `shelter/temperature` is a plain threshold at the
+`RoundsSleepingStandIn`). The Housing phase latch and the cold, hot and sleeping
+latches are deleted, and no Need keeps a spare indoor place (#3749): the stand-ins
+cover a colonist the beds do not yet house. `shelter/temperature` is a plain threshold at the
 season's exit bars, unmet too while a heat refuel switch or a venting door is
 owed. The housing planners and temperature run their
 existing step bodies under the Need owner, admitted by claims; `ShelterSite` takes
@@ -673,7 +673,7 @@ anomaly).
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-spot`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
 | Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted), `defense` (#3314; EnsureDefensiveLayout deleted) |
-| Shelter | `shelter`: Needs `sleeping`, `expansion`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; the housing phase latch is the `sleeping` and `expansion` preconditions) |
+| Shelter | `shelter`: Needs `sleeping`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; `expansion` deleted, #3749) |
 | Power | `power`: Need `basic` (#3257; EnsureBasicPower deleted) |
 | Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |
 | Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` and `combat` (#3311; RestoreWorkers, the combat incident and the undraft planner deleted) |

@@ -23,7 +23,7 @@ public static class LaborRules
             HomeUpkeepFamily.Clearance, MilitaryFamily.Defense, RoomsFamily.Comfort, HomeUpkeepFamily.Repairs,
             LayoutFamily.StoneShell, FoodStoresRules.FoodStorageNeed, LayoutFamily.HomeCoverage, AnimalsFamily.Containment,
             RoomsFamily.Lighting, RoomsFamily.Flooring, BiotechFamily.MechCharger, BiotechFamily.GeneBank,
-            ShelterFamily.Sleeping, ShelterFamily.Expansion, LayoutFamily.Routes);
+            ShelterFamily.Sleeping, LayoutFamily.Routes);
         SetNeeds([WorkType.PlantCutting], FoodRules.BlightNeed);
         SetNeeds([WorkType.Art], RoomsFamily.Art);
 

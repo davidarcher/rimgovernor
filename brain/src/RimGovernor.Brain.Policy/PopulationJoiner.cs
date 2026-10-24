@@ -162,15 +162,14 @@ public sealed record JoinerChoice
 
 /// <summary>
 /// The population facts one more colonist is admitted against: every living person the colony already hosts
-/// (admitted colonists, guests and prisoners, from the same population census CustodyFacts reads), the
-/// sleeping census for a spare non-medical bed and the food runway in days. The target is the bot's own
+/// (admitted colonists, guests and prisoners, from the same population census CustodyFacts reads) and the food
+/// runway in days. No spare bed is required (#3749): a joiner sleeps on a shelter/sleeping stand-in spot, and the new
+/// population changes the layout key, so the next replan adds their bed. The target is the bot's own
 /// FindingConstants.PopulationTarget; there is no player knob.
 /// </summary>
 public sealed record JoinerCapacityFacts
 {
     public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
-
-    public Fact<SleepingObservation> Sleeping { get; init; }
 
     public Fact<double> FoodDays { get; init; }
 
@@ -260,38 +259,20 @@ public static partial class PopulationRules
         return Known(count);
     }
 
-    /// <summary>Reports whether an unowned humanlike, non-medical, non-prisoner bed reads back: the bed the joiner would sleep in.</summary>
-    internal static Fact<bool> SpareBed(Fact<SleepingObservation> sleeping)
-    {
-        if (!sleeping.TryGetValue(out var census))
-        {
-            return Unknown<bool>();
-        }
-        foreach (var bed in census.Beds)
-        {
-            if (bed.Humanlike && !bed.Medical && !bed.Prisoners && bed.Owners.Count == 0)
-            {
-                return Known(true);
-            }
-        }
-        return Known(false);
-    }
-
     /// <summary>
     /// Reports whether the colony can host one more colonist: hosted population below
-    /// FindingConstants.PopulationTarget, the food runway at or above JoinerFoodFloorDays and a spare bed. Any
-    /// unknown ingredient leaves it unknown.
+    /// FindingConstants.PopulationTarget and the food runway at or above JoinerFoodFloorDays. No unowned bed is
+    /// required (#3749). Any unknown ingredient leaves it unknown.
     /// </summary>
     public static Fact<bool> JoinerCapacity(JoinerCapacityFacts f)
     {
         var hk = HostedPopulation(f.Custody).TryGetValue(out var hosted);
         var fk = f.FoodDays.TryGetValue(out var food);
-        var bk = SpareBed(f.Sleeping).TryGetValue(out var bed);
-        if (!hk || !fk || !bk)
+        if (!hk || !fk)
         {
             return Unknown<bool>();
         }
-        return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food >= JoinerFoodFloorDays(hosted) && bed);
+        return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food >= JoinerFoodFloorDays(hosted));
     }
 
     /// <summary>
@@ -398,9 +379,9 @@ public static partial class PopulationRules
 public static class JoinerRoundsFactsExtensions
 {
     /// <summary>
-    /// The slice of a review's facts JoinerCapacity measures: the population census, the sleeping census, the
-    /// population food runway (falling back to the stock runway, as the foothold food gate does).
+    /// The slice of a review's facts JoinerCapacity measures: the population census and the population food
+    /// runway (falling back to the stock runway, as the foothold food gate does).
     /// </summary>
     public static JoinerCapacityFacts JoinerCapacity(this RoundsFacts f) =>
-        new() { Custody = f.Custody, Sleeping = f.Sleeping, FoodDays = f.FoodDays, ColonistGoal = f.ColonistGoal };
+        new() { Custody = f.Custody, FoodDays = f.FoodDays, ColonistGoal = f.ColonistGoal };
 }

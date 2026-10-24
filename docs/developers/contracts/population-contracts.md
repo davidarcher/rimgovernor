@@ -3,17 +3,18 @@
 [Documentation](../../README.md)
 
 The population target is the bot's own: `domain.PopulationTarget` (100), with no player knob. The
-colony grows toward it only as fast as `policy.JoinerCapacity` allows: a spare colonist bed and a food
-runway at or above `policy.JoinerFoodFloorDays`, which rises linearly from 3 days for one hosted
-person to 15 days at 20 or more.
+colony grows toward it only as fast as `policy.JoinerCapacity` allows: a food runway at or above
+`policy.JoinerFoodFloorDays`, which rises linearly from 3 days for one hosted person to 15 days at
+20 or more. No spare bed is required (#3749): a joiner sleeps on a `shelter/sleeping` stand-in
+spot, and the new population changes the layout key, so the next replan adds their bed.
 
 The population concern is `Population-<pawn ID>` per observed candidate, run as ordinary Hands actions.
 
 - Admitted population is living free player colonists. Guests, prisoners and accepted candidates
   consume reserved capacity but stay distinct from admitted colonists. Shared food and shelter methods
   can provision future capacity.
-- Custody orders require the food floor, spare colonist beds and available assigned doctors and
-  wardens. A capture goes to the roster's [warden](work-assignment.md#situational-roles) while one is
+- Custody orders require the food floor and available assigned doctors and wardens, and no spare
+  colonist bed (#3749). A capture goes to the roster's [warden](work-assignment.md#situational-roles) while one is
   available, otherwise the first available colonist by ID. Native capture/rescue previews separately
   require an eligible worker, reachable target and suitable available custody bed.
 

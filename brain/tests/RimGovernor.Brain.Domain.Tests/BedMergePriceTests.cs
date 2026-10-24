@@ -58,8 +58,8 @@ public sealed class BedMergePriceTests
         },
     };
 
-    // Three colonists and the spare bed. A calm colonist loses 0.004 capability-days a day in a barracks (WellbeingWeight
-    // 0.1 times four points), 0.24 over the 60-day horizon.
+    // Three colonists and a fourth bed the pool holds past them (as after a death), which loses nothing. A calm colonist
+    // loses 0.004 capability-days a day in a barracks (WellbeingWeight 0.1 times four points), 0.24 over the 60-day horizon.
     private static ClusterInput Input(int beds, BedMergePrice? price) => new()
     {
         Graph = new StationGraph { Nodes = [new StationNode { Id = Pool, Def = Bed, Purpose = StationPurpose.Sleep, Count = beds }] },
@@ -68,7 +68,10 @@ public sealed class BedMergePriceTests
         BedMerge = price,
     };
 
-    internal static readonly BedMergeFacts Calm = new() { Losses = Known(EquatableArray.From([0.004, 0.004, 0.004])) };
+    internal static readonly BedMergeFacts Calm = CalmOf(3);
+
+    /// <summary>The losses of <paramref name="colonists"/> calm colonists: the plan's sleep slots count them exactly (#3749).</summary>
+    internal static BedMergeFacts CalmOf(int colonists) => new() { Losses = Known(EquatableArray.From(Enumerable.Repeat(0.004, colonists).ToArray())) };
 
     // Wood walls at the game's numbers: a wall cell is 135 x 0.7 work and 5 logs, a door 850 x 0.7 work and 25 logs; the
     // work alone is 0.0016 and 0.0099 capability-days.
@@ -222,19 +225,20 @@ public sealed class BedMergePriceTests
         var barracks = new PlannedRoom { Id = 2, Role = PlannedRole.Barracks, Region = RegionRules.RectRegion(new Policy.Rectangle(10, 0, 5, 4)) };
         InteriorPiece Slot(int x) => new() { Slot = "bed", Def = Bed, Size = new Cell(1, 2), Rot = Rotation.South, Rect = new Policy.Rectangle(x, 2, 1, 2) };
         var s = FirstLayoutPlanTests.Survey("cold");
-        var f = FirstLayoutPlanTests.Facts(s, 3) with
+        // Six colonists, six sleep slots (#3749), and a three-bed barracks planned: the ice sheet's heat grows it to six.
+        var f = FirstLayoutPlanTests.Facts(s, 6) with
         {
-            Catalog = FirstLayoutPlanTests.Facts(s, 3).Catalog with { Stations = new Dictionary<string, Station>(FirstLayoutPlanTests.Facts(s, 3).Catalog.Stations) { [Bed] = Catalog.Stations[Bed] }, Climate = Catalog.Climate },
+            Catalog = FirstLayoutPlanTests.Facts(s, 6).Catalog with { Stations = new Dictionary<string, Station>(FirstLayoutPlanTests.Facts(s, 6).Catalog.Stations) { [Bed] = Catalog.Stations[Bed] }, Climate = Catalog.Climate },
             Plan = new LayoutPlan { Rooms = [barracks], NextRoomId = 3, Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [2] = [Slot(10), Slot(12), Slot(14)] } },
             OutdoorCurve = Known(EquatableArray.From(IceSheet)),
-            BedMerge = Wood(Calm),
+            BedMerge = Wood(CalmOf(6)),
             Crops = [Rice],
         };
         Assert.Equal(3, f.BedMergePriceOf().Incumbent);
         Assert.True(f.BedMergePriceOf().WorkDayW.IsKnown);
 
         string Key(StationFacts facts) => facts.InputsKeyParts().Single(p => p.Key == "barracks").Value;
-        Assert.Equal("4;", Key(f));
+        Assert.Equal("6;", Key(f));
         // The outdoor curve unread on this cold map (#3747): no size is keyed, and the chain fails naming the curve, so
         // the replan is skipped as facts_unknown and the next hourly check tries again.
         var unread = f with { OutdoorCurve = default };

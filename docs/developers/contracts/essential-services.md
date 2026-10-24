@@ -16,7 +16,7 @@ operation is created by assessment.
 | Food acquisition and access | the `food/supply` Need; FoodPlan shared allocation and replenishment gap; the food-stores/storage and food-stores/refrigeration Needs |
 | Food preparation | the `food/cooking` Need; native production recipe availability and cooking floor, enabled available workers, shared fixed-batch ingredient feasibility |
 | Medical care | the `medical/critical` census, `medical/surgery` and `medical/reserves` Needs; served procedures use the surgery owner's failure cap, native per-doctor chances and ingredient availability |
-| Usable shelter and temperature | the `shelter/sleeping`, `shelter/expansion`, `shelter/safe-area` and `shelter/temperature` Needs and their predicates |
+| Usable shelter and temperature | the `shelter/sleeping`, `shelter/safe-area` and `shelter/temperature` Needs and their predicates |
 | Power | the `power/basic` Need and the power owner's same-network coverage calculation |
 | Material and fuel dependencies | economy/resource's single merged demand; FuelRunway's native consumption gates, stocks and maintenance horizon |
 | Logistics | the `layout/routes` Need and native per-facility reachability |

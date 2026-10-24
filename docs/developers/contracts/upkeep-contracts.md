@@ -304,11 +304,11 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
 
 ### Housing
 
-Housing is two Needs of the shelter family (#3257, #3659): `shelter/sleeping` (bed
-ownership and upgrades, no precondition) and `shelter/expansion` (one spare indoor place,
-precondition `shelter/sleeping`). The precondition replaces the old phase latch: a Need
-waits while one it names is unmet, and each planner's Methods are admitted by claims
-under its Need. There is no starter shelter and no Construction labor hold.
+Housing is one Need of the shelter family (#3257, #3659): `shelter/sleeping` (bed
+ownership and upgrades, no precondition), whose planner's Methods are admitted by claims
+under it. No Need keeps a spare indoor place (#3749): the plan houses the colonists
+exactly, and a colonist the beds do not yet house sleeps on a stand-in spot. There is no
+starter shelter and no Construction labor hold.
 
 - Day-one floor: while a sleeping and an indoor place do not both stand for everyone,
   `shelter/sleeping` first places the missing sleeping places as stand-in

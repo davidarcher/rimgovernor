@@ -119,7 +119,6 @@ public static class EssentialServicesRules
         NeedOwner(EssentialService.Medical, MedicalRules.MedicalReservesNeedOf(medical));
         var shelter = ShelterFacts.From(facts, policy);
         NeedOwner(EssentialService.Shelter, ShelterRules.SleepingNeedOf(shelter));
-        NeedOwner(EssentialService.Shelter, ShelterRules.ExpansionNeedOf(shelter, true));
         NeedOwner(EssentialService.Shelter, ShelterRules.SafeAreaNeedOf(shelter));
         NeedOwner(EssentialService.Temperature, ShelterRules.TemperatureNeedOf(shelter));
         NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));

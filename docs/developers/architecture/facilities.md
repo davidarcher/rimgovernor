@@ -99,9 +99,10 @@ and the throne's indoor rule are code, not data, and are not stated.
 
 `policy.BuildStationGraph` (`LayoutGraph.cs`) turns the catalog and the
 existing demand models into the planner's input: nodes are station classes with
-a count, edges are affinity. Counts: beds are the colonists plus
-`HousingSparePlaces` (the spare place the `shelter/expansion` Need
-keeps), with medical, prison, baby and animal beds for the injured, prisoners,
+a count, edges are affinity. Counts: beds are the colonists, with no spare
+place (#3749: a joiner changes the population in the layout key and the next
+replan adds their bed; until then they sleep on a `shelter/sleeping` stand-in
+spot), with medical, prison, baby and animal beds for the injured, prisoners,
 babies and animals, each divided by the bed's sleeping slots; work stations are
 the day's work (the colonists' nutrition met by the food recipe with the least
 work per nutrition, merged by maximum with the work ledger's orders) over a

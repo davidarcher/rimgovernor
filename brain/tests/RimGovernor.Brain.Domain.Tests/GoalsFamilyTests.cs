@@ -173,7 +173,6 @@ public sealed class GoalsFamilyTests
                 Guest = Known(false),
             })]),
             FoodDays = Known(30.0),
-            Sleeping = Known(new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true }] }),
         };
         Assert.False(PopulationRules.JoinerCapacity(full.JoinerCapacity()).Value);
         var raised = GoalRules.Apply(full, GoalRules.DemandOf(facts));

@@ -5,8 +5,8 @@ public sealed partial class Rounder
 {
     internal bool TemperatureEnabled() => Needs.Contains(ShelterFamily.Temperature);
 
-    /// <summary>Whether the shelter family composes any housing Need (sleeping, expansion).</summary>
-    internal bool HousingEnabled() => Needs.Contains(ShelterFamily.Sleeping) || Needs.Contains(ShelterFamily.Expansion);
+    /// <summary>Whether the shelter family composes its housing Need (sleeping).</summary>
+    internal bool HousingEnabled() => Needs.Contains(ShelterFamily.Sleeping);
 
     /// <summary>
     /// Whether any composed family reads the typed room census inside the review bracket: temperature and

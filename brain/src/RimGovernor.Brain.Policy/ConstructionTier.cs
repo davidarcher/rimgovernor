@@ -67,12 +67,8 @@ public static class ConstructionTierRules
     /// </summary>
     public static ConstructionTier PlannerTier(ConcernId concern, Phase phase)
     {
-        // The shelter family's spare room and the stand-in sleeping spots (the day-one floor, #3659) are Survive; bed
+        // The shelter family's stand-in sleeping spots (the day-one floor, #3659) are Survive; bed
         // ownership and bedrooms Sustain.
-        if (concern == ShelterFamily.Expansion.FilingKey)
-        {
-            return ConstructionTier.Survive;
-        }
         if (concern == ShelterFamily.Sleeping.FilingKey)
         {
             return phase == Phase.HousingShelter ? ConstructionTier.Survive : ConstructionTier.Sustain;

@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The station graph is the site planner's input: which stations the colony needs (nodes, with a count each)
 // and how strongly each pair wants to stand together (edges). Nothing here is a per-role constant. Counts come
-// from the models that already size the colony: the population with its spare place (HousingSparePlaces), the
+// from the models that already size the colony: the population (one sleeping place per colonist, no spare), the
 // nutrition the colonists eat, the production orders of the work ledger and the stock the resource demand
 // holds. Which definition serves a need comes from the station catalog and the furniture rules over it. Edges
 // are the daily item and pawn flows those same models imply: ingredients from storage to the station that
@@ -420,7 +420,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var hospital = f.HospitalBeds();
         (StationPurpose Purpose, int People, string Def)[] kinds =
         [
-            (StationPurpose.Sleep, p.Colonists + LayoutGraphRules.HousingSparePlaces, f.PrimaryBed()),
+            (StationPurpose.Sleep, p.Colonists, f.PrimaryBed()),
             (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital)),
             (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed()),
             (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries)),
@@ -963,9 +963,6 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
 
 public static partial class LayoutGraphRules
 {
-    /// <summary>The spare place the shelter/expansion Need keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
-    public const int HousingSparePlaces = 1;
-
     /// <summary>
     /// A circulation corridor's width in cells. One: in peace pawns neither block nor slow each other
     /// (PawnUtility.PawnBlockedBy is false unless a hostile is near or the job collides), the pather has no

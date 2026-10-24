@@ -16,10 +16,11 @@ public sealed class FirstRoomPlanTests
     private const string Smithy = "Smithy";
     private const string Knife = "MakeKnife";
 
-    internal static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null, bool treeless = false)
+    internal static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null, bool treeless = false, int colonists = 3)
     {
         var s = FirstLayoutPlanTests.Survey(climate);
-        var f = FirstLayoutPlanTests.Facts(s, 3);
+        var f = FirstLayoutPlanTests.Facts(s, colonists);
+        var calm = BedMergePriceTests.CalmOf(colonists);
         var stations = new Dictionary<string, Station>(f.Catalog.Stations) { ["Bed"] = BedMergePriceTests.Catalog.Stations["Bed"] };
         // The game's crafting spot: no room role, half speed, free to build. The smithy is a workshop bench at full speed.
         stations[Spot] = new Station
@@ -39,7 +40,7 @@ public sealed class FirstRoomPlanTests
             Catalog = f.Catalog with { Stations = stations, Climate = BedMergePriceTests.Catalog.Climate },
             Recipes = recipes,
             OutdoorCurve = Known(EquatableArray.From(curve)),
-            BedMerge = treeless ? BedMergePriceTests.MarketWood(BedMergePriceTests.Calm) : BedMergePriceTests.Wood(BedMergePriceTests.Calm),
+            BedMerge = treeless ? BedMergePriceTests.MarketWood(calm) : BedMergePriceTests.Wood(calm),
             Crops = [BedMergePriceTests.Rice],
             Orders = Known(EquatableArray.From(orders ?? [])),
             HostBuild = hostBuild ?? new Dictionary<string, double>(),
@@ -72,9 +73,20 @@ public sealed class FirstRoomPlanTests
     }
 
     [Fact]
-    public void AnIceSheetFirstPlanHousesThreeColonistsInOneRoofedBarracks()
+    public void AnIceSheetFirstPlanHousesThreeCalmColonistsInBedrooms()
     {
-        var f = Facts(BedMergePriceTests.IceSheet, "cold");
+        // With one sleep slot a colonist (#3749) a saved room's shell and heat (about 0.3 capability-days on wood) do not
+        // outweigh a calm sleeper's 0.24 over the horizon until the colony is larger.
+        var plan = Derive(Facts(BedMergePriceTests.IceSheet, "cold"));
+
+        Assert.Empty(plan.RoomsOf(PlannedRole.Barracks));
+        Assert.True(plan.RoomsOf(PlannedRole.Bedroom).Count >= 3, $"bedrooms {plan.RoomsOf(PlannedRole.Bedroom).Count}");
+    }
+
+    [Fact]
+    public void AnIceSheetFirstPlanHousesSixColonistsInOneRoofedBarracks()
+    {
+        var f = Facts(BedMergePriceTests.IceSheet, "cold", colonists: 6);
         var plan = Derive(f);
 
         var barracks = Assert.Single(plan.RoomsOf(PlannedRole.Barracks));

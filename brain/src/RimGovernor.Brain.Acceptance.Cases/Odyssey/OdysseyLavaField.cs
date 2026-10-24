@@ -35,7 +35,7 @@ internal static class OdysseyLavaField
         },
         Serve = new ServeSpec
         {
-            Families = ["shelter", "expansion", "field"],
+            Families = ["shelter", "field"],
             NativeTimeout = TimeSpan.FromSeconds(30),
             Prefix = "odyssey-lava-field",
         },

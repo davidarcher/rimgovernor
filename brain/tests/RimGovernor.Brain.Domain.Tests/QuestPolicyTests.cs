@@ -29,7 +29,6 @@ public sealed class QuestPolicyTests
         DefenseCapacity = Known(500.0),
         Custody = Known<EquatableArray<CustodyFacts>>([]),
         FoodDays = Known(20.0),
-        Sleeping = Known(new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true }] }),
     };
 
     [Fact]
@@ -43,12 +42,24 @@ public sealed class QuestPolicyTests
         var choice = PopulationRules.SelectJoinerMethod(f.QuestOffers, capacity, f);
         Assert.Equal((new QuestId("q2"), 0, JoinerPlanReason.None), (choice.Quest, choice.RewardChoice, choice.Reason));
 
-        // No spare bed is no room; a raid the colony cannot defend is turned away; an unread census decides nothing.
-        var full = f with { Sleeping = Known(new SleepingObservation()) };
+        // A food runway under the floor is no room; a raid the colony cannot defend is turned away; an unread census decides nothing.
+        var full = f with { FoodDays = Known(1.0) };
         Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(full.QuestOffers, PopulationRules.JoinerCapacity(full.JoinerCapacity()), full).Reason);
         var outgunned = Calm(JoinerOffer("q2", threat: 900));
         Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(outgunned.QuestOffers, capacity, outgunned).Reason);
         Assert.Equal(JoinerPlanReason.CensusUnknown, PopulationRules.SelectJoinerMethod(default, capacity, f).Reason);
+    }
+
+    [Fact]
+    public void JoinerCapacityNeedsNoUnownedBed()
+    {
+        // Every bed owned (#3749): the joiner sleeps on a stand-in spot and the next replan adds their bed.
+        var owned = Calm() with
+        {
+            Sleeping = Known(new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Owners = [new PawnId("a")] }] }),
+        };
+        Assert.Equal(Known(true), PopulationRules.JoinerCapacity(owned.JoinerCapacity()));
+        Assert.Equal(Known(true), PopulationRules.JoinerCapacity((owned with { Sleeping = Unknown<SleepingObservation>() }).JoinerCapacity()));
     }
 
     private static readonly QuestObjective Produce = new()

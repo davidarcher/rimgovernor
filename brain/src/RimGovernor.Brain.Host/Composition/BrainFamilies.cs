@@ -46,9 +46,6 @@ public sealed record BrainFamilies
     /// <summary>The <c>hospital</c> family.</summary>
     public bool Hospital { get; init; } = true;
 
-    /// <summary>The <c>expansion</c> family.</summary>
-    public bool Expansion { get; init; } = true;
-
     /// <summary>The <c>temperature</c> family.</summary>
     public bool Temperature { get; init; } = true;
 
@@ -210,7 +207,6 @@ public sealed record BrainFamilies
         new("workshop", f => f.Workshop, (f, on) => f with { Workshop = on }),
         new("research", f => f.Research, (f, on) => f with { Research = on }),
         new("hospital", f => f.Hospital, (f, on) => f with { Hospital = on }),
-        new("expansion", f => f.Expansion, (f, on) => f with { Expansion = on }),
         new("temperature", f => f.Temperature, (f, on) => f with { Temperature = on }),
         new("power", f => f.Power, (f, on) => f with { Power = on }),
         new("defense", f => f.Defense, (f, on) => f with { Defense = on }),

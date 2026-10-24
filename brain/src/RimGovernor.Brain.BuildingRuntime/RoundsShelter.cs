@@ -3,16 +3,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
-    /// <summary>Furnishes a sleeping spot in a planned sleeping room to keep one spare indoor sleeping place beyond the observed population.</summary>
-    public static RoundsBuildingPlanner NewRoundsExpansionPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
-    {
-        if (reviewer is null || native is null)
-        {
-            throw new ControlException("NewRoundsExpansionPlanner: reviewer == nil || native == nil");
-        }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Expansion.FilingKey, Need = ShelterFamily.Expansion, Phase = Pol.Phase.HousingExpansion, Definition = SleepingRules.SleepingSpotDefinition };
-    }
-
     /// <summary>The layout module a facility ladder furnishes, named by its room role; none without a facility.</summary>
     internal (Pol.PlannedRole Role, bool Ok) RoomModule() => Facility is not null ? InteriorRules.PlannedRoleOf(Facility.Role) : (default, false);
 

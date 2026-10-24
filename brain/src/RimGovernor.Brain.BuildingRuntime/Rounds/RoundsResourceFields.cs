@@ -17,14 +17,9 @@ public sealed partial class Rounder
         }
 
         var shells = new List<PlanState>();
-        foreach (var need in new[] { ShelterFamily.Sleeping, ShelterFamily.Expansion })
+        if (Needs.Contains(ShelterFamily.Sleeping))
         {
-            if (!Needs.Contains(need))
-            {
-                continue;
-            }
-
-            foreach (var method in p.Journal.LoadNeed(need, review.Snapshot, call).Methods)
+            foreach (var method in p.Journal.LoadNeed(ShelterFamily.Sleeping, review.Snapshot, call).Methods)
             {
                 shells.Add(p.Journal.LoadPlan(method.Plan, call));
             }
