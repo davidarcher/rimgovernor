@@ -77,14 +77,24 @@ internal static class RoundsAnimalContainment
         return AnimalContainmentStuff(a, b);
     }
 
-    internal static Verdict ContainmentWait(AnimalContainmentReason reason) => reason switch
+    internal static Verdict ContainmentWait(AnimalContainmentReason reason)
     {
-        AnimalContainmentReason.WaitingHandler => NoWorker("animal_handler"),
-        AnimalContainmentReason.WaitingNativePen => AwaitingPlan("native_pen", "delivery"),
-        AnimalContainmentReason.MarkerExhausted => AwaitingPlan("native_pen", "marker_placed"),
-        AnimalContainmentReason.NoPen => AwaitingPlan("pen", "planned"),
-        _ => AwaitingPlan("pen", Wire.Name(reason)),
-    };
+        switch (reason)
+        {
+            case AnimalContainmentReason.WaitingHandler:
+                return NoWorker("animal_handler");
+            case AnimalContainmentReason.WaitingNativePen:
+                return AwaitingPlan("native_pen", "delivery");
+            case AnimalContainmentReason.MarkerExhausted:
+                return AwaitingPlan("native_pen", "marker_placed");
+            case AnimalContainmentReason.NoPen:
+                return AwaitingPlan("pen", "planned");
+            case AnimalContainmentReason.None:
+            case AnimalContainmentReason.NoDeficit:
+                return AwaitingPlan("pen", Wire.Name(reason));
+        }
+        throw new DomainException($"undefined animal containment reason {(int)reason}");
+    }
 
     /// <summary>Whether the planned animal pens stand.</summary>
     internal static bool PensStand(ColonyProjection facts)

@@ -84,7 +84,7 @@ public static class HerdSterilizeRules
     /// </summary>
     public static HusbandryChoice SterilizeChoice(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, AnimalWard ward)
     {
-        var none = new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
+        var none = new HusbandryChoice.NoDeficit();
         var known = animals.TryGetValue(out var unsorted);
         var area = ward.Area;
         if (!known || !ward.Ready || area.Length == 0)
@@ -105,15 +105,15 @@ public static class HerdSterilizeRules
             }
             if (a.Sterilized || !wanted.Contains(a.Id))
             {
-                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.AllowedArea };
+                return new HusbandryChoice.Write(a.Id, HusbandryMethod.AllowedArea);
             }
-            return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Sterilize };
+            return new HusbandryChoice.Write(a.Id, HusbandryMethod.Sterilize);
         }
         foreach (var a in rows)
         {
             if (wanted.Contains(a.Id) && a.SupportsAreas)
             {
-                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.AllowedArea, Argument = area };
+                return new HusbandryChoice.Write(a.Id, HusbandryMethod.AllowedArea, area);
             }
         }
         return none;

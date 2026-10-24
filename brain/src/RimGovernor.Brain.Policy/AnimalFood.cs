@@ -292,13 +292,13 @@ public static class AnimalFoodRules
         var rk = animals.TryGetValue(out var rows);
         if (!pk || !rk)
         {
-            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
+            return new HusbandryChoice.Unread();
         }
 
         var (safe, unknown) = HerdSurplusRules.HerdSurplusCandidates(rows, HerdSurplusRules.HerdFoodLimits(rows, herd), herd.FeedShort, herd);
         if (unknown)
         {
-            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
+            return new HusbandryChoice.Unread();
         }
 
         foreach (var e in p!.Portfolio)
@@ -312,11 +312,11 @@ public static class AnimalFoodRules
             {
                 if (r.Method == HusbandryMethod.Slaughter && e.Channel.Id == "slaughter:" + r.Animal.Id)
                 {
-                    return new HusbandryChoice { Animal = r.Animal.Id, Method = HusbandryMethod.Slaughter };
+                    return new HusbandryChoice.Write(r.Animal.Id, HusbandryMethod.Slaughter);
                 }
             }
         }
 
-        return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
+        return new HusbandryChoice.NoDeficit();
     }
 }

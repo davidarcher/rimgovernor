@@ -34,6 +34,7 @@ public sealed record Husbandry : IActionPayload
     public Husbandry(PawnId animal, HusbandryMethod method, string argument)
     {
         DomainException.Require(animal.IsValid, "husbandry requires a valid animal identity");
+        DomainException.Require(Enum.IsDefined(method), "invalid husbandry method");
         switch (method)
         {
             case HusbandryMethod.Train:
@@ -55,8 +56,6 @@ public sealed record Husbandry : IActionPayload
             case HusbandryMethod.FollowFieldwork:
                 DomainException.Require(argument is "true" or "false", "husbandry follow flag requires true or false");
                 break;
-            default:
-                throw new DomainException("invalid husbandry method");
         }
         Animal = animal;
         Method = method;

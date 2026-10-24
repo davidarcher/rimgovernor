@@ -49,9 +49,17 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, FieldUnavailable("refrigeration"));
             case RefrigerationMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
-            default:
+            case RefrigerationMethod.None:
+            case RefrigerationMethod.EnclosureNeeded:
+            case RefrigerationMethod.ResearchNeeded:
+            case RefrigerationMethod.PowerNeeded:
+            case RefrigerationMethod.HeatRejectionBlocked:
+            case RefrigerationMethod.NoWall:
+            case RefrigerationMethod.Wait:
+            case RefrigerationMethod.WaitBlackout:
                 return (null, AwaitingMethod(proposal.Method));
         }
+        throw new DomainException($"undefined refrigeration method {(int)proposal.Method}");
     }
 
     /// <summary>

@@ -113,36 +113,35 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
             if (need.Id == Herd)
             {
                 var choice = AnimalsFamilyRules.HerdChoice(facts);
-                if (choice.Reason == HusbandryPlanReason.Unknown)
+                if (choice is HusbandryChoice.Unread)
                 {
                     output.Add(NeedMethod.Held(Herd, HusbandryCensus, "An animal's husbandry facts are unread."));
                 }
-                else if (choice.Method is not null)
+                else if (choice is HusbandryChoice.Write write)
                 {
-                    output.Add(Write(Herd, choice));
+                    output.Add(Write(Herd, write));
                 }
             }
             else if (need.Id == Sterilize)
             {
                 var choice = HerdSterilizeRules.SterilizeChoice(facts.Animals, facts.Herd, facts.WardRoom);
-                output.Add(choice.Method is null
+                output.Add(choice is not HusbandryChoice.Write sterilize
                     ? NeedMethod.Held(Sterilize, SterilizeWaiting, "The hospital ward is not ready, or an animal's sterilize bill is still queued.")
-                    : Write(Sterilize, choice));
+                    : Write(Sterilize, sterilize));
             }
         }
         return output;
     }
 
     /// <summary>The MethodId of a husbandry write: the method and the animal, and a training's trainable.</summary>
-    public static MethodId HusbandryMethodId(HusbandryChoice choice) =>
+    private static MethodId HusbandryMethodId(HusbandryChoice.Write choice) =>
         new(choice.Method == HusbandryMethod.Train
-            ? $"{Wire.Name(choice.Method!.Value)}-{choice.Animal}-{choice.TrainableDef}"
-            : $"{Wire.Name(choice.Method!.Value)}-{choice.Animal}");
+            ? $"{Wire.Name(choice.Method)}-{choice.Animal}-{choice.Argument}"
+            : $"{Wire.Name(choice.Method)}-{choice.Animal}");
 
-    private static NeedMethod Write(NeedId need, HusbandryChoice choice)
+    private static NeedMethod Write(NeedId need, HusbandryChoice.Write choice)
     {
-        var argument = choice.Argument.Length != 0 ? choice.Argument : choice.TrainableDef;
-        var husbandry = new Husbandry(choice.Animal, choice.Method!.Value, argument);
+        var husbandry = new Husbandry(choice.Animal, choice.Method, choice.Argument);
         return new NeedMethod(need, HusbandryMethodId(choice), "", id =>
             new PlanSpec(id, new PlanRevision(1), [DomainAction.NewHusbandryAction(new ActionId($"{id.Value}-0"), husbandry)]));
     }
@@ -158,19 +157,19 @@ public static class AnimalsFamilyRules
     public static HusbandryChoice HerdChoice(AnimalsFacts f)
     {
         var choice = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
-        if (choice.Reason == HusbandryPlanReason.NoDeficit)
+        if (choice is HusbandryChoice.NoDeficit)
         {
             choice = HusbandryUpkeepRules.SelectHusbandryMethod(f.Animals, f.Wild, f.FeedShort, f.Herd, f.Handlers);
         }
-        if (choice.Reason == HusbandryPlanReason.NoDeficit)
+        if (choice is HusbandryChoice.NoDeficit)
         {
             choice = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd);
         }
-        if (choice.Reason == HusbandryPlanReason.NoDeficit)
+        if (choice is HusbandryChoice.NoDeficit)
         {
             choice = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers);
         }
-        if (choice.Reason == HusbandryPlanReason.NoDeficit)
+        if (choice is HusbandryChoice.NoDeficit)
         {
             choice = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers);
         }
@@ -187,15 +186,15 @@ public static class AnimalsFamilyRules
     {
         var deficit = HusbandryUpkeepRules.AnimalHerdDeficit(f.Animals, f.Wild, f.FeedShort, f.Herd);
         var removal = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
-        var slaughter = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd).Method == HusbandryMethod.Slaughter;
-        var tame = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers).Method == HusbandryMethod.Tame;
-        var master = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers).Method is not null;
-        var owed = RoundsRules.Positive(deficit) || removal.Method is not null || slaughter || tame || master;
+        var slaughter = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd) is HusbandryChoice.Write { Method: HusbandryMethod.Slaughter };
+        var tame = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers) is HusbandryChoice.Write { Method: HusbandryMethod.Tame };
+        var master = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers) is HusbandryChoice.Write;
+        var owed = RoundsRules.Positive(deficit) || removal is HusbandryChoice.Write || slaughter || tame || master;
         if (!owed && !deficit.IsKnown)
         {
             throw new RequiredFactException("herd deficit");
         }
-        if (!owed && HerdChoice(f).Reason == HusbandryPlanReason.Unknown)
+        if (!owed && HerdChoice(f) is HusbandryChoice.Unread)
         {
             throw new RequiredFactException("husbandry census");
         }

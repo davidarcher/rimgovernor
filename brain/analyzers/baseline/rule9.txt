@@ -88,7 +88,6 @@ BuildingRuntime/Rounds/RoundsAdmin.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsAdminSteps.cs|Discard|1
 BuildingRuntime/Rounds/RoundsAdminSteps.cs|Fact|8
 BuildingRuntime/Rounds/RoundsAdminSteps.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsAnimalContainment.cs|Discard|1
 BuildingRuntime/Rounds/RoundsAnimalContainment.cs|Fact|5
 BuildingRuntime/Rounds/RoundsAnimalContainment.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsAnimals.cs|Fact|10
@@ -165,8 +164,8 @@ BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|34
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|Unknown|7
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Fact|7
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Unknown|3
-BuildingRuntime/Rounds/RoundsFoodStores.cs|Fact|7
-BuildingRuntime/Rounds/RoundsFoodStores.cs|Unknown|3
+BuildingRuntime/Rounds/RoundsFoodStores.cs|Fact|5
+BuildingRuntime/Rounds/RoundsFoodStores.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsGathering.cs|Fact|2
 BuildingRuntime/Rounds/RoundsGathering.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsGear.cs|Fact|1
@@ -227,7 +226,6 @@ BuildingRuntime/Rounds/RoundsQuestExpedition.cs|Fact|2
 BuildingRuntime/Rounds/RoundsQuestMonumentClaims.cs|Fact|2
 BuildingRuntime/Rounds/RoundsQuestMonuments.cs|Fact|2
 BuildingRuntime/Rounds/RoundsQuestSiteWork.cs|Fact|3
-BuildingRuntime/Rounds/RoundsRefrigeration.cs|Discard|1
 BuildingRuntime/Rounds/RoundsRefrigeration.cs|Fact|8
 BuildingRuntime/Rounds/RoundsRefrigeration.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsRefusalBudget.cs|Fact|2
@@ -322,7 +320,6 @@ Domain/Actions/Acquisition.cs|NullableValue|1
 Domain/Actions/Area.cs|Discard|1
 Domain/Actions/AutoHomeArea.cs|NullableValue|1
 Domain/Actions/CombatBatch.cs|Fact|3
-Domain/Actions/Husbandry.cs|Discard|1
 Domain/Actions/MoveBuilding.cs|Discard|1
 Domain/Actions/MoveBuilding.cs|NullableValue|1
 Domain/Actions/PawnActivities.cs|NullableValue|2
@@ -646,11 +643,10 @@ Policy/FoodOrders.cs|Discard|1
 Policy/FoodOrders.cs|Fact|19
 Policy/FoodPlan.cs|Fact|54
 Policy/FoodPlan.cs|Unknown|6
-Policy/FoodPolicy.cs|Discard|1
 Policy/FoodPolicy.cs|Fact|12
 Policy/FoodReserve.cs|Fact|4
 Policy/FoodStorageStuck.cs|Fact|3
-Policy/FoodStorageUpkeep.cs|Fact|17
+Policy/FoodStorageUpkeep.cs|Fact|13
 Policy/FoodStorageUpkeep.cs|UnknownMember|1
 Policy/FoodStores.cs|Fact|16
 Policy/FoodStores.cs|Unknown|1
@@ -734,9 +730,7 @@ Policy/Harm/RaidExposure.cs|Unknown|2
 Policy/Harm/ThreatSchedule.cs|Fact|6
 Policy/HerdMaster.cs|Fact|4
 Policy/HerdPen.cs|Fact|2
-Policy/HerdPlan.cs|Discard|1
 Policy/HerdPlan.cs|Fact|15
-Policy/HerdPrecepts.cs|Discard|1
 Policy/HerdPrecepts.cs|Fact|10
 Policy/HerdPrecepts.cs|Unknown|1
 Policy/HerdRemoval.cs|Fact|4
@@ -763,9 +757,7 @@ Policy/HuntPrerequisite.cs|Fact|3
 Policy/HuntSquad.cs|Fact|9
 Policy/HuntSquad.cs|Unknown|1
 Policy/HusbandryUpkeep.cs|Fact|24
-Policy/HusbandryUpkeep.cs|NullableValue|1
 Policy/HusbandryUpkeep.cs|Unknown|6
-Policy/HusbandryUpkeep.cs|UnknownMember|1
 Policy/IdeoligionDesign.cs|Discard|2
 Policy/IdeoligionDesign.cs|Fact|38
 Policy/IdeoligionDesign.cs|NullableValue|1
@@ -840,7 +832,6 @@ Policy/MaterialBudget.cs|Unknown|1
 Policy/MealStock.cs|Discard|1
 Policy/MealStock.cs|Fact|4
 Policy/MealStock.cs|Unknown|1
-Policy/MealTier.cs|Discard|2
 Policy/MealTier.cs|Fact|16
 Policy/MechChargerConcern.cs|Fact|13
 Policy/MechChargerConcern.cs|Unknown|1
@@ -961,7 +952,6 @@ Policy/RecoveryMethod.cs|Fact|20
 Policy/RecoveryMethod.cs|Unknown|4
 Policy/RecoveryQueue.cs|Fact|18
 Policy/RecoveryQueue.cs|Unknown|3
-Policy/Refrigeration.cs|Discard|2
 Policy/Refrigeration.cs|Fact|10
 Policy/Refrigeration.cs|Unknown|1
 Policy/Refrigeration.cs|UnknownMember|1

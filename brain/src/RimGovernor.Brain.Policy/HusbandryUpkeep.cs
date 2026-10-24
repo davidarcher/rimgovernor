@@ -31,33 +31,24 @@ public sealed record HerdPolicy
     public IReadOnlyDictionary<Resource, HerdLayer> Layers { get; init; } = new Dictionary<Resource, HerdLayer>();
 }
 
-/// <summary>Names why the herd Need did or did not propose a husbandry write.</summary>
-public enum HusbandryPlanReason
-{
-    [WireName("")]
-    None = 0,
-    NoDeficit,
-    Unknown,
-}
-
 /// <summary>
-/// The one animal/method pair chosen for a write, mirroring husbandry_method's single-write-per-cycle rule
-/// (a recursive training or designation write can change other requested fields, so only one is ever
-/// chosen). Method is set whenever Reason is None (a choice was made); TrainableDef is only ever set for
-/// HusbandryMethod.Train.
+/// What the herd Need proposes: one Write, mirroring husbandry_method's single-write-per-cycle rule (a recursive
+/// training or designation write can change other requested fields, so only one is ever chosen); NoDeficit when
+/// nothing is owed; or Unread when the census or a planning input it needs is not read.
 /// </summary>
-public sealed record HusbandryChoice
+public abstract record HusbandryChoice
 {
-    public HusbandryPlanReason Reason { get; init; }
+    private protected HusbandryChoice() { }
 
-    public PawnId Animal { get; init; }
+    /// <summary>
+    /// One write. Argument is the method's one parameter: the trainable def for Train, the master id or follow
+    /// flag ("true"/"false") of HerdMasterChoice, the area for AllowedArea; empty for a designation.
+    /// </summary>
+    public sealed record Write(PawnId Animal, HusbandryMethod Method, string Argument = "") : HusbandryChoice;
 
-    public HusbandryMethod? Method { get; init; }
+    public sealed record NoDeficit : HusbandryChoice;
 
-    public string TrainableDef { get; init; } = string.Empty;
-
-    /// <summary>The master id or follow flag ("true"/"false") of HusbandryMaster and the follow methods (HerdMasterChoice).</summary>
-    public string Argument { get; init; } = string.Empty;
+    public sealed record Unread : HusbandryChoice;
 }
 
 public static class HusbandryUpkeepRules
@@ -336,7 +327,7 @@ public static class HusbandryUpkeepRules
     /// </summary>
     public static HusbandryChoice SelectHusbandryMethod(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<EquatableArray<UpkeepAnimal>> wild, Fact<bool> feedShort, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> handlers)
     {
-        var unknownChoice = new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
+        var unknownChoice = new HusbandryChoice.Unread();
         if (!animals.TryGetValue(out var rows))
         {
             return unknownChoice;
@@ -356,7 +347,7 @@ public static class HusbandryUpkeepRules
                     {
                         continue;
                     }
-                    return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Train, TrainableDef = t.Def };
+                    return new HusbandryChoice.Write(a.Id, HusbandryMethod.Train, t.Def);
                 }
             }
         }
@@ -383,7 +374,7 @@ public static class HusbandryUpkeepRules
                     var ok = PawnRules.TamerFor(profiles, minimum) is not null;
                     if (!short_ && ok)
                     {
-                        return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Tame };
+                        return new HusbandryChoice.Write(a.Id, HusbandryMethod.Tame);
                     }
                 }
             }
@@ -395,9 +386,9 @@ public static class HusbandryUpkeepRules
         }
         if (removals.Count > 0)
         {
-            return new HusbandryChoice { Animal = removals[0].Animal.Id, Method = removals[0].Method };
+            return new HusbandryChoice.Write(removals[0].Animal.Id, removals[0].Method);
         }
-        return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
+        return new HusbandryChoice.NoDeficit();
     }
 
     /// <summary>

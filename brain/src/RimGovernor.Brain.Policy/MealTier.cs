@@ -188,14 +188,23 @@ public static partial class MealRules
 
     private static bool ValidMealTier(MealTier t) => t is MealTier.None or MealTier.Simple or MealTier.Fine or MealTier.Lavish or MealTier.Paste;
 
-    internal static int MealTierRank(MealTier t) =>
-        t switch
+    /// <summary>The tier's rank among cooked meals: no meal and paste rank below every cooked tier.</summary>
+    internal static int MealTierRank(MealTier t)
+    {
+        switch (t)
         {
-            MealTier.Simple => 1,
-            MealTier.Fine => 2,
-            MealTier.Lavish => 3,
-            _ => 0,
-        };
+            case MealTier.None:
+            case MealTier.Paste:
+                return 0;
+            case MealTier.Simple:
+                return 1;
+            case MealTier.Fine:
+                return 2;
+            case MealTier.Lavish:
+                return 3;
+        }
+        throw new DomainException($"undefined meal tier {(int)t}");
+    }
 
     /// <summary>
     /// A proposed Open channel is not yet an ingredient source. Hold preserves an observed-open source; Close and
@@ -305,7 +314,7 @@ public static partial class MealRules
                     case FoodIngredientClass.AnimalProduct:
                         supported = supported || sources.Contains(kind);
                         break;
-                    default:
+                    case FoodIngredientClass.None:
                         return false;
                 }
             }

@@ -208,13 +208,21 @@ public static partial class RefrigerationRules
     public static Cell HotSide(Cell position, Rotation rotation) => Step(position, Facing(rotation), 1);
 
     /// <summary>The cell a building's front points at for each rotation; a cooler pushes heat out its front and cools the cell behind it.</summary>
-    internal static Cell Facing(Rotation r) => r switch
+    internal static Cell Facing(Rotation r)
     {
-        Rotation.North => new Cell(0, 1),
-        Rotation.South => new Cell(0, -1),
-        Rotation.East => new Cell(1, 0),
-        _ => new Cell(-1, 0),
-    };
+        switch (r)
+        {
+            case Rotation.North:
+                return new Cell(0, 1);
+            case Rotation.South:
+                return new Cell(0, -1);
+            case Rotation.East:
+                return new Cell(1, 0);
+            case Rotation.West:
+                return new Cell(-1, 0);
+        }
+        throw new DomainException($"a cooler faces no cardinal direction for rotation {(int)r}");
+    }
 
     /// <summary>
     /// Serves the lowest-sorted candidate room first. A solar flare defers every room. Deterministic
@@ -408,13 +416,21 @@ public static partial class RefrigerationRules
     }
 
     // Rotations order by their wire strings: east, north, south, west.
-    private static int RotationWireOrder(Rotation r) => r switch
+    private static int RotationWireOrder(Rotation r)
     {
-        Rotation.East => 0,
-        Rotation.North => 1,
-        Rotation.South => 2,
-        _ => 3,
-    };
+        switch (r)
+        {
+            case Rotation.East:
+                return 0;
+            case Rotation.North:
+                return 1;
+            case Rotation.South:
+                return 2;
+            case Rotation.West:
+                return 3;
+        }
+        throw new DomainException($"a cooler has no wire order for rotation {(int)r}");
+    }
 
     /// <summary>
     /// Picks the lowest-sorted wall cell of the room whose outward neighbour is a known non-indoor cell, and

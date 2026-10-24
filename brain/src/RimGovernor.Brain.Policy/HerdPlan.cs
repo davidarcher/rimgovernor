@@ -301,12 +301,16 @@ public static class HerdPlanRules
         {
             return (false, 0);
         }
-        var holds = job switch
+        // Hauling and war need their training; every other job is held by the race's capability alone.
+        var holds = true;
+        if (job == HerdJob.Haul)
         {
-            HerdJob.Haul => HerdLearned(a, HerdHaulTraining),
-            HerdJob.War => HerdLearned(a, HerdWarTraining),
-            _ => true,
-        };
+            holds = HerdLearned(a, HerdHaulTraining);
+        }
+        else if (job == HerdJob.War)
+        {
+            holds = HerdLearned(a, HerdWarTraining);
+        }
         var value = 0.0;
         if (holds && !HerdSurplusRules.HerdJuvenile(a))
         {

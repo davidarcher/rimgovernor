@@ -200,12 +200,19 @@ public static class FoodPolicyRules
     {
         foreach (var o in preferences.Diet)
         {
-            d = o switch
+            DomainException.Require(Enum.IsDefined(o), $"undefined diet override {(int)o}");
+            switch (o)
             {
-                DietOverride.Cannibal => d with { Cannibal = true },
-                DietOverride.InsectMeat => d with { InsectMeat = true },
-                _ => d with { Vegetarian = true },
-            };
+                case DietOverride.Cannibal:
+                    d = d with { Cannibal = true };
+                    break;
+                case DietOverride.InsectMeat:
+                    d = d with { InsectMeat = true };
+                    break;
+                case DietOverride.Vegetarian:
+                    d = d with { Vegetarian = true };
+                    break;
+            }
         }
         return d with
         {

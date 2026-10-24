@@ -324,12 +324,12 @@ public static class AnimalAcquireRules
         var hk = handlers.TryGetValue(out var profiles);
         if (!pk || !rk || !fk || !hk)
         {
-            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
+            return new HusbandryChoice.Unread();
         }
 
         if (short_)
         {
-            return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
+            return new HusbandryChoice.NoDeficit();
         }
 
         foreach (var e in p!.Portfolio)
@@ -346,13 +346,13 @@ public static class AnimalAcquireRules
                 {
                     if (!a.Tame)
                     {
-                        return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Tame };
+                        return new HusbandryChoice.Write(a.Id, HusbandryMethod.Tame);
                     }
                 }
             }
         }
 
-        return new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
+        return new HusbandryChoice.NoDeficit();
     }
 
     /// <summary>The animals the plan opened to buy from trader, as the wants SelectAnimalPurchase fills.</summary>

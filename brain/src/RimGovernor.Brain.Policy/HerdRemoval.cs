@@ -13,7 +13,7 @@ public static class HerdRemovalRules
     {
         if (!animals.TryGetValue(out var unsorted))
         {
-            return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
+            return new HusbandryChoice.Unread();
         }
         var rows = unsorted.OrderBy(a => a.Id).ToList();
         var counts = new Dictionary<Resource, long>();
@@ -83,7 +83,7 @@ public static class HerdRemovalRules
             }
             if (release && !keepRelease)
             {
-                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.CancelRelease };
+                return new HusbandryChoice.Write(a.Id, HusbandryMethod.CancelRelease);
             }
             if (slaughter && !keepSlaughter)
             {
@@ -94,7 +94,7 @@ public static class HerdRemovalRules
                 }
                 else
                 {
-                    return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.CancelSlaughter };
+                    return new HusbandryChoice.Write(a.Id, HusbandryMethod.CancelSlaughter);
                 }
             }
             counts[a.Definition]--;
@@ -103,7 +103,7 @@ public static class HerdRemovalRules
                 sexes[sex]--;
             }
         }
-        return new HusbandryChoice { Reason = unknown ? HusbandryPlanReason.Unknown : HusbandryPlanReason.NoDeficit };
+        return unknown ? new HusbandryChoice.Unread() : new HusbandryChoice.NoDeficit();
     }
 
     /// <summary>The race-and-sex key the pair counts are kept under.</summary>

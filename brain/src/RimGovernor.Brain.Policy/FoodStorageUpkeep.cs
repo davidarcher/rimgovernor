@@ -138,7 +138,7 @@ public sealed record FoodStorageSite
 {
     public string Id { get; init; } = "";
 
-    public Fact<long> Capacity { get; init; }
+    public long Capacity { get; init; }
 }
 
 /// <summary>
@@ -166,7 +166,10 @@ public sealed record FoodStoragePlanningRequest
 {
     public FoodStorageReview Review { get; init; } = new();
 
-    public Fact<EquatableArray<FoodStorageSite>> Sites { get; init; }
+    public EquatableArray<FoodStorageSite> Sites { get; init; }
+
+    /// <summary>Some candidate site's room could not be read; that site is not among Sites.</summary>
+    public bool SiteUnread { get; init; }
 
     public Resource Resource { get; init; }
 
@@ -302,32 +305,22 @@ public static class FoodStorageUpkeepRules
         {
             DomainException.Require(FoodForecastRules.FoodId(id.Value) && seen.Add(id), "invalid food storage method history");
         }
-        if (!r.Sites.TryGetValue(out var sites))
-        {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Unknown };
-        }
-        var candidates = sites.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
+        var candidates = r.Sites.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
         var seenSite = new HashSet<string>(StringComparer.Ordinal);
         foreach (var site in candidates)
         {
             DomainException.Require(FoodForecastRules.FoodId(site.Id) && seenSite.Add(site.Id), "invalid or duplicate food storage site");
         }
-        var sawUnknownCapacity = false;
         foreach (var site in candidates)
         {
-            if (!site.Capacity.TryGetValue(out var capacity))
+            DomainException.Require(site.Capacity >= 0, "invalid food storage site capacity");
+            if (site.Capacity > 0)
             {
-                sawUnknownCapacity = true;
-                continue;
+                return new FoodStorageMethod { Kind = FoodStorageMethodKind.Stuck };
             }
-            DomainException.Require(capacity >= 0, "invalid food storage site capacity");
-            if (capacity <= 0)
-            {
-                continue;
-            }
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Stuck };
         }
-        if (sawUnknownCapacity)
+        // A site whose room is unread may have room, so producing more is not yet owed.
+        if (r.SiteUnread)
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Unknown };
         }

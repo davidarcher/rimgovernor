@@ -67,7 +67,7 @@ public static class HerdPreceptsRules
                 case PreceptStance.Penalised or PreceptStance.Forbidden:
                     barred = true;
                     break;
-                default:
+                case PreceptStance.Unknown:
                     return Unknown<bool>();
             }
         }

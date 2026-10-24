@@ -17,7 +17,7 @@ public static class HerdMasterRules
     /// </summary>
     public static HusbandryChoice HerdMasterChoice(Fact<EquatableArray<UpkeepAnimal>> animals, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> profiles)
     {
-        var none = new HusbandryChoice { Reason = HusbandryPlanReason.NoDeficit };
+        var none = new HusbandryChoice.NoDeficit();
         if (!animals.TryGetValue(out var rows) || !profiles.TryGetValue(out var roster))
         {
             return none;
@@ -71,12 +71,12 @@ public static class HerdMasterRules
                     continue;
                 }
 
-                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Master, Argument = best.Value };
+                return new HusbandryChoice.Write(a.Id, HusbandryMethod.Master, best.Value);
             }
 
             if (war && !a.FollowDrafted)
             {
-                return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.FollowDrafted, Argument = "true" };
+                return new HusbandryChoice.Write(a.Id, HusbandryMethod.FollowDrafted, "true");
             }
         }
 

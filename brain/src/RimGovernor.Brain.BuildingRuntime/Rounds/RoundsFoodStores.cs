@@ -217,6 +217,7 @@ public sealed partial class FoodStoresRounds
     {
         var names = FoodStorageDefNames(facts, _reviewer.Policy.FoodStorage);
         var sites = new List<FoodStorageSite>(names.Count);
+        var unread = false;
         foreach (var name in names)
         {
             ResourceStorage storage;
@@ -226,15 +227,15 @@ public sealed partial class FoodStoresRounds
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                sites.Add(new FoodStorageSite { Id = name, Capacity = Unknown<long>() });
+                unread = true;
                 continue;
             }
 
             var spare = Math.Max(storage.Capacity - storage.Stored, 0);
-            sites.Add(new FoodStorageSite { Id = name, Capacity = Known(spare) });
+            sites.Add(new FoodStorageSite { Id = name, Capacity = spare });
         }
 
-        return FoodStorageUpkeepRules.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = Known(EquatableArray.From(sites)), Resource = FoodStorageResourceDefinition });
+        return FoodStorageUpkeepRules.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = EquatableArray.From(sites), SiteUnread = unread, Resource = FoodStorageResourceDefinition });
     }
 }
 
