@@ -55,7 +55,7 @@ internal static class LifecycleIdeoligionDesign
                 s.RecordWire("design", design);
                 var memes = design.Memes.ToList();
                 var precepts = design.Precepts.ToList();
-                if (memes.Count is < 1 or > 5 || design.Fluid is null || memes.Distinct(StringComparer.Ordinal).Count() != memes.Count
+                if (memes.Count is < 1 or > 5 || memes.Distinct(StringComparer.Ordinal).Count() != memes.Count
                     || precepts.Distinct(StringComparer.Ordinal).Count() != precepts.Count || read.Count != 0 || read.Points != 0)
                 {
                     throw new AcceptanceException($"created design is not a fresh well-formed one: {design}, reforms {read.Count}, points {read.Points}");

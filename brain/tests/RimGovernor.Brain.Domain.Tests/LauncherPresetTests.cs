@@ -92,7 +92,7 @@ public sealed class LauncherPresetTests
     public void AThemeWithAnExplicitIdeoligionIsRefused()
     {
         var spec = NewColony.WireSpec("RimGovernor-x", NewColonySpec.Default with { Theme = "naked-cannibals" }, "seed")
-            with { Ideoligion = new RimGovernor.Contracts.Wire.Common.IdeoligionDesign { Memes = ["Nudism"] } };
+            with { Ideoligion = new RimGovernor.Contracts.Wire.Common.IdeoligionDesign { Fluid = false, Memes = ["Nudism"] } };
 
         var refused = Assert.Throws<BridgeContractException>(() => NewColonyValidation.ValidateNewColonySpec(spec));
 

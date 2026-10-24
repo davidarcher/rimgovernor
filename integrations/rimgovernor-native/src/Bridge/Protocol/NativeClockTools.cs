@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                 throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority has not been acquired."));
             var guard = authority.Check(parsed.ExpectedGeneration.GetValueOrDefault());
-            context = context with { NativeGeneration = guard.Snapshot.Generation };
+            context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(guard.Snapshot.Generation) };
             if (!guard.Success) throw NativeFaults.Refused(NativeAuthorityControlTools.Refusal(guard.Error, context));
             var invalid = Supervisor.ValidateTypedRun(parsed); if (invalid != null) throw NativeFaults.Refused(invalid);
             try

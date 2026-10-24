@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
             var step = new PawnActivityStep(PawnActivityKind.Recipe, cookingBench.GetUniqueLoadID(), giver.defName, "", 0, deadline)
                 { Recipe = new PawnActivityRecipe(selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName,
                     EquatableArray.From(selected)) };
-            var batch = new PawnActivities(Context().NativeGeneration!.Value, new[] {
+            var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] {
                 new PawnActivityOrder(worker!.GetUniqueLoadID(), "cooking", "food-method", attempt - 1, attempt, false, new[] { step }) });
             var before = NativePawnActivities.Read(worker);
             var invalid = batch with { Orders = new[] { batch.Orders[0] with { Steps = new[] { step with { Recipe = step.Recipe! with { Ingredients = EquatableArray.From(new[] { new PawnActivityIngredient(firstIngredient.GetUniqueLoadID(), 1) }) } } } } } };

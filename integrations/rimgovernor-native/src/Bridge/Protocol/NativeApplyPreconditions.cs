@@ -24,14 +24,14 @@ namespace HomeBridge.BridgeTools
         private readonly string kind;
         private string? refused;
         private Common.FailureCode code = Common.FailureCode.InvalidRequest;
-        private Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified;
+        private Common.RefusalClass refusalClass = Common.RefusalClass.Unclassified;
 
         internal ApplyPreconditions(string kind) { this.kind = kind; }
 
         internal bool Holds => refused == null;
         internal string? Reason => refused;
 
-        internal ApplyPreconditions Require(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest);
+        internal ApplyPreconditions Require(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest, ProtoBoundary.RefusalClassOf(Common.FailureCode.InvalidRequest));
 
         // Present is the rule for the exact target still being there; it
         // refuses NotFound so a caller that distinguishes a vanished target
@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
         // token: the rule is skipped and the preconditions above stand alone.
         internal ApplyPreconditions Token(bool sent, Func<bool> rule, string reason) => sent ? Token(rule, reason) : this;
 
-        private ApplyPreconditions Require(Func<bool> rule, string reason, Common.FailureCode failureCode, Common.RefusalClass refusal = Common.RefusalClass.Unspecified)
+        private ApplyPreconditions Require(Func<bool> rule, string reason, Common.FailureCode failureCode, Common.RefusalClass refusal)
         {
             if (refused != null) return this;
             bool holds;

@@ -40,11 +40,11 @@ namespace HomeBridge.BridgeTools
             public readonly string SaveName;
             public readonly Common.Identity? ExpectedColonyIdentity; // Null: no live map existed before this load.
             public readonly DateTime StartedUtc;
-            public readonly uint? TimeoutMs;
+            public readonly uint TimeoutMs;
             public readonly Lifecycle.Readiness RequestedReadiness;
             public Lifecycle.LoadReply? Reply; // The final outcome; null while the load is still pending.
             public bool Completed => Reply != null;
-            public Entry(string requestId, string saveName, Common.Identity? expectedColonyIdentity, DateTime startedUtc, uint? timeoutMs, Lifecycle.Readiness requestedReadiness)
+            public Entry(string requestId, string saveName, Common.Identity? expectedColonyIdentity, DateTime startedUtc, uint timeoutMs, Lifecycle.Readiness requestedReadiness)
             {
                 RequestId = requestId; SaveName = saveName; ExpectedColonyIdentity = expectedColonyIdentity;
                 StartedUtc = startedUtc; TimeoutMs = timeoutMs; RequestedReadiness = requestedReadiness;
@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (expectedPlayer == null || expectedPlayer.Identity == null
                         || !expectedPlayer.Identity.Equals(current.Identity)
-                        || expectedPlayer.PlayerDirection is null || expectedPlayer.PlayerDirection.GetValueOrDefault() == 0)
+                        || expectedPlayer.PlayerDirection == 0)
                         return new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                             "Replacing a live map requires a matching expected player identity and direction.") };
                     expectedColonyIdentity = current.Identity;
@@ -125,8 +125,8 @@ namespace HomeBridge.BridgeTools
             }
 
             var entry = new Entry((request.RequestId ?? ""), (request.SaveName ?? ""), expectedColonyIdentity, DateTime.UtcNow,
-                request.TimeoutMs is not null ? (uint?)request.TimeoutMs.GetValueOrDefault() : null,
-                request.Readiness is not null && request.Readiness.GetValueOrDefault() == Lifecycle.Readiness.Visual ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map);
+                request.TimeoutMs,
+                request.Readiness == Lifecycle.Readiness.Visual ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map);
             lock (Lock)
             {
                 Entries[entry.RequestId] = entry;
@@ -161,7 +161,7 @@ namespace HomeBridge.BridgeTools
 
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
             {
-                if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
+                if (DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs))
                     return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                         "Native load did not reach a ready map within the requested timeout: " + (unavailable.Detail ?? "")) });
                 return PendingReply(entry);
@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
             bool visualReady = MapVisualReadyTracker.VisualReady(Find.CurrentMap);
             if (entry.RequestedReadiness == Lifecycle.Readiness.Visual && !visualReady)
             {
-                if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
+                if (DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs))
                     return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                         "Native load reached MAP readiness but not VISUAL readiness within the requested timeout.") });
                 return PendingReply(entry);

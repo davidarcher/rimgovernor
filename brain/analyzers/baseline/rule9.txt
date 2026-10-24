@@ -7,7 +7,6 @@ Bridge.Contracts/Actions/Trade.cs|Discard|2
 Bridge.Contracts/Actions/Zones.cs|Discard|3
 Bridge.Contracts/Facts/BiotechFacts.cs|Fact|2
 Bridge.Contracts/Facts/BiotechFacts.cs|Unknown|1
-Bridge.Contracts/Facts/CorpseClass.cs|Discard|1
 Bridge.Contracts/Facts/FactHelpers.cs|Fact|4
 Bridge.Contracts/Facts/FactHelpers.cs|Unknown|2
 Bridge.Contracts/Facts/PlanningWindow.cs|Fact|4
@@ -240,15 +239,9 @@ BuildingRuntime/TradeMissionOptions.cs|Fact|2
 BuildingRuntime/TradeTarget.cs|Discard|1
 BuildingRuntime/Worker.cs|Discard|1
 BuildingRuntime/Worker.cs|Fact|10
-Contracts/Authority.cs|NullableValue|6
-Contracts/Authority.cs|UnknownMember|2
 Contracts/Clock.cs|NullableValue|32
 Contracts/Clock.cs|UnknownMember|7
-Contracts/Common.cs|NullableValue|6
-Contracts/Common.cs|UnknownMember|6
 Contracts/Json/FactJsonConverter.cs|Fact|5
-Contracts/Lifecycle.cs|NullableValue|42
-Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/Observations.cs|NullableValue|48
 Contracts/Observations.cs|UnknownMember|1
 Contracts/Operations.cs|NullableValue|86
@@ -341,7 +334,6 @@ Observation/StuffChoice.cs|Fact|7
 Observation/StuffChoice.cs|Unknown|1
 Observation/WorldSites.cs|Fact|2
 Observation/WorldSites.cs|Unknown|1
-PlayerApi/LifecycleRoutes.cs|Discard|6
 PlayerApi/LifecycleRoutes.cs|Fact|2
 PlayerApi/PlayerProviders.cs|Fact|7
 PlayerApi/PlayerRoutes.cs|Discard|1

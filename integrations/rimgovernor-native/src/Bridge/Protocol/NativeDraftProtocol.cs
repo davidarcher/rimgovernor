@@ -21,6 +21,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure Failure(NativePawnControlResult result, Common.ObservationContext context) => new Common.Failure
         {
+            RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified,
             Code = result == NativePawnControlResult.StaleIdentity ? Common.FailureCode.StaleIdentity
                 : result == NativePawnControlResult.StaleSnapshot ? Common.FailureCode.OwnerConflict
                 : Common.FailureCode.Unavailable,

@@ -88,7 +88,7 @@ public sealed class ApparelCreditProductionTests
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         var clothing = new O.RecipeActivityRead
         {
-            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
             Options = [],
             Retained = [new("running", ShirtDef, "Cloth", 25.0)],
         };

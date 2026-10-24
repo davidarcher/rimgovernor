@@ -17,7 +17,7 @@ public sealed class FoodCookingContinuationTests
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Options = EquatableArray.From(options) };
     private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
-        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
+        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, 0, state, "", 200)))),
     };

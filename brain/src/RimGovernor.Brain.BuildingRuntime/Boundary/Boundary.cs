@@ -70,9 +70,7 @@ public sealed class BuildingBoundary : IBoundary
 
     public PbCommon.AttemptKey Attempt(Placement p)
     {
-        var key = new PbCommon.AttemptKey { ControllerSessionId = _session, ActionId = p.Action.Id.Value };
-        key = key with { AttemptId = p.Attempt.Value };
-        return key;
+        return new PbCommon.AttemptKey { ControllerSessionId = _session, ActionId = p.Action.Id.Value, AttemptId = p.Attempt.Value };
     }
 }
 
@@ -114,7 +112,7 @@ public static class Boundary
     /// </summary>
     public static GenerationSnapshot Context(PbCommon.ObservationContext? v, GenerationSnapshot expected)
     {
-        if (v is null || v.Identity is null || v.NativeGeneration is null || v.NativeGeneration.GetValueOrDefault() != expected.Native.Value)
+        if (v is null || v.Identity is null || !v.NativeGeneration.IsAt(expected.Native.Value))
         {
             throw new AuthorityException();
         }
@@ -123,7 +121,7 @@ public static class Boundary
             Colony = new ColonyId((v.Identity.ColonyId ?? "")),
             Load = new LoadId((v.Identity.LoadToken ?? "")),
             Map = new MapId(v.Identity.MapId),
-            Native = new NativeGeneration(v.NativeGeneration.GetValueOrDefault()),
+            Native = expected.Native,
         };
         if (!World(output, expected))
         {
@@ -136,7 +134,7 @@ public static class Boundary
     public static void Admission(PbReceipts.Receipt? receipt, Placement placement, string session)
     {
         if (receipt is null || receipt.Attempt is null || (receipt.Attempt.ControllerSessionId ?? "") != session
-            || (receipt.Attempt.ActionId ?? "") != placement.Action.Id.Value || receipt.Attempt.AttemptId.GetValueOrDefault() != placement.Attempt.Value)
+            || (receipt.Attempt.ActionId ?? "") != placement.Action.Id.Value || receipt.Attempt.AttemptId != placement.Attempt.Value)
         {
             throw new EvidenceException();
         }
@@ -303,10 +301,10 @@ public static class Boundary
                 output[i].Kind = Domain.Receipt.Refused;
                 output[i].Refusal = NativeRefusalOf(refused.Code.GetValueOrDefault(), (refused.Reason ?? ""), refused.RefusalClass.GetValueOrDefault());
             }
-            else if (result.Outcome?.Failed is { } failed && failed.Code.GetValueOrDefault() != PbCommon.FailureCode.AttemptConflict)
+            else if (result.Outcome?.Failed is { } failed && failed.Code != PbCommon.FailureCode.AttemptConflict)
             {
                 output[i].Kind = Domain.Receipt.Refused;
-                output[i].Refusal = NativeRefusalOf(failed.Code.GetValueOrDefault(), (failed.Detail ?? ""), failed.RefusalClass.GetValueOrDefault());
+                output[i].Refusal = NativeRefusalOf(failed.Code, (failed.Detail ?? ""), failed.RefusalClass);
             }
         }
         return output;

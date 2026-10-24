@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 // of answering an unknown, so a row missing a member does not decode.
 public sealed class BuildingSiteWireTests
 {
-    private static readonly C.ObservationContext Context = new() { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
     private static O.ClearanceTarget Target(string id, O.ClearanceSalvage salvage) => new()
     {

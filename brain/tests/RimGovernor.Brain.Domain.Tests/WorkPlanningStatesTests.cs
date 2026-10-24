@@ -109,7 +109,7 @@ public sealed class WorkPlanningStatesTests
         var ground = Job(new O.JobEvidence { DefName = "Goto", TargetA = new() { Target = new C.Cell { X = 7, Z = 8 } } }).Target;
         Assert.Equal(new JobTarget.Ground(new Cell(7, 8)), ground);
         Assert.Equal("", ground.Thing);
-        Assert.Equal(new JobTarget.None(), Job(new O.JobEvidence { DefName = "Wait", TargetA = new() { Target = new C.Unavailable() } }).Target);
+        Assert.Equal(new JobTarget.None(), Job(new O.JobEvidence { DefName = "Wait", TargetA = new() { Target = new C.Unavailable { Reason = C.UnavailableReason.NotLoaded } } }).Target);
 
         // Native writes targetA on every job.
         Assert.Throws<DomainException>(() => Job(new O.JobEvidence { DefName = "Wait" }));

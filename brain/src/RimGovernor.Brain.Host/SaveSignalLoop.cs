@@ -13,6 +13,9 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
     /// <summary>How long a pre_save flush may run: native parks the vanilla save for about 3 s, so a flush past it only lands in the next save.</summary>
     internal static readonly TimeSpan FlushBudget = TimeSpan.FromSeconds(3);
 
+    /// <summary>How long one wait parks in native before it returns quiet and the loop re-arms.</summary>
+    internal static readonly TimeSpan WaitWindow = TimeSpan.FromSeconds(20);
+
     /// <summary>Bounds the flush_done call.</summary>
     internal static readonly TimeSpan AckTimeout = TimeSpan.FromSeconds(5);
 
@@ -60,7 +63,7 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
 
     private async Task<string?> WaitAsync(CancellationToken ct)
     {
-        var reply = await facade.WaitSaveSignalAsync(new PbLifecycle.WaitSaveSignalRequest(), ct).ConfigureAwait(false);
+        var reply = await facade.WaitSaveSignalAsync(new PbLifecycle.WaitSaveSignalRequest { TimeoutMs = (int)WaitWindow.TotalMilliseconds }, ct).ConfigureAwait(false);
         return reply.Signal is { } signal ? signal.Token ?? string.Empty : null;
     }
 

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 // Stopped and a home route is Reachable with its ticks or Unreachable. Each round-trips exactly through the wire JSON.
 public sealed class WorldProgressionWireTests
 {
-    private static readonly C.ObservationContext Context = new() { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
     private static O.CaravanState Caravan(string id, O.CaravanCourse course) => new()
     {

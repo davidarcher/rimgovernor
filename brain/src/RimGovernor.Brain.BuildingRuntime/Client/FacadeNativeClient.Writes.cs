@@ -51,11 +51,11 @@ public sealed partial class FacadeNativeClient
             throw BridgeContractException.Contract("save request requires a player lifecycle context");
         }
         var player = request.Player;
-        if (player.PlayerDirection is null || player.PlayerDirection.GetValueOrDefault() == 0)
+        if (player.PlayerDirection == 0)
         {
             throw BridgeContractException.Contract("save request requires a nonzero player direction");
         }
-        if (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() < 0)
+        if (request.ExpectedTick is PbLifecycle.ExpectedSaveTick.AtCase { Value: < 0 })
         {
             throw BridgeContractException.Contract("save request expected tick must be non-negative");
         }

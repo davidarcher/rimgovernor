@@ -33,6 +33,7 @@ internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken,
                 RequestId = $"autosave-{(DateTimeOffset.UtcNow - DateTimeOffset.UnixEpoch).Ticks * 100}",
             },
             SaveName = name,
+            ExpectedTick = new PbLifecycle.ExpectedSaveTick.AnyCase(),
         };
         try
         {

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>Whole defense-read wire rows for the decoder tests: the site census, the lines of fire and the access audit.</summary>
 internal static class DefenseWire
 {
-    internal static readonly C.ObservationContext Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    internal static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
 
     /// <summary>A frame's lines of fire when none were traced: no pair read, and none skipped.</summary>
     internal static readonly O.LinesOfFireSnapshot NoLines = new() { Context = Context, Lines = [], Skipped = false };

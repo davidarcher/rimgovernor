@@ -23,7 +23,7 @@ public sealed class FamilySharedScopeTests
     {
         Identity = new PbCommon.Identity { ColonyId = "colony", MapId = 1, LoadToken = "load" },
         Tick = 3000,
-        NativeGeneration = 1,
+        NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1),
     };
 
     /// <summary>A tick source that counts its hops and answers with <see cref="Context"/>.</summary>
@@ -34,7 +34,7 @@ public sealed class FamilySharedScopeTests
         public Task<PbLifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken)
         {
             Hops++;
-            return Task.FromResult(new PbLifecycle.LoadedTick { Context = Context });
+            return Task.FromResult(new PbLifecycle.LoadedTick { Context = Context, Paused = false, ForcePaused = false });
         }
     }
 

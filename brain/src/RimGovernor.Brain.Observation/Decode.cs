@@ -10,7 +10,7 @@ public static class DecodeReads
             Map = new MapId(context.Identity?.MapId ?? 0),
             Load = new LoadId(context.Identity?.LoadToken ?? ""),
             Tick = new Tick((long)context.Tick),
-            NativeGeneration = context.NativeGeneration is not null ? Known(new NativeGeneration(context.NativeGeneration.GetValueOrDefault())) : default,
+            NativeGeneration = context.NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase { Value: var generation } ? Known(new NativeGeneration(generation)) : default,
         };
         result.Validate();
         return result;
@@ -24,7 +24,7 @@ public static class DecodeReads
         }
 
         var result = ContextIdentity(loaded.Context);
-        return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
+        return result with { Paused = Known(loaded.Paused) };
     }
 
     /// <summary>
@@ -39,6 +39,6 @@ public static class DecodeReads
         }
 
         var result = ContextIdentity(loaded.Context);
-        return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
+        return result with { Paused = Known(loaded.Paused) };
     }
 }

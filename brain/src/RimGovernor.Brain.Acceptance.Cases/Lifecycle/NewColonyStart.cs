@@ -34,6 +34,11 @@ internal static class NewColonyStart
         MapSize = 150,
         PlanetCoverage = 0.05f,
         SaveName = "newcolony-accept",
+        MinTemperature = new Lifecycle.TemperatureLimit.OpenCase(),
+        MaxTemperature = new Lifecycle.TemperatureLimit.OpenCase(),
+        GovernorIdeoligion = false,
+        PlayerFaction = Lifecycle.ScenarioPlayerFaction.Base,
+        ArrivalMethod = Lifecycle.ScenarioArrivalMethod.Base,
     };
 
     /// <summary>A <c>lifecycle_new_colony</c> request over <paramref name="spec"/>.</summary>

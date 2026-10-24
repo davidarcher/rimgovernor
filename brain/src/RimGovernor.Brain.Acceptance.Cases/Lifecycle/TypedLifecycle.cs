@@ -34,7 +34,7 @@ internal static class TypedLifecycle
     /// <summary>A trusted checkpoint save of the paused game; anything but a completed save fails <paramref name="label"/>.</summary>
     internal static async Task<Lifecycle.SaveCompleted> SaveAsync(TypedSession s, string label, Common.Identity identity, string saveName, CancellationToken cancellationToken)
     {
-        var request = new Lifecycle.SaveRequest { Player = Player(identity, Stamp(label)), SaveName = saveName };
+        var request = new Lifecycle.SaveRequest { Player = Player(identity, Stamp(label)), SaveName = saveName, ExpectedTick = new Lifecycle.ExpectedSaveTick.AnyCase() };
         var reply = await s.CallAsync(label, NativeOps.SaveGame, request, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Completed ?? throw new AcceptanceException($"{label}: expected a completed save, got {reply.Outcome}");
     }
@@ -48,6 +48,7 @@ internal static class TypedLifecycle
             RequestId = requestId,
             SaveName = saveName,
             Readiness = readiness,
+            TimeoutMs = 120_000,
             ExpectedPlayer = Player(identity, requestId),
         };
         var reply = await s.CallAsync(label + "-start", NativeOps.StartLoad, request, cancellationToken).ConfigureAwait(false);

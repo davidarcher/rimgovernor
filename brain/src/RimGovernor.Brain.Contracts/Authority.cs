@@ -12,8 +12,6 @@ namespace RimGovernor.Contracts.Wire.Authority;
 [JsonConverter(typeof(WireEnumConverter<Mode>))]
 public enum Mode
 {
-    [WireName("MODE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("MODE_AUTO")]
     Auto = 1,
     [WireName("MODE_MANUAL")]
@@ -23,8 +21,6 @@ public enum Mode
 [JsonConverter(typeof(WireEnumConverter<RevocationReason>))]
 public enum RevocationReason
 {
-    [WireName("REVOCATION_REASON_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("REVOCATION_REASON_NONE")]
     None = 1,
     [WireName("REVOCATION_REASON_MANUAL")]
@@ -61,12 +57,12 @@ public enum RevocationReason
 
 public sealed record InactiveAuthority
 {
-    public RevocationReason? Reason { get; init; }
+    public required RevocationReason Reason { get; init; }
 }
 
 public sealed record ActiveAuthority
 {
-    public Mode? Mode { get; init; }
+    public required Mode Mode { get; init; }
 }
 
 public sealed record Status
@@ -123,18 +119,18 @@ public sealed record SetMode
 {
     public Common.Identity? Identity { get; init; }
 
-    public ulong? ExpectedGeneration { get; init; }
+    public required ulong ExpectedGeneration { get; init; }
 
-    public Mode? Mode { get; init; }
+    public required Mode Mode { get; init; }
 }
 
 public sealed record Revoke
 {
     public Common.Identity? Identity { get; init; }
 
-    public ulong? ExpectedGeneration { get; init; }
+    public required ulong ExpectedGeneration { get; init; }
 
-    public RevocationReason? Reason { get; init; }
+    public required RevocationReason Reason { get; init; }
 }
 
 public sealed record ControlRequest

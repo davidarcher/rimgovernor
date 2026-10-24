@@ -6,8 +6,6 @@ namespace RimGovernor.Contracts.Wire.Common;
 [JsonConverter(typeof(WireEnumConverter<TradeRequestKind>))]
 public enum TradeRequestKind
 {
-    [WireName("TRADE_REQUEST_KIND_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("TRADE_REQUEST_KIND_CARAVAN")]
     Caravan = 1,
     [WireName("TRADE_REQUEST_KIND_ORBITAL")]
@@ -21,8 +19,6 @@ public enum TradeRequestKind
 [JsonConverter(typeof(WireEnumConverter<CorpseClass>))]
 public enum CorpseClass
 {
-    [WireName("CORPSE_CLASS_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("CORPSE_CLASS_COLONIST")]
     Colonist = 1,
     [WireName("CORPSE_CLASS_STRANGER")]
@@ -32,29 +28,26 @@ public enum CorpseClass
 }
 
 /// <summary>
-/// How RimWorld answers the same request again. Native sets it on a refusal;
-/// a refusal without one is unknown. PERMANENT: the game refuses it until the
-/// world changes materially (or never). TRANSIENT: it may succeed once the
-/// world changes. UNKNOWN: native cannot say; never silently banned.
+/// How RimWorld answers the same request again; every failure carries one.
+/// PERMANENT: the game refuses it until the world changes materially (or
+/// never). TRANSIENT: it may succeed once the world changes. UNCLASSIFIED: the
+/// failure code alone does not say, the game's own reason separates them; the
+/// refusal budget never blocks on it and journals it.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<RefusalClass>))]
 public enum RefusalClass
 {
-    [WireName("REFUSAL_CLASS_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("REFUSAL_CLASS_PERMANENT")]
     Permanent = 1,
     [WireName("REFUSAL_CLASS_TRANSIENT")]
     Transient = 2,
-    [WireName("REFUSAL_CLASS_UNKNOWN")]
-    Unknown = 3,
+    [WireName("REFUSAL_CLASS_UNCLASSIFIED")]
+    Unclassified = 3,
 }
 
 [JsonConverter(typeof(WireEnumConverter<FailureCode>))]
 public enum FailureCode
 {
-    [WireName("FAILURE_CODE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("FAILURE_CODE_INVALID_REQUEST")]
     InvalidRequest = 1,
     [WireName("FAILURE_CODE_UNAVAILABLE")]
@@ -96,8 +89,6 @@ public enum FailureCode
 [JsonConverter(typeof(WireEnumConverter<UnavailableReason>))]
 public enum UnavailableReason
 {
-    [WireName("UNAVAILABLE_REASON_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("UNAVAILABLE_REASON_NOT_LOADED")]
     NotLoaded = 1,
     [WireName("UNAVAILABLE_REASON_NOT_OBSERVED")]
@@ -132,7 +123,7 @@ public sealed record IdeoligionDesign
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Precepts { get; init; }
 
-    public bool? Fluid { get; init; }
+    public required bool Fluid { get; init; }
 
     /// <summary>The ThingDef names of the venerated animals (Precept_Animal), sorted. Native adds and removes them against the game's legality.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
@@ -221,7 +212,28 @@ public sealed record ObservationContext
 
     public required long Tick { get; init; }
 
-    public ulong? NativeGeneration { get; init; }
+    public required ObservedGeneration NativeGeneration { get; init; }
+}
+
+/// <summary>
+/// The native authority generation a read was taken at: native allocates its authority state for a game on the first
+/// grant, so a read before that has no generation to name, and one after it names the generation the state is at.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ObservedGeneration.UnclaimedCase), "unclaimed")]
+[JsonDerivedType(typeof(ObservedGeneration.AtCase), "at")]
+public abstract record ObservedGeneration
+{
+    private protected ObservedGeneration() { }
+
+    /// <summary>Native holds no authority state for the game yet.</summary>
+    public sealed record UnclaimedCase : ObservedGeneration;
+
+    /// <summary>The authority state is at <paramref name="Value"/>.</summary>
+    public sealed record AtCase(ulong Value) : ObservedGeneration;
+
+    /// <summary>Whether the state is at <paramref name="generation"/>; unclaimed is at none.</summary>
+    public bool IsAt(ulong generation) => this is AtCase { Value: var value } && value == generation;
 }
 
 /// <summary>
@@ -233,7 +245,7 @@ public sealed record AttemptKey
 
     public string? ActionId { get; init; }
 
-    public ulong? AttemptId { get; init; }
+    public required ulong AttemptId { get; init; }
 }
 
 /// <summary>
@@ -259,18 +271,18 @@ public sealed record Cell
 /// </summary>
 public sealed record Failure
 {
-    public FailureCode? Code { get; init; }
+    public required FailureCode Code { get; init; }
 
     public string? Detail { get; init; }
 
     public ObservationContext? ObservedContext { get; init; }
 
-    public RefusalClass? RefusalClass { get; init; }
+    public required RefusalClass RefusalClass { get; init; }
 }
 
 public sealed record Unavailable
 {
-    public UnavailableReason? Reason { get; init; }
+    public required UnavailableReason Reason { get; init; }
 
     public string? Detail { get; init; }
 }

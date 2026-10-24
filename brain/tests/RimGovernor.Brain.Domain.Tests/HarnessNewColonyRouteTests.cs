@@ -35,7 +35,7 @@ public sealed class HarnessNewColonyRouteTests : IDisposable
     {
         RequestId = "ideoligion-create",
         TimeoutMs = 600_000,
-        Spec = new Lifecycle.NewColonySpec { Scenario = "Crashlanded", ColonistCount = 3, GovernorIdeoligion = true },
+        Spec = NewColonyFixtures.Spec() with { Scenario = "Crashlanded", GovernorIdeoligion = true },
     };
 
     [Fact]

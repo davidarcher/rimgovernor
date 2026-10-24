@@ -34,8 +34,16 @@ public static class ScenarioStarts
 
         var size = spec.Size.WithDefaults();
         var constrained = (spec.MinTemperature != 0 || spec.MaxTemperature != 0) && (spec.MinTemperature != -100 || spec.MaxTemperature != 100);
-        return (spec.Parts ?? new Wl.NewColonySpec()) with
+        return new Wl.NewColonySpec
         {
+            StartingThings = [.. spec.Parts.StartingThings],
+            ForcedTraits = [.. spec.Parts.ForcedTraits],
+            ForcedHediffs = [.. spec.Parts.ForcedHediffs],
+            Naked = [.. spec.Parts.Naked],
+            SetNeedLevels = [.. spec.Parts.SetNeedLevels],
+            PlayerFaction = Wl.ScenarioPlayerFaction.Base,
+            ArrivalMethod = Wl.ScenarioArrivalMethod.Base,
+            GovernorIdeoligion = false,
             Scenario = spec.Scenario,
             ColonistCount = (uint)spec.Count,
             Seed = spec.Seed,
@@ -45,10 +53,10 @@ public static class ScenarioStarts
             PlanetCoverage = (float)size.PlanetCoverage,
             SaveName = spec.SaveName.Length > 0 ? spec.SaveName : ScenarioSpec.DefaultSaveName,
             Biomes = [.. SplitBiomes(spec.Biome)],
-            FlatTile = spec.Flat ? true : null,
+            FlatTile = spec.Flat,
             WorldTemperature = spec.WorldTemperature.Length > 0 ? spec.WorldTemperature : null,
-            MinTemperature = constrained ? (float)spec.MinTemperature : null,
-            MaxTemperature = constrained ? (float)spec.MaxTemperature : null,
+            MinTemperature = constrained ? new Wl.TemperatureLimit.AtCase((float)spec.MinTemperature) : new Wl.TemperatureLimit.OpenCase(),
+            MaxTemperature = constrained ? new Wl.TemperatureLimit.AtCase((float)spec.MaxTemperature) : new Wl.TemperatureLimit.OpenCase(),
         };
     }
 

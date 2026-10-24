@@ -58,7 +58,7 @@ public sealed class SquadArmorAndDeparturePointsTests
 
     private static WorldProgressionRead Read(params O.QuestWorker[] workers) => new()
     {
-        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
         Maps = [new O.WorldMap { Id = 0, Tile = 7, Home = true, Pawns = [], QuestWorkers = [.. workers] }],
     };
 

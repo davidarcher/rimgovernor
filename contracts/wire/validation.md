@@ -61,8 +61,8 @@ record types or by a successful serialization test.
 
 `ValidateNewColonySpec` (`brain/src/RimGovernor.Brain.Bridge.Contracts/Foundation/NewColonyValidation.cs`) bounds the parts on
 `NewColonySpec`: at most 64 entries per kind; `colonist_count` 1-10; starting-thing
-placement set, `count` 1-100000, `allow_roofed` only on scattered things; forced-trait
+placement set (`scattered_roofed` is the roofed scattered placement; there is no separate roofed flag), `count` 1-100000; forced-trait
 `degree` -10..10; forced-hediff `severity` 0-1; `chance` and need `level` 0-1 and finite;
 a pawn `context` set on every pawn-modifying part; condition, building and incident lists
-non-empty, unique identifiers; `player_faction` and `arrival_method` supported cases. An
+non-empty, unique identifiers; `player_faction` and `arrival_method` are supported cases or `base`; `min_temperature` and `max_temperature` are `open` or `at` a value; a save's `expected_tick` is `any` or `at` a tick; an observation context's `native_generation` is `unclaimed` or `at` a generation. An
 absent required number is a refusal, not zero. Whether a defName exists is native's call.

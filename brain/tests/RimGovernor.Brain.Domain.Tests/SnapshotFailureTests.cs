@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class SnapshotFailureTests
 {
     private static readonly C.Identity Identity = new() { ColonyId = "snapshot-test", LoadToken = "load", MapId = 0 };
-    private static readonly C.ObservationContext Context = new() { Identity = Identity, Tick = 46189 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = 46189 };
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
 #pragma warning disable CA1852 // DispatchProxy derives its implementation from this class.
@@ -37,7 +37,7 @@ public sealed class SnapshotFailureTests
         const string detail = "snapshot section Buildings: ReadFailed: building 42: Invalid native amount.";
         game.Handoff.Publish(new NativeFrame(new O.BundleSnapshot
         {
-            Failure = new C.Failure { Code = C.FailureCode.NativeFailure, Detail = detail },
+            Failure = new C.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = C.FailureCode.NativeFailure, Detail = detail },
         }, 122, 0));
         var refused = client.ReadBuildingsAsync(Identity, Ct);
         // The frame is already available: no clock, deadline or new frame should be needed.

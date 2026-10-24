@@ -226,7 +226,7 @@ partial class RoundsTradePlanner
             return false;
         }
         return (id.ColonyId ?? "") == world.Colony.Value && id.MapId == world.Map.Value && (id.LoadToken ?? "") == world.Load.Value
-            && new NativeGeneration(read.Context.NativeGeneration.GetValueOrDefault()) == world.Native;
+            && read.Context.NativeGeneration.IsAt(world.Native.Value);
     }
 
     internal static bool TradeMissionCrewAtHome(TradeMission m, WorldProgressionRead read)

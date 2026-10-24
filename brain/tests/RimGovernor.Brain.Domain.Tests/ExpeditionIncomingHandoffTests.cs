@@ -43,7 +43,7 @@ public sealed class ExpeditionIncomingHandoffTests
             Reads++;
             return Task.FromResult(new WorldProgressionRead
             {
-                Context = new() { Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = ExpeditionMap }, Tick = 100 },
+                Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = ExpeditionMap }, Tick = 100 },
                 Maps = [new PbObservations.WorldMap { Id = ExpeditionMap, Tile = DestinationTile, Home = true, Pawns = [PawnFixtures.Row(Pawn)], QuestWorkers = [] }],
             });
         }
@@ -93,7 +93,7 @@ public sealed class ExpeditionIncomingHandoffTests
     /// <summary>A bundle exactly as the step read returns it: a context and no world progression.</summary>
     private static PbObservations.BundleSnapshot Bundle(int map) => new()
     {
-        Context = new PbCommon.ObservationContext { Identity = new PbCommon.Identity { ColonyId = Colony, LoadToken = Load, MapId = map }, Tick = 100, NativeGeneration = 1 },
+        Context = new PbCommon.ObservationContext { Identity = new PbCommon.Identity { ColonyId = Colony, LoadToken = Load, MapId = map }, Tick = 100, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1) },
     };
 
     /// <summary>A running control for the home map and an accepted departure of <see cref="Pawn"/> to the expedition tile.</summary>

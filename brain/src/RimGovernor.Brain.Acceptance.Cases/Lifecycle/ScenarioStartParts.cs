@@ -36,7 +36,7 @@ internal static class LifecycleScenarioStartParts
         Storyteller = Storyteller,
         Size = new DebugStartSize { MapSize = DebugStartSize.DefaultMapSize, PlanetCoverage = DebugStartSize.DefaultPlanetCoverage },
         SaveName = Save,
-        Parts = new Lifecycle.NewColonySpec
+        Parts = new StartParts
         {
             ForcedTraits = [new Lifecycle.ForcedTrait { Trait = "Jogger", Degree = 0, Chance = 1, Context = Lifecycle.ScenarioPawnContext.PlayerStarter }],
             StartingThings = [new Lifecycle.StartingThing { Placement = Lifecycle.StartingThingPlacement.Scattered, ThingDef = ThingDef, Count = ThingCount }],

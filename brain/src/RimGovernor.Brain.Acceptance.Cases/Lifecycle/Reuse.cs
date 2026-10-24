@@ -185,7 +185,7 @@ internal static class LifecycleReuse
             NativeOps.ControlAuthority,
             new Control.ControlRequest
             {
-                Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = status.Context?.NativeGeneration, Reason = Control.RevocationReason.Manual },
+                Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = (status.Context ?? throw new AcceptanceException("revoke: the status carried no context")).NativeGeneration.Claimed("revoke: the status named no generation"), Reason = Control.RevocationReason.Manual },
             },
             cancellationToken).ConfigureAwait(false);
         if (revoke.Outcome?.Revoked is null)
@@ -241,7 +241,7 @@ internal static class LifecycleReuse
     private static async Task<string> DraftColonistAsync(TypedSession s, Common.Identity identity, string label, CancellationToken cancellationToken)
     {
         var status = await TypedAuthority.StatusAsync(s, label + "-status", identity, cancellationToken).ConfigureAwait(false);
-        _ = await TypedAuthority.GrantAsync(s, label + "-auto", identity, status.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}-status: no generation: {status}"), cancellationToken).ConfigureAwait(false);
+        _ = await TypedAuthority.GrantAsync(s, label + "-auto", identity, (status.Context ?? throw new AcceptanceException($"{label}-status: no generation: {status}")).NativeGeneration.Claimed($"{label}-status: no generation: {status}"), cancellationToken).ConfigureAwait(false);
         var before = await StandingAsync(s, label + "-pawns", identity, [], cancellationToken).ConfigureAwait(false);
         if (before.Drafted)
         {

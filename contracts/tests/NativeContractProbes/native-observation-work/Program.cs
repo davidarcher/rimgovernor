@@ -90,7 +90,7 @@ internal static class NativeObservationWorkProbe
     {
         var complete = new RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot
         {
-            Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+            Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
             Buildings = [],
         };
         Check(ReferenceEquals(complete, SnapshotFrames.SnapshotSectionException.Read("Buildings", () => complete)), "known empty buildings stay observed");

@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
             {
                 var expected = request.ExpectedPlayer;
                 if (expected == null || expected.Identity == null || !expected.Identity.Equals(current.Identity)
-                    || expected.PlayerDirection is null || expected.PlayerDirection.GetValueOrDefault() == 0)
+                    || expected.PlayerDirection == 0)
                     return Fail(Common.FailureCode.InvalidRequest,
                         "Ending a live map requires a matching expected player identity and direction.");
             }

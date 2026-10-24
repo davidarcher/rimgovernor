@@ -73,9 +73,9 @@ internal static class MapscopeIsolation
         var afterSwitch = await TypedAuthority.StatusAsync(s, "status-after-switch", home, cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_after_switch", afterSwitch);
         if (afterSwitch.State?.Inactive?.Reason != Control.RevocationReason.IdentityChanged
-            || afterSwitch.Context?.NativeGeneration != beforeSwitch.Context?.NativeGeneration + 1)
+            || afterSwitch.Context?.NativeGeneration.IsAt((beforeSwitch.Context ?? throw new AcceptanceException("status-after-generate: no context")).NativeGeneration.Claimed("status-after-generate: no generation") + 1) != true)
         {
-            throw new AcceptanceException($"status-after-switch: want Inactive(IDENTITY_CHANGED) at generation {beforeSwitch.Context?.NativeGeneration + 1}, got {afterSwitch}");
+            throw new AcceptanceException($"status-after-switch: want Inactive(IDENTITY_CHANGED) after generation {beforeSwitch.Context?.NativeGeneration}, got {afterSwitch}");
         }
 
         await StatusOnAsync(s, "status-home-while-second-viewed", home, cancellationToken).ConfigureAwait(false);
@@ -124,7 +124,7 @@ internal static class MapscopeIsolation
         // Back on the home map, a fresh grant admits a draft bound to the home identity, and it lands there.
         _ = await s.FixtureAsync("view-home", View, home.MapId, cancellationToken).ConfigureAwait(false);
         var back = await TypedAuthority.StatusAsync(s, "status-back-home", home, cancellationToken).ConfigureAwait(false);
-        _ = await TypedAuthority.GrantAsync(s, "regrant-home", home, back.Context?.NativeGeneration ?? throw new AcceptanceException($"status-back-home: no generation: {back}"), cancellationToken).ConfigureAwait(false);
+        _ = await TypedAuthority.GrantAsync(s, "regrant-home", home, (back.Context ?? throw new AcceptanceException($"status-back-home: no generation: {back}")).NativeGeneration.Claimed($"status-back-home: no generation: {back}"), cancellationToken).ConfigureAwait(false);
         var colonist = roster[0].PawnId.Value;
         var draft = await s.CallAsync(
             "draft",

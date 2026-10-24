@@ -237,7 +237,7 @@ public sealed class CreepJoinerHarmTests
 
     private static RimGovernor.Brain.Bridge.Contracts.RoundsFrame Frame(params O.PawnState[] rows) => new()
     {
-        Pawns = new O.PawnSnapshot { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [.. rows] },
+        Pawns = new O.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [.. rows] },
         Emergency = new(null, new EmergencyFacts { Colonists = [.. rows.Select(r => EmergencyFixtures.Colonist(r.Pawn.Id!))] }),
     };
 

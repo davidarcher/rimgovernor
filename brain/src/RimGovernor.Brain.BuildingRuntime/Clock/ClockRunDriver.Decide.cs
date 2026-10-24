@@ -170,8 +170,7 @@ public sealed partial class ClockRunDriver
     private static bool SameWorldContext(PbObservations.BundleSnapshot loaded, ControlState state, GenerationSnapshot world) =>
         state.ObservationKnown
         && Boundary.World(state.Snapshot, world)
-        && loaded.Context?.NativeGeneration is { } generation
-        && generation == (ulong)state.Snapshot.Native.Value;
+        && loaded.Context?.NativeGeneration.IsAt((ulong)state.Snapshot.Native.Value) == true;
 
     private async Task<bool> DecideAsync(ClockSchedulerResult step, RunNote note, CancellationToken call, CancellationToken epoch)
     {
@@ -190,7 +189,7 @@ public sealed partial class ClockRunDriver
                 ("known", state.ObservationKnown),
                 ("held", state.Snapshot.ToString()),
                 ("observed_world", world.ToString()),
-                ("observed_generation", loadedContext.NativeGeneration.GetValueOrDefault()));
+                ("observed_generation", loadedContext.NativeGeneration));
             throw Failed(new AuthorityException());
         }
         if (!_combatWorld.SameWorld(state.Snapshot))

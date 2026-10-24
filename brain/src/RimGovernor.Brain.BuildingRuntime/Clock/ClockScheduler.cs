@@ -177,7 +177,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
     internal static FactScope FactScope(PbCommon.ObservationContext context) =>
-        new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration.GetValueOrDefault());
+        new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var generation } ? generation : 0UL);
 
     /// <summary>
     /// Why a step that runs planners runs the rounder first, or null when its planners read the last committed
@@ -293,7 +293,7 @@ public sealed partial class ClockScheduler
             var tick = new Tick((long)loadedContext.Tick);
             var state = _player.State();
             var observed = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId) };
-            if (!state.ObservationKnown || !Boundary.World(state.Snapshot, observed) || loadedContext.NativeGeneration.GetValueOrDefault() != (ulong)state.Snapshot.Native.Value)
+            if (!state.ObservationKnown || !Boundary.World(state.Snapshot, observed) || !loadedContext.NativeGeneration.IsAt((ulong)state.Snapshot.Native.Value))
             {
                 ClockEvents.AuthorityLost("observed scope does not match the held authority");
                 throw new AuthorityException("observed scope does not match the held authority");

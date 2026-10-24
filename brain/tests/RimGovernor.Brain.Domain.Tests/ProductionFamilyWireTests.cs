@@ -37,7 +37,7 @@ public sealed class ProductionFamilyWireTests
 
     private static readonly O.SuppliesSnapshot Supplies = new()
     {
-        Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+        Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
         Stocks =
         [
             new O.ResourceStock

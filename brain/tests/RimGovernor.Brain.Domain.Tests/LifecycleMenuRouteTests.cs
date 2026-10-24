@@ -98,7 +98,7 @@ public sealed class LifecycleMenuRouteTests
         var request = Assert.Single(writer.Started);
         Assert.Equal("menu-1", request.RequestId);
         Assert.Equal(new PbCommon.Identity { ColonyId = Colony, LoadToken = Load, MapId = Map }, request.ExpectedPlayer?.Identity);
-        Assert.NotEqual(0UL, request.ExpectedPlayer?.PlayerDirection.GetValueOrDefault());
+        Assert.NotEqual(0UL, request.ExpectedPlayer?.PlayerDirection);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class LifecycleMenuRouteTests
     {
         var writer = new Writer(() => new PbLifecycle.MenuReply
         {
-            Outcome = new PbCommon.Failure { Code = PbCommon.FailureCode.InvalidRequest, Detail = "Ending a live map requires a matching expected player identity and direction." },
+            Outcome = new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.InvalidRequest, Detail = "Ending a live map requires a matching expected player identity and direction." },
         });
         var (status, body) = await SendAsync(new Snapshots(loaded: true), writer, "POST", LifecycleRoutes.MenuPath, """{"requestId":"menu-5"}""");
 

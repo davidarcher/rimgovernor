@@ -70,7 +70,7 @@ public sealed class ServiceInvestmentTests
             batch = batch with { Orders = [.. batch.Orders.Select(o => o.Task.Length == 0 ? o
                 : o with { Task = batch.Tasks.First(t => t.Pawn == o.Pawn && t.Step.Kind != PawnActivityKind.Supply).Id })] };
         }
-        var read = ConstructionFixtures.NoTasks() with { Context = new() { Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
+        var read = ConstructionFixtures.NoTasks() with { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 110)))) };
         Assert.Equal(needed ? ActivityNeed.Owed : ActivityNeed.Ended, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, read));

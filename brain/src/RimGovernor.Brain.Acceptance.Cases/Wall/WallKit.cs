@@ -101,7 +101,7 @@ internal static class WallKit
     internal static async Task DemolishedAsync(TypedSession s, string label, string id, int ticks, CancellationToken cancellationToken)
     {
         var authority = await TypedAuthority.StatusAsync(s, label + "-authority", s.Identity, cancellationToken).ConfigureAwait(false);
-        var generation = authority.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}: no native generation: {authority}");
+        var generation = (authority.Context ?? throw new AcceptanceException($"{label}: no native generation: {authority}")).NativeGeneration.Claimed($"{label}: no native generation: {authority}");
         long? start = null;
         long tick = 0;
         var gone = false;

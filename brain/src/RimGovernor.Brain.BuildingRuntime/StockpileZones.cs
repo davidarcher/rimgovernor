@@ -67,7 +67,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
             }
             catch (NativeFailureException refused)
             {
-                Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("refused", refused.Value.Code.GetValueOrDefault().ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = (refused.Value.Detail ?? "") }));
+                Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("refused", refused.Value.Code.ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = (refused.Value.Detail ?? "") }));
                 continue;
             }
             var v = reply.Outcome?.Evaluated;

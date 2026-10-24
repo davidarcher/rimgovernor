@@ -54,7 +54,7 @@ public sealed class PawnStateWireTests
     {
         var table = new TendDoctorSnapshot
         {
-            Context = new Common.ObservationContext { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Context = new Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
             Doctors =
             [
                 new TendDoctor { PawnId = "a", ControlEligible = true, Spawned = true, HasDrafter = true, CapacitiesOk = true, Reach = new TendReach.Read(["b"]) },

@@ -19,10 +19,14 @@ internal static class TypedAuthority
     internal static async Task<ulong> GrantAutoGenerationAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var status = await StatusAsync(s, "acquire-status", s.Identity, cancellationToken).ConfigureAwait(false);
-        var generation = status.Context?.NativeGeneration
+        var generation = status.Context?.NativeGeneration.Claimed($"acquire-status: no native generation: {status}")
             ?? throw new AcceptanceException($"acquire-status: no native generation: {status}");
         return await GrantAsync(s, "acquire", s.Identity, generation, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>The generation an authority read names; a read before native has claimed the game throws <paramref name="refusal"/>.</summary>
+    internal static ulong Claimed(this Common.ObservedGeneration observed, string refusal) =>
+        observed is Common.ObservedGeneration.AtCase { Value: var generation } ? generation : throw new AcceptanceException(refusal);
 
     /// <summary>The authority status <c>authority_read_status</c> reports for <paramref name="identity"/>; a refusal throws.</summary>
     internal static Task<Control.Status> StatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken) =>
@@ -39,7 +43,7 @@ internal static class TypedAuthority
     internal static async Task<ulong> ExpectedGenerationAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var status = await StatusAsync(s, label, identity, cancellationToken).ConfigureAwait(false);
-        return status.State?.Unavailable is not null ? 1 : status.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}: no native generation: {status}");
+        return status.State?.Unavailable is not null ? 1 : status.Context?.NativeGeneration.Claimed($"{label}: no native generation: {status}") ?? throw new AcceptanceException($"{label}: no native generation: {status}");
     }
 
     /// <summary>SetMode(Auto) for <paramref name="identity"/> at <paramref name="expected"/>; returns the granted generation.</summary>
@@ -56,14 +60,14 @@ internal static class TypedAuthority
             throw new AcceptanceException($"{label}: expected MODE_AUTO, got {control.Outcome}");
         }
 
-        return granted.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}: no granted generation: {granted}");
+        return granted.Context?.NativeGeneration.Claimed($"{label}: no granted generation: {granted}") ?? throw new AcceptanceException($"{label}: no granted generation: {granted}");
     }
 
     /// <summary>Revokes the grant manually at the generation the status reads: the supervisor releases the work it owns.</summary>
     internal static async Task RevokeManualAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var status = await s.CallAsync("release-status", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = s.Identity }, cancellationToken).ConfigureAwait(false);
-        var generation = status.Context?.NativeGeneration
+        var generation = status.Context?.NativeGeneration.Claimed($"release-status: no native generation: {WireJson.Serialize(status)}")
             ?? throw new AcceptanceException($"release-status: no native generation: {WireJson.Serialize(status)}");
         var control = await s.CallAsync(
             "release",

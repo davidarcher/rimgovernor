@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             public readonly Lifecycle.NewColonySpec Spec;
             public readonly string Seed; // The seed actually used (random when the spec's is empty).
             public readonly DateTime StartedUtc = DateTime.UtcNow;
-            public readonly uint? TimeoutMs;
+            public readonly uint TimeoutMs;
             public readonly ResolvedSpec Resolved;
             public Lifecycle.NewColonyPhase Phase = Lifecycle.NewColonyPhase.GeneratingWorld;
             public string Detail = "";
@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
             public bool MapIsLive;
             public DateTime LiveUtc;
             public Lifecycle.NewColonyReply? Reply; // Terminal outcome; null while pending.
-            public Entry(string requestId, Lifecycle.NewColonySpec spec, string seed, uint? timeoutMs, ResolvedSpec resolved)
+            public Entry(string requestId, Lifecycle.NewColonySpec spec, string seed, uint timeoutMs, ResolvedSpec resolved)
             {
                 RequestId = requestId; Spec = spec; Seed = seed; TimeoutMs = timeoutMs; Resolved = resolved;
             }
@@ -103,14 +103,14 @@ namespace HomeBridge.BridgeTools
                 return Fail(Common.FailureCode.Unavailable, "The game is busy with another long event.");
 
             ResolvedSpec resolved;
-            if (request.Spec.GovernorIdeoligion.GetValueOrDefault() || !string.IsNullOrEmpty(request.Spec.Theme))
+            if (request.Spec.GovernorIdeoligion || !string.IsNullOrEmpty(request.Spec.Theme))
                 return Fail(Common.FailureCode.InvalidRequest, "governor_ideoligion and theme are resolved by the brain (POST /api/lifecycle/new) before native creation.");
             try { resolved = Resolve(request.Spec); }
             catch (Refusal refusal) { return Fail(refusal.Code, refusal.Message); }
 
             var seed = (request.Spec.Seed ?? "").Trim();
             if (seed.Length == 0) seed = GenText.RandomSeedString(); // Defensive: a non-empty seed is required.
-            var entry = new Entry((request.RequestId ?? ""), request.Spec, seed, request.TimeoutMs is not null ? (uint?)request.TimeoutMs.GetValueOrDefault() : null, resolved);
+            var entry = new Entry((request.RequestId ?? ""), request.Spec, seed, request.TimeoutMs, resolved);
             lock (Lock)
             {
                 Entries[entry.RequestId] = entry;
@@ -152,11 +152,11 @@ namespace HomeBridge.BridgeTools
         private static ResolvedSpec Resolve(Lifecycle.NewColonySpec spec)
         {
             var resolved = new ResolvedSpec();
-            if (spec.ColonistCount is null || spec.ColonistCount.GetValueOrDefault() < 1 || spec.ColonistCount.GetValueOrDefault() > 10)
+            if (spec.ColonistCount < 1 || spec.ColonistCount > 10)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "colonist_count must be within 1..10.");
-            if (spec.MapSize is null || spec.MapSize.GetValueOrDefault() < 100 || spec.MapSize.GetValueOrDefault() > 400)
+            if (spec.MapSize < 100 || spec.MapSize > 400)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "map_size must be within 100..400.");
-            if (spec.PlanetCoverage is null || float.IsNaN(spec.PlanetCoverage.GetValueOrDefault()) || spec.PlanetCoverage.GetValueOrDefault() < 0.05f || spec.PlanetCoverage.GetValueOrDefault() > 1f)
+            if (float.IsNaN(spec.PlanetCoverage) || spec.PlanetCoverage < 0.05f || spec.PlanetCoverage > 1f)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "planet_coverage must be within 0.05..1.");
             resolved.Scenario = Named(DefDatabase<ScenarioDef>.AllDefsListForReading, (spec.Scenario ?? ""), "scenario");
             resolved.Difficulty = Named(DefDatabase<DifficultyDef>.AllDefsListForReading, (spec.Difficulty ?? ""), "difficulty");
@@ -172,8 +172,8 @@ namespace HomeBridge.BridgeTools
             if (!Enum.TryParse(temperatureName, out OverallTemperature temperature) || !Enum.IsDefined(typeof(OverallTemperature), temperature))
                 throw new Refusal(Common.FailureCode.InvalidRequest, "Unknown world_temperature " + temperatureName + ".");
             resolved.WorldTemperature = temperature;
-            if (spec.MinTemperature is not null) resolved.MinTemperature = spec.MinTemperature;
-            if (spec.MaxTemperature is not null) resolved.MaxTemperature = spec.MaxTemperature;
+            if (spec.MinTemperature is Lifecycle.TemperatureLimit.AtCase { Value: var min }) resolved.MinTemperature = min;
+            if (spec.MaxTemperature is Lifecycle.TemperatureLimit.AtCase { Value: var max }) resolved.MaxTemperature = max;
             if (resolved.MinTemperature > resolved.MaxTemperature)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "min_temperature exceeds max_temperature.");
             return resolved;
@@ -209,14 +209,14 @@ namespace HomeBridge.BridgeTools
                 var scenario = resolved.Scenario.scenario.CopyForEditing();
                 NativeNewColonyScenarioParts.Apply(scenario, resolved.Parts);
                 var part = scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().Single();
-                part.pawnCount = (int)spec.ColonistCount.GetValueOrDefault();
-                part.pawnChoiceCount = Math.Max((int)spec.ColonistCount.GetValueOrDefault(), part.pawnChoiceCount);
+                part.pawnCount = (int)spec.ColonistCount;
+                part.pawnChoiceCount = Math.Max((int)spec.ColonistCount, part.pawnChoiceCount);
                 Current.Game.Scenario = scenario;
                 Find.Scenario.PreConfigure();
                 Current.Game.storyteller = new Storyteller(resolved.Storyteller, resolved.Difficulty);
             }
             finally { Rand.PopState(); }
-            Current.Game.World = WorldGenerator.GenerateWorld(spec.PlanetCoverage.GetValueOrDefault(), entry.Seed,
+            Current.Game.World = WorldGenerator.GenerateWorld(spec.PlanetCoverage, entry.Seed,
                 OverallRainfall.Normal, resolved.WorldTemperature, OverallPopulation.Normal, LandmarkDensity.Normal);
         }
 
@@ -227,7 +227,7 @@ namespace HomeBridge.BridgeTools
             Rand.PushState(GenText.StableStringHash(entry.Seed));
             try
             {
-                var constrained = resolved.Biomes.Count > 0 || spec.FlatTile.GetValueOrDefault() || resolved.MinTemperature.HasValue || resolved.MaxTemperature.HasValue;
+                var constrained = resolved.Biomes.Count > 0 || spec.FlatTile || resolved.MinTemperature.HasValue || resolved.MaxTemperature.HasValue;
                 if (!constrained)
                     Find.GameInitData.ChooseRandomStartingTile();
                 else
@@ -250,7 +250,7 @@ namespace HomeBridge.BridgeTools
                             throw new Refusal(Common.FailureCode.InvalidRequest, "No valid settlement tile in any requested biome ("
                                 + string.Join(", ", resolved.Biomes.Select(b => b.defName)) + ") meets " + bandText + " on this planet.");
                     }
-                    if (spec.FlatTile.GetValueOrDefault())
+                    if (spec.FlatTile)
                     {
                         // Flat, river-free, road-free, mutator-free where the planet offers one;
                         // otherwise drop the mutator requirement, then the river and road one.
@@ -264,7 +264,7 @@ namespace HomeBridge.BridgeTools
                     }
                     Find.GameInitData.startingTile = chosen.RandomElement().tile;
                 }
-                Find.GameInitData.mapSize = (int)spec.MapSize.GetValueOrDefault();
+                Find.GameInitData.mapSize = (int)spec.MapSize;
             }
             finally { Rand.PopState(); }
         }
@@ -353,7 +353,7 @@ namespace HomeBridge.BridgeTools
 
             // The timeout bounds the whole start, saving included (a save is one
             // synchronous call, so it is never cut mid-write).
-            if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
+            if (DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs))
             {
                 entry.Aborted = true;
                 return Complete(entry, Fail(Common.FailureCode.DeadlineExceeded,

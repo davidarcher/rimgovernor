@@ -28,7 +28,7 @@ public static class Authority
             return null;
         }
 
-        var revoke = new Wa.Revoke { Identity = wire, ExpectedGeneration = status.Context?.NativeGeneration, Reason = Wa.RevocationReason.Manual };
+        var revoke = new Wa.Revoke { Identity = wire, ExpectedGeneration = status.Context?.NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase { Value: var generation } ? generation : throw new AcceptanceException("release-authority: the status named no generation"), Reason = Wa.RevocationReason.Manual };
         var control = await harness.CallAsync("release-authority", NativeOps.ControlAuthority, new Wa.ControlRequest { Operation = revoke }, cancellationToken).ConfigureAwait(false);
         var revoked = control.Outcome?.Revoked ?? throw new AcceptanceException($"release-authority: {WireJson.Serialize(control)}");
         return JsonNode.Parse(WireJson.Serialize(revoked))!.AsObject();

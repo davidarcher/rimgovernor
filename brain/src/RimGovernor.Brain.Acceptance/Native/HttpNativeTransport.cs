@@ -272,7 +272,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         var (code, detail) = ReadFailure(text);
         if ((int)status == NativeRoutes.RefusedStatus && TryName<Common.FailureCode>(code, out var failureCode))
         {
-            throw NativeFaults.Refused(new Common.Failure { Code = failureCode, Detail = detail });
+            throw NativeFaults.Refused(new Common.Failure { Code = failureCode, RefusalClass = Common.RefusalClass.Unclassified, Detail = detail });
         }
 
         if ((int)status == NativeRoutes.UnavailableStatus && TryName<Common.UnavailableReason>(code, out var reason))

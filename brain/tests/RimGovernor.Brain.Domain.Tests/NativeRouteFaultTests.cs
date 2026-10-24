@@ -48,7 +48,7 @@ public sealed class NativeRouteFaultTests
     [Fact]
     public async Task ARefusalIsA422AndComesBackAsTheSameFailure()
     {
-        var (status, body) = await SendAsync(NativeFaults.Refused(new PbCommon.Failure { Code = PbCommon.FailureCode.StaleIdentity, Detail = "the colony changed" }));
+        var (status, body) = await SendAsync(NativeFaults.Refused(new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.StaleIdentity, Detail = "the colony changed" }));
 
         Assert.Equal(NativeRoutes.RefusedStatus, status);
         var back = Assert.IsType<NativeFailureException>(RoundTrip(status, body));

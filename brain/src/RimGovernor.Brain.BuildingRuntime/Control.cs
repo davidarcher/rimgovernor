@@ -180,7 +180,7 @@ public sealed partial class Control : IDisposable
         using var entry = observed.Entry;
         var epoch = observed.Epoch;
         var status = observed.Status;
-        var generation = status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
+        var generation = status.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedA } ? observedA : 0UL;
         if (generation == ulong.MaxValue)
         {
             throw new ControlException("Acquire: generation == ^uint64(0)");
@@ -218,11 +218,11 @@ public sealed partial class Control : IDisposable
                     throw FailedObservation(e, epoch);
                 }
                 var revoked = result.Outcome?.Revoked;
-                if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(requested)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || generation + 1 == ulong.MaxValue)
+                if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(requested)) || !revoked.Context.NativeGeneration.IsAt(generation + 1) || generation + 1 == ulong.MaxValue)
                 {
                     throw new ControlException("Acquire: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ..." + NativeRefusal(result));
                 }
-                generation = revoked.Context.NativeGeneration.GetValueOrDefault();
+                generation += 1;
             }
         }
         requested = requested with { Native = new NativeGeneration(generation) };
@@ -244,7 +244,7 @@ public sealed partial class Control : IDisposable
         var write = writeSource.Token;
         var reply = await _native.SetModeAsync(new PbAuthority.SetMode { Identity = ControlIdentity(requested), ExpectedGeneration = generation, Mode = PbAuthority.Mode.Auto }, write).ConfigureAwait(false);
         requested = requested with { Native = new NativeGeneration(requested.Native.Value + 1) };
-        if (epoch.IsCancellationRequested && !IsClosing() && reply.Outcome?.Granted?.Context?.NativeGeneration == requested.Native.Value)
+        if (epoch.IsCancellationRequested && !IsClosing() && reply.Outcome?.Granted?.Context?.NativeGeneration.IsAt(requested.Native.Value) == true)
         {
             // The epoch was replaced mid-write: this grant is stale evidence. Revoke it at the known generation,
             // then the caller acquires again under the new episode.
@@ -341,7 +341,7 @@ public sealed partial class Control : IDisposable
                 try
                 {
                     ControlStatus(status, requested);
-                    if (handoff is { } required && (required.Value == 0 || (status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL) != required.Value))
+                    if (handoff is { } required && (required.Value == 0 || status.Context?.NativeGeneration.IsAt(required.Value) != true))
                     {
                         throw new ControlException();
                     }
@@ -672,7 +672,7 @@ public sealed partial class Control : IDisposable
     private void AcceptGrant(PbAuthority.ControlReply reply, GenerationSnapshot snapshot, CancellationToken call, CancellationToken epoch)
     {
         var grant = reply.Outcome?.Granted;
-        if (grant is null || grant.Context is null || !Equals(grant.Context.Identity, ControlIdentity(snapshot)) || grant.Context.NativeGeneration is null || grant.Context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value || grant.Authority is null || grant.Authority.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
+        if (grant is null || grant.Context is null || !Equals(grant.Context.Identity, ControlIdentity(snapshot)) || !grant.Context.NativeGeneration.IsAt(snapshot.Native.Value) || grant.Authority is null || grant.Authority.Mode != PbAuthority.Mode.Auto)
         {
             throw new ControlException("acceptGrant: grant == nil || grant.Context == nil || !proto.Equal(grant.Context.Identity, ..." + NativeRefusal(reply));
         }
@@ -725,14 +725,14 @@ public sealed partial class Control : IDisposable
         }
         ct.ThrowIfCancellationRequested();
         var status = reply;
-        var statusGeneration = status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
+        var statusGeneration = status.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedB } ? observedB : 0UL;
         if (status.State?.Inactive is not null)
         {
             PublishDisabled(snapshot, statusGeneration, ct);
             return;
         }
         var active = status.State?.Active;
-        if (active is null || active.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
+        if (active is null || active.Mode != PbAuthority.Mode.Auto)
         {
             throw new ControlException("revoke: active == nil || active.GetMode() != a.Mode_MODE_AUTO");
         }
@@ -743,11 +743,11 @@ public sealed partial class Control : IDisposable
         }
         var result = await _native.RevokeAsync(new PbAuthority.Revoke { Identity = ControlIdentity(snapshot), ExpectedGeneration = generation, Reason = reason }, ct).ConfigureAwait(false);
         var revoked = result.Outcome?.Revoked;
-        if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(snapshot)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || revoked.Authority is null || revoked.Authority.Reason is null || revoked.Authority.Reason.GetValueOrDefault() != reason)
+        if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(snapshot)) || !revoked.Context.NativeGeneration.IsAt(generation + 1) || revoked.Authority is null || revoked.Authority.Reason != reason)
         {
             throw new ControlException("revoke: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ..." + NativeRefusal(result));
         }
-        PublishDisabled(snapshot, revoked.Context.NativeGeneration.GetValueOrDefault(), ct);
+        PublishDisabled(snapshot, generation + 1, ct);
     }
 
     private void PublishDisabled(GenerationSnapshot expected, ulong generation, CancellationToken ct)
@@ -821,7 +821,7 @@ public sealed partial class Control : IDisposable
             {
                 throw FailedObservationLocked(err);
             }
-            requested = requested with { Native = new NativeGeneration(reply!.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL) };
+            requested = requested with { Native = new NativeGeneration(reply!.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedC } ? observedC : 0UL) };
             // The target plan is only a read scope; the grant this process holds is world-scoped and still
             // stands while native reports it Auto at the generation it accepted (the worker retargets reads
             // under a hold).
@@ -881,8 +881,8 @@ public sealed partial class Control : IDisposable
             }
             var status = reply!;
             var active = status.State?.Active;
-            var statusGeneration = status.Context?.NativeGeneration.GetValueOrDefault() ?? 0UL;
-            if (statusGeneration != snapshot.Native.Value || active is null || active.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
+            var statusGeneration = status.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedD } ? observedD : 0UL;
+            if (statusGeneration != snapshot.Native.Value || active is null || active.Mode != PbAuthority.Mode.Auto)
             {
                 var invalidated = InvalidateLocked();
                 _snapshot = _snapshot with { Native = new NativeGeneration(statusGeneration) };
@@ -896,19 +896,19 @@ public sealed partial class Control : IDisposable
 
     internal static void ControlStatus(PbAuthority.Status? status, GenerationSnapshot snapshot)
     {
-        if (status is null || status.Context is null || !Equals(status.Context.Identity, ControlIdentity(snapshot)) || status.Context.NativeGeneration is null)
+        if (status is null || status.Context is null || !Equals(status.Context.Identity, ControlIdentity(snapshot)))
         {
             throw new ControlException("controlStatus: status == nil || status.Context == nil || !proto.Equal(status.Context.Identity, ...");
         }
         if (status.State?.Inactive is { } inactive)
         {
-            if (inactive.Reason is null || inactive.Reason.GetValueOrDefault() <= 0 || inactive.Reason.GetValueOrDefault() > PbAuthority.RevocationReason.Unavailable)
+            if (!Enum.IsDefined(inactive.Reason))
             {
                 throw new ControlException("controlStatus: inactive.Reason == nil || *inactive.Reason <= 0 || *inactive.Reason > a.RevocationReason_REVOCATION_REASON_UNAVAILABLE");
             }
             return;
         }
-        if (status.State?.Active is { } active && active.Mode.GetValueOrDefault() == PbAuthority.Mode.Auto)
+        if (status.State?.Active is { } active && active.Mode == PbAuthority.Mode.Auto)
         {
             return;
         }

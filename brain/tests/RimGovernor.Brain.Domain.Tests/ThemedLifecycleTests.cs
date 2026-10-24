@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>#3511: a new colony started from a theme adopts the theme into the new world's goals once it completes.</summary>
 public sealed class ThemedLifecycleTests
 {
-    private static readonly PbCommon.ObservationContext Colony = new() { Identity = new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, Tick = 0 };
+    private static readonly PbCommon.ObservationContext Colony = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, Tick = 0 };
 
     private sealed class Generating : ILifecycleWriter
     {
@@ -21,14 +21,14 @@ public sealed class ThemedLifecycleTests
         public bool Fails { get; set; }
 
         public Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) =>
-            Task.FromResult(new PbLifecycle.NewColonyReply { Outcome = new PbLifecycle.NewColonyPending { RequestId = request.RequestId } });
+            Task.FromResult(new PbLifecycle.NewColonyReply { Outcome = new PbLifecycle.NewColonyPending { RequestId = request.RequestId, Phase = PbLifecycle.NewColonyPhase.GeneratingWorld, ElapsedMs = 0, RerollCount = 0 } });
 
         public Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) =>
             Task.FromResult(new PbLifecycle.NewColonyReply
             {
-                Outcome = Fails ? new PbCommon.Failure { Code = PbCommon.FailureCode.NativeFailure }
-                    : Done ? new PbLifecycle.NewColonyCompleted { RequestId = requestId, Context = Colony }
-                    : new PbLifecycle.NewColonyPending { RequestId = requestId },
+                Outcome = Fails ? new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.NativeFailure }
+                    : Done ? new PbLifecycle.NewColonyCompleted { RequestId = requestId, Context = Colony, Paused = true, ByteLength = 0 }
+                    : new PbLifecycle.NewColonyPending { RequestId = requestId, Phase = PbLifecycle.NewColonyPhase.GeneratingWorld, ElapsedMs = 0, RerollCount = 0 },
             });
 
         public Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -44,7 +44,7 @@ public sealed class ThemedLifecycleTests
         public Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private static PbLifecycle.NewColonyRequest Request(string id, string? theme) => new() { RequestId = id, Spec = new PbLifecycle.NewColonySpec { Theme = theme } };
+    private static PbLifecycle.NewColonyRequest Request(string id, string? theme) => new() { RequestId = id, TimeoutMs = 600_000, Spec = NewColonyFixtures.Spec() with { Theme = theme } };
 
     private static (ThemedLifecycle Lifecycle, Generating Inner, List<string> Adopted) Build()
     {

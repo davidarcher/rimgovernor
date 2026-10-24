@@ -23,7 +23,7 @@ public sealed class KnowledgeValueTests
 
     private static readonly Obs.ResearchSnapshot FreshRead = new()
     {
-        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
         Slots = [new() { Category = "", CurrentProject = "" }],
         Projects = [],
         Finished = [],

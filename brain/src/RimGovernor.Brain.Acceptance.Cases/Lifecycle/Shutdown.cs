@@ -71,7 +71,7 @@ internal static class LifecycleShutdown
             cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_after_unload", ended);
         if (ended.State?.Inactive?.Reason != Control.RevocationReason.Shutdown || ended.Context?.Identity != identity
-            || ended.Context.NativeGeneration != granted + 1 || ended.Context.Tick < unloadTick)
+            || !ended.Context.NativeGeneration.IsAt(granted + 1) || ended.Context.Tick < unloadTick)
         {
             throw new AcceptanceException($"status-after-unload: want Inactive(SHUTDOWN) for {identity} at generation {granted + 1}, tick >= {unloadTick}; got {ended}");
         }
@@ -91,7 +91,7 @@ internal static class LifecycleShutdown
 
         var fresh = await TypedAuthority.StatusAsync(s, "status-next", next, cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_next", fresh);
-        if (fresh.State?.Active is not null || (fresh.State?.Inactive is not null && fresh.Context?.NativeGeneration != 1))
+        if (fresh.State?.Active is not null || (fresh.State?.Inactive is not null && fresh.Context?.NativeGeneration.IsAt(1) != true))
         {
             throw new AcceptanceException($"status-next: the loaded game inherited authority: {fresh}");
         }

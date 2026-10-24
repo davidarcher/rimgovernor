@@ -30,7 +30,7 @@ public sealed class ResumePauseClockOwnerTests
 
     private static readonly PbCommon.Identity WorldIdentity = new() { ColonyId = Colony, LoadToken = Load, MapId = Map };
 
-    private static readonly PbCommon.ObservationContext Context = new() { Identity = WorldIdentity, Tick = Tick, NativeGeneration = Generation };
+    private static readonly PbCommon.ObservationContext Context = new() { Identity = WorldIdentity, Tick = Tick, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(Generation) };
 
     private sealed class Worlds : IWorldSource
     {

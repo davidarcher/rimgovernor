@@ -27,7 +27,7 @@ public sealed class ClockWatchHungerTests
     {
         var status = new O.StatusSnapshot
         {
-            Context = new() { Identity = Identity, Tick = 100 }, Threats = new() { Pawns = [], HostileBuildings = [] },
+            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = 100 }, Threats = new() { Pawns = [], HostileBuildings = [] },
             Colonists = [.. rows.Select(r => new C.Ref { Id = r.Pawn.Id })],
             DependentPatients = new() { Patients = EquatableArray.From<O.DependentPatientObservation>([]) },
         };

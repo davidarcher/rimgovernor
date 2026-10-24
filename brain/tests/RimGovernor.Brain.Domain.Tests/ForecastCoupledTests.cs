@@ -12,7 +12,7 @@ public sealed class ForecastCoupledTests
 {
     private static bool Original(ForecastCommitment commitment, string id) => commitment.Id.StartsWith(id + "/composition/", StringComparison.Ordinal)
         && !commitment.Id.Contains("/after/", StringComparison.Ordinal);
-    private static readonly ObservationContext Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    private static readonly ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static RoundsFacts Review(double harvest = 25, double build = 250, double foodLevel = .2, double expiry = 1000)
     {
         var facts = WorkResourceTestFacts.Create("pawn");

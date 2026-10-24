@@ -217,7 +217,7 @@ public sealed class ClockRunDriverTests
             }
         }
 
-        private PbCommon.ObservationContext Context() => new() { Identity = WorldIdentity, Tick = _tick, NativeGeneration = _generation };
+        private PbCommon.ObservationContext Context() => new() { Identity = WorldIdentity, Tick = _tick, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(_generation) };
 
         private void Append(Func<NativeEvents.ColonyEventOrigin, NativeEvents.ColonyEvent> build, PbCommon.Identity? world = null)
         {
@@ -337,7 +337,7 @@ public sealed class ClockRunDriverTests
         }
 
         private NativeFailureException Failure(PbCommon.FailureCode code) =>
-            NativeFaults.Refused(new PbCommon.Failure { Code = code, Detail = "refused by the fake native", ObservedContext = Context() });
+            NativeFaults.Refused(new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = code, Detail = "refused by the fake native", ObservedContext = Context() });
 
         private bool TakeContextTimeout()
         {

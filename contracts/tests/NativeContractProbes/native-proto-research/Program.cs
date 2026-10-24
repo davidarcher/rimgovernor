@@ -118,7 +118,7 @@ internal static class NativeProtoResearchProbe
         // Substitute coverage below exercises this session's actual new surface -- Token's exact
         // field selection and QuerySeed's exact field selection -- which are pure managed code
         // reachable from this harness.
-        var context = new RimGovernor.Contracts.Wire.Common.ObservationContext { Tick = 0,
+        var context = new RimGovernor.Contracts.Wire.Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Tick = 0,
             Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
         object Snapshot(string json) => Wire("ResearchSnapshot", json);
         string TokenOf(object snapshot) => (string)Get(Call("Token", context, snapshot), "Token");

@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 internal static class ConstructionFixtures
 {
     internal static ObservationContext Context(long tick = 0) =>
-        new() { Tick = tick, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
+        new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Tick = tick, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
 
     /// <summary>A construction read that answered nothing: no rows, sites, removals, routes or predictions.</summary>
     internal static ConstructionActivityRead NoConstruction(long tick = 0) => new()

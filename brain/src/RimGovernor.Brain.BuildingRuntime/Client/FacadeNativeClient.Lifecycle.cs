@@ -45,14 +45,14 @@ public sealed partial class FacadeNativeClient
         NewColonyValidation.ValidateNewColonyRequest(request);
         var spec = request.Spec!;
         var theme = spec.Theme is { Length: > 0 } t ? t : null;
-        if ((theme is not null || spec.GovernorIdeoligion.GetValueOrDefault()) && spec.Ideoligion is null)
+        if ((theme is not null || spec.GovernorIdeoligion) && spec.Ideoligion is null)
         {
             var resolve = StartingIdeoligion
                 ?? throw new BridgeUnavailableException("new colony governor_ideoligion needs the creation catalog, which the mod host installs (#3116)");
             spec = spec with { Ideoligion = await resolve(spec.Scenario ?? "", theme, cancellationToken).ConfigureAwait(false) };
         }
 
-        request = request with { Spec = spec with { GovernorIdeoligion = null, Theme = null } };
+        request = request with { Spec = spec with { GovernorIdeoligion = false, Theme = null } };
         var reply = await Facade.StartNewColonyAsync(request, cancellationToken).ConfigureAwait(false);
         LifecycleFailure(reply.Outcome.Failure);
         return reply;
@@ -92,7 +92,7 @@ public sealed partial class FacadeNativeClient
             throw BridgeContractException.Contract("load request required");
         }
 
-        if (request.Readiness is { } readiness && !Enum.IsDefined(readiness))
+        if (!Enum.IsDefined(request.Readiness))
         {
             throw BridgeContractException.Contract("load request readiness invalid");
         }

@@ -72,17 +72,17 @@ internal static class LifecycleRuntimeFault
             throw new AcceptanceException($"status-broken: expected HOOKS_UNAVAILABLE, got {broken}");
         }
 
-        var after = broken.Context?.NativeGeneration;
-        if (after != granted + 1)
+        var after = (broken.Context ?? throw new AcceptanceException($"status-broken: no context: {broken}")).NativeGeneration;
+        if (!after.IsAt(granted + 1))
         {
             throw new AcceptanceException($"status-broken: expected generation {granted + 1}, got {broken}");
         }
 
         // The next admission reinstalls the hook and is granted.
-        var regranted = await TypedAuthority.GrantAsync(s, "regrant", s.Identity, after.Value, cancellationToken).ConfigureAwait(false);
-        if (regranted != after + 1)
+        var regranted = await TypedAuthority.GrantAsync(s, "regrant", s.Identity, granted + 1, cancellationToken).ConfigureAwait(false);
+        if (regranted != granted + 2)
         {
-            throw new AcceptanceException($"regrant: expected generation {after + 1}, got {regranted}");
+            throw new AcceptanceException($"regrant: expected generation {granted + 2}, got {regranted}");
         }
     }
 }

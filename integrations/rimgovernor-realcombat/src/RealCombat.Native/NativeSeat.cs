@@ -77,7 +77,7 @@ public sealed class NativeSeat
     /// <summary>Applies one batch of combat orders in request order and returns the per-order results.</summary>
     public IReadOnlyList<Receipts.CombatOrderResult> Apply(Operations.CombatOrders orders)
     {
-        var effect = NativeCombatOrders.Apply(orders, new Common.ObservationContext { Identity = Identity, Tick = Find.TickManager.TicksGame });
+        var effect = NativeCombatOrders.Apply(orders, new Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = Find.TickManager.TicksGame });
         return ((Receipts.EffectEvidenceEffect.CombatOrdersCase)effect.Effect!).Value.Results;
     }
 

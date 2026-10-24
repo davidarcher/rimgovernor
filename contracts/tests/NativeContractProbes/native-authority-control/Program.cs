@@ -72,8 +72,8 @@ internal static class NativeAuthorityControlProbe
     {
         Reset(); var generation = state.Status().Generation;
         foreach (Func<Wire.SetMode, Wire.SetMode> mutate in new Func<Wire.SetMode, Wire.SetMode>[] {
-            s => s with { ExpectedGeneration = null }, s => s with { ExpectedGeneration = 0 },
-            s => s with { Mode = null }, s => s with { Mode = Wire.Mode.Unspecified },
+            s => s with { ExpectedGeneration = 0 },
+            // An absent expected generation, mode or reason is not expressible: the record requires each.
             s => s with { Identity = null } })
         {
             var request = WithSetMode(SetMode(Wire.Mode.Auto), mutate); Failure(Call(request), Common.FailureCode.InvalidRequest);
@@ -109,40 +109,40 @@ internal static class NativeAuthorityControlProbe
     private static void GrantsAndRevocations()
     {
         Reset(); var before = state.Status().Generation; var granted = Call(SetMode(Wire.Mode.Auto));
-        Check(granted.Granted != null && granted.Granted.Context.NativeGeneration == before + 1, "Auto exact increment");
+        Check(granted.Granted != null && granted.Granted.Context.NativeGeneration.IsAt(before + 1), "Auto exact increment");
         var grant = granted.Granted!;
         Check(grant.Authority.Mode == Wire.Mode.Auto, "grant reports Auto mode");
         Check(state.Status().Active && state.Status().Generation == before + 1, "grant did not activate state");
         // Repeating Auto is not a conflict: the single bot re-advances its own generation.
         var again = Call(SetMode(Wire.Mode.Auto));
-        Check(again.Granted != null && again.Granted.Context.NativeGeneration == before + 2, "repeated Auto must advance");
+        Check(again.Granted != null && again.Granted.Context.NativeGeneration.IsAt(before + 2), "repeated Auto must advance");
         Failure(Call(SetMode(Wire.Mode.Auto, before + 1)), Common.FailureCode.StaleGeneration);
         Check(state.Status().Active && state.Status().Generation == before + 2, "stale Auto mutated authority");
         time = 1000;
         Check(state.Status().Active && state.Status().Generation == before + 2, "time alone revoked: there is no lease");
         var manual = Call(SetMode(Wire.Mode.Manual));
-        Check(manual.Revoked != null && manual.Revoked.Context.NativeGeneration == before + 3
+        Check(manual.Revoked != null && manual.Revoked.Context.NativeGeneration.IsAt(before + 3)
             && manual.Revoked.Authority.Reason == Wire.RevocationReason.Manual, "Manual mode exact generation/reason");
         Check(!state.Status().Active, "Manual mode left authority active");
         var manualAgain = Call(SetMode(Wire.Mode.Manual));
-        Check(manualAgain.Revoked != null && manualAgain.Revoked.Context.NativeGeneration == before + 4, "repeated Manual must still advance");
+        Check(manualAgain.Revoked != null && manualAgain.Revoked.Context.NativeGeneration.IsAt(before + 4), "repeated Manual must still advance");
         foreach (var reason in new[] { Wire.RevocationReason.Manual, Wire.RevocationReason.Disconnect, Wire.RevocationReason.Shutdown })
         {
             if (!state.Status().Active) Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "re-grant before revoke");
             var generation = state.Status().Generation;
             var reply = Call(Revoke(reason));
-            Check(reply.Revoked != null && reply.Revoked.Context.NativeGeneration == generation + 1 && reply.Revoked.Authority.Reason == reason, "revoke exact generation/reason");
+            Check(reply.Revoked != null && reply.Revoked.Context.NativeGeneration.IsAt(generation + 1) && reply.Revoked.Authority.Reason == reason, "revoke exact generation/reason");
             Failure(Call(SetMode(Wire.Mode.Auto, generation)), Common.FailureCode.StaleGeneration);
             Check(!state.Status().Active, "stale Auto reacquired after revoke");
         }
         // Wire reasons the host may not assert itself: player detection, identity, hooks, exhaustion, terminal unavailability.
-        foreach (var reason in new[] { Wire.RevocationReason.Unspecified, Wire.RevocationReason.None, Wire.RevocationReason.PlayerControl,
+        foreach (var reason in new[] { Wire.RevocationReason.None, Wire.RevocationReason.PlayerControl,
             Wire.RevocationReason.ExternalOrder, Wire.RevocationReason.IdentityChanged, Wire.RevocationReason.HooksUnavailable,
             Wire.RevocationReason.GenerationExhausted, Wire.RevocationReason.Unavailable })
             Failure(Call(Revoke(reason)), Common.FailureCode.InvalidRequest);
         Check(Undecodable(UndefinedEnum(Revoke(Wire.RevocationReason.Manual), "reason")), "undefined revoke reason refused before dispatch");
         foreach (Func<Wire.Revoke, Wire.Revoke> mutate in new Func<Wire.Revoke, Wire.Revoke>[] {
-            r => r with { ExpectedGeneration = null }, r => r with { ExpectedGeneration = 0 }, r => r with { Reason = null }, r => r with { Identity = null } })
+            r => r with { ExpectedGeneration = 0 }, r => r with { Identity = null } })
         {
             var invalid = WithRevoke(Revoke(Wire.RevocationReason.Manual), mutate);
             Failure(Call(invalid), Common.FailureCode.InvalidRequest);

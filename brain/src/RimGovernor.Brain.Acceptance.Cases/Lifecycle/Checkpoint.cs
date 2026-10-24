@@ -38,7 +38,7 @@ internal static class LifecycleCheckpoint
         var happy = await s.CallAsync(
             "save-happy",
             NativeOps.SaveGame,
-            new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, happyId), SaveName = happyName, ExpectedTick = tick },
+            new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, happyId), SaveName = happyName, ExpectedTick = new Lifecycle.ExpectedSaveTick.AtCase(tick) },
             cancellationToken).ConfigureAwait(false);
         var completed = happy.Outcome?.Completed ?? throw new AcceptanceException($"save-happy: expected a completed save, got {happy.Outcome}");
         s.RecordWire("save_happy", completed);
@@ -73,7 +73,7 @@ internal static class LifecycleCheckpoint
                 running = await s.CallAsync(
                     "save-running",
                     NativeOps.SaveGame,
-                    new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, TypedLifecycle.Stamp("checkpoint-running")), SaveName = TypedLifecycle.Stamp("checkpoint-running") },
+                    new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, TypedLifecycle.Stamp("checkpoint-running")), SaveName = TypedLifecycle.Stamp("checkpoint-running"), ExpectedTick = new Lifecycle.ExpectedSaveTick.AnyCase() },
                     ct).ConfigureAwait(false);
                 return (string.Empty, true);
             },
@@ -92,7 +92,7 @@ internal static class LifecycleCheckpoint
         var uncertainReply = await s.CallAsync(
             "save-uncertain",
             NativeOps.SaveGame,
-            new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(now, uncertainId), SaveName = uncertainName, ExpectedTick = nowTick + 1000 },
+            new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(now, uncertainId), SaveName = uncertainName, ExpectedTick = new Lifecycle.ExpectedSaveTick.AtCase(nowTick + 1000) },
             cancellationToken).ConfigureAwait(false);
         var uncertain = uncertainReply.Outcome?.Uncertain ?? throw new AcceptanceException($"save-uncertain: expected an uncertain outcome, got {uncertainReply.Outcome}");
         s.RecordWire("save_uncertain", uncertain);

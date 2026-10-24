@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
                 throw NativeFaults.Refused(invalid);
             var game = Current.Game;
             if (game == null)
-                throw NativeFaults.Refused(new Common.Failure { Code = Common.FailureCode.Unavailable, Detail = "No game is loaded." });
+                throw NativeFaults.Refused(new Common.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = Common.FailureCode.Unavailable, Detail = "No game is loaded." });
             if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
                 return new Authority.Status
                 {
@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
         internal static Authority.Status Project(NativeControlSnapshot snapshot, Common.ObservationContext context)
         {
             var status = new Authority.Status { Context = context };
-            status = status with { Context = context with { NativeGeneration = snapshot.Generation } };
+            status = status with { Context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(snapshot.Generation) } };
             if (!snapshot.Available)
             {
                 status = status with { State = new Authority.StatusState.UnavailableCase(Unavailable(snapshot)) };
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
         {
             var status = new Authority.Status { Context = new Common.ObservationContext
             {
-                Identity = identity, Tick = shutdown.Tick, NativeGeneration = shutdown.Generation,
+                Identity = identity, Tick = shutdown.Tick, NativeGeneration = new Common.ObservedGeneration.AtCase(shutdown.Generation),
             } };
             if (TryReason(shutdown.Reason, out var reason))
                 status = status with { State = new Authority.StatusState.InactiveCase(new Authority.InactiveAuthority { Reason = reason }) };
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                 case NativeControlRevocationReason.HooksUnavailable: result = Authority.RevocationReason.HooksUnavailable; return true;
                 case NativeControlRevocationReason.GenerationExhausted: result = Authority.RevocationReason.GenerationExhausted; return true;
                 case NativeControlRevocationReason.ClockUnavailable: result = Authority.RevocationReason.Unavailable; return true;
-                default: result = Authority.RevocationReason.Unspecified; return false;
+                default: result = Authority.RevocationReason.None; return false;
             }
         }
     }

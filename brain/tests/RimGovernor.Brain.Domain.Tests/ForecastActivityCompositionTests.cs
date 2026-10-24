@@ -213,7 +213,7 @@ public sealed class ForecastActivityCompositionTests
     {
         var facts = WorkResourceTestFacts.Create("pawn");
         var context = new RimGovernor.Contracts.Wire.Common.ObservationContext
-            { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+            { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
         RimGovernor.Contracts.Wire.Observations.CoupledFoodConversion Conversion(string source) =>
             CoupledFixtures.Conversion(source, "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1, new(1, 1), new(2, 1), new(2, 1),
                 0d, 10d, 20d, 10d, 4, 2)
@@ -298,7 +298,7 @@ public sealed class ForecastActivityCompositionTests
     public void NormalShelterGenerationKeepsBothNativeMaterialRoutesThroughRoofComposition()
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
-        var context = new ObservationContext { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+        var context = new ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
         var inside = new Cell(1, 1); var wall = new Cell(0, 1);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
         ConstructionActivityOption Option(string source) => new Row("wall", "TestWall", wall, "pawn", "Rice", source, wall, 1, 10, "Finish",

@@ -13,15 +13,15 @@ internal static class NativeAuthorityStatusProbe
     private static readonly Common.ObservationContext Context = new Common.ObservationContext
     {
         Identity = new Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 },
-        Tick = 0, NativeGeneration = 1
+        Tick = 0, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1)
     };
     private static Wire.Status Project(NativeControlSnapshot snapshot)
     {
         var status = NativeAuthorityTools.Project(snapshot, Context);
         var json = RimGovernor.Contracts.Wire.WireJson.Serialize(status);
         Check(status.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.Status>(json)), "Official wire JSON roundtrip");
-        Check(Context.NativeGeneration == 1, "Projection mutated caller observation context");
-        Check(status.Context.NativeGeneration == snapshot.Generation, "Projection lost refreshed generation");
+        Check(Context.NativeGeneration.IsAt(1), "Projection mutated caller observation context");
+        Check(status.Context.NativeGeneration.IsAt(snapshot.Generation), "Projection lost refreshed generation");
         Check(status.Context.Tick == 0,
             "Projection lost known tick/map zero");
         return status;
@@ -48,7 +48,7 @@ internal static class NativeAuthorityStatusProbe
             var absent = Read(request);
             Check(absent.Unavailable != null
                 && absent.Unavailable.Reason == Common.UnavailableReason.NotObserved, "Missing state did not report unavailable");
-            Check(absent.Context.NativeGeneration == null, "Missing state fabricated authority generation");
+            Check(absent.Context. NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase, "Missing state fabricated authority generation");
             Check(!NativeControlAuthority.TryGetForGame(game, out _), "Read allocated native authority");
         }
         var stale = Refusal(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "stale", MapId = 0 } });
@@ -56,7 +56,7 @@ internal static class NativeAuthorityStatusProbe
         Check(!NativeControlAuthority.TryGetForGame(game, out _), "Stale read allocated authority");
         var existing = NativeControlAuthority.ForGame(game);
         var known = Read(request);
-        Check(known.Context.NativeGeneration == 1, "Existing generation omitted");
+        Check(known.Context.NativeGeneration.IsAt(1), "Existing generation omitted");
         Check(known.Unavailable != null
             && !existing.Status().Available && !existing.Status().Active, "Read enabled unverified authority");
     }
@@ -86,7 +86,7 @@ internal static class NativeAuthorityStatusProbe
         Check(read != null && read.Inactive != null
             && read.Inactive.Reason == Wire.RevocationReason.Shutdown, "Unloaded game reads Inactive(SHUTDOWN)");
         Check(read.Context.Identity.Equals(Context.Identity) && read.Context.Tick == 43
-            && read.Context.NativeGeneration == 3, "Retained context carries the final identity, tick and generation");
+            && read.Context.NativeGeneration.IsAt(3), "Retained context carries the final identity, tick and generation");
         var unknown = Refusal(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "other", MapId = 0 } });
         Check(unknown != null && unknown.Code == Common.FailureCode.Unavailable,
             "Another identity still fails with no game loaded");
@@ -119,14 +119,14 @@ internal static class NativeAuthorityStatusProbe
         var active = Project(granted.Snapshot);
         Check(active.Active != null, "Active branch");
         Check(active.Active.Mode == Wire.Mode.Auto, "Active authority is the bot's Auto mode");
-        Check(active.Context.NativeGeneration == 2, "Active projection carries the granted generation");
+        Check(active.Context.NativeGeneration.IsAt(2), "Active projection carries the granted generation");
         time = 1000;
         var still = Project(state.Status());
-        Check(still.Active != null && still.Context.NativeGeneration == 2, "Time alone must not expire Auto mode");
+        Check(still.Active != null && still.Context.NativeGeneration.IsAt(2), "Time alone must not expire Auto mode");
         var manual = state.SetMode(2, NativeControlMode.Manual);
         var inactive = Project(manual.Snapshot);
         Check(inactive.Inactive != null && inactive.Inactive.Reason == Wire.RevocationReason.Manual
-            && inactive.Context.NativeGeneration == 3, "Manual mode maps to inactive with its generation");
+            && inactive.Context.NativeGeneration.IsAt(3), "Manual mode maps to inactive with its generation");
         foreach (NativeControlRevocationReason reason in Enum.GetValues(typeof(NativeControlRevocationReason)))
         {
             if (reason == NativeControlRevocationReason.ClockUnavailable) continue;

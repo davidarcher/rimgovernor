@@ -79,7 +79,7 @@ public sealed class LifecycleNewColonyRouteTests
     [Fact]
     public async Task ANativeRefusalAnswersByItsCode()
     {
-        var failure = new PbCommon.Failure { Code = PbCommon.FailureCode.InvalidRequest, Detail = "Unknown scenario." };
+        var failure = new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.InvalidRequest, Detail = "Unknown scenario." };
         var (status, code, detail) = await PostAsync(new NativeFailureException(failure, Result.Empty));
 
         Assert.Equal(400, status);

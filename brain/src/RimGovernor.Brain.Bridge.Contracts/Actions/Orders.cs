@@ -177,7 +177,7 @@ public static class Orders
     /// </summary>
     public static void ValidateIdeoligionDesign(WireDesign? design)
     {
-        if (design is null || design.Fluid is null || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256
+        if (design is null || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256
             || design.VeneratedAnimals.Count > 256 || design.StyleCategories.Count > 256)
         {
             throw BridgeContractException.Contract("invalid ideoligion design");

@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CombatFrameTemperatureTests
 {
-    private static readonly ObservationContext Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    private static readonly ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
 
     // Every native frame carries its rooms census (the capture fails the frame whole without it).
     private static FrameView View(ColonyFactsSnapshot? colony, RoomsSnapshot? rooms) =>

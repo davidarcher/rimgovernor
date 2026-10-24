@@ -42,7 +42,7 @@ public static class NewColonyValidation
             throw BridgeContractException.Contract("new colony request requires a request id");
         }
 
-        if (request.TimeoutMs is null || request.TimeoutMs.GetValueOrDefault() < NewColonyBounds.MinTimeoutMs || request.TimeoutMs.GetValueOrDefault() > NewColonyBounds.MaxTimeoutMs)
+        if (request.TimeoutMs < NewColonyBounds.MinTimeoutMs || request.TimeoutMs > NewColonyBounds.MaxTimeoutMs)
         {
             throw BridgeContractException.Contract("new colony timeout out of range");
         }
@@ -72,7 +72,7 @@ public static class NewColonyValidation
             throw BridgeContractException.Contract("new colony world temperature invalid");
         }
 
-        if (spec.ColonistCount is null || spec.ColonistCount.GetValueOrDefault() < 1 || spec.ColonistCount.GetValueOrDefault() > NewColonyBounds.MaxColonists)
+        if (spec.ColonistCount < 1 || spec.ColonistCount > NewColonyBounds.MaxColonists)
         {
             throw BridgeContractException.Contract("new colony colonist count out of range");
         }
@@ -82,25 +82,25 @@ public static class NewColonyValidation
             throw BridgeContractException.Contract("new colony biomes invalid");
         }
 
-        if (spec.MapSize is null || spec.MapSize.GetValueOrDefault() < NewColonyBounds.MinMapSize || spec.MapSize.GetValueOrDefault() > NewColonyBounds.MaxMapSize)
+        if (spec.MapSize < NewColonyBounds.MinMapSize || spec.MapSize > NewColonyBounds.MaxMapSize)
         {
             throw BridgeContractException.Contract("new colony map size out of range");
         }
 
-        if (spec.PlanetCoverage is null || double.IsNaN(spec.PlanetCoverage.GetValueOrDefault()) || spec.PlanetCoverage.GetValueOrDefault() < NewColonyBounds.MinCoverage || spec.PlanetCoverage.GetValueOrDefault() > NewColonyBounds.MaxCoverage)
+        if (double.IsNaN(spec.PlanetCoverage) || spec.PlanetCoverage < NewColonyBounds.MinCoverage || spec.PlanetCoverage > NewColonyBounds.MaxCoverage)
         {
             throw BridgeContractException.Contract("new colony planet coverage out of range");
         }
 
-        foreach (var (name, present, value) in new[] { ("min", spec.MinTemperature is not null, spec.MinTemperature.GetValueOrDefault()), ("max", spec.MaxTemperature is not null, spec.MaxTemperature.GetValueOrDefault()) })
+        foreach (var (name, limit) in new[] { ("min", spec.MinTemperature), ("max", spec.MaxTemperature) })
         {
-            if (present && (float.IsNaN(value) || Math.Abs((double)value) > NewColonyBounds.MaxTemperature))
+            if (limit is TemperatureLimit.AtCase { Value: var value } && (float.IsNaN(value) || Math.Abs((double)value) > NewColonyBounds.MaxTemperature))
             {
                 throw BridgeContractException.Contract($"new colony {name} temperature out of range");
             }
         }
 
-        if (spec.MinTemperature is not null && spec.MaxTemperature is not null && spec.MinTemperature.GetValueOrDefault() > spec.MaxTemperature.GetValueOrDefault())
+        if (spec.MinTemperature is TemperatureLimit.AtCase { Value: var min } && spec.MaxTemperature is TemperatureLimit.AtCase { Value: var max } && min > max)
         {
             throw BridgeContractException.Contract("new colony min temperature exceeds max");
         }
@@ -133,41 +133,36 @@ public static class NewColonyValidation
 
         foreach (var t in spec.StartingThings)
         {
-            if (t is null || t.Placement is null || t.Placement.GetValueOrDefault() == StartingThingPlacement.Unspecified || !Enum.IsDefined(t.Placement.GetValueOrDefault())
+            if (t is null || !Enum.IsDefined(t.Placement)
                 || t.ThingDef is null || !WireValidation.IsValidId((t.ThingDef ?? "")) || !ColonyValidation.OptionalId(t.Stuff is not null, (t.Stuff ?? "")) || !ColonyValidation.OptionalId(t.Quality is not null, (t.Quality ?? "")))
             {
                 throw BridgeContractException.Contract("new colony starting thing invalid");
             }
 
-            if (t.Count is null || t.Count.GetValueOrDefault() < 1 || t.Count.GetValueOrDefault() > NewColonyBounds.MaxThingCount)
+            if (t.Count < 1 || t.Count > NewColonyBounds.MaxThingCount)
             {
                 throw BridgeContractException.Contract("new colony starting thing count out of range");
-            }
-
-            if (t.AllowRoofed is not null && t.Placement.GetValueOrDefault() != StartingThingPlacement.Scattered)
-            {
-                throw BridgeContractException.Contract("new colony starting thing allow roofed applies to scattered things only");
             }
         }
 
         foreach (var t in spec.ForcedTraits)
         {
-            if (t is null || t.Trait is null || !WireValidation.IsValidId((t.Trait ?? "")) || t.Degree is null || t.Degree.GetValueOrDefault() < -NewColonyBounds.MaxTraitDegree || t.Degree.GetValueOrDefault() > NewColonyBounds.MaxTraitDegree)
+            if (t is null || t.Trait is null || !WireValidation.IsValidId((t.Trait ?? "")) || t.Degree < -NewColonyBounds.MaxTraitDegree || t.Degree > NewColonyBounds.MaxTraitDegree)
             {
                 throw BridgeContractException.Contract("new colony forced trait invalid or degree out of range");
             }
 
-            PartChanceContext(t.Chance is not null, t.Chance.GetValueOrDefault(), t.Context is not null, t.Context.GetValueOrDefault(), "forced trait");
+            PartChanceContext(t.Chance, t.Context, "forced trait");
         }
 
         foreach (var h in spec.ForcedHediffs)
         {
-            if (h is null || h.Hediff is null || !WireValidation.IsValidId((h.Hediff ?? "")) || !InRange(h.Severity is not null, h.Severity.GetValueOrDefault(), 0, NewColonyBounds.MaxSeverity))
+            if (h is null || h.Hediff is null || !WireValidation.IsValidId((h.Hediff ?? "")) || !InRange(h.Severity, 0, NewColonyBounds.MaxSeverity))
             {
                 throw BridgeContractException.Contract("new colony forced hediff invalid or severity out of range");
             }
 
-            PartChanceContext(h.Chance is not null, h.Chance.GetValueOrDefault(), h.Context is not null, h.Context.GetValueOrDefault(), "forced hediff");
+            PartChanceContext(h.Chance, h.Context, "forced hediff");
         }
 
         foreach (var n in spec.Naked)
@@ -177,17 +172,17 @@ public static class NewColonyValidation
                 throw BridgeContractException.Contract("new colony naked part invalid");
             }
 
-            PartChanceContext(n.Chance is not null, n.Chance.GetValueOrDefault(), n.Context is not null, n.Context.GetValueOrDefault(), "naked");
+            PartChanceContext(n.Chance, n.Context, "naked");
         }
 
         foreach (var n in spec.SetNeedLevels)
         {
-            if (n is null || n.Need is null || !WireValidation.IsValidId((n.Need ?? "")) || !InRange(n.Level is not null, n.Level.GetValueOrDefault(), 0, 1))
+            if (n is null || n.Need is null || !WireValidation.IsValidId((n.Need ?? "")) || !InRange(n.Level, 0, 1))
             {
                 throw BridgeContractException.Contract("new colony need level invalid or out of range");
             }
 
-            PartChanceContext(n.Chance is not null, n.Chance.GetValueOrDefault(), n.Context is not null, n.Context.GetValueOrDefault(), "need level");
+            PartChanceContext(n.Chance, n.Context, "need level");
         }
 
         foreach (var (name, ids) in new[]
@@ -203,12 +198,12 @@ public static class NewColonyValidation
             }
         }
 
-        if (spec.PlayerFaction is not null && (spec.PlayerFaction.GetValueOrDefault() == ScenarioPlayerFaction.Unspecified || !Enum.IsDefined(spec.PlayerFaction.GetValueOrDefault())))
+        if (!Enum.IsDefined(spec.PlayerFaction))
         {
             throw BridgeContractException.Contract("new colony player faction invalid");
         }
 
-        if (spec.ArrivalMethod is not null && (spec.ArrivalMethod.GetValueOrDefault() == ScenarioArrivalMethod.Unspecified || !Enum.IsDefined(spec.ArrivalMethod.GetValueOrDefault())))
+        if (!Enum.IsDefined(spec.ArrivalMethod))
         {
             throw BridgeContractException.Contract("new colony arrival method invalid");
         }
@@ -237,19 +232,14 @@ public static class NewColonyValidation
         return true;
     }
 
-    private static bool InRange(bool present, float value, double lo, double hi) =>
-        present && !float.IsNaN(value) && (double)value >= lo && (double)value <= hi;
+    private static bool InRange(float value, double lo, double hi) =>
+        !float.IsNaN(value) && (double)value >= lo && (double)value <= hi;
 
-    private static void PartChanceContext(bool hasChance, float chance, bool hasContext, ScenarioPawnContext context, string what)
+    private static void PartChanceContext(float chance, ScenarioPawnContext context, string what)
     {
-        if (!InRange(hasChance, chance, 0, 1))
+        if (!InRange(chance, 0, 1))
         {
             throw BridgeContractException.Contract($"new colony {what} chance out of range");
-        }
-
-        if (!hasContext || context == ScenarioPawnContext.Unspecified)
-        {
-            throw BridgeContractException.Contract($"new colony {what} requires a context");
         }
 
         if (!Enum.IsDefined(context))

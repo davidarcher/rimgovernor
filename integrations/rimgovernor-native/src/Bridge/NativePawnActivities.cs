@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? Validate(PawnActivities? batch, Common.ObservationContext context)
         {
             try { batch?.Validate(); } catch (Exception ex) { return Refuse(ex.Message); }
-            if (batch == null || !installed || context.NativeGeneration != batch.AuthorityGeneration) return Refuse("Missing/stale activity authority.");
+            if (batch == null || !installed || !context.NativeGeneration.IsAt(batch.AuthorityGeneration)) return Refuse("Missing/stale activity authority.");
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null) return Refuse("Activity authority is unavailable.");
             var status = authority.Status();
             if (!status.Active || status.Identity == null || status.Generation != batch.AuthorityGeneration

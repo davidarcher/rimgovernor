@@ -571,25 +571,34 @@ public static partial class NewColony
             {
                 Scenario = s.Scenario, ColonistCount = (uint)s.ColonistCount, Seed = seed, FlatTile = s.FlatTile,
                 Difficulty = s.Difficulty, Storyteller = s.Storyteller, MapSize = (uint)s.MapSize, PlanetCoverage = s.PlanetCoverage,
-                SaveName = s.SaveName, MinTemperature = s.MinTemperature, MaxTemperature = s.MaxTemperature,
+                SaveName = s.SaveName,
+                MinTemperature = s.MinTemperature is { } min ? new WireLifecycle.TemperatureLimit.AtCase(min) : new WireLifecycle.TemperatureLimit.OpenCase(),
+                MaxTemperature = s.MaxTemperature is { } max ? new WireLifecycle.TemperatureLimit.AtCase(max) : new WireLifecycle.TemperatureLimit.OpenCase(),
+                GovernorIdeoligion = false,
+                PlayerFaction = string.IsNullOrEmpty(s.PlayerFaction)
+                    ? WireLifecycle.ScenarioPlayerFaction.Base
+                    : EnumByName<WireLifecycle.ScenarioPlayerFaction>(s.PlayerFaction, "SCENARIO_PLAYER_FACTION_", "playerFaction"),
+                ArrivalMethod = string.IsNullOrEmpty(s.ArrivalMethod)
+                    ? WireLifecycle.ScenarioArrivalMethod.Base
+                    : EnumByName<WireLifecycle.ScenarioArrivalMethod>(s.ArrivalMethod, "SCENARIO_ARRIVAL_METHOD_", "arrivalMethod"),
                 Biomes = [.. s.Biomes ?? []],
                 StartingThings = [.. (s.StartingThings ?? []).Select(t => new WireLifecycle.StartingThing
                 {
-                    Placement = EnumByName<WireLifecycle.StartingThingPlacement>(t.Placement, "STARTING_THING_PLACEMENT_", "placement"),
-                    ThingDef = t.ThingDef, Stuff = t.Stuff, Count = t.Count, Quality = t.Quality, AllowRoofed = t.AllowRoofed,
+                    Placement = ThingPlacement(t),
+                    ThingDef = t.ThingDef, Stuff = t.Stuff, Count = t.Count ?? 0, Quality = t.Quality,
                 })],
                 ForcedTraits = [.. (s.ForcedTraits ?? []).Select(t => new WireLifecycle.ForcedTrait
                 {
-                    Trait = t.Trait, Degree = t.Degree, Chance = t.Chance, Context = PawnContext(t.Context),
+                    Trait = t.Trait, Degree = Given(t.Degree, "forced trait degree"), Chance = Given(t.Chance, "forced trait chance"), Context = PawnContext(t.Context),
                 })],
                 ForcedHediffs = [.. (s.ForcedHediffs ?? []).Select(h => new WireLifecycle.ForcedHediff
                 {
-                    Hediff = h.Hediff, Severity = h.Severity, Chance = h.Chance, Context = PawnContext(h.Context),
+                    Hediff = h.Hediff, Severity = Given(h.Severity, "forced hediff severity"), Chance = Given(h.Chance, "forced hediff chance"), Context = PawnContext(h.Context),
                 })],
-                Naked = [.. (s.Naked ?? []).Select(n => new WireLifecycle.NakedPart { Chance = n.Chance, Context = PawnContext(n.Context) })],
+                Naked = [.. (s.Naked ?? []).Select(n => new WireLifecycle.NakedPart { Chance = Given(n.Chance, "naked chance"), Context = PawnContext(n.Context) })],
                 SetNeedLevels = [.. (s.SetNeedLevels ?? []).Select(n => new WireLifecycle.SetNeedLevel
                 {
-                    Need = n.Need, Level = n.Level, Chance = n.Chance, Context = PawnContext(n.Context),
+                    Need = n.Need, Level = Given(n.Level, "need level"), Chance = Given(n.Chance, "need chance"), Context = PawnContext(n.Context),
                 })],
                 PermaGameConditions = [.. s.PermaGameConditions ?? []],
                 DisallowedBuildings = [.. s.DisallowedBuildings ?? []],
@@ -610,16 +619,6 @@ public static partial class NewColony
                 spec = spec with { WorldTemperature = s.WorldTemperature };
             }
 
-            if (!string.IsNullOrEmpty(s.PlayerFaction))
-            {
-                spec = spec with { PlayerFaction = EnumByName<WireLifecycle.ScenarioPlayerFaction>(s.PlayerFaction, "SCENARIO_PLAYER_FACTION_", "playerFaction") };
-            }
-
-            if (!string.IsNullOrEmpty(s.ArrivalMethod))
-            {
-                spec = spec with { ArrivalMethod = EnumByName<WireLifecycle.ScenarioArrivalMethod>(s.ArrivalMethod, "SCENARIO_ARRIVAL_METHOD_", "arrivalMethod") };
-            }
-
             return spec;
         }
         catch (FormatException e)
@@ -628,14 +627,36 @@ public static partial class NewColony
         }
     }
 
+    // A scattered thing allowed on roofed ground is its own placement; the flag applies to scattered things only.
+    private static WireLifecycle.StartingThingPlacement ThingPlacement(StartingThingPart t)
+    {
+        var placement = EnumByName<WireLifecycle.StartingThingPlacement>(t.Placement, "STARTING_THING_PLACEMENT_", "placement");
+        if (t.AllowRoofed is not { } roofed)
+        {
+            return placement;
+        }
+
+        if (placement != WireLifecycle.StartingThingPlacement.Scattered)
+        {
+            throw new FormatException("allowRoofed applies to scattered things only");
+        }
+
+        return roofed ? WireLifecycle.StartingThingPlacement.ScatteredRoofed : WireLifecycle.StartingThingPlacement.Scattered;
+    }
+
+    // A part value the form left out is a refusal, as the wire's own validation was for an absent one.
+    private static T Given<T>(T? value, string what)
+        where T : struct =>
+        value ?? throw new FormatException(what + " is required");
+
     private static WireLifecycle.ScenarioPawnContext PawnContext(string name) =>
         EnumByName<WireLifecycle.ScenarioPawnContext>(name, "SCENARIO_PAWN_CONTEXT_", "context");
 
-    /// <summary>A lower-case wire name maps to the enum value of that prefixed upper-case name, never the zero value.</summary>
+    /// <summary>A lower-case wire name maps to the enum value of that prefixed upper-case name.</summary>
     private static T EnumByName<T>(string name, string prefix, string part)
         where T : struct, Enum
     {
-        if (!Wire.TryParse<T>(prefix + name.ToUpperInvariant(), out var value) || EqualityComparer<T>.Default.Equals(value, default))
+        if (!Wire.TryParse<T>(prefix + name.ToUpperInvariant(), out var value))
         {
             throw new FormatException($"{part}: unknown value \"{name}\"");
         }

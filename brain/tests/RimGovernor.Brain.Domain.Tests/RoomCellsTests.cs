@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class RoomCellsTests
 {
-    private static readonly C.ObservationContext Context = new() { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 };
 
     [Fact]
     public void EachCensusRoomGetsItsHeldGridCellsRowMajorAndOtherKeysAreNotRead()

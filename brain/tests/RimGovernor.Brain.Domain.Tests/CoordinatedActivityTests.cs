@@ -12,7 +12,7 @@ public sealed class CoordinatedActivityTests
     private static ActivityTaskRead Read(PawnActivities batch, string producer = "completed", string helper = "holding", long tick = 300,
         params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick }, Bindings = EquatableArray.From(bindings),
+            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick }, Bindings = EquatableArray.From(bindings),
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, o.Pawn == "producer" ? producer : helper, "", tick)))),
         };

@@ -21,14 +21,14 @@ namespace HomeBridge.BridgeTools
             {
                 case Authority.ControlRequestOperation.SetModeCase { Value: var sm }:
                     setMode = sm;
-                    if (sm.ExpectedGeneration is null || sm.ExpectedGeneration == 0 || sm.Mode is null
+                    if (sm.ExpectedGeneration == 0
                         || (sm.Mode != Authority.Mode.Auto && sm.Mode != Authority.Mode.Manual)) return Invalid();
                     identity = sm.Identity;
                     break;
                 case Authority.ControlRequestOperation.RevokeCase { Value: var rv }:
                     revoke = rv;
-                    if (rv.ExpectedGeneration is null || rv.ExpectedGeneration == 0 || rv.Reason is null
-                        || !ExternalReason(rv.Reason.GetValueOrDefault(), out _)) return Invalid();
+                    if (rv.ExpectedGeneration == 0
+                        || !ExternalReason(rv.Reason, out _)) return Invalid();
                     identity = rv.Identity;
                     break;
                 default: return Invalid();
@@ -46,14 +46,14 @@ namespace HomeBridge.BridgeTools
             if (setMode is not null)
             {
                 var mode = setMode.Mode == Authority.Mode.Auto ? NativeControlMode.Auto : NativeControlMode.Manual;
-                result = state.SetMode(setMode.ExpectedGeneration.GetValueOrDefault(), mode);
+                result = state.SetMode(setMode.ExpectedGeneration, mode);
             }
             else
             {
                 NativeControlRevocationReason reason;
-                ExternalReason(revoke!.Reason.GetValueOrDefault(), out reason);
-                result = state.Revoke(revoke.ExpectedGeneration.GetValueOrDefault(), reason);
-            }            context = context with { NativeGeneration = result.Snapshot.Generation };
+                ExternalReason(revoke!.Reason, out reason);
+                result = state.Revoke(revoke.ExpectedGeneration, reason);
+            }            context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(result.Snapshot.Generation) };
             if (!result.Success)
                 return new Authority.ControlReply { Outcome = Refusal(result.Error, context) };
             if (revoke is not null)
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
                 case NativeControlError.GenerationExhausted: code = Common.FailureCode.CapacityExhausted; break;
                 default: code = Common.FailureCode.Unavailable; break;
             }
-            return new Common.Failure { Code = code, Detail = "Native authority refused: " + error, ObservedContext = context };
+            return new Common.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = code, Detail = "Native authority refused: " + error, ObservedContext = context };
         }
 
         private static Authority.ControlReply Invalid() => new Authority.ControlReply

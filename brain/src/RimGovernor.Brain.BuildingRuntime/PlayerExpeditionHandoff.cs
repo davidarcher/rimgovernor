@@ -36,7 +36,7 @@ public sealed partial class Player
         {
             return false;
         }
-        var generation = new NativeGeneration(loaded.Context.NativeGeneration.GetValueOrDefault());
+        var generation = new NativeGeneration(loaded.Context.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observed } ? observed : 0UL);
         _session.Disable();
         await confirm.ConfirmMapFocusAsync(state.Snapshot, target, generation, call).ConfigureAwait(false);
         return await HandoffHeldAsync(state, target, generation, call, epoch).ConfigureAwait(false);

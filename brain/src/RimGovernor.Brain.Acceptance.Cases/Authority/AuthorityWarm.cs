@@ -111,7 +111,7 @@ internal static class AuthorityWarm
         {
             var status = await TypedAuthority.StatusAsync(s, string.Create(CultureInfo.InvariantCulture, $"p2-hold-{reads:D3}"), identity, ct).ConfigureAwait(false);
             reads++;
-            if (status.State?.Active?.Mode != Control.Mode.Auto || status.Context?.NativeGeneration != generation)
+            if (status.State?.Active?.Mode != Control.Mode.Auto || status.Context?.NativeGeneration.IsAt(generation) != true)
             {
                 s.RecordWire("p2_loss", status);
                 s.RecordWire("p2_clock_at_loss", await TypedAuthority.ClockStatusAsync(s, "p2-clock-at-loss", identity, ct).ConfigureAwait(false));
@@ -126,7 +126,7 @@ internal static class AuthorityWarm
         var release = await TypedAuthority.StatusAsync(s, "p2-release-status", identity, cancellationToken).ConfigureAwait(false);
         var revoke = await s.CallAsync("p2-release", NativeOps.ControlAuthority, new Control.ControlRequest
         {
-            Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = release.Context?.NativeGeneration, Reason = Control.RevocationReason.Manual },
+            Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = (release.Context ?? throw new AcceptanceException("p2-release: the status carried no context")).NativeGeneration.Claimed("p2-release: the status named no generation"), Reason = Control.RevocationReason.Manual },
         }, cancellationToken).ConfigureAwait(false);
         if (revoke.Outcome?.Revoked is null)
         {

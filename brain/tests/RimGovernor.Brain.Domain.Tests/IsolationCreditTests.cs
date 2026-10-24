@@ -203,7 +203,7 @@ public sealed class IsolationCreditTests
         });
         var frame = new RimGovernor.Brain.Bridge.Contracts.RoundsFrame
         {
-            Pawns = new O.PawnSnapshot { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [PawnFixtures.Row("cj") with { Anomaly = tracker }, PawnFixtures.Row("pawn")] },
+            Pawns = new O.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [PawnFixtures.Row("cj") with { Anomaly = tracker }, PawnFixtures.Row("pawn")] },
         };
         var projection = ColonyFactsCoreTests.Projection() with
         {

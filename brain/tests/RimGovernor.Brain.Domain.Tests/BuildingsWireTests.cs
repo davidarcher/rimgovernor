@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 // carries its build (or installation) state and a built row none, so a row missing a member does not decode.
 public sealed class BuildingsWireTests
 {
-    private static readonly C.ObservationContext Context = new() { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
     private static O.BuildingState Row(string id, O.BuildingStatus status, O.BuildingHitPoints hitPoints, O.ConstructionState? construction) => new()
     {

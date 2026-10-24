@@ -53,7 +53,7 @@ public sealed class ClothingChoiceTests
             [Input(stuff, stuff)], 0.0, work, 5.0, new(15, 15))
         { RequiredCount = 10 };
     private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
-    { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Retained = [] };
+    { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Retained = [] };
     private static RoundsFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
     { Resources = Known<EquatableArray<Amount>>([new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool), new(new("DevilstrandCloth"), (long)devilstrand)]) };
     private static WorkResourceView Resources(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkRules.WorkResourcesOf(

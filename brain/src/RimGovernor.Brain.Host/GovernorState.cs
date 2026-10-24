@@ -24,7 +24,7 @@ internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId
     public bool SameWorld(GovernorWorld other) => Colony == other.Colony && Map == other.Map && Load == other.Load;
 
     public static GovernorWorld Of(RimGovernor.Contracts.Wire.Common.ObservationContext context) =>
-        new(new ColonyId((context.Identity?.ColonyId ?? "")), new MapId(context.Identity?.MapId ?? 0), new LoadId((context.Identity?.LoadToken ?? "")), new NativeGeneration(context.NativeGeneration.GetValueOrDefault()));
+        new(new ColonyId((context.Identity?.ColonyId ?? "")), new MapId(context.Identity?.MapId ?? 0), new LoadId((context.Identity?.LoadToken ?? "")), new NativeGeneration(context.NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase { Value: var generation } ? generation : 0UL));
 }
 
 /// <summary>

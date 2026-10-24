@@ -40,8 +40,8 @@ public sealed class NativeFailureException(Failure value, Result receipt) : Brid
 
     private static string Describe(Failure value) =>
         value.Detail is not null && (value.Detail ?? "").Length != 0
-            ? "native read refused: " + value.Code.GetValueOrDefault() + ": " + (value.Detail ?? "")
-            : "native read refused: " + value.Code.GetValueOrDefault();
+            ? "native read refused: " + value.Code + ": " + (value.Detail ?? "")
+            : "native read refused: " + value.Code;
 }
 
 /// <summary>A typed unavailable reply.</summary>
@@ -53,8 +53,8 @@ public sealed class NativeUnavailableException(Unavailable value, Result receipt
 
     private static string Describe(Unavailable value) =>
         value.Detail is not null && (value.Detail ?? "").Length != 0
-            ? "native read unavailable: " + value.Reason.GetValueOrDefault() + ": " + (value.Detail ?? "")
-            : "native read unavailable: " + value.Reason.GetValueOrDefault();
+            ? "native read unavailable: " + value.Reason + ": " + (value.Detail ?? "")
+            : "native read unavailable: " + value.Reason;
 }
 
 /// <summary>

@@ -141,7 +141,7 @@ internal static class LifecycleNewColony
             await NewColonyStart.RefusedAsync(s, "refuse-" + field, NewColonyStart.Request("newcolony-bad-" + field, spec), cancellationToken).ConfigureAwait(false);
         }
 
-        var hot = NewColonyStart.Spec() with { MinTemperature = 90, MaxTemperature = 100 };
+        var hot = NewColonyStart.Spec() with { MinTemperature = new Lifecycle.TemperatureLimit.AtCase(90), MaxTemperature = new Lifecycle.TemperatureLimit.AtCase(100) };
         var phases = await NewColonyStart.FailsAsync(s, "unsatisfiable", NewColonyStart.Request("newcolony-hot", hot), Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
         if (phases.Count == 0 || phases[^1] != Lifecycle.NewColonyPhase.ChoosingTile)
         {

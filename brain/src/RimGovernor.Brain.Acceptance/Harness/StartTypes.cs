@@ -138,7 +138,7 @@ public sealed record ScenarioSpec
     public string Storyteller { get; init; } = "";
 
     /// <summary>Scenario parts added to the base scenario: only the part members are read; the base members are the spec's own.</summary>
-    public RimGovernor.Contracts.Wire.Lifecycle.NewColonySpec? Parts { get; init; }
+    public StartParts Parts { get; init; } = new();
 
     public string SaveName { get; init; } = "";
 

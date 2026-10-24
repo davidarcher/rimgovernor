@@ -52,7 +52,7 @@ public sealed partial class Harness
         {
             Player = new() { Identity = loaded.Context?.Identity, PlayerDirection = 1, RequestId = requestId },
             SaveName = saveName,
-            ExpectedTick = loaded.Context?.Tick ?? -1,
+            ExpectedTick = new Wl.ExpectedSaveTick.AtCase((loaded.Context ?? throw new AcceptanceException($"{label}: the loaded identity carried no context")).Tick),
         };
         var reply = await CallAsync(label, NativeOps.SaveGame, request, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Completed ?? throw new AcceptanceException($"{NativeOps.SaveGame.Name} did not complete: {WireJson.Serialize(reply)}");

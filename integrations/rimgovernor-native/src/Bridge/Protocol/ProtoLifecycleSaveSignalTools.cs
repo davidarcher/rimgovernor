@@ -20,13 +20,12 @@ namespace HomeBridge.BridgeTools
     // the parked prefix until its timeout.
     internal static class ProtoLifecycleSaveSignalTools
     {
-        private const int DefaultWaitMs = 20000;
         private const int MaxWaitMs = 60000;
 
         // Off the game thread: the typed core, shared with the in-process facade.
         internal static async Task<Lifecycle.WaitSaveSignalReply> WaitCore(Lifecycle.WaitSaveSignalRequest parsed, CancellationToken cancellationToken)
         {
-            var wait = parsed.TimeoutMs is not null ? Math.Min(Math.Max(parsed.TimeoutMs.GetValueOrDefault(), 1), MaxWaitMs) : DefaultWaitMs;
+            var wait = Math.Min(Math.Max(parsed.TimeoutMs, 1), MaxWaitMs);
             var token = await SaveHandshake.WaitAsync(wait, cancellationToken).ConfigureAwait(false);
             // No signal is a timeout or the caller's own cancellation; neither is a failure to log.
             return token != null

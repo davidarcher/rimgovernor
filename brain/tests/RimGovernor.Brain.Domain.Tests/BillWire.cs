@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>Whole bill-census wire rows for the decoder tests: one bench holding the given bills.</summary>
 internal static class BillWire
 {
-    internal static readonly C.ObservationContext Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    internal static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
 
     internal static O.BillState Bill(string id) => new()
     {

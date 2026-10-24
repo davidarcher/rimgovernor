@@ -18,7 +18,7 @@ public sealed class ColonyStatusTests
 {
     private static readonly PbCommon.Identity WorldIdentity = new() { ColonyId = "colony-1", LoadToken = "load-1", MapId = 1 };
 
-    private static readonly PbCommon.ObservationContext Context = new() { Identity = WorldIdentity, Tick = 74338, NativeGeneration = 7 };
+    private static readonly PbCommon.ObservationContext Context = new() { Identity = WorldIdentity, Tick = 74338, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(7) };
 
     private sealed class Worlds : IWorldSource
     {
@@ -47,7 +47,7 @@ public sealed class ColonyStatusTests
     private sealed class Native(params PawnState[] roster) : IColonyStatusNative
     {
         public Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context });
+            Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context, Paused = false });
 
         public Task<ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct) =>
             Task.FromResult(ColonyFactsCoreTests.Snapshot() with { Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) });

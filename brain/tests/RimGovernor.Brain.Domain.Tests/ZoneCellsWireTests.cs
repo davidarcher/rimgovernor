@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>The zone census and the cell read are whole on the wire: each round-trips exactly and a missing member does not decode.</summary>
 public sealed class ZoneCellsWireTests
 {
-    private static readonly C.ObservationContext Context = new() { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 7 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 7 };
 
     private static readonly O.ZonesSnapshot Census = new()
     {

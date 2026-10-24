@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         private static bool SameNames(IReadOnlyList<string> a, IReadOnlyList<string> b) =>
             a.Count == b.Count && a.OrderBy(n => n, StringComparer.Ordinal).SequenceEqual(b.OrderBy(n => n, StringComparer.Ordinal));
 
-        private static bool Matches(Common.IdeoligionDesign? a, Common.IdeoligionDesign? b) => a != null && b != null && a.Fluid is not null && b.Fluid is not null && a.Fluid.GetValueOrDefault() == b.Fluid.GetValueOrDefault() &&
+        private static bool Matches(Common.IdeoligionDesign? a, Common.IdeoligionDesign? b) => a != null && b != null && a.Fluid == b.Fluid &&
             SameNames(a.Memes, b.Memes) && SameNames(a.Precepts, b.Precepts) &&
             SameNames(a.VeneratedAnimals, b.VeneratedAnimals) && SameNames(a.StyleCategories, b.StyleCategories);
 

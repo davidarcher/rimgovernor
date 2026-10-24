@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastPortfolioChoiceTests
 {
     private static readonly ObservationContext Context = new()
-        { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+        { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static readonly Cell Source = new(1, 1), Bench = new(2, 1), Destination = new(3, 1);
     private static readonly Cell[] Cells = [Source, Bench, Destination];
     private static (ForecastCoupledSelection Selection, PawnActivities Batch) Select(RoundsFacts facts)

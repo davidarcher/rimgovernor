@@ -14,8 +14,8 @@ internal static class FacadeReplies
         new(failure is null
             ? $"{call}: native reply carried no outcome"
             : failure.Detail is not null && (failure.Detail ?? "").Length != 0
-                ? $"{call}: native read refused: {failure.Code.GetValueOrDefault()}: {(failure.Detail ?? "")}"
-                : $"{call}: native read refused: {failure.Code.GetValueOrDefault()}");
+                ? $"{call}: native read refused: {failure.Code}: {(failure.Detail ?? "")}"
+                : $"{call}: native read refused: {failure.Code}");
 }
 
 /// <summary>

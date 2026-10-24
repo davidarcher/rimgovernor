@@ -75,20 +75,19 @@ namespace HomeBridge.BridgeTools
 
         private static double Ms(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
 
-        // refusalClass names how RimWorld answers the same request again; left
-        // unspecified, RefusalClassOf(code) classifies it where it is sent.
-        internal static Common.Failure Fail(Common.FailureCode code, string detail, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified)
-        {
-            var failure = new Common.Failure { Code = code, Detail = detail };
-            if (refusalClass != Common.RefusalClass.Unspecified) failure = failure with { RefusalClass = refusalClass };
-            return failure;
-        }
+        // A failure the site does not classify carries the class its code implies
+        // (RefusalClassOf); refusalClass names how RimWorld answers the same
+        // request again where the site knows.
+        internal static Common.Failure Fail(Common.FailureCode code, string detail) => Fail(code, detail, RefusalClassOf(code));
+
+        internal static Common.Failure Fail(Common.FailureCode code, string detail, Common.RefusalClass refusalClass) =>
+            new Common.Failure { Code = code, RefusalClass = refusalClass, Detail = detail };
 
         // RefusalClassOf is the class a refusal carries when its site names
         // none: a code that says the world moved (stale identity or
         // generation, lost authority, a busy owner) is transient, an
         // unsupported request is permanent, and the catch-all codes stay
-        // unknown on purpose, since the game's own reason is what separates
+        // unclassified on purpose, since the game's own reason is what separates
         // them.
         internal static Common.RefusalClass RefusalClassOf(Common.FailureCode code)
         {
@@ -107,7 +106,7 @@ namespace HomeBridge.BridgeTools
                 case Common.FailureCode.Unsupported:
                     return Common.RefusalClass.Permanent;
                 default:
-                    return Common.RefusalClass.Unknown;
+                    return Common.RefusalClass.Unclassified;
             }
         }
 
@@ -241,11 +240,12 @@ namespace HomeBridge.BridgeTools
             }
             context = new Common.ObservationContext
             {
+                NativeGeneration = new Common.ObservedGeneration.UnclaimedCase(),
                 Identity = new Common.Identity { ColonyId = identity.ColonyId, LoadToken = identity.LoadToken, MapId = map.uniqueID },
                 Tick = Find.TickManager.TicksGame
             };
             if (NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority != null)
-                context = context with { NativeGeneration = authority.Status().Generation };
+                context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(authority.Status().Generation) };
             unavailable = null;
             return true;
         }

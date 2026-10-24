@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
         private static Common.ObservationContext Context()
         {
             var s=NativeControlAuthority.ForGame(Current.Game).Status();
-            return new Common.ObservationContext { NativeGeneration=s.Generation, Tick=Find.TickManager.TicksGame,
+            return new Common.ObservationContext { NativeGeneration=new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(s.Generation), Tick=Find.TickManager.TicksGame,
                 Identity=new Common.Identity { ColonyId=s.Identity!.ColonyId, LoadToken=s.Identity.LoadToken, MapId=s.Identity.MapId } };
         }
 
@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
             foreach (var p in map.mapPawns.FreeColonistsSpawned.ToArray()) p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.Wait,120000),JobCondition.InterruptForced);
         }
 
-        private static void Apply(params PawnActivityOrder[] orders) => NativePawnActivities.Apply(new PawnActivities(Context().NativeGeneration!.Value, orders), Context());
+        private static void Apply(params PawnActivityOrder[] orders) => NativePawnActivities.Apply(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, orders), Context());
 
         // The worker's next revision of its current order, with these steps.
         private static PawnActivityOrder Revised(PawnActivityOrder order, params PawnActivityStep[] steps) =>
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
                 new PawnActivityStep(PawnActivityKind.Sleep,bed!.GetUniqueLoadID(),"","",0,deadline)});
             helperOrder=new PawnActivityOrder(helper!.GetUniqueLoadID(),"helper","food-method",0,1,false,new[]{
                 Hold(deadline)});
-            var batch=new PawnActivities(c.NativeGeneration!.Value,new[]{workerOrder,helperOrder});
+            var batch=new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)c.NativeGeneration).Value,new[]{workerOrder,helperOrder});
             var invalid=NativePawnActivities.Validate(batch,c); if(invalid!=null)throw new InvalidOperationException(invalid.Detail);
             // An unassigned colonist runs vanilla work (#3669): the idle colonists must not harvest the staged crop themselves.
             foreach(var p in worker.Map.mapPawns.FreeColonistsSpawned.Where(p=>p!=worker&&p!=helper)) p.workSettings?.DisableAll();
@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
         {
             var c=Context();
             var original=NativePawnActivities.Read(worker!)!;
-            var invalid=new PawnActivities(c.NativeGeneration!.Value,new[]{
+            var invalid=new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)c.NativeGeneration).Value,new[]{
                 Revised(workerOrder!,Hold(deadline)),
                 Revised(helperOrder!,new PawnActivityStep(PawnActivityKind.Eat,"missing","","",1,deadline))});
             if(NativePawnActivities.Validate(invalid,c)==null || NativePawnActivities.Read(worker!)!=original)throw new InvalidOperationException("Invalid batch was not atomic.");
@@ -204,8 +204,8 @@ namespace HomeBridge.BridgeTools
             if (!ReferenceEquals(worker.CurJob, direct)) throw new InvalidOperationException("Released controlled pawn could not start a direct job.");
             Install(Fresh());
             var collidingRelease=release with {ExpectedRevision=1,Revision=2};
-            if(NativePawnActivities.Validate(new PawnActivities(Context().NativeGeneration!.Value,new[]{collidingRelease}),Context())==null)throw new InvalidOperationException("Release matched revision but ignored changed assignment.");
-            if(NativePawnActivities.Validate(new PawnActivities(Context().NativeGeneration!.Value,new[]{release}),Context())==null)throw new InvalidOperationException("Old release could erase a newer assignment.");
+            if(NativePawnActivities.Validate(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,new[]{collidingRelease}),Context())==null)throw new InvalidOperationException("Release matched revision but ignored changed assignment.");
+            if(NativePawnActivities.Validate(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,new[]{release}),Context())==null)throw new InvalidOperationException("Old release could erase a newer assignment.");
         }
 
         // A fresh assignment for the worker once nothing owns it.

@@ -376,7 +376,7 @@ public sealed class TypedSession
     {
         var name = label + "-" + Guid.NewGuid().ToString("N");
         var player = new Lifecycle.PlayerLifecycleContext { Identity = Identity, PlayerDirection = 1, RequestId = name };
-        var saved = await CallAsync(label + "-save", NativeOps.SaveGame, new Lifecycle.SaveRequest { Player = player, SaveName = name }, cancellationToken).ConfigureAwait(false);
+        var saved = await CallAsync(label + "-save", NativeOps.SaveGame, new Lifecycle.SaveRequest { Player = player, SaveName = name, ExpectedTick = new Lifecycle.ExpectedSaveTick.AnyCase() }, cancellationToken).ConfigureAwait(false);
         if (saved.Outcome?.Completed is null)
         {
             throw new AcceptanceException($"{label}: lifecycle_save did not complete: {saved.Outcome}");
@@ -389,6 +389,7 @@ public sealed class TypedSession
             new Lifecycle.LoadRequest
             {
                 RequestId = loadId,
+                TimeoutMs = 120_000,
                 SaveName = name,
                 Readiness = Lifecycle.Readiness.Map,
                 ExpectedPlayer = player with { RequestId = loadId },
@@ -502,7 +503,7 @@ public sealed class TypedSession
                         return (string.Empty, true);
                     }
 
-                    var phase = pending.Phase ?? Lifecycle.NewColonyPhase.Unspecified;
+                    var phase = pending.Phase;
                     if (phases.Count > 0 && phase < phases[^1])
                     {
                         throw new AcceptanceException($"{label}: phase went backwards to {phase} after {phases[^1]}");

@@ -20,7 +20,7 @@ public sealed class ColonyFactsCoreTests
     /// <summary>A colony facts read with every section present and empty: no planning, no indoor bed, nothing pending.</summary>
     internal static ColonyFactsSnapshot Snapshot(C.ObservationContext? context = null) => new()
     {
-        Context = context ?? new C.ObservationContext { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
+        Context = context ?? new C.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
         WorkResources = [],
         JoinerLetters = [],

@@ -12,7 +12,7 @@ public sealed record NewColonyRun
     public IReadOnlyList<Wl.NewColonyPhase> Phases { get; init; } = [];
 
     /// <summary>The completed reply: saveName, seed, paused, byteLength, context.</summary>
-    public Wl.NewColonyCompleted Completed { get; init; } = new();
+    public required Wl.NewColonyCompleted Completed { get; init; }
 
     /// <summary>The last rerollCount a pending reply carried (completed replies carry none), 0 when the first roll was accepted.</summary>
     public int Rerolls { get; init; }
@@ -88,7 +88,7 @@ public static class NewColony
                 throw new AcceptanceException($"{label}: unexpected reply: {WireJson.Serialize(reply)}");
             }
 
-            var phase = pending.Phase ?? Wl.NewColonyPhase.Unspecified;
+            var phase = pending.Phase;
             var index = Array.IndexOf(PhaseOrder, phase);
             if (index < 0)
             {
@@ -106,7 +106,7 @@ public static class NewColony
                 last = index;
             }
 
-            rerolls = (int)(pending.RerollCount ?? 0);
+            rerolls = (int)pending.RerollCount;
             await pace.NextAsync(cancellationToken).ConfigureAwait(false);
             reply = await harness.CallAsync(
                 string.Create(CultureInfo.InvariantCulture, $"{label}-poll-{attempt}"),

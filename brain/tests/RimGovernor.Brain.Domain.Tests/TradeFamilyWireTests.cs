@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 // named union cases; each round-trips exactly through the wire JSON.
 public sealed class TradeFamilyWireTests
 {
-    private static readonly C.ObservationContext Context = new() { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
     private static readonly C.TradeTarget Target = new() { Kind = new C.MapTradeTarget { TraderId = "Human7" } };
 

@@ -127,11 +127,11 @@ public static class NativeRoutes
         }
         catch (NativeFailureException e)
         {
-            return ChannelResponse.Failure(RefusedStatus, e.Value.Code?.ToString() ?? "", e.Value.Detail ?? "");
+            return ChannelResponse.Failure(RefusedStatus, e.Value.Code.ToString(), e.Value.Detail ?? "");
         }
         catch (NativeUnavailableException e)
         {
-            return ChannelResponse.Failure(UnavailableStatus, e.Value.Reason?.ToString() ?? "", e.Value.Detail ?? "");
+            return ChannelResponse.Failure(UnavailableStatus, e.Value.Reason.ToString(), e.Value.Detail ?? "");
         }
         catch (NotLoadedException e)
         {

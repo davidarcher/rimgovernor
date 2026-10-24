@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
             var reading = NativeFoodActivity.Read(new(Context().Identity!, EquatableArray.From(new[] { crop!.GetUniqueLoadID() })));
             if (!reading.Options.Any(o => o.Pawn == worker!.GetUniqueLoadID() && o.Target == crop.GetUniqueLoadID()))
                 throw new InvalidOperationException("No native eligible harvest-to-storage observation.");
-            NativePawnActivities.Apply(new PawnActivities(Context().NativeGeneration!.Value,
+            NativePawnActivities.Apply(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,
                 new[] { new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, crop!.GetUniqueLoadID(), giver, "Harvest", 0, deadline) }) }), Context());
             // The idle colonists run vanilla with their work priorities off (#3669).
@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
             var order = new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", revised ? 2 : 1, revised ? 3 : 2, false,
                 new[] { new PawnActivityStep(PawnActivityKind.Deliver, product.GetUniqueLoadID(), "", "", 1, deadline)
                     { Destination = new Cell(cell.x, cell.z) } });
-            var batch = new PawnActivities(Context().NativeGeneration!.Value, new[] { order });
+            var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] { order });
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());
             if (!revised) GenSpawn.Spawn(ThingDefOf.Steel, cell, worker.Map);

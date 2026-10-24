@@ -26,7 +26,7 @@ public sealed class ForecastCoupledSelectionTests
     private const double Horizon = 300;
     private static readonly string[] Plants = ["plant-a", "plant-b"];
     private static readonly ObservationContext Context = new()
-        { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+        { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     internal static RoundsFacts Review(double level = .2, double fall = .003, double harvest = 10, double expiry = 1000,
         bool reverse = false, bool harvestRefused = false, int sourceCount = 2, double horizon = Horizon, bool neverRots = false)
     {

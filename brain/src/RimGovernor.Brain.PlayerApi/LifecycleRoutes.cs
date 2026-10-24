@@ -119,6 +119,7 @@ public static class LifecycleRoutes
             {
                 Player = new PlayerLifecycleContext { Identity = wire, PlayerDirection = NewColonyBounds.LifecycleDirection, RequestId = id },
                 SaveName = saveName,
+                ExpectedTick = new ExpectedSaveTick.AnyCase(),
             };
             var reply = await lifecycle.SaveAsync(save, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
@@ -301,17 +302,22 @@ public static class LifecycleRoutes
     // colony's is.
     private static ChannelResponse MenuResponse(MenuReply reply, int completedStatus, int pendingStatus)
     {
-        switch (reply.Outcome)
+        if (reply.Outcome is MenuReplyOutcome.PendingCase { Value: var pending })
         {
-            case MenuReplyOutcome.PendingCase { Value: var pending }:
-                return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new MenuPendingDto("pending", pending.RequestId ?? "", pending.Detail ?? "")));
-            case MenuReplyOutcome.FailureCase { Value: var failure }:
-                return NativeRefusal(failure);
-            case MenuReplyOutcome.CompletedCase { Value: var done }:
-                return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new MenuCompletedDto("completed", done.RequestId ?? "", done.Unloaded.GetValueOrDefault())));
-            default:
-                return ReadRoutes.ReadFailure(new InvalidOperationException("menu not completed"));
+            return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new MenuPendingDto("pending", pending.RequestId ?? "", pending.Detail ?? "")));
         }
+
+        if (reply.Outcome is MenuReplyOutcome.FailureCase { Value: var failure })
+        {
+            return NativeRefusal(failure);
+        }
+
+        if (reply.Outcome is MenuReplyOutcome.CompletedCase { Value: var done })
+        {
+            return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new MenuCompletedDto("completed", done.RequestId ?? "", done.Unloaded)));
+        }
+
+        return ReadRoutes.ReadFailure(new InvalidOperationException("menu not completed"));
     }
 
     /// <summary>
@@ -345,99 +351,97 @@ public static class LifecycleRoutes
             (done.SaveName ?? ""),
             new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
             observed?.Tick ?? 0,
-            done.Paused.GetValueOrDefault(),
-            done.ByteLength.GetValueOrDefault())));
+            done.Paused,
+            done.ByteLength)));
     }
 
     // A load is completed, still in progress (202, the poller's ordinary case), or superseded (409).
     private static ChannelResponse LoadResponse(LoadReply reply, int completedStatus)
     {
-        switch (reply.Outcome)
+        if (reply.Outcome is LoadReplyOutcome.PendingCase { Value: var pending })
         {
-            case LoadReplyOutcome.PendingCase { Value: var pending }:
-                return ChannelResponse.Json(202, PlayerJson.Serialize(new LoadPendingDto("pending", (pending.RequestId ?? ""), (pending.Detail ?? ""))));
-            case LoadReplyOutcome.SupersededCase { Value: var superseded }:
-                return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
-            case LoadReplyOutcome.CompletedCase { Value: var done }:
-                var readiness = done.Readiness.GetValueOrDefault() switch
-                {
-                    Readiness.Map => "map",
-                    Readiness.Visual => "visual",
-                    _ => null,
-                };
-                if (readiness is null)
-                {
-                    return ReadRoutes.ReadFailure(new InvalidOperationException("unspecified readiness"));
-                }
-
-                var loaded = done.Loaded;
-                var identity = loaded?.Context?.Identity;
-                return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new LoadReplyDto(
-                    (done.RequestId ?? ""),
-                    (done.SaveName ?? ""),
-                    new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
-                    loaded?.Paused ?? false,
-                    readiness)));
-            default:
-                return ReadRoutes.ReadFailure(new InvalidOperationException("load not completed"));
+            return ChannelResponse.Json(202, PlayerJson.Serialize(new LoadPendingDto("pending", (pending.RequestId ?? ""), (pending.Detail ?? ""))));
         }
+
+        if (reply.Outcome is LoadReplyOutcome.SupersededCase { Value: var superseded })
+        {
+            return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
+        }
+
+        if (reply.Outcome is LoadReplyOutcome.CompletedCase { Value: var done })
+        {
+            var readiness = done.Readiness == Readiness.Map ? "map" : done.Readiness == Readiness.Visual ? "visual" : null;
+            if (readiness is null)
+            {
+                return ReadRoutes.ReadFailure(new InvalidOperationException("undefined readiness"));
+            }
+
+            var loaded = done.Loaded;
+            var identity = loaded?.Context?.Identity;
+            return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new LoadReplyDto(
+                (done.RequestId ?? ""),
+                (done.SaveName ?? ""),
+                new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
+                loaded?.Paused ?? false,
+                readiness)));
+        }
+
+        return ReadRoutes.ReadFailure(new InvalidOperationException("load not completed"));
     }
 
     // A new colony is completed, still pending (the poller's ordinary case), superseded (409) or refused by native.
     private static ChannelResponse NewColonyResponse(NewColonyReply reply, int completedStatus, int pendingStatus)
     {
-        switch (reply.Outcome)
+        if (reply.Outcome is NewColonyReplyOutcome.PendingCase { Value: var pending })
         {
-            case NewColonyReplyOutcome.PendingCase { Value: var pending }:
-                return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new NewColonyPendingDto(
-                    "pending",
-                    (pending.RequestId ?? ""),
-                    PhaseName(pending.Phase.GetValueOrDefault()),
-                    (pending.Detail ?? ""),
-                    pending.ElapsedMs.GetValueOrDefault(),
-                    pending.RerollCount.GetValueOrDefault())));
-            case NewColonyReplyOutcome.SupersededCase { Value: var superseded }:
-                return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
-            case NewColonyReplyOutcome.FailureCase { Value: var failure }:
-                return NativeRefusal(failure);
-            case NewColonyReplyOutcome.CompletedCase { Value: var done }:
-                var observed = done.Context;
-                var identity = observed?.Identity;
-                return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new NewColonyCompletedDto(
-                    "completed",
-                    (done.RequestId ?? ""),
-                    (done.SaveName ?? ""),
-                    new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
-                    observed?.Tick ?? 0,
-                    done.Paused.GetValueOrDefault(),
-                    done.ByteLength.GetValueOrDefault(),
-                    (done.Seed ?? ""))));
-            default:
-                return ReadRoutes.ReadFailure(new InvalidOperationException("new colony not completed"));
+            return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new NewColonyPendingDto(
+                "pending",
+                (pending.RequestId ?? ""),
+                PhaseName(pending.Phase),
+                (pending.Detail ?? ""),
+                pending.ElapsedMs,
+                pending.RerollCount)));
         }
+
+        if (reply.Outcome is NewColonyReplyOutcome.SupersededCase { Value: var superseded })
+        {
+            return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
+        }
+
+        if (reply.Outcome is NewColonyReplyOutcome.FailureCase { Value: var failure })
+        {
+            return NativeRefusal(failure);
+        }
+
+        if (reply.Outcome is NewColonyReplyOutcome.CompletedCase { Value: var done })
+        {
+            var observed = done.Context;
+            var identity = observed?.Identity;
+            return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new NewColonyCompletedDto(
+                "completed",
+                (done.RequestId ?? ""),
+                (done.SaveName ?? ""),
+                new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
+                observed?.Tick ?? 0,
+                done.Paused,
+                done.ByteLength,
+                (done.Seed ?? ""))));
+        }
+
+        return ReadRoutes.ReadFailure(new InvalidOperationException("new colony not completed"));
     }
 
-    private static string PhaseName(NewColonyPhase phase) => phase switch
-    {
-        NewColonyPhase.GeneratingWorld => "generating_world",
-        NewColonyPhase.ChoosingTile => "choosing_tile",
-        NewColonyPhase.RollingColonists => "rolling_colonists",
-        NewColonyPhase.GeneratingMap => "generating_map",
-        NewColonyPhase.Finishing => "finishing",
-        NewColonyPhase.Saving => "saving",
-        _ => "",
-    };
+    private static string PhaseName(NewColonyPhase phase) =>
+        Domain.Wire.Name(phase).Replace("NEW_COLONY_PHASE_", "", StringComparison.Ordinal).ToLowerInvariant();
 
     private static ChannelResponse NativeRefusal(Failure failure) =>
-        ChannelResponse.Failure(RefusalStatus(failure.Code.GetValueOrDefault()), "native_" + CodeName(failure.Code.GetValueOrDefault()), failure.Detail ?? "");
+        ChannelResponse.Failure(RefusalStatus(failure.Code), "native_" + CodeName(failure.Code), failure.Detail ?? "");
 
-    private static int RefusalStatus(FailureCode code) => code switch
-    {
-        FailureCode.InvalidRequest => 400,
-        FailureCode.NotFound => 404,
-        FailureCode.OwnerConflict or FailureCode.AttemptConflict => 409,
-        _ => 502,
-    };
+    private static int RefusalStatus(FailureCode code) =>
+        code == FailureCode.InvalidRequest ? 400
+        : code == FailureCode.NotFound ? 404
+        : code is FailureCode.OwnerConflict or FailureCode.AttemptConflict ? 409
+        : 502;
 
     // The wire name is the enum name after FAILURE_CODE_, lower-cased.
     private static string CodeName(FailureCode code) =>

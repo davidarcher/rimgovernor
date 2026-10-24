@@ -20,7 +20,7 @@ internal static class ZonePreviews
             var detail = (refusal.Value.Detail ?? "");
             if (detail.Length == 0)
             {
-                detail = refusal.Value.Code.GetValueOrDefault().ToString();
+                detail = refusal.Value.Code.ToString();
             }
             return (null, detail);
         }

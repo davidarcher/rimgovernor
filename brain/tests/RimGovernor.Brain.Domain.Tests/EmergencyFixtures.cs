@@ -15,7 +15,7 @@ internal static class EmergencyFixtures
     /// <summary>A status read at tick 100 listing the colonists, no dependents and no threats.</summary>
     public static O.StatusSnapshot Status(params string[] colonists) => new()
     {
-        Context = new() { Identity = Identity, Tick = 100 },
+        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = 100 },
         Threats = new() { Pawns = [], HostileBuildings = [] },
         Colonists = [.. colonists.Select(id => new C.Ref { Id = id })],
         DependentPatients = new() { Patients = [] },

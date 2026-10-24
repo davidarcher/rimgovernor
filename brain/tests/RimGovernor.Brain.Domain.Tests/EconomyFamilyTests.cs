@@ -286,7 +286,7 @@ public sealed class EconomyFamilyTests
     /// <summary>A research read with no project listed, nothing finished and both slots empty.</summary>
     private static Obs.ResearchSnapshot NoResearch => new()
     {
-        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
         Slots = [new() { Category = "", CurrentProject = "" }],
         Projects = [],
         Finished = [],

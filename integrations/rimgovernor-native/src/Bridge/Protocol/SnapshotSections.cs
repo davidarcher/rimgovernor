@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
 
             internal Obs.BundleSnapshot Frame() => new Obs.BundleSnapshot
             {
-                Failure = new Common.Failure { Code = Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
+                Failure = new Common.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
             };
         }
     }

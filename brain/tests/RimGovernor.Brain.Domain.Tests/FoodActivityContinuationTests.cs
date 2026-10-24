@@ -19,7 +19,7 @@ public sealed class FoodActivityContinuationTests
     private static PawnActivities Harvest() => ActivityContinuationFixtures.Harvest();
     private static Observed Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => new(Read(options),
         new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", 110),
-        new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 });
+        new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 });
     private sealed record Observed(FoodActivityRead Food, RimGovernor.Contracts.Wire.Operations.PawnActivityExecution Execution, RimGovernor.Contracts.Wire.Common.ObservationContext Context);
 
     [Theory]
@@ -139,7 +139,7 @@ public sealed class FoodActivityContinuationTests
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
         var terminal = Terminal(batch, "completed", Option("live-observed-food", 2));
-        var read = terminal with { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 } };
+        var read = terminal with { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1), Tick = 200 } };
         var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read),
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
         try
@@ -181,7 +181,7 @@ public sealed class FoodActivityContinuationTests
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
         var read = new Observed(Read(), new(order.Assignment, order.Method, 1, 0, "completed", "", 200),
-            new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 });
+            new() { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1), Tick = 200 });
         var wake = new WakeSignal();
         var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read), Wake = wake,
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);

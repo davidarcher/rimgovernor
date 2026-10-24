@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
         internal static Lifecycle.SaveReply Apply(Lifecycle.SaveRequest request)
         {
             var player = request.Player;
-            if (player == null || !ValidIdentity(player.Identity) || player.PlayerDirection is null || player.PlayerDirection.GetValueOrDefault() == 0
+            if (player == null || !ValidIdentity(player.Identity) || player.PlayerDirection == 0
                 || player.RequestId is null || !ProtoBoundary.IsIdentifier(player.RequestId)
                 || request.SaveName is null || !ProtoBoundary.IsIdentifier(request.SaveName))
                 return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
 
             // A mismatch here is a race with the caller's own expectation, not a
             // malformed request: report it as uncertain and never save.
-            if (!player.Identity.Equals(context.Identity) || (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() != context.Tick))
+            if (!player.Identity.Equals(context.Identity) || (request.ExpectedTick is Lifecycle.ExpectedSaveTick.AtCase { Value: var expectedTick } && expectedTick != context.Tick))
                 return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveUncertain
                 {
                     RequestId = player.RequestId, SaveName = request.SaveName, ObservedContext = context,
@@ -64,9 +64,10 @@ namespace HomeBridge.BridgeTools
                 return new Lifecycle.SaveReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "Native must already be paused before a trusted save.") };
 
+            long bytes;
             try
             {
-                WriteSave((request.SaveName ?? ""));
+                bytes = WriteSave((request.SaveName ?? ""));
             }
             catch (Exception error)
             {
@@ -93,7 +94,7 @@ namespace HomeBridge.BridgeTools
             return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveCompleted
             {
                 RequestId = player.RequestId, SaveName = (request.SaveName ?? ""), Context = after,
-                Paused = pausedAfter, PlayerDirection = player.PlayerDirection
+                Paused = pausedAfter, ByteLength = (ulong)bytes, PlayerDirection = player.PlayerDirection
             } });
         }
 

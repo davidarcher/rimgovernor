@@ -140,7 +140,7 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
 
     private static bool MatchesAuthority(PbCommon.ObservationContext observed, ControlState state) =>
         !state.Enabled
-        || (state.ObservationKnown && Equals(observed.Identity, Boundary.Identity(state.Snapshot)) && observed.NativeGeneration is not null && observed.NativeGeneration.GetValueOrDefault() == (ulong)state.Snapshot.Native.Value);
+        || (state.ObservationKnown && Equals(observed.Identity, Boundary.Identity(state.Snapshot)) && observed.NativeGeneration.IsAt((ulong)state.Snapshot.Native.Value));
 
     // Delivers one batch against the current context. A context read that fails (a game thread busy past the call bound)
     // is retried with the batch held: the batch is delayed, not lost, so it wakes no Full step. Native counts what the

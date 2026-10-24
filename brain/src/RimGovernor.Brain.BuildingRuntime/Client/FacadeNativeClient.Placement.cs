@@ -68,7 +68,7 @@ public sealed partial class FacadeNativeClient
             var request = new PbPlacement.PlacementRequest { Identity = identity, Placements = [.. candidates.Skip(start).Take(end - start)] };
             var batch = await PlacementPreviewsAsync(request, cancellationToken).ConfigureAwait(false);
             var context = batch.Context!;
-            if (context.NativeGeneration is null || context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value)
+            if (!context.NativeGeneration.IsAt(snapshot.Native.Value))
             {
                 throw BridgeContractException.Contract("building preview generation changed or unavailable");
             }

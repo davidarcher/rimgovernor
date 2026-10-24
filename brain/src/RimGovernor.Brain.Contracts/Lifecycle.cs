@@ -6,8 +6,6 @@ namespace RimGovernor.Contracts.Wire.Lifecycle;
 [JsonConverter(typeof(WireEnumConverter<Readiness>))]
 public enum Readiness
 {
-    [WireName("READINESS_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("READINESS_MAP")]
     Map = 1,
     [WireName("READINESS_VISUAL")]
@@ -17,14 +15,16 @@ public enum Readiness
 [JsonConverter(typeof(WireEnumConverter<StartingThingPlacement>))]
 public enum StartingThingPlacement
 {
-    [WireName("STARTING_THING_PLACEMENT_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("STARTING_THING_PLACEMENT_START_WITH")]
     StartWith = 1,
     [WireName("STARTING_THING_PLACEMENT_START_NEAR")]
     StartNear = 2,
+    /// <summary>Scattered over the map, never under a roof.</summary>
     [WireName("STARTING_THING_PLACEMENT_SCATTERED")]
     Scattered = 3,
+    /// <summary>Scattered over the map, roofed ground allowed.</summary>
+    [WireName("STARTING_THING_PLACEMENT_SCATTERED_ROOFED")]
+    ScatteredRoofed = 4,
 }
 
 /// <summary>
@@ -33,8 +33,6 @@ public enum StartingThingPlacement
 [JsonConverter(typeof(WireEnumConverter<ScenarioPawnContext>))]
 public enum ScenarioPawnContext
 {
-    [WireName("SCENARIO_PAWN_CONTEXT_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("SCENARIO_PAWN_CONTEXT_ALL")]
     All = 1,
     [WireName("SCENARIO_PAWN_CONTEXT_PLAYER_STARTER")]
@@ -46,23 +44,25 @@ public enum ScenarioPawnContext
 [JsonConverter(typeof(WireEnumConverter<ScenarioPlayerFaction>))]
 public enum ScenarioPlayerFaction
 {
-    [WireName("SCENARIO_PLAYER_FACTION_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("SCENARIO_PLAYER_FACTION_NEW_ARRIVALS")]
     NewArrivals = 1,
     [WireName("SCENARIO_PLAYER_FACTION_NEW_TRIBE")]
     NewTribe = 2,
+    /// <summary>The base scenario's own player faction part stays.</summary>
+    [WireName("SCENARIO_PLAYER_FACTION_BASE")]
+    Base = 3,
 }
 
 [JsonConverter(typeof(WireEnumConverter<ScenarioArrivalMethod>))]
 public enum ScenarioArrivalMethod
 {
-    [WireName("SCENARIO_ARRIVAL_METHOD_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("SCENARIO_ARRIVAL_METHOD_STANDING")]
     Standing = 1,
     [WireName("SCENARIO_ARRIVAL_METHOD_DROP_PODS")]
     DropPods = 2,
+    /// <summary>The base scenario's own arrival method stays.</summary>
+    [WireName("SCENARIO_ARRIVAL_METHOD_BASE")]
+    Base = 3,
 }
 
 /// <summary>
@@ -71,8 +71,6 @@ public enum ScenarioArrivalMethod
 [JsonConverter(typeof(WireEnumConverter<NewColonyPhase>))]
 public enum NewColonyPhase
 {
-    [WireName("NEW_COLONY_PHASE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("NEW_COLONY_PHASE_GENERATING_WORLD")]
     GeneratingWorld = 1,
     [WireName("NEW_COLONY_PHASE_CHOOSING_TILE")]
@@ -94,7 +92,7 @@ public sealed record LoadedIdentity
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Paused { get; init; }
+    public required bool Paused { get; init; }
 }
 
 /// <summary>
@@ -123,9 +121,9 @@ public sealed record LoadedTick
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Paused { get; init; }
+    public required bool Paused { get; init; }
 
-    public bool? ForcePaused { get; init; }
+    public required bool ForcePaused { get; init; }
 
     public string? TimeSpeed { get; init; }
 
@@ -140,7 +138,7 @@ public sealed record PlayerLifecycleContext
 {
     public Common.Identity? Identity { get; init; }
 
-    public ulong? PlayerDirection { get; init; }
+    public required ulong PlayerDirection { get; init; }
 
     public string? RequestId { get; init; }
 }
@@ -151,7 +149,20 @@ public sealed record SaveRequest
 
     public string? SaveName { get; init; }
 
-    public long? ExpectedTick { get; init; }
+    public required ExpectedSaveTick ExpectedTick { get; init; }
+}
+
+/// <summary>The <c>expected_tick</c> choice of <see cref="SaveRequest"/>: the save runs at any tick, or only when the game is at the tick named.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ExpectedSaveTick.AnyCase), "any")]
+[JsonDerivedType(typeof(ExpectedSaveTick.AtCase), "at")]
+public abstract record ExpectedSaveTick
+{
+    private protected ExpectedSaveTick() { }
+
+    public sealed record AnyCase : ExpectedSaveTick;
+
+    public sealed record AtCase(long Value) : ExpectedSaveTick;
 }
 
 public sealed record SaveCompleted
@@ -162,11 +173,11 @@ public sealed record SaveCompleted
 
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Paused { get; init; }
+    public required bool Paused { get; init; }
 
-    public ulong? PlayerDirection { get; init; }
+    public required ulong PlayerDirection { get; init; }
 
-    public ulong? ByteLength { get; init; }
+    public required ulong ByteLength { get; init; }
 }
 
 public sealed record SaveUncertain
@@ -228,9 +239,9 @@ public sealed record LoadRequest
 
     public string? SaveName { get; init; }
 
-    public Readiness? Readiness { get; init; }
+    public required Readiness Readiness { get; init; }
 
-    public uint? TimeoutMs { get; init; }
+    public required uint TimeoutMs { get; init; }
 
     /// <summary>
     /// Required when replacing a live map. Before-map admission uses owned instance+direction.
@@ -246,7 +257,7 @@ public sealed record LoadCompleted
 
     public LoadedIdentity? Loaded { get; init; }
 
-    public Readiness? Readiness { get; init; }
+    public required Readiness Readiness { get; init; }
 }
 
 public sealed record LoadPending
@@ -332,7 +343,7 @@ public sealed record MenuCompleted
 {
     public string? RequestId { get; init; }
 
-    public bool? Unloaded { get; init; }
+    public required bool Unloaded { get; init; }
 }
 
 public sealed record MenuPending
@@ -381,10 +392,23 @@ public abstract record MenuReplyOutcome
     public static implicit operator MenuReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>One end of the seasonal temperature band a start tile must meet: open (no limit at this end) or at a Celsius value.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TemperatureLimit.OpenCase), "open")]
+[JsonDerivedType(typeof(TemperatureLimit.AtCase), "at")]
+public abstract record TemperatureLimit
+{
+    private protected TemperatureLimit() { }
+
+    public sealed record OpenCase : TemperatureLimit;
+
+    public sealed record AtCase(float Value) : TemperatureLimit;
+}
+
 /// <summary>
 /// New colony: native generates a colony from a spec on a fresh main
 /// menu and saves it as the last phase, so the spec carries the save name.
-/// Unset temperature fields leave the game default. world_temperature is the
+/// An open temperature limit leaves that end of the band unconstrained. world_temperature is the
 /// RimWorld OverallTemperature name; planet_coverage is 0.05..1; map_size is
 /// the square side in cells (100..400).
 /// </summary>
@@ -392,28 +416,28 @@ public sealed record NewColonySpec
 {
     public string? Scenario { get; init; }
 
-    public uint? ColonistCount { get; init; }
+    public required uint ColonistCount { get; init; }
 
     public string? Seed { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Biomes { get; init; }
 
-    public bool? FlatTile { get; init; }
+    public required bool FlatTile { get; init; }
 
     public string? Difficulty { get; init; }
 
     public string? Storyteller { get; init; }
 
-    public float? MinTemperature { get; init; }
+    public required TemperatureLimit MinTemperature { get; init; }
 
-    public float? MaxTemperature { get; init; }
+    public required TemperatureLimit MaxTemperature { get; init; }
 
     public string? WorldTemperature { get; init; }
 
-    public uint? MapSize { get; init; }
+    public required uint MapSize { get; init; }
 
-    public float? PlanetCoverage { get; init; }
+    public required float PlanetCoverage { get; init; }
 
     public string? SaveName { get; init; }
 
@@ -422,7 +446,7 @@ public sealed record NewColonySpec
     /// <summary>
     /// The brain resolves this request through the definition catalog before dispatch.
     /// </summary>
-    public bool? GovernorIdeoligion { get; init; }
+    public required bool GovernorIdeoligion { get; init; }
 
     /// <summary>
     /// A theme preset id (#3511). The brain designs the starting ideoligion that holds the preset's memes, precepts and
@@ -468,31 +492,29 @@ public sealed record NewColonySpec
     public EquatableArray<string> DisabledIncidents { get; init; }
 
     /// <summary>
-    /// Mandatory-part overrides; unset keeps the base scenario's. The starting
+    /// Mandatory-part overrides; Base keeps the base scenario's. The starting
     /// pawn count is colonist_count.
     /// </summary>
-    public ScenarioPlayerFaction? PlayerFaction { get; init; }
+    public required ScenarioPlayerFaction PlayerFaction { get; init; }
 
-    public ScenarioArrivalMethod? ArrivalMethod { get; init; }
+    public required ScenarioArrivalMethod ArrivalMethod { get; init; }
 }
 
 /// <summary>
-/// stuff and quality (QualityCategory name) are optional; allow_roofed applies
-/// to scattered things only.
+/// stuff and quality (QualityCategory name) are optional; only a scattered
+/// placement says whether roofed ground is allowed.
 /// </summary>
 public sealed record StartingThing
 {
-    public StartingThingPlacement? Placement { get; init; }
+    public required StartingThingPlacement Placement { get; init; }
 
     public string? ThingDef { get; init; }
 
     public string? Stuff { get; init; }
 
-    public uint? Count { get; init; }
+    public required uint Count { get; init; }
 
     public string? Quality { get; init; }
-
-    public bool? AllowRoofed { get; init; }
 }
 
 /// <summary>
@@ -502,11 +524,11 @@ public sealed record ForcedTrait
 {
     public string? Trait { get; init; }
 
-    public int? Degree { get; init; }
+    public required int Degree { get; init; }
 
-    public float? Chance { get; init; }
+    public required float Chance { get; init; }
 
-    public ScenarioPawnContext? Context { get; init; }
+    public required ScenarioPawnContext Context { get; init; }
 }
 
 /// <summary>
@@ -518,18 +540,18 @@ public sealed record ForcedHediff
 {
     public string? Hediff { get; init; }
 
-    public float? Severity { get; init; }
+    public required float Severity { get; init; }
 
-    public float? Chance { get; init; }
+    public required float Chance { get; init; }
 
-    public ScenarioPawnContext? Context { get; init; }
+    public required ScenarioPawnContext Context { get; init; }
 }
 
 public sealed record NakedPart
 {
-    public float? Chance { get; init; }
+    public required float Chance { get; init; }
 
-    public ScenarioPawnContext? Context { get; init; }
+    public required ScenarioPawnContext Context { get; init; }
 }
 
 /// <summary>
@@ -540,11 +562,11 @@ public sealed record SetNeedLevel
 {
     public string? Need { get; init; }
 
-    public float? Level { get; init; }
+    public required float Level { get; init; }
 
-    public float? Chance { get; init; }
+    public required float Chance { get; init; }
 
-    public ScenarioPawnContext? Context { get; init; }
+    public required ScenarioPawnContext Context { get; init; }
 }
 
 public sealed record NewColonyRequest
@@ -553,7 +575,7 @@ public sealed record NewColonyRequest
 
     public NewColonySpec? Spec { get; init; }
 
-    public uint? TimeoutMs { get; init; }
+    public required uint TimeoutMs { get; init; }
 }
 
 public sealed record NewColonyCompleted
@@ -564,9 +586,9 @@ public sealed record NewColonyCompleted
 
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Paused { get; init; }
+    public required bool Paused { get; init; }
 
-    public ulong? ByteLength { get; init; }
+    public required ulong ByteLength { get; init; }
 
     /// <summary>
     /// The seed the colony was generated from, after any reroll native made.
@@ -578,13 +600,13 @@ public sealed record NewColonyPending
 {
     public string? RequestId { get; init; }
 
-    public NewColonyPhase? Phase { get; init; }
+    public required NewColonyPhase Phase { get; init; }
 
     public string? Detail { get; init; }
 
-    public ulong? ElapsedMs { get; init; }
+    public required ulong ElapsedMs { get; init; }
 
-    public uint? RerollCount { get; init; }
+    public required uint RerollCount { get; init; }
 }
 
 public sealed record NewColonySuperseded
@@ -673,7 +695,7 @@ public sealed record PutGovernorStateBatchRequest
 /// </summary>
 public sealed record WaitSaveSignalRequest
 {
-    public int? TimeoutMs { get; init; }
+    public required int TimeoutMs { get; init; }
 }
 
 public sealed record SaveSignal

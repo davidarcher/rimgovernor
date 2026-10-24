@@ -20,7 +20,7 @@ public sealed class PlannedRoomActivitiesTests
     private const string Pawn = "pawn";
     private static readonly string[] Plants = ["plant-a", "plant-b"];
     private static readonly ObservationContext Context = new()
-        { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+        { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static readonly Cell Start = new(1, 1);
     private static readonly Cell DoorCell = new(6, 4);
     private static readonly Cell[] Interior = [.. Enumerable.Range(5, 3).SelectMany(x => Enumerable.Range(5, 3).Select(z => new Cell(x, z)))];

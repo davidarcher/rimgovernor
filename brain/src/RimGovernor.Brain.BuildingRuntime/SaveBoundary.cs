@@ -70,18 +70,15 @@ public sealed partial class Control
                     RequestId = string.Create(CultureInfo.InvariantCulture, $"checkpoint-{Namespace.Value}-{(DateTime.UtcNow - DateTime.UnixEpoch).Ticks * 100}"),
                 },
                 SaveName = request.SaveName,
+                ExpectedTick = request.HasExpectedTick ? new LifecyclePb.ExpectedSaveTick.AtCase((long)request.ExpectedTick.Value) : new LifecyclePb.ExpectedSaveTick.AnyCase(),
             };
-            if (request.HasExpectedTick)
-            {
-                req = req with { ExpectedTick = (long)request.ExpectedTick.Value };
-            }
             var reply = await save.SaveAsync(req, call).ConfigureAwait(false);
             var completed = reply.Outcome?.Completed;
             if (completed is null)
             {
                 throw new CheckpointException();
             }
-            return new CheckpointResult(current, new Tick(completed.Context?.Tick ?? 0), (completed.SaveName ?? ""), completed.Paused.GetValueOrDefault());
+            return new CheckpointResult(current, new Tick(completed.Context?.Tick ?? 0), (completed.SaveName ?? ""), completed.Paused);
         }
         catch (Exception e) when (e is not CheckpointException)
         {
