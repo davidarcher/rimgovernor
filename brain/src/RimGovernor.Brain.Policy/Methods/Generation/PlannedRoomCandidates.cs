@@ -58,8 +58,8 @@ internal static class PlannedRoomCandidates
         ForecastActivityOption[] RoofOptions(PlannedBuildSite site, string id) => thermal is null ? [] : thermal.Workers
             .Where(w => pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn) && Routed(w.Pawn, site.Positions[0]))
             .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks * site.Positions.Count), Known(0.0))
-            { SkillWork = w.SkillWork is { WorkAmount.IsKnown: true } learning
-                ? learning with { WorkAmount = Known(learning.WorkAmount.Value * site.Positions.Count), WorkQuantum = learning.WorkAmount.Value } : null }).ToArray();
+            { SkillWork = w.SkillWork is { } learning
+                ? learning with { WorkAmount = learning.WorkAmount * site.Positions.Count, WorkQuantum = learning.WorkAmount } : null }).ToArray();
         (Assessment Verdict, string Reason) Assess(PlannedBuildSite site)
         {
             if (site.Op == OpKind.RoofIn)

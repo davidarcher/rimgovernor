@@ -387,7 +387,7 @@ namespace HomeBridge.BridgeTools
             if(pawn.skills!=null)
             {
                 foreach(var skill in pawn.skills.skills)
-                    row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=NativeSkillLearning.Read(pawn,skill),DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
+                    row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=pawn.story?.traits!=null ? NativeSkillLearning.Read(pawn,skill) : null,DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
                 row = NativeSkillStat.Curves(pawn,row);
                 // The work speeds a crafter and a builder work at (#3868), the rows the needs forecast's upkeep reads.
                 row = row with { WorkSpeeds = NativeNeedsForecast.WorkSpeeds(pawn) };

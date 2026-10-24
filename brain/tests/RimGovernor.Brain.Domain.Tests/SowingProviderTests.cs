@@ -12,7 +12,7 @@ public sealed class SowingProviderTests
     private static SowingWorker Worker(string pawn, int cells, double perCell = SowWork, string zone = "Zone_Growing12") =>
         new(pawn, zone, "GrowerSow", 7d, perCell,
             EquatableArray.From(Enumerable.Range(0, cells).Select(i => new Cell(10 + i, 20))))
-        { SkillWork = ProductiveLearningTests.Work() with { Rates = [new(1, Known(1 / perCell))] } };
+        { SkillWork = ProductiveLearningTests.Work() with { Rates = [new(1, 1 / perCell)] } };
 
     private static ForecastCoupledCandidates Generate(double horizon, params SowingWorker[] workers)
     {

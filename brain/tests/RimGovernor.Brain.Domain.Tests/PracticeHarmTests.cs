@@ -113,7 +113,7 @@ public sealed class PracticeHarmTests
         Assert.Empty(Ledger(new Dictionary<string, double>(), task).InvestmentContributions);
         Assert.Empty(Ledger(new Dictionary<string, double> { [key] = PerXp }, task with { Worker = task.Worker with { Learning = SparringCreditTests.Melee(2) } }).InvestmentContributions);
         // Unread learning is a required fact.
-        var unread = task with { Worker = task.Worker with { Learning = SparringCreditTests.Melee() with { Xp = default } } };
+        var unread = task with { Worker = task.Worker with { Learning = SparringCreditTests.Melee() with { Xp = double.NaN } } };
         Assert.StartsWith("melee practice a", Assert.Throws<RequiredFactException>(() => Ledger(new Dictionary<string, double> { [key] = PerXp }, unread)).Fact, StringComparison.Ordinal);
     }
 
@@ -126,7 +126,7 @@ public sealed class PracticeHarmTests
         // GenerateCoupledActivities builds the bout's tasks and the context's practice sessions; the review's tier-2 marginals
         // (Rounder sets ForecastCoupledContext.Investment from them) price the XP. No Ideology role holds a requirement here.
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
-        var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
+        var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
         var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();

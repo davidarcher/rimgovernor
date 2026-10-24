@@ -334,11 +334,11 @@ internal static class NativeConstructionActivity
         return learning with
         {
             Rates = EquatableArray.From(learning.Rates.Select(r => new Obs.SkillWorkRate(r.StoredLevel,
-                r.WorkPerTick.IsKnown && r.WorkPerTick.Value > 0
-                    ? Fact.Known(1.0 / Math.Max(1, Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / r.WorkPerTick.Value))) : default))),
+                r.WorkPerTick > 0
+                    ? 1.0 / Math.Max(1, Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / r.WorkPerTick)) : 0))),
             Stages = EquatableArray.From(rocks.Select(r => new Obs.ProductiveWorkStage(
                 Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit), 1,
-                Fact.Known(pawn.Faction == null || r.Faction != pawn.Faction ? 0.07 : 0), 1, true)))
+                pawn.Faction == null || r.Faction != pawn.Faction ? 0.07 : 0, 1, true)))
         };
     }
     // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed
@@ -371,7 +371,7 @@ internal static class NativeConstructionActivity
                 plants.Sum(p => (double)p.def.plant.harvestWork), 1, 0.085, true, false,
                 "JobDriver_PlantCut: yielding plants learn before work") is { } learning ? learning with
                 { Stages = EquatableArray.From(plants.Select(p => new Obs.ProductiveWorkStage(p.def.plant.harvestWork,
-                    UnityEngine.Mathf.Lerp(3.3f, 1f, p.Growth), Fact.Known(p.def.plant.harvestedThingDef != null && p.CanYieldNow() ? 0.085 : 0)))) } : null);
+                    UnityEngine.Mathf.Lerp(3.3f, 1f, p.Growth), p.def.plant.harvestedThingDef != null && p.CanYieldNow() ? 0.085 : 0))) } : null);
         return new(id, Obs.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())), Cells = [] };
     }
 
@@ -498,8 +498,8 @@ internal static class NativeConstructionActivity
                 route, new Obs.ConstructionDelivery.Unsourced(), Finish(rate > 0 ? Math.Ceiling(total / rate) : null, () => NativeProductiveSkill.ReadWork(pawn,
                     SkillDefOf.Construction, StatDefOf.ConstructionSpeed, total, 1.7, 0, false, false,
                     "JobDriver_RemoveBuilding: construction speed, no learning") is { } learning ? learning with
-                    { Stages = EquatableArray.From(Enumerable.Repeat(new Obs.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, Fact.Known(0d)), roofCells?.Count ?? 0)
-                        .Append(new(work, 1, Fact.Known(0d)))) } : null), 0, new Obs.StackStorage.Unsourced()));
+                    { Stages = EquatableArray.From(Enumerable.Repeat(new Obs.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, 0d), roofCells?.Count ?? 0)
+                        .Append(new(work, 1, 0d))) } : null), 0, new Obs.StackStorage.Unsourced()));
         }
         return rows;
     }

@@ -6,7 +6,6 @@ using RimWorld;
 using Verse;
 using RimGovernor.Runtime;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
@@ -27,7 +26,7 @@ internal static class NativeSkillLearning
 
     internal static Obs.SkillLearning Read(Pawn pawn, SkillRecord skill)
     {
-        if (pawn.story?.traits == null) return new();
+        if (pawn.story?.traits == null) throw new InvalidOperationException("skill learning " + pawn.GetUniqueLoadID() + ": the pawn has no traits");
         var allowed = !(ModsConfig.AnomalyActive && pawn.IsMutant && !pawn.mutant.Def.canGainXP);
         var saturatedFactor = DebugSettings.fastLearning ? 1d : SkillRecord.SaturatedLearningFactor;
         var levels = Enumerable.Range(SkillRecord.MinLevel, SkillRecord.MaxLevel + 1).Select(level =>
@@ -48,7 +47,7 @@ internal static class NativeSkillLearning
         if (next - interval > -elapsed) next -= interval;
         var reset = LastReset(pawn.skills);
         var now = Find.TickManager.TicksGame;
-        var midnightReset = 0;
+        int? midnightReset = null;
         for (var hashTick = next; hashTick <= GenDate.TicksPerDay + interval; hashTick += interval)
         {
             var at = clock.AtOrAfter(hashTick);
@@ -56,26 +55,29 @@ internal static class NativeSkillLearning
                 && (reset < 0 || now + at - reset >= GenDate.TicksPerDay / 2))
             { midnightReset = at; break; }
         }
+        // The tracker resets once each local day, so a reset always falls within a day and a decay interval.
+        if (midnightReset is not { } nextReset)
+            throw new InvalidOperationException("skill learning " + pawn.GetUniqueLoadID() + ": no midnight reset within a day");
         var localDay = GenLocalDate.DayPercent(pawn);
         // No extrapolation through either the tracker local midnight or range's global daily reset.
         var localRemaining = GenLocalDate.HourInteger(pawn) == 0 ? 0 : Math.Max(0, (int)((1d - localDay) * GenDate.TicksPerDay) - 1);
         var globalRemaining = GenDate.TicksPerDay - Find.TickManager.TicksGame % GenDate.TicksPerDay;
-        var practice = skill.def == SkillDefOf.Shooting || skill.def == SkillDefOf.Melee;
         return new()
         {
-            Disabled = Known(skill.TotallyDisabled), TrackerAllowsLearning = Known(allowed),
-            StoredLevel = Known(skill.levelInt), Aptitude = Known(skill.Aptitude), Xp = Known((double)skill.xpSinceLastLevel),
-            XpSinceMidnight = Known((double)skill.xpSinceMidnight), DirectFactor = Known((double)skill.LearnRateFactor(true)),
-            UnsaturatedFactor = Known(skill.LearnRateFactor() / (skill.LearningSaturatedToday ? saturatedFactor : 1)),
-            SaturationThreshold = Known((double)SkillRecord.MaxFullRateXpPerDay), SaturatedFactor = Known(saturatedFactor),
-            LossThreshold = Known((double)SkillRecord.MinXPAmount), DecayInterval = Known(interval), NextDecay = Known(next),
-            ValidForTicks = Known(Math.Min(localRemaining, globalRemaining)), NextMidnightReset = midnightReset > 0 ? Known(midnightReset) : default,
+            Disabled = skill.TotallyDisabled, TrackerAllowsLearning = allowed,
+            StoredLevel = skill.levelInt, Aptitude = skill.Aptitude, Xp = skill.xpSinceLastLevel,
+            XpSinceMidnight = skill.xpSinceMidnight, DirectFactor = skill.LearnRateFactor(true),
+            UnsaturatedFactor = skill.LearnRateFactor() / (skill.LearningSaturatedToday ? saturatedFactor : 1),
+            SaturationThreshold = SkillRecord.MaxFullRateXpPerDay, SaturatedFactor = saturatedFactor,
+            LossThreshold = SkillRecord.MinXPAmount, DecayInterval = interval, NextDecay = next,
+            ValidForTicks = Math.Min(localRemaining, globalRemaining), NextMidnightReset = nextReset,
             TrackerIntervalTicks = cadence, TrackerPhase = phase, TrackerElapsedTicks = elapsed, Levels = EquatableArray.From(levels),
-            PracticeEligible = practice ? Known(skill.def == SkillDefOf.Shooting ? RangeTraining.Eligible(pawn, skill.def) : SparringBouts.Eligible(pawn)) : default,
-            PracticeCapable = practice && RangeTraining.CanTrain(pawn, skill.def),
-            PracticeCeiling = practice ? Known(RangeTraining.CeilingFor(skill.def)) : default,
-            RangeAppliedBudget = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.Remaining(pawn)) : default,
-            RangeDailyBudget = skill.def == SkillDefOf.Shooting ? RangeTraining.DailyXpBudget : 0,
+            Practice = skill.def == SkillDefOf.Shooting
+                ? new Obs.SkillPractice.Range(RangeTraining.CanTrain(pawn, skill.def), RangeTraining.Eligible(pawn, skill.def),
+                    RangeTraining.CeilingFor(skill.def), RangeTraining.Remaining(pawn), RangeTraining.DailyXpBudget)
+                : skill.def == SkillDefOf.Melee
+                    ? new Obs.SkillPractice.Sparring(RangeTraining.CanTrain(pawn, skill.def), SparringBouts.Eligible(pawn), RangeTraining.CeilingFor(skill.def))
+                    : new Obs.SkillPractice.None(),
         };
     }
 }

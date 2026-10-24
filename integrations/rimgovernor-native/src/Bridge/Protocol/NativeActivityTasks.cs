@@ -227,9 +227,8 @@ internal static class NativeActivityTasks
                         if (task is not BoundRecipeTask) { bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, bound)); continue; }
                         var productive = bench is Building_WorkTable table && DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.Recipe) is { } definition
                             ? NativeProductiveSkill.Read(pawn, definition, table) : null;
-                        var rate = productive?.Rates.SingleOrDefault(r => productive.Learning.StoredLevel == Fact.Known(r.StoredLevel))?.WorkPerTick ?? default;
-                        if (productive?.WorkAmount.IsKnown == true && rate.IsKnown && rate.Value > 0)
-                            bindings.Add(new Obs.ActivityTaskBinding.Recipe(task.Id, bound, Math.Ceiling(productive.WorkAmount.Value / rate.Value)));
+                        if (productive?.Rates.SingleOrDefault(r => productive.Learning.StoredLevel == r.StoredLevel) is { WorkPerTick: > 0 and var rate })
+                            bindings.Add(new Obs.ActivityTaskBinding.Recipe(task.Id, bound, Math.Ceiling(productive.WorkAmount / rate)));
                     }
                 }
             }

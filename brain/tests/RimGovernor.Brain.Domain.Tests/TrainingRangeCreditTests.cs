@@ -17,7 +17,7 @@ public sealed class TrainingRangeCreditTests
 {
     private const double Day = GameTime.TicksPerDay, Horizon = 10, Served = 3;
 
-    private static SkillLearning Shooting(int stored = 0) => SparringCreditTests.Melee(stored) with { RangeDailyBudget = 3000 };
+    private static SkillLearning Shooting(int stored = 0) => SparringCreditTests.Melee(stored) with { Practice = new SkillPractice.Range(true, true, 2, 3000, 3000) };
 
     private static readonly SkillStatCurve RangedDps = new(SkillStatCurve.RangedDefenseDps, "Shooting",
         EquatableArray.From(Enumerable.Range(0, 3).Select(l => new SkillStatLevel(l, 2 + 2 * l))), "test");
@@ -100,7 +100,7 @@ public sealed class TrainingRangeCreditTests
         ForecastRoomService range = new(1, "", Served * Day);
         Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(null), Day)).Fact);
         Assert.StartsWith("range trainees", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([Trainee("a")], ["c"], 0)), Day)).Fact, StringComparison.Ordinal);
-        var unread = Trainee("a") with { Learning = Shooting() with { Xp = default } };
+        var unread = Trainee("a") with { Learning = Shooting() with { Xp = double.NaN } };
         Assert.StartsWith("shooting learning a", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([unread], [], 0)), Day)).Fact, StringComparison.Ordinal);
         Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(One(), Raids() with { RaidPoints = default }), Day)).Fact, StringComparison.Ordinal);
     }
@@ -108,15 +108,15 @@ public sealed class TrainingRangeCreditTests
     [Fact]
     public void TheCoupledContextCarriesEveryCapableShooterTheRoundsRead()
     {
-        // The production path (#3822): RoundsWork fills each work pawn's Skills (the native SkillLearning, PracticeCapable the
-        // one practice eligibility rule, RangeDailyBudget RangeTraining.DailyXpBudget) and SkillStatCurves (the biography's
+        // The production path (#3822): RoundsWork fills each work pawn's Skills (the native SkillLearning, its SkillPractice.Range
+        // the one practice eligibility rule and RangeTraining.DailyXpBudget) and SkillStatCurves (the biography's
         // RangedDefenseDps curve); GenerateCoupledActivities builds the context's range trainees from the review's facts.
         var facts = ForecastCoupledTests.ConstructionReview();
         var pawns = facts.ForecastObserved.WorkPawns.Value;
         WorkPawn Capable(WorkPawn pawn, string id, bool capable = true) => pawn with
         {
             Id = new(id), Health = Known(0.5),
-            Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 0, Learning = Shooting() with { PracticeCapable = capable } }])),
+            Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 0, Learning = Shooting() with { Practice = new SkillPractice.Range(capable, true, 2, 3000, 3000) } }])),
             SkillStatCurves = [RangedDps],
         };
         WorkPawn[] colony = [Capable(pawns[0], "a"), Capable(pawns[0], "b", capable: false)];
@@ -134,7 +134,7 @@ public sealed class TrainingRangeCreditTests
         Assert.Empty(generated.Context.Range!.Trainees);
         Assert.Contains("training_range_shooting_not_modelled:a", generated.Findings);
         // A fresh colony (its colonist's skills read, none capable of Shooting practice) credits its planned range nothing and throws nothing.
-        var brawler = pawns[0] with { Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 3, Learning = Shooting() with { PracticeCapable = false } }])) };
+        var brawler = pawns[0] with { Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 3, Learning = Shooting() with { Practice = new SkillPractice.Range(false, true, 2, 3000, 3000) } }])) };
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([brawler])) } })!.Context;
         Assert.Empty(fresh.Range!.Trainees);
         Assert.Empty(ForecastTrainingRange.RangeCredit(new(1, "", 0), Stub(), fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.TrainingRange } }, Day));

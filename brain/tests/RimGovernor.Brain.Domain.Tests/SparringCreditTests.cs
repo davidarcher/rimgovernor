@@ -18,12 +18,12 @@ public sealed class SparringCreditTests
 
     internal static SkillLearning Melee(int stored = 0) => new()
     {
-        Disabled = Known(false), TrackerAllowsLearning = Known(true), StoredLevel = Known(stored), Aptitude = Known(0), Xp = Known(0d),
-        XpSinceMidnight = Known(0d), DirectFactor = Known(1d), UnsaturatedFactor = Known(1d), SaturationThreshold = Known(4000d),
-        SaturatedFactor = Known(.2), LossThreshold = Known(-1000d), DecayInterval = Known(200), NextDecay = Known(200), ValidForTicks = Known(1000),
-        NextMidnightReset = Known(1000),
+        Disabled = false, TrackerAllowsLearning = true, StoredLevel = stored, Aptitude = 0, Xp = 0d,
+        XpSinceMidnight = 0d, DirectFactor = 1d, UnsaturatedFactor = 1d, SaturationThreshold = 4000d,
+        SaturatedFactor = .2, LossThreshold = -1000d, DecayInterval = 200, NextDecay = 200, ValidForTicks = 1000,
+        NextMidnightReset = 1000, TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0,
         Levels = EquatableArray.From(Enumerable.Range(0, 3).Select(l => new SkillLevelMechanics(l, 1000, 0))),
-        PracticeEligible = Known(true), PracticeCapable = true, PracticeCeiling = Known(2),
+        Practice = new SkillPractice.Sparring(true, true, 2),
     };
 
     internal static readonly SkillStatCurve MeleeDps = new("MeleeDPS", "Melee", EquatableArray.From(Enumerable.Range(0, 3).Select(l => new SkillStatLevel(l, 2 + 2 * l))), "test");
@@ -103,7 +103,7 @@ public sealed class SparringCreditTests
         ForecastRoomService ring = new(1, "", Served * Day);
         Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), Context(null), Day)).Fact);
         Assert.StartsWith("sparring trainees", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), Context(new([Trainee("a"), Trainee("b")], ["c"], 0)), Day)).Fact, StringComparison.Ordinal);
-        var unread = Trainee("b") with { Learning = Melee() with { Xp = default } };
+        var unread = Trainee("b") with { Learning = Melee() with { Xp = double.NaN } };
         Assert.StartsWith("melee learning b", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), Context(new([Trainee("a"), unread], [], 0)), Day)).Fact, StringComparison.Ordinal);
         Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), Context(Two(), Raids() with { RaidPoints = default }), Day)).Fact, StringComparison.Ordinal);
     }
@@ -111,8 +111,8 @@ public sealed class SparringCreditTests
     [Fact]
     public void TheCoupledContextCarriesTheCapablePawnsTheRoundsRead()
     {
-        // The production path (#3822): RoundsWork fills each work pawn's Skills (the native SkillLearning, PracticeCapable the
-        // one practice eligibility rule) and SkillStatCurves (the biography's MeleeDPS curve) and Health; GenerateCoupledActivities
+        // The production path (#3822): RoundsWork fills each work pawn's Skills (the native SkillLearning, its SkillPractice.Sparring
+        // the one practice eligibility rule) and SkillStatCurves (the biography's MeleeDPS curve) and Health; GenerateCoupledActivities
         // builds the context's trainees from the review's facts.
         var facts = ForecastCoupledTests.ConstructionReview();
         var pawns = facts.ForecastObserved.WorkPawns.Value;
@@ -133,7 +133,7 @@ public sealed class SparringCreditTests
         Assert.Empty(generated.Context.Sparring!.Trainees);
         Assert.Contains("sparring_ring_melee_not_modelled:a", generated.Findings);
         // A fresh colony (its colonist's skills read, none capable of Melee practice) credits its planned ring nothing and throws nothing.
-        var shooter = pawns[0] with { Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 3, Learning = Melee() }, new WorkSkill { Name = "Melee", Disabled = true, Learning = Melee() with { PracticeCapable = false } }])) };
+        var shooter = pawns[0] with { Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 3, Learning = Melee() }, new WorkSkill { Name = "Melee", Disabled = true, Learning = Melee() with { Practice = new SkillPractice.Sparring(false, true, 2) } }])) };
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([shooter])) } })!.Context;
         Assert.Empty(fresh.Sparring!.Trainees);
         Assert.Empty(ForecastSparring.RingCredit(new(1, "", 0), Stub(), fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.SparringRing } }, Day));

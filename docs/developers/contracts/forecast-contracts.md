@@ -1626,11 +1626,9 @@ An unrelated output sharing a resource never consumes another project or herd.
 
 Pawn terminal need levels retain the detailed result, including unknowns.
 Skills reuse the completed productive/practice callbacks and native passive
-decay. Callback validity still ends before local/global midnight. Terminal-stock
-projection may continue passive decay and level settlement after that cut,
-because those midnight resets affect callback saturation/range budgets, not
-stored XP or decay; it rejects every callback at or after the cut. It does not
-create a fresh learning-validity window. Research/sowing XP without observed
+decay through the ordinary skill projection, which replays the read local
+midnight reset; range callbacks still end before the global-day reset. It does
+not create a fresh learning-validity window. Research/sowing XP without observed
 callback mechanics remains outside both existing forecast tiers.
 
 Completed outfit changes and their ordering, room closures and shelter endpoints

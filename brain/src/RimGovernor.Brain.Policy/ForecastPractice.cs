@@ -5,8 +5,8 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// A pawn a practice room trains (#3813, #3846): its learning mechanics for the room's skill (SkillLearning, its PracticeCapable
-/// true), the skill's practice ceiling (SkillLearning.PracticeCeiling) and the DPS it adds to the defense capacity at each stored
+/// A pawn a practice room trains (#3813, #3846): its learning mechanics for the room's skill (SkillLearning, its practice drill
+/// capable), the skill's practice ceiling (SkillPractice.Drill.Ceiling) and the DPS it adds to the defense capacity at each stored
 /// level (index = stored level): MeleeDPS x health for Melee, ranged DPS at its hit factor for Shooting.
 /// </summary>
 public sealed record PracticeTrainee(string Pawn, SkillLearning Learning, int Ceiling, EquatableArray<double> Power);
@@ -44,20 +44,20 @@ internal static class ForecastPractice
     /// <summary>
     /// The credit rows (<see cref="RoomCredit"/>) of a practice room of <paramref name="skill"/> serving at
     /// <paramref name="servedAt"/>: one per trainee whose skill saves harm, under its pawn id. Each day <paramref name="train"/>
-    /// practises the cursors of the trainees still below their ceiling (their indices); <paramref name="dailyReset"/> requires
-    /// the tracker's midnight reset, which the day's tracker learning saturates against.
+    /// practises the cursors of the trainees still below their ceiling (their indices); the tracker's midnight reset, which the
+    /// day's tracker learning saturates against, is always read.
     /// </summary>
     internal static IReadOnlyList<RoomGain> Credit(PracticeTrainees practice, ForecastCoupledContext context, double servedAt,
-        ForecastSupportConsequences support, double horizon, string skill, bool dailyReset, Action<ForecastSkillCursor[], int[]> train)
+        ForecastSupportConsequences support, double horizon, string skill, Action<ForecastSkillCursor[], int[]> train)
     {
         var credit = RingClosure.CreditDays(context.InvestmentHorizonDays, servedAt);
         if (credit <= 0) return [];
         return Caches.GetValue(context, _ => new()).Credits.GetOrAdd((skill, servedAt, support, horizon),
-            key => Gains(practice, context, key.ServedAt, key.Support, key.Horizon, credit, skill, dailyReset, train));
+            key => Gains(practice, context, key.ServedAt, key.Support, key.Horizon, credit, skill, train));
     }
 
     private static IReadOnlyList<RoomGain> Gains(PracticeTrainees practice, ForecastCoupledContext context, double servedAt, ForecastSupportConsequences support,
-        double horizon, double credit, string skill, bool dailyReset, Action<ForecastSkillCursor[], int[]> train)
+        double horizon, double credit, string skill, Action<ForecastSkillCursor[], int[]> train)
     {
         var trainees = practice.Trainees.ToArray();
         foreach (var trainee in trainees)
@@ -67,7 +67,6 @@ internal static class ForecastPractice
         }
         var without = trainees.Select(t => new ForecastSkillCursor(t.Learning)).ToArray();
         var with = trainees.Select(t => new ForecastSkillCursor(t.Learning)).ToArray();
-        if (dailyReset && with.Any(c => !c.ResetsDaily)) throw new RequiredFactException(skill.ToLowerInvariant() + " midnight reset");
         var observed = without.Select((c, i) => trainees[i].Power[c.StoredLevel]).ToArray();
         var saved = new double[trainees.Length];
         var end = context.InvestmentHorizonDays * GameTime.TicksPerDay;

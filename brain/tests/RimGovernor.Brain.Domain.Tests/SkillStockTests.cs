@@ -18,11 +18,12 @@ public sealed class SkillStockTests
     // Twenty-one levels of 100 000 XP without decay.
     internal static SkillLearning Mechanics(int stored, double xp) => new()
     {
-        Disabled = Known(false), TrackerAllowsLearning = Known(true), StoredLevel = Known(stored), Aptitude = Known(0), Xp = Known(xp),
-        XpSinceMidnight = Known(0d), DirectFactor = Known(1d), UnsaturatedFactor = Known(1d), SaturationThreshold = Known(4000d),
-        SaturatedFactor = Known(.2), LossThreshold = Known(-1000d), DecayInterval = Known(200), NextDecay = Known(200), ValidForTicks = Known(1000),
+        Disabled = false, TrackerAllowsLearning = true, StoredLevel = stored, Aptitude = 0, Xp = xp,
+        XpSinceMidnight = 0d, DirectFactor = 1d, UnsaturatedFactor = 1d, SaturationThreshold = 4000d,
+        SaturatedFactor = .2, LossThreshold = -1000d, DecayInterval = 200, NextDecay = 200, ValidForTicks = 1000,
+        NextMidnightReset = 1000, TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0,
         Levels = EquatableArray.From(Enumerable.Range(0, 21).Select(l => new SkillLevelMechanics(l, RequiredXp, 0))),
-        PracticeEligible = Known(true), PracticeCeiling = Known(2), RangeAppliedBudget = Known(30d),
+        Practice = new SkillPractice.None(),
     };
 
     /// <summary>The pawn with a Medicine skill on the mechanics, and each of <paramref name="others"/> on the same mechanics.</summary>
@@ -88,21 +89,21 @@ public sealed class SkillStockTests
     public void ALevelDownInsideADayMatchesForecastSkill()
     {
         // Level 1 decays 10 XP each 200 ticks, so -95 XP passes the -100 loss threshold and drops to level 0.
-        var down = Mechanics(1, -95) with { LossThreshold = Known(-100d), Levels = [new(0, 100, 0), new(1, 200, 10), new(2, 300, 20)] };
-        var expected = ForecastSkillPolicy.ForecastSkill(down, [], 200);
+        var down = Mechanics(1, -95) with { LossThreshold = -100d, Levels = [new(0, 100, 0), new(1, 200, 10), new(2, 300, 20)] };
+        var expected = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(down, [], 200));
         var stock = Stock(down);
         stock.Advance(0, 200 / Day);
         var track = stock.Track();
-        Assert.Equal(0, expected.Level.Value);
-        Assert.Equal(expected.Level.Value, track.StoredLevelOn(1));
-        Assert.Equal(expected.Xp.Value, stock.Xp, 9);
+        Assert.Equal(0, expected.Level);
+        Assert.Equal(expected.Level, track.StoredLevelOn(1));
+        Assert.Equal(expected.Xp, stock.Xp, 9);
     }
 
     [Fact]
     public void DecayOverDaysWalksEachLevelsOwnDecay()
     {
         // A decay interval of a day: level 2 loses 200 XP a day, level 1 loses 100, level 0 nothing; the loss threshold is -100.
-        var mechanics = Mechanics(2, 0) with { DecayInterval = Known((int)Day), LossThreshold = Known(-100d), Levels = [new(0, 1000, 0), new(1, 1000, 100), new(2, 1000, 200)] };
+        var mechanics = Mechanics(2, 0) with { DecayInterval = (int)Day, LossThreshold = -100d, Levels = [new(0, 1000, 0), new(1, 1000, 100), new(2, 1000, 200)] };
 
         var stock = Stock(mechanics);
         stock.Advance(0, 3);
@@ -149,14 +150,14 @@ public sealed class SkillStockTests
     public void ARaisedStockStartsALevelHigherAndDecaysAtThatLevelsRate()
     {
         // Level 2 loses 200 XP a day from 0 to the -100 threshold in half a day; raised from level 1, the stock starts at level 2.
-        var mechanics = Mechanics(1, 0) with { DecayInterval = Known((int)Day), LossThreshold = Known(-100d), Levels = [new(0, 1000, 0), new(1, 1000, 100), new(2, 1000, 200)] };
+        var mechanics = Mechanics(1, 0) with { DecayInterval = (int)Day, LossThreshold = -100d, Levels = [new(0, 1000, 0), new(1, 1000, 100), new(2, 1000, 200)] };
 
         var stock = Stock(mechanics);
         stock.Raise();
         stock.Advance(0, 1);
         Assert.Equal([new SkillLevelDate(0, 2), new SkillLevelDate(0.5, 1)], stock.Track().Dates);
-        Assert.Equal(1000, stock.Track().NextLevelXp);
-        Assert.Null(Stock(mechanics with { StoredLevel = Known(2) }).Track().NextLevelXp);
+        Assert.Equal(new SkillNextLevel.Takes(1000), stock.Track().NextLevel);
+        Assert.Equal(new SkillNextLevel.Top(), Stock(mechanics with { StoredLevel = 2 }).Track().NextLevel);
     }
 
     [Fact]

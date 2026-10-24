@@ -5,9 +5,13 @@
 `Skill.Learning` in normal biography observations carries frame/tick provenance,
 observed stored level, aptitude, XP and today's XP, disabled/tracker eligibility,
 native learning factors and per-level thresholds/decay. `WorkSkill.Learning`
-preserves this evidence through ordinary observation decoding. Missing evidence
-is unknown; zero decay, a disabled skill, an exhausted budget and an absent
-mechanic are different facts. This observation does not create a durable XP ledger.
+preserves this evidence through ordinary observation decoding. Every member is
+read (#3783): the native read throws rather than leave one out, and the tracker's
+next local midnight reset is always read. The practice a skill admits is a named
+state, `SkillPractice`: `Sparring` for Melee, `Range` (with the applied and daily
+range budgets) for Shooting, `None` for every other skill. Zero decay, a disabled
+skill, an exhausted budget and a skill without practice are different facts. This
+observation does not create a durable XP ledger.
 
 `ForecastSkill` consumes that evidence plus one ordered list of learning callbacks
 for one pawn/skill. Inputs are conditional on actual work being done. Each callback
@@ -18,7 +22,7 @@ Predicted levels are not observed capability and do not establish job completion
 
 | Supported source | Learning boundary | Limits |
 | --- | --- | --- |
-| Ordinary base-worker recipe without unfinished work | `RecipeCompletionLearning`: native work ticks times recipe learning factor, paid only on completion | An interrupted recipe contributes zero; travel is not work. Custom workers are unknown. |
+| Ordinary base-worker recipe without unfinished work | `RecipeCompletionLearning`: native work ticks times recipe learning factor, paid only on completion | An interrupted recipe contributes zero; travel is not work. Custom workers are not modelled: their work carries no learning. |
 | Ordinary unfinished recipe | Individual `NormalTracker` callbacks during actual work | Caller supplies native work callback granularity; no second completion payout. |
 | Range | `Range` callbacks per completed shot | Direct passion factor only; no global modifier or native saturation. Applied XP consumes the existing range daily budget once. |
 | Sparring | `NormalTracker` callbacks per successful melee learning exchange | Current practice verb quotes raw XP using native full-cycle time. Before a practice verb is observed, cadence/XP per exchange is unknown; no hypothetical opponent or safety guarantee is supplied. |
@@ -37,15 +41,17 @@ the positive-level-gain tale/mote path. The prepared differential checks that
 reading mechanics leaves the pawn's real skill unchanged. Arbitrary mod patches
 that add side effects or replace these mechanics are not qualified by this contract.
 
-Practice projection is bounded to at most one day and strictly before either native
-local midnight or the range global-day reset. Reads during the local reset hour
-have no supported forward window. Native fractional local time and a one-tick
-margin bound validity. Refresh at the bound, after equipment/trait/health changes,
-or when decay makes a previously ceiling-ineligible practice option potentially
-eligible. No reset, eligibility recovery, future injury, attack cadence or lifetime
-return is invented. Callbacks at decay boundaries are evaluated after decay;
-consumers must provide that ordering or reobserve. Unknown input returns an
-explicit finding, never guaranteed progress.
+Projection is bounded to at most one day. The cursor replays the local midnight
+reset of today's XP at the read reset tick; range callbacks stay strictly before
+the range global-day reset (`ValidForTicks`). Native fractional local time and a
+one-tick margin bound validity. Refresh at the bound, after equipment/trait/health
+changes, or when decay makes a previously ceiling-ineligible practice option
+potentially eligible. No eligibility recovery, future injury, attack cadence or
+lifetime return is invented. Callbacks at decay boundaries are evaluated after decay;
+consumers must provide that ordering or reobserve. Input it cannot project (an
+event, horizon or mechanic outside the supported window, or a practice event on a
+skill without that practice) is `SkillForecast.Unprojectable` with its findings,
+never guaranteed progress, and the forecast does not consider that option.
 
 The pure tests cover modifiers, distinct XP paths, saturation, budgets, mixed
 work/practice, duplicates, interruptions, thresholds, aptitude, decay, ceilings,
@@ -127,7 +133,7 @@ the observed rate at the current level, where a level change inside the forecast
 work past the learning window leaves the duration unknown and drops that slot's option,
 as for cooking.
 Game `Recipe_Surgery` workers qualify; mod surgery workers and `Recipe_ExecuteByCut`
-stay unknown.
+carry no learning.
 
 Each tend allocation carries `TendLearning`: `Toils_Tend.FinalizeTend` pays raw XP
 once per completed treatment, before and whatever its quality, depending on the
@@ -189,7 +195,7 @@ health, equipment and environment fixed; they are not a forecast of those. Regis
 findings, not curves. Valuing the curves is #3635.
 It also carries MeleeDPS against Melee (#3813) and `RangedDefenseDps` against Shooting (#3846): the
 primary's ranged DPS times its hit factor at each level's ShootingAccuracyPawn, all zeros without a
-ranged primary. Shooting's `SkillLearning.RangeDailyBudget` is the native `RangeTraining.DailyXpBudget`
+ranged primary. Shooting's `SkillPractice.Range.DailyBudget` is the native `RangeTraining.DailyXpBudget`
 (0 for other skills), the applied XP a range day may teach.
 
 ## Old writer and heuristic audit (#3167)
@@ -201,11 +207,11 @@ selected Method exists yet; documented, not shadowed).
 | Path (file:line) | Class | Evidence |
 | --- | --- | --- |
 | Brain `TrainingTier` / `SparringTier` ladders with `UnlockedTrainingTier` / `UnlockedSparringTier`, and the `RangeWeaponDef` constant (Policy) | removed | No consumer; the native `DefModExtension` XML owns the ladders. |
-| Training demand: `ReviewTraining` (`Policy/Training.cs`), `RoundsMilitary.TrainingWorkAsync` | keep | Sizes the range from every pawn `PracticeCapable` for Shooting below the range ceiling (#3846, which also prices it) and the sparring ring from every pawn `PracticeCapable` for Melee below the sparring ceiling, two or more (#3813). Writes no pawn order. |
+| Training demand: `ReviewTraining` (`Policy/Training.cs`), `RoundsMilitary.TrainingWorkAsync` | keep | Sizes the range from every pawn practice-`Capable` for Shooting below the range ceiling (#3846, which also prices it) and the sparring ring from every pawn practice-`Capable` for Melee below the sparring ceiling, two or more (#3813). Writes no pawn order. |
 | `RimGovernorTraining` work-matrix row (`Policy/WorkAssignment.cs:94`) | keep | Capable pawns take priority 3 so the player's work tab stays honest; the roster assigns no training slot. |
 | Selected install: `NativePracticeActivities.Job` / `Legal`, `SparringBouts.SelectPair` | keep | Hands-owned exact roster and stand/marker; native drivers keep attacks, budget, stop rules and real-weapon restoration. |
 | Native `WorkGiver_TrainRange` / `WorkGiver_Spar` initiation on a map the brain does not control (`RangeTraining.MigratedScope` `:22`; `TrainRangeWorkGiver.cs:20,38`; `SparringWorkGiver.cs:17,27`; `SparringBouts.PlanFor` `:135`, `Free` `:146`, `Form` `:184`) | unsupported-owner | Skipped for every controlled colonist, so no second writer runs under the brain. Uncontrolled maps keep the mod's own player-enabled work type. The prepared `lab/training-*` and `lab/sparring-*` cases drive native mechanics through it; removal first needs those cases moved to selected installs. |
-| `RangeTraining.TryChoose` (uncontrolled branch) | removed | Deleted in #3813: practice no longer picks a skill by level or passion; `CanTrain` is the one practice eligibility rule (`SkillLearning.PracticeCapable`). |
+| `RangeTraining.TryChoose` (uncontrolled branch) | removed | Deleted in #3813: practice no longer picks a skill by level or passion; `CanTrain` is the one practice eligibility rule (`SkillPractice.Drill.Capable`). |
 | Doctor training by surgery on prisoners (peg-leg cycling, practice surgery, practice slots, `SelectPegCycle`) | removed | Peg-leg training deleted in #3638; practice surgery (#3637), practice slots (#3639) and peg-leg control and reinstall deleted in #3344 ([capability maintenance](capability-maintenance.md#no-practice-surgery-3344)). |
 | Productive cooking, food/shelter investment, recipe and bill selection | keep | Selected through `CompareActivityPlans` / `ForecastServiceInvestments`; no local cook or skill winner remains. |
 | Training to a ceiling, saved skill target | none found | Ceilings are native feasibility limits only (`RangeTraining.CeilingFor`); nothing is stored. |

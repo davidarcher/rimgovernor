@@ -269,21 +269,21 @@ namespace HomeBridge.BridgeTools
                         xpSinceLastLevel = 100, xpSinceMidnight = saturated ? 5000 : 0 };
                     var before = pawn.skills.GetSkill(def);
                     var original = (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight);
-                    var evidence = NativeSkillLearning.Read(pawn, actual) with {
-                        ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(1000),
-                        TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0, NextMidnightReset = default,
-                        NextDecay = RimGovernor.Brain.Domain.Fact.Known(200),
-                        PracticeEligible = RimGovernor.Brain.Domain.Fact.Known(true),
-                        PracticeCeiling = RimGovernor.Brain.Domain.Fact.Known(SkillRecord.MaxLevel),
+                    var read = NativeSkillLearning.Read(pawn, actual);
+                    var evidence = read with {
+                        ValidForTicks = 1000,
+                        TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0, NextMidnightReset = GenDate.TicksPerDay,
+                        NextDecay = 200,
+                        Practice = read.Practice is RimGovernor.Contracts.Wire.Observations.SkillPractice.Range range ? range with { Eligible = true, Ceiling = SkillRecord.MaxLevel } : read.Practice,
                     };
                     var direct = def == SkillDefOf.Shooting;
                     var path = direct ? RimGovernor.Brain.Policy.SkillXpPath.Range : RimGovernor.Brain.Policy.SkillXpPath.NormalRecord;
                     var during = def == SkillDefOf.Intellectual || def == SkillDefOf.Plants;
                     var raw = def == SkillDefOf.Plants ? .085f : .1f;
-                    if (during) evidence = evidence with { NextMidnightReset = RimGovernor.Brain.Domain.Fact.Known(100) };
+                    if (during) evidence = evidence with { NextMidnightReset = 100 };
                     var callback = during
-                        ? new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known((double)raw), path, BeforeDecay: true, Count: 200, Interval: 1)
-                        : new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known(10d), path);
+                        ? new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, raw, path, BeforeDecay: true, Count: 200, Interval: 1)
+                        : new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, 10d, path);
                     var prediction = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence, new[] { callback }, 200);
                     if (during)
                         for (var tick = 1; tick <= 200; tick++)
@@ -294,8 +294,8 @@ namespace HomeBridge.BridgeTools
                         }
                     else { actual.Learn(10, direct); actual.Interval(); }
                     samples++;
-                    if (!prediction.Xp.IsKnown || Math.Abs(prediction.Xp.Value - actual.xpSinceLastLevel) > .01
-                        || prediction.StoredLevel.Value != actual.levelInt)
+                    if (prediction is not RimGovernor.Brain.Policy.SkillForecast.Projected { Projection: var projection }
+                        || Math.Abs(projection.Xp - actual.xpSinceLastLevel) > .01 || projection.StoredLevel != actual.levelInt)
                         failures.Add(def.defName + "/" + passion + "/" + saturated);
                     if (original != (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight)) failures.Add("read_mutated_pawn");
                 }
@@ -405,19 +405,18 @@ namespace HomeBridge.BridgeTools
                 // Count completed shots, never installation or elapsed time, as learning callbacks.
                 var shots = pawn.records.GetAsInt(RecordDefOf.ShotsFired);
                 var baseline = learning with {
-                    StoredLevel = RimGovernor.Brain.Domain.Fact.Known(0), Xp = RimGovernor.Brain.Domain.Fact.Known(0d),
-                    XpSinceMidnight = RimGovernor.Brain.Domain.Fact.Known(0d),
-                    PracticeEligible = RimGovernor.Brain.Domain.Fact.Known(true),
-                    RangeAppliedBudget = RimGovernor.Brain.Domain.Fact.Known((double)RangeTraining.DailyXpBudget),
-                    ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2),
+                    StoredLevel = 0, Xp = 0d, XpSinceMidnight = 0d,
+                    Practice = learning.Practice is RimGovernor.Contracts.Wire.Observations.SkillPractice.Range range
+                        ? range with { Eligible = true, AppliedBudget = RangeTraining.DailyXpBudget } : learning.Practice,
+                    ValidForTicks = 2,
                 };
                 var events = Enumerable.Range(0, shots).Select(i => new RimGovernor.Brain.Policy.SkillXpEvent(
-                    i.ToString(), 1, RimGovernor.Brain.Domain.Fact.Known((double)RangeTraining.ShotXp(RangeTraining.UnlockedWeapon())), RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
-                var projected = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(baseline, events, 1);
+                    i.ToString(), 1, (double)RangeTraining.ShotXp(RangeTraining.UnlockedWeapon()), RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
+                var projected = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(baseline, events, 1) as RimGovernor.Brain.Policy.SkillForecast.Projected;
                 return FixtureKit.Reply(new Fx.TrainingRead
                 {
-                    LearningReadOnly = readOnly, ProjectedLevel = projected.StoredLevel.ValueOrDefault,
-                    ProjectedXp = projected.Xp.ValueOrDefault, ProjectionKnown = projected.Xp.IsKnown,
+                    LearningReadOnly = readOnly, ProjectedLevel = projected?.Projection.StoredLevel ?? 0,
+                    ProjectedXp = projected?.Projection.Xp ?? 0, ProjectionKnown = projected is not null,
                     Tick = Find.TickManager.TicksGame,
                     ShootingLevel = shooting.Level, ShootingXp = shooting.xpSinceLastLevel, ShootingMidnightXp = shooting.xpSinceMidnight,
                     Primary = pawn.equipment.Primary?.def.defName ?? "", Held = held, PracticeOnMap = map.listerThings.AllThings.Count(t => practice.Contains(t.def.defName)),
@@ -445,7 +444,7 @@ namespace HomeBridge.BridgeTools
         internal static readonly List<string> Failures = new List<string>();
         internal sealed class Check
         {
-            internal RimGovernor.Brain.Policy.SkillProjection Prediction;
+            internal RimGovernor.Brain.Policy.SkillForecast Prediction;
             internal string Kind;
         }
         internal static void Start()
@@ -488,19 +487,17 @@ namespace HomeBridge.BridgeTools
                 && pawn.jobs.curDriver is JobDriver_DoBill driver)
             {
                 var quote = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe);
-                if (!quote.RawXpPerWorkTick.IsKnown) return;
-                raw = quote.RawXpPerWorkTick.Value * driver.ticksSpentDoingRecipeWork;
+                if (quote is null) return;
+                raw = quote.RawXpPerWorkTick * driver.ticksSpentDoingRecipeWork;
                 kind = recipe.IsSurgery ? "surgery" : "recipe";
             }
             else return;
             busy = true;
             try
             {
-                var evidence = NativeSkillLearning.Read(pawn, __instance) with {
-                    ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2), NextDecay = RimGovernor.Brain.Domain.Fact.Known(200) };
+                var evidence = NativeSkillLearning.Read(pawn, __instance) with { ValidForTicks = 2, NextDecay = 200 };
                 var predicted = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
-                    new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0,
-                        RimGovernor.Brain.Domain.Fact.Known(raw), path) }, 0);
+                    new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0, raw, path) }, 0);
                 if (Math.Abs(raw - xp) > .01) Failures.Add(kind + "_raw_xp_quote");
                 __state = new Check { Prediction = predicted, Kind = kind };
             }
@@ -516,9 +513,8 @@ namespace HomeBridge.BridgeTools
                 case "tend": Tend++; break;
                 default: Sparring++; break;
             }
-            var predicted = __state.Prediction;
-            if (!predicted.Xp.IsKnown || predicted.StoredLevel.Value != __instance.levelInt
-                || Math.Abs(predicted.Xp.Value - __instance.xpSinceLastLevel) > .1)
+            if (__state.Prediction is not RimGovernor.Brain.Policy.SkillForecast.Projected { Projection: var predicted }
+                || predicted.StoredLevel != __instance.levelInt || Math.Abs(predicted.Xp - __instance.xpSinceLastLevel) > .1)
                 Failures.Add(__state.Kind + "_projected_state");
         }
     }

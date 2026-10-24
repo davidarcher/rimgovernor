@@ -66,7 +66,8 @@ internal static class NativeResearchActivities
                 { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, project.Cost - project.ProgressReal,
                     bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty / project.CostFactor(pawn.Faction.def.techLevel),
                     0.1, false, true, "JobDriver_Research: points then Intellectual 0.1 XP per callback tick") is { } learning
-                    ? learning with { CallbackOrder = order.TryGetValue(pawn, out var at) ? Fact.Known(at) : default } : null });
+                    ? learning with { CallbackOrder = order.TryGetValue(pawn, out var at) ? at
+                        : throw new InvalidOperationException("research callback order " + pawn.GetUniqueLoadID() + ": the pawn is not in the normal tick list") } : null });
             }
         }
         return new() { Workers = EquatableArray.From(workers), Findings = [] };

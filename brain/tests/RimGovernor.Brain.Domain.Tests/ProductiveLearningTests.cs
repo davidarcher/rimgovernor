@@ -11,14 +11,15 @@ public sealed class ProductiveLearningTests
     private static readonly double[] ExpectedDurations = [100, 80, 80];
     internal static ProductiveSkillWork Work(double speed = 1, double learning = .1) => new(new()
     {
-        Disabled = Known(false), TrackerAllowsLearning = Known(true),
-        StoredLevel = Known(1), Aptitude = Known(0), Xp = Known(95d), XpSinceMidnight = Known(0d),
-        DirectFactor = Known(1d), UnsaturatedFactor = Known(1d), SaturationThreshold = Known(1000d),
-        SaturatedFactor = Known(.2), LossThreshold = Known(-100d), DecayInterval = Known(200),
-        NextDecay = Known(200), ValidForTicks = Known(1000),
-        Levels = [new(0, 100, 0), new(1, 100, 0), new(2, 1000, 0)]
-    }, new("Cooking", Known(learning), false), Known(100d),
-        [new(0, Known(speed)), new(1, Known(speed)), new(2, Known(1.25))], "native-test");
+        Disabled = false, TrackerAllowsLearning = true,
+        StoredLevel = 1, Aptitude = 0, Xp = 95d, XpSinceMidnight = 0d,
+        DirectFactor = 1d, UnsaturatedFactor = 1d, SaturationThreshold = 1000d,
+        SaturatedFactor = .2, LossThreshold = -100d, DecayInterval = 200,
+        NextDecay = 200, ValidForTicks = 1000, NextMidnightReset = 1000,
+        TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0,
+        Levels = [new(0, 100, 0), new(1, 100, 0), new(2, 1000, 0)], Practice = new SkillPractice.None(),
+    }, new("Cooking", learning, false), 100d,
+        [new(0, speed), new(1, speed), new(2, 1.25)], "native-test");
 
     internal static ForecastActivityProblem Meals(int count, double speed = 1, double learning = .1, double deadline = 950)
     {
@@ -68,7 +69,7 @@ public sealed class ProductiveLearningTests
     public void CompletionLearningCountsPhysicalWorkOnceAndInterruptionSuppliesNoCallback()
     {
         var plan = ForecastActivities.CompareActivityPlans(Meals(3)).Selected!;
-        Assert.Equal(26, plan.Allocations.Last().Learning!.After.AppliedGain.Value);
+        Assert.Equal(26, plan.Allocations.Last().Learning!.After.AppliedGain);
         var option = Meals(1).Options.Single(o => o.Pawn == "developing");
         var interrupted = plan.Allocations[0] with { Learning = null };
         Assert.Equal(100, ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "later" }, [interrupted], 100).WorkTicks.Value);
@@ -79,13 +80,13 @@ public sealed class ProductiveLearningTests
     public void DecayChangesRateWithinWorkAndExpiredOrMissingEvidenceCannotPromiseImprovement()
     {
         var option = Meals(1).Options.Single(o => o.Pawn == "developing");
-        var work = Work() with { Learning = Work().Learning with { StoredLevel = Known(2), Xp = Known(-95d),
-            NextDecay = Known(10), Levels = [new(0, 100, 0), new(1, 100, 0), new(2, 1000, 10)] } };
+        var work = Work() with { Learning = Work().Learning with { StoredLevel = 2, Xp = -95d,
+            NextDecay = 10, Levels = [new(0, 100, 0), new(1, 100, 0), new(2, 1000, 10)] } };
         var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = work }, [], 0);
         Assert.Equal(98, duration.WorkTicks.Value); // 10 * 1.25 then 88 * 1, native whole work ticks.
-        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 950).WorkTicks.IsKnown);
+        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], GameTime.TicksPerDay - 50).WorkTicks.IsKnown);
         Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = Work() with { Rates = [] } }, [], 0).WorkTicks.IsKnown);
-        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = Work() with { Learning = Work().Learning with { Xp = default } } }, [], 0).WorkTicks.IsKnown);
+        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = Work() with { Learning = Work().Learning with { Xp = double.NaN } } }, [], 0).WorkTicks.IsKnown);
     }
 
     [Theory]
@@ -108,8 +109,8 @@ public sealed class ProductiveLearningTests
     }
     /// <summary>A doctor's Medicine mechanics with a surgery at the native 0.1 × 16 raw XP per recipe work tick (#3632).</summary>
     internal static ProductiveSkillWork Surgery(double workAmount = 150, double speed = .75) => new(Work().Learning,
-        new("Medicine", Known(1.6), false), Known(workAmount), [new(1, Known(speed))], "native-test");
-    internal static TendLearning Tend(double rawXp = 250) => new(Work().Learning, "Medicine", Known(rawXp), "native-test");
+        new("Medicine", 1.6, false), workAmount, [new(1, speed)], "native-test");
+    internal static TendLearning Tend(double rawXp = 250) => new(Work().Learning, "Medicine", rawXp, "native-test");
 
     [Fact]
     public void SurgeryCallbackPaysForTheTicksSpentOnRecipeWork()
@@ -118,13 +119,13 @@ public sealed class ProductiveLearningTests
         var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
         // 150 work at 0.75 a tick is 200 ticks; native pays per tick spent (ticksSpentDoingRecipeWork), not per unit of work.
         Assert.Equal(200, duration.WorkTicks.Value);
-        Assert.Equal(320, duration.Evidence!.Callbacks.Single().RawXp.Value);
+        Assert.Equal(320, duration.Evidence!.Callbacks.Single().RawXp);
         Assert.Equal(SkillXpPath.NormalRecord, duration.Evidence.Callbacks.Single().Path);
         Assert.Equal("Medicine", duration.Evidence.Skill);
         // Only the current level's rate is read (#3633 adds the others): a level reached before the work has no rate.
-        var promoted = option with { SkillWork = Surgery() with { Learning = Work().Learning with { Xp = Known(99.5d) } } };
+        var promoted = option with { SkillWork = Surgery() with { Learning = Work().Learning with { Xp = 99.5d } } };
         Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(promoted, [new("tend", "doctor", 0, 0, 0, 10, 0, 0, 10, 10, 0)
-            { Learning = new("Medicine", [new("tend", 10, Known(5d), SkillXpPath.NormalTracker)], Projection(), Projection(), 10, 10, "native-test") }], 10).WorkTicks.IsKnown);
+            { Learning = new("Medicine", [new("tend", 10, 5d, SkillXpPath.NormalTracker)], Projection(), Projection(), 10, 10, "native-test") }], 10).WorkTicks.IsKnown);
     }
 
     [Fact]
@@ -133,15 +134,15 @@ public sealed class ProductiveLearningTests
         var option = new ForecastActivityOption("tend/1", "doctor", Known(400d), Known(0d)) { TendLearning = Tend() };
         var first = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
         Assert.Equal(400, first.WorkTicks.Value);
-        Assert.Equal(new SkillXpEvent("tend/1", 400, Known(250d), SkillXpPath.NormalTracker, BeforeDecay: true), first.Evidence!.Callbacks.Single());
-        Assert.Equal(250, first.Evidence.After.AppliedGain.Value);
+        Assert.Equal(new SkillXpEvent("tend/1", 400, 250d, SkillXpPath.NormalTracker, BeforeDecay: true), first.Evidence!.Callbacks.Single());
+        Assert.Equal(250, first.Evidence.After.AppliedGain);
         var allocation = new ForecastActivityAllocation("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = first.Evidence };
         var second = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "tend/2" }, [allocation], 400);
-        Assert.Equal(250, second.Evidence!.Before.AppliedGain.Value);
-        Assert.Equal(500, second.Evidence.After.AppliedGain.Value);
+        Assert.Equal(250, second.Evidence!.Before.AppliedGain);
+        Assert.Equal(500, second.Evidence.After.AppliedGain);
         // Learning that cannot be projected never removes the treatment: the observed duration stays, without evidence.
         var expired = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { TendLearning = Tend() with
-            { Learning = Work().Learning with { ValidForTicks = Known(100) } } }, [], 0);
+            { Learning = Work().Learning with { Xp = double.NaN } } }, [], 0);
         Assert.Equal(400, expired.WorkTicks.Value);
         Assert.Null(expired.Evidence);
     }
@@ -150,18 +151,18 @@ public sealed class ProductiveLearningTests
     public void TheGameSurgeryWorkersAreQualifiedAndUnknownWorkersStayUnknown()
     {
         var medicine = new RimWorld.SkillDef { defName = "Medicine" };
-        RecipeLearning Observe(Type worker) => RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(
+        RecipeLearning? Observe(Type worker) => RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(
             new Verse.RecipeDef { defName = worker.Name, workerClass = worker, workSkill = medicine, workSkillLearnFactor = 16 });
         foreach (var worker in new[] { typeof(Verse.RecipeWorker), typeof(RimWorld.Recipe_InstallArtificialBodyPart),
             typeof(RimWorld.Recipe_RemoveBodyPart), typeof(RimWorld.Recipe_Surgery) })
-            Assert.Equal(Known(1.6), Observe(worker).RawXpPerWorkTick);
-        Assert.False(Observe(typeof(ModSurgery)).RawXpPerWorkTick.IsKnown);
-        Assert.False(Observe(typeof(RimWorld.Recipe_ExecuteByCut)).RawXpPerWorkTick.IsKnown);
+            Assert.Equal(1.6, Observe(worker)!.RawXpPerWorkTick);
+        Assert.Null(Observe(typeof(ModSurgery)));
+        Assert.Null(Observe(typeof(RimWorld.Recipe_ExecuteByCut)));
     }
 
     private sealed class ModSurgery : RimWorld.Recipe_Surgery;
 
-    private static SkillProjection Projection() => new(Known(1), Known(1), Known(0d), Known(0d), Known(0d), []);
+    private static SkillProjection Projection() => new(1, 1, 0d, 0d, 0d, Work().Learning);
 
     internal static RoundsFacts NormalFoodFacts(double learning = .1, double speed = 1)
     {

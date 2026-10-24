@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 
@@ -11,11 +13,11 @@ public sealed record TrainingReview
     /// <summary>The pawns who would train: the Shooting trainees, and the Melee trainees when a bout has a partner.</summary>
     public int Below { get; init; }
 
-    /// <summary>The pawns the one practice eligibility rule admits for Shooting (SkillLearning.PracticeCapable, #3846) below the
+    /// <summary>The pawns the one practice eligibility rule admits for Shooting (SkillPractice.Drill.Capable, #3846) below the
     /// range ceiling: the training range's stands.</summary>
     public int ShootingTrainees { get; init; }
 
-    /// <summary>The pawns the one practice eligibility rule admits for Melee (SkillLearning.PracticeCapable, #3813) below the
+    /// <summary>The pawns the one practice eligibility rule admits for Melee (SkillPractice.Drill.Capable, #3813) below the
     /// sparring ceiling. Under two, nobody spars: a bout needs a partner.</summary>
     public int MeleeTrainees { get; init; }
 }
@@ -37,9 +39,8 @@ public static partial class TrainingRules
             if (!pawn.Skills.TryGetValue(out var skills)) { unknown = true; continue; }
             foreach (var (name, trainees) in new[] { ("Shooting", shooting), ("Melee", melee) })
             {
-                if (skills.FirstOrDefault(s => s.Name == name) is not { Learning: { PracticeCapable: true } learning } skill) continue;
-                if (!learning.PracticeCeiling.TryGetValue(out var ceiling)) unknown = true;
-                else if (skill.Level < ceiling) trainees.Add(pawn.Id.Value);
+                if (skills.FirstOrDefault(s => s.Name == name) is not { Learning.Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } skill) continue;
+                if (skill.Level < ceiling) trainees.Add(pawn.Id.Value);
             }
         }
         var below = shooting.Union(melee.Count >= 2 ? melee : []).Count();

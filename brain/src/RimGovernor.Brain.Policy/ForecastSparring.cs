@@ -28,7 +28,7 @@ internal static class ForecastSparring
         var sparring = context.Sparring ?? throw new RequiredFactException("work pawns");
         if (sparring.Unread.Count > 0) throw new RequiredFactException("sparring trainees: " + string.Join(", ", sparring.Unread));
         if (sparring.Trainees.Count < 2 || sparring.Targets >= 2 || horizon <= 0) return [];
-        return ForecastPractice.Credit(sparring, context, room.ServedAt, outcome.Support, horizon, "Melee", dailyReset: true, static (cursors, below) =>
+        return ForecastPractice.Credit(sparring, context, room.ServedAt, outcome.Support, horizon, "Melee", static (cursors, below) =>
         {
             // The day's bouts: every trainee still below the ceiling spars to the daily cap while it has a partner.
             if (below.Length >= 2)

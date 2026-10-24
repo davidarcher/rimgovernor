@@ -173,10 +173,9 @@ public sealed partial class Rounder
                     ["productive_learning"] = a.Learning is { } learning ? new Dictionary<string, object?>
                     {
                         ["skill"] = learning.Skill, ["observed_rate_work_ticks"] = learning.ObservedWorkTicks,
-                        ["conditional_work_ticks"] = learning.WorkTicks, ["raw_xp"] = learning.Callbacks.Sum(c => c.RawXp.IsKnown ? c.RawXp.Value * c.Count : 0),
-                        ["before_level"] = learning.Before.Level.IsKnown ? learning.Before.Level.Value : null,
-                        ["after_level"] = learning.After.Level.IsKnown ? learning.After.Level.Value : null,
-                        ["applied_gain"] = Number(learning.After.AppliedGain), ["decay_loss"] = Number(learning.After.DecayLoss),
+                        ["conditional_work_ticks"] = learning.WorkTicks, ["raw_xp"] = learning.Callbacks.Sum(c => c.RawXp * c.Count),
+                        ["before_level"] = learning.Before.Level, ["after_level"] = learning.After.Level,
+                        ["applied_gain"] = learning.After.AppliedGain, ["decay_loss"] = learning.After.DecayLoss,
                         ["provenance"] = learning.Provenance
                     } : null }).ToArray()
             };

@@ -23,13 +23,24 @@ public sealed record SkillTrack
     /// <summary>The observed stored level (<c>levelInt</c>) at time zero; the pawn's native stat curves are indexed by it (#3633).</summary>
     public int StoredLevel { get; init; }
 
-    /// <summary>The native XP <see cref="StoredLevel"/> takes to the next level (<c>RequiredXp</c>); null at the top level.</summary>
-    public double? NextLevelXp { get; init; }
+    /// <summary>What <see cref="StoredLevel"/> takes to the next level.</summary>
+    public required SkillNextLevel NextLevel { get; init; }
 
     public EquatableArray<SkillLevelDate> Dates { get; init; }
 
     /// <summary>The stored level on <paramref name="day"/>: the last change at or before it.</summary>
     public int StoredLevelOn(double day) => Dates.LastOrDefault(d => d.Day <= day)?.StoredLevel ?? StoredLevel;
+}
+
+/// <summary>What a stored level takes to the next (#3783): the native XP (<c>RequiredXp</c>) below the top level; nothing more
+/// at the top, where XP raises no level.</summary>
+public abstract record SkillNextLevel
+{
+    private protected SkillNextLevel() { }
+
+    public sealed record Takes(double Xp) : SkillNextLevel;
+
+    public sealed record Top : SkillNextLevel;
 }
 
 /// <summary>The mutable state of one skill stock in a run.</summary>
@@ -48,8 +59,8 @@ internal sealed class SkillStock
         Pawn = pawn;
         Skill = skill;
         this.mechanics = mechanics;
-        StoredLevel = startStored = mechanics.StoredLevel.Value;
-        xp = mechanics.Xp.Value;
+        StoredLevel = startStored = mechanics.StoredLevel;
+        xp = mechanics.Xp;
     }
 
     internal string Pawn { get; }
@@ -63,7 +74,7 @@ internal sealed class SkillStock
     /// <summary>XP toward the next level.</summary>
     internal double Xp => xp;
 
-    internal bool Disabled => mechanics.Disabled.Value;
+    internal bool Disabled => mechanics.Disabled;
 
     /// <summary>
     /// A stock for each skill of the pawn whose mechanics are read; each other skill is named, never defaulted, and a pawn whose skills
@@ -91,7 +102,7 @@ internal sealed class SkillStock
 
     /// <summary>The native decay of a level a day: its <c>DecayXp</c> once per decay interval while learning is allowed.</summary>
     private double Decay(int level) =>
-        Disabled || !mechanics.TrackerAllowsLearning.Value ? 0 : mechanics.Levels[level].DecayXp * GameTime.TicksPerDay / mechanics.DecayInterval.Value;
+        Disabled || !mechanics.TrackerAllowsLearning ? 0 : mechanics.Levels[level].DecayXp * GameTime.TicksPerDay / mechanics.DecayInterval;
 
     /// <summary>
     /// Starts the stock one stored level higher, its XP toward the next level kept (the perturbation of the marginal value, #3344);
@@ -122,7 +133,7 @@ internal sealed class SkillStock
         {
             var rate = Decay(StoredLevel);
             var left = span - elapsed;
-            var need = rate > 0 && StoredLevel > 0 ? (xp - mechanics.LossThreshold.Value) / rate : double.PositiveInfinity;
+            var need = rate > 0 && StoredLevel > 0 ? (xp - mechanics.LossThreshold) / rate : double.PositiveInfinity;
             if (need > left)
             {
                 xp -= rate * left;
@@ -130,7 +141,7 @@ internal sealed class SkillStock
             }
 
             elapsed += Math.Max(0, need);
-            xp = mechanics.LossThreshold.Value;
+            xp = mechanics.LossThreshold;
             Settle(from + elapsed);
         }
     }
@@ -152,7 +163,7 @@ internal sealed class SkillStock
         Pawn = Pawn,
         Skill = Skill,
         StoredLevel = startStored,
-        NextLevelXp = startStored < mechanics.Levels.Count - 1 ? mechanics.Levels[startStored].RequiredXp : null,
+        NextLevel = startStored < mechanics.Levels.Count - 1 ? new SkillNextLevel.Takes(mechanics.Levels[startStored].RequiredXp) : new SkillNextLevel.Top(),
         Dates = EquatableArray.From(dates),
     };
 }

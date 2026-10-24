@@ -103,7 +103,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var curve = new SkillStatCurve(ColonyValue.TendQualityStat, "Medicine", EquatableArray.From(new[] { new SkillStatLevel(0, 0.2) }), "test");
         var anna = ProjectGraphTests.Pawn("Anna", null, null) with { SkillStatCurves = EquatableArray.From(new[] { curve }) };
         ColonyValue Value(HarmInputs harm) => new(Context(harm, wearers: 1), [], CalendarRules.YearDays, Known(EquatableArray.From(new[] { anna })), new ItemFacts());
-        SkillTrack Track(string pawn, string skill) => new() { Key = ProjectGraph.SkillKey(pawn, skill), Pawn = pawn, Skill = skill };
+        SkillTrack Track(string pawn, string skill) => new() { Key = ProjectGraph.SkillKey(pawn, skill), Pawn = pawn, Skill = skill, NextLevel = new SkillNextLevel.Top() };
 
         var raids = Value(ForecastValueTests.RaidDay());
         Assert.True(raids.Reads(Track("Anna", "Medicine")));

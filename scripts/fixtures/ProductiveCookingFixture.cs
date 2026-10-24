@@ -60,7 +60,7 @@ public sealed partial class PawnControlFixture
                         skill.levelInt = rate.StoredLevel;
                         var actual = selectedBill.recipe.workSpeedStat.Worker.GetValue(StatRequest.For(pawn))
                             * cookingBench.GetStatValue(selectedBill.recipe.workTableSpeedStat);
-                        if (!rate.WorkPerTick.IsKnown || Math.Abs(rate.WorkPerTick.Value - actual) > .00001)
+                        if (Math.Abs(rate.WorkPerTick - actual) > .00001)
                             throw new InvalidOperationException("Native productive rate differs at stored level " + rate.StoredLevel);
                     }
                 }

@@ -88,7 +88,7 @@ internal static class NativeSupportActivities
                         Medicine = medicine == null ? null : new(medicine.GetUniqueLoadID(), medicine.def.defName, 1, At(medicine.Position), medicine.stackCount),
                         Treatment = new Obs.SupportTreatment.Tend(TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def), Infection(patient, medicine != null),
                             new(learning, SkillDefOf.Medicine.defName,
-                                Fact.Known(RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, medicine?.def)), "native Toils_Tend.FinalizeTend"))
+                                RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, medicine?.def), "native Toils_Tend.FinalizeTend"))
                     });
                 }
             }

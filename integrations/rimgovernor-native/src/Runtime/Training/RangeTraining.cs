@@ -119,7 +119,7 @@ namespace RimGovernor.Runtime
         }
 
         // The one practice eligibility rule (#3813, epic #3650), for both skills: every pawn whose work tags leave the
-        // skill usable may practise it, a Brawler not Shooting. The brain reads it as SkillLearning.PracticeCapable;
+        // skill usable may practise it, a Brawler not Shooting. The brain reads it as SkillPractice.Drill.Capable;
         // the sparring ring's credit prices it, and the range's (#3846) will.
         public static bool CanTrain(Pawn pawn, SkillDef skill)
         {

@@ -465,7 +465,7 @@ stock-target bill crafts medicine (`ColonyModelPolicy.MedicineCraft`, #3868, [st
 below the target the best-potency kind a source makes is crafted at the full rate until its ingredients run out, at the target what
 tending uses, above it nothing (`ModelEventKind.MedicineCraft` marks reaching the target and running out of ingredients). `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
 again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
-`RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Only a stock the value
+`RequiredXp` of the observed level (`SkillTrack.NextLevel`). A stock at the top level is worth 0 per XP. Only a stock the value
 reads is run (`ITrajectoryValue.Reads`, #3664): for `ColonyValue` that is each doctor's stock of its tend quality curve's skill
 (Medicine) while raids or disease incidents are expected, and each fighter's Melee and Shooting stock while raids are expected
 (#3852: a pawn among the sparring ring's or the training range's `PracticeTrainees`; unread trainees or a power curve shorter than the
@@ -756,8 +756,8 @@ beyond its market value, and pen capacity.
 *Sparring ring credit (#3813).* A planned sparring ring the outcome serves is credited (`ForecastSparring.RingCredit`) under
 `sparring_ring/<room>/<pawn>` by the raid harm its trainees' Melee saves, as the flak vest's armor is (#3816). The trainees
 (`ForecastCoupledContext.Sparring`, `PracticeMethodCandidates.TraineesOf`) are every work pawn the one practice eligibility rule
-admits for Melee (`SkillLearning.PracticeCapable`, native `RangeTraining.CanTrain`), with its native learning, the sparring ceiling
-(`PracticeCeiling`), its biography's MeleeDPS curve (`StatWorker_MeleeDPS` is damage × MeleeHitChance / cooldown; the hit chance at
+admits for Melee (`SkillPractice.Drill.Capable`, native `RangeTraining.CanTrain`), with its native learning, the sparring ceiling
+(`SkillPractice.Drill.Ceiling`), its biography's MeleeDPS curve (`StatWorker_MeleeDPS` is damage × MeleeHitChance / cooldown; the hit chance at
 each stored Melee level, `NativeSkillStat.MeleeDpsLevels`) and its health. From the service day to tier 2's horizon, each day every
 trainee below the ceiling spars until today's XP reaches the game's daily cap (`SaturationThreshold`, SkillRecord.MaxFullRateXpPerDay)
 at its learn rate, while two remain below it; without the ring its Melee only decays. Both run the native skill arithmetic
@@ -775,12 +775,12 @@ the sessions' own scheduling prices that); and with each assigned role, its skil
 *Training range credit (#3846).* A planned training range the outcome serves is credited (`ForecastTrainingRange.RangeCredit`)
 under `training_range/<room>/<pawn>` by the raid harm its trainees' Shooting saves, the same walk as the ring
 (`ForecastPractice.Credit`). The trainees (`ForecastCoupledContext.Range`, `PracticeMethodCandidates.TraineesOf`) are every
-work pawn the one practice eligibility rule admits for Shooting (`SkillLearning.PracticeCapable`), with its native learning,
-the range ceiling (`PracticeCeiling`) and its biography's `RangedDefenseDps` curve: the ranged DPS defense capacity counts
+work pawn the one practice eligibility rule admits for Shooting (`SkillPractice.Drill.Capable`), with its native learning,
+the range ceiling (`SkillPractice.Drill.Ceiling`) and its biography's `RangedDefenseDps` curve: the ranged DPS defense capacity counts
 (`PawnRangedDps` × `PawnRangedHitFactor`, #3845) at the ShootingAccuracyPawn each stored Shooting level gives
 (`NativeSkillStat.RangedDefenseDpsLevels`; ShotReport.HitFactorFromShooter takes that accuracy, every other shooter factor
 held), all zeros without a ranged primary. Ranged damage is not health-scaled. From the service day to tier 2's horizon, each
-day every trainee below the ceiling drills the game's daily range budget (`SkillLearning.RangeDailyBudget`, native
+day every trainee below the ceiling drills the game's daily range budget (`SkillPractice.Range.DailyBudget`, native
 `RangeTraining.DailyXpBudget`, applied XP on the range path); without the range its Shooting only decays. The budget is taken
 once per credit day, not at the game's own reset phase. A day's stored levels read the curve; the power they add shifts the
 defense capacity in the harm ledger, whose raid loss without the range less with it is the day's saving, shared by the added

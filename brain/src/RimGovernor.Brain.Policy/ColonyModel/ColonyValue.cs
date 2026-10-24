@@ -286,7 +286,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             }
 
             // NativeSkillStat gives a pawn whose skill is disabled no curve: it never tends.
-            if (curve is null && skill is not null && pawn.Skills.TryGetValue(out var skills) && skills.Any(s => s.Name == skill && s.Learning?.Disabled == Known(true)))
+            if (curve is null && skill is not null && pawn.Skills.TryGetValue(out var skills) && skills.Any(s => s.Name == skill && s.Learning is { Disabled: true }))
             {
                 continue;
             }

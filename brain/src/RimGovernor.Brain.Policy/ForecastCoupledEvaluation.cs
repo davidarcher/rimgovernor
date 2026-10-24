@@ -891,8 +891,7 @@ public static partial class ForecastCoupled
             foreach (var allocation in plan.Allocations)
             {
                 if (!tasks[allocation.Activity].RequiresFoodUse || allocation.Learning is not { } prior
-                    || !prior.After.AppliedGain.IsKnown || !prior.Before.AppliedGain.IsKnown
-                    || prior.After.AppliedGain.Value <= prior.Before.AppliedGain.Value) continue;
+                    || prior.After.AppliedGain <= prior.Before.AppliedGain) continue;
                 var speedup = false;
                 foreach (var later in plan.Allocations)
                     speedup |= later.Pawn == allocation.Pawn && later.Start >= allocation.End && later.Learning is { } learned && learned.WorkTicks < learned.ObservedWorkTicks;

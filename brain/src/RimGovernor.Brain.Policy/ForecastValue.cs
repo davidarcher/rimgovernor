@@ -470,8 +470,8 @@ public static partial class ForecastValue
         {
             var activity = index.Activities.GetValueOrDefault(allocation.Activity);
             if (activity?.ProjectProgress is { } work) Add(allocation, work.Project, (allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick), -1);
-            if (allocation.Learning is { } learning && learning.After.AppliedGain.TryGetValue(out var after) && learning.Before.AppliedGain.TryGetValue(out var before))
-                Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), after - before, -1);
+            if (allocation.Learning is { } learning)
+                Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), learning.After.AppliedGain - learning.Before.AppliedGain, -1);
             // A practice session's XP (#3852), priced like any other at the stock's harm-priced value per XP.
             if (index.Practice.TryGetValue(allocation.Activity, out var session) && context.Investment.ContainsKey(ProjectGraph.SkillKey(allocation.Pawn, session.Worker.Skill)))
                 Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, session.Worker.Skill), index.SessionXp.GetOrAdd((allocation.Activity, allocation.Start, allocation.End, horizon),

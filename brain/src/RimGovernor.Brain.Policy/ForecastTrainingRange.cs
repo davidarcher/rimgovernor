@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 /// The TrainingRange credit (#3846, epic #3650 P1): the raid harm the Shooting its trainees gain saves
 /// (<see cref="ForecastPractice"/>). Every pawn the one practice eligibility rule admits for Shooting trains (colony defense is
 /// every capable pawn's). Each served day every trainee below the range ceiling drills to the game's daily cap: the drill's
-/// direct Learn applies XP at the pawn's direct learn rate up to RangeTraining.DailyXpBudget a day (SkillLearning.RangeDailyBudget),
+/// direct Learn applies XP at the pawn's direct learn rate up to RangeTraining.DailyXpBudget a day (SkillPractice.Range.DailyBudget),
 /// skipping the tracker's daily saturation. A trainee's power is its ranged DPS at its hit factor at each stored Shooting level
 /// (the biography's RangedDefenseDps curve: ShotReport's standard-target hit chance from the ShootingAccuracyPawn the level
 /// gives, over the reference gunner's), the ranged damage the defense capacity counts; a pawn without a ranged primary lands no
@@ -32,7 +32,7 @@ internal static class ForecastTrainingRange
         var range = context.Range ?? throw new RequiredFactException("work pawns");
         if (range.Unread.Count > 0) throw new RequiredFactException("range trainees: " + string.Join(", ", range.Unread));
         if (range.Trainees.Count == 0 || range.Targets > 0 || horizon <= 0) return [];
-        return ForecastPractice.Credit(range, context, room.ServedAt, outcome.Support, horizon, "Shooting", dailyReset: false, static (cursors, below) =>
+        return ForecastPractice.Credit(range, context, room.ServedAt, outcome.Support, horizon, "Shooting", static (cursors, below) =>
         {
             // The day's drill: every trainee still below the ceiling shoots until the daily budget is applied.
             foreach (var i in below) cursors[i].LearnRangeDay();

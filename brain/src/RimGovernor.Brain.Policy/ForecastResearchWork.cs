@@ -14,9 +14,9 @@ internal static class ForecastResearchWork
         {
             var rows = group.ToArray();
             var amounts = rows.Select(a => options[(a.Activity, a.Pawn)].SkillWork?.WorkAmount).ToArray();
-            if (amounts.Any(a => a is null || !a.Value.IsKnown) || rows.Any(a => a.Learning == null)) continue;
-            var needed = amounts[0]!.Value.Value;
-            if (amounts.Any(a => Math.Abs(a!.Value.Value - needed) > 1e-9)) return null;
+            if (amounts.Any(a => a is null) || rows.Any(a => a.Learning == null)) continue;
+            var needed = amounts[0]!.Value;
+            if (amounts.Any(a => Math.Abs(a!.Value - needed) > 1e-9)) return null;
             double Produced(int tick) => rows.Sum(a => a.Learning!.WorkSegments.Sum(s =>
                 Math.Max(0, Math.Floor((Math.Min(tick, s.End) - s.Start) / (double)s.CallbackInterval)) * s.CallbackInterval * s.WorkPerTick));
             var high = (int)Math.Ceiling(rows.Max(a => a.End));
@@ -30,14 +30,12 @@ internal static class ForecastResearchWork
             double At(ForecastActivityAllocation a, int tick) => a.Learning!.WorkSegments.Sum(s =>
                 Math.Max(0, Math.Floor((Math.Min(tick, s.End) - s.Start) / (double)s.CallbackInterval)) * s.CallbackInterval * s.WorkPerTick);
             var final = rows.Where(a => At(a, low) > At(a, low - 1) + 1e-9).ToArray();
-            if (final.Length > 1 && (final.Any(a => options[(a.Activity, a.Pawn)].SkillWork!.CallbackOrder.IsKnown == false)
-                || final.Select(a => options[(a.Activity, a.Pawn)].SkillWork!.CallbackOrder.Value).Distinct().Count() != final.Length))
-            { findings.Add("research_callback_order_unknown:" + group.Key); return null; }
+            if (final.Length > 1 && final.Select(a => options[(a.Activity, a.Pawn)].SkillWork!.CallbackOrder).Distinct().Count() != final.Length)
+            { findings.Add("research_callback_order_tied:" + group.Key); return null; }
             var remaining = needed - rows.Sum(a => At(a, low - 1));
             foreach (var row in rows)
                 limits[row.Activity] = (low, Math.Min(row.End, Math.Max(row.Start, low)), At(row, low - 1));
-            foreach (var row in final.OrderBy(a => options[(a.Activity, a.Pawn)].SkillWork!.CallbackOrder.IsKnown
-                ? options[(a.Activity, a.Pawn)].SkillWork!.CallbackOrder.Value : 0))
+            foreach (var row in final.OrderBy(a => options[(a.Activity, a.Pawn)].SkillWork!.CallbackOrder))
             {
                 var before = At(row, low - 1);
                 var useful = Math.Min(Math.Max(0, remaining), At(row, low) - before);
@@ -63,8 +61,10 @@ internal static class ForecastResearchWork
             {
                 var events = completed.Where(a => a.Pawn == row.Pawn && a.Learning?.Skill == evidence.Skill)
                     .SelectMany(a => a.Learning!.Callbacks).Concat(evidence.Callbacks).OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
-                evidence = evidence with { WorkAmount = limit.Units, WorkSegments = LimitWork(evidence.WorkSegments, limit.Units), WorkTicks = work,
-                    After = ForecastSkillPolicy.ForecastSkill(option.SkillWork!.Learning, events, (int)Math.Ceiling(finish)) };
+                var after = ForecastSkillPolicy.ForecastSkill(option.SkillWork!.Learning, events, (int)Math.Ceiling(finish));
+                if (after is not SkillForecast.Projected { Projection: var projection })
+                { findings.UnionWith(ForecastSkillPolicy.FindingsOf(after).Select(f => "research_learning_unprojectable:" + f)); return null; }
+                evidence = evidence with { WorkAmount = limit.Units, WorkSegments = LimitWork(evidence.WorkSegments, limit.Units), WorkTicks = work, After = projection };
             }
             if (finish > problem.Deadline.Value || task.LatestFinish is { } latest && finish > latest
                 || !pawn.Windows.Value.Any(w => row.Depart >= w.Start && finish <= w.End)

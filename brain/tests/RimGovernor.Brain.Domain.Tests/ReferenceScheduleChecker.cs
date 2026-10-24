@@ -119,14 +119,14 @@ internal static class ReferenceScheduleChecker
             var work = options[(step.Activity, worker)].SkillWork!;
             if (first)
             {
-                level = work.Learning.StoredLevel.Value; xp = work.Learning.Xp.Value; first = false;
+                level = work.Learning.StoredLevel; xp = work.Learning.Xp; first = false;
             }
             var levels = work.Learning.Levels.ToDictionary(l => l.Level, l => l.RequiredXp);
             while (levels.TryGetValue(level, out var required) && levels.ContainsKey(level + 1) && xp >= required) { xp -= required; level++; }
-            var speed = work.Rates.Single(r => r.StoredLevel == level).WorkPerTick.Value;
-            var expected = work.WorkAmount.Value / speed;
+            var speed = work.Rates.Single(r => r.StoredLevel == level).WorkPerTick;
+            var expected = work.WorkAmount / speed;
             if (Math.Abs(step.End - step.Start - expected) > Eps) bad.Add($"learning_rate:{step.Activity}:{worker}:expected={expected}");
-            xp += work.Recipe.RawXpPerWorkTick.Value * (step.End - step.Start) * work.Learning.DirectFactor.Value;
+            xp += work.Recipe.RawXpPerWorkTick * (step.End - step.Start) * work.Learning.DirectFactor;
         }
     }
 

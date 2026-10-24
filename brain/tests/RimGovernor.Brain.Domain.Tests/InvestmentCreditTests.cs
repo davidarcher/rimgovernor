@@ -28,7 +28,7 @@ public sealed class InvestmentCreditTests
     /// <summary>The doctor's tend, its learning projected by <see cref="ForecastProductiveWorkPolicy"/> from <paramref name="todayXp"/> already learned today.</summary>
     private static ForecastValueResult Tend(IReadOnlyDictionary<string, double> investment, double todayXp = 0)
     {
-        var tend = ProductiveLearningTests.Tend() with { Learning = ProductiveLearningTests.Work().Learning with { XpSinceMidnight = Known(todayXp) } };
+        var tend = ProductiveLearningTests.Tend() with { Learning = ProductiveLearningTests.Work().Learning with { XpSinceMidnight = todayXp } };
         var option = new ForecastActivityOption("tend/1", "doctor", Known(400d), Known(0d)) { TendLearning = tend };
         var learning = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0).Evidence!;
         var plan = new ForecastActivityPlan([new("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = learning }], 400, 400);

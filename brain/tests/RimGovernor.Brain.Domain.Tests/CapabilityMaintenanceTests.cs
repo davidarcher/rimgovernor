@@ -9,12 +9,13 @@ public sealed class CapabilityMaintenanceTests
 {
     internal static SkillLearning Learning() => new()
     {
-        Disabled = Known(false), TrackerAllowsLearning = Known(true), StoredLevel = Known(1), Aptitude = Known(0),
-        Xp = Known(-95d), XpSinceMidnight = Known(0d), DirectFactor = Known(1d), UnsaturatedFactor = Known(1d),
-        SaturationThreshold = Known(4000d), SaturatedFactor = Known(.2), LossThreshold = Known(-100d),
-        DecayInterval = Known(200), NextDecay = Known(200), ValidForTicks = Known(1000),
+        Disabled = false, TrackerAllowsLearning = true, StoredLevel = 1, Aptitude = 0,
+        Xp = -95d, XpSinceMidnight = 0d, DirectFactor = 1d, UnsaturatedFactor = 1d,
+        SaturationThreshold = 4000d, SaturatedFactor = .2, LossThreshold = -100d,
+        DecayInterval = 200, NextDecay = 200, ValidForTicks = 1000, NextMidnightReset = 1000,
+        TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0,
         Levels = [new(0, 100, 0), new(1, 200, 10), new(2, 300, 20)],
-        PracticeEligible = Known(true), PracticeCeiling = Known(2), RangeAppliedBudget = Known(3000d)
+        Practice = new SkillPractice.Range(true, true, 2, 3000d, 3000d)
     };
     internal static Ideoligion Ideology(params string[] holders) => new(new() { Roles = new Dictionary<string, RoleDef>
     { ["soldier"] = new(2, [new([new("Shooting", 1), new("Melee", 1)])]) } },
@@ -40,9 +41,9 @@ public sealed class CapabilityMaintenanceTests
         ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)
             => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
         Assert.True(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp.Value > 0);
-        var projection = ForecastSkillPolicy.ForecastSkill(Learning(), [], 0);
+        var projection = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(Learning(), [], 0));
         var work = new ForecastActivityPlan([new("work", "pawn", 0, 0, 0, 1, 0, 0, 1, 1, 0)
-        { Learning = new("Shooting", [new("work", 1, Known(20d), SkillXpPath.NormalTracker)], projection, projection, 1, 1, "native") }], 1, 1);
+        { Learning = new("Shooting", [new("work", 1, 20d, SkillXpPath.NormalTracker)], projection, projection, 1, 1, "native") }], 1, 1);
         Assert.Equal(Known(0d), Forecast(EquatableArray.From(skills), work).MissingXp);
         Assert.False(Forecast([skills[0]], new([], 0, 0)).MissingXp.IsKnown);
     }
@@ -92,7 +93,7 @@ public sealed class CapabilityMaintenanceTests
         var absent = ConstructionFixtures.NoTasks();
         Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
-        { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() with { Xp = Known(100d) } }]) }))) } };
+        { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }]) }))) } };
         var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
     }

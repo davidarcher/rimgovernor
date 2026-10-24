@@ -35,7 +35,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         var eligible = read.Workers.Where(w => admitted && w.Skill is "Shooting" or "Melee"
             && !facts.WorkView!.Claims.Pawns.Contains(w.Pawn) && !facts.WorkView.Claims.Targets.Contains(w.Target)
             && w.DurationTicks > 0
-            && w.Learning.PracticeEligible == Known(true)).Take(32).ToArray();
+            && w.Learning.Practice is SkillPractice.Drill { Eligible: true }).Take(32).ToArray();
         foreach (var worker in eligible.Where(w => w.Skill == "Shooting"))
         {
             var id = "practice/" + worker.Pawn + "/" + worker.Target;
@@ -75,7 +75,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
 
     /// <summary>
     /// The pawns a practice room trains (#3813, #3846): each work pawn whose <paramref name="skill"/> (Melee for the sparring
-    /// ring, Shooting for the training range) the one practice eligibility rule admits (<see cref="SkillLearning.PracticeCapable"/>),
+    /// ring, Shooting for the training range) the one practice eligibility rule admits (<see cref="SkillPractice.Drill.Capable"/>),
     /// with its learning, the skill's practice ceiling and the defense power it fights with at each stored level: MeleeDPS
     /// (its biography's curve) x health for Melee, as the defense capacity counts melee power; its ranged DPS at its hit factor
     /// (the biography's <see cref="SkillStatCurve.RangedDefenseDps"/> curve) for Shooting, as the capacity counts ranged
@@ -92,10 +92,10 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         foreach (var pawn in pawns.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
             if (!pawn.Skills.TryGetValue(out var skills)) { unread.Add(pawn.Id.Value); continue; }
-            if (skills.FirstOrDefault(s => s.Name == skill)?.Learning is not { PracticeCapable: true } learning) continue;
+            if (skills.FirstOrDefault(s => s.Name == skill)?.Learning is not { Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } learning) continue;
             // Ranged damage counts at full health in the defense capacity; melee power scales with it.
             var health = 1d;
-            if (melee && !pawn.Health.TryGetValue(out health) || !learning.PracticeCeiling.TryGetValue(out var ceiling)) { unread.Add(pawn.Id.Value); continue; }
+            if (melee && !pawn.Health.TryGetValue(out health)) { unread.Add(pawn.Id.Value); continue; }
             if (pawn.SkillStatCurves.FirstOrDefault(c => c.Stat == stat && c.Skill == skill) is not { } curve)
             { findings.Add(finding + pawn.Id.Value); continue; }
             trainees.Add(new(pawn.Id.Value, learning, ceiling, EquatableArray.From(curve.Levels.OrderBy(l => l.StoredLevel).Select(l => health * l.Value))));

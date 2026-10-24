@@ -168,7 +168,7 @@ public sealed class ColonyModelContinuationTests
     {
         var mechanics = SkillStockTests.Mechanics(2, 0) with
         {
-            DecayInterval = Known(GameTime.TicksPerDay), LossThreshold = Known(-100d),
+            DecayInterval = GameTime.TicksPerDay, LossThreshold = -100d,
             Levels = EquatableArray.From(new[] { new SkillLevelMechanics(0, 1000, 0), new SkillLevelMechanics(1, 1000, 100), new SkillLevelMechanics(2, 1000, 200) }),
         };
         var input = Input();
@@ -178,7 +178,7 @@ public sealed class ColonyModelContinuationTests
         var state = ColonyModelState.Observed(input, policy) with
         {
             Day = .25,
-            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns.Value[0], mechanics with { Xp = Known(-50d) }) })),
+            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns.Value[0], mechanics with { Xp = -50d }) })),
         };
         Assert.Equal(whole.Skills, ColonyModel.Run(input, state, Cycles(), policy).Skills);
     }

@@ -126,7 +126,7 @@ public static class ProjectMarginalValue
             // gains nothing by XP, nor does a priced stock the value does not read (#3664: its run would change nothing).
             foreach (var track in baseline.Skills)
             {
-                if (track.NextLevelXp is not { } levelXp)
+                if (track.NextLevel is not SkillNextLevel.Takes { Xp: var levelXp })
                 {
                     perUnit[track.Key] = 0;
                 }

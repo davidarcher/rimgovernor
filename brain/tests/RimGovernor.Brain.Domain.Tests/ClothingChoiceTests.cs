@@ -342,14 +342,14 @@ public sealed class ClothingChoiceTests
     public void SelectedGeneratedTailoringLearnsDuringWorkButNotIngredientCarrying()
     {
         var work = ProductiveLearningTests.Work() with
-        { Recipe = new("Crafting", Known(.1), true), LearnBeforeWork = true,
-            Rates = [new(0, Known(1d)), new(1, Known(1d)), new(2, Known(1d))] };
+        { Recipe = new("Crafting", .1, true), LearnBeforeWork = true,
+            Rates = [new(0, 1d), new(1, 1d), new(2, 1d)] };
         var batch = Start(Census(0), Read(Option("Cloth") with { SkillWork = work }), Resources(), out var comparison);
         Assert.NotNull(batch);
         var learned = Assert.Single(comparison!.Plan!.Allocations, a => a.Learning != null).Learning!;
         Assert.Equal("Crafting", learned.Skill);
-        Assert.True(learned.After.StoredLevel.Value > learned.Before.StoredLevel.Value);
+        Assert.True(learned.After.StoredLevel > learned.Before.StoredLevel);
         Assert.Equal(learned.ObservedWorkTicks, learned.WorkTicks);
-        Assert.True(learned.After.AppliedGain.Value < learned.WorkTicks * .1);
+        Assert.True(learned.After.AppliedGain < learned.WorkTicks * .1);
     }
 }

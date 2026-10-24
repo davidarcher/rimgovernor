@@ -3,7 +3,7 @@
 [Contract map](README.md) · [Skill mechanics](skill-learning.md) · [Pawn activities](pawn-activities.md)
 
 Colony defense is every capable pawn's (#3813). Every pawn the one practice eligibility rule
-admits (`SkillLearning.PracticeCapable`, native `RangeTraining.CanTrain`: work tags allow the
+admits (`SkillPractice.Drill.Capable`, native `RangeTraining.CanTrain`: work tags allow the
 skill) may practise Shooting or Melee, whatever role it holds, and the gain does not stop at a
 role floor; only the native ceilings bound it. An active, actually held Ideology role still
 establishes its native `RoleRequirement_MinSkillAny` requirements, each preserving every OR

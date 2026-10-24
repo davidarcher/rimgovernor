@@ -185,11 +185,10 @@ public static class ForecastHandoffPolicy
                     events.AddRange(ForecastMaintenancePolicy.PracticeCallbacks(task, allocation, (int)Math.Ceiling(day * GameTime.TicksPerDay)));
                     gaps.Add("terminal_practice_injury_recovery_unassessed:" + task.Task);
                 }
-                var result = ForecastSkillPolicy.ForecastTerminalSkill(s.Learning, events.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(), (int)Math.Ceiling(day * GameTime.TicksPerDay));
-                if (!result.StoredLevel.IsKnown || !result.Level.IsKnown || !result.Xp.IsKnown)
-                { gaps.Add($"terminal_skill_unknown:{p.Pawn}:{s.Name}"); return s with { Learning = null }; }
-                return s with { Level = result.Level.Value, Stored = result.StoredLevel.Value,
-                    Learning = result.TerminalLearning };
+                if (ForecastSkillPolicy.ForecastSkill(s.Learning, events.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(),
+                    (int)Math.Ceiling(day * GameTime.TicksPerDay)) is not SkillForecast.Projected { Projection: var result })
+                { gaps.Add($"terminal_skill_unprojectable:{p.Pawn}:{s.Name}"); return s with { Learning = null }; }
+                return s with { Level = result.Level, Stored = result.StoredLevel, Learning = result.TerminalLearning };
             });
             return p with { Skills = Known(EquatableArray.From(projected)) };
         })));

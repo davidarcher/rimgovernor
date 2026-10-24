@@ -12,13 +12,13 @@ public sealed partial class DefinitionCatalog
     /// recipes, otherwise once in <c>FinishRecipeAndStartStoringProduct</c>. Surgery pays there too, before
     /// <c>Bill_Medical.Notify_IterationCompleted</c> applies the worker, so a failed surgery still pays (#3632).
     /// The base worker and the game's own surgery workers (none touches learning or the job) are qualified;
-    /// any other worker is unassessed. Literal: kept-constants.md, Medicine learning.</summary>
-    public static RecipeLearning ObserveRecipeLearning(RecipeDef row)
+    /// any other worker is not modelled: null, so its work carries no learning. Literal: kept-constants.md, Medicine learning.</summary>
+    public static RecipeLearning? ObserveRecipeLearning(RecipeDef row)
     {
         var worker = row.Worker.GetType();
         var supported = worker == typeof(RecipeWorker)
             || typeof(Recipe_Surgery).IsAssignableFrom(worker) && worker.Assembly == typeof(Recipe_Surgery).Assembly;
-        return new(row.workSkill?.defName ?? "", supported ? Fact.Known(row.workSkill is null ? 0d : 0.1d * row.workSkillLearnFactor) : default,
+        return !supported ? null : new(row.workSkill?.defName ?? "", row.workSkill is null ? 0d : 0.1d * row.workSkillLearnFactor,
             row.UsesUnfinishedThing);
     }
 
