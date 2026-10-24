@@ -175,6 +175,9 @@ public sealed record ModelPawn
 
     /// <summary>The pawn's native stat values at each stored skill level (#3633); the practice node reads its surgery speed here.</summary>
     public EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves { get; init; }
+
+    /// <summary>The pawn's work speed stats now (PawnUpkeepRead.Speeds, #3868); a craft node reads its recipe's workSpeedStat here.</summary>
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkSpeedRead> WorkSpeeds { get; init; }
 }
 
 /// <summary>

@@ -39,8 +39,8 @@ public sealed record IllnessTerm(double IncidentsPerDay, double Loss, IReadOnlyL
 /// kills at its lethal severity on a part it threatens; at the max severity HediffComp_DestroyOrgan destroys the part. A disease
 /// of affected parts strikes one of the pawn's open parts by coverage (HediffGiverUtility.TryApply); on an organ its stages'
 /// partEfficiencyOffset and its loss cost what <see cref="OrganCapacity"/> gives (#3830). A lost organ the autopilot would replace
-/// (<see cref="SurgeryRules.RestorePick"/>: a stocked recipe and a doctor within the cap) costs nothing after the loss and books a
-/// replacement surgery (<see cref="HarmDistribution.Replacements"/>); one it would not costs its capacity loss to the horizon; a loss
+/// (<see cref="SurgeryRules.RestorePick"/>: a recipe whose part and medicine are stocked or arrive, #3868, and a doctor within the cap)
+/// costs its capacity loss over the expected wait for that stock (<see cref="StockWait"/>) and books a replacement surgery (<see cref="HarmDistribution.Replacements"/>); one it would not costs its capacity loss to the horizon; a loss
 /// that leaves a lethalFlesh capacity incapable kills. Uniform draws (the random factors, the per-day range, the disappear time,
 /// the immunity factor) are integrated on a midpoint grid; the death chance in the immunity factor is exact. The constants it
 /// mirrors are in kept-constants, "Mirrored game literals: illness".
@@ -65,7 +65,7 @@ public static class IllnessForecast
     /// illness. A schedule fact or a pawn's fact left unread throws <see cref="RequiredFactException"/> (#3835).
     /// </summary>
     internal static IllnessTerm? Term(IllnessSchedule schedule, IReadOnlyList<string> ordered, IReadOnlyDictionary<string, NeedsForecastPawn> pawns,
-        CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon,
+        CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon, StockArrival stock,
         ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
     {
         if (!schedule.Assessed)
@@ -92,7 +92,7 @@ public static class IllnessForecast
             if (cache is null || !cache.TryGetValue(key, out var distribution))
             {
                 // A sick pawn rests in the bed it owns (#3804): its immunity gains at that bed's ImmunityGainSpeedFactor.
-                distribution = Of(schedule, row, tables, HarmConsequences.CareOf(support), row.OwnedBedRoom?.ImmunityGainSpeedFactor ?? 1, policy, horizon);
+                distribution = Of(schedule, row, tables, HarmConsequences.CareOf(support), row.OwnedBedRoom?.ImmunityGainSpeedFactor ?? 1, policy, horizon, stock);
                 if (cache is not null)
                 {
                     cache[key] = distribution;
@@ -117,10 +117,10 @@ public static class IllnessForecast
     /// What one disease incident costs <paramref name="pawn"/> given <paramref name="care"/>, its immunity gained in a bed of
     /// <paramref name="bedImmunity"/> ImmunityGainSpeedFactor (StatPart_BedStat, #3804; 1 without a bed): for each disease, its share
     /// × the chance the pawn is a victim (drawn and contracting it) × its course, and the rest a point at 0. Unknown when the Moving
-    /// minimum is unobserved.
+    /// minimum is unobserved. A lost organ's replacement waits on what <paramref name="stock"/> brings (#3868).
     /// </summary>
     internal static HarmDistribution Of(IllnessSchedule schedule, NeedsForecastPawn pawn, CapacityPenaltyTables tables,
-        HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon)
+        HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon, StockArrival stock)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var (disease, levels) = (pawn.Disease, ForecastValue.Levels(pawn));
@@ -165,7 +165,7 @@ public static class IllnessForecast
                 continue;
             }
 
-            var branches = Branches(incident, disease, levels, pawn.Pawn, findings);
+            var branches = Branches(incident, disease, levels, pawn.Pawn, stock, days, findings);
             sick *= branches.Sum(b => b.Share);
             if (!(sick > 0))
             {
@@ -217,7 +217,7 @@ public static class IllnessForecast
     /// levels (null for a stage that offsets nothing), the factors once the organ is lost (null: the loss kills), and the replacement
     /// the autopilot would queue (null, with the reason, when none would be).
     /// </summary>
-    internal sealed record OrganEffect(string Part, double[]?[] Stages, double[]? Lost, OrganReplacementRead? Pick, SurgeryWantReason Reason);
+    internal sealed record OrganEffect(string Part, double[]?[] Stages, double[]? Lost, OrganReplacementRead? Pick, SurgeryWantReason Reason, StockWait? Wait);
 
     /// <summary>
     /// The parts <paramref name="incident"/>'s disease may strike on the pawn: one branch of share 1 for a disease of the whole body;
@@ -225,7 +225,8 @@ public static class IllnessForecast
     /// summing to 1 (none when no part is open: the disease does not take). Throws when the pawn's read lists no part of the
     /// incident's defs, or names a replacement recipe the catalog has no tier for.
     /// </summary>
-    internal static IReadOnlyList<Branch> Branches(IllnessIncident incident, PawnDiseaseFacts disease, double[] levels, string pawn, SortedSet<string> findings)
+    internal static IReadOnlyList<Branch> Branches(IllnessIncident incident, PawnDiseaseFacts disease, double[] levels, string pawn, StockArrival stock, double days,
+        SortedSet<string> findings)
     {
         var course = incident.Course;
         var lethal = course.Table.LethalSeverity is not null;
@@ -247,14 +248,14 @@ public static class IllnessForecast
         foreach (var row in open)
         {
             var part = defs[row.Part];
-            branches.Add(new Branch(row.Coverage / cover, lethal && part.Threatened, Organ(course, part, row, rows, disease, levels, findings)));
+            branches.Add(new Branch(row.Coverage / cover, lethal && part.Threatened, Organ(course, part, row, rows, disease, levels, stock, days, findings)));
         }
 
         return branches;
     }
 
     internal static OrganEffect? Organ(DiseaseCourse course, DiseasePart part, DiseasePartRead row, DiseasePartRead[] rows, PawnDiseaseFacts disease,
-        double[] levels, SortedSet<string> findings)
+        double[] levels, StockArrival stock, double days, SortedSet<string> findings)
     {
         if (part.Capacity.Length == 0)
         {
@@ -301,14 +302,15 @@ public static class IllnessForecast
 
         if (!course.DestroysOrgan)
         {
-            return new OrganEffect(part.Part, stages, null, null, SurgeryWantReason.None);
+            return new OrganEffect(part.Part, stages, null, null, SurgeryWantReason.None, null);
         }
 
         var candidates = disease.Replacements.Where(r => r.Part == part.Part)
             .Select(r => (r, part.Recipes.TryGetValue(r.Recipe, out var tier) ? tier : throw new RequiredFactException("organ_replacement_tier:" + r.Recipe)))
             .ToArray();
-        var (pick, reason) = SurgeryRules.RestorePick(candidates);
-        return new OrganEffect(part.Part, stages, At(0), pick, reason);
+        var (pick, reason, wait) = SurgeryRules.RestorePick(candidates, stock, days);
+        StockWait.Name(stock, reason, wait, findings);
+        return new OrganEffect(part.Part, stages, At(0), pick, reason, wait);
     }
 
     /// <summary>The outcomes of <paramref name="course"/> over its <paramref name="branches"/> (shares normalised) for a pawn of <paramref name="gain"/> ImmunityGainSpeed; probabilities sum to 1.</summary>
@@ -379,8 +381,8 @@ public static class IllnessForecast
     }
 
     // A course that ends in organ loss (#3830): a loss that leaves a lethalFlesh capacity incapable kills; one the autopilot replaces
-    // costs nothing after it (the wait for the surgery is named, not priced); one it does not costs the lost organ's capability
-    // factor to the horizon.
+    // costs the lost organ's capability factor over the expected wait for its part and medicine, E[min(W, days left)] (#3868); one
+    // it does not costs that factor to the horizon.
     private static void Add(List<CourseOutcome> outcomes, Walked walked, double probability, ForecastValuePolicy policy, double days,
         DiseaseCourse course, OrganEffect? organ, double[] levels, double movingMin, string pawn, SortedSet<string> findings)
     {
@@ -410,19 +412,15 @@ public static class IllnessForecast
         }
 
         var replacement = new OrganReplacement(organ.Part, organ.Pick, organ.Reason, probability);
-        if (organ.Pick is not null)
-        {
-            findings.Add("illness_organ_replacement_wait_unmodelled");
-            return (false, 0, replacement);
-        }
-
         Span<double> left = stackalloc double[levels.Length];
         for (var i = 0; i < levels.Length; i++)
         {
             left[i] = levels[i] * lost[i];
         }
 
-        return (false, Math.Max(0, days - walked.End) * (1 - ForecastValue.CapabilityFactor(levels, left, movingMin)), replacement);
+        var rest = Math.Max(0, days - walked.End);
+        var without = organ.Wait is { } wait ? wait.Expected(rest) : rest;
+        return (false, without * (1 - ForecastValue.CapabilityFactor(levels, left, movingMin)), replacement);
     }
 
     /// <summary>The midpoint grid of a uniform range: one point for a degenerate or infinite range.</summary>

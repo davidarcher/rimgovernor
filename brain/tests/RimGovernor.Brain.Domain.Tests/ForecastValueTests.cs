@@ -634,7 +634,7 @@ public sealed class ForecastValueTests
         WeaponBin[] bins = [RaidPartLossTests.Gun(10)];
         var response = ArmorResponseRules.OfOutfit(Cloth, new NaturalArmor(), Torso, bins);
         var distribution = HarmConsequences.Of(new HitRange(5, 3, 20), bins,
-            response, HarmLedger.PartsOf(context.Harm, Cloth), HarmPawn(),HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), Day);
+            response, HarmLedger.PartsOf(context.Harm, Cloth, new StockArrival()), HarmPawn(),HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), Day);
         var (mean, cvar) = HarmLedger.Moments(distribution, context.Value.HarmRiskAlpha);
 
         Assert.True(cvar > mean);

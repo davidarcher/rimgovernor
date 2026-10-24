@@ -23,6 +23,9 @@ public enum ModelEventKind
     Harvest,
     StockZero,
     FoodRunway,
+
+    /// <summary>The medicine crafted toward the stock target reaches it ("target") or its ingredients run out ("ingredients", #3868).</summary>
+    MedicineCraft,
     HorizonEnd,
 }
 
@@ -33,7 +36,7 @@ public sealed record ModelEvent
 
     public ModelEventKind Kind { get; init; }
 
-    /// <summary>The stock that reached zero, the scheduled effect's id, or empty for a boundary, the food runway and the horizon.</summary>
+    /// <summary>The stock that reached zero, the scheduled effect's id, why medicine crafting changed (target, ingredients), or empty for a boundary, the food runway and the horizon.</summary>
     public string Id { get; init; } = "";
 
     /// <summary>Indexed by <see cref="ModelStock"/>.</summary>

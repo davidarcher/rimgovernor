@@ -184,7 +184,7 @@ public static partial class WorkRules
             return d;
         }
         if (RecipeOf(eligible[0], order.Recipe) is not { } recipe
-            || !TryDispatchWorkers(pawns, recipe.RequiredWork, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
+            || !TryDispatchWorkers(pawns, recipe.RequiredWork, recipe.WorkSpeedStat, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
         {
             return d;
         }
@@ -256,10 +256,10 @@ public static partial class WorkRules
 
     /// <summary>
     /// The pawns that can work a bench: available and (when the recipe names work types) with one of them enabled.
-    /// Speed is the global work speed, one plus the pawn's summed WorkSpeedGlobal offset. False while such a pawn's
-    /// work hours are unread.
+    /// Speed is the pawn's <paramref name="stat"/> as read (<see cref="WorkPawn.WorkSpeeds"/>, #3868), 1 for a work that names
+    /// none (Toils_Recipe.DoRecipeWork). False while such a pawn's work hours or that stat are unread.
     /// </summary>
-    public static bool TryDispatchWorkers(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> work, out IReadOnlyList<BenchWorker> workers)
+    public static bool TryDispatchWorkers(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> work, string stat, out IReadOnlyList<BenchWorker> workers)
     {
         var output = new List<BenchWorker>();
         workers = output;
@@ -274,12 +274,13 @@ public static partial class WorkRules
                 continue;
             }
             var profile = PawnRules.BuildProfile(p);
-            if (!profile.WorkHours.TryGetValue(out var h))
+            var speed = stat.Length == 0 ? 1 : p.WorkSpeeds.FirstOrDefault(s => s.Stat == stat)?.Value;
+            if (!profile.WorkHours.TryGetValue(out var h) || speed is not { } read)
             {
                 workers = [];
                 return false;
             }
-            output.Add(new BenchWorker { WorkHoursPerDay = h, WorkSpeed = Math.Max(1 + profile.Effects.WorkSpeed, 0) });
+            output.Add(new BenchWorker { WorkHoursPerDay = h, WorkSpeed = Math.Max(read, 0) });
         }
         return true;
     }

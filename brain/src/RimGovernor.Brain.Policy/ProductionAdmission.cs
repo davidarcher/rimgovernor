@@ -2,12 +2,14 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// A recipe's definition facts by the catalog: its ingredient slots (RecipeIngredients), whether it makes an unfinished
-/// item first, what one bill iteration makes and the work one unit takes (RecipeWorkAmount).
+/// item first, what one bill iteration makes, the work one unit takes (RecipeWorkAmount) and the crafter stat that work goes at
+/// (<c>RecipeDef.workSpeedStat</c>, "" when it names none: speed 1, #3868).
 /// </summary>
 public sealed record ProductionRecipeInput(string Recipe, EquatableArray<EquatableArray<Amount>> Slots, bool UsesUnfinishedItem)
 {
     public required EquatableArray<Amount> Products { get; init; }
     public required double WorkAmount { get; init; }
+    public string WorkSpeedStat { get; init; } = "";
 }
 public sealed record ProductionMaterialPromise(string Id, EquatableArray<ForecastMaterialClaim> Claims);
 

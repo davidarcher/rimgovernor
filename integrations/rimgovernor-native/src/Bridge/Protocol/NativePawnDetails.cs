@@ -214,8 +214,17 @@ namespace HomeBridge.BridgeTools
             var recipe=facts.Recipe(def,map);
             var doctors=recipe.Doctors.Where(p => p!=pawn).ToList();
             var medicine=facts.Medicine(pawn,def,true);
+            // The part the recipe installs: its one fixed ingredient other than medicine (#3868), and whether the map holds it.
+            var parts=def.ingredients.Where(i => !i.filter.AllowedThingDefs.Any(d => d.IsMedicine)).ToList();
+            ThingDef? partThing=parts.Count switch {
+                0 => null,
+                1 when parts[0].IsFixedIngredient => parts[0].FixedIngredient,
+                _ => throw new InvalidOperationException("install recipe "+def.defName+" takes ingredients other than one fixed part and medicine") };
+            var medicineCount=(int)System.Math.Ceiling(def.ingredients.Where(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)).Sum(i => i.GetBaseCount()));
             var row=new Obs.OrganReplacementRead(part.def.defName,def.defName) {
-                IngredientsOnMap=recipe.Others && (!recipe.UsesMedicine || medicine!=null), EligibleDoctors=doctors.Count,
+                PartThing=partThing==null?null:Id(partThing.defName),
+                PartOnMap=partThing==null || !recipe.Missing.Contains(partThing),
+                MedicineOnMap=!recipe.UsesMedicine || medicine!=null, MedicineCount=medicineCount, EligibleDoctors=doctors.Count,
                 Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer), Lethal=Lethal(pawn,def,part) };
             var bill=new Bill_Medical {recipe=def};
             if(medicine!=null) bill.consumedMedicine[medicine]=1;
@@ -264,6 +273,8 @@ namespace HomeBridge.BridgeTools
         internal sealed class RecipeFacts
         {
             internal System.Collections.Generic.List<Pawn> Doctors=null!;
+            // The ingredients PotentiallyMissingIngredients names: a slot no thing on the map fills.
+            internal System.Collections.Generic.List<ThingDef> Missing=null!;
             internal bool Others, UsesMedicine;
         }
 
@@ -294,10 +305,12 @@ namespace HomeBridge.BridgeTools
             internal RecipeFacts Recipe(RecipeDef def,Map map)
             {
                 if(recipes.TryGetValue(def,out var facts)) return facts;
+                var missing=def.PotentiallyMissingIngredients(null,map).ToList();
                 facts=new RecipeFacts {
                     Doctors=colonists.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                         && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList(),
-                    Others=!def.PotentiallyMissingIngredients(null,map).Any(),
+                    Missing=missing,
+                    Others=missing.Count==0,
                     UsesMedicine=def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)) };
                 recipes[def]=facts;
                 return facts;
@@ -367,7 +380,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.PawnBiography Biography(Pawn pawn)
         {
-            var row=new Obs.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat), Traits = [], Skills = [], SkillStatCurves = [], SkillStatFindings = [], DisabledWorkTags = [], IncapableWorkTypes = [] };
+            var row=new Obs.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat), Traits = [], Skills = [], SkillStatCurves = [], SkillStatFindings = [], DisabledWorkTags = [], IncapableWorkTypes = [], WorkSpeeds = [] };
             // A pawn without a story or skill tracker (an animal) has no traits or skills.
             if(pawn.story?.traits!=null)
                 foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };
@@ -376,6 +389,8 @@ namespace HomeBridge.BridgeTools
                 foreach(var skill in pawn.skills.skills)
                     row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=NativeSkillLearning.Read(pawn,skill),DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
                 row = NativeSkillStat.Curves(pawn,row);
+                // The work speeds a crafter and a builder work at (#3868), the rows the needs forecast's upkeep reads.
+                row = row with { WorkSpeeds = NativeNeedsForecast.WorkSpeeds(pawn) };
             }
             var tags=pawn.CombinedDisabledWorkTags;
             foreach(var tag in SingleWorkTags) if((tags&tag)!=0) row = row with { DisabledWorkTags = [.. row.DisabledWorkTags, tag.ToString()] };

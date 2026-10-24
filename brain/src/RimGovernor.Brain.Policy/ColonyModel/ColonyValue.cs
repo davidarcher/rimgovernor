@@ -208,10 +208,46 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
-    /// The tending a wound gets now (#3804): the tend quality on day 0 (<see cref="TendQuality"/>) with the best medicine the run
-    /// starts with, untended with no pawn who tends. Null, named, when a doctor's curve, level or the medicine's numbers are unread.
+    /// The tending a wound gets over the horizon (#3804, #3868): the tend quality (<see cref="TendQuality"/>) averaged over the run's
+    /// days, each stretch at the doctors' levels at its start and the medicine kind the run holds then (<see cref="MedicineSpans"/>,
+    /// which carries the medicine crafted in), each whole day cut apart; untended with no pawn who tends. Null, named, when a doctor's
+    /// curve, level or a medicine's numbers are unread.
     /// </summary>
-    public ForecastTending? TendingNow(ColonyTrajectory trajectory, SortedSet<string> findings)
+    public ForecastTending? TendingOverHorizon(ColonyTrajectory trajectory, SortedSet<string> findings)
+    {
+        if (Doctors(trajectory, findings, new SortedSet<string>(StringComparer.Ordinal)) is not { } doctors)
+        {
+            return null;
+        }
+
+        if (doctors.Count == 0)
+        {
+            return new ForecastTending(false, 0);
+        }
+
+        double total = 0, span = 0;
+        foreach (var (from, to, kind) in MedicineSpans(trajectory))
+        {
+            var end = Math.Min(to, horizonDays);
+            for (var at = from; at < end;)
+            {
+                var next = Math.Min(end, Math.Floor(at) + 1);
+                if (TendQuality(doctors, at, kind < 0 ? null : trajectory.MedicineKinds[kind], findings) is not { } quality)
+                {
+                    return null;
+                }
+
+                total += (next - at) * quality;
+                span += next - at;
+                at = next;
+            }
+        }
+
+        return span > 0 ? new ForecastTending(true, total / span) : TendingNow(trajectory, findings);
+    }
+
+    // The tending on day 0 with the best medicine the run starts with: what the treatments a day are counted at before the run.
+    private ForecastTending? TendingNow(ColonyTrajectory trajectory, SortedSet<string> findings)
     {
         if (Doctors(trajectory, findings, new SortedSet<string>(StringComparer.Ordinal)) is not { } doctors)
         {
@@ -405,7 +441,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// <summary>
     /// The medicine tending uses up a day (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>): the treatments the harm model's raid
     /// wounds take at each pawn's worn outfit (#3634), and the illness term's tends a day (<see cref="IllnessTerm.TendsPerDay"/>, #3829)
-    /// at the tending a wound gets at the start of <paramref name="input"/>'s run (<see cref="TendingNow"/> of its skill stocks and
+    /// at the tending a wound gets at the start of <paramref name="input"/>'s run (the day-0 tend quality of its skill stocks and
     /// medicine on hand): TendUtility.DoTend uses up one medicine a treatment and tends a disease alone. Unknown when the raid harm
     /// model, a doctor's curve or a medicine's potency cannot say; throws a RequiredFactException when the illness term is unassessed.
     /// </summary>

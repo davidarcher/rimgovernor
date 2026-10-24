@@ -711,7 +711,7 @@ public sealed class PlannedRoomCreditTests
 
     /// <summary>
     /// Every shipped credit on its served room in <paramref name="outcome"/>, and the ledger over them all, without a throw. Tier 2
-    /// sets the investment horizon and the tending a wound gets now (ColonyValue.TendingNow); the round reads the storyteller's
+    /// sets the investment horizon and the tending a wound gets over the horizon (ColonyValue.TendingOverHorizon); the round reads the storyteller's
     /// threat schedule (here a quiet one) and its disease schedule (no disease incident yet); the catalog carries the capacity
     /// penalty tables.
     /// </summary>

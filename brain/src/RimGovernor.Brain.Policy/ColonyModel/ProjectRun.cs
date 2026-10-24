@@ -405,9 +405,25 @@ internal sealed class ProjectRun
 
                 findings.Add($"hunt_capability_unknown:{pawn.Pawn}");
                 return null;
+            case ProjectKind.Craft:
+                // Toils_Recipe.DoRecipeWork: the recipe's workSpeedStat of the crafter, 1 when it names none. The bench's speed
+                // factor and the recipe's skill gates are not read on the node (#3868 reads them for the stock arrival).
+                findings.Add("craft_bench_speed_and_skill_gate_unmodelled");
+                if (node.WorkSpeedStat.Length == 0)
+                {
+                    return 1;
+                }
+
+                if (pawn.WorkSpeeds.FirstOrDefault(s => s.Stat == node.WorkSpeedStat) is { } craft)
+                {
+                    return craft.Value;
+                }
+
+                findings.Add($"craft_work_speed_unknown:{pawn.Pawn}:{node.WorkSpeedStat}");
+                return null;
             default:
-                // The pawn model carries no crafting or construction speed (skill gates of a recipe are not read either).
-                findings.Add(node.Kind == ProjectKind.Craft ? "craft_work_speed_unread" : "construction_work_speed_unread");
+                // The pawn model carries no construction speed for a site (the stuff's ConstructionSpeedFactor is not read).
+                findings.Add("construction_work_speed_unread");
                 return 1;
         }
     }

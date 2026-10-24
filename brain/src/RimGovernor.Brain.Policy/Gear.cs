@@ -265,6 +265,9 @@ public sealed record GearRecipe
     /// <summary>The work one unit takes (the catalog's RecipeWorkAmount); RequiredWork is the skill gate, not this.</summary>
     public required double WorkAmount { get; init; }
 
+    /// <summary>The pawn stat that work goes at (the catalog's RecipeWorkSpeedStat, #3868); "" works at 1.</summary>
+    public string WorkSpeedStat { get; init; } = "";
+
     /// <summary>The PawnKindDef of the mech a gestation recipe makes, "" for every other recipe.</summary>
     public string MechKind { get; init; } = "";
 

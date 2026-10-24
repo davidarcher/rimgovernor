@@ -58,7 +58,7 @@ public sealed class RaidPartLossTests
 
     private static OrganReplacementRead Replacement(string recipe, bool stocked = true, int doctors = 1) => new("Arm", recipe)
     {
-        IngredientsOnMap = stocked, EligibleDoctors = doctors, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
+        PartThing = recipe.Replace("Install", ""), PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = doctors, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
         Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
     };
 
@@ -128,7 +128,7 @@ public sealed class RaidPartLossTests
         var booked = Lost(Of(Gun(20), Pawn(1, Replacement("InstallBionicArm", stocked: false), Replacement("InstallNaturalArm")), findings), "Arm")!;
         Assert.Equal("InstallNaturalArm", booked.Pick!.Recipe);
         Assert.Equal(0, booked.Loss);
-        Assert.Contains("raid_part_replacement_wait_unmodelled", findings);
+        Assert.DoesNotContain(StockArrival.TradeUnmodelled, findings);
 
         // Halved manipulation to the horizon.
         var expected = Days * (1 - ForecastValue.CapabilityFactor(Whole, [1, 1, 0.5, 1, 1], 0.15));

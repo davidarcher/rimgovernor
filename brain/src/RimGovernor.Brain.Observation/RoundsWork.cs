@@ -202,6 +202,7 @@ public static class RoundsWorkReads
         {
             Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
             SkillStatCurves = bio.SkillStatCurves,
+            WorkSpeeds = bio.WorkSpeeds,
             // Traits, incapable work types and age feed the pawn profile.
             Traits = Known(EquatableArray.From(bio.Traits.Select(entry => ResolveTrait(defs, new PawnTrait { Name = entry.DefName, Degree = entry.Degree })))),
             Incapable = Known(EquatableArray.From(incapable)),

@@ -3,7 +3,7 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The tending a wound gets now (#3804, <see cref="ColonyValue.TendingNow"/>): whether anyone tends it, and the tend quality.</summary>
+/// <summary>The tending a wound gets over the horizon (#3804, <see cref="ColonyValue.TendingOverHorizon"/>): whether anyone tends it, and the tend quality.</summary>
 public sealed record ForecastTending(bool Tended, double Quality);
 
 /// <summary>
@@ -285,8 +285,8 @@ internal static class ForecastHospital
             if (incidents > 0)
             {
                 var immunityNow = pawn.OwnedBed.Length == 0 ? 1 : OwnedRoom(pawn).ImmunityGainSpeedFactor;
-                var now = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), immunityNow, context.Value, horizon);
-                var hospital = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), bed.ImmunityGainSpeedFactor, context.Value, horizon);
+                var now = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), immunityNow, context.Value, horizon, context.Stock);
+                var hospital = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), bed.ImmunityGainSpeedFactor, context.Value, horizon, context.Stock);
                 if (!now.Known || !hospital.Known)
                 {
                     throw new RequiredFactException("illness_harm:" + pawn.Pawn);

@@ -208,13 +208,20 @@ public static class DefenseBlock
     /// <summary>Indexes BlockPricing.Rows: a def made of a stuff takes the stuff's work.</summary>
     public static string ClearKey(string def, string stuff) => def + "|" + stuff;
 
+    /// <summary>The pawn stat building and removing work goes at (JobDriver_ConstructFinishFrame, JobDriver_RemoveBuilding).</summary>
+    internal const string ConstructionSpeedStat = "ConstructionSpeed";
+
+    /// <summary>Those drivers' work a tick is the ConstructionSpeed stat × 1.7 (kept-constants, mirrored game literals).</summary>
+    internal const double ConstructionWorkFactor = 1.7;
+
     /// <summary>
     /// The work ticks one colonist's work-day holds: the mean over the available colonists of their timetable's
-    /// work hours at their work speed. Unknown while a schedule or speed is.
+    /// work hours at their ConstructionSpeed × 1.7 (#3868), the build and removal drivers' work a tick. Unknown while a
+    /// schedule or speed is.
     /// </summary>
     public static Fact<double> ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
     {
-        if (!WorkRules.TryDispatchWorkers(pawns, [], out var workers) || workers.Count == 0)
+        if (!WorkRules.TryDispatchWorkers(pawns, [], ConstructionSpeedStat, out var workers) || workers.Count == 0)
         {
             return Unknown<double>();
         }
@@ -223,7 +230,7 @@ public static class DefenseBlock
         {
             return Unknown<double>();
         }
-        return Known(mean.WorkHoursPerDay * GameTime.TicksPerHour * mean.WorkSpeed);
+        return Known(mean.WorkHoursPerDay * GameTime.TicksPerHour * mean.WorkSpeed * ConstructionWorkFactor);
     }
 
     private sealed record BlockedTier(DefenseTierName Name, Dictionary<Cell, CoverThing> Blocked, List<Building> Standing);

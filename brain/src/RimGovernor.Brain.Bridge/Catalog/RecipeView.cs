@@ -47,6 +47,7 @@ public sealed partial class DefinitionCatalog
             {
                 Products = EquatableArray.From(recipe.products.Select(p => new P.Amount(new P.Resource(p.thingDef.defName), p.count))),
                 WorkAmount = RecipeWorkAmount(recipe.defName),
+                WorkSpeedStat = RecipeWorkSpeedStat(recipe.defName),
             });
         }
         return EquatableArray.From(result);
@@ -224,6 +225,9 @@ public sealed partial class DefinitionCatalog
     /// it. The stuff multiplier of a stuffed product is not applied, so the figure is the base cost. A recipe with no
     /// amount and no product is an error, as the game's own read fails on it.
     /// </summary>
+    /// <summary>The pawn stat a recipe's work goes at (<c>RecipeDef.workSpeedStat</c>, Toils_Recipe.DoRecipeWork); "" when it names none and works at 1.</summary>
+    public string RecipeWorkSpeedStat(string name) => Recipe(name).workSpeedStat?.defName ?? "";
+
     public double RecipeWorkAmount(string name)
     {
         var row = Recipe(name);
@@ -424,6 +428,7 @@ public sealed partial class DefinitionCatalog
                 Ingredients = RecipeIngredients(row.defName),
                 RequiredWork = hosts[0].Work,
                 WorkAmount = RecipeWorkAmount(row.defName),
+                WorkSpeedStat = RecipeWorkSpeedStat(row.defName),
                 MechKind = mechKind,
                 Kind = RecipeLedgerKind(row.defName, mechKind),
                 Armory = hosts[0].Armory,

@@ -424,13 +424,43 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
   `ChooseHitPart` and `ApplySpecialEffectsToPart`) and each part def's install recipe tiers. A part's per-hit loss chance is the draw
   (coverage × hit chance factor, ranged hits at any depth, melee and Cut/Blunt/Scratch/Bite on Outside parts, a stab forced inside)
   × the armor outcomes of its groups (`ArmorResponseRules.Outcomes`) × the destroy rule; over a raid it is lost with
-  1 − e^(−hits × q) at the exposure range's three points. A loss that kills adds death at `InstantKillChance`; another is booked at no
-  loss when `SurgeryRules.RestorePick` would queue its replacement (`HarmDistribution.Replacements`, priced by the hospital credit),
-  otherwise it costs its capacity loss to the horizon with the named `SurgeryWantReason`. The losses split each surviving point as if
+  1 − e^(−hits × q) at the exposure range's three points. A loss that kills adds death at `InstantKillChance`; another is booked
+  when `SurgeryRules.RestorePick` would queue its replacement (`HarmDistribution.Replacements`, priced by the hospital credit) and
+  costs its capacity loss over the expected wait for the replacement's part and medicine, E[min(W, horizon)] of the
+  [stock-arrival model](#stock-arrival-3868) (0 with both on the map); otherwise it costs its capacity loss to the horizon with the
+  named `SurgeryWantReason`. The losses split each surviving point as if
   independent of its damage. Unread facts throw: `weapon_bin_damage`, `part_hit_rule:<def>`,
   `organ_replacement_tier:<recipe>`. Named: `raid_part_loss_spread_unmodelled`, `raid_part_loss_hit_accumulation_unmodelled`,
-  `raid_part_loss_fresh_wound_unmodelled`, `raid_part_loss_damage_independence_unmodelled`, `raid_part_replacement_wait_unmodelled`,
-  `raid_part_hit_unmodelled:<def>` (a modded worker). Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-part-loss-3847).
+  `raid_part_loss_fresh_wound_unmodelled`, `raid_part_loss_damage_independence_unmodelled`,
+  `raid_part_hit_unmodelled:<def>` (a modded worker), and the stock model's findings when a replacement waits on stock or is
+  short of its part (`stock_arrival_trade_unmodelled`). Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-part-loss-3847).
+
+### Stock arrival (#3868)
+
+`StockArrival` (Policy) answers when a stock a rule waits on arrives once it is wanted: a replacement part or organ, or a medicine
+kind. It is built once per review at the read boundary (`StockArrivalReads.Of` into `RoundsFacts.StockArrival`) from plain values
+and carried on `ForecastCoupledContext.Stock` to the harm term, the hospital credit and the colony model. Each `StockSource` makes
+`Batch` units an iteration at `PerDay` units a day up to `Units`; its not-arrived chance for n units at t days is a step, 1 until
+ceil(n / Batch) × Batch / PerDay (never past `Units`). Independent sources of one need multiply their not-arrived chances; a
+replacement's needs (its part when none is on the map, `MedicineCount` of any medicine kind when the map holds too little) are
+ready when all are, and a consumer prices E[min(W, cap)], the exact integral of the not-ready chance to the days it has left.
+
+Crafting is the first source (`StockArrivalRules.Craft`): each catalog recipe making a medicine or an install recipe's fixed part
+(`DefinitionCatalog.StockRecipes`, research finished, not ideology-gated, every slot fillable) at the best usable bench of the bills
+census hosting it and the best eligible crafter (the bench's DoBill work type enabled, every `skillRequirements` level met) runs at
+work hours × 2500 × the crafter's `workSpeedStat` × the bench's `WorkTableWorkSpeedFactor` ÷ `WorkAmountTotal` × batch units a
+day (`Toils_Recipe.DoRecipeWork`), up to the iterations the stock of the scarcest ingredient slot pays for. A recipe whose bench
+stat is another (`workTableSpeedStat`) is named `stock_arrival_bench_speed_unmodelled:<recipe>`. Trade is named,
+`stock_arrival_trade_unmodelled` (#3869). A census the frame did not carry, or a crafter's unread speed stat, leaves the model
+unread (`StockArrival.Unread`: `stock_arrival_bills`, `stock_arrival_pawns`, `stock_arrival_resources`,
+`stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`), and a rule that then waits on stock throws `RequiredFactException`.
+`SurgeryRules.RestorePick` takes the best-tier candidate with its part and medicine on the map, else the best whose needs arrive
+within the horizon.
+
+Medicine follows the stock-target bill (`ColonyModelPolicy.MedicineCraft`, `StockArrival.MedicineCraft`): the best-potency kind
+some source makes, while the medicine held is below the target (colonists × `MedicalReservePolicy.TargetPerColonist`), is crafted
+at its source's full rate, limited by its ingredients; at the target the run makes what tending uses (up to that rate), and above it
+nothing. `net[Medicine] = FixedProduction + inflow − tends`.
 
 ### Harm term and death floor (#3546)
 
@@ -533,15 +563,18 @@ costs each pawn.
   max severity with `DestroyOrgan`. The struck part is drawn by coverage among the pawn's open parts (#3830); a stage's
   `partEfficiencyOffset` and a destroyed organ cut its capacity (the mean of the tag's parts) and through it Consciousness, Moving,
   Manipulation and Talking by the PawnCapacityWorker weights, and a lethal capacity at or under `minForCapable` kills. A destroyed
-  organ whose best-tier recipe is stocked and passes `SurgeryRules` at the restore failure cap is a booked replacement
-  (`HarmDistribution.Replacements`, no further loss; the hospital's surgeries a day = incidents a day × its probability); otherwise
+  organ whose recipe `SurgeryRules.RestorePick` takes (the best tier with its part and medicine on the map, else the best whose
+  stock [arrives](#stock-arrival-3868) in the horizon) and passes `SurgeryRules` at the restore failure cap is a booked replacement
+  (`HarmDistribution.Replacements`; the hospital's surgeries a day = incidents a day × its probability) whose loss lasts the expected
+  wait for that stock, E[min(W, days left)]; otherwise
   it is a named `SurgeryWantReason` (`PartShort`, `NoDoctor`, `BedShort`) and the loss lasts to the horizon. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
   Deaths cost the horizon's rest plus `DeathTerminalValue`; survivors their capability-days. `PatientDays` (days from first care to
   the end) and `Treatments` (tends) are its expectations. Unknown with `capacities_unobserved:<pawn>` (a pawn without a needs row),
   `capacity_penalty_table_unknown:MovingMinForCapable` or `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
   out: `illness_untended`, `illness_prior_immunity_unassessed` (an earlier immunity record),
   `disease_severity_factors_unpriced:<hediff>`, `disease_part_stage_death_unmodelled:<hediff>` (a stage offset that kills is priced
-  downed), `illness_organ_replacement_wait_unmodelled` (the days to the replacement surgery). A pawn without part rows for a
+  downed), and the stock model's findings when a replacement waits on stock or is short of its part
+  (`stock_arrival_trade_unmodelled`). A pawn without part rows for a
   part-striking incident throws `RequiredFactException` (`disease_parts:<pawn>:<def>`).
 - `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
   — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when the disease table does not

@@ -12,6 +12,7 @@ namespace RimGovernor.Brain.Policy;
 public static class ColonyModel
 {
     private const int Twelfths = 12;
+    private const double Epsilon = 1e-9;
 
     internal const double TwelfthDays = CalendarRules.YearDays / (double)Twelfths;
 
@@ -60,6 +61,17 @@ public static class ColonyModel
             held[bumped] += injected.Work;
         }
 
+        // A crafted kind the colony holds none of joins the kinds after the better ones (#3868): tending takes them first.
+        var craft = policy.MedicineCraft;
+        var crafted = craft is null ? -1 : Array.IndexOf(kinds, craft.Kind);
+        if (craft is not null && crafted < 0)
+        {
+            crafted = kinds.Count(k => craft.Better.Contains(k));
+            kinds = [.. kinds[..crafted], craft.Kind, .. kinds[crafted..]];
+            held = [.. held[..crafted], 0, .. held[crafted..]];
+        }
+
+        var unitsLeft = craft?.Units ?? 0;
         levels[(int)ModelStock.Medicine] = held.Sum();
         var startMedicine = EquatableArray.From(held);
 
@@ -93,6 +105,8 @@ public static class ColonyModel
         {
             findings.Add("medicine_tend_rate_unknown");
         }
+
+        var medicineBase = net[(int)ModelStock.Medicine];
 
         var calendarKnown = input.Calendar.TryGetValue(out var calendar)
             && calendar.Valid() && calendar.GrowingYear.Count == CalendarRules.YearDays;
@@ -151,6 +165,32 @@ public static class ColonyModel
                 Consider(scheduled[next].Day, scheduled[next].Kind, scheduled[next].Id);
             }
 
+            // The stock-target bill (#3868): below the target the crafter makes medicine at its rate; at it, what tending uses; above
+            // it nothing, the stock falling to the target.
+            var making = 0.0;
+            if (craft is not null && unitsLeft > 0)
+            {
+                var stocked = levels[(int)ModelStock.Medicine];
+                var below = stocked < craft.Target - Epsilon;
+                var above = stocked > craft.Target + Epsilon;
+                making = below ? craft.PerDay : above ? 0 : Math.Clamp(-medicineBase, 0, craft.PerDay);
+                if (below && medicineBase + making > 0)
+                {
+                    Consider(now + (craft.Target - stocked) / (medicineBase + making), ModelEventKind.MedicineCraft, "target");
+                }
+                else if (above && medicineBase < 0)
+                {
+                    Consider(now + (stocked - craft.Target) / -medicineBase, ModelEventKind.MedicineCraft, "target");
+                }
+
+                if (making > 0)
+                {
+                    Consider(now + unitsLeft / making, ModelEventKind.MedicineCraft, "ingredients");
+                }
+            }
+
+            net[(int)ModelStock.Medicine] = medicineBase + making;
+
             for (var s = 0; s < levels.Length; s++)
             {
                 if (levels[s] > 0 && net[s] < 0)
@@ -184,6 +224,12 @@ public static class ColonyModel
                 levels[s] = Math.Max(0, levels[s] + net[s] * span);
             }
 
+            if (making > 0)
+            {
+                held[crafted] += making * span;
+                unitsLeft = Math.Max(0, unitsLeft - (making * span));
+            }
+
             UseMedicine(held, levels[(int)ModelStock.Medicine]);
             graph.Advance(span);
 
@@ -212,6 +258,17 @@ public static class ColonyModel
                     break;
                 case ModelEventKind.FoodRunway:
                     runway = now;
+                    break;
+                case ModelEventKind.MedicineCraft when id == "ingredients":
+                    unitsLeft = 0;
+                    break;
+                case ModelEventKind.MedicineCraft when craft is not null && levels[(int)ModelStock.Medicine] > craft.Target:
+                    levels[(int)ModelStock.Medicine] = craft.Target;
+                    UseMedicine(held, craft.Target);
+                    break;
+                case ModelEventKind.MedicineCraft when craft is not null:
+                    held[crafted] += craft.Target - levels[(int)ModelStock.Medicine];
+                    levels[(int)ModelStock.Medicine] = craft.Target;
                     break;
             }
 

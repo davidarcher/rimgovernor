@@ -1067,6 +1067,14 @@ public sealed record PawnBiography
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> SkillStatFindings { get; init; }
+
+    /// <summary>
+    /// The pawn's value of each work speed stat the catalog maps (<c>DefinitionCatalog.UpkeepStatNames</c>, as the needs
+    /// forecast's upkeep reads them: ConstructionSpeed and every recipe's workSpeedStat among them), 0 where
+    /// <c>StatWorker.IsDisabledFor</c> the pawn (#3868); none for a pawn without skills.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSpeedRead>))]
+    public required EquatableArray<WorkSpeedRead> WorkSpeeds { get; init; }
 }
 
 /// <summary>
@@ -2039,6 +2047,9 @@ public sealed record BillStackRow
 
     /// <summary>The bench's thing id.</summary>
     public required string Bench { get; init; }
+
+    /// <summary>The bench's ThingDef, which the catalog's recipes name as their hosts (#3868).</summary>
+    public required string BenchDef { get; init; }
 
     public required bool Usable { get; init; }
 

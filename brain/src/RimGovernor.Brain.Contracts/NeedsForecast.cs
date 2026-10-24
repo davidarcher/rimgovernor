@@ -532,7 +532,10 @@ public sealed record DiseasePartRead(string Part, double Coverage, double Effici
 }
 /// <summary>
 /// One install recipe that would replace a missing part of <see cref="Part"/>'s def (#3830), read as the surgery block reads an
-/// operation (NativePawnDetails.Surgery): whether its part and medicine are on the map, the eligible doctors, the best doctor's
+/// operation (NativePawnDetails.Surgery): the part it installs (<see cref="PartThing"/>, its one fixed ingredient other than
+/// medicine; null for a recipe that takes none) and whether that part is on the map (<c>RecipeDef.PotentiallyMissingIngredients</c>),
+/// whether medicine the patient's care allows is on the map and how many units the recipe takes (#3868: the stock-arrival model
+/// waits on what is missing), the eligible doctors, the best doctor's
 /// success chance in the colony's best medical bed and with an ideal bed (0 without a doctor or an outcome effect: the surgery block
 /// leaves those unread, which the autopilot refuses), whether it
 /// is a violation or lethal; and its outcome model as a queued bill's (NativeSupportActivities.SurgeryOutcomesOf: the outcomes,
@@ -540,7 +543,10 @@ public sealed record DiseasePartRead(string Part, double Coverage, double Effici
 /// </summary>
 public sealed record OrganReplacementRead(string Part, string Recipe)
 {
-    public bool IngredientsOnMap { get; init; }
+    public string? PartThing { get; init; }
+    public bool PartOnMap { get; init; }
+    public bool MedicineOnMap { get; init; }
+    public int MedicineCount { get; init; }
     public int EligibleDoctors { get; init; }
     public double SuccessChance { get; init; }
     public double DoctorSuccessChance { get; init; }

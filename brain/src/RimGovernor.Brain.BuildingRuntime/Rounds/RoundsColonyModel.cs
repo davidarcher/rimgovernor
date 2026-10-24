@@ -13,7 +13,7 @@ internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyLi
     IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff)
 {
     internal required ForecastModelBasis Basis { get; init; }
-    /// <summary>The tending a wound gets now (<see cref="ColonyValue.TendingNow"/>, #3804); null when unread.</summary>
+    /// <summary>The tending a wound gets over the horizon (<see cref="ColonyValue.TendingOverHorizon"/>, #3804, #3868); null when unread.</summary>
     internal ForecastTending? Tending { get; init; }
     /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
     internal IReadOnlyList<(string Key, object? Value)> Attrs()
@@ -77,7 +77,13 @@ internal static class RoundsColonyModel
             : [];
         var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear?.Threat), (graph, p) => graph.Then(p.Path.Graph)) };
         var valuation = new ColonyValue(context, options, policy.HorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
-        policy = policy with { MedicineTendsPerDay = valuation.TreatmentsPerDay(input) };
+        // The medicine the colony crafts toward the reserve's stock target (#3868): the best kind a crafter can make.
+        var reserve = colony.Facts.MedicalReserve;
+        policy = policy with
+        {
+            MedicineTendsPerDay = valuation.TreatmentsPerDay(input),
+            MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Colonists * MedicalReservePolicy.Default().TargetPerColonist),
+        };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);
         var notes = new List<string>();
@@ -101,7 +107,7 @@ internal static class RoundsColonyModel
 
         return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
             valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays))
-        { Basis = new(input, policy), Tending = valuation.TendingNow(marginals.Trajectory, new SortedSet<string>(StringComparer.Ordinal)) };
+        { Basis = new(input, policy), Tending = valuation.TendingOverHorizon(marginals.Trajectory, new SortedSet<string>(StringComparer.Ordinal)) };
     }
 
     /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>
@@ -380,6 +386,7 @@ internal static class RoundsColonyModel
                 PlantWorkSpeed = Known(pawn.PlantWorkSpeed),
                 Hunts = hunters.GetValueOrDefault(pawn.Pawn),
                 SkillStatCurves = curves.GetValueOrDefault(pawn.Pawn),
+                WorkSpeeds = pawn.Upkeep.Speeds,
             });
         }
 

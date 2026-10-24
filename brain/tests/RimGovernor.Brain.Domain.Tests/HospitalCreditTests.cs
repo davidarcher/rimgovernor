@@ -169,11 +169,11 @@ public sealed class HospitalCreditTests
         var schedule = Flu(1 / 30.0);
         var policy = new ForecastValuePolicy();
         // The bed's ImmunityGainSpeedFactor multiplies the pawn's own immunity gain: 1.25x in the hospital bed, as a 1.25x pawn.
-        var hospital = IllnessForecast.Of(schedule, pawn, Tables(), Tended(1), Bed.ImmunityGainSpeedFactor, policy, Horizon * Day);
-        var faster = IllnessForecast.Of(schedule, Patient(gain: 1.25), Tables(), Tended(1), 1, policy, Horizon * Day);
+        var hospital = IllnessForecast.Of(schedule, pawn, Tables(), Tended(1), Bed.ImmunityGainSpeedFactor, policy, Horizon * Day, new StockArrival());
+        var faster = IllnessForecast.Of(schedule, Patient(gain: 1.25), Tables(), Tended(1), 1, policy, Horizon * Day, new StockArrival());
         Assert.Equal(faster.DeathProbability, hospital.DeathProbability, 12);
         Assert.Equal(0, hospital.DeathProbability, 9);
-        var owned = IllnessForecast.Of(schedule, pawn, Tables(), Tended(1), 1, policy, Horizon * Day);
+        var owned = IllnessForecast.Of(schedule, pawn, Tables(), Tended(1), 1, policy, Horizon * Day, new StockArrival());
         Assert.Equal(0.5, owned.DeathProbability, 9);
         Assert.DoesNotContain("illness_bed_immunity_unassessed", owned.Findings);
 
@@ -236,7 +236,7 @@ public sealed class HospitalCreditTests
                 Parts = [new("Lung", 0.025, 1) { Incidents = [decay], Hediffs = [] }, new("Lung", 0.025, 1) { Incidents = [decay], Hediffs = [] }],
                 Replacements = [new("Lung", "InstallNaturalLung")
                 {
-                    IngredientsOnMap = stocked, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
+                    PartThing = "Lung", PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
                     Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
                 }],
             },
@@ -311,7 +311,7 @@ public sealed class HospitalCreditTests
     public void AFreshColonysProductionContextCarriesTheHospitalBedWithoutThrowing()
     {
         // The production path (#3822): RoundsRead furnishes the planned hospital with the catalog's first hospital bed (a bedroll
-        // never), and GenerateCoupledActivities carries it into the context; tier 2 adds the tending (ColonyValue.TendingNow).
+        // never), and GenerateCoupledActivities carries it into the context; tier 2 adds the tending (ColonyValue.TendingOverHorizon).
         var furniture = new RoomFurniture
         {
             Beds = [new() { Def = SleepingRules.SleepingBedrollDefinition, Slots = 1 }, new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07, SurgerySuccessChanceFactor = 1.1 }],

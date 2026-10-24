@@ -151,6 +151,9 @@ public sealed record WorkPawn
     /// <summary>The biography's native stat values at each stored skill level (#3633); empty when the read carried none.</summary>
     public EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves { get; init; }
 
+    /// <summary>The biography's work speed stats now (PawnBiography.WorkSpeeds, #3868); empty when the read carried none.</summary>
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkSpeedRead> WorkSpeeds { get; init; }
+
     public Fact<EquatableArray<WorkPriority>> Work { get; init; }
 
     /// <summary>Traits, Incapable (backstory work types) and Age feed the pawn profile; unknown rows degrade the planner to skill-only ordering rather than making the review unknown.</summary>

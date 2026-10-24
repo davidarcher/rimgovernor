@@ -59,18 +59,20 @@ public sealed record RaidPartCatalog
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Recipes { get; init; } = new Dictionary<string, IReadOnlyDictionary<string, double>>();
 }
 
-/// <summary>What a raid's part loss reads besides the pawn (#3847): the outfit worn, the race's armor, the apparel layers innermost first and the catalog's tables.</summary>
+/// <summary>What a raid's part loss reads besides the pawn (#3847): the outfit worn, the race's armor, the apparel layers innermost first, the catalog's tables and the stock arrival a replacement waits on (#3868).</summary>
 public sealed record RaidPartInputs
 {
     public EquatableArray<GearOption> Outfit { get; init; }
     public NaturalArmor Natural { get; init; } = new();
     public EquatableArray<string> Layers { get; init; }
     public RaidPartCatalog Catalog { get; init; } = new();
+    public StockArrival Stock { get; init; } = new();
 }
 
 /// <summary>
 /// One part a raid destroys (#3847) with <see cref="Probability"/> a raid: its loss kills (<see cref="Kills"/>), or costs
-/// <see cref="Loss"/> capability-days, 0 when the autopilot would replace it (<see cref="Pick"/>, otherwise null with the reason).
+/// <see cref="Loss"/> capability-days, over the replacement's wait when the autopilot would replace it (<see cref="Pick"/>, otherwise
+/// null with the reason) and over the horizon when not.
 /// </summary>
 internal sealed record PartLossEvent(string Part, double Probability, bool Kills, double Loss, OrganReplacementRead? Pick, SurgeryWantReason Reason);
 
@@ -86,7 +88,8 @@ internal sealed record PartLossEvent(string Part, double Probability, bool Kills
 /// range's three points, a part with per-hit chance q is lost with 1 − e^(−hits × q). A loss that kills is death unless a colonist's
 /// instant-kill protection keeps the part (<see cref="PawnPartLossFacts.InstantKillChance"/>); any other costs its capacity loss to the
 /// horizon (the five levels with it missing, <see cref="ForecastValue.CapabilityFactor"/>) unless <see cref="SurgeryRules.RestorePick"/>
-/// would book its replacement, which then costs nothing and is a surgery the hospital credit prices (#3830's rule).
+/// would book its replacement, which then costs that loss over the expected wait for its part and medicine, E[min(W, horizon)]
+/// (<see cref="StockWait"/>, #3868), and is a surgery the hospital credit prices (#3830's rule).
 /// </summary>
 internal static class RaidPartLoss
 {
@@ -132,16 +135,11 @@ internal static class RaidPartLoss
                 .Select(r => (r, inputs.Catalog.Recipes.TryGetValue(part.Part, out var tiers) && tiers.TryGetValue(r.Recipe, out var tier)
                     ? tier : throw new RequiredFactException("organ_replacement_tier:" + r.Recipe)))
                 .ToArray();
-            var (pick, reason) = SurgeryRules.RestorePick(candidates);
-            if (pick is not null)
-            {
-                findings.Add("raid_part_replacement_wait_unmodelled");
-                events.Add(new PartLossEvent(part.Part, lost, false, 0, pick, SurgeryWantReason.None));
-                continue;
-            }
-
+            var (pick, reason, wait) = SurgeryRules.RestorePick(candidates, inputs.Stock, days);
+            StockWait.Name(inputs.Stock, reason, wait, findings);
             double[] after = [part.Consciousness, part.Moving, part.Manipulation, part.Sight, part.Talking];
-            events.Add(new PartLossEvent(part.Part, lost, false, days * (1 - ForecastValue.CapabilityFactor(levels, after, movingMin)), null, reason));
+            var without = wait is { } waiting ? waiting.Expected(days) : days;
+            events.Add(new PartLossEvent(part.Part, lost, false, without * (1 - ForecastValue.CapabilityFactor(levels, after, movingMin)), pick, reason));
         }
 
         return events;

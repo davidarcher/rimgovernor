@@ -110,15 +110,61 @@ public sealed class MedicineValueTests
     }
 
     [Fact]
-    public void TheTendingNowIsTheBestDoctorsDayZeroQualityWithTheMedicineHeld()
+    public void TheStockTargetBillCraftsMedicineUpToTheTargetAtTheCraftersRateUntilTheIngredientsRunOut()
     {
-        // #3804: the hospital credit's tending. Anna at level 6 tends at 0.8 with the industrial medicine on hand.
-        var input = Colony(6, 1000);
-        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy());
-        var tending = Value(input).TendingNow(trajectory, new SortedSet<string>(StringComparer.Ordinal));
-        Assert.NotNull(tending);
-        Assert.True(tending.Tended);
-        Assert.Equal(0.8, tending.Quality, 9);
+        // #3868: 30 industrial medicine held, tended at 1 a day, crafted at 2 a day toward a target of 3.
+        double Held(ColonyModelInput input, ColonyModelPolicy policy, double day)
+        {
+            var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+            // The stock moves at a constant rate between events: interpolate at the day.
+            var (from, at) = (0.0, trajectory.StartMedicine.Sum());
+            foreach (var e in trajectory.Events)
+            {
+                if (e.Day >= day)
+                {
+                    return e.Day > from ? at + ((e.Medicine.Sum() - at) * (day - from) / (e.Day - from)) : e.Medicine.Sum();
+                }
+
+                (from, at) = (e.Day, e.Medicine.Sum());
+            }
+
+            return at;
+        }
+
+        MedicineCraft Craft(double units) => new(new Resource(Industrial), 2, units, 3, []);
+
+        // Above the target nothing is crafted: the stock falls a unit a day to the target on day 27, then holds there.
+        Assert.Equal(30 - 10, Held(Colony(6, 30), Policy(1) with { MedicineCraft = Craft(1000) }, 10), 6);
+        Assert.Equal(3, Held(Colony(6, 30), Policy(1) with { MedicineCraft = Craft(1000) }, 200), 6);
+        // Untended, the stock above the target stays put.
+        Assert.Equal(30, Held(Colony(6, 30), Policy(0) with { MedicineCraft = Craft(1000) }, 200), 6);
+        // From an empty stock it is crafted at the full rate, not the tends a day, until the target.
+        Assert.Equal(3, Held(Colony(6, 0), Policy(1) with { MedicineCraft = Craft(1000) }, 100), 6);
+        // Five units of ingredients make five: the stock then runs out.
+        Assert.Equal(0, Held(Colony(6, 30), Policy(1) with { MedicineCraft = Craft(5) }, 200), 6);
+    }
+
+    [Fact]
+    public void TheTendingOverTheHorizonAveragesTheQualityAsTheMedicineRunsOutOrIsCrafted()
+    {
+        // #3804, #3868: the hospital credit's tending. Anna at level 6 tends at 0.8 with the industrial medicine on hand and at
+        // 0.8 × 0.3 without; the horizon's average falls when the stock runs out, and crafting toward the target keeps it up.
+        ForecastTending Tending(ColonyModelInput input, ColonyModelPolicy policy)
+        {
+            var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+            var tending = Value(input).TendingOverHorizon(trajectory, new SortedSet<string>(StringComparer.Ordinal));
+            Assert.NotNull(tending);
+            Assert.True(tending.Tended);
+            return tending;
+        }
+
+        var stocked = Tending(Colony(6, 1000), Policy(1)).Quality;
+        var runsOut = Tending(Colony(6, 30), Policy(1)).Quality;
+        var crafted = Tending(Colony(6, 30), Policy(1) with { MedicineCraft = new MedicineCraft(new Resource(Industrial), 2, 1000, 3, []) }).Quality;
+        Assert.True(stocked >= 0.8 - 1e-9);
+        Assert.True(runsOut < stocked);
+        Assert.True(runsOut > 0.8 * 0.3);
+        Assert.Equal(stocked, crafted, 9);
     }
 
     [Fact]
@@ -137,15 +183,15 @@ public sealed class MedicineValueTests
     }
 
     [Fact]
-    public void TheMedicineTendedADayAddsTheIllnessTermsTendsAtTheTendingNow()
+    public void TheMedicineTendedADayAddsTheIllnessTermsTendsAtTheDayZeroTending()
     {
         var input = Colony(6, 1000);
         var raids = Value(input, Sick(0)).TreatmentsPerDay(input);
         var sick = Value(input, Sick(0.1)).TreatmentsPerDay(input);
 
-        // Anna at level 6 tends at 0.8 with the industrial medicine on hand (TendingNow); a flu incident's tends at that quality.
+        // Anna at level 6 tends at 0.8 with the industrial medicine on hand (its day-0 tending); a flu incident's tends at that quality.
         var flu = IllnessForecast.Of(Sick(0.1).Illness, Anna, ForecastValueTests.HarmTables(), new HarmConsequences.Care(true, 0.8, 0, 1), 1,
-            new ForecastValuePolicy(), CalendarRules.YearDays * GameTime.TicksPerDay);
+            new ForecastValuePolicy(), CalendarRules.YearDays * GameTime.TicksPerDay, new StockArrival());
         Assert.True(flu.Treatments > 0);
         Assert.Equal(raids.Value + (0.1 * flu.Treatments), sick.Value, 9);
     }

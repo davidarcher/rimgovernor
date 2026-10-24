@@ -255,7 +255,7 @@ internal static class HarmLedger
             if (!cache.TryGetValue(key, out var distribution))
             {
                 var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
-                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, PartsOf(inputs, outfit), row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
+                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, PartsOf(inputs, outfit, context.Stock), row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
             }
 
             findings.UnionWith(distribution.Findings);
@@ -363,7 +363,7 @@ internal static class HarmLedger
         IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
         ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
     {
-        var illness = IllnessForecast.Term(context.Harm.Illness, ordered, pawns, context.CapacityPenalties, outcome.Support, context.Value, horizon, cache, findings);
+        var illness = IllnessForecast.Term(context.Harm.Illness, ordered, pawns, context.CapacityPenalties, outcome.Support, context.Value, horizon, context.Stock, cache, findings);
         var escape = Escapes(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
         var creepJoiner = CreepJoinerHarm.Term(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
         var detail = raids with { Illness = illness, Escape = escape, CreepJoiner = creepJoiner };
@@ -427,8 +427,8 @@ internal static class HarmLedger
         inputs.Composition.Pawns.IsKnown && inputs.Composition.Bins.ToArray() is { Length: > 0 } bins ? bins : null;
 
     /// <summary>What a raid's part loss reads of <paramref name="outfit"/> and the inputs (#3847).</summary>
-    internal static RaidPartInputs PartsOf(HarmInputs inputs, EquatableArray<GearOption> outfit) =>
-        new() { Outfit = outfit, Natural = inputs.Natural, Layers = inputs.Coverage.Layers, Catalog = inputs.Parts };
+    internal static RaidPartInputs PartsOf(HarmInputs inputs, EquatableArray<GearOption> outfit, StockArrival stock) =>
+        new() { Outfit = outfit, Natural = inputs.Natural, Layers = inputs.Coverage.Layers, Catalog = inputs.Parts, Stock = stock };
 
     /// <summary>
     /// One raid's harm on <paramref name="row"/> in its worn outfit given <paramref name="care"/> (#3804, the hospital credit): its
@@ -451,7 +451,7 @@ internal static class HarmLedger
             throw new RequiredFactException("raid_exposure:" + row.Pawn);
         }
 
-        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), PartsOf(inputs, wearing), row,
+        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), PartsOf(inputs, wearing, context.Stock), row,
             context.CapacityPenalties, care, context.Value, horizon);
         if (!distribution.Known)
         {

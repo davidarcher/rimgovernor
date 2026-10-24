@@ -369,6 +369,7 @@ public sealed partial record ForecastCoupledCandidates
             PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),
             ComfortCurve = facts.ComfortCurve,
             HospitalBed = facts.HospitalBed,
+            Stock = facts.StockArrival,
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,
             Roamers = facts.AnimalUpkeep.Roamers,

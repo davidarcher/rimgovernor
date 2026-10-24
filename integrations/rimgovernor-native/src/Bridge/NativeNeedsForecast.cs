@@ -193,6 +193,18 @@ internal static class NativeNeedsForecast
     /// </summary>
     private static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Obs.NeedMood? needMood)
     {
+        var speeds = WorkSpeeds(pawn);
+        var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
+        var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
+        var mood = needMood is null ? null : new Obs.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
+        return new() { Speeds = speeds, IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
+    }
+    /// <summary>
+    /// The pawn's value of each work speed stat the catalog maps (<c>DefinitionCatalog.UpkeepStatNames</c>), 0 where the stat is
+    /// disabled for it: the needs forecast's upkeep and the biography's work speeds (#3868) read the same rows.
+    /// </summary>
+    internal static EquatableArray<Obs.WorkSpeedRead> WorkSpeeds(Pawn pawn)
+    {
         var names = RimGovernor.Brain.Bridge.DefinitionCatalog.UpkeepStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
         var speeds = new List<Obs.WorkSpeedRead>();
         foreach (var name in names)
@@ -200,10 +212,7 @@ internal static class NativeNeedsForecast
             var stat = DefDatabase<StatDef>.GetNamedSilentFail(name) ?? throw new InvalidOperationException("upkeep stat not loaded: " + name);
             speeds.Add(new(stat.defName, stat.Worker.IsDisabledFor(pawn) ? 0 : pawn.GetStatValue(stat)));
         }
-        var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
-        var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
-        var mood = needMood is null ? null : new Obs.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
-        return new() { Speeds = EquatableArray.From(speeds), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
+        return EquatableArray.From(speeds);
     }
     /// <summary>
     /// The corpses a sighting raises an observed-corpse event for (#3806), each with every colonist's sightings of it: the

@@ -31,6 +31,7 @@ internal sealed class GearRecipeCatalogAdapter(BridgeCatalog catalog)
 
     /// <inheritdoc />
     public double RecipeWorkAmount(string name) => catalog.RecipeWorkAmount(name);
+    public string RecipeWorkSpeedStat(string name) => catalog.RecipeWorkSpeedStat(name);
 
     /// <inheritdoc />
     public string RecipeMechKind(string name) => catalog.RecipeMechKind(name);

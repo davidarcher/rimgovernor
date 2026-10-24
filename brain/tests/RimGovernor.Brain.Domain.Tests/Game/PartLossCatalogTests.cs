@@ -145,11 +145,11 @@ public sealed class PartLossCatalogTests
                     new("Torso", 0.7) { Groups = ["Torso"], Outside = true, Core = true, Parent = -1, Health = 40, MaxHealth = 40, Destroyable = true },
                     new("Arm", 0.3) { Groups = ["Arms"], Outside = true, Parent = 0, Health = 4, MaxHealth = 4, Destroyable = true, Manipulation = 0.5 },
                 ],
-                Replacements = [new("Arm", "InstallNaturalArm") { IngredientsOnMap = true, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9 }],
+                Replacements = [new("Arm", "InstallNaturalArm") { PartOnMap = true, MedicineOnMap = true, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9 }],
             },
         };
         var harm = HarmConsequences.Of(new HitRange(5, 3, 20), inputs.Composition.Bins, [new ArmorResponse { ExpectedDamage = bin.Damage }],
-            HarmLedger.PartsOf(inputs, []), pawn, ForecastValueTests.HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), 10 * GameTime.TicksPerDay);
+            HarmLedger.PartsOf(inputs, [], new StockArrival()), pawn, ForecastValueTests.HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), 10 * GameTime.TicksPerDay);
 
         Assert.True(harm.Known);
         var arm = Assert.Single(harm.Replacements);

@@ -135,6 +135,9 @@ public sealed record RoundsFacts
     /// <summary>The work a unit of nutrition costs over the research finished (DefinitionCatalog.FoodWork, #3825), a pawn's food upkeep; no crop and no meal without a catalog.</summary>
     public FoodWorkFacts FoodWork { get; init; } = new();
 
+    /// <summary>When a part, an organ or a medicine a rule waits on arrives (#3868, StockArrivalReads.Of); built empty without the read.</summary>
+    public StockArrival StockArrival { get; init; } = new();
+
     /// <summary>The colonist beds no one owns (SleepingRules.VacantColonistBed) by id, which make a pawn's bed free (#3825, V6); null while the sleeping census is unread.</summary>
     public IReadOnlyList<string>? VacantColonistBeds { get; init; }
 

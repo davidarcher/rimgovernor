@@ -329,31 +329,8 @@ public static class WorkPawnProfileExtensions
     /// How many hours of the pawn's timetable are Work or Anything. Unknown when the schedule is unread, is
     /// not 24 hours, or holds an assignment this does not classify.
     /// </summary>
-    public static Fact<int> WorkHoursPerDay(this WorkPawn w)
-    {
-        if (!w.Schedule.TryGetValue(out var rows) || rows.Count != 24)
-        {
-            return Unknown<int>();
-        }
-        var n = 0;
-        foreach (var s in rows)
-        {
-            switch (s)
-            {
-                case PawnRules.ScheduleWork:
-                case PawnRules.ScheduleAnything:
-                    n++;
-                    break;
-                case PawnRules.ScheduleSleep:
-                case PawnRules.ScheduleJoy:
-                case PawnRules.ScheduleMeditate:
-                    break;
-                default:
-                    return Unknown<int>();
-            }
-        }
-        return Known(n);
-    }
+    public static Fact<int> WorkHoursPerDay(this WorkPawn w) =>
+        w.Schedule.TryGetValue(out var rows) && PawnRules.WorkHours(rows) is { } n ? Known(n) : Unknown<int>();
 }
 
 public static partial class PawnRules

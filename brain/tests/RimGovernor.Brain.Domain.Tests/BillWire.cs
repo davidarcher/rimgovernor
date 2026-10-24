@@ -29,6 +29,6 @@ internal static class BillWire
     internal static O.BillsSnapshot Census(params O.BillState[] bills) => new()
     {
         Context = Context,
-        Benches = [new O.BillStackRow { Snapshot = new O.SnapshotRef { Context = Context, EntityId = "Thing_Campfire1", Token = "t" }, Bench = "Thing_Campfire1", Usable = true, WorkSpeed = 1, Bills = [.. bills] }],
+        Benches = [new O.BillStackRow { Snapshot = new O.SnapshotRef { Context = Context, EntityId = "Thing_Campfire1", Token = "t" }, Bench = "Thing_Campfire1", BenchDef = "Campfire", Usable = true, WorkSpeed = 1, Bills = [.. bills] }],
     };
 }

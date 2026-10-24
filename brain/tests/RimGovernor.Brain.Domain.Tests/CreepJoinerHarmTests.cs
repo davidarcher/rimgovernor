@@ -272,7 +272,7 @@ public sealed class CreepJoinerHarmTests
                 Parts = [.. parts.Select(p => new DiseasePartRead(p.Item1, p.Item2, 1) { Incidents = [], Hediffs = ["OrganDecayCreepjoiner"] })],
                 Replacements = [new("Lung", "InstallNaturalLung")
                 {
-                    IngredientsOnMap = true, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
+                    PartOnMap = true, MedicineOnMap = true, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
                     Outcomes = [new("success", 0, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
                 }],
             },

@@ -41,6 +41,12 @@ public sealed record ColonyModelPolicy
     /// </summary>
     public Fact<double> MedicineTendsPerDay { get; init; }
 
+    /// <summary>
+    /// The medicine the colony crafts toward its stock target (#3868, <see cref="StockArrival.MedicineCraft"/>): below the target it
+    /// makes the kind at its rate until the ingredients' units are made; at the target it makes what tending uses. Null crafts none.
+    /// </summary>
+    public MedicineCraft? MedicineCraft { get; init; }
+
     /// <summary>Constant production in stock units a day, indexed by <see cref="ModelStock"/> (a missing entry is zero). The project graph (T4) replaces it with real production.</summary>
     public EquatableArray<double> FixedProduction { get; init; }
 

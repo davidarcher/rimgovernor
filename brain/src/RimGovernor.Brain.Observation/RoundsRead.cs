@@ -212,6 +212,7 @@ public static class RoundsReads
                 },
             };
         }
+        p = p with { Facts = p.Facts with { StockArrival = StockArrivalReads.Of(catalog, finished, frame.Bills, pawns, colony, p.Facts.Items.MedicineTiers()) } };
         p = p with { Mechs = frame.Tables.Pawns.Count > 0 ? Known(RoundsContainmentReads.MechFleetOf(frame.Tables.Pawns.Table.Values())) : Unknown<MechFleet>() };
         p = p with
         {

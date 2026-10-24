@@ -48,6 +48,9 @@ public sealed record ProjectNode
     /// <summary>Native recipe/site identity retained independently of display/event ids.</summary>
     public string Recipe { get; init; } = "";
     public string Target { get; init; } = "";
+
+    /// <summary>A craft node's recipe workSpeedStat (#3868), the pawn stat its work goes at; "" works at 1.</summary>
+    public string WorkSpeedStat { get; init; } = "";
     /// <summary>Unique within the graph; the id of the node's completion event.</summary>
     public string Id { get; init; } = "";
 

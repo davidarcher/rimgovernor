@@ -55,6 +55,7 @@ internal static class PawnFixtures
             IncapableWorkTypes = [],
             DisabledWorkTags = [],
             SkillStatCurves = [],
+            WorkSpeeds = [],
             SkillStatFindings = [],
         },
         Settings = new O.PawnSettings

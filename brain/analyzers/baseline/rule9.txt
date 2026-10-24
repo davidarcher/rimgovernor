@@ -929,7 +929,7 @@ Policy/PawnNames.cs|Fact|4
 Policy/PawnNames.cs|Unknown|1
 Policy/PawnProfile.cs|Discard|1
 Policy/PawnProfile.cs|Fact|16
-Policy/PawnProfile.cs|Unknown|2
+Policy/PawnProfile.cs|Unknown|1
 Policy/PeopleFamily.cs|Fact|8
 Policy/PerimeterCut.cs|Fact|4
 Policy/PermitChoice.cs|Discard|1

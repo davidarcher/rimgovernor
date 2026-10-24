@@ -380,7 +380,7 @@ public sealed record ProjectGraph
         {
             Nodes = EquatableArray.From(new[]
             {
-                new ProjectNode { Id = $"craft:{recipe}", Recipe = recipe, Kind = ProjectKind.Craft, Prerequisites = after, Work = work * copies, Ingredients = EquatableArray.From(ingredients), Products = EquatableArray.From(products.Select(p => p with { Count = p.Count * copies })), ProductsToStock = productsToStock },
+                new ProjectNode { Id = $"craft:{recipe}", Recipe = recipe, WorkSpeedStat = row.WorkSpeedStat, Kind = ProjectKind.Craft, Prerequisites = after, Work = work * copies, Ingredients = EquatableArray.From(ingredients), Products = EquatableArray.From(products.Select(p => p with { Count = p.Count * copies })), ProductsToStock = productsToStock },
             }),
             Findings = findings,
         };

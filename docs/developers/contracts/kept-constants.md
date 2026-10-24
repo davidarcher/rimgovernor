@@ -291,6 +291,24 @@ The model's own choices, not game rules: the cut curve is expected over a 1000-p
 the hits are Poisson at the exposure range's three Pearson-Tukey points; the extra targets', inner parts' and parents' losses, hits
 accumulating on a part, and the dependence of a part's loss on the raid's total damage are not modelled (named findings).
 
+## Mirrored game rules: stock arrival and work speed (#3868)
+
+`StockArrivalRules` (`brain/src/RimGovernor.Brain.Policy/StockArrival.cs`), the catalog's `StockRecipes`
+(`brain/src/RimGovernor.Brain.Bridge/Catalog/StockRecipes.cs`) and `DefenseBlock.ColonistWorkTicksPerDay` mirror the work rules no
+def carries. Read with ilspycmd (1.7). The work amounts, speed stats, skill requirements, ingredients and benches come from the defs;
+each pawn's speed stats from the pawn (`PawnBiography.WorkSpeeds`), each bench's `WorkTableWorkSpeedFactor` from the bills census.
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Recipe work a tick | the crafter's `workSpeedStat` (1 when the recipe names none) × the bench's `workTableSpeedStat` (`WorkTableWorkSpeedFactor` unless the def sets another; another is named, not read) | `Toils_Recipe.DoRecipeWork` |
+| Crafter eligibility | the bench's DoBill giver's work type enabled and every `skillRequirements` minimum met | `WorkGiver_DoBill`, `RecipeDef.PawnSatisfiesSkillRequirements` |
+| `ConstructionWorkFactor` | 1.7: building work a tick is `ConstructionSpeed` × 1.7 (`DefenseBlock.ConstructionSpeedStat`); the stuff's `ConstructionSpeedFactor` is not applied | `JobDriver_ConstructFinishFrame`, `JobDriver_RemoveBuilding` |
+
+The model's own choices, not game rules: a source's arrival is a fixed delay (a step) once the bill and its ingredients exist, the
+crafter works its timetable's work hours on the bill alone, and trade is no source yet (`stock_arrival_trade_unmodelled`, #3869).
+The medicine stock target the colony model crafts toward is `MedicalReservePolicy.TargetPerColonist` (3) a colonist, the reserve's
+own target, standing in for the player's stock-target bill count.
+
 ## Mirrored game rules: food hauling (#3849)
 
 `FoodHaulRules` (`brain/src/RimGovernor.Brain.Policy/FoodHaul.cs`) mirrors the hauling rules no def carries. A pawn's food

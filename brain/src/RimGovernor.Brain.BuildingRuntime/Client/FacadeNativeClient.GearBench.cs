@@ -145,6 +145,7 @@ public sealed partial class FacadeNativeClient
                     Ingredients = ingredients,
                     RequiredWork = requiredWork,
                     WorkAmount = workAmount,
+                    WorkSpeedStat = catalog.RecipeWorkSpeedStat(definition),
                     MechKind = mechKind,
                     Kind = kind,
                     Armory = armory,

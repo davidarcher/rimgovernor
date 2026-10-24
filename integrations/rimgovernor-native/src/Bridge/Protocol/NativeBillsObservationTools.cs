@@ -115,6 +115,7 @@ namespace HomeBridge.BridgeTools
             {
                 Snapshot = NativeProductionBills.Snapshot(bench, giver, context),
                 Bench = Id(bench.GetUniqueLoadID()),
+                BenchDef = Id(bench.def.defName),
                 Usable = NativeProductionBills.Usable(bench),
                 Bills = [.. bills],
                 WorkSpeed = workSpeed,

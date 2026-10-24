@@ -452,33 +452,68 @@ public static partial class SurgeryRules
         doctors > 0 && 1 - chance <= failureCap + 1e-9 && !violation && !lethal;
 
     /// <summary>
-    /// The replacement the autopilot would queue on a part an illness destroys (#3830), as <see cref="SelectPartSurgery"/> picks a
-    /// restore: the candidates by tier, best first, the first stocked one within <see cref="RestoreFailureCap"/>; none (with why) when
-    /// no candidate is stocked (PartShort) or none clears the cap (BedShort when the ideal bed would clear it, else NoDoctor).
+    /// The replacement the autopilot would queue on a part an illness or a raid destroys (#3830, #3868), as <see cref="SelectPartSurgery"/>
+    /// picks a restore: the candidates by tier, best first, the first whose part and medicine are on the map within
+    /// <see cref="RestoreFailureCap"/>; else the first within the cap whose missing part or medicine <paramref name="stock"/> brings
+    /// within <paramref name="days"/> of the loss, with what it waits on. None (with why) when no candidate's stock arrives
+    /// (PartShort) or none clears the cap (BedShort when the ideal bed would clear it, else NoDoctor).
     /// </summary>
-    internal static (OrganReplacementRead? Pick, SurgeryWantReason Reason) RestorePick(IEnumerable<(OrganReplacementRead Read, double Tier)> candidates)
+    internal static (OrganReplacementRead? Pick, SurgeryWantReason Reason, StockWait? Wait) RestorePick(IEnumerable<(OrganReplacementRead Read, double Tier)> candidates,
+        StockArrival stock, double days)
     {
         var reason = SurgeryWantReason.PartShort;
-        foreach (var (read, _) in candidates.OrderByDescending(c => c.Tier))
+        var ordered = candidates.OrderByDescending(c => c.Tier).Select(c => c.Read).ToArray();
+        foreach (var read in ordered.Where(r => r.PartOnMap && r.MedicineOnMap))
         {
-            if (!read.IngredientsOnMap)
+            if (Pickable(read, ref reason))
             {
-                continue;
-            }
-
-            if (SurgeryAcceptable(read.EligibleDoctors, read.SuccessChance, read.Violation, read.Lethal, RestoreFailureCap))
-            {
-                return (read, SurgeryWantReason.None);
-            }
-
-            if (reason != SurgeryWantReason.BedShort)
-            {
-                reason = SurgeryAcceptable(read.EligibleDoctors, read.DoctorSuccessChance, read.Violation, read.Lethal, RestoreFailureCap)
-                    ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
+                return (read, SurgeryWantReason.None, new StockWait(stock, []));
             }
         }
 
-        return (null, reason);
+        foreach (var read in ordered.Where(r => !(r.PartOnMap && r.MedicineOnMap)))
+        {
+            var needs = Needs(read, stock);
+            if (stock.Arrives(needs, days) && Pickable(read, ref reason))
+            {
+                return (read, SurgeryWantReason.None, new StockWait(stock, needs));
+            }
+        }
+
+        return (null, reason, null);
+    }
+
+    private static bool Pickable(OrganReplacementRead read, ref SurgeryWantReason reason)
+    {
+        if (SurgeryAcceptable(read.EligibleDoctors, read.SuccessChance, read.Violation, read.Lethal, RestoreFailureCap))
+        {
+            return true;
+        }
+
+        if (reason != SurgeryWantReason.BedShort)
+        {
+            reason = SurgeryAcceptable(read.EligibleDoctors, read.DoctorSuccessChance, read.Violation, read.Lethal, RestoreFailureCap)
+                ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
+        }
+
+        return false;
+    }
+
+    // The part a replacement installs when none is on the map, and its medicine (any kind) when the map holds too little.
+    private static EquatableArray<StockNeed> Needs(OrganReplacementRead read, StockArrival stock)
+    {
+        var needs = new List<StockNeed>(2);
+        if (!read.PartOnMap)
+        {
+            needs.Add(new StockNeed([new Resource(read.PartThing ?? throw new RequiredFactException("organ_replacement_part:" + read.Recipe))], 1));
+        }
+
+        if (!read.MedicineOnMap)
+        {
+            needs.Add(new StockNeed(stock.Medicines, read.MedicineCount));
+        }
+
+        return EquatableArray.From(needs);
     }
 
     /// <summary>The operation fails the cap as observed but passes it with the doctor's ideal-bed chance, so the bed or room is the blocker.</summary>

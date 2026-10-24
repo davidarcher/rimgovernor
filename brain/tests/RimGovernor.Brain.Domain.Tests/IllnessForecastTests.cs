@@ -48,7 +48,7 @@ public sealed class IllnessForecastTests
     };
 
     private static HarmDistribution Of(DiseaseCourse course, string incident, ForecastSupportConsequences? support, double gain = 1) =>
-        IllnessForecast.Of(Schedule(course, incident), Pawn(gain, new DiseaseContract(incident, 1)), Tables, HarmConsequences.CareOf(support), 1, new ForecastValuePolicy(), Horizon);
+        IllnessForecast.Of(Schedule(course, incident), Pawn(gain, new DiseaseContract(incident, 1)), Tables, HarmConsequences.CareOf(support), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
 
     // The tend times: first care, then the first retend, then every retend.
     private static int TendsBefore(double end, double first, double every)
@@ -159,7 +159,7 @@ public sealed class IllnessForecastTests
     private static OrganReplacementRead Replacement(string part, string recipe, bool stocked = true, int doctors = 1, double chance = 0.9) =>
         new(part, recipe)
         {
-            IngredientsOnMap = stocked, EligibleDoctors = doctors, SuccessChance = chance, DoctorSuccessChance = chance,
+            PartThing = part, PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = doctors, SuccessChance = chance, DoctorSuccessChance = chance,
             Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
         };
 
@@ -175,7 +175,7 @@ public sealed class IllnessForecastTests
     private static IllnessPawn Organs(DiseaseCourse course, NeedsForecastPawn pawn, double horizon = Horizon)
     {
         var schedule = Schedule(course, Decay);
-        return new(pawn.Pawn, IllnessForecast.Of(schedule, pawn, Tables, HarmConsequences.CareOf(null), 1, new ForecastValuePolicy(), horizon), schedule.IncidentsPerDay(horizon / Day));
+        return new(pawn.Pawn, IllnessForecast.Of(schedule, pawn, Tables, HarmConsequences.CareOf(null), 1, new ForecastValuePolicy(), horizon, new StockArrival()), schedule.IncidentsPerDay(horizon / Day));
     }
 
     // The replacement surgeries a day the hospital credit is fed (ForecastHospital.Surgeries).
@@ -231,7 +231,7 @@ public sealed class IllnessForecastTests
         var rest = 30 - LostOn;
         var policy = new ForecastValuePolicy();
         Assert.Equal((heart * (rest + policy.DeathTerminalValue)) + (kidney * rest * (1 - (0.95 * 0.95 * 0.95 * 0.95))), Mean(d), 6);
-        Assert.Contains("illness_organ_replacement_wait_unmodelled", d.Findings);
+        Assert.DoesNotContain(StockArrival.TradeUnmodelled, d.Findings);
 
         // A doctor beyond the 0.20 failure cap queues nothing: the loss stays, named NoDoctor.
         var refused = Organs(DecayCourse(), Decaying(Body(), Replacement("Lung", "InstallNaturalLung", chance: 0.7))).Distribution;
@@ -283,8 +283,8 @@ public sealed class IllnessForecastTests
     {
         var schedule = Schedule(Flu()) with { Incidents = [new IllnessIncident("Disease_Flu", 1, 0.5, Flu())] };
 
-        var d = IllnessForecast.Of(schedule, Pawn(1, new DiseaseContract("Disease_Flu", 0.5)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
-        var missing = IllnessForecast.Of(schedule, Pawn(1), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
+        var d = IllnessForecast.Of(schedule, Pawn(1, new DiseaseContract("Disease_Flu", 0.5)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
+        var missing = IllnessForecast.Of(schedule, Pawn(1), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
 
         Assert.Equal(0.25 * 0.5, d.DeathProbability, 9);
         Assert.False(missing.Known);
@@ -377,7 +377,7 @@ public sealed class IllnessForecastTests
         Assert.True(inputs.Illness.Assessed);
         Assert.Equal(1 / 60.0, inputs.Illness.IncidentsPerDay(30), 12);
         var flu = IllnessForecast.Of(inputs.Illness, Pawn(1, new DiseaseContract("Disease_Flu", 1), new DiseaseContract("Disease_GutWorms", 1),
-            new DiseaseContract("Disease_OrganDecay", 1)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
+            new DiseaseContract("Disease_OrganDecay", 1)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
         Assert.True(flu.Known);
         Assert.True(flu.PatientDays > 0);
         Assert.True(flu.Treatments > 0);
@@ -406,7 +406,7 @@ public sealed class IllnessForecastTests
         Assert.Equal(1 / 60.0, illness.IncidentsPerDay(30), 12);
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var term = IllnessForecast.Term(illness, ["pawn"], new Dictionary<string, NeedsForecastPawn> { ["pawn"] = Pawn(1, new DiseaseContract("Disease_Flu", 1),
-            new DiseaseContract("Disease_GutWorms", 1), new DiseaseContract("Disease_OrganDecay", 1)) }, Tables, Care(), new ForecastValuePolicy(), Horizon, null, findings);
+            new DiseaseContract("Disease_GutWorms", 1), new DiseaseContract("Disease_OrganDecay", 1)) }, Tables, Care(), new ForecastValuePolicy(), Horizon, new StockArrival(), null, findings);
         Assert.NotNull(term);
         Assert.Contains(illness.Findings[0], findings);
     }
@@ -429,7 +429,7 @@ public sealed class IllnessForecastTests
                 Contracts = [new DiseaseContract("Disease_Flu", 1), new DiseaseContract(Decay, 1)],
             },
         };
-        var d = IllnessForecast.Of(illness, pawn, Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
+        var d = IllnessForecast.Of(illness, pawn, Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
         Assert.True(d.Known);
         Assert.DoesNotContain(d.Findings, f => f.StartsWith("disease_organ_loss_unpriced", StringComparison.Ordinal));
     }

@@ -459,8 +459,11 @@ events a stock falls by its level's native decay (`DecayXp` per `DecayInterval` 
 loss threshold by `ForecastSkill`'s level rule, each change dated inside the interval (`ColonyTrajectory.Skills`). Medicine is held by
 kind, best potency first, and tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from `ColonyValue.TreatmentsPerDay`: the
 harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20 per treatment, plus the illness term's
-tends a day, `IllnessTerm.TendsPerDay` (#3829), at the tending the run starts with, `TendingNow` of the observed skill levels and
-medicine; `TendUtility.DoTend` uses up one medicine a treatment and tends a disease alone) uses up the best kind first. `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
+tends a day, `IllnessTerm.TendsPerDay` (#3829), at the tending the run starts with, the best tender's day-0 quality with the
+medicine held; `TendUtility.DoTend` uses up one medicine a treatment and tends a disease alone) uses up the best kind first. The
+stock-target bill crafts medicine (`ColonyModelPolicy.MedicineCraft`, #3868, [stock arrival](../contracts/forecast-contracts.md#stock-arrival-3868)):
+below the target the best-potency kind a source makes is crafted at the full rate until its ingredients run out, at the target what
+tending uses, above it nothing (`ModelEventKind.MedicineCraft` marks reaching the target and running out of ingredients). `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
 again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
 `RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Only a stock the value
 reads is run (`ITrajectoryValue.Reads`, #3664): for `ColonyValue` that is each doctor's stock of its tend quality curve's skill
@@ -826,8 +829,8 @@ creepjoiner has a lord and ignores its allowed area, and the hediffs act on the 
 *Hospital credit (#3804).* A planned hospital the outcome serves is credited through the same seam
 (`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it owns now (none: the ground, at the
 roomless scores), per colonist under `hospital/<room>/<pawn>`. The room adds no tend quality; the doctor's is the one tier 2 reads
-off its trajectory (`ColonyValue.TendingNow`: the best tender's day-0 quality with the best medicine held, untended without a
-tender), first care at once. Three per-day parts, summed:
+off its trajectory (`ColonyValue.TendingOverHorizon`, #3868: the best tender's quality with the best medicine held, averaged over
+the horizon as the run's medicine runs out or is crafted, untended without a tender), first care at once. Three per-day parts, summed:
 wound infection, raids a day × (one raid's risk-transformed harm, `HarmLedger.RaidOn`, tended with the owned bed room's stored
 `InfectionChanceFactor` less with the hospital's, its stat curve at the predicted steady cleanliness,
 `PlannedRoomCleanlinessRules.InfectionChance`); illness, disease incidents a day × (one incident's cost with immunity gained at the

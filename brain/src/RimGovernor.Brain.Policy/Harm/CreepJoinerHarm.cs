@@ -103,7 +103,7 @@ public static class CreepJoinerHarm
     private sealed record PawnCost(double Pulses, double AggressiveChance, double AggressiveDays, double LeavesDays, double Hediffs, double HediffDeaths,
         IReadOnlyList<OrganReplacement> Replacements, IReadOnlyList<string> Findings);
 
-    private static readonly ConditionalWeakTable<CreepJoinerHarmInputs, ConditionalWeakTable<NeedsForecastPawn, ConcurrentDictionary<(HarmConsequences.Care, ForecastValuePolicy, double, double), PawnCost>>> Cache = new();
+    private static readonly ConditionalWeakTable<CreepJoinerHarmInputs, ConditionalWeakTable<NeedsForecastPawn, ConcurrentDictionary<(HarmConsequences.Care, ForecastValuePolicy, double, double, StockArrival), PawnCost>>> Cache = new();
 
     /// <summary>The term over <paramref name="ordered"/> pawns (the forecast's colonists); none without a colonist creepjoiner whose downside has not shown.</summary>
     internal static CreepJoinerTerm Term(string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
@@ -196,14 +196,14 @@ public static class CreepJoinerHarm
         ForecastCoupledContext context, double days)
     {
         var movingMin = context.CapacityPenalties.MovingMinForCapable ?? throw new RequiredFactException("capacity_penalty_table_unknown:MovingMinForCapable");
-        var key = (care, context.Value, movingMin, days);
+        var key = (care, context.Value, movingMin, days, context.Stock);
         var byRow = Cache.GetValue(inputs, _ => new()).GetValue(row, _ => new());
         // A creepjoiner's census row and its pawn row are one pawn; the census's days joined are in the census key.
-        return byRow.GetOrAdd(key, _ => Compute(inputs.Table, u, row, care, context.Value, movingMin, days));
+        return byRow.GetOrAdd(key, _ => Compute(inputs.Table, u, row, care, context.Value, movingMin, days, context.Stock));
     }
 
     private static PawnCost Compute(CreepJoinerDownsideTable table, UnshownCreepJoiner u, NeedsForecastPawn row, HarmConsequences.Care care,
-        ForecastValuePolicy policy, double movingMin, double days)
+        ForecastValuePolicy policy, double movingMin, double days, StockArrival stock)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         double pulses = 0, aggressive = 0, aggressiveDays = 0, leavesDays = 0, hediffs = 0, deaths = 0;
@@ -227,7 +227,7 @@ public static class CreepJoinerHarm
 
             foreach (var hediff in d.Hediffs)
             {
-                var (loss, died, lost) = HediffCost(hediff, row, care, policy, movingMin, left, findings);
+                var (loss, died, lost) = HediffCost(hediff, row, care, policy, movingMin, left, stock, findings);
                 hediffs += chance * loss;
                 deaths += chance * died;
                 foreach (var r in lost)
@@ -301,7 +301,7 @@ public static class CreepJoinerHarm
     /// of its severity range. A chained hediff is walked through its replacement.
     /// </summary>
     private static (double Loss, double Died, List<OrganReplacement> Replacements) HediffCost(CreepJoinerHediff hediff, NeedsForecastPawn row,
-        HarmConsequences.Care care, ForecastValuePolicy policy, double movingMin, double days, SortedSet<string> findings)
+        HarmConsequences.Care care, ForecastValuePolicy policy, double movingMin, double days, StockArrival stock, SortedSet<string> findings)
     {
         var course = hediff.Course;
         var name = course.Table.Hediff;
@@ -354,7 +354,7 @@ public static class CreepJoinerHarm
         foreach (var part in open)
         {
             var def = defs[part.Part];
-            Price([new IllnessForecast.Branch(1, lethal && def.Threatened, IllnessForecast.Organ(course, def, part, rows, disease, levels, findings))], struck);
+            Price([new IllnessForecast.Branch(1, lethal && def.Threatened, IllnessForecast.Organ(course, def, part, rows, disease, levels, stock, days, findings))], struck);
         }
 
         return (loss, died, replacements);
