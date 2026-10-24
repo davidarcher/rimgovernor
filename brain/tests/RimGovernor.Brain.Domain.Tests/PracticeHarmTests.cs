@@ -95,7 +95,7 @@ public sealed class PracticeHarmTests
         {
             var context = new ForecastCoupledContext
             {
-                Activities = new() { Activities = [new("practice/a", "ring", "ring", [])] }, Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
+                Activities = new() { Deadline = 0, Activities = [new("practice/a", "ring", "ring", [])] }, Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
                 Investment = investment, PracticeTasks = [session],
             };
             var plan = new ForecastActivityPlan([new("practice/a", "a", 0, 0, 0, 1000, 0, 0, 1000, 1000, 0)], 1000, 1000);

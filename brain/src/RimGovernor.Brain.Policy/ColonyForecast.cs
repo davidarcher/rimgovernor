@@ -74,7 +74,6 @@ public sealed record ColonyForecastRequest
     public ColonyForecastFacts Facts { get; init; } = new();
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
     public ColonyForecastDelta Proposed { get; init; } = new();
-    public ForecastConstructionContext Construction { get; init; } = new();
     public ForecastCoupledContext? Coupled { get; init; }
 }
 
@@ -85,7 +84,6 @@ public sealed record ColonyForecastScenario
     public ForecastCoupledScenario? Coupled { get; init; }
     public EquatableArray<ForecastEquipmentCapacity> EquipmentAvailability { get; init; }
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
-    public EquatableArray<ForecastConstructionResult> Construction { get; init; }
 }
 
 /// <summary>Baseline/delta consequences and observed diagnostics, not native feasibility or a utility score.</summary>
@@ -135,10 +133,14 @@ public static class ColonyForecastRules
             HorizonDays = request.HorizonDays,
             Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry"],
             Observed = ColonyDiagnosticsRules.DiagnoseColony(request.Facts),
-            Baseline = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, baseline) : ForecastCoupled.ForecastCoupledScenarioOf(request, baseline),
-            Proposed = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, proposed) : ForecastCoupled.ForecastCoupledScenarioOf(request, proposed),
+            Baseline = request.Coupled is null ? InventoryScenario(request, baseline) : ForecastCoupled.ForecastCoupledScenarioOf(request, baseline),
+            Proposed = request.Coupled is null ? InventoryScenario(request, proposed) : ForecastCoupled.ForecastCoupledScenarioOf(request, proposed),
         };
     }
+
+    /// <summary>Without a coupled schedule, the observed stock and the commitments' own effects.</summary>
+    private static ColonyForecastScenario InventoryScenario(ColonyForecastRequest request, Dictionary<string, ForecastCommitment> commitments)
+        => ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays);
 
     internal static Dictionary<string, ForecastCommitment> ForecastCommitmentsById(IEnumerable<ForecastCommitment> commitments)
     {

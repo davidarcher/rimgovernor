@@ -577,7 +577,7 @@ public sealed class ForecastCoupledSelectionTests
     [Theory]
     [InlineData("graph", false)]
     [InlineData("claim", true)]
-    public void RedundantGraphRootsAreSkippedButDirectEffectsAndClaimsAreEvaluated(string effect, bool evaluatePair)
+    public void RedundantGraphRootsAreSkippedButClaimsAreEvaluated(string effect, bool evaluatePair)
     {
         var facts = Review();
         var candidates = facts.CoupledAlternatives!;
@@ -604,7 +604,7 @@ public sealed class ForecastCoupledSelectionTests
         var alternatives = roots.Select((root, index) => root with
         {
             Id = root.Id + "/after/recovery",
-            Outcome = new("physical-" + index, "shared-demand", root.ActivityCompletions[0], Known(Horizon), default)
+            Outcome = new("physical-" + index, "shared-demand", root.ActivityCompletions[0])
                 { Excludes = ["physical-" + (1 - index)] }
         }).ToArray();
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = EquatableArray.From(alternatives) } };

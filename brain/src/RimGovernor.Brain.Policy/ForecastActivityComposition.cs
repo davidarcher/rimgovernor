@@ -3,12 +3,12 @@ namespace RimGovernor.Brain.Policy;
 public enum ForecastRequirementKind { Consumed, Reusable, Exclusive }
 
 /// <summary>Native providers certify allowed physical sources, including access and material legality. Units are discrete items.</summary>
-public sealed record ForecastCompositionRequirement(string Id, Resource Resource, Fact<int> Units, string Location,
-    ForecastRequirementKind Kind, Fact<EquatableArray<string>> Sources, Fact<double> EarliestUse, Fact<double> LatestUse);
+public sealed record ForecastCompositionRequirement(string Id, Resource Resource, int Units, string Location,
+    ForecastRequirementKind Kind, EquatableArray<string> Sources, double EarliestUse, double LatestUse);
 
 /// <summary>A physical supply at one location. Movement must be a supplied operation consuming its earlier location.</summary>
-public sealed record ForecastCompositionSupply(string Id, Resource Resource, Fact<int> Units, string Location,
-    Fact<double> AvailableAt, Fact<double> ExpiresAt)
+public sealed record ForecastCompositionSupply(string Id, Resource Resource, int Units, string Location,
+    double AvailableAt, double ExpiresAt)
 {
     public string Producer { get; init; } = "";
     public string Lot { get; init; } = "";
@@ -52,7 +52,7 @@ public static class ForecastActivityComposition
             || request.DepthLimit is < 1 or > 64 || request.ResultLimit is < 1 or > 512
             || request.Operations.Count > 512 || request.Observed.Count > 2048
             || request.RootRequirements.Count + request.Operations.Sum(o => o.Requirements.Count) > 4096 || request.Operations.Sum(o => o.Supplies.Count) > 4096
-            || request.Operations.SelectMany(o => o.Requirements).Concat(request.RootRequirements).Any(r => r.Sources.IsKnown && r.Sources.Value.Count > 2048))
+            || request.Operations.SelectMany(o => o.Requirements).Concat(request.RootRequirements).Any(r => r.Sources.Count > 2048))
             throw new DomainException("invalid activity composition bounds");
         var operations = request.Operations.ToDictionary(o => o.Activity.Id, StringComparer.Ordinal);
         if (operations.ContainsKey("")) throw new DomainException("empty physical operation identity");
@@ -62,8 +62,8 @@ public static class ForecastActivityComposition
         if (request.Observed.Any(s => s.Producer.Length != 0)
             || operations.Values.Any(o => o.Supplies.Any(s => s.Producer != o.Activity.Id)
                 || o.Requirements.Select(r => r.Id).Distinct().Count() != o.Requirements.Count)
-            || supplies.Values.Any(s => string.IsNullOrWhiteSpace(s.Id) || s.Units.IsKnown && s.Units.Value < 0)
-            || operations.Values.Any(o => o.Requirements.Any(r => r.Units.IsKnown && r.Units.Value <= 0)))
+            || supplies.Values.Any(s => string.IsNullOrWhiteSpace(s.Id) || s.Units < 0)
+            || operations.Values.Any(o => o.Requirements.Any(r => r.Units <= 0)))
             throw new DomainException("invalid activity composition identities or units");
         if (supplies.Values.GroupBy(s => (s.Producer, s.Lot.Length == 0 ? s.Id : s.Lot, s.Location, s.Resource)).Any(g => g.Count() > 1))
             throw new DomainException("duplicate physical composition supply");
@@ -91,10 +91,8 @@ public static class ForecastActivityComposition
         }
         bool Link(ForecastCompositionRequirement requirement, ForecastCompositionSupply source)
         {
-            if (!requirement.Units.IsKnown || !requirement.Sources.IsKnown || !requirement.EarliestUse.TryGetValue(out var earliest)
-                || !requirement.LatestUse.TryGetValue(out var latest) || !source.Units.IsKnown
-                || !source.AvailableAt.TryGetValue(out var available) || !source.ExpiresAt.TryGetValue(out var expiry)
-                || source.Provenance.Length == 0)
+            var (earliest, latest, available, expiry) = (requirement.EarliestUse, requirement.LatestUse, source.AvailableAt, source.ExpiresAt);
+            if (source.Provenance.Length == 0)
             { findings.Add("unknown_composition_link:" + requirement.Id + ":" + source.Id); return false; }
             if (!double.IsFinite(earliest) || !double.IsFinite(latest) || !double.IsFinite(available) || !double.IsFinite(expiry)
                 || earliest < 0 || available < 0 || latest < earliest || expiry < available)
@@ -104,13 +102,13 @@ public static class ForecastActivityComposition
                 var output = operations[source.Producer].Activity.Outputs.SingleOrDefault(o => o.Resource == source.Resource
                     && (o.Lot.Length == 0 ? source.Producer : o.Lot) == (source.Lot.Length == 0 ? source.Id : source.Lot)
                     && (o.LotLocation.Length == 0 ? operations[source.Producer].Activity.EndLocation : o.LotLocation) == source.Location);
-                if (output is null || !output.Units.TryGetValue(out var yield) || yield < source.Units.Value)
+                if (output is null || output.Units < source.Units)
                 { findings.Add("unsupported_composition_yield:" + source.Id); return false; }
             }
             return source.Kind == requirement.Kind && source.Resource == requirement.Resource && source.Location == requirement.Location
-                && requirement.Sources.Value.Contains(source.Id) && source.Units.Value > 0
+                && requirement.Sources.Contains(source.Id) && source.Units > 0
                 && Math.Max(earliest, available) <= Math.Min(request.Horizon, Math.Min(latest, expiry))
-                && (requirement.Kind != ForecastRequirementKind.Exclusive || source.Capacity.Length != 0 && requirement.Units.Value == 1 && source.Units.Value == 1);
+                && (requirement.Kind != ForecastRequirementKind.Exclusive || source.Capacity.Length != 0 && requirement.Units == 1 && source.Units == 1);
         }
         ForecastCompositionGraph? Complete(HashSet<string> selected, List<ForecastCompositionAllocation> allocated)
         {
@@ -122,18 +120,18 @@ public static class ForecastActivityComposition
                 foreach (var req in op.Requirements)
                 {
                     var links = allocated.Where(a => a.Operation == id && a.Requirement == req.Id).ToArray();
-                    if (!req.Units.IsKnown || links.Sum(a => (long)a.Units) != req.Units.Value) return null;
+                    if (links.Sum(a => (long)a.Units) != req.Units) return null;
                     if (links.Select(a => a.Source).Distinct().Count() != links.Length) return null;
                     foreach (var link in links)
                         if (!supplies.TryGetValue(link.Source, out var source) || !Link(req, source) || link.Units <= 0
-                            || link.Units > source.Units.Value || link.Producer != source.Producer || link.Provenance != source.Provenance
+                            || link.Units > source.Units || link.Producer != source.Producer || link.Provenance != source.Provenance
                             || link.Kind != source.Kind || link.Capacity != source.Capacity
                             || source.Producer.Length != 0 && !selected.Contains(source.Producer)) return null;
                 }
             }
             if (allocated.Any(a => !selected.Contains(a.Operation) || !operations[a.Operation].Requirements.Any(r => r.Id == a.Requirement))) return null;
             if (allocated.Where(a => a.Kind == ForecastRequirementKind.Consumed).GroupBy(a => a.Source)
-                .Any(g => g.Sum(a => (long)a.Units) > supplies[g.Key].Units.Value)) return null;
+                .Any(g => g.Sum(a => (long)a.Units) > supplies[g.Key].Units)) return null;
             var dependencies = selected.ToDictionary(id => id, id => operations[id].Activity.Prerequisites
                 .Concat(allocated.Where(a => a.Operation == id && a.Producer.Length != 0).Select(a => a.Producer)).Distinct().Order(StringComparer.Ordinal).ToArray());
             var depths = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -156,21 +154,21 @@ public static class ForecastActivityComposition
             var activities = selected.Where(id => id.Length != 0).Order(StringComparer.Ordinal).Select(id =>
             {
                 var op = operations[id]; var links = allocated.Where(a => a.Operation == id).ToArray();
-                var earliest = op.Requirements.Select(r => r.EarliestUse.Value).Concat(links.Select(a => supplies[a.Source].AvailableAt.Value))
+                var earliest = op.Requirements.Select(r => r.EarliestUse).Concat(links.Select(a => supplies[a.Source].AvailableAt))
                     .Append(op.Activity.NotBefore).Max();
-                var latest = op.Requirements.Select(r => r.LatestUse.Value).Concat(links.Select(a => supplies[a.Source].ExpiresAt.Value))
-                    .Append(op.Activity.LatestStart ?? request.Horizon).Min();
-                var finish = op.Requirements.Where(r => r.Kind != ForecastRequirementKind.Consumed).Select(r => r.LatestUse.Value)
-                    .Concat(links.Where(a => a.Kind != ForecastRequirementKind.Consumed).Select(a => supplies[a.Source].ExpiresAt.Value))
-                    .Append(op.Activity.LatestFinish ?? request.Horizon).Min();
+                var latest = op.Requirements.Select(r => r.LatestUse).Concat(links.Select(a => supplies[a.Source].ExpiresAt))
+                    .Append(Math.Min(op.Activity.LatestStart, request.Horizon)).Min();
+                var finish = op.Requirements.Where(r => r.Kind != ForecastRequirementKind.Consumed).Select(r => r.LatestUse)
+                    .Concat(links.Where(a => a.Kind != ForecastRequirementKind.Consumed).Select(a => supplies[a.Source].ExpiresAt))
+                    .Append(Math.Min(op.Activity.LatestFinish, request.Horizon)).Min();
                 var inputs = links.Where(a => a.Kind == ForecastRequirementKind.Consumed).Select(a =>
                 {
                     var source = supplies[a.Source];
-                    return new ForecastActivityYield(source.Resource, Known((double)a.Units))
+                    return new ForecastActivityYield(source.Resource, a.Units)
                     { Lot = source.Lot.Length == 0 ? source.Id : source.Lot, LotLocation = source.Location };
                 });
                 return op.Activity with { ChoiceIdentity = op.ChoiceGroup.Length == 0 ? op.Activity.ChoiceIdentity : op.ChoiceGroup, Prerequisites = dependencies[id], NotBefore = earliest, LatestStart = latest, LatestFinish = finish,
-                    Inputs = op.Requirements.Any(r => r.Kind == ForecastRequirementKind.Consumed) ? EquatableArray.From(inputs.GroupBy(i => (i.Resource, i.Lot, i.LotLocation)).Select(g => g.First() with { Units = Known(g.Sum(i => i.Units.Value)) })) : op.Activity.Inputs };
+                    Inputs = op.Requirements.Any(r => r.Kind == ForecastRequirementKind.Consumed) ? EquatableArray.From(inputs.GroupBy(i => (i.Resource, i.Lot, i.LotLocation)).Select(g => g.First() with { Units = g.Sum(i => i.Units) })) : op.Activity.Inputs };
             }).ToArray();
             if (activities.Any(a => a.NotBefore > a.LatestStart)) return null;
             return new(EquatableArray.From(activities), EquatableArray.From(allocated.OrderBy(a => a.Operation, StringComparer.Ordinal)
@@ -198,10 +196,8 @@ public static class ForecastActivityComposition
                 graphs.Add(Key(graph), graph); return;
             }
             var requirement = pending.Requirement;
-            if (!requirement.Sources.IsKnown || !requirement.Units.IsKnown || !requirement.EarliestUse.IsKnown || !requirement.LatestUse.IsKnown)
-            { findings.Add("unknown_composition_requirement:" + pending.Id + ":" + requirement.Id); return; }
             var availableSources = new List<ForecastCompositionSupply>();
-            foreach (var id in requirement.Sources.Value.Distinct().Order(StringComparer.Ordinal))
+            foreach (var id in requirement.Sources.Distinct().Order(StringComparer.Ordinal))
             {
                 if (!Spend()) return;
                 if (!supplies.TryGetValue(id, out var supply)) findings.Add("unsupported_composition_source:" + id);
@@ -223,7 +219,7 @@ public static class ForecastActivityComposition
                 var source = candidates[index];
                 var spent = requirement.Kind == ForecastRequirementKind.Consumed
                     ? allocated.Where(a => a.Source == source.Id).Sum(a => (long)a.Units) : 0;
-                var maximum = (int)Math.Min(remaining, source.Units.Value - spent);
+                var maximum = (int)Math.Min(remaining, source.Units - spent);
                 for (var count = maximum; count >= 0; count--)
                 {
                     if (truncated && expansions >= request.ExpansionBudget) return;
@@ -240,7 +236,7 @@ public static class ForecastActivityComposition
                     if (count > 0) links.RemoveAt(links.Count - 1);
                 }
             }
-            Allocate(0, requirement.Units.Value, []);
+            Allocate(0, requirement.Units, []);
             if (!fulfilled) findings.Add("unsatisfied_composition_requirement:" + pending.Id + ":" + requirement.Id);
         }
         var initial = new HashSet<string>(StringComparer.Ordinal);

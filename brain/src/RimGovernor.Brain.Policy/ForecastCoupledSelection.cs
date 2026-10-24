@@ -858,7 +858,7 @@ public sealed partial record ForecastCoupledSelection
         span?.SetTag("rimgovernor.evaluations", ledger.Evaluations);
         span?.SetTag("rimgovernor.schedules", schedulesByKey.Count);
         span?.SetTag("rimgovernor.truncated", truncated);
-        return new(new(selected, best.Plan, default, findings.ToArray(), ledger.Expansions, truncated), baseline, best,
+        return new(new(selected, best.Plan, findings.ToArray(), ledger.Expansions, truncated), baseline, best,
             baselineVector.Vector, selectedVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
@@ -1138,8 +1138,9 @@ public sealed partial record ForecastCoupledSelection
         for (var i = 0; i < x.Maintenance.Count && i < y.Maintenance.Count; i++)
         {
             var (first, second) = (x.Maintenance[i], y.Maintenance[i]);
-            if (first.Requirement != second.Requirement || !first.MissingXp.IsKnown || !second.MissingXp.IsKnown) continue;
-            missing += first.MissingXp.Value; missingOther += second.MissingXp.Value;
+            if (first.Requirement != second.Requirement || first.MissingXp is not ForecastMaintenanceGap.Projected(var xp)
+                || second.MissingXp is not ForecastMaintenanceGap.Projected(var otherXp)) continue;
+            missing += xp; missingOther += otherXp;
         }
         var maintenanceRank = missing.CompareTo(missingOther);
         if (maintenanceRank != 0) return maintenanceRank;
@@ -1170,8 +1171,8 @@ public sealed partial record ForecastCoupledSelection
     /// no-change choice is safe for them. They are not held: they run vanilla work (#3669).</summary>
     private static EquatableArray<string> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan)
     {
-        if (context.Resources.Claims.Truncated
-            || !context.Activities.Deadline.TryGetValue(out var horizon) || !double.IsFinite(horizon) || horizon <= 0) return [];
+        var horizon = context.Activities.Deadline;
+        if (context.Resources.Claims.Truncated || !double.IsFinite(horizon) || horizon <= 0) return [];
         var limit = Math.Min(600d, horizon);
         var selected = plan.Allocations.Select(a => a.Pawn).ToHashSet(StringComparer.Ordinal);
         var result = new List<string>();
@@ -1180,7 +1181,7 @@ public sealed partial record ForecastCoupledSelection
             if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || selected.Contains(pawn.Pawn)
                 || context.Resources.Claims.Pawns.Contains(pawn.Pawn) || pawn.Needs.Count == 0) continue;
             var capacity = ForecastNeeds.NeedsWorkCapacity(context.Resources, pawn.Pawn, limit).Capacity;
-            if (!capacity.Windows.TryGetValue(out var windows) || !windows.Any(w => w.Start <= 0 && w.End > 0)) continue;
+            if (capacity.Windows is not ForecastCapacityWindows.Read(var windows) || !windows.Any(w => w.Start <= 0 && w.End > 0)) continue;
             var duration = Math.Min(limit, windows.Where(w => w.Start <= 0).Max(w => w.End));
             foreach (var need in pawn.Needs)
             {

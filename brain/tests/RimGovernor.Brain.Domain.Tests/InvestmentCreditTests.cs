@@ -21,7 +21,7 @@ public sealed class InvestmentCreditTests
 
     private static ForecastCoupledContext Context(IReadOnlyDictionary<string, double> investment) => new()
     {
-        Activities = new() { Activities = [new("tend/1", "bed", "bed", []) { Inputs = [new(new Resource(Medicine), Known(1d))] }] },
+        Activities = new() { Deadline = 0, Activities = [new("tend/1", "bed", "bed", []) { Inputs = [new(new Resource(Medicine), 1d)] }] },
         Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(), Investment = investment,
     };
 
@@ -29,8 +29,8 @@ public sealed class InvestmentCreditTests
     private static ForecastValueResult Tend(IReadOnlyDictionary<string, double> investment, double todayXp = 0)
     {
         var tend = ProductiveLearningTests.Tend() with { Learning = ProductiveLearningTests.Work().Learning with { XpSinceMidnight = todayXp } };
-        var option = new ForecastActivityOption("tend/1", "doctor", Known(400d), Known(0d)) { TendLearning = tend };
-        var learning = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0).Evidence!;
+        var option = new ForecastActivityOption("tend/1", "doctor", 400d, 0d) { TendLearning = tend };
+        var learning = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0)).Evidence!;
         var plan = new ForecastActivityPlan([new("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = learning }], 400, 400);
         return ForecastValue.Of(new(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []), Context(investment), GameTime.TicksPerDay,
             new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));

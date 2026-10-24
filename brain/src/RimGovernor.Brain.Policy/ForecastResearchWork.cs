@@ -52,11 +52,10 @@ internal static class ForecastResearchWork
             var limited = limits.TryGetValue(row.Activity, out var limit);
             double? cutoff = limited ? limit.CallbackCut : null;
             var forecast = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, completed, row.Start, cutoff);
-            if (!forecast.WorkTicks.TryGetValue(out var work)) return null;
+            if (forecast is not ForecastProductiveDuration.Timed(var timed, var evidence, _)) return null;
             var pawn = problem.Pawns.Single(p => p.Pawn == row.Pawn);
-            var finish = limited ? limit.Finish : row.Start + work;
-            work = finish - row.Start;
-            var evidence = forecast.Evidence;
+            var finish = limited ? limit.Finish : row.Start + timed;
+            var work = finish - row.Start;
             if (limited && evidence is not null)
             {
                 var events = completed.Where(a => a.Pawn == row.Pawn && a.Learning?.Skill == evidence.Skill)
@@ -66,11 +65,12 @@ internal static class ForecastResearchWork
                 { findings.UnionWith(ForecastSkillPolicy.FindingsOf(after).Select(f => "research_learning_unprojectable:" + f)); return null; }
                 evidence = evidence with { WorkAmount = limit.Units, WorkSegments = LimitWork(evidence.WorkSegments, limit.Units), WorkTicks = work, After = projection };
             }
-            if (finish > problem.Deadline.Value || task.LatestFinish is { } latest && finish > latest
-                || !pawn.Windows.Value.Any(w => row.Depart >= w.Start && finish <= w.End)
+            if (finish > problem.Deadline || finish > task.LatestFinish
+                || !(pawn.Windows as ForecastCapacityWindows.Read ?? throw new InvalidOperationException("unread capacity of " + pawn.Pawn)).Windows
+                    .Any(w => row.Depart >= w.Start && finish <= w.End)
                 || completed.Any(a => a.Pawn == row.Pawn && a.End > row.Depart)
                 || task.Prerequisites.Any(id => completed.All(a => a.Activity != id || a.End > row.Start))) return null;
-            completed.Add(row with { End = finish, WorkTicks = work, DisplacedLaborTicks = (finish - row.Depart) * pawn.OpportunityCostPerTick.Value,
+            completed.Add(row with { End = finish, WorkTicks = work, DisplacedLaborTicks = (finish - row.Depart) * pawn.OpportunityCostPerTick,
                 Learning = evidence });
         }
         foreach (var group in completed.SelectMany(a => options[(a.Activity, a.Pawn)].Equipment.Select(e => (Equipment: e, Allocation: a))).GroupBy(a => a.Equipment))

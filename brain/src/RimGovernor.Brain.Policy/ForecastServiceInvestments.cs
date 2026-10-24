@@ -33,7 +33,7 @@ public static class ForecastServiceInvestments
                 Pawn = new() { Id = new(eater.Key), Available = Known(true), Applies = Known(true) },
                 Location = "current", LocalHour = Known(observed.LocalHour), HorizonTicks = horizon, ProtectTimetable = false,
                 CurrentWork = new(new(eater.Key), Known(false), default, Known(0d)),
-                Occupancy = ForecastCoupled.CoupledSearchCache.NoOccupancy, OpportunityCostPerTick = Known(1d)
+                Occupancy = ForecastCoupled.CoupledSearchCache.NoOccupancy, OpportunityCostPerTick = 1d
             }, [], mood: false);
             var food = trajectory.Needs.SingleOrDefault(n => n.Kind == "food");
             if (food?.ThresholdExposureTicks != Known(0d)) return false;

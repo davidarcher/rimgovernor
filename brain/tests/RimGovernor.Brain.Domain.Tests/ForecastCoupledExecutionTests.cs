@@ -16,7 +16,7 @@ public sealed class ForecastCoupledExecutionTests
             0, 0, 0, 10, 0, 0, 10, 10, 0)).ToArray(), 10, 10);
         var outcome = new ForecastCoupledOutcome(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
         var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
-        return new(new(tasks.Select(t => t.Task).ToArray(), plan, default, [], 0, false), outcome,
+        return new(new(tasks.Select(t => t.Task).ToArray(), plan, [], 0, false), outcome,
             outcome, vector, vector, [], 100, false);
     }
     [Fact]

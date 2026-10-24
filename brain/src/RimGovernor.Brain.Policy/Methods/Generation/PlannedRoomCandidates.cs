@@ -57,7 +57,7 @@ internal static class PlannedRoomCandidates
         bool Routed(string pawn, Cell to) => between.Any(r => r.Pawn == pawn && r.To == to && r.Ticks is RouteTicks.Reachable);
         ForecastActivityOption[] RoofOptions(PlannedBuildSite site, string id) => thermal is null ? [] : thermal.Workers
             .Where(w => pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn) && Routed(w.Pawn, site.Positions[0]))
-            .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks * site.Positions.Count), Known(0.0))
+            .Select(w => new ForecastActivityOption(id, w.Pawn, w.RoofCellWorkTicks * site.Positions.Count, 0)
             { SkillWork = w.SkillWork is { } learning
                 ? learning with { WorkAmount = learning.WorkAmount * site.Positions.Count, WorkQuantum = learning.WorkAmount } : null }).ToArray();
         (Assessment Verdict, string Reason) Assess(PlannedBuildSite site)
@@ -151,10 +151,10 @@ internal static class PlannedRoomCandidates
                     if (site.Material.Count == 0 || rows.All(r => r.Count == 0))
                     {
                         var ready = site.Id + "/ready";
-                        roomObserved.Add(new(ready, capability, Known(1), siteLocation, Known(0.0), Known(horizon))
+                        roomObserved.Add(new(ready, capability, 1, siteLocation, 0, horizon)
                         { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-planned-site:" + site.Id });
-                        requirements.Add(new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
-                            Known<EquatableArray<string>>([ready]), Known(0.0), Known(horizon)));
+                        requirements.Add(new(finish + "/ready", capability, 1, siteLocation, ForecastRequirementKind.Reusable,
+                            [ready], 0, horizon));
                     }
                     else
                     {
@@ -169,14 +169,14 @@ internal static class PlannedRoomCandidates
                             var ready = delivery + "/ready";
                             var source = "construction-source/" + first.Input;
                             var sourceLocation = ForecastLocations.Of(first.Origin);
-                            roomObserved.Add(new(source, new(first.Resource), Known(first.AvailableInput), sourceLocation, Known(0.0), Known(horizon))
+                            roomObserved.Add(new(source, new(first.Resource), first.AvailableInput, sourceLocation, 0, horizon)
                             { Lot = first.Input, Provenance = "native-construction-source:" + site.Id + ":" + first.Input });
                             roomLots.Add(new(first.Input, sourceLocation, new(first.Resource), Known((double)first.AvailableInput)));
                             // A whole-stack source is one of the site's alternative deliveries; a set's stacks are each delivered.
                             roomOperations.Add(new(new(delivery, sourceLocation, siteLocation, []) { ChoiceIdentity = shares is null ? site.Id + "/delivery" : delivery },
-                                [new(delivery + "/material", new(first.Resource), Known(units), sourceLocation,
-                                    ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([source]), Known(0.0), Known(horizon))],
-                                [new(ready, capability, Known(1), siteLocation, Known(0.0), Known(horizon))
+                                [new(delivery + "/material", new(first.Resource), units, sourceLocation,
+                                    ForecastRequirementKind.Consumed, [source], 0, horizon)],
+                                [new(ready, capability, 1, siteLocation, 0, horizon)
                                 { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-delivery:" + site.Id }]));
                             foreach (var row in group.Rows)
                             {
@@ -189,10 +189,10 @@ internal static class PlannedRoomCandidates
                         var delivered = ids.Where(id => id.StartsWith(site.Id + "/delivery/", StringComparison.Ordinal)).ToArray();
                         if (delivered.Length > 0) hauls.AddRange(shares is null ? [delivered] : delivered.Select(id => new[] { id }));
                         if (shares is null)
-                            requirements.Add(new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
-                                Known(EquatableArray.From(readies)), Known(0.0), Known(horizon)));
-                        else requirements.AddRange(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready/" + k, capability, Known(1),
-                            siteLocation, ForecastRequirementKind.Reusable, Known<EquatableArray<string>>([ready]), Known(0.0), Known(horizon))));
+                            requirements.Add(new(finish + "/ready", capability, 1, siteLocation, ForecastRequirementKind.Reusable,
+                                EquatableArray.From(readies), 0, horizon));
+                        else requirements.AddRange(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready/" + k, capability, 1,
+                            siteLocation, ForecastRequirementKind.Reusable, [ready], 0, horizon)));
                     }
                     foreach (var row in rows.Where(r => r.Finish is ConstructionFinish.Finishes).GroupBy(r => r.Pawn).Select(p => p.First()))
                     {
@@ -208,7 +208,7 @@ internal static class PlannedRoomCandidates
                         var to = ForecastLocations.Of(clearingRows[0].Row.Location);
                         var done = clearing.Id + "/cleared";
                         roomOperations.Add(new(new(clearing.Id, from, to, []), [],
-                            [new(done, cleared, Known(1), siteLocation, Known(0.0), Known(horizon))
+                            [new(done, cleared, 1, siteLocation, 0, horizon)
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
                         foreach (var (row, work) in clearingRows)
                         {
@@ -225,8 +225,8 @@ internal static class PlannedRoomCandidates
                             else if (clearing.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine && clearing.Targets.Count > 0)
                                 roomBindings[(clearing.Id, row.Pawn)] = ConstructionMethodCandidates.RemovalBinding(clearing.Id, clearing.Kind, row, clearing.Id, deadline, clearing.Targets);
                         }
-                        requirements.Add(new(finish + "/cleared/" + clearing.Id, cleared, Known(1), siteLocation, ForecastRequirementKind.Reusable,
-                            Known<EquatableArray<string>>([done]), Known(0.0), Known(horizon)));
+                        requirements.Add(new(finish + "/cleared/" + clearing.Id, cleared, 1, siteLocation, ForecastRequirementKind.Reusable,
+                            [done], 0, horizon));
                         ids.Add(clearing.Id);
                     }
                 }
@@ -238,14 +238,14 @@ internal static class PlannedRoomCandidates
                 {
                     var sources = roomSites.Where(s => s.Op == kind && finishes.ContainsKey(s.Id)).Select(s => "completed-site/" + finishes[s.Id]).ToArray();
                     if (sources.Length == 0) continue;
-                    requirements.Add(new(finish + "/" + RingKind(kind), completed, Known(1), roomLocation, ForecastRequirementKind.Reusable,
-                        Known(EquatableArray.From(sources)), Known(0.0), Known(horizon)));
+                    requirements.Add(new(finish + "/" + RingKind(kind), completed, 1, roomLocation, ForecastRequirementKind.Reusable,
+                        EquatableArray.From(sources), 0, horizon));
                 }
                 var ring = site.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn or OpKind.WallUp;
                 roomOperations.Add(new(new(finish, siteLocation, siteLocation, [])
                     { ChoiceIdentity = ring ? "planned/room" + site.Room + "/" + RingKind(site.Op) + "/finish" : "" },
                     EquatableArray.From(requirements),
-                    [new("completed-site/" + finish, completed, Known(1), roomLocation, Known(0.0), Known(horizon))
+                    [new("completed-site/" + finish, completed, 1, roomLocation, 0, horizon)
                     { Producer = finish, Lot = site.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "planned-finish-site:" + site.Id }]));
                 ids.Add(finish); finishes[site.Id] = finish;
                 roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish)
@@ -265,7 +265,7 @@ internal static class PlannedRoomCandidates
                     ActivityCompletions = [site.Finish], ExclusiveOutcome = site.Site,
                     // Its Need marks it a planned site root, whose closure the selection exempts from the thermal-relief
                     // gate (#3651); the unit itself is counted from the evaluated outcome, whichever root completes the site (#3334).
-                    Outcome = new(site.Site, ForecastPlannedSite.DevelopmentNeed, site.Finish, Known(horizon), default) { ProgressUnits = Known(1.0) },
+                    Outcome = new(site.Site, ForecastPlannedSite.DevelopmentNeed, site.Finish),
                 });
             foreach (var alternative in valued)
                 roots.Add(new(alternative.Id, [])

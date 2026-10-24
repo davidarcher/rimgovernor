@@ -21,7 +21,7 @@ public sealed class GoalValueTests
     // A research goal on a 5,000-point project at 1 point per tick: one hour of work (2,500 points) is half the goal.
     private static ForecastCoupledContext Context(Importance importance, int? deadline = null, long tick = 0) => new()
     {
-        Activities = new() { Activities = [new("research/pawn/bench", "bench", "bench", []) { ProjectProgress = new("Smithing", 1) }] },
+        Activities = new() { Deadline = 0, Activities = [new("research/pawn/bench", "bench", "bench", []) { ProjectProgress = new("Smithing", 1) }] },
         Needs = NeedsFixtures.Empty with { Tick = new(tick) }, Resources = Resources(),
         GoalValues = [new("goals/research-project/1", importance, GoalDeadline.Of(deadline)) { Research = [new("Smithing", 1.0 / 5000)] }],
     };
@@ -124,7 +124,7 @@ public sealed class GoalValueTests
         var duster = new GearOption { ID = "duster", Definition = new("Duster"), Stuff = new("Cloth"), Slot = GearSlot.Outer };
         var crafted = new ForecastCommitment("clothing", [])
         {
-            ActivityCompletions = ["done"], Outcome = new("clothing", "clothing/pawn/Duster", "done", Known(1d), Known(0d)),
+            ActivityCompletions = ["done"], Outcome = new("clothing", "clothing/pawn/Duster", "done"),
             OutfitChanges = [new("pawn", [duster]) { Overlay = true }],
         };
         var swap = new ForecastCommitment("gear/pawn/a", []) { OutfitChanges = [new("pawn", [duster with { ID = "stored-duster", Source = GearSource.Stored }])] };
@@ -190,7 +190,7 @@ public sealed class GoalValueTests
     [Fact]
     public void ASelectionFindingNamesTheFloorOfAnInfeasibleGoal()
     {
-        var selection = new ForecastCoupledSelection(new(["a"], new([], 0, 0), default,
+        var selection = new ForecastCoupledSelection(new(["a"], new([], 0, 0),
             ["goal_infeasible:goals/research-project/4:break_risk_cap", "harm_capability_unassessed"], 0, false),
             null!, null!, null!, null!, [], 0, false);
         var infeasible = GoalRules.InfeasibleOf(selection);

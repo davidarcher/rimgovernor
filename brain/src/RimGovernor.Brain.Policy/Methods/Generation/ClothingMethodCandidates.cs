@@ -29,8 +29,8 @@ internal static class ClothingMethodCandidates
                 if (outcomes.Count == 16) { truncated = true; findings.Add(GenerationTruncated); break; }
                 var id = "retain-" + outcomes.Count;
                 garmentNeeds[id] = need;
-                outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, "", Known((double)horizon), default)
-                { RetainedCompletion = Known(retained.CompletionTicks), ExclusiveOutput = retained.Id });
+                outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, "")
+                { Retained = new(retained.CompletionTicks), ExclusiveOutput = retained.Id });
             }
         var allocations = new List<RecipeActivityOption>();
         foreach (var row in read.Options.OrderBy(o => o.Id, StringComparer.Ordinal))
@@ -70,14 +70,14 @@ internal static class ClothingMethodCandidates
             activities.Add(new(make, sourceLocation, benchLocation, [])
             {
                 EquipmentLocation = benchLocation,
-                Inputs = EquatableArray.From(row.Inputs.Select(i => new ForecastActivityYield(new(i.Resource), Known((double)i.Count)) { Lot = i.Thing, LotLocation = ForecastLocations.Of(i.Location) })),
-                Outputs = [new(new(row.Product), Known(1.0)) { Lot = make }]
+                Inputs = EquatableArray.From(row.Inputs.Select(i => new ForecastActivityYield(new(i.Resource), i.Count) { Lot = i.Thing, LotLocation = ForecastLocations.Of(i.Location) })),
+                Outputs = [new(new(row.Product), 1) { Lot = make }]
             });
             activities.Add(new(id, benchLocation, ForecastLocations.Of(row.Destination), [make])
-            { Inputs = [new(new(row.Product), Known(1.0)) { Lot = make }], Outputs = [new(new(row.Product), Known(1.0)) { Lot = make }] });
-            options.Add(new(make, row.Pawn, Known(row.TravelTicks - approach + row.WorkTicks), Known(0.0))
+            { Inputs = [new(new(row.Product), 1) { Lot = make }], Outputs = [new(new(row.Product), 1) { Lot = make }] });
+            options.Add(new(make, row.Pawn, row.TravelTicks - approach + row.WorkTicks, 0)
             { Equipment = [row.Bench], SkillWork = row.SkillWork is { } skill ? skill with { PreparationTicks = row.TravelTicks - approach } : null });
-            options.Add(new(id, row.Pawn, Known(row.OutputTravelTicks), Known(0.0)));
+            options.Add(new(id, row.Pawn, row.OutputTravelTicks, 0));
             routes.Add(new(row.Pawn, "start", sourceLocation, new RouteTicks.Reachable(approach)));
             workers.Add(row.Pawn);
             bindings[(make, row.Pawn)] = new(make, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.Location)
@@ -89,16 +89,15 @@ internal static class ClothingMethodCandidates
             };
             bindings[(id, row.Pawn)] = new(id, row.Pawn, [make], PawnActivityKind.Deliver, "observed-output", "", "", 1, deadline, row.Location)
             { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination };
-            outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, id, Known((double)horizon), default)
-            { ChoiceIdentity = "clothing/" + need.Wearer + "/" + need.Product });
+            outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, id));
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(p => new ForecastPawnCapacity(p, "start",
-            resources.Capacity.TryGetValue(p, out var capacity) && capacity.Capacity.Windows.TryGetValue(out var windows)
-                ? Known(EquatableArray.From(windows.Select(w => w with
+            resources.Capacity.TryGetValue(p, out var capacity) && capacity.Capacity.Windows is ForecastCapacityWindows.Read(var windows)
+                ? new ForecastCapacityWindows.Read(EquatableArray.From(windows.Select(w => w with
                 {
                     Start = Math.Max(0, w.Start - (tick - resources.Evidence.Tick.Value)),
                     End = w.End - (tick - resources.Evidence.Tick.Value)
-                }).Where(w => w.End > w.Start))) : default, Known(1.0))).ToArray();
+                }).Where(w => w.End > w.Start))) : new ForecastCapacityWindows.Unread(), 1.0)).ToArray();
         var alternativesWithConflicts = outcomes.Select(o => o with
         {
             Excludes = EquatableArray.From(garmentNeeds
@@ -120,8 +119,7 @@ internal static class ClothingMethodCandidates
             Routes = ForecastLocations.Merge(routes),
             Equipment = options.SelectMany(o => o.Equipment).Distinct().Select(id => new ForecastEquipmentCapacity(id, activities.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity).EquipmentLocation, [new(0, horizon)])).ToArray(),
             Pawns = capacities,
-            Deadline = Known((double)horizon),
-            AlternativeLaborCost = Known((double)horizon)
+            Deadline = horizon
         }, alternativesWithConflicts, bindings, truncated)
         { Findings = EquatableArray.From(findings.Order(StringComparer.Ordinal)), Garments = garmentNeeds };
     }

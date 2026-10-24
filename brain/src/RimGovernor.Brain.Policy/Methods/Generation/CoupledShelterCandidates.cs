@@ -75,7 +75,7 @@ internal static class CoupledShelterCandidates
             foreach (var id in ids)
                 if (operations.TryGetValue(id, out var operation))
                     operations[id] = operation with { Supplies = [.. operation.Supplies,
-                        new("completed-site/" + id, capability, Known(1), operation.Activity.EndLocation, Known(0d), Known(horizon))
+                        new("completed-site/" + id, capability, 1, operation.Activity.EndLocation, 0, horizon)
                         { Producer = id, Lot = site, Kind = ForecastRequirementKind.Reusable, Provenance = "native-finish-site:" + site }] };
         var geometry = SelectGeometry(rooms, physicalRooms, read);
         foreach (var room in geometry.Rooms)
@@ -98,8 +98,8 @@ internal static class CoupledShelterCandidates
                 if (locations.Length != 1) return false;
                 if (demands.Any(r => r.Id == "site/" + site)) return true;
                 groups.Add(EquatableArray.From(available));
-                demands.Add(new("site/" + site, capability, Known(1), locations[0], ForecastRequirementKind.Reusable,
-                    Known(EquatableArray.From(available.Select(id => "completed-site/" + id))), Known(0d), Known(horizon)));
+                demands.Add(new("site/" + site, capability, 1, locations[0], ForecastRequirementKind.Reusable,
+                    EquatableArray.From(available.Select(id => "completed-site/" + id)), 0, horizon));
                 return true;
             }
             // Planned shelter R is planned room R: its sites are planned/room{R}/... and complete at planned/room{R}.
@@ -119,8 +119,8 @@ internal static class CoupledShelterCandidates
                 if (demands.Any(r => r.Id == id)) return;
                 var ends = sites.Where(s => made.ContainsKey(s.Id)).Select(s => made[s.Id]).Distinct().Order(StringComparer.Ordinal).ToArray();
                 groups.Add(EquatableArray.From(ends));
-                demands.Add(new(id, capability, Known(1), roomLocation, ForecastRequirementKind.Reusable,
-                    Known(EquatableArray.From(ends.Select(f => "completed-site/" + f))), Known(0d), Known(horizon)));
+                demands.Add(new(id, capability, 1, roomLocation, ForecastRequirementKind.Reusable,
+                    EquatableArray.From(ends.Select(f => "completed-site/" + f)), 0, horizon));
             }
             foreach (var cell in ring)
             {
@@ -159,22 +159,22 @@ internal static class CoupledShelterCandidates
                 var id = "roof/" + room.Id + "/" + cell.X + "/" + cell.Z;
                 var location = ForecastLocations.Of(cell);
                 var task = new ForecastActivity(id, location, location, []);
-                var supply = new ForecastCompositionSupply("completed-roof/" + id, new("CompletedRoofCell"), Known(1), location, Known(0d), Known(horizon))
+                var supply = new ForecastCompositionSupply("completed-roof/" + id, new("CompletedRoofCell"), 1, location, 0, horizon)
                     { Producer = id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-roof-cell:" + cell.X + "/" + cell.Z };
                 operations.Add(id, new(task, shell, [supply]) { ChoiceGroup = "roof-cell/" + cell.X + "/" + cell.Z });
                 foreach (var worker in read!.Workers)
                 {
                     // A colonist with no path to the cell (or no route read to it) cannot roof it: it gets no option, never a free approach.
                     if (read.RoofRoutes.SingleOrDefault(r => r.Pawn == worker.Pawn && r.Cell == cell)?.Approach is not RoofApproach.Path path) continue;
-                    options.Add(new(id, worker.Pawn, Known(worker.RoofCellWorkTicks), Known(0d)) { SkillWork = worker.SkillWork });
+                    options.Add(new(id, worker.Pawn, worker.RoofCellWorkTicks, 0) { SkillWork = worker.SkillWork });
                     routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, new RouteTicks.Reachable(path.Ticks)));
                     bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work,
                         // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.
                         "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };
                 }
                 groups.Add([id]); roofCells.Add([id]);
-                demands.Add(new("roof/" + id, supply.Resource, Known(1), location, ForecastRequirementKind.Reusable,
-                    Known<EquatableArray<string>>([supply.Id]), Known(0d), Known(horizon)));
+                demands.Add(new("roof/" + id, supply.Resource, 1, location, ForecastRequirementKind.Reusable,
+                    [supply.Id], 0, horizon));
                 notes.Add("roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
             }
             var sources = read?.Sources.Where(s => interior.Contains(s.Cell)).ToArray() ?? [];

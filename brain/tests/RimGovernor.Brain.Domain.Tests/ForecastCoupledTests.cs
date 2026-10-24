@@ -89,8 +89,7 @@ public sealed class ForecastCoupledTests
             var task = Assert.Single(generated.Context.Activities.Activities, task => task.Id == need.Task);
             var option = Assert.Single(generated.Context.Activities.Options,
                 option => option.Activity == need.Task && option.Pawn == need.Pawn);
-            Assert.True(option.WorkTicks.IsKnown);
-            Assert.True(task.NotBefore + option.WorkTicks.Value <= horizon);
+            Assert.True(task.NotBefore + option.WorkTicks <= horizon);
         });
         Assert.Contains(generated.Context.Activities.Activities, task => task.Id.StartsWith("harvest/", StringComparison.Ordinal));
     }
@@ -498,7 +497,7 @@ public sealed class ForecastCoupledTests
         Assert.Empty(result.Proposed.Coupled!.Alternatives);
         Assert.Contains("unassessed_no_schedule_within_horizon", result.Proposed.Coupled.Findings);
         var baseline = result.Baseline.Coupled!.Alternatives.Single();
-        Assert.True(baseline.Needs["pawn"].Capacity.Capacity.Windows.Value.Sum(w => w.End - w.Start) > 0);
+        Assert.True(baseline.Needs["pawn"].Capacity.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start) > 0);
         Assert.Empty(baseline.Plan.Allocations);
     }
     [Fact]

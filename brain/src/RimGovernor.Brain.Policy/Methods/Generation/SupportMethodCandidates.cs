@@ -28,7 +28,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
             if (!Free(worker.Pawn, worker.Target) || worker.Medicine is { } stack && resources.Claims.Targets.Contains(stack.Id)) return;
             var surgery = worker.Treatment as SupportTreatment.Surgery;
             // Real medical work learns (#3344): surgery through its recipe work, a tend once at completion.
-            options.Add(new(id, worker.Pawn, Known(worker.WorkTicks), Known(0d))
+            options.Add(new(id, worker.Pawn, worker.WorkTicks, 0)
                 { SkillWork = surgery?.SkillWork, TendLearning = (worker.Treatment as SupportTreatment.Tend)?.Learning });
             routes.Add(new(worker.Pawn, "start", Location(worker.Location), new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
@@ -58,15 +58,15 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
                 if (!Space()) break;
                 var id = "support/delivery/" + Key(first.Demand) + "/" + first.Target + "/" + Location(first.Destination) + "/" + count;
                 var source = "support/observed/" + first.Target;
-                if (observed.All(s => s.Id != source)) observed.Add(new(source, new(first.Resource), Known(first.Available), Location(first.Source), Known(0d), Known(horizon))
+                if (observed.All(s => s.Id != source)) observed.Add(new(source, new(first.Resource), first.Available, Location(first.Source), 0, horizon)
                     { Lot = first.Target, Provenance = "native-demand-source/" + first.Demand });
                 operations.Add(new(new(id, Location(first.Source), Location(first.Destination), [])
-                { Outputs = [new(new(first.Resource), Known((double)count)) { Lot = first.Target }], ChoiceIdentity = "support/delivery/" + Key(first.Demand) + "/" + first.Target },
-                    [new("source", new(first.Resource), Known(count), Location(first.Source), ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([source]), Known(0d), Known(horizon))],
-                    [new(id + "/yield", new(first.Resource), Known(count), Location(first.Destination), Known(0d), Known(horizon)) { Producer = id, Lot = first.Target, Provenance = "native-demand-delivery/" + first.Demand }]));
+                { Outputs = [new(new(first.Resource), count) { Lot = first.Target }], ChoiceIdentity = "support/delivery/" + Key(first.Demand) + "/" + first.Target },
+                    [new("source", new(first.Resource), count, Location(first.Source), ForecastRequirementKind.Consumed, [source], 0, horizon)],
+                    [new(id + "/yield", new(first.Resource), count, Location(first.Destination), 0, horizon) { Producer = id, Lot = first.Target, Provenance = "native-demand-delivery/" + first.Demand }]));
                 foreach (var row in group.Where(d => d.Capacity >= count && Free(d.Pawn, d.Target)))
                 {
-                    options.Add(new(id, row.Pawn, Known(row.DeliveryTicks), Known(0d)));
+                    options.Add(new(id, row.Pawn, row.DeliveryTicks, 0));
                     routes.Add(new(row.Pawn, "start", Location(row.Source), new RouteTicks.Reachable(row.ApproachTicks)));
                     bindings[(id, row.Pawn)] = new(id, row.Pawn, [], PawnActivityKind.Deliver, row.Target, "", "", count, deadline, row.Source)
                     { Resource = row.Resource, Source = row.Source, Destination = row.Destination, Capacity = row.Capacity, SupportDemand = row.Demand, Container = row.Container };
@@ -82,10 +82,10 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
         {
             if (worker.Medicine is not { } medicine) return [];
             var source = "support/observed/" + medicine.Id;
-            if (observed.All(s => s.Id != source)) observed.Add(new(source, new(medicine.Resource), Known(medicine.Available), Location(medicine.Location), Known(0d), Known(horizon))
+            if (observed.All(s => s.Id != source)) observed.Add(new(source, new(medicine.Resource), medicine.Available, Location(medicine.Location), 0, horizon)
             { Lot = medicine.Id, Provenance = "native-selected-medicine" });
-            return [new("medicine", new(medicine.Resource), Known(medicine.Count), Location(medicine.Location), ForecastRequirementKind.Consumed,
-                Known<EquatableArray<string>>([source]), Known(0d), Known(horizon))];
+            return [new("medicine", new(medicine.Resource), medicine.Count, Location(medicine.Location), ForecastRequirementKind.Consumed,
+                [source], 0, horizon)];
         }
     }
 }

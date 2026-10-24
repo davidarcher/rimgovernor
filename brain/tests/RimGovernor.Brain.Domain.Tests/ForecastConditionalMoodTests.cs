@@ -28,9 +28,9 @@ public sealed class ForecastConditionalMoodTests
     {
         Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "bed", HorizonTicks = Day, LocalHour = Known(6d), OpportunityCostPerTick = Known(1d),
+        Location = "bed", HorizonTicks = Day, LocalHour = Known(6d), OpportunityCostPerTick = 1d,
         CurrentWork = new(new("pawn"), Known(false), default, Known(0d)), Occupancy = Known<EquatableArray<ForecastOccupancy>>([]),
-        LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
+        LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
     private static ForecastMoodPoint At(ForecastMoodResult result, double tick)
         => Assert.Single(result.Trajectory, p => Math.Abs(p.Tick - tick) < .000001);
@@ -214,7 +214,7 @@ public sealed class ForecastConditionalMoodTests
         Assert.False(At(result.Mood!, 500).Asleep);
         Assert.Equal(.4, At(result.Mood!, 500).Target.Value, 8);
         Assert.Contains("sleep_service_capped_at_native_wake:long", result.Findings);
-        Assert.DoesNotContain(result.Capacity.Capacity.Windows.Value, w => w.Start < 1000);
+        Assert.DoesNotContain(result.Capacity.Capacity.Windows.ReadWindows(), w => w.Start < 1000);
     }
 
     [Fact]

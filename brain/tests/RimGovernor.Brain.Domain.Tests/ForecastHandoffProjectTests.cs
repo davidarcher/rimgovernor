@@ -21,10 +21,9 @@ public sealed class ForecastHandoffProjectTests
         var native = CoupledFixtures.NoSowing with { Workers = [new("Bo", "zone1", "Grower", 0d, 200d, [new(1, 1), new(1, 2)]) { SkillWork = learning }] };
         var generated = SowingMethodCandidates.Generate(native, 0, GameTime.TicksPerDay, new([], [], [], []));
         var task = Assert.Single(generated.Tasks);
-        var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0);
-        Assert.True(duration.WorkTicks.IsKnown, duration.Reason);
+        var duration = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0));
         Assert.NotNull(duration.Evidence);
-        var end = duration.WorkTicks.Value;
+        var end = duration.WorkTicks;
         var plan = new ForecastActivityPlan([new(task.Id, "Bo", 0, 0, 0, end, 0, 0, end, 0, 0) { Learning = duration.Evidence }], end, 0);
         var context = Context(generated.Tasks) with { Bindings = generated.Bindings };
         var result = ForecastHandoffProjects.Project(new(input, new() { Projects = graph }), context,
@@ -60,8 +59,8 @@ public sealed class ForecastHandoffProjectTests
         var graph = ProjectGraph.Craft(input, ColonyModelFixtures.Recipe, [], false);
         var node = Assert.Single(graph.Nodes);
         var task = new ForecastActivity("craft", "bench", "bench", [])
-        { Inputs = unfinished ? [] : EquatableArray.From(node.Ingredients.Select(a => new ForecastActivityYield(a.Resource, Known((double)a.Count)))),
-            Outputs = EquatableArray.From(node.Products.Select(a => new ForecastActivityYield(a.Resource, Known((double)a.Count)))) };
+        { Inputs = unfinished ? [] : EquatableArray.From(node.Ingredients.Select(a => new ForecastActivityYield(a.Resource, (double)a.Count))),
+            Outputs = EquatableArray.From(node.Products.Select(a => new ForecastActivityYield(a.Resource, (double)a.Count))) };
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("craft", "Anna", [], PawnActivityKind.Recipe, "bench", "", "DoBill", 1, 60000, new(1, 1))
         { Recipe = new("bill", ColonyModelFixtures.Recipe, []) { Unfinished = unfinished ? "native-unfinished-item" : "" } };
         var context = Context([task]) with { Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("craft", "Anna")] = binding } };
@@ -76,7 +75,7 @@ public sealed class ForecastHandoffProjectTests
     }
 
     private static ForecastCoupledContext Context(ForecastActivity[] tasks) => new()
-    { Activities = new() { Activities = tasks }, Needs = NeedsFixtures.Empty, Resources = new(new(), new([], [], [], []), default) };
+    { Activities = new() { Deadline = 0, Activities = tasks }, Needs = NeedsFixtures.Empty, Resources = new(new(), new([], [], [], []), default) };
 
     [Fact]
     public void HarvestUsesNativeFieldCellIdentityAndRemovesItsAlreadyPaidCropCycle()

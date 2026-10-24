@@ -329,7 +329,7 @@ public static partial class ForecastCoupled
         {
             Activities = all.Values.Where(t => included.Contains(t.Id)).ToArray(),
             Options = context.Activities.Options.Where(o => included.Contains(o.Activity)).ToArray(),
-            Deadline = Known(horizon),
+            Deadline = horizon,
             ExpansionBudget = perSearch
         };
         if (problem.Activities.Where(t => t.ChoiceIdentity.Length != 0).GroupBy(t => t.ChoiceIdentity).Any(g => g.Count() > 1))
@@ -343,8 +343,8 @@ public static partial class ForecastCoupled
         {
             var output = problem.Activities.SelectMany(t => t.Outputs).Where(o => o.Lot == input.Key.Lot && o.Resource == input.Key.Resource).ToArray();
             var observed = context.InitialLots.Where(l => l.Lot == input.Key.Lot && l.Resource == input.Key.Resource).ToArray();
-            if (input.Any(i => !i.Units.IsKnown) || output.Any(o => !o.Units.IsKnown) || observed.Any(l => !l.Count.IsKnown)) continue;
-            if (input.Sum(i => i.Units.Value) > output.Sum(o => o.Units.Value) + observed.Sum(l => l.Count.Value))
+            if (observed.Any(l => !l.Count.IsKnown)) continue;
+            if (input.Sum(i => i.Units) > output.Sum(o => o.Units) + observed.Sum(l => l.Count.Value))
                 return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }

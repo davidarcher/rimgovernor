@@ -30,9 +30,9 @@ public sealed class ForecastNeedThoughtTests
     {
         Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "start", HorizonTicks = horizon, LocalHour = Known(12.0), OpportunityCostPerTick = Known(1.0),
+        Location = "start", HorizonTicks = horizon, LocalHour = Known(12.0), OpportunityCostPerTick = 1.0,
         CurrentWork = new(new("pawn"), Known(false), default, Known(0.0)), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
-        LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
+        LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
 
     private static ForecastNeedChoice Meal(double start) => new("eat@" + start, "pawn", "food", "meal", "MealSimple", 1, start, start, start + 1000, .9, []);

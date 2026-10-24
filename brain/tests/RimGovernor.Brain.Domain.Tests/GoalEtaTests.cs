@@ -150,7 +150,7 @@ public sealed class GoalEtaTests
 
         var context = new ForecastCoupledContext
         {
-            Activities = new() { Activities = [new("research/Anna/bench", "bench", "bench", []) { ProjectProgress = new("Devilstrand", 1) }] },
+            Activities = new() { Deadline = 0, Activities = [new("research/Anna/bench", "bench", "bench", []) { ProjectProgress = new("Devilstrand", 1) }] },
             Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
         };
         ForecastValueResult Ledger(ForecastGoalValue goal) => ForecastValue.Of(

@@ -477,8 +477,8 @@ public static class ForecastRoofConsequences
                         options.Add(option with
                         {
                             Activity = id,
-                            WorkTicks = option.Equipment.Any(benches.Contains) && option.WorkTicks.TryGetValue(out var ticks)
-                                ? Known(ticks * ForecastRoofConsequences.WorkTableOutdoorsFactor) : option.WorkTicks,
+                            WorkTicks = option.Equipment.Any(benches.Contains)
+                                ? option.WorkTicks * ForecastRoofConsequences.WorkTableOutdoorsFactor : option.WorkTicks,
                         });
                         if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))
                             bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Concat(finishes)) };

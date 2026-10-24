@@ -30,30 +30,34 @@ internal static class FoodMethodCandidates
         bool Space(int count) { if (++expanded > 128 || tasks.Count + count > 128) { truncated = true; return false; } return true; }
         void Route(string pawn, string from, string to, double ticks) => routes.TryAdd((pawn, from, to), new(pawn, from, to, new RouteTicks.Reachable(ticks)));
         void Option(string id, string pawn, double ticks)
-            => options.Add(new(id, pawn, Known(ticks), Known(0.0)) { Equipment = [] });
+            => options.Add(new(id, pawn, ticks, 0) { Equipment = [] });
         void Outcome(string id, params string[] completion)
             => alternatives.Add(new(id, []) { ActivityCompletions = EquatableArray.From(completion), ExclusiveOutcome = id });
         // A produced lot keeps as long as its shortest-keeping observed use; with no use of the resource its shelf life is unread.
-        Fact<double> Fresh(string resource)
+        double? Fresh(string resource)
         {
             var estimates = read.FoodUses.Where(u => u.Resource == resource).Select(u => Keeps(u.FreshTicks)).ToArray();
-            return estimates.Length != 0 ? Known(estimates.Min()) : default;
+            return estimates.Length != 0 ? estimates.Min() : null;
         }
+        // A perishable output is generated only once its shelf life is read (each producer checks Fresh first).
+        double Keeping(string resource) => Fresh(resource) ?? throw new InvalidOperationException("unread shelf life of " + resource);
+        // A lot whose shelf life is unread offers nothing: it is left out, with a finding.
+        ForecastCompositionSupply[] Unread(string supply) { findings.Add("food_shelf_life_unread:" + supply); return []; }
         var harvests = new Dictionary<string, string>(StringComparer.Ordinal);
         // Seed each source once. The full observed yield is physical output, regardless of one carrier's load.
         foreach (var group in read.Food.Options.GroupBy(o => o.Target).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
-            if (!Space(1)) break;
             var row = group.First(); var id = "harvest/" + group.Key;
-            var yield = Known((double)row.SourceCount);
-            tasks.Add(new(id, Location(row.Origin), Location(row.Origin), []) { Outputs = [new(new(row.Resource), yield) { Lot = id, Perishable = true, FreshTicks = Fresh(row.Resource) }] });
+            if (Fresh(row.Resource) is not { } keeps) { findings.Add("food_shelf_life_unread:" + row.Resource); continue; }
+            if (!Space(1)) break;
+            tasks.Add(new(id, Location(row.Origin), Location(row.Origin), []) { Outputs = [new(new(row.Resource), row.SourceCount) { Lot = id, Perishable = true, FreshTicks = keeps }] });
             harvests[group.Key] = id;
             foreach (var pawn in group.GroupBy(o => o.Pawn).Select(g => g.First()))
             {
                 Route(pawn.Pawn, "start", Location(pawn.Origin), pawn.ApproachTicks);
                 if (pawn.HarvestAllowed)
                 {
-                    options.Add(new(id, pawn.Pawn, Known(pawn.WorkTicks), Known(0d)) { SkillWork = pawn.SkillWork });
+                    options.Add(new(id, pawn.Pawn, pawn.WorkTicks, 0) { SkillWork = pawn.SkillWork });
                     bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], PawnActivityKind.Work, pawn.Target, pawn.WorkGiver, "Harvest", 0, deadline, pawn.Origin);
                 }
             }
@@ -71,6 +75,8 @@ internal static class FoodMethodCandidates
             .ThenBy(c => c.Group.Key.Bench, StringComparer.Ordinal).ThenBy(c => c.Group.Key.Recipe, StringComparer.Ordinal))
         {
             var group = candidate.Group; var first = group.First(); var batch = candidate.Batch;
+            var unread = group.Select(c => c.Product).Distinct().Where(p => Fresh(p) is null).OrderBy(p => p, StringComparer.Ordinal).FirstOrDefault();
+            if (unread is not null) { findings.Add("food_shelf_life_unread:" + unread); continue; }
             if (!Space(2 * batch)) break;
             var id = "food/" + alternatives.Count;
             var deliveries = new List<string>(); string? previous = null;
@@ -90,13 +96,13 @@ internal static class FoodMethodCandidates
                         var supply = id + "/supply/" + iteration + "/" + native.Source + "/" + quantity;
                         tasks.Add(new(supply, Location(native.SourceCell), Location(native.BenchCell), [])
                         {
-                            Inputs = [new(new(native.Ingredient), Known((double)quantity)) { Lot = lot }],
-                            Outputs = [new(new(native.Ingredient), Known((double)quantity)) { Lot = lot }],
+                            Inputs = [new(new(native.Ingredient), quantity) { Lot = lot }],
+                            Outputs = [new(new(native.Ingredient), quantity) { Lot = lot }],
                             ChoiceIdentity = id + "/supply-choice/" + iteration + "/" + native.Source,
                         });
-                        compositionNeeds[supply] = [new("source", new(native.Ingredient), Known(quantity), Location(native.SourceCell),
-                            ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([native.RequiresHarvest
-                                ? YieldId(harvests[native.Source], new(native.Ingredient)) : "observed/" + native.Source]), Known(0d), Known(horizon))];
+                        compositionNeeds[supply] = [new("source", new(native.Ingredient), quantity, Location(native.SourceCell),
+                            ForecastRequirementKind.Consumed, [native.RequiresHarvest
+                                ? YieldId(harvests[native.Source], new(native.Ingredient)) : "observed/" + native.Source], 0, horizon)];
                         eligible.Add(YieldId(supply, new(native.Ingredient)));
                         foreach (var row in source.GroupBy(c => c.Pawn).Select(g => g.First()))
                         {
@@ -114,10 +120,10 @@ internal static class FoodMethodCandidates
                         }
                     }
                 }
-                compositionNeeds[cook] = [new("ingredients", new(first.Ingredient), Known(first.IngredientCount), Location(first.BenchCell),
-                    ForecastRequirementKind.Consumed, Known(EquatableArray.From(eligible)), Known(0d), Known(horizon))];
-                var products = group.GroupBy(c => c.Product).Select(g => new ForecastActivityYield(new(g.Key), Known((double)g.First().ProductCount))
-                    { Lot = cook, Perishable = true, FreshTicks = Fresh(g.Key) }).ToArray();
+                compositionNeeds[cook] = [new("ingredients", new(first.Ingredient), first.IngredientCount, Location(first.BenchCell),
+                    ForecastRequirementKind.Consumed, EquatableArray.From(eligible), 0, horizon)];
+                var products = group.GroupBy(c => c.Product).Select(g => new ForecastActivityYield(new(g.Key), g.First().ProductCount)
+                    { Lot = cook, Perishable = true, FreshTicks = Keeping(g.Key) }).ToArray();
                 tasks.Add(new(cook, Location(first.BenchCell), Location(first.BenchCell), previous is null ? [] : [previous])
                     { Outputs = EquatableArray.From(products), RequiresFoodUse = true });
                 tasks.Add(new(deliver, Location(first.BenchCell), Location(first.Destination), [])
@@ -126,20 +132,20 @@ internal static class FoodMethodCandidates
                 {
                     if (row.Cooking is FoodCooking.Cook cooking)
                     {
-                        options.Add(new(cook, row.Pawn, Known(cooking.WorkTicks), Known(0d)) { Equipment = [row.Bench], SkillWork = cooking.SkillWork });
+                        options.Add(new(cook, row.Pawn, cooking.WorkTicks, 0) { Equipment = [row.Bench], SkillWork = cooking.SkillWork });
                         if (cooking.SkillWork is null) findings.Add("productive_learning_unassessed:" + row.Pawn + ":" + row.Recipe);
                         findings.Add("cooking_poisoning_and_future_environment_unassessed");
+                        bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
+                        { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient },
+                          FoodPoisonChance = cooking.FoodPoisonChance };
                     }
                     if (row.Delivery is FoodDelivery.Carried(var carried)) Option(deliver, row.Pawn, carried);
-                    bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
-                    { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient },
-                      FoodPoisonChance = row.Cooking is FoodCooking.Cook { FoodPoisonChance: var poison } ? Known(poison) : default };
                     bindings[(deliver, row.Pawn)] = new(deliver, row.Pawn, [], PawnActivityKind.Deliver, "observed-output", "", "", row.ProductCount, deadline, row.BenchCell)
                     { Resource = row.Product, Source = row.BenchCell, Destination = row.Destination };
                 }
                 compositionNeeds[deliver] = products.Select((product, index) => new ForecastCompositionRequirement("product/" + index,
                     product.Resource, Units(product.Units), Location(first.BenchCell), ForecastRequirementKind.Consumed,
-                    Known<EquatableArray<string>>([YieldId(cook, product.Resource)]), Known(0d), Known(horizon))).ToArray();
+                    [YieldId(cook, product.Resource)], 0, horizon)).ToArray();
                 deliveries.Add(deliver); previous = cook;
                 foreach (var product in products) AddEating(deliver, product.Resource, product.Units, first.Destination, cook, first.Ingredient);
             }
@@ -151,51 +157,57 @@ internal static class FoodMethodCandidates
             if (!harvests.TryGetValue(group.Key.Target, out var harvest) || !Space(1)) continue;
             var first = group.First(); var id = "raw/" + alternatives.Count; var count = group.Max(o => o.Count);
             tasks.Add(new(id, Location(first.Origin), Location(first.Destination), [harvest])
-            { Inputs = [new(new(first.Resource), Known((double)count)) { Lot = harvest }], Outputs = [new(new(first.Resource), Known((double)count)) { Lot = harvest }] });
+            { Inputs = [new(new(first.Resource), count) { Lot = harvest }], Outputs = [new(new(first.Resource), count) { Lot = harvest }] });
             foreach (var row in group.GroupBy(o => o.Pawn).Select(g => g.First()).Where(o => o.Count >= count))
             {
                 Option(id, row.Pawn, row.DeliveryTicks);
                 bindings[(id, row.Pawn)] = new(id, row.Pawn, [harvest], PawnActivityKind.Deliver, "observed-output", "", "", count, deadline, row.Origin)
                 { Resource = row.Resource, Source = row.Origin, Destination = row.Destination };
             }
-            compositionNeeds[id] = [new("source", new(first.Resource), Known(count), Location(first.Origin), ForecastRequirementKind.Consumed,
-                Known<EquatableArray<string>>([YieldId(harvest, new(first.Resource))]), Known(0d), Known(horizon))];
-            Outcome(id, id); AddEating(id, new(first.Resource), Known((double)count), first.Destination, harvest);
+            compositionNeeds[id] = [new("source", new(first.Resource), count, Location(first.Origin), ForecastRequirementKind.Consumed,
+                [YieldId(harvest, new(first.Resource))], 0, horizon)];
+            Outcome(id, id); AddEating(id, new(first.Resource), count, first.Destination, harvest);
         }
         // Typed inputs retain native-certified lot identity. Only the shared composer connects producers.
         string YieldId(string task, Resource resource) => task + "/yield/" + resource.Value;
-        Fact<int> Units(Fact<double> quantity) => quantity.TryGetValue(out var n) && double.IsFinite(n)
-            && n >= 0 && n <= int.MaxValue && n == Math.Floor(n) ? Known((int)n) : default;
-        Fact<double> Expiry(Resource resource, string lot)
+        // Every food yield here is a whole count of the native rows' integers.
+        int Units(double quantity) => checked((int)quantity);
+        // A lot keeps as its shortest-keeping physical stack, or, produced here, as its resource's read shelf life; else unread.
+        double? Expiry(Resource resource, string lot)
         {
             var physical = read.FoodSources.Where(s => s.Target == lot && s.Resource == resource.Value).ToArray();
+            if (physical.Length != 0) return Math.Min(horizon, physical.Min(s => Keeps(s.FreshTicks)));
             var producedHere = tasks.Any(t => t.Outputs.Any(o => o.Perishable && o.Resource == resource && o.Lot == lot));
-            var estimate = physical.Length == 0 ? producedHere ? Fresh(resource.Value) : default
-                : Known(physical.Min(s => Keeps(s.FreshTicks)));
-            return estimate.TryGetValue(out var fresh) ? Known(Math.Min(horizon, fresh)) : default;
+            return producedHere && Fresh(resource.Value) is { } fresh ? Math.Min(horizon, fresh) : null;
         }
-        var observed = read.FoodSources.Select(s => new ForecastCompositionSupply("observed/" + s.Target, new(s.Resource), Known(s.Count),
-                Location(s.Location), Known(0d), Known(Math.Min(horizon, Keeps(s.FreshTicks))))
+        // Reads that disagree on one lot's count offer none of it.
+        ForecastCompositionSupply Conflicting(ForecastCompositionSupply supply)
+        { findings.Add("conflicting_food_supply:" + supply.Id); return supply with { Units = 0 }; }
+        var observed = read.FoodSources.Select(s => new ForecastCompositionSupply("observed/" + s.Target, new(s.Resource), s.Count,
+                Location(s.Location), 0, Math.Min(horizon, Keeps(s.FreshTicks)))
                 { Lot = s.Target, Provenance = "observed-food/" + s.Target })
-            .Concat(read.FoodConversions.Where(c => !c.RequiresHarvest).Select(c => new ForecastCompositionSupply("observed/" + c.Source,
-                new(c.Ingredient), Known(c.AvailableInput), Location(c.SourceCell), Known(0d), Expiry(new(c.Ingredient), c.Source))
-                { Lot = c.Source, Provenance = "native-recipe-source/" + c.Source }))
-            .GroupBy(s => s.Id).Select(g => g.Select(s => s.Units).Distinct().Count() == 1 ? g.First() : g.First() with { Units = default }).ToArray();
-        var produced = tasks.SelectMany(t => t.Outputs.Select(o => new ForecastCompositionSupply(YieldId(t.Id, o.Resource), o.Resource,
-            Units(o.Units), o.LotLocation.Length == 0 ? t.EndLocation : o.LotLocation, Known(0d), Expiry(o.Resource, o.Lot))
-            { Producer = t.Id, Lot = o.Lot.Length == 0 ? t.Id : o.Lot, Provenance = "native-food-operation/" + t.Id })).ToArray();
+            .Concat(read.FoodConversions.Where(c => !c.RequiresHarvest).SelectMany(c => Expiry(new(c.Ingredient), c.Source) is { } expiry
+                ? new[] { new ForecastCompositionSupply("observed/" + c.Source, new(c.Ingredient), c.AvailableInput, Location(c.SourceCell), 0, expiry)
+                    { Lot = c.Source, Provenance = "native-recipe-source/" + c.Source } }
+                : Unread("observed/" + c.Source)))
+            .GroupBy(s => s.Id).Select(g => g.Select(s => s.Units).Distinct().Count() == 1 ? g.First() : Conflicting(g.First())).ToArray();
+        var produced = tasks.SelectMany(t => t.Outputs.SelectMany(o => Expiry(o.Resource, o.Lot) is { } expiry
+            ? new[] { new ForecastCompositionSupply(YieldId(t.Id, o.Resource), o.Resource,
+                Units(o.Units), o.LotLocation.Length == 0 ? t.EndLocation : o.LotLocation, 0, expiry)
+                { Producer = t.Id, Lot = o.Lot.Length == 0 ? t.Id : o.Lot, Provenance = "native-food-operation/" + t.Id } }
+            : Unread(YieldId(t.Id, o.Resource)))).ToArray();
         var all = observed.Concat(produced).ToArray();
         var operations = tasks.Select(t =>
         {
             var requirements = compositionNeeds.GetValueOrDefault(t.Id) ?? t.Inputs.Select((input, index) =>
                 new ForecastCompositionRequirement("input/" + index, input.Resource, Units(input.Units),
                     input.LotLocation.Length == 0 ? t.Location : input.LotLocation, ForecastRequirementKind.Consumed,
-                    Known(EquatableArray.From(all.Where(s => s.Producer != t.Id && s.Resource == input.Resource && s.Lot == input.Lot
-                        && s.Location == (input.LotLocation.Length == 0 ? t.Location : input.LotLocation)).Select(s => s.Id))),
-                    Known(t.NotBefore), Known(horizon))).ToArray();
-            if (requirements.Any(r => !r.Units.IsKnown)) findings.Add("unsupported_fractional_food_quantity:" + t.Id);
-            // Keep only semantic ordering dependencies; material links are reconstructed by the shared composer.
-            var materialParents = requirements.SelectMany(r => r.Sources.Value).Select(id => all.Single(s => s.Id == id).Producer).ToHashSet();
+                    EquatableArray.From(all.Where(s => s.Producer != t.Id && s.Resource == input.Resource && s.Lot == input.Lot
+                        && s.Location == (input.LotLocation.Length == 0 ? t.Location : input.LotLocation)).Select(s => s.Id)),
+                    t.NotBefore, horizon)).ToArray();
+            // Keep only semantic ordering dependencies; material links are reconstructed by the shared composer. A source left
+            // out for an unread shelf life has no producer here; the composer reports it unsupported.
+            var materialParents = requirements.SelectMany(r => r.Sources).SelectMany(id => all.Where(s => s.Id == id).Select(s => s.Producer)).ToHashSet();
             var operation = t with { Prerequisites = t.Prerequisites.Where(p => !materialParents.Contains(p)).ToArray() };
             return new ForecastCompositionOperation(operation, EquatableArray.From(requirements), EquatableArray.From(produced.Where(s => s.Producer == t.Id)))
                 { ChoiceGroup = t.ChoiceIdentity };
@@ -203,9 +215,8 @@ internal static class FoodMethodCandidates
         return new(options.ToArray(), routes.Values.ToArray(), needTasks.ToArray(), alternatives.ToArray(), bindings, truncated)
             { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed), Findings = EquatableArray.From(findings) };
         // A cooked batch is eaten with the thoughts of its own ingredient (#3872); anything else as it is.
-        void AddEating(string supply, Resource resource, Fact<double> quantity, Cell cell, string freshFrom, string ingredient = "")
+        void AddEating(string supply, Resource resource, double units, Cell cell, string freshFrom, string ingredient = "")
         {
-            if (!quantity.TryGetValue(out var units)) return;
             foreach (var use in read.FoodUses.Where(u => u.Resource == resource.Value && u.Location == cell && u.Ingredient == ingredient)
                 .OrderBy(u => u.Pawn, StringComparer.Ordinal))
             {
@@ -226,11 +237,11 @@ internal static class FoodMethodCandidates
                         (food.Level - food.Threshold + meal * serving * gain) / food.FallPerTick - use.ChewTicks) : 0;
                     if (earliest + use.ChewTicks > horizon) continue;
                     tasks.Add(new(id, Location(cell), Location(cell), [supply])
-                    { Inputs = [new(resource, Known((double)count)) { Lot = freshFrom }], NotBefore = earliest });
+                    { Inputs = [new(resource, count) { Lot = freshFrom }], NotBefore = earliest });
                     Option(id, use.Pawn, use.ChewTicks);
                     bindings[(id, use.Pawn)] = new(id, use.Pawn, [supply], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
                     needTasks.Add(new(id, use.Pawn, "food", Location(cell), resource, count, count * gain, use.Thoughts)
-                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = Known(Keeps(use.FreshTicks)), AvailableCount = quantity, Batch = supply,
+                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = Known(Keeps(use.FreshTicks)), AvailableCount = Known(units), Batch = supply,
                         MaxPawns = Known(IngestMaxPawns) });
                     Outcome(id, id);
                 }

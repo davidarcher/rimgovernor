@@ -109,8 +109,8 @@ public sealed partial record ForecastCoupledCandidates
         }
         void Route(string pawn, string from, string to, RouteTicks ticks)
             => routes.TryAdd((pawn, from, to), new(pawn, from, to, ticks));
-        void Option(string id, string pawn, Fact<double> ticks, string? equipment = null)
-            => options.Add(new(id, pawn, ticks, Known(0.0)) { Equipment = equipment is null ? [] : [equipment] });
+        void Option(string id, string pawn, double ticks, string? equipment = null)
+            => options.Add(new(id, pawn, ticks, 0) { Equipment = equipment is null ? [] : [equipment] });
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources,
@@ -215,7 +215,7 @@ public sealed partial record ForecastCoupledCandidates
                     NotBefore = choice.Start,
                     Location = location,
                     EndLocation = location,
-                    Inputs = choice.Kind == "food" ? [new(new(choice.Resource), Known((double)choice.Count)) { Lot = target.Id }] : []
+                    Inputs = choice.Kind == "food" ? [new(new(choice.Resource), choice.Count) { Lot = target.Id }] : []
                 });
                 Route(pawn.Pawn, "start", location, new RouteTicks.Reachable(choice.Start - choice.Depart));
                 if (target.Location is { } physical)
@@ -224,7 +224,7 @@ public sealed partial record ForecastCoupledCandidates
                     { Resource = choice.Resource, Source = physical,
                         SelectedInputs = choice.Kind == "food"
                             ? [new(choice.Resource, target.Id, choice.Count, physical, "observed need target") { Observed = true }] : [] };
-                Option(id, pawn.Pawn, Known(choice.End - choice.Start));
+                Option(id, pawn.Pawn, choice.End - choice.Start);
                 needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, choice.Gain, choice.Thoughts)
                 { AvailableCount = target.StockCount, FreshTicks = target.FreshTicks, MaxPawns = target.MaxPawns });
                 alternatives.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "need/" + pawn.Pawn + "/" + choice.Kind
@@ -340,8 +340,7 @@ public sealed partial record ForecastCoupledCandidates
                 Routes = routes.Values.ToArray(),
                 Pawns = needs.Pawns.Select(p => ForecastNeeds.NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity).ToArray(),
                 Equipment = equipment,
-                Deadline = Known(horizon),
-                AlternativeLaborCost = Known(horizon * Math.Max(1, needs.Pawns.Count)),
+                Deadline = horizon,
                 ExpansionBudget = 4096
             },
             Truncated = truncated,
@@ -418,12 +417,9 @@ public sealed partial record ForecastCoupledCandidates
         }
 
         // The same root reached by two generation paths is one alternative; different roots cannot share an id.
-        // The options whose work the generation read, with that work in ticks: read once here, carried plain.
+        // The options with their work in ticks.
         static IEnumerable<(ForecastActivityOption Option, double Ticks)> Worked(IEnumerable<ForecastActivityOption> rows)
-        {
-            foreach (var option in rows)
-                if (option.WorkTicks.TryGetValue(out var ticks)) yield return (option, ticks);
-        }
+            => rows.Select(option => (option, option.WorkTicks));
 
         static List<ForecastCommitment> DistinctAlternatives(List<ForecastCommitment> roots)
         {

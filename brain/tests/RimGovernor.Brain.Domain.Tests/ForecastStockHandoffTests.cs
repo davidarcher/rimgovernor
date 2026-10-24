@@ -31,7 +31,7 @@ public sealed class ForecastStockHandoffTests
         var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(Known(facts.Food), []), Stocks = new() { Materials = Known(physical), Nutrition = ForecastStockScope.Nutrition(facts.Food), Medicine = Known<EquatableArray<Amount>>([new(Medicine, 5)]) }, Pawns = Known<EquatableArray<ModelPawn>>([]) };
         return new() { Origin = new("map", 0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
-            Activities = new(), Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
+            Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
             FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],
             Resources = new(new() { Stock = Known(physical), Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
         } };
@@ -77,12 +77,12 @@ public sealed class ForecastStockHandoffTests
         var request = Request(Stock("source", 10));
         var task = new ForecastActivity("cook", "census", "kitchen", [])
         {
-            Inputs = [new(Meal, Known(4d)) { Lot = "source" }],
-            Outputs = [new(Meal, Known(6d)) { Lot = "cooked", Perishable = true, FreshTicks = Known(120000d) }]
+            Inputs = [new(Meal, 4d) { Lot = "source" }],
+            Outputs = [new(Meal, 6d) { Lot = "cooked", Perishable = true, FreshTicks = 120000d }]
         };
         request = request with { Coupled = request.Coupled! with
         {
-            Activities = new() { Activities = [task] }, ModelBasis = request.Coupled.ModelBasis! with { Policy = new()
+            Activities = new() { Deadline = 0, Activities = [task] }, ModelBasis = request.Coupled.ModelBasis! with { Policy = new()
             { Scheduled = [new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "medicine", Stock = ModelStock.Medicine, Resource = Medicine, Amount = 2 },
                 new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "food", Stock = ModelStock.Nutrition, Resource = Meal, Amount = 1 },
                 new() { Day = .5, Kind = ModelEventKind.ProjectCompletion, Id = "research", Stock = ModelStock.ResearchPoints, Amount = 3 }] } }
@@ -109,7 +109,7 @@ public sealed class ForecastStockHandoffTests
         var outcome = Evaluate(request);
         Assert.Null(ForecastHandoffPolicy.Project(outcome));
         var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
-        var selection = new ForecastCoupledSelection(new([], outcome.Plan, default, [], 0, false), outcome, outcome, vector, vector, [], 60000, false);
+        var selection = new ForecastCoupledSelection(new([], outcome.Plan, [], 0, false), outcome, outcome, vector, vector, [], 60000, false);
         var predictions = new List<ForecastPrediction>(); var observations = new List<ForecastObservation>();
         var pending = new ForecastEvidencePending(predictions.Add, observations.Add);
         var scope = new GenerationSnapshot(new("colony"), new(1), new("load"), new("root"), new(1), new(1));

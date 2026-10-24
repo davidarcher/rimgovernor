@@ -27,9 +27,9 @@ public sealed class ForecastValueTests
     {
         Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "start", HorizonTicks = Day, LocalHour = Known(12.0), OpportunityCostPerTick = Known(1.0),
+        Location = "start", HorizonTicks = Day, LocalHour = Known(12.0), OpportunityCostPerTick = 1.0,
         CurrentWork = new(new("pawn"), Known(false), default, Known(0.0)), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
-        LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
+        LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
 
     internal static ForecastNeedsResult Timeline(NeedsForecastPawn pawn) => ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [], mood: false);
@@ -70,7 +70,7 @@ public sealed class ForecastValueTests
     internal static ForecastCoupledContext Context(NeedsForecastPawn pawn, CapacityPenaltyTables? tables = null, HarmInputs? harm = null,
         IReadOnlyDictionary<string, EquatableArray<GearOption>>? outfits = null, ForecastValuePolicy? policy = null) => new()
     {
-        Activities = new(), Needs = NeedsFixtures.Empty with { Pawns = [pawn] }, Resources = Resources(),
+        Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty with { Pawns = [pawn] }, Resources = Resources(),
         CapacityPenalties = tables ?? Tables(), MoodBreaks = Breaks(),
         Harm = harm ?? new() { Schedule = new() { Assessed = true, MajorThreatsPerDay = 0d, RaidFraction = 1 } },
         Outfits = outfits ?? new Dictionary<string, EquatableArray<GearOption>>(),

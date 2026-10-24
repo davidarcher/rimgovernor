@@ -23,7 +23,7 @@ public sealed class ForecastHandoffTests
             Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
         return new() { Origin = new("map", 0), HorizonDays = 1,
             Facts = new() { Stock = Known(stock), Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
-            Coupled = new() { Activities = new() { Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
+            Coupled = new() { Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), default),
                 InitialLots = [new("meal", "", Food, Known(10d)) { Perishable = true, FreshTicks = Known(120000d) }] } };
     }
@@ -75,7 +75,7 @@ public sealed class ForecastHandoffTests
     public void UnknownTerminalNeedIsPreservedRatherThanReset()
     {
         var outcome = Outcome() with { Needs = new Dictionary<string, ForecastNeedsResult>
-        { ["pawn"] = new([new("food", default, default, default, default), new("rest", Known(.17), default, default, default)], default, default, new(new("pawn", "", default, default), []), []) } };
+        { ["pawn"] = new([new("food", default, default, default, default), new("rest", Known(.17), default, default, default)], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []) } };
         var handoff = Handoff(Request(), new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome);
         Assert.False(Assert.Single(handoff.Needs, n => n.Kind == "food").Level.IsKnown);
         Assert.Equal(.17, Assert.Single(handoff.Needs, n => n.Kind == "rest").Level.Value);
@@ -144,7 +144,7 @@ public sealed class ForecastHandoffTests
         var graph = ProjectGraph.Construction(input, "site", []);
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("research", "pawn", [], PawnActivityKind.Supply, "steel-stack", "", "", 5, 60000, new(2, 2)) { Container = "site" };
         request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = graph }),
-            Activities = new() { Activities = [new("research", "stock", "site", []) { Inputs = [new(Steel, Known(5d))] }] },
+            Activities = new() { Deadline = 0, Activities = [new("research", "stock", "site", []) { Inputs = [new(Steel, 5d)] }] },
             Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("research", "pawn")] = binding },
             Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
             { Standing = new([], new Dictionary<Resource, long> { [Steel] = 8 }),
@@ -167,7 +167,7 @@ public sealed class ForecastHandoffTests
             new() { Id = "grow", Field = "zone1", Crop = ColonyModelFixtures.Crop, Kind = ProjectKind.Grow, Prerequisites = ["sow:zone1"] }] };
         var input = basis.Input with { Climate = Known(basis.Input.Climate.Value with { TicksToNextTwelfth = 12000 }) };
         request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = nodes }),
-            Activities = new() { Activities = [new("research", "", "", []) { ProjectProgress = new("sow:zone1", 1d / 50) }] } } };
+            Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("sow:zone1", 1d / 50) }] } } };
         var outcome = Outcome() with { Plan = new([new("research", "pawn", 0, 0, completion * GameTime.TicksPerDay - 50, completion * GameTime.TicksPerDay, 0, 0, 50, 0, 0)], completion * GameTime.TicksPerDay, 0) };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome);
         Assert.Empty(handoff.Gaps);
@@ -185,7 +185,7 @@ public sealed class ForecastHandoffTests
         var basis = request.Coupled!.ModelBasis!;
         request = request with { Coupled = request.Coupled with { ModelBasis = basis with { Policy = basis.Policy with
         { Projects = new() { Nodes = [new() { Id = "hunt", Kind = ProjectKind.Hunt, Work = 100, Nutrition = 5 }] } } },
-            Activities = new() { Activities = [new("research", "", "", []) { Outputs = [new(Food, Known(4d))] }] } } };
+            Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { Outputs = [new(Food, 4d)] }] } } };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(14d), [Medicine] = Known(3d) });
         Assert.Empty(handoff.Gaps);
         Assert.Equal(100, Assert.Single(handoff.State.Projects.Value).Remaining);

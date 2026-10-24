@@ -79,7 +79,7 @@ public sealed class HospitalCreditTests
     private static ForecastCoupledOutcome Served(double shift, double servedAt = 0, ForecastActivityAllocation[]? allocations = null) =>
         new(new(allocations ?? [], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], default, default, new(new("pawn", "", default, default), []), [])
+            ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = new([], default, default, default, default, default, [])
                 {

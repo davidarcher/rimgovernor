@@ -65,7 +65,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Equal(facts.WorkView.Evidence.Reservations, candidates.Context.Resources.Evidence.Reservations);
         var task = Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment);
         Assert.Equal(0d, task.LatestStart);
-        Assert.Equal(100d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == task.Id).WorkTicks.Value);
+        Assert.Equal(100d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == task.Id).WorkTicks);
         Assert.Equal(.1, Assert.Single(candidates.Context.NeedTasks, n => n.Task == task.Id).Gain, 8);
         Assert.Empty(Assert.Single(candidates.Incumbents, a => a.Id == incumbent.Commitment).ExclusiveOutcome);
         Assert.DoesNotContain(candidates.Alternatives, a => a.Id == incumbent.Commitment);
@@ -159,8 +159,8 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Equal(2, incumbent.Activities.Count);
         var waiting = Assert.Single(candidates.Context.NonproductiveOccupancy);
         Assert.DoesNotContain(candidates.Context.NeedTasks, n => n.Task == waiting);
-        Assert.Equal(150d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == waiting).WorkTicks.Value);
-        Assert.Equal(40d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == incumbent.Commitment).WorkTicks.Value);
+        Assert.Equal(150d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == waiting).WorkTicks);
+        Assert.Equal(40d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == incumbent.Commitment).WorkTicks);
         Assert.Equal(160d, Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment).LatestStart);
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
             prepared,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());

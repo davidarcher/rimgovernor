@@ -24,7 +24,7 @@ public sealed class ResearchMethodCandidatesTests
         var made = ResearchMethodCandidates.Generate(Read(Worker("a", points: 0.5), Worker("b", points: 0.25)), GameTime.TicksPerDay, Claims(), 9000);
         Assert.Equal(2, made.Roots.Length);
         Assert.Equal(["research/a", "research/b"], made.Roots.Select(r => r.ExclusiveOutcome));
-        Assert.All(made.Options, o => Assert.Equal(Known((double)GameTime.TicksPerHour), o.WorkTicks));
+        Assert.All(made.Options, o => Assert.Equal(GameTime.TicksPerHour, o.WorkTicks));
         Assert.All(made.Options, o => Assert.Equal(["bench"], o.Equipment));
         Assert.Equal([0.5, 0.25], made.Tasks.Select(t => t.ProjectProgress!.PointsPerTick));
         Assert.All(made.Tasks, t => Assert.Equal("Stonecutting", t.ProjectProgress!.Project));

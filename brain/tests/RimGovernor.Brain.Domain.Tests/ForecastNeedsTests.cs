@@ -12,9 +12,9 @@ public sealed class ForecastNeedsTests
     {
         Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "start", HorizonTicks = horizon, LocalHour = Known(12.0), OpportunityCostPerTick = Known(1.0),
+        Location = "start", HorizonTicks = horizon, LocalHour = Known(12.0), OpportunityCostPerTick = 1.0,
         CurrentWork = new(new("pawn"), Known(false), default, Known(0.0)), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
-        LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
+        LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
     private static NeedsForecastPawn Pawn() => NeedsFixtures.Pawn() with
     {
@@ -129,18 +129,18 @@ public sealed class ForecastNeedsTests
         var input = Input();
         var tired = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, []);
         var rested = ForecastNeeds.ForecastNeedsTimeline(Pawn(), input, [Sleep()]);
-        Assert.True(rested.Capacity.Capacity.Windows.Value.Sum(w => w.End - w.Start) > tired.Capacity.Capacity.Windows.Value.Sum(w => w.End - w.Start));
-        Assert.Contains(rested.Capacity.Capacity.Windows.Value, w => w.Start == 400 && w.End == 1000);
-        Assert.DoesNotContain(rested.Capacity.Capacity.Windows.Value, w => w.Start < 400);
+        Assert.True(rested.Capacity.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start) > tired.Capacity.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.Contains(rested.Capacity.Capacity.Windows.ReadWindows(), w => w.Start == 400 && w.End == 1000);
+        Assert.DoesNotContain(rested.Capacity.Capacity.Windows.ReadWindows(), w => w.Start < 400);
         Assert.True(rested.Needs.Single(n => n.Kind == "rest").ThresholdExposureTicks.Value < tired.Needs.Single(n => n.Kind == "rest").ThresholdExposureTicks.Value);
         var problem = new ForecastActivityProblem
         {
             Activities = [new("production", "bed", "bed", [])], Pawns = [rested.Capacity.Capacity],
-            Options = [new("production", "pawn", Known(500.0), Known(0.0))],
-            Deadline = Known(1000.0), AlternativeLaborCost = Known(1000.0),
+            Options = [new("production", "pawn", 500.0, 0.0)],
+            Deadline = 1000.0,
         };
-        Assert.NotNull(ForecastActivities.CompareActivityPlans(problem).Selected);
-        Assert.Null(ForecastActivities.CompareActivityPlans(problem with { Pawns = [tired.Capacity.Capacity] }).Selected);
+        Assert.NotEmpty(ForecastActivities.CompareActivityPlans(problem).Alternatives);
+        Assert.Empty(ForecastActivities.CompareActivityPlans(problem with { Pawns = [tired.Capacity.Capacity] }).Alternatives);
         Assert.Throws<DomainException>(() => ForecastNeeds.ForecastNeedsTimeline(Pawn(), input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(
             [new("long_trip", "pawn", Known(0.0), Known(700.0), ForecastOccupancyState.Active)]) }, [Sleep()]));
     }
@@ -184,7 +184,7 @@ public sealed class ForecastNeedsTests
     [Fact]
     public void LegacyScheduleDoesNotPreselectNeedTimingButExplicitObligationsRemainProtected()
     {
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input() with { ProtectTimetable = true }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input() with { ProtectTimetable = true }).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         var generated = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
         Assert.Contains(generated.Choices, c => c.Depart == 0);
         var protectedInput = Input() with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(

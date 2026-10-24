@@ -157,7 +157,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var hour = ProjectGraph.ResearchPointsPerWorkTick * Hour;
         var context = new ForecastCoupledContext
         {
-            Activities = new() { Activities = [new("research/Anna/bench", "bench", "bench", []) { ProjectProgress = new("Devilstrand", ProjectGraph.ResearchPointsPerWorkTick) }] },
+            Activities = new() { Deadline = 0, Activities = [new("research/Anna/bench", "bench", "bench", []) { ProjectProgress = new("Devilstrand", ProjectGraph.ResearchPointsPerWorkTick) }] },
             Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(), Investment = marginals.PerUnit,
         };
 

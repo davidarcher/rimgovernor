@@ -106,7 +106,7 @@ public static class ForecastHandoffPolicy
                 // Deliveries pay the shared construction demand; unrelated reservations remain protected.
                 var delivered = outcome.Plan.Allocations.Where(a => finished.ContainsKey(a.Activity)
                     && context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Supply && b.Container.Length > 0)
-                    .SelectMany(a => tasks[a.Activity].Inputs).Where(i => i.Resource == resource && i.Units.IsKnown).Sum(i => i.Units.Value);
+                    .SelectMany(a => tasks[a.Activity].Inputs).Where(i => i.Resource == resource).Sum(i => i.Units);
                 count -= Math.Min(delivered, holds.Owed.GetValueOrDefault(resource));
                 var graphHeld = ownedSites.Sum(n => n.Ingredients.Where(i => i.Resource == resource).Sum(i => (double)i.Count));
                 if (graphHeld > Math.Max(0, holds.Owed.GetValueOrDefault(resource) - delivered))

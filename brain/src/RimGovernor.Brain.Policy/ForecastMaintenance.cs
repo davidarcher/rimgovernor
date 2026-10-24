@@ -4,7 +4,21 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A generated practice session (#3341): its task and the native mechanics of the pawn practising there.</summary>
 public sealed record ForecastPracticeTask(string Task, PracticeWorker Worker);
 public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<WorkSkill> Skills);
-public sealed record ForecastMaintenanceConsequence(string Requirement, Fact<double> MissingXp, EquatableArray<string> Findings);
+public sealed record ForecastMaintenanceConsequence(string Requirement, ForecastMaintenanceGap MissingXp, EquatableArray<string> Findings);
+
+/// <summary>The XP an assigned capability still lacks at the plan's end: projected (0 when a branch is met), or unprojectable
+/// when no branch is met and one of them could not be projected (its learning unread, its window expired, its callbacks or
+/// projection unmade, or its floor beyond the read levels).</summary>
+public abstract record ForecastMaintenanceGap
+{
+    private ForecastMaintenanceGap() { }
+
+    /// <summary>The fewest XP any branch still lacks; 0 when one is met.</summary>
+    public sealed record Projected(double Xp) : ForecastMaintenanceGap;
+
+    /// <summary>No branch is met and a branch could not be projected, so the shortfall could be any of them.</summary>
+    public sealed record Unprojectable : ForecastMaintenanceGap;
+}
 
 public static class ForecastMaintenancePolicy
 {
@@ -47,7 +61,8 @@ public static class ForecastMaintenancePolicy
                 gaps.Add(Math.Max(0, learning.Levels.Skip(level).Take(floor - level).Sum(l => l.RequiredXp) - xp));
             }
             // A known satisfied OR branch suffices. Otherwise an unknown alternative can be the winner.
-            Fact<double> missing = gaps.Contains(0) ? Known(0d) : unknown || gaps.Count == 0 ? default : Known(gaps.Min());
+            ForecastMaintenanceGap missing = gaps.Contains(0) ? new ForecastMaintenanceGap.Projected(0)
+                : unknown || gaps.Count == 0 ? new ForecastMaintenanceGap.Unprojectable() : new ForecastMaintenanceGap.Projected(gaps.Min());
             result.Add(new(requirement.Requirement.Id, missing, EquatableArray.From(findings)));
         }
         return EquatableArray.From(result);

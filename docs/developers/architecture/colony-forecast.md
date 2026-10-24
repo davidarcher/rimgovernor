@@ -10,11 +10,7 @@ limits, exact execution ownership and the replacement acceptance cases.
 `ColonyForecastRules.ForecastColony` is the pure owner of a baseline and a proposed
 commitment delta evaluated against the same observed facts. It returns
 `ColonyForecast`; it does not issue orders or certify native legality. The
-inventory component accounts for supplied timed changes. The construction slice
-below generates delivery/finish dependencies from observed standing sites and
-shares pawn/material capacity across commitments. A bounded food Method caller
-uses the shared outcome comparator and normal journal/Hands dispatch for harvest
-and delivery. The coupled component below composes food, needs, construction and
+inventory component accounts for supplied timed changes. The coupled component below composes food, needs, construction and
 clothing consequences on one timeline. [Normal portfolio selection](portfolio-selection.md)
 uses these consequences before binding through the existing journal and Hands.
 
@@ -412,12 +408,13 @@ game a day later is #3475.
 ## Bounded activity coordination proof
 
 `CompareActivityPlans` is the pure activity scheduler under the coupled
-trajectory (`ForecastCoupled`) and the construction slice. It evaluates one
-supplied outcome DAG, not colony demand or a second production scheduler. `ForecastColony` calls it for the construction slice below; the [normal portfolio path](portfolio-selection.md) also compares supported coupled activities and binds selected Methods. `ResourceDemandOf` remains the demand owner, and dispatch belongs to Hands.
+trajectory (`ForecastCoupled`). It evaluates one
+supplied outcome DAG, not colony demand or a second production scheduler. The [normal portfolio path](portfolio-selection.md) compares supported coupled activities through it and binds selected Methods. `ResourceDemandOf` remains the demand owner, and dispatch belongs to Hands.
 
 A `ForecastActivityProblem` supplies activities, prerequisite IDs, start/end
 locations, eligible pawn options, elapsed service durations, directed route
-durations and known/unknown availability windows per pawn. Every activity is required
+durations, a deadline and each pawn's `ForecastCapacityWindows`: `Read` windows when every capacity input was read, or
+`Unread`, which plans no work for that pawn. Every activity is required
 exactly once. Service may include pickup, loaded transit and delivery; those
 stages must be included in the supplied duration and final location, not counted
 again as approach travel. Durations are elapsed ticks, not native work units.
@@ -450,17 +447,15 @@ not additional charges. Recovery is added once in the same labor-tick unit.
 It is an explicit caller estimate, not a combat probability model, and does
 not extend the pawn's occupancy or predict injury onset/needs. Such coupling
 is outside this supplied-estimate activity proof. All participants' costs count. Finishing after the
-supplied deadline or availability end refuses that combination. Known zero is
-valid; unknown route, capacity, service or recovery excludes only the affected
-branch with a finding. Unknown deadline prevents evaluation; unknown alternative
-cost prevents selection but preserves evaluated plans.
+supplied deadline or availability end refuses that combination. Zero is
+valid; an unrouted walk, unread capacity (`unread_capacity`) or undeclared equipment excludes only the affected
+branch with a finding. Option work, recovery and the deadline are plain numbers: a builder that cannot project an
+option's work leaves the option out with its own finding (#3894).
 
 Plans rank by total labor cost, completion time and a deterministic ordinal
-schedule key. A plan must strictly beat the supplied alternative labor budget;
-ties retain the alternative, which can mean continuing other work or postponing
-this outcome. This budget assumes comparable outcome value and is not a new
-calibrated utility currency or a forecast of the alternative itself. A cheap
-coordinated plan can still lose because the entire activity is too costly.
+schedule key. `ForecastActivityComparison.Alternatives` returns them cheapest first; the comparison selects nothing.
+The caller decides: the coupled trajectory values each schedule against its consequences, so there is no
+alternative labor budget here.
 
 The iteration budget counts option visits (including unknown/refused options)
 and departure trials. The default is 512, with a maximum of 4096 and at most
@@ -478,10 +473,9 @@ It also checks shared pawn occupancy, prerequisite joins, preparatory travel,
 waiting costs, unknowns and bounded candidate generation. These are synthetic
 policy scenarios: route durations are supplied rather than native observations;
 carrying capacity and skill are encoded in supplied elapsed durations; opportunity
-costs and the alternative budget are assumptions. Just-in-time travel assumes
+costs are assumptions. Just-in-time travel assumes
 predictable prerequisite completion and divisible baseline work. The generic search
-accounts for declared exclusive equipment below; construction adds scoped material
-accounting and reevaluates current observations. Portable-tool transport and
+accounts for declared exclusive equipment below. Portable-tool transport and
 interruptions remain unmodelled; coupled needs belong to the trajectory above and
 dispatch to the Method journal and Hands. It establishes combination generation and
 conditional valuation, not emergent expert play.
@@ -489,75 +483,16 @@ conditional valuation, not emergent expert play.
 
 ## Construction commitments and shared capacity
 
-A `ForecastCommitment.Construction` references the geometry of a standing build
-owned by the caller's Method. Its stock changes must be empty: material effects
-come from that site's observed outstanding needs, so the caller cannot also
-charge the build's preview cost. Duplicate commitments for the same geometry
-are rejected. `ForecastConstructionContext` supplies the complete current census,
-observed worker capability, explicit pawn availability/rates, route/service
-estimates and live bill-job ingredient reservations. Nothing is persisted.
+Construction work is generated by `ConstructionMethodCandidates` from the coupled census and compared in the coupled
+trajectory on the same capacity and material frame as every other activity. The normal adapter observes supported
+native estimates and exposes typed operations to the shared composer; missing estimates receive no distance-based or
+zero-cost defaults. Standing journal claims protect current work, and selected alternatives use the existing
+Method/Hands continuation path. See [normal portfolio selection](portfolio-selection.md) for supported scope and the
+distinction between registered native cases and observed gameplay evidence.
 
-The observation projection retains native `WorkLeft` and exact `MaterialsOwed`
-from blueprint/frame rows. Work units are divided by the supplied worker rate
-to obtain elapsed ticks. Missing work or an incomplete material read stays
-unknown; completed or absent sites release future work on the next evaluation.
-A known zero-work frame is distinct from unknown work. Existing delivered frame
-contents are not charged again. Neither this adapter nor forecast stock effects
-change `ResourceDemandOf` or raise another material target.
-
-For each baseline/delta scenario independently, policy generates a delivery
-activity followed by finishing, or finishing alone for a supplied frame. It
-uses `CompareActivityPlans` for self-service/delegation and preparatory travel.
-A site has no other way to be built, so its alternative labor budget is the most
-labor any plan can take inside the horizon (every pawn busy to the deadline plus
-every option's recovery labor): any plan meeting the deadline is selected.
-Finishing requires observed availability, construction capability, native skill
-prerequisite and the site's adopted quality floor. Unknown quality floors do
-not relax eligibility. Explicit delivery/finish eligibility estimates must
-include native legality and work prohibitions; a forecast is never a reservation.
-
-Commitments are considered by tier (untiered first), then ordinal commitment ID.
-This is a conservative bounded list schedule, not a search across commitment
-orders. The selected allocations trim each participating pawn's remaining windows and update its location for later commitments. Different pawns can overlap; earlier
-gaps are not reused. One expansion budget is shared across the scenario.
-Truncation and exhaustion stay visible in comparisons/results. Unknown or
-infeasible commitments produce per-commitment results and leave independent
-known commitments eligible; this is not a colony-wide admission gate.
-
-Material feasibility reuses `MaterialBudget` with bill-job holds and explicit
-unknown checks. Standing construction deficits are not subtracted there: this
-slice allocates its own exact needs once, sequentially. Other supplied negative
-stock effects within the horizon are protected up front, and future positive
-effects do not finance delivery. Native reads the bench census every frame, so the
-reservations are a plain list; an unread census is a `RequiredFactException`
-(`bill_reservations`, #3881). An unknown declared consumption affects only its
-resource; unrelated materials and already supplied frames can still run. Exact
-ingredient promises and equipment occupancy are accounted below.
-A higher-tier site conservatively waits while any lower-tier census site needs
-its material, even when that lower site is not in the requested bundle. Native
-per-pawn reachability exceptions to this gate are not yet projected, so this can
-reject work native would allow. Equal-tier construction outside the requested
-bundle is not reserved; this is a conditional comparison of declared commitments,
-not proof of exclusive access against every possible native consumer.
-
-A selected delivery removes outstanding material from free inventory at arrival
-at its explicit pickup location. Delivery never creates new colony stock, and
-finishing never creates a duplicate inventory benefit. `Construction` results
-expose completion day, the assignment comparison, material changes and refusal
-reason; original commitments remain reusable input. Unknown/refused outcomes
-have no certified completion and no scheduled material effect. Consumers must
-read these results as well as inventory findings. Baseline and proposed share
-observed stock but allocate independently, so cancellation in the delta releases
-its pawn/material use without rewriting the baseline.
-
-The isolated construction API accepts supplied route, delivery and work estimates.
-A delivery describes one stated pickup location for that site's outstanding
-materials. The normal coupled adapter now observes supported native estimates
-and exposes typed operations to the shared composer; missing estimates receive
-no distance-based or zero-cost defaults. Standing journal claims protect current
-work, and selected alternatives use the existing Method/Hands continuation path.
-See [normal portfolio selection](portfolio-selection.md) for supported scope and
-the distinction between registered native cases and observed gameplay evidence.
+`ForecastColony` no longer schedules a construction slice of its own (#3894): `ForecastConstructionContext`, its
+per-commitment estimates and `Construction` results had no reader once the coupled trajectory took construction over,
+so they were deleted with their tests rather than hardened.
 
 A standing removal designation is construction work the same way (#3557, #3612,
 #3613, #3614, #3615). The room reconcile stands a Deconstruct over an interior ruin
@@ -592,11 +527,6 @@ cell outside the planned room stays unroofed (RoofIn re-roofs the room's own
 interior later). Up to 16 ops
 a round across all kinds; more sets
 `Truncated`.
-
-`ForecastConstructionTests` covers decoding existing native fields, inventory
-consumption once, baseline/delta cancellation, shared versus disjoint workers,
-scarce materials and bill holds, skill/tier protection, changed/removed sites,
-unknown routes, independent runnable work and the shared search budget.
 
 
 ## Planned rooms
@@ -1152,48 +1082,12 @@ and recipe selection remain upstream, and whole batches cannot split materials.
 
 ## Competing outcomes and shared labor
 
-The legacy activity-only overload of `CompareActivityOutcomes` compares optional
-outcomes with supplied labor-benefit estimates; normal production uses the
-coupled consequence ordering described in [portfolio selection](portfolio-selection.md).
-Each outcome names one existing need, a completion task, a deadline, and an
-explicit estimate of avoided loss in baseline labor ticks. The caller owns the
-need and its estimate; activity names carry no priority. Explicit choice identity
-determines mutually exclusive realizations. Demand identity alone does not
-exclude additive contributions; supplied losses must not duplicate benefits.
-
-The comparison generates postponement, individual outcomes and combinations.
-It closes each selected completion over its prerequisites and schedules the
-union through `CompareActivityPlans`. Shared prerequisites execute once;
-participants share the same availability, routes and equipment. It scores
-completed, on-time outcomes by avoided loss minus displaced labor and injury
-recovery cost. An outcome receives no partial credit. Zero or negative net
-benefit retains postponement. Equal scores prefer lower labor cost, then earlier
-completion; remaining ties follow stable outcome and activity ordering.
-
-One deterministic expansion budget covers combination generation and all nested
-assignment searches. Truncation means best found, not globally optimal; early
-outcomes can consume the budget. Unknown benefit/deadline excludes that outcome
-with a finding. Unknown routes, capacity or work remain scheduler findings, never
-free work. At most sixteen supplied outcomes and the existing thirty-two-task
-limit bound the input. This is an in-memory forecast component, not saved intent
-or a second source of demand.
-
-`ForecastActivityOutcomesTests` uses two pawns to compare shelter completion and
-food harvesting. Protected builder time makes material delivery compete with
-harvesting. Larger exposure loss favors shelter; larger hunger loss favors food.
-Without that obligation, solo builder preparation leaves the helper harvesting
-and both finish. Already-delivered materials eliminate preparation. The same
-mechanism covers shared prerequisites, deadline failure, costly recovery,
-postponement, unknown estimates and deterministic truncation.
-
-These are supplied synthetic estimates, not calibrated exposure/hunger losses
-or a live shelter policy. Candidate graphs and material inputs are
-supplied; this comparison does not reserve stock, generate room designs, forecast
-weather or eating, or dispatch work. Partial shelter has no modeled benefit.
-Live shelter choice does not use this call: [planned room activities](#planned-room-activities)
-compete in the coupled trajectory on one capacity/material frame and execute
-through planner-owned construction and delivery activities with observed
-completion and replanning. This section is a supplied-estimate proof.
+Outcomes compete in the coupled consequence ordering described in [portfolio selection](portfolio-selection.md).
+A `ForecastActivityOutcome` names one existing need, its completion task, its requirement relief, retained
+ongoing work (`ForecastRetainedWork`, the ticks until observed work completes) and its exclusions; activity names
+carry no priority. The legacy activity-only `CompareActivityOutcomes` overload, which scored supplied avoided-loss
+estimates against an alternative labor budget, was deleted in #3894 with its unread benefit, deadline and
+choice-identity members: the coupled trajectory was its only consumer and never read them.
 
 ## Observed deadlines for shelter and food
 
@@ -1213,172 +1107,22 @@ known non-growing hazard or a limit beyond the requested horizon is marked not
 due. Missing or invalid body readings remain unknown. Heat, weather transitions,
 frostbite and recovery trajectories are outside this component.
 
-`CompareSurvivalActivities` joins explicit candidate relief to these needs and
-uses `CompareActivityOutcomes` with the `EarliestDeadline` objective. It compares
-counts of prevented needs at each deadline, earliest first, then lower labor
-cost and earlier completion. Alternatives for one need must agree on its
-deadline. This is an explicit ordinal policy, not a physiological conversion of
-cold or hunger into labor. It does not claim the two deadline bases have equal
-medical severity. `NetBenefit` is unknown in this mode. The default scalar
-objective remains available for the earlier supplied-loss proof.
-
-The caller must supply a known labor-cost ceiling; plans at or above it wait.
-This ceiling, task rates/routes/availability and material feasibility remain
-estimates, not calibrated observations. Unknown ceilings refuse selection. Both
-objectives share candidate generation, dependency scheduling and a single
-expansion budget. No live caller dispatches this comparison: the coupled
-trajectory owns selection, and `SurvivalNeedsOf` supplies the food generator's
-deadlines.
-
-Typed candidate effects are assessed on each scheduled plan to establish that completing the terminal task
-prevents its named shortfall through the assessed horizon. Unknown effects get
-no credit. Finishing a roof alone does not establish thermal protection; harvest
-alone does not establish sufficient edible food reaching the intended pawn.
-The adapter does not infer either effect from task names. A missed deadline
-cannot be credited as prevention; emergency mitigation after harm starts needs
-its own candidate/model and remains outstanding. These diagnostics do not create
-stock demand, reservations or another durable owner.
-
-`ForecastSurvivalNeedsTests` uses native-shaped fact fixtures to show food stock,
-competing consumption, rot, temperature and apparel changing the choice. It also
-covers unknown evidence/effects, already-serious cold, postponement, labor caps,
-frame consistency and bounded determinism. This proves the pure decision path,
-not native reads or completed shelter work. The live path (candidate generation,
-the planned-room thermal envelope, work-time estimation, construction/delivery
-adapters and observed replanning) is the coupled trajectory and the
-[pawn activity contract](../contracts/pawn-activities.md).
-
-## Quantitative activity effects
-
-`CompareSurvivalActivities` now evaluates typed food and shelter evidence on each
-scheduled combination before ranking it. The supplied `PreventsShortfall` boolean
-has been removed. The existing bounded outcome search invokes a pure assessment
-of each complete plan; unknown/refused effects remain findings. There is no
-second scheduler, demand store or order writer.
-
-Food effects name a terminal activity output and its exact resource. Quantity
-comes from the activity's declared output; nutrition per unit comes from the
-native item catalog. Conditional eater/holder/expiry evidence is passed through
-the existing food allocator, including all competing consumers. Each physical
-terminal output is allocated once even when several outcomes name it. Starting
-at each pawn's baseline food-exhaustion time, the assessment consumes its allocated
-shares in expiry order and requires uninterrupted coverage through the horizon.
-An output not yet delivered at the end of existing coverage gets no credit;
-expiry is relative to the forecast origin. Missing eligibility, quantity,
-nutrition or expiry is unknown. This checks conditional edible availability,
-not ingestion, food poisoning or starvation physiology.
-
-Activity `Inputs` consume exact quantities at service start; `Outputs` add exact
-quantities at completion. The survival assessment uses the existing
-`ForecastMaterialBudgetOf` over observed stock, native holds and the request's
-committed claims, rebuilt for every alternative. All scheduled activities share
-that balance. A positive-duration prerequisite's output can fund a dependent
-input at the same tick; zero-duration output follows consumption and cannot fund
-itself. This enables harvest/cook/delivery chains and shelter/food fuel contention.
-Inputs and outputs also appear as signed conditional stock changes on the plan.
-The general activity scheduler alone does not certify material feasibility;
-this effect assessment owns that check for survival selection.
-
-Food moved through a chain must be consumed and re-emitted rather than invented
-again at each stage. An intermediate edible output consumed later by the selected
-plan cannot also receive food-relief credit. Consuming resources already counted
-in the baseline food census returns unknown pending timed food
-reallocation; it cannot reuse the same nutrition as both baseline meals and recipe
-inputs. Expiry-order allocation is conservative and does not revisit an early
-skipped delivery after later food extends coverage. Partial relief receives no
-full-horizon prevention credit.
-
-Shelter effects declare enclosure/roof status, required completion activities,
-a location and a minimum/maximum temperature estimate valid through the horizon.
-Each beneficiary must have a known comfortable range, and the entire estimated
-range must fit inside it. Required work must finish by the terminal completion;
-the beneficiary's last scheduled activity must reach that shelter by then.
-Missing heating dependencies, missing arrival, a cold roof or an unknown/short
-thermal estimate cannot certify protection. Staying at that destination through
-the horizon is an explicit candidate assumption; future occupancy changes are
-not simulated. Heating fuel/power must be represented in the candidate's inputs
-and prerequisites where required.
-
-There is still no native room-heat trajectory estimator: enclosure, future room
-temperatures, continued occupancy, output eligibility/expiry and recipe yields
-remain conditional candidate evidence. This layer checks their sufficiency and
-shared accounting; it does not establish that those estimates will occur. Live
-candidate generation, room heat/power/fuel transitions, native completion and
-Hands construction/delivery dispatch remain integration work. The existing
-construction admission gate and helpers are unchanged.
-
-Scenario tests cover insufficient nutrition, wrong eaters, rot before the horizon,
-shared-output allocation, missing heating/arrival, unknown temperature/material
-facts, shared fuel after commitments, and an actual harvest/cook/delivery DAG.
-They prove policy decisions from fixtures, not observed gameplay completion.
+No caller compares relief activities against these deadlines any more: `CompareSurvivalActivities` and its typed
+food and shelter effect assessment were deleted in #3894, and `SurvivalNeedsOf` is now read only by its tests. The
+coupled trajectory owns selection, including the planned-room thermal envelope, work-time estimation,
+construction/delivery adapters and observed replanning (see the
+[pawn activity contract](../contracts/pawn-activities.md)). `ForecastSurvivalNeedsTests` covers the deadline
+derivation from native-shaped fact fixtures: food stock, competing consumption, rot, temperature, apparel,
+already-serious cold and unknown evidence.
 
 ## Food candidates from acquisition and recipe observations
 
-`GenerateFoodActivities` builds candidate graphs from existing acquisition,
-crop-catalog, production-bench and exact recipe-input observations. The shared
-forecast roster and the candidate frame must have the same tick. An available,
-unclaimed harvestable food plant creates one harvest task shared by its raw and
-cooked alternatives. Trees, hunts, immature plants and already claimed/designated
-sources are not harvested again. Source yield and the crop's native harvest work
-supply the quantity and work; neither comes from a plant-name heuristic.
-
-Raw delivery remains an alternative. For each usable observed bench and available
-ordinary-meal recipe, the generator checks every exact ingredient slot against
-the harvested resource. This slice supports recipes whose complete ingredient
-set can be supplied by that single resource and which have one ordinary product
-and no reusable unfinished item. It enumerates whole recipe iterations from one
-up to what this harvest can fund, spending generation budget on each size in
-ascending order. Small batches can satisfy the need sooner and displace less
-work; a longer food horizon can require a larger batch. It does not mix harvests.
-The existing recipe catalog projection now includes native product counts and
-base recipe work. Cooking quantities are product count times batches, not an
-assumed one meal. Other ingredients and unsupported/unknown recipes are excluded
-rather than guessed.
-
-The generated chain is harvest, delivery to the bench, cooking, then delivery to
-the requested destination. Exact input/output quantities preserve material flow;
-the normal effect assessor checks joint stock and claims. Recipe variants and raw
-delivery reach the same existing bounded comparison before one is chosen. Native
-cook skill floors exclude unqualified workers; current worker availability is
-required for every operation. Cooking claims the exact bench as shared equipment.
-Task bindings retain source and bench/recipe identities and the valued number of
-recipe iterations for inspection; they are not executable Hands orders. A
-multi-iteration forecast must not be dispatched as one native Cook activity:
-that adapter performs one iteration and requires exact observed ingredient stacks.
-
-The graph's service times derive from observed work and supplied worker rates.
-Initial travel routes, native worker eligibility, per-resource carrying limits,
-complete-trip costs, recovery estimates and bench availability windows remain
-explicit inputs. Carrying work scales by the ceiling of quantity divided by
-carrying capacity. A bench's current usable flag is not a guarantee of continued
-power/fuel: the supplied equipment window must cover operation, and this slice
-does not forecast those transitions. Destination eater/expiry evidence is still
-conditional. Unknown estimates cannot become zero-time operations.
-
-Generation has its own explicit budget for source/recipe inspection and batch
-alternatives, and respects the scheduler's
-32-task and 16-outcome limits. It reports truncation; omitted candidates are not
-proven inferior. Search retains its separate expansion budget. No graph is
-returned when no relief candidate is generated. Missing kitchen information can
-leave known raw alternatives available, while an unknown source census cannot
-be treated as an empty known harvest. Findings are retained on the generation
-result and must be considered alongside comparison findings.
-
-`ForecastFoodCandidatesTests` exercises observed-input fixtures through generation
-and selection: a small harvest requires cooking, a larger harvest favors cheaper
-raw delivery, small batches beat a maximum batch that misses the deadline, longer
-horizons require more meals, native product counts affect output, and unavailable workers,
-missing transfer/bench evidence, carrying limits, immature/claimed sources,
-unsupported ingredient combinations and truncation are explicit. The catalog
-projection compiles against native definitions; these tests do not prove a live
-crop census or native execution. This generator is a supplied-input proof; normal
-Rounds generates its food alternatives through `FoodMethodCandidates.GenerateCoupled`
-(the [live policy stages](#live-activity-policy-stages)). Batch sizes omitted by
-the bounded enumeration remain untested, and the comparison does not model
-staggered delivery between iterations. Multi-source/multi-ingredient planning,
-native worker yield/rate calibration and power/fuel transitions are explicit
-unknowns, not modelled. The
-[activity execution contract](../contracts/pawn-activities.md) now includes an
+Normal Rounds generates its food alternatives through `FoodMethodCandidates.GenerateCoupled` (the
+[live policy stages](#live-activity-policy-stages)). The supplied-input generator `GenerateFoodActivities` was deleted
+in #3894: nothing outside its tests called it. A coupled harvest or cook candidate whose product has no read shelf
+life is skipped with `food_shelf_life_unread:{supply}`, and two observed supplies under one id are refused with
+`conflicting_food_supply:{supply}`; neither is guessed.
+The [activity execution contract](../contracts/pawn-activities.md) includes an
 exact one-trip delivery adapter alongside harvest, plus a one-iteration cooking
 adapter for exact single-resource ingredient stacks and an existing selected bill.
 Their native cases check physical output and explicit revision after refusal,

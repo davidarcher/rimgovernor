@@ -6,6 +6,6 @@ internal static class FoodRecipeActivity
     internal static ForecastActivity Create(string id, string location, string[] prerequisites,
         Resource ingredient, double required, Resource product, double produced) => new(id, location, location, prerequisites)
         {
-            Inputs = [new(ingredient, Known(required))], Outputs = [new(product, Known(produced))]
+            Inputs = [new(ingredient, required)], Outputs = [new(product, produced)]
         };
 }

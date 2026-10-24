@@ -52,7 +52,7 @@ public sealed class BedroomCreditTests
     private static ForecastCoupledOutcome Closing(double closedAt, double shift) =>
         new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], default, default, new(new("pawn", "", default, default), []), [])
+            ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = new([], default, default, default, default, default, [])
                 {
@@ -194,7 +194,7 @@ public sealed class BedroomCreditTests
 
         // Calm colonists (no break days either way): the credit a colonist-day is the wellbeing of the delta plus the rest.
         var shifts = ForecastHousing.BreakShifts(context);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), ids.ToDictionary(id => id, id => new ForecastNeedsResult([], default, default, new(new(id, "", default, default), []), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), ids.ToDictionary(id => id, id => new ForecastNeedsResult([], default, default, new(new(id, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = new([], default, default, default, default, default, [])
             {

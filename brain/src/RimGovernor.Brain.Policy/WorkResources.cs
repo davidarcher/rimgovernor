@@ -137,7 +137,7 @@ public static partial class WorkRules
             Location = "start",
             HorizonTicks = horizon,
             LocalHour = observed?.LocalHour ?? default,
-            OpportunityCostPerTick = Known(1.0),
+            OpportunityCostPerTick = 1.0,
             CurrentWork = new(work.Id, observed?.Occupied ?? default, default,
                 observed?.Occupied == Known(false) ? Known(0.0) : default),
             Occupancy = view.Claims.Truncated ? default : Known<EquatableArray<ForecastOccupancy>>(view.Claims.Pawns.Contains(pawn)
@@ -510,7 +510,7 @@ public static partial class WorkRules
                 || !observed.Applies.TryGetValue(out var applies) || !applies) return "pawn_unavailable:" + pawn;
             if (retainedParticipants?.Contains(pawn) != true && proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
                 && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Recipe or PawnActivityKind.Approach or PawnActivityKind.Supply))
-                && (!view.Capacity.TryGetValue(pawn, out var capacity) || !capacity.Capacity.Windows.TryGetValue(out var windows)
+                && (!view.Capacity.TryGetValue(pawn, out var capacity) || capacity.Capacity.Windows is not ForecastCapacityWindows.Read(var windows)
                     || !windows.Any(w => w.Start == 0 && w.End > 0))) return "pawn_capacity_unavailable:" + pawn;
         }
         // A pawn the plan does not move already occupying a target: whole for an exclusive one, one more owner for a capacity target.

@@ -37,8 +37,9 @@ public sealed class CoordinatedConstructionTests
         // A bare wall has no automatic colony value after service-based admission (#3166).
         Assert.Empty(selected.Selection.Selected);
         var physical = ForecastActivities.CompareActivityPlans(generated.Context.Activities);
-        comparison = new(physical.Selected is null ? [] : generated.Alternatives.Select(c => c.Id).ToArray(),
-            physical.Selected, default, physical.Findings, physical.Expansions, physical.SearchTruncated);
+        var plan = physical.Alternatives.FirstOrDefault();
+        comparison = new(plan is null ? [] : generated.Alternatives.Select(c => c.Id).ToArray(),
+            plan, physical.Findings, physical.Expansions, physical.SearchTruncated);
         selected = selected with { Selection = comparison, Deferred = [] };
         return ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100);
     }

@@ -24,11 +24,11 @@ public sealed record ForecastCapacityInput
     public required string Location { get; init; }
     public double HorizonTicks { get; init; }
     public Fact<double> LocalHour { get; init; }
-    public Fact<double> OpportunityCostPerTick { get; init; }
+    public required double OpportunityCostPerTick { get; init; }
     /// <summary>The pawn's current job: occupied or free, with its remaining useful time (ForecastCurrentWork.ForecastCurrentWorkOf).</summary>
     public required ForecastCurrentWork CurrentWork { get; init; }
-    /// <summary>Explicit endpoint assumption for gaps after protected activity. Missing endpoints block route evaluation.</summary>
-    public Fact<string> LocationAfterProtectedTime { get; init; }
+    /// <summary>Explicit endpoint assumption for gaps after protected activity. Null (unread) endpoints block route evaluation.</summary>
+    public string? LocationAfterProtectedTime { get; init; }
     /// <summary>Known empty means no additional needs/protected work. Unknown is not a free day.</summary>
     public Fact<EquatableArray<ForecastOccupancy>> Occupancy { get; init; }
 }
@@ -42,21 +42,21 @@ public static class ForecastCapacity
     {
         if (!double.IsFinite(input.HorizonTicks) || input.HorizonTicks < 0 || input.HorizonTicks > 7 * GameTime.TicksPerDay)
             throw new DomainException("capacity horizon must be between zero and seven game days");
-        ForecastCapacityResult Result(Fact<EquatableArray<ForecastTimeWindow>> windows, params string[] findings) =>
+        ForecastCapacityResult Result(ForecastCapacityWindows windows, params string[] findings) =>
             new(new(input.Pawn.Id.Value, input.Location, windows, input.OpportunityCostPerTick), findings);
         var pawn = input.Pawn;
         if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
-            return Result(Known(default(EquatableArray<ForecastTimeWindow>)), "pawn_unavailable");
+            return Result(new ForecastCapacityWindows.Read([]), "pawn_unavailable");
         var current = input.CurrentWork;
         if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
         if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !WorkPawnProfileExtensions.WorkHoursPerDay(pawn.Schedule).IsKnown)
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
-            return Result(default, "unknown_capacity_inputs");
+            return Result(new ForecastCapacityWindows.Unread(), "unknown_capacity_inputs");
         if (!double.IsFinite(hour) || hour < 0 || hour >= 24) throw new DomainException("invalid local hour");
         var blocked = new List<ForecastTimeWindow>();
         if (occupied)
         {
-            if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(default, "unknown_current_job_remaining");
+            if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(new ForecastCapacityWindows.Unread(), "unknown_current_job_remaining");
             if (remaining > 0) blocked.Add(new(0, Math.Min(remaining, input.HorizonTicks)));
         }
         // Each identity (pawn and id) is read once, at its first row, which every later row of it must equal.
@@ -73,7 +73,7 @@ public static class ForecastCapacity
                 throw new DomainException("conflicting occupancy identity");
             if (row.Pawn != pawn.Id.Value || row.State != ForecastOccupancyState.Active) continue;
             if (!row.Start.TryGetValue(out var start) || !row.End.TryGetValue(out var end))
-                return Result(default, "unknown_active_occupancy");
+                return Result(new ForecastCapacityWindows.Unread(), "unknown_active_occupancy");
             if (!double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end < start)
                 throw new DomainException("invalid occupancy interval");
             if (start < input.HorizonTicks && end > start) blocked.Add(new(start, Math.Min(end, input.HorizonTicks)));
@@ -95,10 +95,10 @@ public static class ForecastCapacity
         double cursor = 0;
         foreach (var block in blocked)
         {
-            if (block.Start > cursor) windows.Add(new(cursor, block.Start) { StartLocation = cursor == 0 ? Known(input.Location) : input.LocationAfterProtectedTime });
+            if (block.Start > cursor) windows.Add(new(cursor, block.Start) { StartLocation = cursor == 0 ? input.Location : input.LocationAfterProtectedTime });
             cursor = Math.Max(cursor, block.End);
         }
-        if (cursor < input.HorizonTicks) windows.Add(new(cursor, input.HorizonTicks) { StartLocation = cursor == 0 ? Known(input.Location) : input.LocationAfterProtectedTime });
-        return Result(Known(EquatableArray.Wrap(windows.ToArray())));
+        if (cursor < input.HorizonTicks) windows.Add(new(cursor, input.HorizonTicks) { StartLocation = cursor == 0 ? input.Location : input.LocationAfterProtectedTime });
+        return Result(new ForecastCapacityWindows.Read(EquatableArray.Wrap(windows.ToArray())));
     }
 }

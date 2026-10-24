@@ -39,10 +39,11 @@ public sealed class MaterialChargeTests
         {
             Activities = new()
             {
+                Deadline = 0,
                 Activities =
                 [
-                    new(Delivery, "stack", "planned/room1", []) { Inputs = [new(def, Known((double)units))] },
-                    new(Refuel, "stack", "stove", []) { Inputs = [new(def, Known(5d))] },
+                    new(Delivery, "stack", "planned/room1", []) { Inputs = [new(def, (double)units)] },
+                    new(Refuel, "stack", "stove", []) { Inputs = [new(def, 5d)] },
                 ],
             },
             Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),

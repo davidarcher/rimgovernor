@@ -22,7 +22,7 @@ public sealed class WorkOccupancyTests
     {
         Pawn = new() { Id = pawn.Id, Available = Known(pawn.Available), Applies = Known(pawn.Applies), Schedule = pawn.Schedule },
         CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(pawn, remaining),
-        Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
+        Location = "home", HorizonTicks = 100, LocalHour = Known(12.0), OpportunityCostPerTick = 1,
         Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
     };
     private static int Priority(WorkDecision decision, string pawn, WorkType work) =>
@@ -84,17 +84,17 @@ public sealed class WorkOccupancyTests
         var free = Pawn("free");
         var decision = Plan(away, free);
         Assert.Contains(decision.Assignments, a => a.Pawn == free.Id);
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(free)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input(away)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(free)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input(away)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
     }
 
     [Fact]
     public void RosterAndForecastAgreeOnIdleAndOngoingWorkWithoutInventingDuration()
     {
         var pawn = Pawn("pawn") with { Job = new PawnJob { Def = "Wait_Wander" } };
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(pawn)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(pawn)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         Assert.Contains("unknown_current_job_remaining", ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn))).Findings);
-        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn), Known(40.0))).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn), Known(40.0))).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, Known(-1.0)));
     }
 
@@ -108,7 +108,7 @@ public sealed class WorkOccupancyTests
         Assert.Equal(Known(WorkType.Cooking), current.Work);
         Assert.Equal(Known(0.0), current.RemainingTicks);
         Assert.True(ConstructionHelpersRules.IdleJob(cook.Job));
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(cook)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(cook)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         var decision = Plan(cook, Pawn("free", cooking: 5));
         Assert.Equal(1, Priority(decision, "cook", WorkType.Cooking));
         Assert.NotEqual(1, Priority(decision, "cook", WorkType.Construction));

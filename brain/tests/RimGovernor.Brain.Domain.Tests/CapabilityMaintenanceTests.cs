@@ -40,12 +40,12 @@ public sealed class CapabilityMaintenanceTests
         var completed = new Dictionary<string, Fact<bool>> { ["work"] = Known(true) };
         ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)
             => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
-        Assert.True(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp.Value > 0);
+        Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp).Xp > 0);
         var projection = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(Learning(), [], 0));
         var work = new ForecastActivityPlan([new("work", "pawn", 0, 0, 0, 1, 0, 0, 1, 1, 0)
         { Learning = new("Shooting", [new("work", 1, 20d, SkillXpPath.NormalTracker)], projection, projection, 1, 1, "native") }], 1, 1);
-        Assert.Equal(Known(0d), Forecast(EquatableArray.From(skills), work).MissingXp);
-        Assert.False(Forecast([skills[0]], new([], 0, 0)).MissingXp.IsKnown);
+        Assert.Equal(new ForecastMaintenanceGap.Projected(0), Forecast(EquatableArray.From(skills), work).MissingXp);
+        Assert.IsType<ForecastMaintenanceGap.Unprojectable>(Forecast([skills[0]], new([], 0, 0)).MissingXp);
     }
 
     [Theory]
@@ -73,7 +73,7 @@ public sealed class CapabilityMaintenanceTests
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.NotEmpty(selected.Selection.Selected);
-        Assert.True(selected.Selected.Maintenance[0].MissingXp.Value < selected.Baseline.Maintenance[0].MissingXp.Value);
+        Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(selected.Selected.Maintenance[0].MissingXp).Xp < Assert.IsType<ForecastMaintenanceGap.Projected>(selected.Baseline.Maintenance[0].MissingXp).Xp);
         var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "maintenance-test", 100));
         batch.Validate(); Assert.Equal(melee ? 2 : 1, batch.Tasks.Count);
         var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Operations.PawnActivitiesIntent>(

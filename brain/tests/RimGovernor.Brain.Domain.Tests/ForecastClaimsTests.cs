@@ -71,45 +71,45 @@ public sealed class ForecastClaimsTests
     private static ForecastActivityProblem Jobs() => new()
     {
         Activities = [new("a", "shop", "shop", []), new("b", "shop", "shop", [])],
-        Pawns = [new("one", "shop", Known<EquatableArray<ForecastTimeWindow>>([new(0, 500)]), Known(1.0)),
-            new("two", "shop", Known<EquatableArray<ForecastTimeWindow>>([new(0, 500)]), Known(1.0))],
-        Options = [new("a", "one", Known(100.0), Known(0.0)) { Equipment = ["tool"] },
-            new("b", "two", Known(100.0), Known(0.0)) { Equipment = ["tool"] }],
-        Equipment = [Tool()], Deadline = Known(200.0), AlternativeLaborCost = Known(1000.0),
+        Pawns = [new("one", "shop", new ForecastCapacityWindows.Read([new(0, 500)]), 1.0),
+            new("two", "shop", new ForecastCapacityWindows.Read([new(0, 500)]), 1.0)],
+        Options = [new("a", "one", 100, 0) { Equipment = ["tool"] },
+            new("b", "two", 100, 0) { Equipment = ["tool"] }],
+        Equipment = [Tool()], Deadline = 200.0,
     };
 
     [Fact]
     public void OneToolGeneratesTakingTurnsWhileSeparateToolsPermitParallelWork()
     {
         var jobs = Jobs();
-        var one = ForecastActivities.CompareActivityPlans(jobs).Selected!;
+        var one = ForecastActivities.CompareActivityPlans(jobs).Alternatives[0];
         Assert.Equal(200, one.CompletedAt);
         Assert.Equal(200, one.LaborCost);
         var claims = ForecastActivities.EquipmentClaimsOf(jobs, one).OrderBy(c => c.Start).ToArray();
         Assert.Equal(claims[0].End, claims[1].Start);
-        Assert.Null(ForecastActivities.CompareActivityPlans(jobs with { Deadline = Known(150.0) }).Selected);
+        Assert.Empty(ForecastActivities.CompareActivityPlans(jobs with { Deadline = 150.0 }).Alternatives);
         var separate = jobs with
         {
             Equipment = [Tool(), Tool("second")],
             Options = [jobs.Options[0], jobs.Options[1] with { Equipment = ["second"] }],
         };
-        Assert.Equal(100, ForecastActivities.CompareActivityPlans(separate).Selected!.CompletedAt);
+        Assert.Equal(100, ForecastActivities.CompareActivityPlans(separate).Alternatives[0].CompletedAt);
     }
 
     [Fact]
     public void EquipmentReleaseGeneratesWaitingAndJustInTimeAlternativesWithinBudget()
     {
-        var jobs = Jobs() with { Equipment = [Tool(start: 50)], Deadline = Known(250.0) };
+        var jobs = Jobs() with { Equipment = [Tool(start: 50)], Deadline = 250.0 };
         var result = ForecastActivities.CompareActivityPlans(jobs);
-        Assert.Equal(250, result.Selected!.CompletedAt);
-        Assert.Equal(200, result.Selected.LaborCost);
+        Assert.Equal(250, result.Alternatives[0].CompletedAt);
+        Assert.Equal(200, result.Alternatives[0].LaborCost);
         Assert.Contains(result.Alternatives, p => p.Allocations.Any(a => a.WaitTicks > 0));
         var bounded = jobs with { ExpansionBudget = 3 };
         var a = ForecastActivities.CompareActivityPlans(bounded);
         var b = ForecastActivities.CompareActivityPlans(bounded with { Activities = [.. bounded.Activities.Reverse()], Options = [.. bounded.Options.Reverse()] });
         Assert.True(a.SearchTruncated);
         Assert.Equal(3, a.Expansions);
-        Assert.Equal(a.Decision, b.Decision);
+        Assert.Equal(a.Alternatives.Select(p => p.LaborCost), b.Alternatives.Select(p => p.LaborCost));
         Assert.Equal(a.Findings, b.Findings);
     }
 
@@ -120,14 +120,14 @@ public sealed class ForecastClaimsTests
         jobs = jobs with
         {
             Activities = [jobs.Activities[0]],
-            Options = [jobs.Options[0], new("a", "two", Known(100.0), Known(0.0))],
+            Options = [jobs.Options[0], new("a", "two", 100, 0)],
             Equipment = [],
         };
         var result = ForecastActivities.CompareActivityPlans(jobs);
-        Assert.Equal("two", Assert.Single(result.Selected!.Allocations).Pawn);
+        Assert.Equal("two", Assert.Single(result.Alternatives[0].Allocations).Pawn);
         Assert.Contains(result.Findings, f => f.StartsWith("unknown_equipment:", StringComparison.Ordinal));
         result = ForecastActivities.CompareActivityPlans(jobs with { Equipment = [Tool() with { Location = "elsewhere" }] });
-        Assert.Equal("two", Assert.Single(result.Selected!.Allocations).Pawn);
+        Assert.Equal("two", Assert.Single(result.Alternatives[0].Allocations).Pawn);
         Assert.Contains(result.Findings, f => f.StartsWith("equipment_location_mismatch:", StringComparison.Ordinal));
     }
 

@@ -34,7 +34,7 @@ internal static class ConstructionMethodCandidates
 
     /// <summary>A pawn's option to do <paramref name="activity"/> in <paramref name="ticks"/> of labor, with no recovery labor.</summary>
     internal static ForecastActivityOption Option(string activity, string pawn, double ticks, ProductiveSkillWork? skillWork = null) =>
-        new(activity, pawn, Known(ticks), Known(0.0)) { SkillWork = skillWork };
+        new(activity, pawn, ticks, 0) { SkillWork = skillWork };
 
     /// <summary>A pawn's leg from its start to <paramref name="location"/>.</summary>
     internal static ForecastActivityRoute Start(string pawn, string location, double ticks) => new(pawn, "start", location, new RouteTicks.Reachable(ticks));
@@ -165,14 +165,14 @@ internal static class ConstructionMethodCandidates
                 var stack = rows[0];
                 var sourceLocation = ForecastLocations.Of(stack.Origin);
                 var ready = "construction-ready/" + delivery;
-                activities.Add(new(delivery, sourceLocation, siteLocation, []) { Inputs = [new(new(stack.Resource), Known((double)units)) { Lot = stack.Input }] });
+                activities.Add(new(delivery, sourceLocation, siteLocation, []) { Inputs = [new(new(stack.Resource), units) { Lot = stack.Input }] });
                 var source = "construction-source/" + stack.Input;
-                observed[source] = new(source, new(stack.Resource), Known(stack.AvailableInput), sourceLocation, Known(0.0), Known((double)horizon))
+                observed[source] = new(source, new(stack.Resource), stack.AvailableInput, sourceLocation, 0, horizon)
                 { Lot = stack.Input, Provenance = "native-construction-source:" + stack.Site + ":" + stack.Input };
                 operations.Add(new(activities[^1] with { Inputs = [], ChoiceIdentity = "construction-delivery/" + stack.Site + (shares is null ? "" : "/" + stack.Input) },
-                    [new(delivery + "/material", new(stack.Resource), Known(units), sourceLocation,
-                        ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([source]), Known(0.0), Known((double)horizon))],
-                    [new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
+                    [new(delivery + "/material", new(stack.Resource), units, sourceLocation,
+                        ForecastRequirementKind.Consumed, [source], 0, horizon)],
+                    [new(ready, capability, 1, siteLocation, 0, horizon)
                     { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-site-delivery:" + stack.Site }]));
                 readies.Add(ready);
                 foreach (var row in rows.GroupBy(o => o.Pawn).Select(g => g.First()).Where(r => r.Count > 0 && r.Capacity > 0))
@@ -197,13 +197,13 @@ internal static class ConstructionMethodCandidates
             if (supplied)
             {
                 var ready = "construction-ready/" + id;
-                observed[ready] = new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
+                observed[ready] = new(ready, capability, 1, siteLocation, 0, horizon)
                 { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-site:" + first.Site };
                 readies.Add(ready);
             }
             operations.Add(new(activities[^1] with { Prerequisites = [], ChoiceIdentity = "construction-finish/" + first.Site },
-                EquatableArray.From(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready" + (readies.Count == 1 ? "" : "/" + k), capability, Known(1),
-                    siteLocation, ForecastRequirementKind.Reusable, Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon)))), []));
+                EquatableArray.From(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready" + (readies.Count == 1 ? "" : "/" + k), capability, 1,
+                    siteLocation, ForecastRequirementKind.Reusable, [ready], 0, horizon))), []));
             foreach (var row in all.GroupBy(o => o.Pawn).Select(g => g.First()))
             {
                 workers.Add(row.Pawn);
@@ -217,9 +217,8 @@ internal static class ConstructionMethodCandidates
                 }
             }
             // A floor is a declared service investment (#3047): it relieves kitchen cleanliness and room beauty, so the selector may spend labor on it.
-            outcomes.Add(new(finish, "construction-method", finish, Known((double)horizon), default)
+            outcomes.Add(new(finish, "construction-method", finish)
             {
-                ProgressUnits = Known(1.0),
                 Requirements = floors.Contains(first.Definition)
                     ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], 0, 0) : null
             });
@@ -247,11 +246,10 @@ internal static class ConstructionMethodCandidates
             // The building stands: like a supplied site's finish, the op needs only its observed readiness to compose.
             var ready = "removal-ready/" + id;
             var capability = new Resource("ConstructionReady");
-            observed[ready] = new(ready, capability, Known(1), location, Known(0.0), Known((double)horizon))
+            observed[ready] = new(ready, capability, 1, location, 0, horizon)
             { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-designation:" + op.Id };
             operations.Add(new(activities[^1] with { ChoiceIdentity = "construction-removal/" + op.Id },
-                [new(id + "/ready", capability, Known(1), location, ForecastRequirementKind.Reusable,
-                    Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon))], []));
+                [new(id + "/ready", capability, 1, location, ForecastRequirementKind.Reusable, [ready], 0, horizon)], []));
             foreach (var (row, work) in op.Rows)
             {
                 workers.Add(row.Pawn);
@@ -259,27 +257,25 @@ internal static class ConstructionMethodCandidates
                 routes.Add(Start(row.Pawn, location, work.ApproachTicks));
                 bindings[(id, row.Pawn)] = RemovalBinding(id, op.Kind, row, op.Id, deadline, op.Targets, op.Cells);
             }
-            outcomes.Add(new(id, "construction-method", id, Known((double)horizon), default)
+            outcomes.Add(new(id, "construction-method", id)
             {
-                ProgressUnits = Known(1.0),
                 Requirements = new([new(RemovalRelief + "/" + op.Id, ProductionNeedPriority.Maintenance, 1.0)], 0, 0),
             });
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(pawn => new ForecastPawnCapacity(pawn, "start",
-            resources.Capacity.TryGetValue(pawn, out var capacity) && capacity.Capacity.Windows.TryGetValue(out var windows)
-                ? Known(EquatableArray.From(windows.Select(w => w with
+            resources.Capacity.TryGetValue(pawn, out var capacity) && capacity.Capacity.Windows is ForecastCapacityWindows.Read(var windows)
+                ? new ForecastCapacityWindows.Read(EquatableArray.From(windows.Select(w => w with
                 {
                     Start = Math.Max(0, w.Start - (tick - resources.Evidence.Tick.Value)),
                     End = w.End - (tick - resources.Evidence.Tick.Value)
-                }).Where(w => w.End > w.Start))) : default, Known(1.0))).ToArray();
+                }).Where(w => w.End > w.Start))) : new ForecastCapacityWindows.Unread(), 1.0)).ToArray();
         return new(activities.Count == 0 ? null : new()
         {
             Activities = activities.ToArray(),
             Options = options.ToArray(),
             Routes = ForecastLocations.Merge(routes),
             Pawns = capacities,
-            Deadline = Known((double)horizon),
-            AlternativeLaborCost = Known((double)horizon)
+            Deadline = horizon
         }, outcomes.ToArray(), bindings,
             truncated || removals.Length > 16)
         { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed.Values) };

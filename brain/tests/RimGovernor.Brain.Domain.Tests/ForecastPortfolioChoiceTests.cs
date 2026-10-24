@@ -138,8 +138,8 @@ public sealed class ForecastPortfolioChoiceTests
                 if (best is null || value.UrgentZero.Excess < best.UrgentZero.Excess
                     || value.UrgentZero.Excess == best.UrgentZero.Excess && value.Ledger.LossAgainst(best.Ledger) < -value.Policy.TieResolution) best = value;
                 var tasks = outcome.Plan.Allocations.Select(a => generated.Context.Activities.Activities.Single(t => t.Id == a.Activity)).ToArray();
-                var produced = tasks.SelectMany(t => t.Outputs).Sum(o => o.Units.Value);
-                var consumed = tasks.SelectMany(t => t.Inputs).Sum(i => i.Units.Value);
+                var produced = tasks.SelectMany(t => t.Outputs).Sum(o => o.Units);
+                var consumed = tasks.SelectMany(t => t.Inputs).Sum(i => i.Units);
                 Assert.True(consumed <= produced);
             }
         }

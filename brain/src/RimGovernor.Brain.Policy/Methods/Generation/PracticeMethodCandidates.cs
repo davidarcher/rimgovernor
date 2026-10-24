@@ -61,8 +61,8 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         {
             var location = ForecastLocations.Of(worker.Location);
             tasks.Add(new(id, location, location, []) { ChoiceIdentity = "practice/" + worker.Pawn,
-                NotBefore = start, LatestStart = partner is null ? null : start });
-            options.Add(new(id, worker.Pawn, Known(worker.DurationTicks), Known(0d)) { Equipment = [worker.Target, .. worker.Equipment] });
+                NotBefore = start, LatestStart = partner is null ? double.PositiveInfinity : start });
+            options.Add(new(id, worker.Pawn, worker.DurationTicks, 0) { Equipment = [worker.Target, .. worker.Equipment] });
             routes.Add(new(worker.Pawn, "start", location, new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
                 worker.WorkGiver, worker.Job, 0, checked(facts.Tick.Value + (long)horizon), worker.Location)

@@ -32,7 +32,7 @@ public sealed class SowingProviderTests
         var task = Assert.Single(generated.Context.Activities.Activities, t => t.Id.StartsWith("sow/", StringComparison.Ordinal));
         var option = Assert.Single(generated.Context.Activities.Options, o => o.Activity == task.Id);
         Assert.Equal("pawn", option.Pawn);
-        Assert.Equal(12 * SowWork / .8, option.WorkTicks.Value, 6);
+        Assert.Equal(12 * SowWork / .8, option.WorkTicks, 6);
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "sow/Zone_Growing12");
         Assert.Equal([task.Id], root.ActivityCompletions);
         Assert.Contains(generated.Context.Activities.Routes, r => r.Pawn == "pawn" && r.From == "start" && r.To == "cell/10/20" && r.Ticks == new RouteTicks.Reachable(7d));
@@ -47,7 +47,7 @@ public sealed class SowingProviderTests
     {
         var generated = Generate(350, Worker("pawn", 12, 100));
         var task = Assert.Single(generated.Context.Activities.Activities, t => t.Id.StartsWith("sow/", StringComparison.Ordinal));
-        Assert.Equal(300, Assert.Single(generated.Context.Activities.Options, o => o.Activity == task.Id).WorkTicks.Value);
+        Assert.Equal(300, Assert.Single(generated.Context.Activities.Options, o => o.Activity == task.Id).WorkTicks);
         Assert.Equal(3, generated.Context.Bindings[(task.Id, "pawn")].Count);
         Assert.Contains("sowing_cells_truncated", generated.Findings);
     }

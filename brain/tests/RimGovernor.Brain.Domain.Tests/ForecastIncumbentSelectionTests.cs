@@ -28,10 +28,10 @@ public sealed class ForecastIncumbentSelectionTests
             Activities = new()
             {
                 Activities = [new("ongoing-joy", "start", "start", []) { LatestStart = 0 },
-                    new("meal", "start", "start", []) { Inputs = [new(new("Rice"), Known(1d)) { Lot = "rice", LotLocation = "start" }] }],
-                Pawns = [new("pawn", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d))],
-                Options = [new("ongoing-joy", "pawn", Known(250d), Known(0d)), new("meal", "pawn", Known(10d), Known(0d))],
-                Deadline = Known(300d), ExpansionBudget = 4096
+                    new("meal", "start", "start", []) { Inputs = [new(new("Rice"), 1d) { Lot = "rice", LotLocation = "start" }] }],
+                Pawns = [new("pawn", "start", new ForecastCapacityWindows.Read([new(0, 300)]), 1d)],
+                Options = [new("ongoing-joy", "pawn", 250d, 0d), new("meal", "pawn", 10d, 0d)],
+                Deadline = 300d, ExpansionBudget = 4096
             },
             Needs = original.Context.Needs with { Pawns = [pawn] },
             InitialLots = [new("rice", "start", new("Rice"), Known(1d)) { Perishable = true, FreshTicks = Known(1000d) }],
@@ -60,8 +60,8 @@ public sealed class ForecastIncumbentSelectionTests
             Activities = context.Activities with
             {
                 Activities = [.. context.Activities.Activities, new("future-joy", "start", "start", []) { NotBefore = 100 }],
-                Options = [.. context.Activities.Options.Select(o => o.Activity == "ongoing-joy" ? o with { WorkTicks = Known(100d) } : o),
-                    new("future-joy", "pawn", Known(100d), Known(0d))]
+                Options = [.. context.Activities.Options.Select(o => o.Activity == "ongoing-joy" ? o with { WorkTicks = 100d } : o),
+                    new("future-joy", "pawn", 100d, 0d)]
             }
         };
         candidates = candidates with { Context = context, Alternatives = [new("future-joy", []) { ActivityCompletions = ["future-joy"] }] };
@@ -88,8 +88,8 @@ public sealed class ForecastIncumbentSelectionTests
             Activities = context.Activities with
             {
                 Activities = [.. context.Activities.Activities, new("helper-joy", "start", "start", [])],
-                Options = [.. context.Activities.Options, new("helper-joy", "helper", Known(20d), Known(0d))],
-                Pawns = [.. context.Activities.Pawns, new("helper", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d))]
+                Options = [.. context.Activities.Options, new("helper-joy", "helper", 20d, 0d)],
+                Pawns = [.. context.Activities.Pawns, new("helper", "start", new ForecastCapacityWindows.Read([new(0, 300)]), 1d)]
             }
         };
         var helper = new ForecastCommitment("helper-joy", []) { ActivityCompletions = ["helper-joy"] };
@@ -119,8 +119,8 @@ public sealed class ForecastIncumbentSelectionTests
             Activities = context.Activities with
             {
                 Activities = [.. context.Activities.Activities, .. names.Select(n => new ForecastActivity(n + "-joy", "start", "start", []))],
-                Options = [.. context.Activities.Options, .. names.Select(n => new ForecastActivityOption(n + "-joy", n, Known(20d), Known(0d)))],
-                Pawns = [.. context.Activities.Pawns, .. names.Select(n => new ForecastPawnCapacity(n, "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d)))]
+                Options = [.. context.Activities.Options, .. names.Select(n => new ForecastActivityOption(n + "-joy", n, 20d, 0d))],
+                Pawns = [.. context.Activities.Pawns, .. names.Select(n => new ForecastPawnCapacity(n, "start", new ForecastCapacityWindows.Read([new(0, 300)]), 1d))]
             }
         };
         var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context, Commitments = candidates.Incumbents,
@@ -157,9 +157,9 @@ public sealed class ForecastIncumbentSelectionTests
             Activities = candidates.Context.Activities with
             {
                 Activities = [new("haul", "start", "start", []) { LatestStart = 0 }, new("work", "start", "start", []) { LatestStart = 0 },
-                    new("eat", "start", "start", []) { NotBefore = eatStart, LatestStart = eatStart, Inputs = [new(new("Rice"), Known(2d)) { Lot = "rice", LotLocation = "start" }] }],
-                Options = [new("haul", "helper", Known(20d), Known(0d)), new("work", "pawn", Known(Math.Max(eatStart, 1d)), Known(0d)), new("eat", "pawn", Known(20d), Known(0d))],
-                Pawns = [.. candidates.Context.Activities.Pawns, new("helper", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d))],
+                    new("eat", "start", "start", []) { NotBefore = eatStart, LatestStart = eatStart, Inputs = [new(new("Rice"), 2d) { Lot = "rice", LotLocation = "start" }] }],
+                Options = [new("haul", "helper", 20d, 0d), new("work", "pawn", Math.Max(eatStart, 1d), 0d), new("eat", "pawn", 20d, 0d)],
+                Pawns = [.. candidates.Context.Activities.Pawns, new("helper", "start", new ForecastCapacityWindows.Read([new(0, 300)]), 1d)],
             },
         };
         var both = new ForecastCommitment("both", []) { ActivityCompletions = eatStart > 0 ? ["haul", "work", "eat"] : ["haul", "eat"] };
@@ -316,9 +316,9 @@ public sealed class ForecastIncumbentSelectionTests
             Activities = context.Activities with
             {
                 Activities = [new("chore", "start", "start", [])],
-                Options = [new("chore", "helper", Known(20d), Known(0d)), new("chore", "pawn", Known(20d), Known(0d))],
-                Pawns = [new("helper", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(.5)),
-                    new("pawn", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d))],
+                Options = [new("chore", "helper", 20d, 0d), new("chore", "pawn", 20d, 0d)],
+                Pawns = [new("helper", "start", new ForecastCapacityWindows.Read([new(0, 300)]), .5),
+                    new("pawn", "start", new ForecastCapacityWindows.Read([new(0, 300)]), 1d)],
             },
         };
         return (request with { Coupled = context }, ColonyForecastRules.ForecastCommitmentsById([new ForecastCommitment("chore", []) { ActivityCompletions = ["chore"] }]));

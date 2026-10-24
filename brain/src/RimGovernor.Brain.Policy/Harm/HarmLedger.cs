@@ -583,7 +583,7 @@ internal static class HarmLedger
     {
         if (commitment.ActivityCompletions.Count == 0)
         {
-            return commitment.Outcome is { RetainedCompletion.IsKnown: true } retained ? retained.RetainedCompletion.Value : 0;
+            return commitment.Outcome?.Retained is { } retained ? retained.CompletionTicks : 0;
         }
 
         double? at = null;

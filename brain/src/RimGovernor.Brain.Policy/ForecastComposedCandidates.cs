@@ -30,16 +30,16 @@ internal sealed partial record ForecastComposedCandidates
             foreach (var row in rows) sourceAliases[row.Id] = first.Id;
             return first with
             {
-                Units = rows.Select(r => r.Units).Distinct().Count() == 1 ? first.Units : default,
-                AvailableAt = rows.All(r => r.AvailableAt.IsKnown) ? Known(rows.Max(r => r.AvailableAt.Value)) : default,
-                ExpiresAt = rows.All(r => r.ExpiresAt.IsKnown) ? Known(rows.Min(r => r.ExpiresAt.Value)) : default,
+                // Reads that disagree on one lot's count offer none of it.
+                Units = rows.Select(r => r.Units).Distinct().Count() == 1 ? first.Units : 0,
+                AvailableAt = rows.Max(r => r.AvailableAt),
+                ExpiresAt = rows.Min(r => r.ExpiresAt),
                 Provenance = string.Join(";", rows.Select(r => r.Provenance).Distinct().Order(StringComparer.Ordinal))
             };
         }).OrderBy(s => s.Id, StringComparer.Ordinal).ToArray();
         ForecastCompositionRequirement Canonical(ForecastCompositionRequirement requirement) => requirement with
         {
-            Sources = requirement.Sources.TryGetValue(out var sources)
-                ? Known(EquatableArray.From(sources.Select(s => sourceAliases.GetValueOrDefault(s, s)).Distinct().Order(StringComparer.Ordinal))) : default
+            Sources = EquatableArray.From(requirement.Sources.Select(s => sourceAliases.GetValueOrDefault(s, s)).Distinct().Order(StringComparer.Ordinal))
         };
         var operationRows = suppliedOperations.Select(o => o with { Requirements = EquatableArray.From(o.Requirements.Select(Canonical)) })
             .OrderBy(o => o.Activity.Id, StringComparer.Ordinal).ToArray();
@@ -107,7 +107,7 @@ internal sealed partial record ForecastComposedCandidates
                                     {
                                         var links = allocations.Where(a => a.Kind == ForecastRequirementKind.Consumed && supplies[a.Source] is var source
                                             && source.Resource == input.Resource && (source.Lot.Length == 0 ? source.Id : source.Lot) == input.Lot).ToArray();
-                                        return new SelectedActivityInput(input.Resource.Value, input.Lot, checked((int)input.Units.Value),
+                                        return new SelectedActivityInput(input.Resource.Value, input.Lot, checked((int)input.Units),
                                             binding.Source ?? binding.Location, string.Join(";", links.Select(a => a.Provenance)))
                                         { Observed = links.Length > 0 && links.All(a => a.Producer.Length == 0),
                                             Producers = EquatableArray.From(links.Where(a => a.Producer.Length != 0)

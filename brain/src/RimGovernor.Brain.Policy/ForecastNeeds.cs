@@ -7,7 +7,7 @@ public sealed record ForecastNeedChoice(string Id, string Pawn, string Kind, str
 {
     public ForecastOccupancy Occupancy => new(Id, Pawn, Known(Depart), Known(End), ForecastOccupancyState.Active);
     public ForecastActivity Activity => new(Id, Target, Target, [])
-    { Inputs = Kind == "food" ? [new(new(Resource), Known((double)Count))] : [] };
+    { Inputs = Kind == "food" ? [new(new(Resource), Count)] : [] };
 }
 public sealed record ForecastNeedMetric(string Kind, Fact<double> FinalLevel, Fact<double> DeficitTicks,
     Fact<double> ThresholdExposureTicks, Fact<double> WastedGain)
@@ -70,7 +70,7 @@ public static class ForecastNeeds
         var findings = new SortedSet<string>(pawn.Unsupported, StringComparer.Ordinal);
         var truncated = pawn.Targets.Count > 256;
         if (!Voluntary(pawn.State)) return new([], ["needs_state:" + pawn.State], truncated);
-        if (!capacity.Capacity.Windows.TryGetValue(out var windows)) return new([], ["unknown_needs_capacity"], truncated);
+        if (capacity.Capacity.Windows is not ForecastCapacityWindows.Read(var windows)) return new([], ["unknown_needs_capacity"], truncated);
         var plans = new List<(NeedTarget Target, double Level, double Fall, double Travel, List<(double Depart, (int Count, double Duration, double Gain) Variant)> Pairs)>();
         foreach (var target in pawn.Targets.Take(256).OrderBy(t => t.Kind, StringComparer.Ordinal).ThenBy(t => t.Id, StringComparer.Ordinal))
         {
@@ -389,7 +389,7 @@ public static class ForecastNeeds
             throw new DomainException("needs overlap protected work");
         var unprotected = input.ProtectTimetable ? input with { ProtectTimetable = false } : input;
         initialCapacity ??= ForecastCapacity.ForecastPawnCapacityOf(unprotected);
-        if (intervals.Length > 0 && (!Voluntary(pawn.State) || !initialCapacity.Capacity.Windows.TryGetValue(out var free)
+        if (intervals.Length > 0 && (!Voluntary(pawn.State) || initialCapacity.Capacity.Windows is not ForecastCapacityWindows.Read(var free)
             || intervals.Any(c => !free.Any(w => w.Start <= c.Choice.Depart && w.End >= c.End))))
             throw new DomainException("needs occupy unavailable pawn time");
         Fact<EquatableArray<ForecastOccupancy>> occupancy = default;

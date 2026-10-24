@@ -5,28 +5,37 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Relative game ticks; availability excludes protected obligations. Cost is displaced baseline labor per tick.</summary>
 public sealed record ForecastTimeWindow(double Start, double End)
 {
-    /// <summary>Position after protected time; unknown must not reuse the pawn's earlier location.</summary>
-    public Fact<string> StartLocation { get; init; }
+    /// <summary>Position after protected time; null when unread, which must not reuse the pawn's earlier location.</summary>
+    public string? StartLocation { get; init; }
 }
-public sealed record ForecastPawnCapacity(string Pawn, string Location, Fact<EquatableArray<ForecastTimeWindow>> Windows,
-    Fact<double> OpportunityCostPerTick);
+public sealed record ForecastPawnCapacity(string Pawn, string Location, ForecastCapacityWindows Windows, double OpportunityCostPerTick);
+
+/// <summary>A pawn's free time over the horizon: its windows, when every capacity input was read, or unread when one was not
+/// (an unread availability, schedule, hour, occupancy or current job). Unread is not a free day and plans no work.</summary>
+public abstract record ForecastCapacityWindows
+{
+    private ForecastCapacityWindows() { }
+    public sealed record Read(EquatableArray<ForecastTimeWindow> Windows) : ForecastCapacityWindows;
+    public sealed record Unread : ForecastCapacityWindows;
+}
 
 /// <summary>Dependencies gate service, not preparatory travel. Each task and its output are counted once.</summary>
-public sealed record ForecastActivityYield(Resource Resource, Fact<double> Units)
+public sealed record ForecastActivityYield(Resource Resource, double Units)
 {
     public string Lot { get; init; } = "";
     public string LotLocation { get; init; } = "";
     public bool Perishable { get; init; }
-    public Fact<double> FreshTicks { get; init; }
+    /// <summary>A perishable output's ticks before it rots; infinite for one that never does. Unread when not perishable.</summary>
+    public double FreshTicks { get; init; } = double.PositiveInfinity;
 }
 public sealed record ForecastActivity(string Id, string Location, string EndLocation, string[] Prerequisites)
 {
     /// <summary>Relative earliest service time; dependencies may require a later start.</summary>
     public double NotBefore { get; init; }
-    /// <summary>Additional known service-start bound. Null declares no bound; unknown prerequisite evidence is refused by composition.</summary>
-    public double? LatestStart { get; init; }
-    /// <summary>Known service-end bound for reusable facilities and exclusive availability.</summary>
-    public double? LatestFinish { get; init; }
+    /// <summary>Additional known service-start bound; infinite declares no bound. Unknown prerequisite evidence is refused by composition.</summary>
+    public double LatestStart { get; init; } = double.PositiveInfinity;
+    /// <summary>Known service-end bound for reusable facilities and exclusive availability; infinite declares no bound.</summary>
+    public double LatestFinish { get; init; } = double.PositiveInfinity;
     /// <summary>Alternative realizations of one physical operation cannot execute together.</summary>
     public string ChoiceIdentity { get; init; } = "";
     public string EquipmentLocation { get; init; } = "";
@@ -45,7 +54,7 @@ public sealed record ForecastProjectProgress(string Project, double PointsPerTic
     /// <summary>The prefix of the project key of sowing a zone (the key is the sowing node's id, <see cref="ProjectGraph.SowId"/>, so the credit tier 2 prices lands on it).</summary>
     public const string SowPrefix = "sow:";
 }
-public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
+public sealed record ForecastActivityOption(string Activity, string Pawn, double WorkTicks, double RecoveryLaborTicks)
 {
     public RimGovernor.Contracts.Wire.Observations.ProductiveSkillWork? SkillWork { get; init; }
     /// <summary>A tend's learning, paid once at completion; the observed WorkTicks stay the duration (#3632).</summary>
@@ -56,7 +65,7 @@ public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<d
 /// <summary>Route duration supplied by observation/estimation, never inferred from straight-line distance.</summary>
 public sealed record ForecastActivityRoute(string Pawn, string From, string To, RouteTicks Ticks);
 
-/// <summary>A single outcome graph and its alternative cost, not a second colony demand calculation.</summary>
+/// <summary>A single outcome graph, not a second colony demand calculation.</summary>
 public sealed record ForecastActivityProblem
 {
     public ForecastActivity[] Activities { get; init; } = [];
@@ -64,8 +73,8 @@ public sealed record ForecastActivityProblem
     public ForecastActivityOption[] Options { get; init; } = [];
     public ForecastActivityRoute[] Routes { get; init; } = [];
     public ForecastEquipmentCapacity[] Equipment { get; init; } = [];
-    public Fact<double> Deadline { get; init; }
-    public Fact<double> AlternativeLaborCost { get; init; }
+    /// <summary>Relative tick every allocation must end by.</summary>
+    public required double Deadline { get; init; }
     public int ExpansionBudget { get; init; } = 512;
 }
 
@@ -80,25 +89,20 @@ public sealed record ForecastActivityAllocation(string Activity, string Pawn, do
 /// are derived from the problem by <see cref="ForecastActivities.StockChangesOf"/> and
 /// <see cref="ForecastActivities.EquipmentClaimsOf"/> for the plans a caller reads (#3468): a search emits thousands and ranks on neither.</summary>
 public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocations, double CompletedAt, double LaborCost);
-public sealed record ForecastActivityComparison(ForecastActivityPlan? Selected, ForecastActivityPlan[] Alternatives,
-    string Decision, string[] Findings, int Expansions, bool SearchTruncated);
+/// <summary>A search's feasible plans, cheapest first, with what it refused and whether its budget ran out.</summary>
+public sealed record ForecastActivityComparison(ForecastActivityPlan[] Alternatives, string[] Findings, int Expansions, bool SearchTruncated);
 
 public static class ForecastActivities
 {
-    /// <summary>A plan's stock changes: each task's outputs once at its completion day and its inputs at its start. Throws
-    /// <see cref="RequiredFactException"/> on an unread yield.</summary>
+    /// <summary>A plan's stock changes: each task's outputs once at its completion day and its inputs at its start.</summary>
     public static EquatableArray<ForecastStockChange> StockChangesOf(ForecastActivityProblem problem, ForecastActivityPlan plan)
     {
         var effects = new List<ForecastStockChange>();
         foreach (var a in plan.Allocations)
         {
             var task = problem.Activities.Single(t => t.Id == a.Activity);
-            foreach (var output in task.Outputs)
-                effects.Add(new(output.Resource, a.End / GameTime.TicksPerDay,
-                    output.Units.TryGetValue(out var made) ? made : throw new RequiredFactException("activity_output:" + task.Id + ":" + output.Resource)));
-            foreach (var input in task.Inputs)
-                effects.Add(new(input.Resource, a.Start / GameTime.TicksPerDay,
-                    input.Units.TryGetValue(out var units) ? -units : throw new RequiredFactException("activity_input:" + task.Id + ":" + input.Resource)));
+            foreach (var output in task.Outputs) effects.Add(new(output.Resource, a.End / GameTime.TicksPerDay, output.Units));
+            foreach (var input in task.Inputs) effects.Add(new(input.Resource, a.Start / GameTime.TicksPerDay, -input.Units));
         }
         return EquatableArray.From(effects);
     }
@@ -109,7 +113,7 @@ public static class ForecastActivities
             .Order(StringComparer.Ordinal).Select(e => new ForecastEquipmentClaim(e, a.Start, a.End))));
 
     // The (task, pawn) rejections a search reports once each, by kind (#3468): flagged in the loop, named after it.
-    private static readonly string[] PairRejections = ["unknown_capacity_or_cost", "unknown_equipment", "equipment_location_mismatch", "capacity_or_deadline", "equipment_occupied"];
+    private static readonly string[] PairRejections = ["unread_capacity", "unknown_equipment", "equipment_location_mismatch", "capacity_or_deadline", "equipment_occupied"];
 
     /// <summary>Bounded joint assignment/list scheduling over a dependency DAG. No activity-name policy.</summary>
     public static ForecastActivityComparison CompareActivityPlans(ForecastActivityProblem problem) => CompareActivityPlans(problem, new RouteIndex());
@@ -141,8 +145,7 @@ public static class ForecastActivities
         var ready1 = new double[1];
         var expansions = 0;
         var truncated = false;
-        if (!problem.Deadline.TryGetValue(out var deadline))
-            return new(null, [], "unknown_deadline", ["unknown_deadline"], 0, false);
+        var deadline = problem.Deadline;
 
         bool SpendExpansion()
         {
@@ -191,10 +194,9 @@ public static class ForecastActivities
                     // Unknown/refused options also consume the deterministic search budget.
                     if (!SpendExpansion()) return;
                     var pawn = pawns[option.Pawn];
-                    if (!pawn.Windows.TryGetValue(out var windows)
-                        || !pawn.OpportunityCostPerTick.TryGetValue(out var rate) || !option.WorkTicks.TryGetValue(out var work)
-                        || !option.RecoveryLaborTicks.TryGetValue(out var recovery))
-                    { Reject(0, taskAt, pawn.Pawn); continue; }
+                    if (pawn.Windows is not ForecastCapacityWindows.Read(var windows)) { Reject(0, taskAt, pawn.Pawn); continue; }
+                    var rate = pawn.OpportunityCostPerTick;
+                    var recovery = option.RecoveryLaborTicks;
                     var unknownEquipment = false;
                     var mismatch = false;
                     var location = task.EquipmentLocation.Length == 0 ? task.Location : task.EquipmentLocation;
@@ -229,10 +231,10 @@ public static class ForecastActivities
                     // assumes the baseline work is divisible; neither is a named helper/squad template.
                     foreach (var window in windows)
                     {
-                        var origin = previous is not null && previous.Depart >= window.Start && previous.End <= window.End
-                            ? Known(tasks[taskIndex[previous.Activity]].EndLocation)
-                            : window.StartLocation.IsKnown ? window.StartLocation : window.Start == 0 ? Known(pawn.Location) : Unknown<string>();
-                        if (!origin.TryGetValue(out var from))
+                        var from = previous is not null && previous.Depart >= window.Start && previous.End <= window.End
+                            ? tasks[taskIndex[previous.Activity]].EndLocation
+                            : window.StartLocation ?? (window.Start == 0 ? pawn.Location : null);
+                        if (from is null)
                         { if (!SpendExpansion()) return; findings.Add("unknown_window_location:" + pawn.Pawn); continue; }
                         // A walk the problem carries no route for is not planned (#3338); one native found no path for is Unreachable.
                         RouteTicks? route = from == task.Location ? new RouteTicks.Reachable(0)
@@ -255,19 +257,17 @@ public static class ForecastActivities
                                 var arrive = depart + travel;
                                 var start = Math.Max(arrive, serviceReady);
                                 var learning = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, assigned, start);
-                                if (!learning.WorkTicks.TryGetValue(out var duration))
-                                { findings.Add("productive_work_unassessed:" + task.Id + ":" + learning.Reason); continue; }
-                                work = duration;
+                                if (learning is not ForecastProductiveDuration.Timed(var work, var evidence, _))
+                                { findings.Add("productive_work_unassessed:" + task.Id + ":" + ((ForecastProductiveDuration.Unprojectable)learning).Reason); continue; }
                                 var end = start + work;
                                 var cost = (end - depart) * rate + recovery;
                                 if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
-                                if (end > window.End || end > deadline || task.LatestStart is { } latest && start > latest
-                                    || task.LatestFinish is { } latestFinish && end > latestFinish)
+                                if (end > window.End || end > deadline || start > task.LatestStart || end > task.LatestFinish)
                                 { Reject(3, taskAt, pawn.Pawn); continue; }
                                 if (EquipmentOccupied(option, equipment, shared, start, end))
                                 { Reject(4, taskAt, pawn.Pawn); continue; }
                                 assigned.Add(placed[taskAt] = new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
-                                    (end - depart) * rate, recovery) { Learning = learning.Evidence });
+                                    (end - depart) * rate, recovery) { Learning = evidence });
                                 var (low, high) = PrefixHash(taskAt, pawnIndex[pawn.Pawn], depart, start, end);
                                 prefixLow += low; prefixHigh += high;
                                 Search(assigned);
@@ -289,11 +289,7 @@ public static class ForecastActivities
                         findings.Add(PairRejections[kind] + ":" + tasks[taskAt].Id + ":" + problem.Pawns[pawnAt].Pawn);
         var ranked = RankPlans(plans);
         if (truncated) findings.Add("search_truncated");
-        if (!problem.AlternativeLaborCost.TryGetValue(out var alternative))
-            return new(null, ranked, "unknown_alternative_cost", findings.Append("unknown_alternative_cost").ToArray(), expansions, truncated);
-        var selected = ranked.FirstOrDefault(p => p.LaborCost < alternative);
-        return new(selected, ranked, selected != null ? "lower_labor_cost" : ranked.Length == 0 ? "no_known_feasible_plan" : "retain_alternative",
-            findings.ToArray(), expansions, truncated);
+        return new(ranked, findings.ToArray(), expansions, truncated);
     }
 
     /// <summary>A task's options with the pawns its placed prerequisites went to first (#3624), each part in the
@@ -314,8 +310,9 @@ public static class ForecastActivities
     private static double DirectCost(ForecastActivityOption option, ForecastActivity task, Dictionary<string, ForecastPawnCapacity> pawns,
         Dictionary<(string Pawn, string From, string To), ForecastActivityRoute> routes)
     {
-        if (!option.WorkTicks.TryGetValue(out var work) || !option.RecoveryLaborTicks.TryGetValue(out var recovery)
-            || !pawns.TryGetValue(option.Pawn, out var pawn) || !pawn.OpportunityCostPerTick.TryGetValue(out var rate)) return double.PositiveInfinity;
+        var (work, recovery) = (option.WorkTicks, option.RecoveryLaborTicks);
+        if (!pawns.TryGetValue(option.Pawn, out var pawn)) return double.PositiveInfinity;
+        var rate = pawn.OpportunityCostPerTick;
         var travel = 0d;
         if (pawn.Location != task.Location)
         {
@@ -456,9 +453,9 @@ public static class ForecastActivities
     internal static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false, RouteIndex? routeIndex = null)
     {
         static bool Id(string id) => !string.IsNullOrWhiteSpace(id) && !id.Contains(':') && !id.Contains(';');
-        static void Number(Fact<double> fact)
+        static void Number(double value)
         {
-            if (fact.TryGetValue(out var value) && (!double.IsFinite(value) || value < 0)) throw new DomainException("invalid activity estimate");
+            if (!double.IsFinite(value) || value < 0) throw new DomainException("invalid activity estimate");
         }
         if (p.ExpansionBudget is < 1 or > 4096 || p.Activities.Length > 32 || !allowEmpty && p.Activities.Length == 0
             || p.Activities.Any(t => !Id(t.Id) || !Id(t.Location) || !Id(t.EndLocation))
@@ -483,9 +480,9 @@ public static class ForecastActivities
         foreach (var task in p.Activities)
         {
             if (!double.IsFinite(task.NotBefore) || task.NotBefore < 0) throw new DomainException("invalid earliest activity time");
-            if (task.LatestStart is { } latest && (!double.IsFinite(latest) || latest < task.NotBefore))
+            if (double.IsNaN(task.LatestStart) || task.LatestStart < task.NotBefore)
                 throw new DomainException("invalid latest activity time");
-            if (task.LatestFinish is { } finish && (!double.IsFinite(finish) || finish < task.NotBefore))
+            if (double.IsNaN(task.LatestFinish) || task.LatestFinish < task.NotBefore)
                 throw new DomainException("invalid latest activity finish");
             if (task.Prerequisites.Distinct().Count() != task.Prerequisites.Length || task.Prerequisites.Any(id => !tasks.ContainsKey(id)))
                 throw new DomainException("invalid activity dependency");
@@ -496,6 +493,7 @@ public static class ForecastActivities
             {
                 if (!AdmissionRules.ValidResource(output.Resource)) throw new DomainException("invalid activity output resource");
                 Number(output.Units);
+                if (output.Perishable && (double.IsNaN(output.FreshTicks) || output.FreshTicks < 0)) throw new DomainException("invalid activity estimate");
             }
         }
         var remaining = tasks.Keys.ToHashSet();
@@ -505,11 +503,11 @@ public static class ForecastActivities
             if (ready.Length == 0) throw new DomainException("cyclic activity dependency");
             foreach (var id in ready) remaining.Remove(id);
         }
-        Number(p.Deadline); Number(p.AlternativeLaborCost);
+        Number(p.Deadline);
         foreach (var pawn in p.Pawns)
         {
             Number(pawn.OpportunityCostPerTick);
-            if (pawn.Windows.TryGetValue(out var windows))
+            if (pawn.Windows is ForecastCapacityWindows.Read(var windows))
             {
                 double end = 0;
                 foreach (var window in windows)

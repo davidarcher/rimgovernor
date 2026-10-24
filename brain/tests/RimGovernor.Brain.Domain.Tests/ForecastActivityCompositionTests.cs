@@ -44,17 +44,17 @@ public sealed class ForecastActivityCompositionTests
     private static readonly string[] Consumers = ["first", "second"];
     private static readonly string[] IngredientLots = ["a", "b"];
     private static ForecastCompositionSupply Supply(string id, string resource, int count, string location = "bench", string producer = "",
-        ForecastRequirementKind kind = ForecastRequirementKind.Consumed) => new(id, new(resource), Known(count), location, Known(0d), Known(100d))
+        ForecastRequirementKind kind = ForecastRequirementKind.Consumed) => new(id, new(resource), count, location, 0, 100)
         { Producer = producer, Lot = id, Provenance = "observed/" + id, Kind = kind, Capacity = kind == ForecastRequirementKind.Exclusive ? id : "" };
     private static ForecastCompositionRequirement Need(string id, string resource, int count, string[] sources, string location = "bench",
-        ForecastRequirementKind kind = ForecastRequirementKind.Consumed) => new(id, new(resource), Known(count), location, kind,
-            Known(EquatableArray.From(sources)), Known(0d), Known(100d));
+        ForecastRequirementKind kind = ForecastRequirementKind.Consumed) => new(id, new(resource), count, location, kind,
+            EquatableArray.From(sources), 0, 100);
     private static ForecastCompositionOperation Op(string id, ForecastCompositionRequirement[]? requirements = null,
         ForecastCompositionSupply[]? supplies = null, string location = "bench", string end = "bench") =>
         new(new(id, location, end, [])
         {
             Outputs = EquatableArray.From((supplies ?? []).Where(s => s.Kind == ForecastRequirementKind.Consumed)
-                .Select(s => new ForecastActivityYield(s.Resource, Known((double)s.Units.Value)) { Lot = s.Lot, LotLocation = s.Location }))
+                .Select(s => new ForecastActivityYield(s.Resource, s.Units) { Lot = s.Lot, LotLocation = s.Location }))
         }, EquatableArray.From(requirements ?? []), EquatableArray.From(supplies ?? []));
     private static ForecastCompositionRequest Request(ForecastCompositionOperation[] operations, ForecastCompositionSupply[] observed,
         params string[] roots) => new() { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed), Roots = EquatableArray.From(roots), Horizon = 100 };
@@ -84,7 +84,7 @@ public sealed class ForecastActivityCompositionTests
         var built = result.Graphs.Single(g => g.Activities.Any(a => a.Id == "build"));
         Assert.Equal(1, built.Activities.Count(a => a.Id == "harvest"));
         Assert.Equal(CookingPrerequisites, built.Activities.Single(a => a.Id == "cook").Prerequisites);
-        Assert.Equal(5, built.Activities.Single(a => a.Id == "cook").Inputs.Sum(i => i.Units.Value));
+        Assert.Equal(5, built.Activities.Single(a => a.Id == "cook").Inputs.Sum(i => i.Units));
         Assert.DoesNotContain(built.Activities.Single(a => a.Id == "cook").Inputs, i => i.Resource.Value == "StoveCapability");
         Assert.All(built.Allocations, a => Assert.StartsWith("observed/", a.Provenance));
         var observed = result.Graphs.Single(g => g.Activities.All(a => a.Id != "build"));
@@ -113,18 +113,18 @@ public sealed class ForecastActivityCompositionTests
     }
 
     [Fact]
-    public void UnknownEligibilityTimingAndLocationRefuseOnlyAffectedLinks()
+    public void TimingLocationCountAndProvenanceRefuseOnlyAffectedLinks()
     {
         var known = Supply("known", "Rice", 2);
-        var unknown = Supply("unknown", "Rice", 2) with { AvailableAt = default };
-        var request = Request([Op("eat", [Need("food", "Rice", 2, [known.Id, unknown.Id])])], [known, unknown], "eat");
+        var late = Supply("late", "Rice", 2) with { Provenance = "" };
+        var request = Request([Op("eat", [Need("food", "Rice", 2, [known.Id, late.Id])])], [known, late], "eat");
         var result = ForecastActivityComposition.ComposeActivityDependencies(request);
         Assert.Single(result.Graphs);
         Assert.Contains(result.Findings, f => f.StartsWith("unknown_composition_link", StringComparison.Ordinal));
-        foreach (var changed in new[] { known with { Location = "elsewhere" }, known with { AvailableAt = Known(101d), ExpiresAt = Known(200d) },
-            known with { Units = Known(1) }, known with { Provenance = "" } })
-            Assert.Empty(ForecastActivityComposition.ComposeActivityDependencies(request with { Observed = [changed, unknown] }).Graphs);
-        Assert.Empty(ForecastActivityComposition.ComposeActivityDependencies(request with { Operations = [Op("eat", [Need("food", "Rice", 2, [known.Id]) with { Sources = default }])] }).Graphs);
+        foreach (var changed in new[] { known with { Location = "elsewhere" }, known with { AvailableAt = 101d, ExpiresAt = 200d },
+            known with { Units = 1 }, known with { Provenance = "" } })
+            Assert.Empty(ForecastActivityComposition.ComposeActivityDependencies(request with { Observed = [changed, late] }).Graphs);
+        Assert.Empty(ForecastActivityComposition.ComposeActivityDependencies(request with { Operations = [Op("eat", [Need("food", "Rice", 2, [known.Id]) with { Sources = [] }])] }).Graphs);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class ForecastActivityCompositionTests
         Assert.Equal(0, bounded.Expansions); Assert.Single(bounded.Graphs);
         Assert.Equal(incumbent.Allocations, bounded.Graphs[0].Allocations);
         var changed = ForecastActivityComposition.ComposeActivityDependencies(request with { ExpansionBudget = 0, Incumbent = incumbent,
-            Observed = EquatableArray.From(request.Observed.Select(s => s with { Units = Known(0) })) });
+            Observed = EquatableArray.From(request.Observed.Select(s => s with { Units = 0 })) });
         Assert.Empty(changed.Graphs);
         Assert.Contains("invalid_composition_incumbent", changed.Findings);
     }
@@ -182,15 +182,15 @@ public sealed class ForecastActivityCompositionTests
         Assert.All(graph.Activities, a => Assert.Empty(a.Inputs));
         var problem = new ForecastActivityProblem
         {
-            Activities = graph.Activities.ToArray(), Pawns = [new("p", "bench", Known<EquatableArray<ForecastTimeWindow>>([new(0, 100)]), Known(1d)),
-                new("q", "bench", Known<EquatableArray<ForecastTimeWindow>>([new(0, 100)]), Known(1d))],
-            Options = graph.Allocations.Select((a, i) => new ForecastActivityOption(a.Operation, i == 0 ? "p" : "q", Known(10d), Known(0d)) { Equipment = [a.Capacity] }).ToArray(),
+            Activities = graph.Activities.ToArray(), Pawns = [new("p", "bench", new ForecastCapacityWindows.Read([new(0, 100)]), 1d),
+                new("q", "bench", new ForecastCapacityWindows.Read([new(0, 100)]), 1d)],
+            Options = graph.Allocations.Select((a, i) => new ForecastActivityOption(a.Operation, i == 0 ? "p" : "q", 10, 0) { Equipment = [a.Capacity] }).ToArray(),
             Equipment = [new("station", "bench", [new(0, 100)])],
-            Deadline = Known(100d), AlternativeLaborCost = Known(100d), ExpansionBudget = 4096,
+            Deadline = 100d, ExpansionBudget = 4096,
         };
-        var selected = Assert.IsType<ForecastActivityPlan>(ForecastActivities.CompareActivityPlans(problem).Selected);
+        var selected = ForecastActivities.CompareActivityPlans(problem).Alternatives[0];
         Assert.Equal(20, selected.CompletedAt);
-        Assert.Empty(ForecastActivities.CompareActivityPlans(problem with { Deadline = Known(15d) }).Alternatives);
+        Assert.Empty(ForecastActivities.CompareActivityPlans(problem with { Deadline = 15d }).Alternatives);
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public sealed class ForecastActivityCompositionTests
             [source, source with { Id = "alias" }], "use")));
         var produced = Supply("crop", "Rice", 3, producer: "harvest");
         var operation = Op("harvest", supplies: [produced]);
-        operation = operation with { Activity = operation.Activity with { Outputs = [operation.Activity.Outputs[0] with { Units = Known(2d) }] } };
+        operation = operation with { Activity = operation.Activity with { Outputs = [operation.Activity.Outputs[0] with { Units = 2 }] } };
         var result = ForecastActivityComposition.ComposeActivityDependencies(Request([operation, Op("eat", [Need("food", "Rice", 3, [produced.Id])])], [], "eat"));
         Assert.Empty(result.Graphs);
         Assert.Contains("unsupported_composition_yield:crop", result.Findings);
@@ -240,9 +240,9 @@ public sealed class ForecastActivityCompositionTests
         var recipes = generated.Context.Activities.Activities.Where(t => t.Id.Contains("/recipe/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(recipes);
         Assert.Contains(generated.Alternatives, c => c.ExclusiveOutcome == "construction/shared-stock-frame");
-        Assert.Contains(recipes, recipe => recipe.Inputs.Count == 2 && recipe.Inputs.All(i => i.Units == Known(2d))
+        Assert.Contains(recipes, recipe => recipe.Inputs.Count == 2 && recipe.Inputs.All(i => i.Units == 2)
             && recipe.Inputs.Select(i => i.Lot).Order().SequenceEqual(IngredientLots));
-        Assert.All(recipes, recipe => Assert.Equal(4, recipe.Inputs.Sum(i => i.Units.Value)));
+        Assert.All(recipes, recipe => Assert.Equal(4, recipe.Inputs.Sum(i => i.Units)));
         var missingEligibility = facts with { ForecastObserved = facts.ForecastObserved with
             { Coupled = facts.ForecastObserved.Coupled! with { FoodConversions = [Conversion("a")] } } };
         var refused = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(missingEligibility, 300));
@@ -284,11 +284,11 @@ public sealed class ForecastActivityCompositionTests
     public void FacilityExpiryBoundsServiceFinishAndDepthLimitReportsIncompleteSearch()
     {
         var facility = Supply("facility", "Facility", 1, kind: ForecastRequirementKind.Reusable) with
-            { AvailableAt = Known(5d), ExpiresAt = Known(12d) };
+            { AvailableAt = 5d, ExpiresAt = 12d };
         var request = Request([Op("use", [Need("facility", "Facility", 1, [facility.Id], kind: ForecastRequirementKind.Reusable)])], [facility], "use");
         var activity = Assert.Single(Assert.Single(ForecastActivityComposition.ComposeActivityDependencies(request).Graphs).Activities);
         Assert.Equal(5, activity.NotBefore); Assert.Equal(12, activity.LatestStart); Assert.Equal(12, activity.LatestFinish);
-        var produced = facility with { Producer = "build", AvailableAt = Known(0d) };
+        var produced = facility with { Producer = "build", AvailableAt = 0d };
         var chain = request with { Operations = [Op("build", supplies: [produced]), request.Operations[0]], Observed = [], DepthLimit = 1 };
         var bounded = ForecastActivityComposition.ComposeActivityDependencies(chain);
         Assert.Empty(bounded.Graphs); Assert.True(bounded.Truncated);

@@ -35,7 +35,7 @@ public sealed class PlannedRoomCreditTests
     internal static ForecastCoupledContext Context(IReadOnlyDictionary<PlannedRole, RoomCredit> credits, double shelves = Day, double removal = 0) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
-            Activities = new() { Activities = [new(Delivery, "stack", "planned/room1", []) { Inputs = [new(new("WoodLog"), Known(10d))] }] },
+            Activities = new() { Deadline = 0, Activities = [new(Delivery, "stack", "planned/room1", []) { Inputs = [new(new("WoodLog"), 10d)] }] },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Storage, [2] = PlannedRole.Workshop },
             RoomCredits = credits,
             PlannedSites = [Site(Wall, "WoodLog"), Site(Roof), Site(Shelf)],
@@ -69,7 +69,7 @@ public sealed class PlannedRoomCreditTests
     private static ForecastCommitment[] Relief() =>
         [.. ReliefNeeds.Select(need => new ForecastCommitment(need, [])
         {
-            Outcome = new(need, "construction-method", need, Known(Day), default)
+            Outcome = new(need, "construction-method", need)
             { Requirements = new([new(need, ProductionNeedPriority.Maintenance, 1.0)], 0, 0) },
         })];
 
@@ -163,7 +163,7 @@ public sealed class PlannedRoomCreditTests
         { RequestedDevelopment = [BedWall, CorridorWall] };
         ForecastCommitment[] relief = [new("flooring/connector-floor", [])
         {
-            Outcome = new("flooring/connector-floor", "construction-method", "flooring/connector-floor", Known(Day), default)
+            Outcome = new("flooring/connector-floor", "construction-method", "flooring/connector-floor")
             { Requirements = new([new("flooring/connector-floor", ProductionNeedPriority.Maintenance, 1.0)], 0, 0) },
         }];
         return ForecastCoupledSelection.CoupledConsequences(outcome, relief, context, Day, outcome).Development;
@@ -299,7 +299,7 @@ public sealed class PlannedRoomCreditTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         var pawns = generated.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
         Assert.NotEmpty(pawns);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", default, default), []), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = new([], default, default, default, default, default, [])
             {
@@ -602,7 +602,7 @@ public sealed class PlannedRoomCreditTests
         void Agree(bool ordered, ForecastCoupledContext bound, ForecastActivityAllocation sleeping)
         {
             var plan = new ForecastActivityPlan([sleeping, cooking], sleeping.End, 0);
-            var started = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(new(["selected"], plan, Known(0d), [], 0, false),
+            var started = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(new(["selected"], plan, [], 0, false),
                 bound.Bindings, 1, "m", 100, bound.PlannedSites);
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
             var mood = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = bound },
@@ -663,7 +663,7 @@ public sealed class PlannedRoomCreditTests
             var plan = new ForecastActivityPlan(rows, rows.Max(a => a.End), 0);
             var outcome = new ForecastCoupledOutcome(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
             var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
-            var selection = new ForecastCoupledSelection(new(selected, plan, Known(0d), [], 0, false), outcome, outcome, vector, vector, [], 100, false);
+            var selection = new ForecastCoupledSelection(new(selected, plan, [], 0, false), outcome, outcome, vector, vector, [], 100, false);
             var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, EquatableArray.From(incumbents), 100, bound.Activities.Activities);
             Assert.Empty(execution.Releases);
             var started = execution.Dispatch is { } dispatch

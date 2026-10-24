@@ -116,7 +116,7 @@ identity stable across a re-tile (the overlay is keyed by room id and slot).
 Mood and needs are the forecast's job (`colony-forecast.md`: pawn time, mood and needs are #3132, calibration
 #3125; need relief is valued from one shared needs map with relief capped per need). This design does not model
 mood. A content proposal is a **candidate activity** for the forecast: build the piece (its catalog cost and the
-labor the construction slice already costs), with an outcome that relieves a need. The benefit is whatever the
+labor the coupled construction candidates already cost), with an outcome that relieves a need. The benefit is whatever the
 forecast's needs model says; until #3132 supplies it the candidate carries an unknown benefit and is not
 ranked against other actions on a guess.
 

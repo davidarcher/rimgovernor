@@ -26,7 +26,7 @@ supplied commitment deltas separately from these observed diagnostics.
 Its requested plan horizon does not change the existing maintenance window.
 Construction shortfalls are exact-resource units, not completion days.
 Timed inventory effects are conditional estimates, never observed stock
-or proof of native work completion. The [construction forecast slice](../architecture/colony-forecast.md#construction-commitments-and-shared-capacity) retains native remaining work and exact outstanding materials, then evaluates declared construction commitments against shared pawn/material capacity. Its route, rate and availability estimates remain explicit inputs.
+or proof of native work completion. [Construction work](../architecture/colony-forecast.md#construction-commitments-and-shared-capacity) is compared in the coupled trajectory; `ForecastColony` has no construction slice of its own (#3894).
 
 [Declared material promises and exclusive equipment](../architecture/colony-forecast.md#material-promises-and-exclusive-equipment)
 share that forecast. Native ingredient observations retain bill IDs for reconciling
@@ -1492,29 +1492,11 @@ verification checks actual cells and settings, separately from catch outcomes.
 fisher capacity); `food/ledger` counts native catches on an Odyssey coast.
 
 The [observed survival-deadline adapter](../architecture/colony-forecast.md#observed-deadlines-for-shelter-and-food)
-uses the existing eligibility/rot-aware food forecast and per-pawn cold model in
-bounded activity comparisons. Food stock exhaustion is not starvation onset;
-constant-temperature serious-hypothermia timing is not a weather or room-heat
-forecast. Candidate relief and labor ceilings remain explicit supplied evidence.
-No native execution or production cutover is implied.
-
-[Quantitative candidate effects](../architecture/colony-forecast.md#quantitative-activity-effects)
-replace a supplied prevention flag in that adapter. Food is checked against
-catalog nutrition, actual scheduled output time, eater shares and expiry;
-shelter requires occupant arrival and a sufficient conditional temperature range.
-The plan shares one stock/claim budget for all activity inputs. Thermal estimates
-and future output evidence remain supplied, not native predictions.
-
-[Observed food candidate generation](../architecture/colony-forecast.md#food-candidates-from-acquisition-and-recipe-observations)
-joins native acquisition/crop and bench/recipe facts into raw and cooked activity
-alternatives, including bounded ascending whole-batch sizes rather than only the
-largest possible batch. Every size spends generation budget; truncation means
-omitted sizes have not been compared. Bindings expose recipe iteration counts,
-which are not repeating native Cook authorization. The existing recipe-input catalog projection carries product counts
-and base work alongside ingredient slots. Worker rates, carrying/travel estimates,
-destination eligibility and continued bench availability remain explicit estimates.
-Generation remains pure policy. Normal selection binds its chosen dependencies
-through the existing Method journal and Hands; observation never dispatches work.
+derives per-pawn food and cold deadlines from the eligibility/rot-aware food forecast and the per-pawn cold model.
+Food stock exhaustion is not starvation onset; constant-temperature serious-hypothermia timing is not a weather or
+room-heat forecast. Its supplied-estimate activity comparison, typed candidate effects and the supplied-input food
+generator were deleted in #3894; [food candidates](../architecture/colony-forecast.md#food-candidates-from-acquisition-and-recipe-observations)
+come from the coupled generator. Observation never dispatches work.
 
 The [shared live work-resource view](../architecture/colony-forecast.md#shared-live-work-resources)
 extends fixed-batch admission to pending building placements and planner-owned

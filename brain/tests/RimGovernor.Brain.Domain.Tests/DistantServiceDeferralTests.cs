@@ -20,7 +20,7 @@ public sealed class DistantServiceDeferralTests
     private static ForecastActivityAllocation Row(ActivityTaskCandidate task, double depart, double? start = null) =>
         new(task.Id, task.Pawn, depart, depart, start ?? depart, (start ?? depart) + 2000, 0, (start ?? depart) - depart, 2000, 0, 0);
     private static PawnActivities? Started(ActivityTaskCandidate[] tasks, params ForecastActivityAllocation[] rows) =>
-        CoordinatedActivityBinding.StartSelected(new(["selected"], new(rows, 0, 0), Known(0d), [], 0, false),
+        CoordinatedActivityBinding.StartSelected(new(["selected"], new(rows, 0, 0), [], 0, false),
             tasks.ToDictionary(t => (t.Id, t.Pawn)), 1, "m", Tick);
     private static IReadOnlySet<string> Ordered(ActivityTaskCandidate[] tasks, params ForecastActivityAllocation[] rows) =>
         CoordinatedActivityBinding.OrderedAtStart(["selected"], rows, tasks.ToDictionary(t => (t.Id, t.Pawn)), new HashSet<string>());

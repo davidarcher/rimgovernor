@@ -4,13 +4,6 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastNeedWindow(double Ticks, bool Due);
 public sealed record ForecastSurvivalNeed(string Id, PawnId Pawn, string Basis, Fact<ForecastNeedWindow> Window);
 public sealed partial record ForecastSurvivalNeeds(ForecastSurvivalNeed[] Needs, string[] Findings);
-/// <summary>Explicit candidate effect: completing this task prevents this need through the assessed horizon.
-/// A roof or harvested crop alone does not establish that effect.</summary>
-public sealed record ForecastActivityRelief(string Id, string Need, string Completion)
-{
-    public ForecastFoodEffect? Food { get; init; }
-    public ForecastShelterEffect? Shelter { get; init; }
-}
 
 public sealed partial record ForecastSurvivalNeeds
 {
@@ -60,35 +53,5 @@ public sealed partial record ForecastSurvivalNeeds
         }
         foreach (var need in needs.Where(n => !n.Window.IsKnown)) findings.Add("unknown_need_window:" + need.Id);
         return new(needs.ToArray(), findings.ToArray());
-    }
-
-    /// <summary>Earliest observed deadline first, subject to the caller's explicit labor ceiling and effect evidence.
-    /// Task generation, material feasibility and native execution remain separate responsibilities.</summary>
-    public static ForecastActivityOutcomeComparison CompareSurvivalActivities(ColonyForecastRequest request,
-        ForecastActivityProblem problem, ForecastActivityRelief[] relief)
-    {
-        if (!problem.Deadline.TryGetValue(out var deadline) || deadline != request.HorizonDays * GameTime.TicksPerDay)
-            throw new DomainException("activity and survival horizons must match");
-        var observed = SurvivalNeedsOf(request);
-        if (request.Demand.Work.Pawns.TryGetValue(out var roster)
-            && problem.Pawns.Any(p => !roster.Any(r => r.Id.Value == p.Pawn)))
-            throw new DomainException("activity capacity names an unobserved pawn");
-        if (relief.Select(r => r.Id).Distinct().Count() != relief.Length)
-            throw new DomainException("duplicate survival relief alternative");
-        var needs = observed.Needs.ToDictionary(n => n.Id, StringComparer.Ordinal);
-        var findings = new SortedSet<string>(observed.Findings, StringComparer.Ordinal);
-        var outcomes = new List<ForecastActivityOutcome>();
-        foreach (var effect in relief)
-        {
-            if (!needs.TryGetValue(effect.Need, out var need))
-            { findings.Add("unobserved_relief_need:" + effect.Id); continue; }
-            if (!need.Window.TryGetValue(out var window) || !window.Due) continue;
-            outcomes.Add(new(effect.Id, effect.Need, effect.Completion, Known(window.Ticks), default) { ChoiceIdentity = effect.Need });
-        }
-        var comparison = ForecastActivityOutcomes.CompareActivityOutcomes(problem, outcomes.ToArray(), ForecastOutcomeObjective.EarliestDeadline,
-            (selected, plan) => ForecastActivityEffects.AssessSurvivalEffects(request, problem, relief.Where(r => selected.Any(o => o.Id == r.Id)).ToArray(),
-                needs, plan, findings));
-        findings.UnionWith(comparison.Findings);
-        return comparison with { Findings = findings.ToArray() };
     }
 }

@@ -318,8 +318,8 @@ public sealed class ForecastRoofConsequencesTests
         var tasks = new List<ForecastActivity> { new("cook", "cell/1/1", "cell/1/1", ["fetch"]), new("craft", "cell/1/1", "cell/1/1", []) };
         var options = new List<ForecastActivityOption>
         {
-            new("cook", "pawn", Known(1000d), Known(0d)) { Equipment = ["bench"] },
-            new("craft", "pawn", Known(1000d), Known(0d)) { Equipment = ["indoor-bench"] },
+            new("cook", "pawn", 1000d, 0d) { Equipment = ["bench"] },
+            new("craft", "pawn", 1000d, 0d) { Equipment = ["indoor-bench"] },
         };
         var roots = new[] { new ForecastCommitment("cook-root", []) { ActivityCompletions = ["cook"] }, new ForecastCommitment("craft-root", []) { ActivityCompletions = ["craft"] } };
         var alternatives = roots.ToList();
@@ -327,7 +327,7 @@ public sealed class ForecastRoofConsequencesTests
 
         var variant = Assert.Single(tasks, t => t.Id == "cook/closed/1/WoodLog");
         Assert.Equal(["fetch", "wall/finish", "door/finish"], variant.Prerequisites);
-        Assert.Equal(800, Assert.Single(options, o => o.Activity == variant.Id).WorkTicks.Value, 6);
+        Assert.Equal(800, Assert.Single(options, o => o.Activity == variant.Id).WorkTicks, 6);
         Assert.Equal(["cook"], Assert.Single(alternatives, a => a.Id == "cook-root/closed/1/WoodLog").ActivityCompletions.Select(_ => "cook"));
         // A bench already indoors, or a room still outdoors once closed (300 open roof cells), gets no variant.
         Assert.DoesNotContain(tasks, t => t.Id.StartsWith("craft/closed", StringComparison.Ordinal));

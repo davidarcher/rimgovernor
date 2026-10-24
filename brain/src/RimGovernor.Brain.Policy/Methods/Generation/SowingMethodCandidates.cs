@@ -31,7 +31,7 @@ internal sealed record SowingMethodCandidates(ForecastActivity[] Tasks, Forecast
             var location = ForecastLocations.Of(first);
             var id = "sow/" + worker.Zone + "/" + worker.Pawn;
             tasks.Add(new(id, location, location, []) { ProjectProgress = new(ForecastProjectProgress.SowPrefix + worker.Zone, 1 / perCell) });
-            options.Add(new(id, worker.Pawn, Known(Math.Min(fitting * perCell, horizon)), Known(0d)) { SkillWork = worker.SkillWork with { WorkAmount = fitting, WorkQuantum = 1 } });
+            options.Add(new(id, worker.Pawn, Math.Min(fitting * perCell, horizon), 0) { SkillWork = worker.SkillWork with { WorkAmount = fitting, WorkQuantum = 1 } });
             routes.Add(new(worker.Pawn, "start", location, new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Zone, worker.WorkGiver, "Sow",
                 fitting, deadline, first) { Destination = first };

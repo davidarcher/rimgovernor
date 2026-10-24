@@ -51,8 +51,8 @@ public static class ForecastCoupledMaterials
                 var promised = held.Values.SelectMany(c => c.MaterialClaims).Where(c => c.Resource == resource.Key && c.ReservationBill == Known(bill.Key)).ToArray();
                 var native = evidence.Reservations.Where(r => r.Bill == bill.Key).SelectMany(r => r.Items).Where(i => i.Resource == resource.Key).Sum(i => (double)i.Count);
                 var before = adjusted.GetValueOrDefault(resource.Key, Known(0.0));
-                if (!before.IsKnown || resource.Any(i => !i.Units.IsKnown) || promised.Any(p => !p.Units.IsKnown)) continue;
-                var credit = Math.Min(resource.Sum(i => i.Units.Value), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
+                if (!before.IsKnown || promised.Any(p => !p.Units.IsKnown)) continue;
+                var credit = Math.Min(resource.Sum(i => i.Units), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
                 adjusted[resource.Key] = Known(Math.Max(0, before.Value - credit));
             }
         return ProductionRules.SharedMaterialBudgetOf(evidence.Stock, owed, Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));

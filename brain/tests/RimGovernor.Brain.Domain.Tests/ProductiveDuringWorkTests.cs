@@ -23,13 +23,13 @@ public sealed class ProductiveDuringWorkTests
         var read = new ResearchActivityRead { Workers = [worker], Findings = [] };
         Assert.Equal(read, WireJson.Deserialize<ResearchActivityRead>(WireJson.Serialize(read)));
         var generated = ResearchMethodCandidates.Generate(read, GameTime.TicksPerDay, new([], [], [], []), GameTime.TicksPerDay);
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0);
-        Assert.Equal(GameTime.TicksPerHour, result.WorkTicks.Value);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0));
+        Assert.Equal(GameTime.TicksPerHour, result.WorkTicks);
         var learning = Assert.IsType<ForecastProductiveLearning>(result.Evidence);
         Assert.Equal(250, learning.After.AppliedGain, 8);
         Assert.Equal(2, learning.After.StoredLevel);
         Assert.True(learning.WorkAmount > GameTime.TicksPerHour * worker.PointsPerTick);
-        Assert.True(ForecastProductiveWorkPolicy.CompletionTick(learning, 100).Value < 200);
+        Assert.True(ForecastProductiveWorkPolicy.CompletionTick(learning, 100) < 200);
         Assert.Single(learning.Callbacks);
         Assert.Equal(GameTime.TicksPerHour, learning.Callbacks[0].Count);
         var terminal = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(worker.SkillWork.Learning, learning.Callbacks, GameTime.TicksPerDay));
@@ -44,18 +44,18 @@ public sealed class ProductiveDuringWorkTests
             { SkillWork = Work("Plants", 2, .01, before: true) };
         var generated = SowingMethodCandidates.Generate(CoupledFixtures.NoSowing with { Workers = [worker] }, 0, 1000, new([], [], [], []));
         var option = Assert.Single(generated.Options);
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0));
         var learning = Assert.IsType<ForecastProductiveLearning>(result.Evidence);
-        Assert.True(result.WorkTicks.Value < 200);
+        Assert.True(result.WorkTicks < 200);
         Assert.Equal(2, learning.WorkAmount, 8);
-        var first = ForecastProductiveWorkPolicy.CompletionTick(learning, 1).Value;
-        var second = ForecastProductiveWorkPolicy.CompletionTick(learning, 2).Value;
+        var first = ForecastProductiveWorkPolicy.CompletionTick(learning, 1);
+        var second = ForecastProductiveWorkPolicy.CompletionTick(learning, 2);
         Assert.True(first < 100 && second > first);
-        Assert.Equal(result.WorkTicks.Value, second);
-        Assert.Equal(result.WorkTicks.Value * .1, learning.After.AppliedGain, 8);
+        Assert.Equal(result.WorkTicks, second);
+        Assert.Equal(result.WorkTicks * .1, learning.After.AppliedGain, 8);
         // The callback that crosses a level changes sowing's work in that very callback.
-        var after = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = option.SkillWork! with { LearnBeforeWork = false } }, [], 0);
-        Assert.True(after.WorkTicks.Value >= result.WorkTicks.Value);
+        var after = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { SkillWork = option.SkillWork! with { LearnBeforeWork = false } }, [], 0));
+        Assert.True(after.WorkTicks >= result.WorkTicks);
     }
 
     [Fact]
@@ -75,11 +75,11 @@ public sealed class ProductiveDuringWorkTests
     public void CallbackCadenceIsPreservedAndCompressedRunsEqualIndividualCallbacks()
     {
         var work = Work("Plants", 1, .01, before: true) with { CallbackIntervalTicks = 15, CallbackPhase = 7, CallbackElapsedTicks = 8 };
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(new("sow", "pawn", Known(100d), Known(0d)) { SkillWork = work }, [], 0);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(new("sow", "pawn", 100d, 0d) { SkillWork = work }, [], 0));
         var learning = Assert.IsType<ForecastProductiveLearning>(result.Evidence);
         var expanded = learning.Callbacks.SelectMany(e => Enumerable.Range(0, e.Count).Select(i => e with
             { Id = e.Id + "/" + i, Tick = e.Tick + i * e.Interval, Count = 1, Interval = 0 })).ToArray();
-        var projected = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(work.Learning, expanded, (int)result.WorkTicks.Value));
+        var projected = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(work.Learning, expanded, (int)result.WorkTicks));
         Assert.Equal(learning.After, projected);
         Assert.All(expanded, e => Assert.Equal(7, e.Tick % 15));
         Assert.All(expanded, e => Assert.Equal(1.5, e.RawXp, 8));
@@ -88,10 +88,10 @@ public sealed class ProductiveDuringWorkTests
     [Fact]
     public void ResearchStopsLearningAtProjectCompletionInsideItsBlock()
     {
-        var option = new ForecastActivityOption("research", "pawn", Known(2500d), Known(0d))
+        var option = new ForecastActivityOption("research", "pawn", 2500d, 0d)
             { SkillWork = Work("Intellectual", 10, 1, fixedDuration: true) };
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
-        Assert.Equal(10, result.WorkTicks.Value);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0));
+        Assert.Equal(10, result.WorkTicks);
         Assert.Equal(10, result.Evidence!.WorkAmount);
         Assert.Equal(1, result.Evidence.After.AppliedGain, 8);
     }
@@ -103,11 +103,11 @@ public sealed class ProductiveDuringWorkTests
         {
             Stages = [new(1, 1, 1d, 1, true), new(1, 1, 0d, 1, true)]
         };
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(
-            new("mine", "pawn", Known(200d), Known(0d)) { SkillWork = work }, [], 0);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(
+            new("mine", "pawn", 200d, 0d) { SkillWork = work }, [], 0));
         // XP raises the first pick's skill; its timer remains the original100ticks. The next target uses the new rate.
-        Assert.Equal(100, ForecastProductiveWorkPolicy.CompletionTick(result.Evidence!, 1).Value);
-        Assert.Equal(150, result.WorkTicks.Value);
+        Assert.Equal(100, ForecastProductiveWorkPolicy.CompletionTick(result.Evidence!, 1));
+        Assert.Equal(150, result.WorkTicks);
         Assert.Equal(100, result.Evidence!.After.AppliedGain);
         Assert.Equal(0, result.Evidence.Callbacks[^1].RawXp);
     }
@@ -116,9 +116,9 @@ public sealed class ProductiveDuringWorkTests
     public void PreparationPaysNoXpAndTerminalCountersResumeIdentically()
     {
         var work = Work("Crafting", 10, 1, before: true) with { PreparationTicks = 20 };
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(
-            new("tailor", "pawn", Known(30d), Known(0d)) { SkillWork = work }, [], 0);
-        Assert.Equal(30, result.WorkTicks.Value);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(
+            new("tailor", "pawn", 30d, 0d) { SkillWork = work }, [], 0));
+        Assert.Equal(30, result.WorkTicks);
         Assert.Equal(1, result.Evidence!.After.AppliedGain, 8);
         var first = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(work.Learning, result.Evidence.Callbacks, 30));
         var resumed = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(first.TerminalLearning, [], 600));
@@ -136,13 +136,13 @@ public sealed class ProductiveDuringWorkTests
         {
             Activities = [new("a", "lab", "lab", []) { ProjectProgress = new("project", 1) },
                 new("b", "lab", "lab", []) { ProjectProgress = new("project", 1) }],
-            Options = [new("a", "one", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = 1 } },
-                new("b", "two", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = 2 } }],
-            Pawns = [new("one", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d)),
-                new("two", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d))],
-            Deadline = Known(3000d), AlternativeLaborCost = Known(10000d)
+            Options = [new("a", "one", 2500d, 0d) { SkillWork = work with { CallbackOrder = 1 } },
+                new("b", "two", 2500d, 0d) { SkillWork = work with { CallbackOrder = 2 } }],
+            Pawns = [new("one", "lab", new ForecastCapacityWindows.Read([new(0, 3000)]), 1d),
+                new("two", "lab", new ForecastCapacityWindows.Read([new(0, 3000)]), 1d)],
+            Deadline = 3000d
         };
-        var result = ForecastActivities.CompareActivityPlans(problem).Selected!;
+        var result = ForecastActivities.CompareActivityPlans(problem).Alternatives[0];
         Assert.Equal(50, result.CompletedAt);
         Assert.Equal(100, result.LaborCost);
         Assert.All(result.Allocations, a =>
@@ -162,13 +162,13 @@ public sealed class ProductiveDuringWorkTests
         {
             Activities = [new("a", "lab", "lab", []) { ProjectProgress = new("project", 2) },
                 new("b", "lab", "lab", []) { ProjectProgress = new("project", 2) }],
-            Options = [new("a", "one", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = 1 } },
-                new("b", "two", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = 2 } }],
-            Pawns = [new("one", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d)),
-                new("two", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d))],
-            Deadline = Known(3000d), AlternativeLaborCost = Known(10000d)
+            Options = [new("a", "one", 2500d, 0d) { SkillWork = work with { CallbackOrder = 1 } },
+                new("b", "two", 2500d, 0d) { SkillWork = work with { CallbackOrder = 2 } }],
+            Pawns = [new("one", "lab", new ForecastCapacityWindows.Read([new(0, 3000)]), 1d),
+                new("two", "lab", new ForecastCapacityWindows.Read([new(0, 3000)]), 1d)],
+            Deadline = 3000d
         };
-        var result = ForecastActivities.CompareActivityPlans(problem).Selected!;
+        var result = ForecastActivities.CompareActivityPlans(problem).Alternatives[0];
         Assert.Equal(1, result.CompletedAt);
         Assert.Equal(remaining, result.Allocations.Sum(a => a.Learning!.WorkAmount));
         Assert.Equal(.1, result.Allocations.Single(a => a.Pawn == "one").Learning!.After.AppliedGain, 8);
@@ -183,9 +183,9 @@ public sealed class ProductiveDuringWorkTests
             CallbackIntervalTicks = 15, CallbackPhase = 7, CallbackElapsedTicks = 13,
             Learning = Work("Plants", 20, 1).Learning with { Xp = 0d }
         };
-        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(
-            new("sow", "pawn", Known(20d), Known(0d)) { SkillWork = work }, [], 0);
-        Assert.Equal(7, result.WorkTicks.Value);
+        var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(
+            new("sow", "pawn", 20d, 0d) { SkillWork = work }, [], 0));
+        Assert.Equal(7, result.WorkTicks);
         Assert.Equal(20, result.Evidence!.WorkAmount);
         Assert.Collection(result.Evidence.Callbacks,
             e => { Assert.Equal(2, e.Tick); Assert.Equal(1.5, e.RawXp); },

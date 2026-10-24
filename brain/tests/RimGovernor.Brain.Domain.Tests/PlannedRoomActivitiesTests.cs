@@ -976,7 +976,7 @@ public sealed class PlannedRoomActivitiesTests
 
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
         {
-            [Pawn] = new([], default, default, new(new(Pawn, "", default, default), []), []),
+            [Pawn] = new([], default, default, new(new(Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), []),
         }, []) { ServedRooms = [new(1, "WoodLog", 0)] };
         var ledger = ForecastValue.Of(outcome, context, GameTime.TicksPerDay);
         var rows = ledger.InvestmentContributions.Where(r => r.Key == PlannedRoomCredits.Key(PlannedRole.Kitchen, 1, KitchenCredits.Poisoning)).ToArray();

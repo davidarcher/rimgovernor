@@ -41,8 +41,9 @@ public sealed class LaboratoryCreditTests
         {
             Activities = new()
             {
+                Deadline = 0,
                 Activities = [new(Task, "bench1", "bench1", []) { ProjectProgress = new("Project", PointsPerTick) }],
-                Options = [new(Task, "pawn", Known(Hour), Known(0d)) { Equipment = ["bench1"] }],
+                Options = [new(Task, "pawn", Hour, 0d) { Equipment = ["bench1"] }],
             },
             Needs = ForecastValueTests.Context(ForecastValueTests.Pawn()).Needs with { ResearchBenches = [new("bench1", Bench, bench, factorNow)] },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Lab },

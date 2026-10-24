@@ -32,8 +32,8 @@ internal static class ForecastHandoffProjects
                     for (var cell = 1; cell <= count; cell++)
                     {
                         var tick = allocation.Learning is { } learning ? ForecastProductiveWorkPolicy.CompletionTick(learning, cell)
-                            : Known(allocation.Start + (allocation.End - allocation.Start) * cell / units);
-                        if (tick.TryGetValue(out var completion)) cells.Add(completion / GameTime.TicksPerDay);
+                            : allocation.Start + (allocation.End - allocation.Start) * cell / units;
+                        if (tick is { } completion) cells.Add(completion / GameTime.TicksPerDay);
                         else gaps.Add("terminal_sow_completion_unknown:" + task.Id);
                     }
                 }
@@ -65,10 +65,10 @@ internal static class ForecastHandoffProjects
                 if (node is null) continue;
                 var fraction = node.Kind == ProjectKind.Harvest ? 1d / Math.Max(1, node.Cells)
                     : node.Kind == ProjectKind.Construction ? 1
-                    : node.Products.Select(p => task.Outputs.Where(o => o.Resource == p.Resource && o.Units.IsKnown).Sum(o => o.Units.Value) / p.Count).DefaultIfEmpty(1).Min();
+                    : node.Products.Select(p => task.Outputs.Where(o => o.Resource == p.Resource).Sum(o => o.Units) / p.Count).DefaultIfEmpty(1).Min();
                 work = Math.Min(1, fraction) * states[node.Id].Remaining;
                 var paid = binding.Recipe is { Unfinished.Length: > 0 }
-                    ? EquatableArray.From(node.Ingredients.Select(i => new ForecastActivityYield(i.Resource, Known(i.Count * Math.Min(1, fraction))))) : task.Inputs;
+                    ? EquatableArray.From(node.Ingredients.Select(i => new ForecastActivityYield(i.Resource, i.Count * Math.Min(1, fraction)))) : task.Inputs;
                 nodes[node.Id] = node with { Ingredients = Subtract(node.Ingredients, paid), Products = Subtract(node.Products, task.Outputs),
                     Cells = node.Kind == ProjectKind.Harvest ? Math.Max(0, node.Cells - 1) : node.Cells };
                 if (node.Kind == ProjectKind.Harvest)
@@ -101,7 +101,7 @@ internal static class ForecastHandoffProjects
     }
 
     private static EquatableArray<Amount> Subtract(EquatableArray<Amount> original, EquatableArray<ForecastActivityYield> used) =>
-        EquatableArray.From(original.Select(p => p with { Count = Math.Max(0, p.Count - (long)Math.Round(used.Where(u => u.Resource == p.Resource && u.Units.IsKnown).Sum(u => u.Units.Value))) }).Where(p => p.Count > 0));
+        EquatableArray.From(original.Select(p => p with { Count = Math.Max(0, p.Count - (long)Math.Round(used.Where(u => u.Resource == p.Resource).Sum(u => u.Units))) }).Where(p => p.Count > 0));
 
     private static double ResearchCompletion(ProjectNode node, ForecastActivityPlan plan, Dictionary<string, ForecastActivity> tasks,
         IReadOnlyDictionary<string, double> finished)

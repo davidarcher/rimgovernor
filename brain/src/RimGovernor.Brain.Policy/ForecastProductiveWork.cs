@@ -9,7 +9,15 @@ public sealed record ForecastProductiveLearning(string Skill, EquatableArray<Ski
     public EquatableArray<ForecastWorkSegment> WorkSegments { get; init; }
 }
 public sealed record ForecastWorkSegment(int Start, int End, double WorkPerTick, int CallbackInterval);
-public sealed record ForecastProductiveDuration(Fact<double> WorkTicks, ForecastProductiveLearning? Evidence, string Reason);
+/// <summary>An option's work duration from its start: timed, with the learning it carries when assessed, or unprojectable.</summary>
+public abstract record ForecastProductiveDuration(string Reason)
+{
+    /// <summary>The work takes <paramref name="WorkTicks"/>; <paramref name="Evidence"/> is its learning, null when none was assessed.</summary>
+    public sealed record Timed(double WorkTicks, ForecastProductiveLearning? Evidence, string Reason) : ForecastProductiveDuration(Reason);
+
+    /// <summary>The native mechanics cannot time the work; the option is not planned.</summary>
+    public sealed record Unprojectable(string Reason) : ForecastProductiveDuration(Reason);
+}
 
 public static class ForecastProductiveWorkPolicy
 {
@@ -17,8 +25,9 @@ public static class ForecastProductiveWorkPolicy
         IReadOnlyList<ForecastActivityAllocation> assigned, double start, double? stopAt = null)
     {
         if (option.SkillWork is not { } work)
-            return option.TendLearning is { } tend ? Tend(option, tend, assigned, start) : new(option.WorkTicks, null, "learning_effect_unassessed");
-        ForecastProductiveDuration Unknown(string reason) => new(default, null, reason);
+            return option.TendLearning is { } tend ? Tend(option, tend, assigned, start)
+                : new ForecastProductiveDuration.Timed(option.WorkTicks, null, "learning_effect_unassessed");
+        static ForecastProductiveDuration Untimed(string reason) => new ForecastProductiveDuration.Unprojectable(reason);
         var mechanics = work.Learning;
         if (!double.IsFinite(start) || start < 0 || start > GameTime.TicksPerDay
             || !double.IsFinite(work.PreparationTicks) || work.PreparationTicks < 0
@@ -28,20 +37,20 @@ public static class ForecastProductiveWorkPolicy
             || work.CallbackElapsedTicks < 0 || work.CallbackElapsedTicks >= 15
             || work.CallbackPhase < 0 || work.CallbackPhase >= work.CallbackIntervalTicks
             || work.Rates.Select(r => r.StoredLevel).Distinct().Count() != work.Rates.Count)
-            return Unknown("productive_mechanics_unknown");
+            return Untimed("productive_mechanics_unknown");
         var stages = work.Stages.Count == 0
             ? new[] { new ProductiveWorkStage(work.WorkAmount, 1, work.Recipe.RawXpPerWorkTick, work.WorkQuantum) }
             : work.Stages.ToArray();
         if (stages.Any(s => !double.IsFinite(s.WorkAmount) || s.WorkAmount <= 0 || !double.IsFinite(s.RateFactor) || s.RateFactor <= 0
             || !double.IsFinite(s.RawXpPerWorkTick) || s.RawXpPerWorkTick < 0
             || !double.IsFinite(s.WorkQuantum) || s.WorkQuantum < 0 || s.HoldRateUntilQuantum && s.WorkQuantum <= 0))
-            return Unknown("productive_stage_unknown");
+            return Untimed("productive_stage_unknown");
         var events = Prior(assigned, option.Pawn, work.Recipe.Skill);
         var tick = (int)Math.Ceiling(start + work.PreparationTicks);
         var workStart = tick;
-        if (events.Any(e => e.LastTick > tick)) return Unknown("learning_callback_after_work_start");
+        if (events.Any(e => e.LastTick > tick)) return Untimed("learning_callback_after_work_start");
         var beforeForecast = ForecastSkillPolicy.ForecastSkill(mechanics, events, tick);
-        if (beforeForecast is not SkillForecast.Projected { Projection: var before }) return Unknown(string.Join(",", ForecastSkillPolicy.FindingsOf(beforeForecast)));
+        if (beforeForecast is not SkillForecast.Projected { Projection: var before }) return Untimed(string.Join(",", ForecastSkillPolicy.FindingsOf(beforeForecast)));
         var cursor = new ForecastSkillCursor(mechanics);
         foreach (var e in events)
             for (var i = 0; i < e.Count; i++)
@@ -55,7 +64,7 @@ public static class ForecastProductiveWorkPolicy
         var clock = new TickIntervalClock(work.CallbackIntervalTicks, work.CallbackPhase, work.CallbackElapsedTicks);
         var runFirst = 0; var runLast = 0; var runCount = 0; var runInterval = 0; var runRaw = 0d;
         var segmentStart = tick; var segmentEnd = tick; var segmentRate = 0d; var segmentCadence = 0;
-        var fixedTicks = work.FixedDuration && option.WorkTicks.IsKnown ? (int)Math.Ceiling(option.WorkTicks.Value - work.PreparationTicks) : 0;
+        var fixedTicks = work.FixedDuration ? (int)Math.Ceiling(option.WorkTicks - work.PreparationTicks) : 0;
         // The work a tick at the cursor's stored level; null when the read has no rate at that level.
         double? Rate(ProductiveWorkStage stage)
         {
@@ -74,12 +83,12 @@ public static class ForecastProductiveWorkPolicy
                 var (at, delta) = clock.Next(tick);
                 var elapsed = at - tick;
                 if (stopAt is { } cutoff && at > cutoff) break;
-                if (at > GameTime.TicksPerDay) return Unknown("productive_learning_window_expired");
+                if (at > GameTime.TicksPerDay) return Untimed("productive_learning_window_expired");
                 cursor.Advance(at - 1);
                 var raw = stage.RawXpPerWorkTick * delta;
                 if (work.Recipe.DuringWork && work.LearnBeforeWork) cursor.Learn(raw, SkillXpPath.NormalTracker);
                 var rate = stage.HoldRateUntilQuantum ? heldRate : Rate(stage);
-                if (rate is not { } speed || !double.IsFinite(speed) || speed <= 0) return Unknown("skill_work_rate_unread_or_zero");
+                if (rate is not { } speed || !double.IsFinite(speed) || speed <= 0) return Untimed("skill_work_rate_unread_or_zero");
                 var progress = speed * delta;
                 if (stage.WorkQuantum > 0)
                     progress = Math.Min(progress, (Math.Floor((done + 1e-9) / stage.WorkQuantum) + 1) * stage.WorkQuantum - done);
@@ -108,10 +117,10 @@ public static class ForecastProductiveWorkPolicy
             }
         }
         FlushCallbacks(); FlushSegment();
-        if (cursor.Snapshot(tick) is not SkillForecast.Projected { Projection: var after }) return Unknown("learning_arithmetic_overflow");
+        if (cursor.Snapshot(tick) is not SkillForecast.Projected { Projection: var after }) return Untimed("learning_arithmetic_overflow");
         var duration = tick - start;
-        return new(Known(duration), new(work.Recipe.Skill, EquatableArray.From(callbacks), before, after,
-            option.WorkTicks.IsKnown ? option.WorkTicks.Value : duration, duration, work.Provenance) { WorkAmount = amount, WorkSegments = EquatableArray.From(segments) }, "conditional_productive_learning");
+        return new ForecastProductiveDuration.Timed(duration, new(work.Recipe.Skill, EquatableArray.From(callbacks), before, after,
+            option.WorkTicks, duration, work.Provenance) { WorkAmount = amount, WorkSegments = EquatableArray.From(segments) }, "conditional_productive_learning");
 
         void FlushCallbacks()
         {
@@ -127,37 +136,38 @@ public static class ForecastProductiveWorkPolicy
         }
     }
 
-    /// <summary>First native work callback that reaches the requested conserved work units.</summary>
-    public static Fact<double> CompletionTick(ForecastProductiveLearning learning, double units)
+    /// <summary>First native work callback that reaches the requested conserved work units; null when the work never reaches them.</summary>
+    public static double? CompletionTick(ForecastProductiveLearning learning, double units)
     {
-        if (!double.IsFinite(units) || units <= 0) return default;
+        if (!double.IsFinite(units) || units <= 0) return null;
         foreach (var segment in learning.WorkSegments)
         {
             var amount = (segment.End - segment.Start) * segment.WorkPerTick;
             if (units <= amount + 1e-9)
-                return Known((double)Math.Min(segment.End, segment.Start + Math.Ceiling(units / segment.WorkPerTick / segment.CallbackInterval) * segment.CallbackInterval));
+                return Math.Min(segment.End, segment.Start + Math.Ceiling(units / segment.WorkPerTick / segment.CallbackInterval) * segment.CallbackInterval);
             units -= amount;
         }
-        return default;
+        return null;
     }
 
     private static ForecastProductiveDuration Tend(ForecastActivityOption option, TendLearning tend,
         IReadOnlyList<ForecastActivityAllocation> assigned, double start)
     {
-        if (!option.WorkTicks.TryGetValue(out var work) || !double.IsFinite(work) || work < 0
-            || !double.IsFinite(start) || start < 0 || start + work > GameTime.TicksPerDay)
-            return new(option.WorkTicks, null, "tend_learning_outside_window");
+        var work = option.WorkTicks;
+        ForecastProductiveDuration Unassessed(string reason) => new ForecastProductiveDuration.Timed(work, null, reason);
+        if (!double.IsFinite(work) || work < 0 || !double.IsFinite(start) || start < 0 || start + work > GameTime.TicksPerDay)
+            return Unassessed("tend_learning_outside_window");
         var tick = (int)Math.Ceiling(start);
         var events = Prior(assigned, option.Pawn, tend.Skill);
-        if (events.Any(e => e.LastTick > tick)) return new(option.WorkTicks, null, "learning_callback_after_work_start");
+        if (events.Any(e => e.LastTick > tick)) return Unassessed("learning_callback_after_work_start");
         var beforeForecast = ForecastSkillPolicy.ForecastSkill(tend.Learning, events, tick);
         var end = (int)Math.Ceiling(start + work);
         var callback = ForecastSkillPolicy.TendCompletionLearning(tend, option.Activity, end) with { BeforeDecay = true };
         events.Add(callback);
         var afterForecast = ForecastSkillPolicy.ForecastSkill(tend.Learning, events, end);
         if (beforeForecast is not SkillForecast.Projected { Projection: var before } || afterForecast is not SkillForecast.Projected { Projection: var after })
-            return new(option.WorkTicks, null, string.Join(",", ForecastSkillPolicy.FindingsOf(beforeForecast).Concat(ForecastSkillPolicy.FindingsOf(afterForecast)).Distinct()));
-        return new(option.WorkTicks, new(tend.Skill, [callback], before, after, work, work, tend.Provenance), "conditional_tend_learning");
+            return Unassessed(string.Join(",", ForecastSkillPolicy.FindingsOf(beforeForecast).Concat(ForecastSkillPolicy.FindingsOf(afterForecast)).Distinct()));
+        return new ForecastProductiveDuration.Timed(work, new(tend.Skill, [callback], before, after, work, work, tend.Provenance), "conditional_tend_learning");
     }
 
     private static List<SkillXpEvent> Prior(IReadOnlyList<ForecastActivityAllocation> assigned, string pawn, string skill)

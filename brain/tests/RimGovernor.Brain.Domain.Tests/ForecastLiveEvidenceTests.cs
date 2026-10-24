@@ -14,15 +14,15 @@ public sealed class ForecastLiveEvidenceTests
     private static readonly GenerationSnapshot Scope = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static NeedsForecastRead Needs(long tick, double food = .6) => NeedsFixtures.Empty with { Tick = new(tick), Pawns = [NeedsFixtures.Pawn() with {
         Pawn = "pawn", Mood = NeedsFixtures.Mood with { Level = .7, Target = .99 }, Needs = [NeedsFixtures.Rate("food", food, default, default), NeedsFixtures.Rate("rest", .8, default, default)] }] };
-    private static ForecastCoupledContext Context(long tick) => new() { Activities = new(), Needs = Needs(tick), Resources = new(new(), new([], [], [], []), default) };
+    private static ForecastCoupledContext Context(long tick) => new() { Activities = new() { Deadline = 0 }, Needs = Needs(tick), Resources = new(new(), new([], [], [], []), default) };
     private static ForecastCoupledSelection Selection()
     {
         var plan = new ForecastActivityPlan([new("task", "pawn", 0, 0, 0, 50, 0, 0, 50, 50, 0)], 50, 50);
         var needs = new ForecastNeedsResult([new("food", Known(.4), default, default, default), new("rest", Known(.5), default, default, default)],
-            default, default, new(new("pawn", "place", default, default), []), []) { Mood = new([], default, default, default, default, Known(.6), []) };
+            default, default, new(new("pawn", "place", new ForecastCapacityWindows.Unread(), 0), []), []) { Mood = new([], default, default, default, default, Known(.6), []) };
         var outcome = new ForecastCoupledOutcome(plan, Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, []);
         var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
-        return new(new(["task"], plan, default, [], 0, false), outcome, outcome, vector, vector, [], 100, false);
+        return new(new(["task"], plan, [], 0, false), outcome, outcome, vector, vector, [], 100, false);
     }
     private static PawnActivities Batch => new(1, [new("pawn", "assignment", "method", 0, 1, false,
         [new(PawnActivityKind.Eat, "food", "", "", 1, 1000)]) { Task = "task" }]) {

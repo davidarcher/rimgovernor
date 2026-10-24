@@ -20,7 +20,7 @@ public static partial class ForecastCoupled
         HorizonTicks = horizon,
         ProtectTimetable = false,
         LocalHour = observed?.LocalHour ?? default,
-        OpportunityCostPerTick = Known(1.0),
+        OpportunityCostPerTick = 1.0,
         CurrentWork = new(new(pawn), observed?.Occupied ?? default, default,
             observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
         Occupancy = occupancy
@@ -30,9 +30,8 @@ public static partial class ForecastCoupled
     internal readonly record struct Cached<T>(T Value, int Id);
 
     /// <summary>A task's material shape, fixed for a search: inputs by resource in first-appearance order with units summed
-    /// in row order (Unknown when any row is), the lots its inputs name, its source lots with summed units, and the meal
-    /// it serves with that meal's lots.</summary>
-    internal sealed record TaskShape((Resource Resource, bool Unknown, double Units)[] Inputs, string[] InputLots,
+    /// in row order, the lots its inputs name, its source lots with summed units, and the meal it serves with that meal's lots.</summary>
+    internal sealed record TaskShape((Resource Resource, double Units)[] Inputs, string[] InputLots,
         ((string Lot, string Location, Resource Resource) Key, double Units)[] LotInputs, ForecastNeedTask? Ingestion, string[] FoodLots);
 
     internal readonly record struct ScheduleEvent(double Time, int Order, bool Start, ForecastActivityAllocation Allocation);
@@ -95,10 +94,10 @@ public static partial class ForecastCoupled
             static double Sum(IEnumerable<ForecastActivityYield> rows)
             {
                 double total = 0;
-                foreach (var row in rows) total += row.Units.TryGetValue(out var units) ? units : double.NaN;
+                foreach (var row in rows) total += row.Units;
                 return total;
             }
-            var inputs = task.Inputs.GroupBy(i => i.Resource).Select(g => (g.Key, g.Any(i => !i.Units.IsKnown), Sum(g))).ToArray();
+            var inputs = task.Inputs.GroupBy(i => i.Resource).Select(g => (g.Key, Sum(g))).ToArray();
             var lotInputs = task.Inputs.Where(i => i.Lot.Length != 0)
                 .GroupBy(i => (i.Lot, Location: i.LotLocation.Length == 0 ? task.Location : i.LotLocation, i.Resource))
                 .Select(g => (g.Key, Sum(g))).ToArray();
@@ -656,7 +655,7 @@ public static partial class ForecastCoupled
                         }
                     }
                     bool unknownMaterial = !physicalKnown && shape.Inputs.Length != 0, shortfall = false;
-                    foreach (var input in shape.Inputs) unknownMaterial |= input.Unknown || !balance.GetValueOrDefault(input.Resource, Known(0.0)).IsKnown;
+                    foreach (var input in shape.Inputs) unknownMaterial |= !balance.GetValueOrDefault(input.Resource, Known(0.0)).IsKnown;
                     if (unknownMaterial)
                     { completed[task.Id] = default; Uncertain("unknown_timed_material", task.Id); continue; }
                     foreach (var input in shape.Inputs) shortfall |= balance.GetValueOrDefault(input.Resource, Known(0.0)).Value < input.Units;
@@ -698,23 +697,23 @@ public static partial class ForecastCoupled
                     foreach (var output in task.Outputs)
                     {
                         var outputId = output.Lot.Length == 0 ? task.Id + "/output/" + output.Resource : output.Lot;
-                        RegisterOutput(outputId, output.Resource, output.Perishable, output.FreshTicks, e.Time);
+                        RegisterOutput(outputId, output.Resource, output.Perishable, Known(output.FreshTicks), e.Time);
                         if (output.Lot.Length == 0)
                         {
                             var key = (outputId, task.EndLocation, output.Resource);
                             var beforeLot = lots.GetValueOrDefault(key, Known(0d));
-                            lots[key] = beforeLot.IsKnown && output.Units.IsKnown ? Known(beforeLot.Value + output.Units.Value) : default;
+                            lots[key] = beforeLot.IsKnown ? Known(beforeLot.Value + output.Units) : default;
                         }
                         if (output.Lot.Length != 0)
                         {
-                            if (output.Perishable && !expiry.ContainsKey(output.Lot)) expiry[output.Lot] = output.FreshTicks.IsKnown ? Known(e.Time + output.FreshTicks.Value) : default;
+                            if (output.Perishable && !expiry.ContainsKey(output.Lot)) expiry[output.Lot] = Known(e.Time + output.FreshTicks);
                             var key = (output.Lot, output.LotLocation.Length == 0 ? task.EndLocation : output.LotLocation, output.Resource);
                             var beforeLot = lots.GetValueOrDefault(key, Known(0.0));
-                            lots[key] = beforeLot.IsKnown && output.Units.IsKnown ? Known(beforeLot.Value + output.Units.Value) : default;
+                            lots[key] = beforeLot.IsKnown ? Known(beforeLot.Value + output.Units) : default;
                         }
                         var before = balance.GetValueOrDefault(output.Resource, Known(0.0));
-                        balance[output.Resource] = before.IsKnown && output.Units.IsKnown ? Known(before.Value + output.Units.Value) : default;
-                        effects.Add((output.Resource, e.Time / GameTime.TicksPerDay, output.Units));
+                        balance[output.Resource] = before.IsKnown ? Known(before.Value + output.Units) : default;
+                        effects.Add((output.Resource, e.Time / GameTime.TicksPerDay, Known(output.Units)));
                     }
                 }
             }
@@ -843,7 +842,7 @@ public static partial class ForecastCoupled
                 var choicesId = choiceKeys.Id(choices);
                 // Needs recovery is assessed without masking physiological unavailability beneath planned work.
                 var physiology = NeedsAt(p, 0, choicesId, 0, 0, null, facts, horizon);
-                if (!physiology.Value.Capacity.Capacity.Windows.TryGetValue(out var able))
+                if (physiology.Value.Capacity.Capacity.Windows is not ForecastCapacityWindows.Read(var able))
                 { if (productive.Count != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn); }
                 else foreach (var work in productive)
                 {

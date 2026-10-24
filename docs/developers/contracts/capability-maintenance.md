@@ -55,7 +55,7 @@ releases it. A bounded session's success is not evidence that a skill floor was 
 Actual skill readback owns that fact.
 
 `coupled_selection` consequence vectors include `maintenance` rows with requirement identity,
-conditional `missing_xp` and findings. Existing OTLP timeline readers display them. Prepared
+`missing_xp` (the `ForecastMaintenanceGap.Projected` XP, null when the gap is `Unprojectable`) and findings. Existing OTLP timeline readers display them. Prepared
 `production/maintenance-range` and `production/maintenance-sparring` require normal Method
 journal attribution, observed recovery and draft/real-weapon restoration. They complement the native budget, ceiling, damage and bystander laboratory cases.
 Registration and compilation are distinct from executed native acceptance.

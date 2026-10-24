@@ -174,14 +174,14 @@ public static class ForecastIncumbentPreparation
             {
                 var waitId = id + "/wait";
                 activities.Add(new(waitId, startLocation, startLocation, []) { NotBefore = 0, LatestStart = 0 });
-                options.Add(new(waitId, pawn, Known(entry.Wait), Known(0d)));
+                options.Add(new(waitId, pawn, entry.Wait, 0));
                 waiting.Add(waitId); graph.Add(waitId);
                 routes[(pawn, startLocation, location)] = new(pawn, startLocation, location, new RouteTicks.Reachable(entry.Travel));
             }
             activities.Add(new(id, location, location, graph.ToArray())
                 { NotBefore = entry.Wait + entry.Travel, LatestStart = entry.Wait + entry.Travel });
             graph.Add(id);
-            options.Add(new(id, pawn, Known(duration), Known(0d)));
+            options.Add(new(id, pawn, duration, 0));
             routes[(pawn, "start", "start")] = new(pawn, "start", "start", new RouteTicks.Reachable(0));
             routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, new RouteTicks.Reachable(0));
             routes[(pawn, "start", location)] = new(pawn, "start", location, new RouteTicks.Reachable(entry.Travel));
@@ -292,12 +292,12 @@ public static class ForecastIncumbentPreparation
     {
         var own = ForecastObservedIncumbent.CooksOf(method.Batch, method.Bills);
         var context = generated.Context;
-        var options = context.Activities.Options.Where(o => o.WorkTicks.TryGetValue(out var ticks) && double.IsFinite(ticks) && ticks >= 0)
-            .GroupBy(o => (o.Activity, o.Pawn)).ToDictionary(g => g.Key, g => g.First().WorkTicks.Value);
+        var options = context.Activities.Options.Where(o => double.IsFinite(o.WorkTicks) && o.WorkTicks >= 0)
+            .GroupBy(o => (o.Activity, o.Pawn)).ToDictionary(g => g.Key, g => g.First().WorkTicks);
         var routes = context.Activities.Routes.Where(r => r.Ticks is RouteTicks.Reachable(var ticks) && double.IsFinite(ticks))
             .GroupBy(r => (r.Pawn, r.From, r.To)).ToDictionary(g => g.Key, g => ((RouteTicks.Reachable)g.First().Ticks).Ticks);
         double? Route(string pawn, Cell to) => routes.TryGetValue((pawn, "start", Methods.Generation.ForecastLocations.Of(to)), out var ticks) ? ticks : null;
-        var offered = new List<(string Pawn, double Total, Fact<double> Poison)>();
+        var offered = new List<(string Pawn, double Total, double Poison)>();
         foreach (var cook in context.Bindings.Values.Where(b => b.Kind == PawnActivityKind.Recipe
             && b.Recipe?.Bill is { } bill && method.Bills.Contains(bill)))
         {
@@ -311,10 +311,10 @@ public static class ForecastIncumbentPreparation
             offered.Add((cook.Pawn, fetch.Value + work, cook.FoodPoisonChance));
         }
         var mine = offered.Where(o => own.Contains(o.Pawn)).OrderBy(o => o.Total)
-            .ThenBy(o => o.Poison.TryGetValue(out var p) ? p : double.PositiveInfinity).ToArray();
+            .ThenBy(o => o.Poison).ToArray();
         if (mine.Length == 0) return offered.Any(o => !own.Contains(o.Pawn));
         var best = mine[0];
         return offered.Any(o => !own.Contains(o.Pawn) && (o.Total < best.Total || o.Total <= best.Total
-            && o.Poison.TryGetValue(out var poison) && best.Poison.TryGetValue(out var incumbent) && poison < incumbent));
+            && o.Poison < best.Poison));
     }
 }

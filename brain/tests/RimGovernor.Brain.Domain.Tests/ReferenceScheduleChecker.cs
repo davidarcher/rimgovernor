@@ -27,7 +27,7 @@ internal static class ReferenceScheduleChecker
         var pawns = problem.Pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
         var routes = problem.Routes.ToDictionary(r => (r.Pawn, r.From, r.To), r => r.Ticks);
         var equipment = problem.Equipment.ToDictionary(e => e.Id, StringComparer.Ordinal);
-        var deadline = problem.Deadline.Value;
+        var deadline = problem.Deadline;
         var byActivity = new Dictionary<string, ReferenceStep>(StringComparer.Ordinal);
         foreach (var step in steps)
             if (!byActivity.TryAdd(step.Activity, step)) bad.Add("duplicate_activity:" + step.Activity);
@@ -42,7 +42,7 @@ internal static class ReferenceScheduleChecker
         foreach (var worker in known.GroupBy(s => s.Worker))
         {
             var ordered = worker.OrderBy(s => s.Depart).ThenBy(s => s.End).ToArray();
-            var windows = pawns[worker.Key].Windows.TryGetValue(out var w) ? w : default;
+            var windows = pawns[worker.Key].Windows is ForecastCapacityWindows.Read(var w) ? w : default;
             string origin = "start";
             ReferenceStep? previous = null;
             var skillRecipes = new List<ReferenceStep>();
@@ -63,7 +63,7 @@ internal static class ReferenceScheduleChecker
                 // Observed per-worker rates (91/105/110, 1-tick carry and 10-tick ingestion) are exact; a developing cook is separate.
                 if (option.SkillWork is null)
                 {
-                    if (!option.WorkTicks.TryGetValue(out var work) || Math.Abs(step.End - step.Start - work) > Eps) bad.Add($"work_rate:{step.Activity}:{step.Worker}");
+                    if (Math.Abs(step.End - step.Start - option.WorkTicks) > Eps) bad.Add($"work_rate:{step.Activity}:{step.Worker}");
                 }
                 else skillRecipes.Add(step);
                 origin = task.EndLocation;
@@ -143,10 +143,9 @@ internal static class ReferenceScheduleChecker
         {
             var task = tasks[step.Activity];
             foreach (var input in task.Inputs)
-                if (input.Units.TryGetValue(out var u)) events.Add((step.Start, 1, input.Resource, input.Lot, -u, step.Activity));
-                else bad.Add("input_unknown:" + step.Activity);
+                events.Add((step.Start, 1, input.Resource, input.Lot, -input.Units, step.Activity));
             foreach (var output in task.Outputs)
-                if (output.Units.TryGetValue(out var u)) events.Add((step.End, 0, output.Resource, output.Lot, u, step.Activity));
+                events.Add((step.End, 0, output.Resource, output.Lot, output.Units, step.Activity));
         }
         // Outputs landing at an instant are available to inputs starting at that instant.
         foreach (var e in events.OrderBy(e => e.At).ThenBy(e => e.Order))
@@ -166,7 +165,7 @@ internal static class ReferenceScheduleChecker
         Dictionary<string, ForecastActivity> tasks, Dictionary<(string, string), ForecastActivityOption> options, List<string> bad)
     {
         var served = new HashSet<string>(StringComparer.Ordinal);
-        var horizon = context.Activities.Deadline.Value;
+        var horizon = context.Activities.Deadline;
         foreach (var pawn in context.Needs.Pawns)
         {
             var food = pawn.Needs.FirstOrDefault(n => n.Kind == "food");
@@ -179,7 +178,7 @@ internal static class ReferenceScheduleChecker
             foreach (var step in steps.Where(s => s.Worker == pawn.Pawn && meals.Any(m => m.Task == s.Activity)))
             {
                 var task = tasks[step.Activity];
-                var work = options[(step.Activity, step.Worker)].WorkTicks.Value;
+                var work = options[(step.Activity, step.Worker)].WorkTicks;
                 var index = due.FindIndex(t => Math.Abs(task.NotBefore + work - t) < Eps);
                 if (index < 0) { bad.Add("ingestion_not_a_demand_event:" + step.Activity); continue; }
                 if (step.End > due[index] + Eps) { bad.Add($"ingestion_late:{step.Activity}"); continue; }
@@ -193,7 +192,7 @@ internal static class ReferenceScheduleChecker
     public static IReadOnlyList<(string Pawn, int Index, double DueTick)> DemandEvents(ForecastCoupledContext context)
     {
         var events = new List<(string, int, double)>();
-        var horizon = context.Activities.Deadline.Value;
+        var horizon = context.Activities.Deadline;
         foreach (var pawn in context.Needs.Pawns)
         {
             var food = pawn.Needs.FirstOrDefault(n => n.Kind == "food");

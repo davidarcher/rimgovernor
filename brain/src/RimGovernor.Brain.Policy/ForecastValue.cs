@@ -490,7 +490,7 @@ public static partial class ForecastValue
             var charged = index.MaterialCharged.Contains(allocation.Activity);
             foreach (var input in activity.Inputs)
             {
-                if (!input.Units.TryGetValue(out var units)) continue;
+                var units = input.Units;
                 Add(allocation, ProjectGraph.MedicineKey(input.Resource), units, 1);
                 if (charged) Material(allocation.Activity, allocation.Pawn, input.Resource, units);
             }
