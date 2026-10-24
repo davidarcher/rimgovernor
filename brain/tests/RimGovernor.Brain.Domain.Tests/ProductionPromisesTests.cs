@@ -145,7 +145,7 @@ public sealed class ProductionPromisesTests
             Tick = new Tick(100), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
             ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
-            WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),
+            WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots.Value, false) { Products = [], WorkAmount = 0 }]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },
         };
         var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);

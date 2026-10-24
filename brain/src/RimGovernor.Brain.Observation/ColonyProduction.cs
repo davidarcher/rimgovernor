@@ -304,17 +304,8 @@ public static class ColonyProductionReads
             foreach (var r in recipes)
             {
                 var name = r.Recipe;
-                var recipe = new ProductionRecipe { Name = name, Role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(name), Bulk = ColonyDecodeReads.RequireCatalog(catalog).RecipeBulk(name) };
-                var meal = ColonyDecodeReads.RequireCatalog(catalog).RecipeMealFacts(name, row.Definition);
-                recipe = recipe with
-                {
-                    Mood = meal.Mood,
-                    NutrientEfficiency = meal.NutrientEfficiency,
-                    WorkPerNutrition = meal.WorkPerNutrition,
-                    NeedsPower = meal.NeedsPower,
-                    IngredientClasses = meal.IngredientClasses,
-                    CookSkillFloor = meal.CookSkillFloor,
-                };
+                var recipeCatalog = ColonyDecodeReads.RequireCatalog(catalog);
+                var recipe = new ProductionRecipe { Name = name, Role = recipeCatalog.RecipeRoleOf(name), Bulk = recipeCatalog.RecipeBulk(name), Food = recipeCatalog.RecipeFood(name) };
                 recipe = recipe with { Available = Known(r.AvailableNow && r.AvailableOnBench) };
                 var products = new List<ProductionProduct>();
                 foreach (var p in production)

@@ -15,8 +15,8 @@ public sealed class MaterialChoiceTests
         Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [Metal] = Known(metal), [Timber] = Known(timber) });
     private static ProductionMaterialView View(double metal = 10, double timber = 10) => new(
         Known<EquatableArray<ProductionRecipeInput>>([
-            new("FlexibleRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(Metal, 10), new(Timber, 10)]]), Known(false)),
-            new("MetalRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(Metal, 10)]]), Known(false))]), Budget(metal, timber));
+            new("FlexibleRecipe", [[new(Metal, 10), new(Timber, 10)]], false) { Products = [], WorkAmount = 0 },
+            new("MetalRecipe", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }]), Budget(metal, timber));
     private static LedgerPlacement Flexible => new("bench-a", new() { Recipe = "FlexibleRecipe", BenchKind = "TestBench", Mode = BillMode.GearBatch, Target = 1 });
     private static LedgerPlacement Machine => new("bench-b", new() { Recipe = "MetalRecipe", BenchKind = "TestBench", Mode = BillMode.GearBatch, Target = 1 });
     private static ProductionBatch Batch(LedgerPlacement p, string id) => new(new ProductionBill(p.Bench, p.Spec.Recipe, p.Spec.Mode, p.Spec.Target, [.. p.Spec.Ingredients]),
@@ -48,7 +48,7 @@ public sealed class MaterialChoiceTests
                 StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Metal] = ["Stuff"], [Timber] = ["Stuff"] },
                 AcceptedStuff = new Dictionary<Resource, IReadOnlyList<string>> { [new("Sculpture")] = ["Stuff"] } } };
         var bench = new ProductionBench { Id = "bench-a", Usable = true, Token = "token",
-            Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = Known(true) }] };
+            Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = Known(true), Food = new RecipeFood.NotFood() }] };
         var bill = Assert.Single(ArtRules.SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), 1L, [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
         Assert.Equal(new[] { Metal.Value, Timber.Value }, bill.Ingredients);
         var declared = Flexible with { Spec = Flexible.Spec with { Ingredients = EquatableArray.From(bill.Ingredients), Worker = bill.Worker } };
@@ -86,7 +86,7 @@ public sealed class MaterialChoiceTests
     public void GlobalNativeFilterCannotPretendToPinOverlappingSlots()
     {
         var view = View() with { Recipes = Known<EquatableArray<ProductionRecipeInput>>([
-            new("FlexibleRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(Metal, 5), new(Timber, 5)], [new(Metal, 5)]]), Known(false))]) };
+            new("FlexibleRecipe", [[new(Metal, 5), new(Timber, 5)], [new(Metal, 5)]], false) { Products = [], WorkAmount = 0 }]) };
         // Choosing timber for slot one and metal for slot two reopens both choices in slot one.
         var choice = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], view with { Availability = Budget(5, 5) });
         Assert.Empty(choice.Selected);

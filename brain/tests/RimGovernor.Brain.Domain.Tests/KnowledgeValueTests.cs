@@ -117,10 +117,10 @@ public sealed class KnowledgeValueTests
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
         var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = Known(summary) } }).Input.Research;
-        var recipe = new ProductionRecipeInput($"Make_{Unlocked}", Known(EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(Cloth, 80) }) })), Known(false))
+        var recipe = new ProductionRecipeInput($"Make_{Unlocked}", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(Cloth, 80) }) }), false)
         {
-            Products = Known(EquatableArray.From(new[] { new Amount(new Resource(Unlocked), 1) })),
-            WorkAmount = Known(10_000.0),
+            Products = EquatableArray.From(new[] { new Amount(new Resource(Unlocked), 1) }),
+            WorkAmount = 10_000.0,
         };
         var colony = ProjectGraphTests.Colony();
         var input = colony with

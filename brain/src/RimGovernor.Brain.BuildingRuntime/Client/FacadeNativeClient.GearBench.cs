@@ -108,7 +108,10 @@ public sealed partial class FacadeNativeClient
         }
     }
 
-    /// <summary>The bench's recipes with what the catalog says each is, and the bench definition.</summary>
+    /// <summary>
+    /// The bench's recipes with what the catalog says each is, and the bench definition. A recipe with a slot no def
+    /// fills, or that no work giver serves at this bench, is never worked there and is left out.
+    /// </summary>
     private async Task<(List<P.GearRecipe> Recipes, string Def)> GearReadRecipesAsync(PbCommon.Identity identity, string bench, GearRecipeCatalogAdapter catalog, CancellationToken cancellationToken)
     {
         var request = new PbObservations.RecipesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, BenchId = bench };
@@ -118,6 +121,10 @@ public sealed partial class FacadeNativeClient
         foreach (var row in snapshot.Recipes)
         {
             var definition = row.Recipe;
+            if (!catalog.RecipeFillable(definition) || !catalog.RecipeWorkedAt(definition, benchDef))
+            {
+                continue;
+            }
             var role = catalog.RecipeRoleOf(definition);
             // What the recipe is and costs is the catalog's; the frame says only whether this bench offers it now.
             var products = catalog.RecipeProducts(definition);

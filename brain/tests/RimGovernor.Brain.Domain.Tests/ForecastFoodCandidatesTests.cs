@@ -36,10 +36,11 @@ public sealed class ForecastFoodCandidatesTests
         Sources = Known(EquatableArray.From(new[] { new AcquisitionSource { Id = "plant", Definition = "TestPlant", Resource = Raw.Value, Food = true, Yield = 4, Growth = 1 } })),
         Crops = [new() { Name = "TestPlant", Harvests = Known(Raw), HarvestMinGrowth = Known(0.8), HarvestWork = Known(100.0) }],
         Benches = Known(EquatableArray.From(new[] { new ProductionBench { Id = "bench", Token = "bench-token", Usable = true,
-            Recipes = [new() { Name = "TestRecipe", Role = RecipeRole.OrdinaryMeal, Available = Known(true), CookSkillFloor = Known(2) }] } })),
-        Recipes = Known(EquatableArray.From(new[] { new ProductionRecipeInput("TestRecipe", Known(EquatableArray.From(new[] {
-            EquatableArray.From(new[] { new Amount(Raw, 2) }) })), Known(false))
-            { Products = Known(EquatableArray.From(new[] { new Amount(Meal, 1) })), WorkAmount = Known(40.0) } })),
+            Recipes = [new() { Name = "TestRecipe", Role = RecipeRole.OrdinaryMeal, Available = Known(true),
+                Food = new RecipeFood.Food(0, 0, new RecipeCooking.FromRaw(1, [], 2)) }] } })),
+        Recipes = Known(EquatableArray.From(new[] { new ProductionRecipeInput("TestRecipe", EquatableArray.From(new[] {
+            EquatableArray.From(new[] { new Amount(Raw, 2) }) }), false)
+            { Products = EquatableArray.From(new[] { new Amount(Meal, 1) }), WorkAmount = 40.0 } })),
         Workers = [new("worker", Known(true), Known(true), Known(10.0), Known(10.0), Known(0.0))],
         Transfers = [new("plant", "home", "worker", Raw, Known(4.0), Known(10.0)),
             new("plant", "bench", "worker", Raw, Known(4.0), Known(10.0)), new("bench", "home", "worker", Meal, Known(2.0), Known(10.0))],
@@ -87,7 +88,7 @@ public sealed class ForecastFoodCandidatesTests
     {
         var input = Inputs();
         input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with
-            { Products = Known(EquatableArray.From(new[] { new Amount(Meal, 3) })) }))) };
+            { Products = EquatableArray.From(new[] { new Amount(Meal, 3) }) }))) };
         var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         var cook = generated.Problem!.Activities.Single(a => generated.Bindings.Any(b => b.Activity == a.Id && b.Iterations == 2));
         Assert.Equal(6, Assert.Single(cook.Outputs).Units.Value);
@@ -97,7 +98,7 @@ public sealed class ForecastFoodCandidatesTests
     public void SmallBatchMeetsDeadlineWhenCookingTheWholeHarvestWouldBeTooLate()
     {
         var input = Inputs();
-        input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with { WorkAmount = Known(6000.0) }))) };
+        input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with { WorkAmount = 6000.0 }))) };
         var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         var result = ForecastSurvivalNeeds.CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
         var selected = Assert.Single(generated.Bindings, b => b.Recipe != "" && result.Plan!.Allocations.Any(a => a.Activity == b.Activity));
@@ -202,7 +203,7 @@ public sealed class ForecastFoodCandidatesTests
     {
         var input = Inputs();
         input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with
-            { Slots = Known(EquatableArray.From(new[] { r.Slots.Value[0], EquatableArray.From(new[] { new Amount(new("Other"), 1) }) })) }))) };
+            { Slots = EquatableArray.From(new[] { r.Slots[0], EquatableArray.From(new[] { new Amount(new("Other"), 1) }) }) }))) };
         var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input);
         Assert.Single(generated.Relief);
         Assert.DoesNotContain(generated.Bindings, b => b.Recipe != "");

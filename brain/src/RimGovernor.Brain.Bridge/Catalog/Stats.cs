@@ -52,7 +52,8 @@ public static class CatalogStats
     public static readonly CatalogStat Mass = Declare("Mass");
     public static readonly CatalogStat MaxHitPoints = Declare("MaxHitPoints");
     public static readonly CatalogStat DoorOpenSpeed = Declare("DoorOpenSpeed");
-    public static readonly CatalogStat WorkToMake = Declare("WorkToMake");
+    // Read for every product, as RecipeDef.WorkAmountTotal reads it whether or not the game shows it.
+    public static readonly CatalogStat WorkToMake = Declare("WorkToMake", readHidden: true);
     public static readonly CatalogStat ContainmentStrength = Declare("ContainmentStrength");
     public static readonly CatalogStat BandwidthCost = Declare("BandwidthCost");
     public static readonly CatalogStat CarryingCapacity = Declare("CarryingCapacity");

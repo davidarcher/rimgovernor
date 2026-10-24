@@ -27,7 +27,7 @@ public sealed class ProductionAdmissionTests
         BillReservations = Known(default(EquatableArray<IngredientReservation>)),
         WorkAdmission = new()
         {
-            Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(Wood, 10)]]), Known(false))]),
+            Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", [[new(Wood, 10)]], false) { Products = [], WorkAmount = 0 }]),
             Bills = Known(default(EquatableArray<ProductionBatchState>)),
         },
     };

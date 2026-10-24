@@ -56,7 +56,7 @@ internal static class WorkResourceTestFacts
         WorkAdmission = new()
         {
             Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 6)]))]),
-            Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(new("Rice"), 6)]]), Known(false))]),
+            Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", [[new(new("Rice"), 6)]], false) { Products = [], WorkAmount = 0 }]),
             Bills = Known(default(EquatableArray<ProductionBatchState>)),
         },
     };

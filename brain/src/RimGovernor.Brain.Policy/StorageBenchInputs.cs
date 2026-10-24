@@ -20,8 +20,8 @@ public static partial class StorageRules
     /// <summary>
     /// Lists, in bench order, every bench with an active bill and its inputs: the union of every ingredient
     /// alternative of the recipes those bills run. at holds each bench's cell; excluded names the benches whose
-    /// inputs another planner stores (the kitchen's, the butcher's). A bench whose bills, recipes or
-    /// ingredients are unobserved, that stands at no known cell, or that has no input to store is not listed:
+    /// inputs another planner stores (the kitchen's, the butcher's). A bench whose bills or recipes
+    /// are unobserved, that stands at no known cell, or that has no input to store is not listed:
     /// it is planned on a pass that knows.
     /// </summary>
     public static List<BenchInput> DeriveBenchInputs(
@@ -49,7 +49,6 @@ public static partial class StorageRules
                 }
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            var known = true;
             var inputs = new List<string>();
             foreach (var recipe in recipes!)
             {
@@ -57,12 +56,7 @@ public static partial class StorageRules
                 {
                     continue;
                 }
-                if (!recipe.Ingredients.TryGetValue(out var alternatives))
-                {
-                    known = false;
-                    break;
-                }
-                foreach (var alternative in alternatives)
+                foreach (var alternative in recipe.Ingredients)
                 {
                     foreach (var amount in alternative)
                     {
@@ -74,7 +68,7 @@ public static partial class StorageRules
                     }
                 }
             }
-            if (!known || inputs.Count == 0)
+            if (inputs.Count == 0)
             {
                 continue;
             }

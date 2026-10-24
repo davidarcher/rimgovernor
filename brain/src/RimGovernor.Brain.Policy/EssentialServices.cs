@@ -210,8 +210,8 @@ public static class EssentialServicesRules
                 if (!bench.Usable) continue;
                 foreach (var recipe in bench.Recipes.Where(r => r.Role == RecipeRole.OrdinaryMeal).OrderBy(r => r.Name, StringComparer.Ordinal))
                 {
-                    if (!recipe.Available.IsKnown || !recipe.CookSkillFloor.IsKnown) { unknown = true; continue; }
-                    if (!recipe.Available.Value) continue;
+                    if (!recipe.Available.IsKnown) { unknown = true; continue; }
+                    if (!recipe.Available.Value || recipe.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { CookSkillFloor: var floor } }) continue;
                     var capable = false;
                     foreach (var worker in workers.Where(w => "pawn/" + w.Id.Value != excluded))
                     {
@@ -222,7 +222,7 @@ public static class EssentialServicesRules
                         if (work is null || work.Disabled || work.Priority <= 0) continue;
                         var skill = worker.Skills.Value.FirstOrDefault(s => s.Name == work.Skill);
                         if (skill is null) { unknown = true; continue; }
-                        if (!skill.Disabled && skill.Level >= recipe.CookSkillFloor.Value) capable = true;
+                        if (!skill.Disabled && skill.Level >= floor) capable = true;
                     }
                     if (!capable) continue;
                     if (facts.WorkClaims is null || facts.WorkClaims.Truncated) { unknown = true; continue; }

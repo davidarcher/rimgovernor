@@ -77,7 +77,7 @@ public sealed class PreferencesFactsTests
         Usable = true,
         Butcher = true,
         HumanCorpseNutrition = Known(60.0),
-        Recipes = [new ProductionRecipe { Name = "ButcherCorpseFlesh", Role = RecipeRole.ButcherFlesh, Available = Known(true) }],
+        Recipes = [new ProductionRecipe { Name = "ButcherCorpseFlesh", Role = RecipeRole.ButcherFlesh, Available = Known(true), Food = new RecipeFood.NotFood() }],
         HumanButchers = [new HumanButcherCandidate { ID = new PawnId("worker1"), Traits = Known(EquatableArray.From<PawnTrait>([])), Held = Known(new HeldPrecepts()), CanWork = Known(true) }],
     };
 

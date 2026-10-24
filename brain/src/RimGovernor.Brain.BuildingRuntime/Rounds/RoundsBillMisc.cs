@@ -3,36 +3,31 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    /// <summary>The bills the ledger's declared batches open, with the recipe ingredient slots the catalog reads.</summary>
+    /// <summary>
+    /// The bills the ledger's declared batches open, with the recipe ingredient slots the catalog reads. A batch whose
+    /// recipe the catalog has no row for, or has a slot no def fills, never starts and so opens no bill.
+    /// </summary>
     internal async Task<IReadOnlyList<OpenBill>> OpenBillsAsync(GenerationSnapshot snapshot, CancellationToken ct)
     {
         if (Native is not IDefinitionSource source)
         {
             return [];
         }
-        var bills = new List<OpenBill>();
-        foreach (var order in Ledger.DeclaredBatches())
-        {
-            bills.Add(new OpenBill { Recipe = order.Recipe, Count = order.Target, Filter = order.Ingredients });
-        }
-        if (bills.Count == 0)
+        var orders = Ledger.DeclaredBatches().ToList();
+        if (orders.Count == 0)
         {
             return [];
         }
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        var withSlots = new List<OpenBill>(bills.Count);
-        foreach (var bill in bills)
+        var bills = new List<OpenBill>(orders.Count);
+        foreach (var order in orders)
         {
-            try
+            if (catalog.RecipeFillable(order.Recipe))
             {
-                withSlots.Add(bill with { Slots = catalog.RecipeIngredients(bill.Recipe) });
-            }
-            catch (DomainException)
-            {
-                withSlots.Add(bill with { Slots = Unknown<EquatableArray<EquatableArray<Amount>>>() });
+                bills.Add(new OpenBill { Count = order.Target, Filter = order.Ingredients, Slots = catalog.RecipeIngredients(order.Recipe) });
             }
         }
-        return withSlots;
+        return bills;
     }
 }
 
@@ -149,7 +144,8 @@ partial class Rounder
             var benchBills = new List<ExistingProductionBill>();
             foreach (var recipe in recipes)
             {
-                var row = new ProductionRecipe { Name = recipe.Definition };
+                // These rows feed part fabrication only, which never reads a recipe as food.
+                var row = new ProductionRecipe { Name = recipe.Definition, Food = new RecipeFood.NotFood() };
                 var ak = recipe.Available.TryGetValue(out var available);
                 var ok = recipe.AvailableOn.TryGetValue(out var on);
                 if (ak && ok)

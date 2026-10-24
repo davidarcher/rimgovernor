@@ -523,15 +523,11 @@ public static partial class ResourceRules
         return new ResourceMethod { Kind = ResourceMethodKind.Blocked };
     }
 
-    /// <summary>What one craft of the recipe consumes from the catalog: each slot with a single alternative. Unknown ingredients declare nothing.</summary>
+    /// <summary>What one craft of the recipe consumes from the catalog: each slot with a single alternative.</summary>
     internal static IReadOnlyList<Amount> RecipeDraws(GearRecipe recipe)
     {
-        if (!recipe.Ingredients.TryGetValue(out var slots))
-        {
-            return [];
-        }
         var output = new List<Amount>();
-        foreach (var slot in slots)
+        foreach (var slot in recipe.Ingredients)
         {
             if (slot.Count == 1 && slot[0].Count > 0)
             {

@@ -125,8 +125,7 @@ partial class JoinersRounds
                 {
                     candidate = candidate with { Available = Known(available && on) };
                 }
-                recipe.Ingredients.TryGetValue(out var groups);
-                foreach (var group in groups)
+                foreach (var group in recipe.Ingredients)
                 {
                     foreach (var alternative in group)
                     {

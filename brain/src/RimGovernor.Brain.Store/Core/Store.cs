@@ -43,8 +43,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 38 reads mood evidence whole (#3768): a mood pawn's needs persist as has/lacks need levels, its flags and threshold as plain values, and a recovery worker's flags as plain booleans.
     /// Version 39 drops <c>Practice.Role</c>, <c>Practice.RequirementIndex</c> and <c>Practice.Beneficiary</c> from journaled activity steps (#3813): practice is every capable pawn's, no role mandate.
     /// Version 40 reads a pawn's Biotech block whole (#3773): the persisted PawnBiotech drops its unread life stage, learning, xenotype, hybrid, xenogerm and extractor facts and the gene's xenogene flag, and its deathrest keeps only deathresting and capacity.
+    /// Version 41 reads recipe facts whole (#3873): the work-admission evidence's recipe input persists its slots and unfinished-item flag as plain values and adds its products and work amount.
     /// </summary>
-    public const int SchemaVersion = 40;
+    public const int SchemaVersion = 41;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

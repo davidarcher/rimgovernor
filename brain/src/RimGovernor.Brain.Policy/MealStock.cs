@@ -94,8 +94,7 @@ public static partial class MealRules
                 }
                 foreach (var recipe in bench.Recipes)
                 {
-                    var mk = recipe.Mood.TryGetValue(out var mood);
-                    if (recipe.Name != bill.Recipe || !mk || recipe.Products.Count != 1)
+                    if (recipe.Name != bill.Recipe || recipe.Food is not RecipeFood.Food { Mood: var mood } || recipe.Products.Count != 1)
                     {
                         continue;
                     }
@@ -132,7 +131,7 @@ public static partial class MealRules
                     {
                         continue;
                     }
-                    if (!recipe.Mood.TryGetValue(out var mood))
+                    if (recipe.Food is not RecipeFood.Food { Mood: var mood })
                     {
                         continue;
                     }

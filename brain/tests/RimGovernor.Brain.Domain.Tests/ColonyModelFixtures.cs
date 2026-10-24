@@ -90,10 +90,10 @@ internal static class ColonyModelFixtures
             {
                 Recipes = Known(EquatableArray.From(new[]
                 {
-                    new ProductionRecipeInput(Recipe, Known(EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) })), Known(false))
+                    new ProductionRecipeInput(Recipe, EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) }), false)
                     {
-                        Products = Known(EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) })),
-                        WorkAmount = Known(10_000.0),
+                        Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) }),
+                        WorkAmount = 10_000.0,
                     },
                 })),
             },

@@ -520,12 +520,7 @@ public sealed partial class RoundsResourcePlanner
                     continue;
                 }
 
-                if (!recipe.Ingredients.TryGetValue(out var slots))
-                {
-                    continue;
-                }
-
-                foreach (var slot in slots)
+                foreach (var slot in recipe.Ingredients)
                 {
                     foreach (var alt in slot)
                     {

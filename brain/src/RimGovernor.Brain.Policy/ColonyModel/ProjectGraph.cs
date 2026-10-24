@@ -370,11 +370,7 @@ public sealed record ProjectGraph
             return Gap($"recipe_unknown:{recipe}");
         }
 
-        if (!row.WorkAmount.TryGetValue(out var work) || !row.Slots.TryGetValue(out var slots) || !row.Products.TryGetValue(out var products))
-        {
-            return Gap($"recipe_unread:{recipe}");
-        }
-
+        var (work, slots, products) = (row.WorkAmount, row.Slots, row.Products);
         // The stuff the craft is made from picks its alternative; a slot with several alternatives and none of that stuff takes the first.
         Amount Pick(EquatableArray<Amount> slot) => stuff is { } named && slot.FirstOrDefault(a => a.Resource == named && a.Count > 0) is { } match && match.Count > 0 ? match : slot[0];
         var findings = slots.Any(s => s.Count > 1 && !(stuff is { } named && s.Any(a => a.Resource == named && a.Count > 0))) ? EquatableArray.From(new[] { $"craft_alternative_first:{recipe}" }) : default;

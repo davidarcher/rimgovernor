@@ -278,7 +278,8 @@ public sealed partial class DefinitionCatalog
         var work = new List<P.RecipeWorkAmount>();
         foreach (var recipe in recipes)
         {
-            if (RecipeWorkAmount(recipe.defName).TryGetValue(out var amount) && amount > 0)
+            var amount = RecipeWorkAmount(recipe.defName);
+            if (amount > 0)
             {
                 work.Add(new P.RecipeWorkAmount(recipe.defName, amount));
             }
@@ -406,7 +407,8 @@ public sealed partial class DefinitionCatalog
         {
             foreach (var work in stations.Stations[def].Capacity.Recipes)
             {
-                if (flows.ContainsKey(work.Recipe))
+                // A recipe with a slot no def fills never runs, so it carries nothing through the station.
+                if (flows.ContainsKey(work.Recipe) || !RecipeFillable(work.Recipe))
                 {
                     continue;
                 }
@@ -419,7 +421,7 @@ public sealed partial class DefinitionCatalog
                     .ToList();
                 flows[work.Recipe] = new P.RecipeFlow
                 {
-                    Ingredients = RecipeIngredients(work.Recipe).TryGetValue(out var slots) ? [.. slots.Select(slot => (IReadOnlyList<P.Amount>)slot)] : [],
+                    Ingredients = [.. RecipeIngredients(work.Recipe).Select(slot => (IReadOnlyList<P.Amount>)slot)],
                     Products = products,
                     Butchery = row.specialProducts.Seq().Contains(SpecialProductType.Butchery),
                     Food = MakesHumanFood(row),

@@ -70,10 +70,10 @@ public sealed class HuntNodeTests
     public void TheHuntedLeatherIsAStockACraftTakes()
     {
         var input = Colony(Herd(2));
-        var jacket = new ProductionRecipeInput("Make_Apparel_Jacket", Known(EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Leather), 70) }) })), Known(false))
+        var jacket = new ProductionRecipeInput("Make_Apparel_Jacket", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Leather), 70) }) }), false)
         {
-            Products = Known(EquatableArray.From(new[] { new Amount(new Resource("Apparel_Jacket"), 1) })),
-            WorkAmount = Known(5_000.0),
+            Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Jacket"), 1) }),
+            WorkAmount = 5_000.0,
         };
         input = input with { Recipes = Known(EquatableArray.From(new[] { jacket })) };
         var hunt = ProjectGraph.HuntId(Deer.Def);

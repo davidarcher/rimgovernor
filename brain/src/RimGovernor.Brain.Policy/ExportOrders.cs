@@ -339,25 +339,15 @@ public static class ExportOrdersRules
                 {
                     continue;
                 }
-                var sk = recipe.Ingredients.TryGetValue(out var slots);
-                // A recipe whose work is the product's WorkToMake carries none here (workOf prices it per
-                // stuff); an unpriced one is simply not ranked.
-                var work = recipe.WorkAmount.ValueOrDefault;
-                var qk = recipe.RequiredWork.TryGetValue(out var required);
-                if (!sk || !qk || !TradePolicyRules.Finite(work))
-                {
-                    unread = true;
-                    continue;
-                }
                 var product = recipe.Products[0];
                 result.Add(
                     new ExportRecipe(
                         bench,
                         recipe,
                         product,
-                        slots!,
-                        work,
-                        required!,
+                        recipe.Ingredients,
+                        recipe.WorkAmount,
+                        recipe.RequiredWork,
                         ExportQualityBearing(r.Items, recipe, product),
                         recipe.Role == RecipeRole.Sculpture
                     )

@@ -250,13 +250,8 @@ public static partial class MealRules
     private static (MealRecipeChoice Choice, MealTier Tier, bool Valid) MealRecipeChoiceOf(string bench, ProductionRecipe r, int skill, HashSet<FoodIngredientClass> sources)
     {
         var choice = new MealRecipeChoice { Bench = bench, Recipe = r.Name, Bulk = r.Bulk };
-        var fk = r.CookSkillFloor.TryGetValue(out var floor);
-        var mk = r.Mood.TryGetValue(out var mood);
-        var ek = r.NutrientEfficiency.TryGetValue(out var efficiency);
-        var wk = r.WorkPerNutrition.TryGetValue(out var work);
-        var powerKnown = r.NeedsPower.IsKnown;
-        var ik = r.IngredientClasses.TryGetValue(out var classes);
-        if (!RoundsRules.Positive(r.Available) || !fk || floor < 0 || floor > 20 || skill < floor || !mk || !FoodForecastRules.FoodNumber(mood) || !ek || !FieldCapacityRules.FieldPositive(efficiency) || !wk || !FoodForecastRules.FoodNumber(work) || !powerKnown || !ik || !MealSlotsSupported(classes!, sources) || r.Products.Count != 1)
+        if (r.Food is not RecipeFood.Food { Mood: var mood, WorkPerNutrition: var work, Cooking: RecipeCooking.FromRaw { NutrientEfficiency: var efficiency, IngredientClasses: var classes, CookSkillFloor: var floor } }
+            || !RoundsRules.Positive(r.Available) || floor > 20 || skill < floor || !FoodForecastRules.FoodNumber(mood) || !FieldCapacityRules.FieldPositive(efficiency) || !FoodForecastRules.FoodNumber(work) || !MealSlotsSupported(classes, sources) || r.Products.Count != 1)
         {
             return (choice, MealTier.None, false);
         }
@@ -404,7 +399,7 @@ public static partial class MealRules
         {
             // A choice on a bench the census lacks selects nothing.
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
-            bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
+            bench = bench with { Recipes = recipes.TryGetValue((choice.Bench, choice.Recipe), out var recipe) ? [recipe] : [] };
             var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
             {
@@ -426,7 +421,7 @@ public static partial class MealRules
         {
             // A choice on a bench the census lacks selects nothing.
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
-            bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
+            bench = bench with { Recipes = recipes.TryGetValue((choice.Bench, choice.Recipe), out var recipe) ? [recipe] : [] };
             var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)
             {

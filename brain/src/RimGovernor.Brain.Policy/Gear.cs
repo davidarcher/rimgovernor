@@ -241,11 +241,14 @@ public sealed record GearRecipe
     public EquatableArray<Resource> Products { get; init; }
     public Fact<bool> Available { get; init; }
     public Fact<bool> AvailableOn { get; init; }
-    public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
-    public Fact<EquatableArray<WorkRequirement>> RequiredWork { get; init; }
+    /// <summary>The ingredient slots as alternatives, each allowed def with the count it takes (the catalog's RecipeIngredients).</summary>
+    public required EquatableArray<EquatableArray<Amount>> Ingredients { get; init; }
+
+    /// <summary>The work a bill of the recipe at the bench needs covered (the catalog's RecipeWork).</summary>
+    public required EquatableArray<WorkRequirement> RequiredWork { get; init; }
 
     /// <summary>The work one unit takes (the catalog's RecipeWorkAmount); RequiredWork is the skill gate, not this.</summary>
-    public Fact<double> WorkAmount { get; init; }
+    public required double WorkAmount { get; init; }
 
     /// <summary>The PawnKindDef of the mech a gestation recipe makes, "" for every other recipe.</summary>
     public string MechKind { get; init; } = "";
@@ -285,7 +288,7 @@ public sealed record RecipeHost
     public EquatableArray<Resource> Products { get; init; }
     public bool Available { get; init; }
     public EquatableArray<string> Benches { get; init; }
-    public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
+    public required EquatableArray<EquatableArray<Amount>> Ingredients { get; init; }
 
     /// <summary>The ResearchProjectDefs the recipe itself requires (sorted); empty when only its bench gates it.</summary>
     public EquatableArray<string> Research { get; init; }
@@ -586,11 +589,7 @@ public static class GearRules
                 {
                     return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
                 }
-                if (!recipe.RequiredWork.IsKnown || !recipe.Ingredients.TryGetValue(out var slots))
-                {
-                    return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
-                }
-                var batch = GearStockRules.GearBatchIngredients(slots, count);
+                var batch = GearStockRules.GearBatchIngredients(recipe.Ingredients, count);
                 if (GearFilter(batch, default, r.Items) is { } filter)
                 {
                     return (
@@ -640,11 +639,11 @@ public static class GearRules
     {
         foreach (var recipe in UnhostedCrafts(crafts, benches))
         {
-            if (!ContainsResource(recipe.Products, product) || !recipe.Ingredients.TryGetValue(out var slots))
+            if (!ContainsResource(recipe.Products, product))
             {
                 continue;
             }
-            if (GearFilter(GearStockRules.GearBatchIngredients(slots, count), default, items) is { } filter)
+            if (GearFilter(GearStockRules.GearBatchIngredients(recipe.Ingredients, count), default, items) is { } filter)
             {
                 return new GearMethod { Kind = GearMethodKind.Produce, Count = count, Bench = CraftBench, Recipe = recipe.Definition, Filter = EquatableArray.From(filter) };
             }
@@ -680,11 +679,8 @@ public static class GearRules
             foreach (var recipe in recipes)
             {
                 DomainException.Require(FoodForecastRules.FoodId(recipe.Definition) && names.Add(recipe.Definition) && Products(recipe.Products), "invalid gear recipe");
-                if (recipe.RequiredWork.TryGetValue(out var work))
-                {
-                    WorkRules.AssignWork([], work);
-                }
-                foreach (var slot in recipe.Ingredients.ValueOrDefault)
+                WorkRules.AssignWork([], recipe.RequiredWork);
+                foreach (var slot in recipe.Ingredients)
                 {
                     DomainException.Require(slot.Count != 0, "invalid ingredient alternatives");
                     var resources = new HashSet<Resource>();

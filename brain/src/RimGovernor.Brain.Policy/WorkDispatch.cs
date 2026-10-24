@@ -183,8 +183,8 @@ public static partial class WorkRules
         {
             return d;
         }
-        RecipeOf(eligible[0], order.Recipe).RequiredWork.TryGetValue(out var required);
-        if (!TryDispatchWorkers(pawns, required, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
+        if (RecipeOf(eligible[0], order.Recipe) is not { } recipe
+            || !TryDispatchWorkers(pawns, recipe.RequiredWork, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
         {
             return d;
         }
@@ -206,8 +206,8 @@ public static partial class WorkRules
         return d with { Copies = Math.Min(Math.Max(n + widen, 1), eligible.Count) };
     }
 
-    // The bench's row of the recipe; the default row (every fact unknown) when it has none.
-    private static GearRecipe RecipeOf(GearBench b, string recipe)
+    // The bench's row of the recipe; null when the bench lists none.
+    private static GearRecipe? RecipeOf(GearBench b, string recipe)
     {
         if (b.Recipes.TryGetValue(out var recipes))
         {
@@ -219,7 +219,7 @@ public static partial class WorkRules
                 }
             }
         }
-        return new GearRecipe();
+        return null;
     }
 
     // The mean units per day one eligible bench makes with the worker; false while any bench's recipe work is unread.
@@ -229,7 +229,7 @@ public static partial class WorkRules
         capacity = 0;
         foreach (var b in eligible)
         {
-            if (!RecipeOf(b, order.Recipe).WorkAmount.TryGetValue(out var work) || !b.WorkSpeed.TryGetValue(out var speed))
+            if (RecipeOf(b, order.Recipe) is not { WorkAmount: var work } || !b.WorkSpeed.TryGetValue(out var speed))
             {
                 return false;
             }

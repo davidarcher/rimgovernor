@@ -133,8 +133,9 @@ public sealed class FirstRoomPlanTests
         Products = [new Resource("Knife")],
         Available = Known(true),
         AvailableOn = Known(true),
-        Ingredients = Known(EquatableArray.From([EquatableArray.From([new Amount(new Resource("Steel"), 50)])])),
-        RequiredWork = Known(new EquatableArray<WorkRequirement>()),
+        Ingredients = EquatableArray.From([EquatableArray.From([new Amount(new Resource("Steel"), 50)])]),
+        RequiredWork = [],
+        WorkAmount = 3200,
     };
 
     [Fact]

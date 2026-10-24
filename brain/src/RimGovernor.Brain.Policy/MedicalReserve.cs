@@ -246,10 +246,6 @@ public static partial class MedicalRules
                 {
                     return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
                 }
-                if (!recipe.RequiredWork.IsKnown)
-                {
-                    return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
-                }
                 var id = MedicineMethodId(r.Resource, b.Id, recipe.Definition);
                 if (seen.Contains(id))
                 {

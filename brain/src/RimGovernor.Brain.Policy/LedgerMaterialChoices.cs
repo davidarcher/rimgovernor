@@ -25,8 +25,9 @@ public static class LedgerMaterialChoicesRules
             var spec = placement.Spec;
             var demand = placement.Bench + "/" + spec.Key();
             if (!demands.Add(demand)) throw new DomainException("duplicate material demand");
-            if (!recipes.TryGetValue(spec.Recipe, out var recipe) || !recipe.Slots.TryGetValue(out var slots))
+            if (!recipes.TryGetValue(spec.Recipe, out var recipe))
             { findings.Add("unknown_recipe:" + demand); continue; }
+            var slots = recipe.Slots;
             void Generate(int slot, HashSet<string> filter)
             {
                 if (generated == generationBudget) { truncated = true; return; }
@@ -44,9 +45,8 @@ public static class LedgerMaterialChoicesRules
                 var narrowed = spec with { Ingredients = EquatableArray.From(filter.Order(StringComparer.Ordinal)) };
                 var id = demand + "/" + string.Join(",", narrowed.Ingredients);
                 if (variants.ContainsKey(id)) return;
-                var batch = new ProductionBatch(new ProductionBill(placement.Bench, spec.Recipe, spec.Mode, spec.Target, [.. narrowed.Ingredients]),
-                    new ProgressView { Action = new ActionId(id), Stage = Stage.Pending })
-                { Slots = recipe.Slots, UsesUnfinishedItem = recipe.UsesUnfinishedItem };
+                var batch = ProductionRules.Priced(new ProductionBatch(new ProductionBill(placement.Bench, spec.Recipe, spec.Mode, spec.Target, [.. narrowed.Ingredients]),
+                    new ProgressView { Action = new ActionId(id), Stage = Stage.Pending }), recipe);
                 var promise = ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), default);
                 // Native bills have one global filter. A union that reopens a slot is not a pinned assignment.
                 if (!promise.TryGetValue(out var claims) || claims.Any(c => c.MaterialClaims.Any(m => !m.Units.IsKnown)))

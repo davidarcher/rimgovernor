@@ -77,13 +77,13 @@ public sealed class ProjectGraphTests
     {
         var input = Colony();
         // The game's apparel recipes list every stuff the garment can be made of in name order, cloth first, each at its own count.
-        var recipe = new ProductionRecipeInput("Make_Apparel_Cape", Known(EquatableArray.From(new[]
+        var recipe = new ProductionRecipeInput("Make_Apparel_Cape", EquatableArray.From(new[]
         {
             EquatableArray.From(new[] { new Amount(new Resource("Cloth"), 80), new Amount(new Resource(ColonyModelFixtures.Cloth), 50) }),
-        })), Known(false))
+        }), false)
         {
-            Products = Known(EquatableArray.From(new[] { new Amount(new Resource("Apparel_Cape"), 1) })),
-            WorkAmount = Known(10_000.0),
+            Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Cape"), 1) }),
+            WorkAmount = 10_000.0,
         };
         input = input with { Recipes = Known(EquatableArray.From(new[] { recipe })) };
 

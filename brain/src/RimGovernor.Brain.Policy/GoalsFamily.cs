@@ -761,7 +761,7 @@ public static partial class GoalRules
                 && f.Garments.Items.FirstOrDefault(g => g.Definition == w.Garment) is { } garment
                 && GearRules.GearFilter(garment.Slots, w.Stuff, f.Items) is { } filter)
             {
-                bills.Add(new OpenBill { Count = missing, Slots = Fact.Known(garment.Slots), Filter = EquatableArray.From(filter.Select(r => r.Value)) });
+                bills.Add(new OpenBill { Count = missing, Slots = garment.Slots, Filter = EquatableArray.From(filter.Select(r => r.Value)) });
             }
         }
         if (required.Count > 0)

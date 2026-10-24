@@ -18,13 +18,19 @@ internal sealed class GearRecipeCatalogAdapter(BridgeCatalog catalog)
     public IReadOnlyList<P.Resource> RecipeProducts(string name) => catalog.RecipeProducts(name);
 
     /// <inheritdoc />
-    public Fact<EquatableArray<EquatableArray<P.Amount>>> RecipeIngredients(string name) => catalog.RecipeIngredients(name);
+    public EquatableArray<EquatableArray<P.Amount>> RecipeIngredients(string name) => catalog.RecipeIngredients(name);
 
     /// <inheritdoc />
-    public Fact<EquatableArray<P.WorkRequirement>> RecipeWork(string name, string bench) => catalog.RecipeWork(name, bench);
+    public bool RecipeFillable(string name) => catalog.RecipeFillable(name);
 
     /// <inheritdoc />
-    public Fact<double> RecipeWorkAmount(string name) => catalog.RecipeWorkAmount(name);
+    public EquatableArray<P.WorkRequirement> RecipeWork(string name, string bench) => catalog.RecipeWork(name, bench);
+
+    /// <inheritdoc />
+    public bool RecipeWorkedAt(string name, string bench) => catalog.RecipeWorkedAt(name, bench);
+
+    /// <inheritdoc />
+    public double RecipeWorkAmount(string name) => catalog.RecipeWorkAmount(name);
 
     /// <inheritdoc />
     public string RecipeMechKind(string name) => catalog.RecipeMechKind(name);

@@ -143,7 +143,7 @@ public sealed partial class DefinitionCatalog
         double? best = null;
         foreach (var host in RecipeHosts(product, null))
         {
-            if (!host.Ingredients.TryGetValue(out var slots) || slots is not [[var only]] || only.Resource.Value != input)
+            if (host.Ingredients is not [[var only]] || only.Resource.Value != input)
             {
                 continue;
             }

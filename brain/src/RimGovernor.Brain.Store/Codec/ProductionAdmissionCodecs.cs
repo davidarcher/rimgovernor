@@ -74,9 +74,11 @@ internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contra
 internal sealed class ProductionRecipeInputConverter : ObjectCodec<ProductionRecipeInput>
 {
     protected override ProductionRecipeInput Read(JsonElement e, Codecs o) => new(e.Str("Recipe"),
-        e.Get<Fact<EquatableArray<EquatableArray<Amount>>>>("Slots", o), e.Get<Fact<bool>>("UsesUnfinishedItem", o));
+        e.Get<EquatableArray<EquatableArray<Amount>>>("Slots", o), e.Bool("UsesUnfinishedItem"))
+        { Products = e.Get<EquatableArray<Amount>>("Products", o), WorkAmount = e.Dbl("WorkAmount") };
     protected override void WriteFields(Utf8JsonWriter w, ProductionRecipeInput v, Codecs o)
-    { w.WriteString("Recipe", v.Recipe); w.Put("Slots", v.Slots, o); w.Put("UsesUnfinishedItem", v.UsesUnfinishedItem, o); }
+    { w.WriteString("Recipe", v.Recipe); w.Put("Slots", v.Slots, o); w.WriteBoolean("UsesUnfinishedItem", v.UsesUnfinishedItem);
+      w.Put("Products", v.Products, o); w.WriteNum("WorkAmount", v.WorkAmount); }
 }
 
 internal sealed class ProductionMaterialPromiseConverter : ObjectCodec<ProductionMaterialPromise>

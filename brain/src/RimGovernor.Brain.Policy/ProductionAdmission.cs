@@ -1,9 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ProductionRecipeInput(string Recipe, Fact<EquatableArray<EquatableArray<Amount>>> Slots, Fact<bool> UsesUnfinishedItem)
+/// <summary>
+/// A recipe's definition facts by the catalog: its ingredient slots (RecipeIngredients), whether it makes an unfinished
+/// item first, what one bill iteration makes and the work one unit takes (RecipeWorkAmount).
+/// </summary>
+public sealed record ProductionRecipeInput(string Recipe, EquatableArray<EquatableArray<Amount>> Slots, bool UsesUnfinishedItem)
 {
-    public Fact<EquatableArray<Amount>> Products { get; init; }
-    public Fact<double> WorkAmount { get; init; }
+    public required EquatableArray<Amount> Products { get; init; }
+    public required double WorkAmount { get; init; }
 }
 public sealed record ProductionMaterialPromise(string Id, EquatableArray<ForecastMaterialClaim> Claims);
 
@@ -43,9 +47,12 @@ public static partial class ProductionRules
     {
         if (!batches.TryGetValue(out var rows)) return default;
         var catalog = recipes.TryGetValue(out var inputs) ? inputs.ToDictionary(r => r.Recipe, StringComparer.Ordinal) : [];
-        return Known(EquatableArray.From(rows.Select(b => catalog.TryGetValue(b.Order.Recipe, out var r)
-            ? b with { Slots = r.Slots, UsesUnfinishedItem = r.UsesUnfinishedItem } : b)));
+        return Known(EquatableArray.From(rows.Select(b => catalog.TryGetValue(b.Order.Recipe, out var r) ? Priced(b, r) : b)));
     }
+
+    /// <summary>The batch with the recipe's catalog slots and unfinished-item flag.</summary>
+    public static ProductionBatch Priced(ProductionBatch batch, ProductionRecipeInput recipe) =>
+        batch with { Slots = Known(recipe.Slots), UsesUnfinishedItem = Known(recipe.UsesUnfinishedItem) };
 
     public static WorkAdmissionEvidence WorkAdmissionEvidenceOf(RoundsFacts facts,
         Fact<EquatableArray<ProductionBatch>> batches)

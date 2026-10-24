@@ -128,10 +128,8 @@ public sealed partial record ForecastFoodCandidates
                 if (!recipe.Available.TryGetValue(out var allowed))
                 { findings.Add("unknown_food_recipe_availability:" + recipe.Name); continue; }
                 if (!allowed) continue;
-                if (!recipes.TryGetValue(recipe.Name, out var exact) || !exact.Slots.TryGetValue(out var slots)
-                    || !exact.Products.TryGetValue(out var products) || products.Count != 1 || products[0].Count <= 0
-                    || !exact.WorkAmount.IsKnown || !exact.UsesUnfinishedItem.TryGetValue(out var unfinished) || unfinished
-                    || !recipe.CookSkillFloor.TryGetValue(out var floor))
+                if (!recipes.TryGetValue(recipe.Name, out var exact) || exact is not { Slots: var slots, Products: [{ Count: > 0 }] products, UsesUnfinishedItem: false }
+                    || recipe.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { CookSkillFloor: var floor } })
                 { findings.Add("unsupported_or_unknown_food_recipe:" + recipe.Name); continue; }
                 // Narrow slice: every required slot must admit the observed harvest resource.
                 var amounts = slots.Select(s => s.SingleOrDefault(a => a.Resource == raw)).ToArray();
@@ -155,7 +153,7 @@ public sealed partial record ForecastFoodCandidates
                         var pawn = roster.Single(p => p.Id.Value == worker.Pawn);
                         if (!pawn.Available.TryGetValue(out var available) || !available || !pawn.Skills.TryGetValue(out var skills)
                             || !skills.Any(s => s.Name == "Cooking" && !s.Disabled && s.Level >= floor)) continue;
-                        options.Add(new(cook, worker.Pawn, Duration(Known(exact.WorkAmount.Value * batches), worker.CookWorkPerTick), worker.RecoveryLaborTicks)
+                        options.Add(new(cook, worker.Pawn, Duration(Known(exact.WorkAmount * batches), worker.CookWorkPerTick), worker.RecoveryLaborTicks)
                             { Equipment = EquatableArray.From(new[] { bench.Id }) });
                     }
                     var delivery = id + "-delivery";

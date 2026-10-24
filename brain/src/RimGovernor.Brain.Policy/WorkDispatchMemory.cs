@@ -157,16 +157,15 @@ public static partial class WorkRules
     }
 
     // Known false when some ingredient slot has every alternative at or below IngredientBoundStock, known true when
-    // every slot has one above it, unknown when the recipe's ingredients or the stock are unread.
-    private static Fact<bool> IngredientsStocked(GearRecipe r, Fact<IReadOnlyDictionary<Resource, long>> stock)
+    // every slot has one above it, unknown when the bench lists no such recipe or the stock is unread.
+    private static Fact<bool> IngredientsStocked(GearRecipe? r, Fact<IReadOnlyDictionary<Resource, long>> stock)
     {
-        var ok = r.Ingredients.TryGetValue(out var slots);
         var haveOk = stock.TryGetValue(out var have);
-        if (!ok || !haveOk || slots!.Count == 0)
+        if (r is null || !haveOk || r.Ingredients.Count == 0)
         {
             return Unknown<bool>();
         }
-        foreach (var alternatives in slots)
+        foreach (var alternatives in r.Ingredients)
         {
             var present = false;
             foreach (var a in alternatives)

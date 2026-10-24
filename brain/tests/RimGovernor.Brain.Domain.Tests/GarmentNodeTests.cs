@@ -23,10 +23,10 @@ public sealed class GarmentNodeTests
     };
 
     private static ProductionRecipeInput Recipe(string def, Resource stuff, long units, double work = 10_000) =>
-        new($"Make_{def}_{stuff}", Known(EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(stuff, units) }) })), Known(false))
+        new($"Make_{def}_{stuff}", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(stuff, units) }) }), false)
         {
-            Products = Known(EquatableArray.From(new[] { new Amount(new Resource(def), 1) })),
-            WorkAmount = Known(work),
+            Products = EquatableArray.From(new[] { new Amount(new Resource(def), 1) }),
+            WorkAmount = work,
         };
 
     // The worked colony with devilstrand sown on zone1, the stock given and the recipes given.

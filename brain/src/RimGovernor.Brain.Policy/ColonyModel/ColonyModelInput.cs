@@ -500,9 +500,9 @@ public sealed record ColonyModelInput
 
         foreach (var recipe in recipes)
         {
-            if (recipe.Recipe.Length == 0 || !recipe.Slots.IsKnown || !recipe.Products.IsKnown || !recipe.WorkAmount.TryGetValue(out var work) || !Number(work) || work < 0)
+            if (recipe.Recipe.Length == 0 || !Number(recipe.WorkAmount) || recipe.WorkAmount < 0)
             {
-                gaps.Add($"recipes: '{recipe.Recipe}' lacks its work, input slots or products");
+                gaps.Add($"recipes: '{recipe.Recipe}' lacks its name or a usable work amount");
             }
         }
     }

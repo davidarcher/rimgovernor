@@ -130,7 +130,7 @@ public static class ArtOrdersRules
 
                 var ak = recipe.Available.TryGetValue(out var available);
                 var ok = recipe.AvailableOn.TryGetValue(out var on);
-                var row = new ProductionRecipe { Name = recipe.Definition, Role = recipe.Role };
+                var row = new ProductionRecipe { Name = recipe.Definition, Role = recipe.Role, Food = new RecipeFood.NotFood() };
                 if (ak && ok)
                 {
                     row = row with { Available = Known(available && on) };

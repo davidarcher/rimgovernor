@@ -16,7 +16,7 @@ public sealed record DecreeRecipe
 
     public Fact<bool> Available { get; init; }
 
-    public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
+    public required EquatableArray<EquatableArray<Amount>> Ingredients { get; init; }
 
     /// <summary>The recipe alternatives that determine its output's stuff.</summary>
     public IReadOnlyDictionary<Resource, bool> Stuff { get; init; } = new Dictionary<Resource, bool>();
@@ -138,10 +138,7 @@ public static class QuestDecrees
             {
                 continue;
             }
-            if (!recipe.Ingredients.TryGetValue(out var groups))
-            {
-                continue;
-            }
+            var groups = recipe.Ingredients;
             var iterations = (remaining + recipe.Units - 1) / recipe.Units;
             if (iterations > 10000)
             {

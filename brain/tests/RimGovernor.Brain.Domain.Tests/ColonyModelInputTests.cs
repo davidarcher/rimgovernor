@@ -73,8 +73,8 @@ public sealed class ColonyModelInputTests
         // 22.5 growing days at the 0.55 of a day a plant grows are about 41 calendar days.
         Assert.Equal(41, Math.Round(crop.GrowDays.Value / (1 - crop.RestingDayFraction.Value)));
         var recipe = Assert.Single(input.Recipes.Value);
-        Assert.Equal(10_000, recipe.WorkAmount.Value);
-        Assert.Equal(80, Assert.Single(Assert.Single(recipe.Slots.Value)).Count);
+        Assert.Equal(10_000, recipe.WorkAmount);
+        Assert.Equal(80, Assert.Single(Assert.Single(recipe.Slots)).Count);
         var skills = Assert.Single(input.Pawns.Value).Skills.Value;
         Assert.Equal(10, Assert.Single(skills).Level);
     }

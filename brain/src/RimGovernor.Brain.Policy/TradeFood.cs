@@ -105,9 +105,8 @@ public static partial class TradePolicyRules
                     {
                         continue;
                     }
-                    var mk = recipe.Mood.TryGetValue(out var mood);
-                    var sk = recipe.IngredientClasses.TryGetValue(out var slots);
-                    if (!mk || !Finite(mood) || mood < 5 || !sk || !MealRules.MealSlotsSupported(slots!, supported))
+                    if (recipe.Food is not RecipeFood.Food { Mood: var mood, Cooking: RecipeCooking.FromRaw { IngredientClasses: var slots } }
+                        || !Finite(mood) || mood < 5 || !MealRules.MealSlotsSupported(slots, supported))
                     {
                         continue;
                     }
@@ -115,7 +114,7 @@ public static partial class TradePolicyRules
                     {
                         best = mood;
                         name = recipe.Name;
-                        chosen = slots!;
+                        chosen = slots;
                     }
                 }
             }

@@ -110,11 +110,8 @@ partial record struct RoundsProjectBill
                 {
                     continue;
                 }
-                if (!recipe.RequiredWork.TryGetValue(out var work))
-                {
-                    return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
-                }
-                output = MergeWorkRequirements(output, work);
+                output = MergeWorkRequirements(output, recipe.RequiredWork);
+
                 found = true;
             }
             if (!found)
@@ -216,11 +213,8 @@ partial record struct RoundsProjectBill
                 {
                     continue;
                 }
-                if (!recipe.RequiredWork.TryGetValue(out var work))
-                {
-                    return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
-                }
-                output = MergeWorkRequirements(output, work);
+                output = MergeWorkRequirements(output, recipe.RequiredWork);
+
             }
         }
         return Known<IReadOnlyList<Pol.WorkRequirement>>(output);

@@ -14,26 +14,13 @@ namespace RimGovernor.Brain.Bridge;
 /// <summary>One ingredient slot resolved against the defs: the defs its filter allows and the count each takes.</summary>
 internal sealed record RecipeSlot(IReadOnlyList<string> Allowed, IReadOnlyList<long> Counts);
 
-/// <summary>The facts a meal planner reads of a recipe at a bench: what the recipe is worth as food. A measure the defs do not settle is unknown.</summary>
-public sealed record MealFacts
-{
-    public Fact<bool> NeedsPower { get; init; }
-
-    public Fact<double> Mood { get; init; }
-
-    public Fact<double> NutrientEfficiency { get; init; }
-
-    public Fact<double> WorkPerNutrition { get; init; }
-
-    public Fact<EquatableArray<P.FoodIngredientSlot>> IngredientClasses { get; init; }
-
-    public Fact<int> CookSkillFloor { get; init; }
-}
-
 public sealed partial class DefinitionCatalog
 {
     // smallVolumePerUnit is ThingDef.SmallVolumePerUnit.
     private const string StatWorkToMake = "WorkToMake";
+
+    // The order a raw meal slot lists its classes in.
+    private static readonly P.FoodIngredientClass[] RawClassOrder = [P.FoodIngredientClass.Meat, P.FoodIngredientClass.Vegetable, P.FoodIngredientClass.AnimalProduct];
 
     private readonly ConcurrentDictionary<string, RecipeSlot[]> _recipeSlots = new(StringComparer.Ordinal);
     private Lazy<IReadOnlyDictionary<string, IReadOnlyList<WorkGiverDef>>>? _billGivers;
@@ -46,19 +33,21 @@ public sealed partial class DefinitionCatalog
     /// <summary>The distinct defs the recipe makes, in the recipe's order.</summary>
     public IReadOnlyList<P.Resource> RecipeProducts(string name) => RecipeProductDefs(Recipe(name));
 
-    /// <summary>Definition-only inputs for observed building types, including recipes not yet claimed by a Method.</summary>
+    /// <summary>
+    /// Definition-only inputs for observed building types, including recipes not yet claimed by a Method. A recipe with
+    /// an ingredient slot no def fills (<see cref="RecipeFillable"/>) can never start, so it is not offered.
+    /// </summary>
     public EquatableArray<P.ProductionRecipeInput> ProductionRecipeInputs(IEnumerable<string> buildingDefs)
     {
         var buildings = buildingDefs.ToHashSet(StringComparer.Ordinal);
         var result = new List<P.ProductionRecipeInput>();
-        foreach (var recipe in Rows<RecipeDef>().Values.Where(r => r.products.Count > 0 && RecipeBenchesOf(r).Any(buildings.Contains)).OrderBy(r => r.defName, StringComparer.Ordinal))
+        foreach (var recipe in Rows<RecipeDef>().Values.Where(r => r.products.Count > 0 && RecipeBenchesOf(r).Any(buildings.Contains) && RecipeFillable(r.defName)).OrderBy(r => r.defName, StringComparer.Ordinal))
         {
-            try { result.Add(new(recipe.defName, RecipeIngredients(recipe.defName), Known(recipe.unfinishedThingDef is not null))
-                {
-                    Products = Known(EquatableArray.From(recipe.products.Select(p => new P.Amount(new P.Resource(p.thingDef.defName), p.count)))),
-                    WorkAmount = RecipeWorkAmount(recipe.defName),
-                }); }
-            catch (DomainException) { result.Add(new(recipe.defName, default, default)); }
+            result.Add(new(recipe.defName, RecipeIngredients(recipe.defName), recipe.unfinishedThingDef is not null)
+            {
+                Products = EquatableArray.From(recipe.products.Select(p => new P.Amount(new P.Resource(p.thingDef.defName), p.count))),
+                WorkAmount = RecipeWorkAmount(recipe.defName),
+            });
         }
         return EquatableArray.From(result);
     }
@@ -102,10 +91,11 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>
     /// The recipe's ingredient slots as alternatives, each allowed def with the count the slot takes of it (the game's
-    /// <c>IngredientCount.CountRequiredOfFor</c>, which the recipe's value getter scales). Unknown when a slot allows no def
-    /// or takes none of one.
+    /// <c>IngredientCount.CountRequiredOfFor</c>, which the recipe's value getter scales). A recipe with a slot no def
+    /// fills has no ingredients to read: callers offer only <see cref="RecipeFillable"/> recipes, and asking for another
+    /// is an error.
     /// </summary>
-    public Fact<EquatableArray<EquatableArray<P.Amount>>> RecipeIngredients(string name)
+    public EquatableArray<EquatableArray<P.Amount>> RecipeIngredients(string name)
     {
         var slots = RecipeSlotsOf(name);
         var slotAmounts = new List<EquatableArray<P.Amount>>(slots.Length);
@@ -113,25 +103,20 @@ public sealed partial class DefinitionCatalog
         {
             if (slot.Allowed.Count == 0)
             {
-                return Unknown<EquatableArray<EquatableArray<P.Amount>>>();
+                throw new CatalogException($"recipe {name} has an ingredient slot no def fills");
             }
 
-            var amounts = new List<P.Amount>(slot.Allowed.Count);
-            for (var i = 0; i < slot.Allowed.Count; i++)
-            {
-                if (slot.Counts[i] <= 0)
-                {
-                    return Unknown<EquatableArray<EquatableArray<P.Amount>>>();
-                }
-
-                amounts.Add(new P.Amount(new P.Resource(slot.Allowed[i]), slot.Counts[i]));
-            }
-
-            slotAmounts.Add(EquatableArray.From(amounts));
+            slotAmounts.Add(EquatableArray.From(slot.Allowed.Select((def, i) => new P.Amount(new P.Resource(def), slot.Counts[i]))));
         }
 
-        return Known(EquatableArray.From(slotAmounts));
+        return EquatableArray.From(slotAmounts);
     }
+
+    /// <summary>
+    /// Whether the catalog has the recipe and every ingredient slot of it allows some def. A slot whose filter allows none can never be filled,
+    /// so a bill of the recipe never starts: planners do not offer it, nor one the catalog has no row for.
+    /// </summary>
+    public bool RecipeFillable(string name) => DefRow<RecipeDef>(name) is not null && RecipeSlotsOf(name).All(slot => slot.Allowed.Count > 0);
 
     // RecipeSlotsOf resolves every slot of the recipe, once per catalog.
     private RecipeSlot[] RecipeSlotsOf(string name) =>
@@ -159,8 +144,14 @@ public sealed partial class DefinitionCatalog
                     throw new CatalogException($"recipe {row.defName} slot allows {def}, which has no value to the {getter.GetType().Name} ingredient getter");
                 }
 
+                var count = (long)Math.Ceiling(ingredient.GetBaseCount() / value);
+                if (count <= 0)
+                {
+                    throw new CatalogException($"recipe {row.defName} has a slot that takes none of {def}");
+                }
+
                 allowed.Add(def);
-                counts.Add((long)Math.Ceiling(ingredient.GetBaseCount() / value));
+                counts.Add(count);
             }
 
             slots.Add(new RecipeSlot(allowed, counts));
@@ -199,59 +190,51 @@ public sealed partial class DefinitionCatalog
     /// <summary>
     /// The one work requirement a bill on this recipe at the bench definition needs covered: the work type of the DoBill
     /// giver serving the bench together with the recipe's own work skill and the highest minimum level over its skill
-    /// requirements. Unknown when no giver serves the bench.
+    /// requirements (a requirement below zero is met by every pawn, as the game's <c>SkillRequirement.PawnSatisfies</c>
+    /// reads it, so the minimum is never below zero). Only a recipe <see cref="RecipeWorkedAt"/> the bench has one; asking
+    /// for another is an error.
     /// </summary>
-    public Fact<EquatableArray<P.WorkRequirement>> RecipeWork(string name, string bench)
+    public EquatableArray<P.WorkRequirement> RecipeWork(string name, string bench)
     {
         var row = Recipe(name);
-        if (BillWorkType(row, bench) is not { } work)
+        var work = BillWorkType(row, bench) ?? throw new CatalogException($"no DoBill work giver serves recipe {name} at bench {bench}");
+        if (!TryWorkType(work, out var type))
         {
-            return Unknown<EquatableArray<P.WorkRequirement>>();
+            throw new CatalogException($"recipe {name} at bench {bench} is worked under {work}, which WorkType does not model");
         }
 
         var minimum = 0;
         foreach (var skill in row.skillRequirements.Seq())
         {
-            if (skill.minLevel < 0)
-            {
-                return Unknown<EquatableArray<P.WorkRequirement>>();
-            }
-
             minimum = Math.Max(minimum, skill.minLevel);
         }
 
-        return TryWorkType(work, out var type)
-            ? Known<EquatableArray<P.WorkRequirement>>([new P.WorkRequirement { Work = type, Skill = row.workSkill?.defName ?? string.Empty, Minimum = minimum }])
-            : Unknown<EquatableArray<P.WorkRequirement>>();
+        return [new P.WorkRequirement { Work = type, Skill = row.workSkill?.defName ?? string.Empty, Minimum = minimum }];
     }
 
     /// <summary>
-    /// The work one unit of the recipe takes, as <c>RecipeDef.WorkAmountTotal</c> reads it: the recipe's own workAmount,
-    /// else (a negative amount) the first product's base WorkToMake stat. The stuff multiplier of a stuffed product is
-    /// not applied, so the figure is the base cost. Unknown when the recipe has no amount and no shown WorkToMake on its
-    /// product.
+    /// Whether a DoBill work giver serves the bench definition for the recipe, so a worker can take its bill there. A
+    /// recipe no giver serves at a bench is never worked there, and planners do not offer it at that bench.
     /// </summary>
-    public Fact<double> RecipeWorkAmount(string name)
+    public bool RecipeWorkedAt(string name, string bench) => BillWorkType(Recipe(name), bench) is not null;
+
+    /// <summary>
+    /// The work one unit of the recipe takes, as <c>RecipeDef.WorkAmountTotal</c> reads it: the recipe's own workAmount,
+    /// else (a negative amount) the first product's base WorkToMake stat, which the game reads whether or not it shows
+    /// it. The stuff multiplier of a stuffed product is not applied, so the figure is the base cost. A recipe with no
+    /// amount and no product is an error, as the game's own read fails on it.
+    /// </summary>
+    public double RecipeWorkAmount(string name)
     {
         var row = Recipe(name);
-        var work = row.workAmount;
-        if (work < 0)
+        if (row.workAmount >= 0)
         {
-            if (row.products.Seq().FirstOrDefault() is not { thingDef: { } first })
-            {
-                return Unknown<double>();
-            }
-
-            var (stat, shown) = ShownStatValue(first.defName, string.Empty, CatalogStats.WorkToMake);
-            if (!shown)
-            {
-                return Unknown<double>();
-            }
-
-            work = stat;
+            return row.workAmount;
         }
 
-        return float.IsFinite(work) && work >= 0 ? Known((double)work) : Unknown<double>();
+        var first = row.products.Seq().FirstOrDefault()?.thingDef
+            ?? throw new CatalogException($"recipe {name} sets no work amount and makes no product to read WorkToMake from");
+        return PlannerStatValue(first.defName, string.Empty, CatalogStats.WorkToMake);
     }
 
     // BillWorkType is the work type whose DoBill giver serves the bench definition, so a worker must have it enabled to
@@ -331,14 +314,14 @@ public sealed partial class DefinitionCatalog
     /// The recipes that make the product, with the player-buildable bill giver buildings that host each, read before any
     /// such bench exists so a workshop project can choose which bench to stage. A recipe is available when every research
     /// project it requires is finished; one gated by ideology (a meme, a faction tag, a building precept) is left out, as
-    /// nothing but the game can say it is available.
+    /// nothing but the game can say it is available, and so is one with a slot no def fills (RecipeFillable).
     /// </summary>
     public IReadOnlyList<P.RecipeHost> RecipeHosts(string product, IReadOnlySet<string>? finished)
     {
         var result = new List<P.RecipeHost>();
         foreach (var row in RecipesMaking(product))
         {
-            if (row.memePrerequisitesAny.Seq().Any() || row.factionPrerequisiteTags.Seq().Any() || row.fromIdeoBuildingPreceptOnly)
+            if (row.memePrerequisitesAny.Seq().Any() || row.factionPrerequisiteTags.Seq().Any() || row.fromIdeoBuildingPreceptOnly || !RecipeFillable(row.defName))
             {
                 continue;
             }
@@ -394,7 +377,7 @@ public sealed partial class DefinitionCatalog
         return Domain.EquatableArray.From(output);
     }
 
-    private sealed record CraftHost(IReadOnlyList<string> Research, Fact<EquatableArray<P.WorkRequirement>> Work, P.ArmoryTier Armory);
+    private sealed record CraftHost(IReadOnlyList<string> Research, EquatableArray<P.WorkRequirement> Work, P.ArmoryTier Armory);
 
     private sealed record CraftRow(P.GearRecipe Recipe, IReadOnlyList<string> Research, IReadOnlyList<CraftHost> Hosts);
 
@@ -410,9 +393,9 @@ public sealed partial class DefinitionCatalog
             {
                 continue;
             }
-            var benches = RecipeBenchesOf(row);
+            var benches = RecipeBenchesOf(row).Where(b => RecipeWorkedAt(row.defName, b)).ToList();
             var products = RecipeProductDefs(row);
-            if (benches.Count == 0 || products.Count == 0)
+            if (benches.Count == 0 || products.Count == 0 || !RecipeFillable(row.defName))
             {
                 continue;
             }
@@ -424,7 +407,7 @@ public sealed partial class DefinitionCatalog
         return rows;
     });
 
-    // A craft row of the recipe; null when the catalog cannot read its facts (a slot that allows nothing, an unread work gate).
+    // A craft row of the recipe at the benches whose work giver serves it; null when the catalog cannot read its facts.
     private CraftRow? CraftRowOf(RecipeDef row, IReadOnlyList<string> benches, IReadOnlyList<P.Resource> products)
     {
         try
@@ -519,85 +502,54 @@ public sealed partial class DefinitionCatalog
     }
 
     /// <summary>
-    /// Reads the meal facts of a recipe at a bench definition. A recipe that makes one nutrition-giving ingestible has a
-    /// mood (its taste thought's base effect), work per nutrition and, valued by nutrition from raw ingredient slots, the
-    /// nutrient efficiency (product nutrition over ingredient nutrition), the raw class alternatives of each slot and
-    /// the cooking skill floor; a recipe that fails any of these steps keeps the measures before it.
+    /// Reads what a recipe is worth as food. A recipe that makes one nutrition-giving ingestible is food: its mood is the
+    /// product's taste thought's base effect at the stage a new memory takes (0 with no taste thought) and its work per
+    /// nutrition the recipe's work amount over the nutrition one iteration makes. A food recipe valued by nutrition from
+    /// raw ingredient slots is cooked from raw: the nutrient efficiency (product nutrition over ingredient nutrition),
+    /// the raw class alternatives of each slot and the cooking skill floor.
     /// </summary>
-    public MealFacts RecipeMealFacts(string name, string bench)
+    public P.RecipeFood RecipeFood(string name)
     {
         var row = Recipe(name);
-        var facts = new MealFacts { NeedsPower = Known(HasComp<CompProperties_Power>(ThingRow(bench))) };
-        if (row.products.Seq().ToList() is not [{ thingDef: { } productDef } product])
+        if (row.products.Seq().ToList() is not [{ thingDef: { } productDef } product] || ThingRow(productDef.defName).ingestible is not { } ingestible)
         {
-            return facts;
-        }
-
-        var productRow = ThingRow(productDef.defName);
-        if (productRow.ingestible is null)
-        {
-            return facts;
+            return new P.RecipeFood.NotFood();
         }
 
         var (value, shown) = ShownStatValue(productDef.defName, string.Empty, CatalogStats.Nutrition);
         var nutrition = value * product.count;
         if (!shown || !Positive(nutrition))
         {
-            return facts;
+            return new P.RecipeFood.NotFood();
         }
 
-        if (productRow.ingestible.tasteThought is not { } thought)
+        // A memory thought starts at its first stage (Thought_Memory's stage index 0).
+        var mood = ingestible.tasteThought is not { } thought ? 0.0
+            : thought.stages is [{ } stage, ..] ? stage.baseMoodEffect
+            : throw new CatalogException($"taste thought {thought.defName} of {productDef.defName} has no first stage");
+        return new P.RecipeFood.Food(mood, RecipeWorkAmount(name) / nutrition, RecipeCookingOf(row, nutrition));
+    }
+
+    // RecipeCookingOf reads a food recipe's raw cooking: valued by nutrition from slots that are all raw food classes.
+    private P.RecipeCooking RecipeCookingOf(RecipeDef row, double nutrition)
+    {
+        if (row.IngredientValueGetter is not IngredientValueGetter_Nutrition || row.ingredients.Seq().Any() is false
+            || MealSlots(row) is not var (slots, input) || !Positive(input))
         {
-            facts = facts with { Mood = Known(0.0) };
-        }
-        else if (thought.stages is [{ } stage] && float.IsFinite(stage.baseMoodEffect))
-        {
-            facts = facts with { Mood = Known((double)stage.baseMoodEffect) };
+            return new P.RecipeCooking.NotFromRaw();
         }
 
-        var work = row.workAmount;
-        if (work < 0)
-        {
-            var (stat, workShown) = ShownStatValue(productDef.defName, string.Empty, CatalogStats.WorkToMake);
-            if (workShown)
-            {
-                work = stat;
-            }
-        }
-
-        if (float.IsFinite(work) && work >= 0)
-        {
-            facts = facts with { WorkPerNutrition = Known((double)(work / nutrition)) };
-        }
-
-        if (row.IngredientValueGetter is not IngredientValueGetter_Nutrition || row.ingredients.Seq().Any() is false)
-        {
-            return facts;
-        }
-
-        if (MealSlots(row) is not var (slots, input) || !Positive(input))
-        {
-            return facts;
-        }
-
-        facts = facts with { IngredientClasses = Known(EquatableArray.From(slots)), NutrientEfficiency = Known(nutrition / input) };
+        // A requirement below zero is met by every pawn (SkillRequirement.PawnSatisfies), as a floor of zero is.
         var floor = 0;
         foreach (var skill in row.skillRequirements.Seq())
         {
-            if (skill.skill != row.workSkill)
+            if (skill.skill == row.workSkill)
             {
-                continue;
+                floor = Math.Max(floor, skill.minLevel);
             }
-
-            if (skill.minLevel < 0 || skill.minLevel > SkillRecord.MaxLevel)
-            {
-                return facts;
-            }
-
-            floor = Math.Max(floor, skill.minLevel);
         }
 
-        return facts with { CookSkillFloor = Known(floor) };
+        return new P.RecipeCooking.FromRaw(nutrition / input, EquatableArray.From(slots), floor);
     }
 
     // MealSlots reads each ingredient slot of a nutrition-valued recipe as the raw food classes of the defs the slot,
@@ -649,7 +601,7 @@ public sealed partial class DefinitionCatalog
                 return null;
             }
 
-            classes.Sort((a, b) => RawClassOrder(a) - RawClassOrder(b));
+            classes.Sort((a, b) => Array.IndexOf(RawClassOrder, a) - Array.IndexOf(RawClassOrder, b));
             if (classes.Count == 3)
             {
                 classes = [P.FoodIngredientClass.Any];
@@ -661,13 +613,6 @@ public sealed partial class DefinitionCatalog
         return (slots, input);
     }
 
-    // RawClassOrder is the order a slot lists its classes in: meat, vegetable, animal product.
-    private static int RawClassOrder(P.FoodIngredientClass raw) => raw switch
-    {
-        P.FoodIngredientClass.Meat => 1,
-        P.FoodIngredientClass.Vegetable => 2,
-        _ => 3,
-    };
 
     internal static bool Positive(double n) => double.IsFinite(n) && n > 0;
 }

@@ -122,8 +122,8 @@ public sealed record CropKitchen
     public Fact<double> Cooks { get; init; }
 
     /// <summary>
-    /// Reads the best meal made of vegetables. It is Unknown while the benches,
-    /// the cooks or any usable meal recipe's facts are unknown, and known "none" (empty recipe, Known) is never
+    /// Reads the best meal made of vegetables. It is Unknown while the benches
+    /// or the cooks are unknown, and known "none" (empty recipe, Known) is never
     /// confused with it: a kitchen with no usable bench or no vegetable meal leaves the crop raw.
     /// </summary>
     public Fact<CropCooking> Cooking()
@@ -135,7 +135,6 @@ public sealed record CropKitchen
             return Unknown<CropCooking>();
         }
         var usable = 0;
-        var unknown = false;
         var best = new CropCooking();
         foreach (var b in benches!)
         {
@@ -150,15 +149,9 @@ public sealed record CropKitchen
                 {
                     continue;
                 }
-                var ek = r.NutrientEfficiency.TryGetValue(out var eff);
-                var wk = r.WorkPerNutrition.TryGetValue(out var work);
-                var ik = r.IngredientClasses.TryGetValue(out var classes);
-                if (!ek || !wk || !ik || !FieldCapacityRules.FieldPositive(eff) || !FoodForecastRules.FoodNumber(work))
-                {
-                    unknown = true;
-                    continue;
-                }
-                if (!MealRules.MealSlotsSupported(classes!, new HashSet<FoodIngredientClass> { FoodIngredientClass.Vegetable }))
+                if (r.Food is not RecipeFood.Food { WorkPerNutrition: var work, Cooking: RecipeCooking.FromRaw { NutrientEfficiency: var eff, IngredientClasses: var classes } }
+                    || !FieldCapacityRules.FieldPositive(eff) || !FoodForecastRules.FoodNumber(work)
+                    || !MealRules.MealSlotsSupported(classes, new HashSet<FoodIngredientClass> { FoodIngredientClass.Vegetable }))
                 {
                     continue;
                 }
@@ -168,10 +161,6 @@ public sealed record CropKitchen
                     best = new CropCooking { Recipe = r.Name, NutrientEfficiency = eff, WorkPerNutrition = work };
                 }
             }
-        }
-        if (best.Recipe.Length == 0 && unknown)
-        {
-            return Unknown<CropCooking>();
         }
         return Known(best with { CapacityTicks = Math.Min(usable, cooks) * FoodPlanRules.CookTicksPerDay });
     }

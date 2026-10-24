@@ -316,9 +316,8 @@ public static class HumanFoodPlanRules
                 {
                     continue;
                 }
-                var ek = r.NutrientEfficiency.TryGetValue(out var eff);
                 var pk = r.Products[0].Nutrition.TryGetValue(out var pn);
-                if (!ek || !pk || !FieldCapacityRules.FieldPositive(eff) || !FieldCapacityRules.FieldPositive(pn))
+                if (r.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { NutrientEfficiency: var eff } } || !pk || !FieldCapacityRules.FieldPositive(eff) || !FieldCapacityRules.FieldPositive(pn))
                 {
                     continue;
                 }

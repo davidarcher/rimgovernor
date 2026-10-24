@@ -58,17 +58,8 @@ public sealed record ProductionRecipe
 
     public IReadOnlyList<ProductionProduct> Products { get; init; } = [];
 
-    public Fact<double> Mood { get; init; }
-
-    public Fact<double> NutrientEfficiency { get; init; }
-
-    public Fact<double> WorkPerNutrition { get; init; }
-
-    public Fact<EquatableArray<FoodIngredientSlot>> IngredientClasses { get; init; }
-
-    public Fact<bool> NeedsPower { get; init; }
-
-    public Fact<int> CookSkillFloor { get; init; }
+    /// <summary>What the recipe is worth as food, by the catalog (RecipeFood).</summary>
+    public required RecipeFood Food { get; init; }
 
     /// <summary>Whether every product of the recipe is a simple meal.</summary>
     public bool SimpleMealRecipe() => Products.Count > 0 && Products.All(p => p.SimpleMeal());

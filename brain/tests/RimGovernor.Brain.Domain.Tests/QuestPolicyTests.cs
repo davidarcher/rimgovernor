@@ -82,7 +82,7 @@ public sealed class QuestPolicyTests
         Units = 1,
         Available = Known(true),
         Existing = existing,
-        Ingredients = Known<EquatableArray<EquatableArray<Amount>>>([[new(new("Steel"), 30)], [new(new("ComponentIndustrial"), 2)]]),
+        Ingredients = [[new(new("Steel"), 30)], [new(new("ComponentIndustrial"), 2)]],
     };
 
     [Fact]

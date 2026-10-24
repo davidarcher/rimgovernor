@@ -124,8 +124,9 @@ public static class ColonyGearReads
                 supply.Add(hunt);
             }
         }
-        if (v.FoodSupply?.Outcome is { } food && catalog.ButcherWork().TryGetValue(out var butcher))
+        if (v.FoodSupply?.Outcome is { } food)
         {
+            var butcher = catalog.ButcherWork();
             var races = catalog.AnimalRaces();
             foreach (var held in food.Stocks)
             {
@@ -643,9 +644,9 @@ public static class ColonyGearReads
             }
             foreach (var host in hosts)
             {
-                if (host.Ingredients.TryGetValue(out var slots) && host.Available)
+                if (host.Available)
                 {
-                    output.Add(new ClothingGarment { Definition = new Resource(name), Groups = EquatableArray.From(groups), Slots = slots });
+                    output.Add(new ClothingGarment { Definition = new Resource(name), Groups = EquatableArray.From(groups), Slots = host.Ingredients });
                     break;
                 }
             }

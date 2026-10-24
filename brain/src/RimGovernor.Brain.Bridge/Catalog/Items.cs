@@ -150,12 +150,13 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>
     /// The work one butchering of a creature takes: the work amount (<see cref="RecipeWorkAmount"/>) of the butcher recipe
-    /// (<see cref="RecipeRole.ButcherFlesh"/>), the first by defName; unknown when the catalog has none.
+    /// (<see cref="RecipeRole.ButcherFlesh"/>), the first by defName. The core game always defines one; a catalog with
+    /// none is an error.
     /// </summary>
-    public Fact<double> ButcherWork() =>
+    public double ButcherWork() =>
         Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal).FirstOrDefault(r => RecipeRoleOf(r.defName) == RecipeRole.ButcherFlesh) is { } butcher
             ? RecipeWorkAmount(butcher.defName)
-            : Unknown<double>();
+            : throw new CatalogException("catalog has no flesh butchering recipe");
 
     /// <summary>Whether a power building shorts out in rain, from its power or battery comp.</summary>
     public bool RainVulnerable(string name) =>

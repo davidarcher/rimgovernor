@@ -103,8 +103,8 @@ public sealed class MaterialValueTests
         var art = new LedgerPlacement("a", new() { Recipe = "Art", Mode = BillMode.GearBatch, Target = 1 });
         var machine = new LedgerPlacement("b", new() { Recipe = "Machine", Mode = BillMode.GearBatch, Target = 1 });
         var view = new ProductionMaterialView(Known<EquatableArray<ProductionRecipeInput>>([
-            new("Art", Known<EquatableArray<EquatableArray<Amount>>>([[new(Metal, 10), new(Wood, 10)]]), Known(false)),
-            new("Machine", Known<EquatableArray<EquatableArray<Amount>>>([[new(Metal, 10)]]), Known(false))]), Stock);
+            new("Art", [[new(Metal, 10), new(Wood, 10)]], false) { Products = [], WorkAmount = 0 },
+            new("Machine", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }]), Stock);
         string Key(LedgerPlacement p, Resource r) => (p.Spec with { Ingredients = [r.Value] }).Key();
         var estimates = new Dictionary<string, ForecastProductionEstimate> {
             [Key(art, Metal)] = new([new("beauty", Known(8.0))], Known(1.0)),

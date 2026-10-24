@@ -229,7 +229,7 @@ public static class ClothingDemandRules
                     new OpenBill
                     {
                         Count = 1,
-                        Slots = Known(g.Slots),
+                        Slots = g.Slots,
                         Filter = EquatableArray.From(filter.Select(r => r.Value)),
                     }
                 );
