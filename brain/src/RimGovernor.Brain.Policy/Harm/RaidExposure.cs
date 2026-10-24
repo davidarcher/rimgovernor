@@ -33,8 +33,19 @@ public sealed record ExposureCell(string Bin, string Role, int Trials, double Me
 /// <summary>The exposure table file: <see cref="RaidExposure.Schema"/> and the cells that have trials.</summary>
 public sealed record ExposureTable(int Schema, IReadOnlyList<ExposureCell> Cells);
 
-/// <summary>An answer from the table: the range when the cell is calibrated, and the findings that qualify it.</summary>
-public sealed record ExposureReading(Fact<HitRange> Hits, IReadOnlyList<string> Findings);
+/// <summary>An answer from the table: calibrated with the cell's range, or uncalibrated; the findings qualify either.</summary>
+public abstract record ExposureReading
+{
+    private ExposureReading(IReadOnlyList<string> findings) => Findings = findings;
+
+    public IReadOnlyList<string> Findings { get; }
+
+    /// <summary>The cell has <see cref="RaidExposure.MinTrials"/> trials or more: its range.</summary>
+    public sealed record Calibrated(HitRange Range, IReadOnlyList<string> Findings) : ExposureReading(Findings);
+
+    /// <summary>The cell has too few trials, or the ratio is outside the table; a finding names the cell.</summary>
+    public sealed record Uncalibrated(IReadOnlyList<string> Findings) : ExposureReading(Findings);
+}
 
 /// <summary>
 /// Raid exposure: hits a colonist takes per raid, calibrated by real-game combat sweeps (harm model, step 3) and keyed by
@@ -130,21 +141,24 @@ public static class RaidExposure
     /// <summary>
     /// Hits a colonist of <paramref name="role"/> takes per raid at <paramref name="ratio"/> (raid points over defense
     /// capacity), as the cell's 90% range. A cell under <see cref="MinTrials"/> trials, or a ratio outside the table, is
-    /// unknown and carries <c>exposure_cell_uncalibrated:&lt;bin&gt;/&lt;role&gt;</c>; every reading carries
+    /// uncalibrated and carries <c>exposure_cell_uncalibrated:&lt;bin&gt;/&lt;role&gt;</c>; every reading carries
     /// <see cref="LayoutUnassessed"/>.
     /// </summary>
     public static ExposureReading HitsPerColonist(ExposureTable table, double ratio, string role)
     {
         var cell = CellOf(table, ratio, role, out var finding);
-        return new ExposureReading(cell is null ? Unknown<HitRange>() : Known(new HitRange(cell.MeanHits, cell.HitsLo, cell.HitsHi)), Findings(finding));
+        return Reading(cell is null ? null : new HitRange(cell.MeanHits, cell.HitsLo, cell.HitsHi), finding);
     }
 
     /// <summary>The share of colonists who ended down or dead, as the cell's 95% Wilson interval; the same findings as <see cref="HitsPerColonist(ExposureTable, double, string)"/>.</summary>
     public static ExposureReading DownRate(ExposureTable table, double ratio, string role)
     {
         var cell = CellOf(table, ratio, role, out var finding);
-        return new ExposureReading(cell is null ? Unknown<HitRange>() : Known(new HitRange(cell.DownRate, cell.DownLo, cell.DownHi)), Findings(finding));
+        return Reading(cell is null ? null : new HitRange(cell.DownRate, cell.DownLo, cell.DownHi), finding);
     }
+
+    private static ExposureReading Reading(HitRange? range, string finding) =>
+        range is { } r ? new ExposureReading.Calibrated(r, Findings(finding)) : new ExposureReading.Uncalibrated(Findings(finding));
 
     private static ExposureCell? CellOf(ExposureTable table, double ratio, string role, out string finding)
     {

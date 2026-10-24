@@ -98,7 +98,7 @@ public static partial class WeaponAssignmentRules
                 score *= .35;
             }
         }
-        if (p.RaidArmor.TryGetValue(out var armor) && double.IsFinite(armor))
+        if (p.RaidArmor is RimGovernor.Contracts.Wire.Observations.RaidArmor.Rated { Mean: var armor } && double.IsFinite(armor))
         {
             score *= 1 - (.75 * Math.Min(1, Math.Max(0, armor - profile.AP)));
         }
@@ -121,7 +121,7 @@ public static partial class WeaponAssignmentRules
     }
 
     /// <summary>Whether a bench recipe makes a weapon the armory ladder places on a rung.</summary>
-    public static bool WeaponRecipe(GearRecipe recipe) => recipe.Armory != ArmoryTier.Unknown;
+    public static bool WeaponRecipe(GearRecipe recipe) => recipe.Armory is ArmoryRung.Laddered;
 
     private static bool EquipAvailable(EquipCandidatePawn p)
     {

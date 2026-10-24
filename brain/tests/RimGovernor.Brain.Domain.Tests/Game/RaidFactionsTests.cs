@@ -97,7 +97,7 @@ public sealed class RaidFactionsTests
         Assert.Equal(["Revolver", "Rifle"], kind.Weapons.Select(w => w.Def));
         Assert.Equal([3.0, 1.0], kind.Weapons.Select(w => w.Commonality));
         Assert.All(kind.Weapons, w => Assert.Equal(12, w.Weapon.Damage));
-        Assert.All(kind.Weapons, w => Assert.Equal(ArmorCategory.Sharp, w.Weapon.ArmorCategory));
+        Assert.All(kind.Weapons, w => Assert.Equal(new DamageArmor.Resisted(ArmorCategory.Sharp), w.Weapon.Armor));
         Assert.Empty(kind.MissingTags);
     }
 

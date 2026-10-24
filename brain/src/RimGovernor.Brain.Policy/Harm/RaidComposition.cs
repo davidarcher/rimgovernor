@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
 // The harm model's composition step (#3542 of #3471): the raid a points budget buys from the factions that can attack, as an
-// expected pawn count and a distribution over weapon bins. The catalog decodes the faction defs into a RaidTable; Of reads
-// only that table and the points, and an input it lacks makes the composition unknown with a finding, never a default.
+// expected distribution over weapon bins, each weighted by the raiders expected to carry it. The catalog decodes the faction defs into a RaidTable; Of reads
+// only that table and the points, and an input it lacks leaves the raid uncomposed with a finding, never a default.
 
 /// <summary>One weapon def a raider of a pawn kind can carry, with the def's selection weight and what its rows say of a hit.</summary>
 public sealed record RaidWeapon
@@ -30,11 +30,11 @@ public sealed record RaidKind
     public EquatableArray<string> MissingTags { get; init; }
 }
 
-/// <summary>A <c>PawnGroupMaker</c> of the Combat kind: the group makers compete by <see cref="Commonality"/> among those a raid of the points can use (<see cref="MaxTotalPoints"/> null: no ceiling).</summary>
+/// <summary>A <c>PawnGroupMaker</c> of the Combat kind: the group makers compete by <see cref="Commonality"/> among those a raid of the points can use (at most <see cref="MaxTotalPoints"/>, the maker's <c>maxTotalPoints</c>; unbounded unless set).</summary>
 public sealed record RaidPawnGroup
 {
     public double Commonality { get; init; } = 100;
-    public double? MaxTotalPoints { get; init; }
+    public double MaxTotalPoints { get; init; } = double.PositiveInfinity;
     public EquatableArray<RaidKind> Kinds { get; init; }
 }
 
@@ -53,14 +53,20 @@ public sealed record RaidTable
 }
 
 /// <summary>
-/// The expected raid: <see cref="Pawns"/> and a distribution over <see cref="Bins"/> whose weights sum to 1. Unknown (no
-/// pawn count, no bins) when the facts or defs could not support it; <see cref="Findings"/> names each gap.
+/// The expected raid: <see cref="Expected"/> with a distribution over weapon bins whose weights sum to 1, or
+/// <see cref="Uncomposed"/> when the facts or defs could not support one; <see cref="Findings"/> names each gap either way.
 /// </summary>
-public sealed record RaidComposition
+public abstract record RaidComposition
 {
-    public Fact<double> Pawns { get; init; }
-    public EquatableArray<WeaponBin> Bins { get; init; }
+    private RaidComposition() { }
+
     public EquatableArray<string> Findings { get; init; }
+
+    /// <summary>The composed raid: its raiders' weapon bins.</summary>
+    public sealed record Expected(EquatableArray<WeaponBin> Bins) : RaidComposition;
+
+    /// <summary>No composition: the findings say which fact or def was missing.</summary>
+    public sealed record Uncomposed : RaidComposition;
 }
 
 /// <summary>
@@ -103,14 +109,11 @@ public static class RaidCompositionRules
         }
 
         var entries = new List<(double Weight, WeaponDef Weapon)>();
-        var pawns = 0.0;
         if (!unknown)
         {
             foreach (var faction in factions)
             {
-                var count = Faction(points, faction, 1.0 / factions.Count, entries, findings);
-                unknown |= count <= 0;
-                pawns += count / factions.Count;
+                unknown |= Faction(points, faction, 1.0 / factions.Count, entries, findings) <= 0;
             }
         }
 
@@ -121,18 +124,15 @@ public static class RaidCompositionRules
             unknown = true;
         }
 
-        return new RaidComposition
-        {
-            Pawns = unknown ? default : Known(pawns),
-            Bins = unknown ? default : EquatableArray.From(bins),
-            Findings = EquatableArray.From(findings),
-        };
+        return unknown
+            ? new RaidComposition.Uncomposed { Findings = EquatableArray.From(findings) }
+            : new RaidComposition.Expected(EquatableArray.From(bins)) { Findings = EquatableArray.From(findings) };
     }
 
     // Adds the faction's weapon entries (weights summing to factionWeight) and returns its expected pawn count.
     private static double Faction(double points, RaidFaction faction, double factionWeight, List<(double Weight, WeaponDef Weapon)> entries, SortedSet<string> findings)
     {
-        var groups = faction.Groups.Where(g => (g.MaxTotalPoints is not { } ceiling || ceiling >= points) && g.Kinds.Count > 0).ToList();
+        var groups = faction.Groups.Where(g => g.MaxTotalPoints >= points && g.Kinds.Count > 0).ToList();
         if (groups.Count == 0)
         {
             findings.Add($"raid_no_group_for_points:{faction.Def}");
@@ -180,7 +180,7 @@ public static class RaidCompositionRules
         var weapons = new List<RaidWeapon>();
         foreach (var weapon in kind.Weapons)
         {
-            if (weapon.Weapon.Damage > 0 && weapon.Weapon.ArmorCategory is not null && weapon.Commonality > 0)
+            if (weapon.Weapon.Damage > 0 && weapon.Weapon.Armor is DamageArmor.Resisted && weapon.Commonality > 0)
             {
                 weapons.Add(weapon);
             }
@@ -218,7 +218,7 @@ public static class RaidCompositionRules
         {
             var decile = Math.Min(Deciles - 1, (int)((below + (entry.Weight / 2)) / total * Deciles));
             below += entry.Weight;
-            var key = (entry.Weapon.ArmorCategory!.Value, entry.Weapon.Ranged, decile);
+            var key = (((DamageArmor.Resisted)entry.Weapon.Armor).Category, entry.Weapon.Ranged, decile);
             if (!groups.TryGetValue(key, out var members))
             {
                 groups[key] = members = [];

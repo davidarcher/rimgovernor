@@ -263,24 +263,20 @@ public static class HarmConsequences
     /// <summary>
     /// The treatments one raid's wounds on the pawn take with medicine (#3634): the expected wounds (the mean hits less those a layer
     /// deflects), batched as the game batches injuries into one treatment by their mean severity (damage per wound after armor, times
-    /// the pawn's incoming damage factor). Unknown when the weapon mix or the factor is.
+    /// the pawn's incoming damage factor). Bins and a response that make no weapon mix (none, mismatched or unweighted) throw.
     /// </summary>
-    public static Fact<double> Treatments(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn)
+    public static double Treatments(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn)
     {
         var incoming = pawn.IncomingDamageFactor;
-        if (Mix.Of(bins, response) is not { } mix)
-        {
-            return default;
-        }
-
+        var mix = Mix.Of(bins, response) ?? throw new RequiredFactException("weapon_mix");
         var wounds = Math.Max(0, hits.Mean) * mix.Wounds;
         var severity = Math.Max(0, incoming) * mix.MeanDamage / mix.Wounds;
         if (!(wounds > 0) || !(severity > 0))
         {
-            return Known(0d);
+            return 0;
         }
 
-        return Known(wounds / Math.Max(1, Math.Floor(TendBatchSeverity / severity)));
+        return wounds / Math.Max(1, Math.Floor(TendBatchSeverity / severity));
     }
 
     // The sum of the hits' damage on the grid: Poisson hits at the range's low, mean and high, weighted three-point.

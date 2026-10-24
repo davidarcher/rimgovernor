@@ -381,7 +381,7 @@ public sealed partial class DefinitionCatalog
         return Domain.EquatableArray.From(output);
     }
 
-    private sealed record CraftHost(IReadOnlyList<string> Research, EquatableArray<P.WorkRequirement> Work, P.ArmoryTier Armory);
+    private sealed record CraftHost(IReadOnlyList<string> Research, EquatableArray<P.WorkRequirement> Work, P.ArmoryRung Armory);
 
     private sealed record CraftRow(P.GearRecipe Recipe, IReadOnlyList<string> Research, IReadOnlyList<CraftHost> Hosts);
 

@@ -163,8 +163,8 @@ public static class ColonyGearReads
     internal static RaidThreat RaidThreatFacts(O.ThreatFacts threat, DefinitionCatalog catalog)
     {
         var composition = RaidCompositionRules.Of(threat.RaidPoints, [.. threat.HostileFactions], catalog.RaidFactions());
-        return composition.Pawns.IsKnown
-            ? new RaidThreat.Composed(composition.Bins, catalog.BodyCoverage(), catalog.NaturalArmor())
+        return composition is RaidComposition.Expected expected
+            ? new RaidThreat.Composed(expected.Bins, catalog.BodyCoverage(), catalog.NaturalArmor())
             : new RaidThreat.Uncomposed();
     }
 

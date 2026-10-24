@@ -164,19 +164,19 @@ public sealed class RaidExposureTests
         var table = OneCell(trials: 20);
 
         var answer = RaidExposure.HitsPerColonist(table, 1.5, ExposureRoles.Gunner);
-        Assert.Equal(new HitRange(1.5, 0.5, 2.5), answer.Hits.Value);
+        Assert.Equal(new HitRange(1.5, 0.5, 2.5), Assert.IsType<ExposureReading.Calibrated>(answer).Range);
         Assert.Equal([RaidExposure.LayoutUnassessed], answer.Findings);
 
         var otherRole = RaidExposure.HitsPerColonist(table, 1.5, ExposureRoles.Melee);
-        Assert.False(otherRole.Hits.IsKnown);
+        Assert.IsType<ExposureReading.Uncalibrated>(otherRole);
         Assert.Equal(["exposure_cell_uncalibrated:1-2/melee", RaidExposure.LayoutUnassessed], otherRole.Findings);
 
         var otherBin = RaidExposure.HitsPerColonist(table, 5, ExposureRoles.Gunner);
-        Assert.False(otherBin.Hits.IsKnown);
+        Assert.IsType<ExposureReading.Uncalibrated>(otherBin);
         Assert.Equal("exposure_cell_uncalibrated:4+/gunner", otherBin.Findings[0]);
 
         var outside = RaidExposure.HitsPerColonist(table, -1, ExposureRoles.Gunner);
-        Assert.False(outside.Hits.IsKnown);
+        Assert.IsType<ExposureReading.Uncalibrated>(outside);
         Assert.Equal("exposure_cell_uncalibrated:outside/gunner", outside.Findings[0]);
     }
 
@@ -185,7 +185,7 @@ public sealed class RaidExposureTests
     {
         var answer = RaidExposure.HitsPerColonist(OneCell(trials: 19), 1.5, ExposureRoles.Gunner);
 
-        Assert.False(answer.Hits.IsKnown);
+        Assert.IsType<ExposureReading.Uncalibrated>(answer);
         Assert.Equal("exposure_cell_uncalibrated:1-2/gunner", answer.Findings[0]);
     }
 
@@ -215,15 +215,14 @@ public sealed class RaidExposureTests
         foreach (var ratio in new[] { 0.7, 1.5 })
         {
             var gunner = RaidExposure.HitsPerColonist(ratio, ExposureRoles.Gunner);
-            Assert.True(gunner.Hits.IsKnown);
-            var range = gunner.Hits.Value;
+            var range = Assert.IsType<ExposureReading.Calibrated>(gunner).Range;
             Assert.True(range.Lo <= range.Mean && range.Mean <= range.Hi);
             Assert.Equal([RaidExposure.LayoutUnassessed], gunner.Findings);
         }
 
         // lab-ranged-lone reaches the 0-0.5 bin, but its sweep-2 mean fell outside sweep 1's range: it stays uncalibrated.
         var below = RaidExposure.HitsPerColonist(0.3, ExposureRoles.Gunner);
-        Assert.False(below.Hits.IsKnown);
+        Assert.IsType<ExposureReading.Uncalibrated>(below);
         Assert.Equal("exposure_cell_uncalibrated:0-0.5/gunner", below.Findings[0]);
     }
 
@@ -267,7 +266,7 @@ public sealed class RaidExposureTests
         // The report reads each cell back through the policy reader: the 30-trial cell answers, the 1-trial cell is uncalibrated.
         var report = SweepExposure.Report(table);
         Assert.Contains("1-2/gunner: 30 trials, hits per colonist 2.00", report, StringComparison.Ordinal);
-        Assert.Contains("4+/melee: 1 trials, hits per colonist unknown", report, StringComparison.Ordinal);
+        Assert.Contains("4+/melee: 1 trials, hits per colonist uncalibrated", report, StringComparison.Ordinal);
         Assert.Contains("exposure_cell_uncalibrated:4+/melee", report, StringComparison.Ordinal);
     }
 

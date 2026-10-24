@@ -47,49 +47,30 @@ public sealed partial class DefinitionCatalog
         CategoriesWithin(ThingRow(def)).Contains(CategoryWeapons) && WeaponOf(def).Armament();
 
     /// <summary>
-    /// The armory ladder rung of a recipe made at a work table, or <see cref="P.ArmoryTier.Unknown"/> when the ladder does
-    /// not model it: the highest of the tech levels of the recipe's research prerequisites and of the work table's, so a
-    /// recipe needing no research still sits on the rung of the smithy that hosts it. Recipes that make no ordinary weapon,
-    /// are gated by an ideology precept, or need research or a table off the tech ladder are unmodelled.
+    /// The armory ladder rung of a recipe made at a work table, or <see cref="P.ArmoryRung.Unladdered"/> when the ladder
+    /// does not model it: the highest of the tech levels of the recipe's research prerequisites and of the work table's, so
+    /// a recipe needing no research still sits on the rung of the smithy that hosts it. Recipes that make no ordinary weapon,
+    /// are gated by an ideology precept, or need research or a table off the tech ladder are unladdered.
     /// </summary>
-    public P.ArmoryTier RecipeArmoryTier(string recipe, string bench)
+    public P.ArmoryRung RecipeArmoryTier(string recipe, string bench)
     {
         var row = Recipe(recipe);
         if (row.memePrerequisitesAny.Seq().Any() || row.factionPrerequisiteTags.Seq().Any() || row.fromIdeoBuildingPreceptOnly)
         {
-            return P.ArmoryTier.Unknown;
+            return new P.ArmoryRung.Unladdered();
         }
 
         if (!RecipeProductDefs(row).Any(product => ArmamentProduct(product.Value)))
         {
-            return P.ArmoryTier.Unknown;
+            return new P.ArmoryRung.Unladdered();
         }
 
         if (ResearchArmoryTier(row.researchPrerequisites.Seq().Prepend(row.researchPrerequisite)) is not { } tier
             || ResearchArmoryTier(ThingRow(bench).researchPrerequisites.Seq()) is not { } tableTier)
         {
-            return P.ArmoryTier.Unknown;
+            return new P.ArmoryRung.Unladdered();
         }
 
-        return (P.ArmoryTier)Math.Max((int)tier, (int)tableTier);
-    }
-
-    /// <summary>The lowest rung at which any recipe on any player-built work table makes def, and whether the ladder models def at all.</summary>
-    public (P.ArmoryTier Tier, bool Known) ArmoryWeaponTier(string def)
-    {
-        var best = P.ArmoryTier.Unknown;
-        foreach (var row in RecipesMaking(def))
-        {
-            foreach (var bench in RecipeBenchesOf(row))
-            {
-                var tier = RecipeArmoryTier(row.defName, bench);
-                if (tier != P.ArmoryTier.Unknown && (best == P.ArmoryTier.Unknown || tier < best))
-                {
-                    best = tier;
-                }
-            }
-        }
-
-        return (best, best != P.ArmoryTier.Unknown);
+        return new P.ArmoryRung.Laddered((P.ArmoryTier)Math.Max((int)tier, (int)tableTier));
     }
 }

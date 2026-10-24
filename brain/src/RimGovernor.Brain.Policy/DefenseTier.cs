@@ -3,10 +3,9 @@ namespace RimGovernor.Brain.Policy;
 public sealed partial record DefenseTier
 {
     /// <summary>
-    /// Reports that projected raid points could overpower the colony: above the observed defense capacity. An unknown raid size or capacity is never a promotion.
+    /// Reports that projected raid points could overpower the colony: above the observed defense capacity.
     /// </summary>
-    public static bool DefensePromoted(Fact<double> raidPoints, Fact<double> capacity) =>
-        raidPoints.TryGetValue(out var raid) && capacity.TryGetValue(out var have) && raid > have;
+    public static bool DefensePromoted(RaidDefense threat) => threat.RaidPoints > threat.Capacity;
 
     /// <summary>
     /// The construction tier of a defense build. Defense is Secure unless promoted to Survive; while a roamer is

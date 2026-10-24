@@ -30,11 +30,11 @@ public sealed class BuiltCountGoalTests
 
         var none = Known<EquatableArray<DefenseTurretFacts>>([]);
         // With no raid shortfall the budget is the floor; a larger budget from the raid stands.
-        Assert.Equal(6, DefenseBudget.TurretBudget(Known(0.0), Known(0.0), none, 6));
-        Assert.Equal(0, DefenseBudget.TurretBudget(Known(0.0), Known(0.0), none, 0));
-        Assert.Equal(1, DefenseBudget.TurretBudget(Known(500.0), Known(0.0), none, 0));
-        Assert.Equal(6, DefenseBudget.TurretBudget(Known(500.0), Known(0.0), none, 6));
-        Assert.Equal(3, DefenseIEDs.IEDBudget(Known(0.0), Known(0.0), none, 3));
+        Assert.Equal(6, DefenseBudget.TurretBudget(new RaidDefense(0.0, 0.0), none, 6));
+        Assert.Equal(0, DefenseBudget.TurretBudget(new RaidDefense(0.0, 0.0), none, 0));
+        Assert.Equal(1, DefenseBudget.TurretBudget(new RaidDefense(500.0, 0.0), none, 0));
+        Assert.Equal(6, DefenseBudget.TurretBudget(new RaidDefense(500.0, 0.0), none, 6));
+        Assert.Equal(3, DefenseIEDs.IEDBudget(new RaidDefense(0, 0), none, 3));
     }
 
     [Fact]

@@ -194,21 +194,24 @@ public static class ArmorResponseRules
         return effective;
     }
 
-    private static double Rating(GearOption o, ArmorCategory category) =>
-        category switch
-        {
-            ArmorCategory.Sharp => o.Sharp,
-            ArmorCategory.Blunt => o.Blunt,
-            _ => o.ArmorHeat,
-        };
+    private static double Rating(GearOption o, ArmorCategory category) => Rating(category, o.Sharp, o.Blunt, o.ArmorHeat);
 
-    private static double Rating(NaturalArmor n, ArmorCategory category) =>
-        category switch
+    private static double Rating(NaturalArmor n, ArmorCategory category) => Rating(category, n.Sharp, n.Blunt, n.Heat);
+
+    private static double Rating(ArmorCategory category, double sharp, double blunt, double heat)
+    {
+        switch (category)
         {
-            ArmorCategory.Sharp => n.Sharp,
-            ArmorCategory.Blunt => n.Blunt,
-            _ => n.Heat,
-        };
+            case ArmorCategory.Sharp:
+                return sharp;
+            case ArmorCategory.Blunt:
+                return blunt;
+            case ArmorCategory.Heat:
+                return heat;
+        }
+
+        throw new DomainException($"armor category {(int)category} is not a member of ArmorCategory");
+    }
 
     private static int Depth(GearOption o, EquatableArray<string> layers)
     {

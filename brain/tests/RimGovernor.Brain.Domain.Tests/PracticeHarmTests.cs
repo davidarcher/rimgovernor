@@ -26,7 +26,7 @@ public sealed class PracticeHarmTests
         new ExposureCell("0.5-1", ExposureRoles.Noncombatant, 100, 1, 1, 3, 0.1, 0.05, 0.15),
     ]);
 
-    private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { DefenseCapacity = Known(990d) };
+    private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { Raid = new HarmRaid.Assessed(new RaidDefense(1000, 990)) };
 
     private static PracticeTrainee Trainee(string pawn = "Anna") =>
         new(pawn, SkillStockTests.Mechanics(3, 0), 20, EquatableArray.From(Enumerable.Range(0, 21).Select(l => l >= 4 ? 6d : 2d)));

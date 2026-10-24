@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The mortar tier's input. Available is the native planning definition's availability re-checked against
 /// finished research, Stock the colony's stock census and Max the budget MortarBudget buys from the observed
-/// raid points. An unknown gate places no mortar; Definition empty asks for no mortar tier.
+/// raid points. Definition empty asks for no mortar tier.
 /// </summary>
 public sealed record DefenseMortarRequest
 {
@@ -11,7 +11,7 @@ public sealed record DefenseMortarRequest
 
     public string Stuff { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
     public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
 
@@ -30,8 +30,8 @@ public static class DefenseMortarsPolicy
     /// <summary>
     /// One mortar while the raid shortfall stands and a turret line exists to place it behind; none otherwise.
     /// </summary>
-    public static int MortarBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
-        DefenseBudget.TurretsOwed(raidPoints, capacity, turrets) > 0 && DefenseBudget.TurretsStanding(turrets) > 0 ? 1 : 0;
+    public static int MortarBudget(RaidDefense threat, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
+        DefenseBudget.TurretsOwed(threat, turrets) > 0 && DefenseBudget.TurretsStanding(turrets) > 0 ? 1 : 0;
 
     /// <summary>Reports whether the observed gates (available definition, budget, stock for one mortar) allow at least one mortar before any site is read.</summary>
     public static bool MortarGatesOpen(this DefenseRequest r) => MortarGate(r, 1) > 0;
@@ -42,7 +42,7 @@ public static class DefenseMortarsPolicy
     internal static (int Count, string Gate) MortarLimit(DefenseRequest r, int sites)
     {
         var q = r.Mortar;
-        if (q.Definition == "" || !q.Available.TryGetValue(out var available) || !available)
+        if (q.Definition == "" || !q.Available)
         {
             return (0, DefenseTurretsPolicy.GateMortarUnavailable);
         }

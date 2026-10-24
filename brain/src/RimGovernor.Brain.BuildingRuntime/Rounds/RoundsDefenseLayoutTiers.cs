@@ -11,7 +11,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static string DefenseTurretRung(RoundsReading read)
     {
         var facts = read.Projection.Facts;
-        foreach (var rung in DefenseTurretsPolicy.TurretRungs(ArmoryRules.AssessArmory(facts.RaidPoints, facts.DefenseCapacity, facts.Research).Tier))
+        foreach (var rung in DefenseTurretsPolicy.TurretRungs(ArmoryRules.AssessArmory(facts).Tier))
         {
             if (DefenseDefinitionAvailable(read, rung))
             {

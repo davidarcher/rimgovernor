@@ -40,5 +40,5 @@ internal sealed class GearRecipeCatalogAdapter(BridgeCatalog catalog)
     public P.LedgerBillKind RecipeLedgerKind(string name, string mechKind) => catalog.RecipeLedgerKind(name, mechKind);
 
     /// <inheritdoc />
-    public P.ArmoryTier RecipeArmoryTier(string name, string bench) => catalog.RecipeArmoryTier(name, bench);
+    public P.ArmoryRung RecipeArmoryTier(string name, string bench) => catalog.RecipeArmoryTier(name, bench);
 }

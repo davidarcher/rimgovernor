@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Describes an observed colonist and optional combat facts. Selection is a proposal; native admission
+/// Describes an observed colonist and its combat facts. Selection is a proposal; native admission
 /// rechecks the exact pair.
 /// </summary>
 public sealed record EquipCandidatePawn
@@ -32,7 +32,8 @@ public sealed record EquipCandidatePawn
     /// <summary>Must be explicitly known before assigning area-fire weapons.</summary>
     public bool LoneFighter { get; init; }
 
-    public Fact<double> RaidArmor { get; init; }
+    /// <summary>The mean armor the expected raiders wear, or no hostiles to rate.</summary>
+    public required RimGovernor.Contracts.Wire.Observations.RaidArmor RaidArmor { get; init; }
 
     /// <summary>The equipped primary: the bot owns every equipment decision.</summary>
     public EquipCandidateWeapon? Current { get; init; }

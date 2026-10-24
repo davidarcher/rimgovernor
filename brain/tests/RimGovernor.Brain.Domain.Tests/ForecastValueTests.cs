@@ -97,8 +97,8 @@ public sealed class ForecastValueTests
     internal static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
     {
         Schedule = new() { Assessed = true, MajorThreatsPerDay = raidsPerDay, RaidFraction = 1 },
-        Composition = new() { Pawns = Known(5d), Bins = [RaidPartLossTests.Gun(10)] },
-        RaidPoints = Known(1000d), DefenseCapacity = Known(1000d),
+        Composition = new RaidComposition.Expected([RaidPartLossTests.Gun(10)]),
+        Raid = new HarmRaid.Assessed(new RaidDefense(1000, 1000)),
         Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(), Parts = RaidPartLossTests.Catalog,
         // A colony the storyteller sends no disease (random diseases off): an assessed schedule without incidents.
         Illness = new() { Assessed = true },
@@ -618,10 +618,10 @@ public sealed class ForecastValueTests
     [Fact]
     public void AnUnobservedInputNamesItsOwnFinding()
     {
-        Assert.Contains("raid_points_unobserved", Harmed(Cloth, RaidDay() with { RaidPoints = default }).Findings);
-        Assert.Contains("defense_capacity_unobserved", Harmed(Cloth, RaidDay() with { DefenseCapacity = default }).Findings);
+        Assert.Contains("raid_points_unobserved", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts()).Raid }).Findings);
+        Assert.Contains("defense_capacity_unobserved", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { RaidPoints = Known(1000d) }).Raid }).Findings);
         Assert.Contains("threat_schedule_unknown", Harmed(Cloth, RaidDay() with { Schedule = new() }).Findings);
-        Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new() }).Findings);
+        Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new RaidComposition.Uncomposed() }).Findings);
         var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));
         Assert.Contains("outfit_unobserved:pawn", noOutfit.Findings);
         Assert.False(noOutfit.Harm.IsPriced());

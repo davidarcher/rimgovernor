@@ -60,9 +60,9 @@ public sealed record WeaponDef
 
     /// <summary>
     /// The armor stat family one hit is resolved against (the damage def's <c>armorCategory</c>; for a melee weapon, the
-    /// family most of its swings use). Null when the damage ignores armor or the weapon states no damage.
+    /// family most of its swings use), or unresisted when the damage ignores armor or the weapon states no damage.
     /// </summary>
-    public ArmorCategory? ArmorCategory { get; init; }
+    public DamageArmor Armor { get; init; } = new DamageArmor.Unresisted();
 
     /// <summary>
     /// The damage defs its hits deal, each with its share (#3847): a ranged weapon's projectile damage def alone, a melee weapon's
@@ -90,4 +90,16 @@ public sealed record WeaponDef
     /// a scattering explosive, an incendiary nor spent by its shot.
     /// </summary>
     public bool Armament() => ByTrade && (Ranged || Melee) && !Explosive && !Incendiary && !OneUse && !ForcedMiss;
+}
+
+/// <summary>How a weapon's hit meets armor: resisted by one armor stat family, or unresisted (damage that ignores armor, or none).</summary>
+public abstract record DamageArmor
+{
+    private DamageArmor() { }
+
+    /// <summary>The hit is resolved against <paramref name="Category"/>.</summary>
+    public sealed record Resisted(ArmorCategory Category) : DamageArmor;
+
+    /// <summary>The damage def has no armor category, or the weapon states no damage.</summary>
+    public sealed record Unresisted : DamageArmor;
 }

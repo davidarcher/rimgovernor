@@ -190,12 +190,12 @@ public static class SweepExposure
             var hits = RaidExposure.HitsPerColonist(table, ratio, cell.Role);
             var down = RaidExposure.DownRate(table, ratio, cell.Role);
             _ = text.Append(CultureInfo.InvariantCulture, $"  {cell.Bin}/{cell.Role}: {cell.Trials} trials, hits per colonist ");
-            _ = text.Append(Show(hits.Hits)).Append(", down rate ").Append(Show(down.Hits)).Append(' ').Append(string.Join(' ', hits.Findings)).Append('\n');
+            _ = text.Append(Show(hits)).Append(", down rate ").Append(Show(down)).Append(' ').Append(string.Join(' ', hits.Findings)).Append('\n');
         }
 
         return text.ToString();
     }
 
-    private static string Show(Fact<HitRange> range) =>
-        range.TryGetValue(out var r) ? string.Create(CultureInfo.InvariantCulture, $"{r.Mean:F2} [{r.Lo:F2}, {r.Hi:F2}]") : "unknown";
+    private static string Show(ExposureReading reading) =>
+        reading is ExposureReading.Calibrated { Range: var r } ? string.Create(CultureInfo.InvariantCulture, $"{r.Mean:F2} [{r.Lo:F2}, {r.Hi:F2}]") : "uncalibrated";
 }

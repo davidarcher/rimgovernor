@@ -7,9 +7,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public enum ArmoryTier
 {
-    /// <summary>The raid-point reading is not observed yet; the armory plans nothing on a guess.</summary>
-    Unknown,
-
     /// <summary>Needs no research: bows, clubs, tribal wear.</summary>
     Neolithic,
 
@@ -23,17 +20,19 @@ public enum ArmoryTier
     Fabrication,
 }
 
-public static class ArmoryTierExtensions
+/// <summary>
+/// Where a bench recipe stands on the armory ladder: laddered at the tier its research gates it to, or
+/// unladdered when it makes no ordinary weapon (armor, apparel, a grenade, a specialty craft).
+/// </summary>
+public abstract record ArmoryRung
 {
-    public static string Name(this ArmoryTier t) =>
-        t switch
-        {
-            ArmoryTier.Neolithic => "neolithic",
-            ArmoryTier.Smithing => "smithing",
-            ArmoryTier.Machining => "machining",
-            ArmoryTier.Fabrication => "fabrication",
-            _ => "unknown",
-        };
+    private ArmoryRung() { }
+
+    /// <summary>A weapon recipe on the ladder at <paramref name="Tier"/>.</summary>
+    public sealed record Laddered(ArmoryTier Tier) : ArmoryRung;
+
+    /// <summary>A recipe the armory ladder does not place.</summary>
+    public sealed record Unladdered : ArmoryRung;
 }
 
 /// <summary>
@@ -74,22 +73,15 @@ public static class ArmoryRules
 
     /// <summary>
     /// The tier the threat calls for: the best the research allows while the raid outsizes the defense, neolithic
-    /// once the defense covers it; an unknown raid or capacity is ArmoryTier.Unknown.
+    /// once the defense covers it.
     /// </summary>
-    public static ArmoryTier ArmoryThreatTier(Fact<double> raidPoints, Fact<double> capacity) =>
-        DefenseBudget.DefenseShortfall(raidPoints, capacity).TryGetValue(out var shortfall) ? (shortfall > 0 ? ArmoryTier.Fabrication : ArmoryTier.Neolithic) : ArmoryTier.Unknown;
+    public static ArmoryTier ArmoryThreatTier(RaidDefense threat) =>
+        threat.Shortfall > 0 ? ArmoryTier.Fabrication : ArmoryTier.Neolithic;
 
-    /// <summary>The highest tier whose research, and every lower tier's, is finished. An unknown census allows only neolithic.</summary>
-    public static ArmoryTier ArmoryResearchTier(Fact<ResearchFacts> research)
+    /// <summary>The highest tier whose research, and every lower tier's, is finished.</summary>
+    public static ArmoryTier ArmoryResearchTier(ResearchFacts research)
     {
-        var finished = new HashSet<ResearchProjectId>();
-        if (research.TryGetValue(out var facts))
-        {
-            foreach (var project in facts.Finished)
-            {
-                finished.Add(project);
-            }
-        }
+        var finished = new HashSet<ResearchProjectId>(research.Finished);
 
         var tier = ArmoryTier.Neolithic;
         for (var next = ArmoryTier.Smithing; next <= ArmoryTier.Fabrication && finished.Contains(_armoryResearch[next]); next++)
@@ -100,10 +92,20 @@ public static class ArmoryRules
         return tier;
     }
 
-    /// <summary>Selects the armory tier from raid points and research.</summary>
-    public static ArmoryAssessment AssessArmory(Fact<double> raidPoints, Fact<double> capacity, Fact<ResearchFacts> research)
+    /// <summary>Selects the armory tier from the raid threat and the research census a routine frame read; a frame without the census throws (D3).</summary>
+    public static ArmoryAssessment AssessArmory(RoundsFacts f)
     {
-        var a = new ArmoryAssessment { Threat = ArmoryThreatTier(raidPoints, capacity), Research = ArmoryResearchTier(research) };
+        if (!f.Research.TryGetValue(out var research))
+        {
+            throw new RequiredFactException("research");
+        }
+        return AssessArmory(RaidDefense.Of(f), research);
+    }
+
+    /// <summary>Selects the armory tier from the raid threat and finished research.</summary>
+    public static ArmoryAssessment AssessArmory(RaidDefense threat, ResearchFacts research)
+    {
+        var a = new ArmoryAssessment { Threat = ArmoryThreatTier(threat), Research = ArmoryResearchTier(research) };
         return a with { Tier = (ArmoryTier)Math.Min((int)a.Threat, (int)a.Research) };
     }
 
@@ -123,8 +125,7 @@ public static class ArmoryRules
 
     /// <summary>
     /// The armory's bill target: per colonist, the best weapon a hosted, researched recipe at or under the tier
-    /// makes. An unarmed colonist the loose weapons cannot arm wants one (an unknown tier arms at neolithic:
-    /// arming the unarmed is never held on a guess); an armed colonist wants one only at a known tier, only when
+    /// makes. An unarmed colonist the loose weapons cannot arm wants one; an armed colonist wants one only when
     /// it beats the quality-scaled primary, and only when no loose weapon of that definition is left for it. The
     /// gear planner's GearReplace wears the upgrade once it is made.
     ///
@@ -185,12 +186,11 @@ public static class ArmoryRules
                 continue;
             }
 
-            var reach = tier;
             var floor = 0.0;
             var lacks = !armed;
             if (armed)
             {
-                if (!primaries.TryGetValue(p.Pawn, out var current) || tier == ArmoryTier.Unknown)
+                if (!primaries.TryGetValue(p.Pawn, out var current))
                 {
                     continue;
                 }
@@ -201,12 +201,8 @@ public static class ArmoryRules
                     WeaponAssignmentRules.ScoreWeapon(p, new EquipCandidateWeapon { Definition = current.Definition, Class = weaponClass, Facts = current.Facts })
                     * WeaponQualityMultiplier(current.Quality);
             }
-            else if (reach == ArmoryTier.Unknown)
-            {
-                reach = ArmoryTier.Neolithic;
-            }
 
-            var (best, score) = ArmoryBestWeapon(p, reach, recipes, products);
+            var (best, score) = ArmoryBestWeapon(p, tier, recipes, products);
             if (best.IsEmpty || score <= floor)
             {
                 continue;
@@ -257,7 +253,7 @@ public static class ArmoryRules
         var bestScore = 0.0;
         foreach (var recipe in recipes)
         {
-            if (!WeaponAssignmentRules.WeaponRecipe(recipe) || recipe.Armory > reach || !recipe.Available || !recipe.AvailableOn)
+            if (recipe.Armory is not ArmoryRung.Laddered { Tier: var rung } || rung > reach || !recipe.Available || !recipe.AvailableOn)
             {
                 continue;
             }

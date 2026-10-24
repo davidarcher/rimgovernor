@@ -76,7 +76,7 @@ public static class DefenseTurretsPolicy
     {
         TurretAutocannon => ArmoryTier.Machining,
         TurretSniper => ArmoryTier.Fabrication,
-        _ => ArmoryTier.Unknown,
+        _ => ArmoryTier.Neolithic,
     };
 
     public static readonly DefenseTierName TierTurrets = new("turrets");

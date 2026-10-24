@@ -42,7 +42,7 @@ public sealed partial class RoundsArmoryPlanner
 
     internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        var tier = ArmoryRules.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research).Tier;
+        var tier = ArmoryRules.AssessArmory(projection.Facts).Tier;
         var known = projection.Facts.Gear.TryGetValue(out var census);
         if (_native is not FacadeNativeClient)
         {

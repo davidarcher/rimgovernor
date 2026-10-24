@@ -131,7 +131,7 @@ public sealed class PartLossCatalogTests
             RaidPoints = Known(200d), HostileFactions = Known<EquatableArray<string>>(["Pirate"]),
             HarmCatalog = new() { Raid = catalog.RaidFactions(), Parts = new() { Rules = catalog.PartHitRules(), Recipes = catalog.PartReplacementRecipes() } },
         });
-        var bin = Assert.Single(inputs.Composition.Bins);
+        var bin = Assert.Single(Assert.IsType<RaidComposition.Expected>(inputs.Composition).Bins);
         Assert.True(bin.Ranged);
         Assert.Equal([new WeaponDamage("Bullet", 1)], bin.Damages);
 
@@ -148,7 +148,7 @@ public sealed class PartLossCatalogTests
                 Replacements = [new("Arm", "InstallNaturalArm") { PartOnMap = true, MedicineOnMap = true, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9 }],
             },
         };
-        var harm = HarmConsequences.Of(new HitRange(5, 3, 20), inputs.Composition.Bins, [new ArmorResponse { ExpectedDamage = bin.Damage }],
+        var harm = HarmConsequences.Of(new HitRange(5, 3, 20), ((RaidComposition.Expected)inputs.Composition).Bins, [new ArmorResponse { ExpectedDamage = bin.Damage }],
             HarmLedger.PartsOf(inputs, [], new StockArrival()), pawn, ForecastValueTests.HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), 10 * GameTime.TicksPerDay);
 
         Assert.True(harm.Known);

@@ -29,7 +29,7 @@ public static class GearOrdersRules
     /// <summary>
     /// The armory's wanted orders at tier: the weapon batches (weapons is ArmoryWeaponDemand), the armor ladder the
     /// tier allows (each armor definition falls back down its family's rungs to the best one a bench recipe makes)
-    /// and the stock-target mortar shells. Armor and shells abstain while the tier is unread.
+    /// and the stock-target mortar shells.
     /// </summary>
     public static Declared DeclareArmoryOrders(GearPlanningRequest r, ArmoryTier tier, IReadOnlyList<Amount> weapons, IReadOnlyList<Amount> shells)
     {
@@ -48,10 +48,6 @@ public static class GearOrdersRules
         }
         @out.Orders.AddRange(GearOrders(needs, v, modeled, review, r));
         // Armor and shells follow the tier; weapons stand without it.
-        if (tier == ArmoryTier.Unknown)
-        {
-            return @out.Unread(Cause.UnreadArmoryTier);
-        }
         var armor = new Dictionary<Resource, int>();
         foreach (var p in modeled)
         {

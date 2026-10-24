@@ -13,6 +13,19 @@ public sealed record HarmCatalog
 }
 
 /// <summary>
+/// The raid the harm term prices: assessed at the observed raid points and defense capacity, or unassessed with the finding
+/// naming the fact that was unread.
+/// </summary>
+public abstract record HarmRaid
+{
+    private HarmRaid() { }
+
+    public sealed record Assessed(RaidDefense Defense) : HarmRaid;
+
+    public sealed record Unassessed(string Finding) : HarmRaid;
+}
+
+/// <summary>
 /// What the ledger's harm term reads of the colony's expected raids (#3546 of #3471), assembled once per review: the threat
 /// schedule, the raid composition, the exposure table, the observed points and defense capacity, and where a hit lands. The
 /// hediff tables are the context's <see cref="ForecastCoupledContext.CapacityPenalties"/>. Every default is unknown, never a number.
@@ -23,10 +36,10 @@ public sealed record HarmInputs
     public ThreatSchedule Schedule { get; init; } = new();
 
     /// <summary>The expected raid at the observed points (<see cref="RaidCompositionRules.Of"/>).</summary>
-    public RaidComposition Composition { get; init; } = new();
+    public RaidComposition Composition { get; init; } = new RaidComposition.Uncomposed { Findings = ["raid_points_unobserved"] };
 
-    public Fact<double> RaidPoints { get; init; }
-    public Fact<double> DefenseCapacity { get; init; }
+    /// <summary>The observed raid points and defense capacity the exposure ratio reads.</summary>
+    public HarmRaid Raid { get; init; } = new HarmRaid.Unassessed("raid_points_unobserved");
 
     /// <summary>The calibrated exposure table; the embedded file unless a test injects one.</summary>
     public ExposureTable Exposure { get; init; } = RaidExposure.Load();
@@ -47,21 +60,33 @@ public sealed record HarmInputs
     public CreepJoinerHarmInputs CreepJoiners { get; init; } = new();
 
     /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
-    internal static HarmInputs Of(RoundsFacts facts) => new()
+    internal static HarmInputs Of(RoundsFacts facts)
     {
-        Schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed, facts.RaidPoints),
-        Composition = facts.RaidPoints.TryGetValue(out var points) && facts.HostileFactions.TryGetValue(out var factions)
-            ? RaidCompositionRules.Of(points, [.. factions], facts.HarmCatalog.Raid)
-            : new RaidComposition { Findings = [facts.RaidPoints.IsKnown ? "raid_hostile_factions_unobserved" : "raid_points_unobserved"] },
-        RaidPoints = facts.RaidPoints,
-        DefenseCapacity = facts.DefenseCapacity,
-        Coverage = facts.HarmCatalog.Coverage,
-        Natural = facts.HarmCatalog.Natural,
-        Parts = facts.HarmCatalog.Parts,
-        Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
-        Containment = facts.Containment.Forecast,
-        CreepJoiners = facts.CreepJoiners with { Values = facts.PreviousPawnValues },
-    };
+        const string NoPoints = "raid_points_unobserved";
+        var observed = facts.RaidPoints.TryGetValue(out var points);
+        HarmRaid raid = !observed ? new HarmRaid.Unassessed(NoPoints)
+            : facts.DefenseCapacity.TryGetValue(out var capacity) ? new HarmRaid.Assessed(new RaidDefense(points, capacity))
+            : new HarmRaid.Unassessed("defense_capacity_unobserved");
+        RaidComposition composition = !observed ? new RaidComposition.Uncomposed { Findings = [NoPoints] }
+            : facts.HostileFactions.TryGetValue(out var factions) ? RaidCompositionRules.Of(points, [.. factions], facts.HarmCatalog.Raid)
+            : new RaidComposition.Uncomposed { Findings = ["raid_hostile_factions_unobserved"] };
+        var schedule = !facts.Storyteller.TryGetValue(out var storyteller) ? ThreatSchedule.Unobserved("storyteller_unobserved")
+            : !facts.DaysPassed.TryGetValue(out var days) ? ThreatSchedule.Unobserved("days_passed_unobserved")
+            : !observed ? ThreatSchedule.Unobserved(NoPoints)
+            : ThreatSchedule.Of(facts.ThreatTable, storyteller, days, points);
+        return new()
+        {
+            Schedule = schedule,
+            Composition = composition,
+            Raid = raid,
+            Coverage = facts.HarmCatalog.Coverage,
+            Natural = facts.HarmCatalog.Natural,
+            Parts = facts.HarmCatalog.Parts,
+            Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
+            Containment = facts.Containment.Forecast,
+            CreepJoiners = facts.CreepJoiners with { Values = facts.PreviousPawnValues },
+        };
+    }
 }
 
 /// <summary>
@@ -163,7 +188,7 @@ internal static class HarmLedger
         }
         else
         {
-            findings.Add(inputs.RaidPoints.IsKnown ? "defense_capacity_unobserved" : "raid_points_unobserved");
+            findings.Add(inputs.Raid is HarmRaid.Unassessed unassessed ? unassessed.Finding : "defense_capacity_unobserved");
         }
 
         complete &= !double.IsNaN(ratio);
@@ -236,7 +261,7 @@ internal static class HarmLedger
         var role = RoleOf(wearing);
         var reading = RaidExposure.HitsPerColonist(inputs.Exposure, ratio, role);
         findings.UnionWith(reading.Findings);
-        if (!reading.Hits.TryGetValue(out var hits))
+        if (reading is not ExposureReading.Calibrated { Range: var hits })
         {
             return null;
         }
@@ -397,13 +422,12 @@ internal static class HarmLedger
         foreach (var (pawn, row) in pawns.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             if (!context.Outfits.TryGetValue(pawn, out var wearing)
-                || !RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)).Hits.TryGetValue(out var hits)
-                || !HarmConsequences.Treatments(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row).TryGetValue(out var one))
+                || RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)) is not ExposureReading.Calibrated { Range: var hits })
             {
                 return default;
             }
 
-            treatments += one;
+            treatments += HarmConsequences.Treatments(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row);
         }
 
         return Known(raidsPerDay * treatments);
@@ -415,16 +439,16 @@ internal static class HarmLedger
 
     /// <summary>The raid's points ÷ the colony's defense capacity plus <paramref name="shift"/> points (the sparring ring's trained
     /// Melee, #3813), the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
-    internal static double? PointsRatio(HarmInputs inputs, double shift = 0) => inputs.RaidPoints.TryGetValue(out var points) ? RatioOf(inputs, points, shift) : null;
+    internal static double? PointsRatio(HarmInputs inputs, double shift = 0) => inputs.Raid is HarmRaid.Assessed { Defense: var raid } ? RatioOf(inputs, raid.RaidPoints, shift) : null;
 
     /// <summary><paramref name="points"/> ÷ the colony's defense capacity plus <paramref name="shift"/> (a raid's, or an escaped
     /// entity's combatPower, #3811); null when the capacity is unread or not positive.</summary>
     private static double? RatioOf(HarmInputs inputs, double points, double shift = 0) =>
-        inputs.DefenseCapacity.TryGetValue(out var defense) && defense > 0 ? points / (defense + shift) : null;
+        inputs.Raid is HarmRaid.Assessed { Defense.Capacity: var defense and > 0 } ? points / (defense + shift) : null;
 
     /// <summary>The raid composition's weapon bins; null when the composition is unread or has none.</summary>
     internal static WeaponBin[]? BinsOf(HarmInputs inputs) =>
-        inputs.Composition.Pawns.IsKnown && inputs.Composition.Bins.ToArray() is { Length: > 0 } bins ? bins : null;
+        inputs.Composition is RaidComposition.Expected expected && expected.Bins.ToArray() is { Length: > 0 } bins ? bins : null;
 
     /// <summary>What a raid's part loss reads of <paramref name="outfit"/> and the inputs (#3847).</summary>
     internal static RaidPartInputs PartsOf(HarmInputs inputs, EquatableArray<GearOption> outfit, StockArrival stock) =>
@@ -446,7 +470,7 @@ internal static class HarmLedger
             throw new RequiredFactException("outfit:" + row.Pawn);
         }
 
-        if (!RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)).Hits.TryGetValue(out var hits))
+        if (RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)) is not ExposureReading.Calibrated { Range: var hits })
         {
             throw new RequiredFactException("raid_exposure:" + row.Pawn);
         }

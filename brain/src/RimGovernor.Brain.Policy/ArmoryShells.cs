@@ -12,11 +12,11 @@ public static class ArmoryShellsRules
 
     /// <summary>
     /// The shell stock the armory keeps for the built mortars under assessment <paramref name="a"/>: none
-    /// without a mortar or an observed threat, and none of a kind the load's shells have no def for.
+    /// without a mortar, and none of a kind the load's shells have no def for.
     /// </summary>
     public static IReadOnlyList<Amount> MortarShellTargets(int mortars, ArmoryAssessment a, MortarShells shells)
     {
-        if (mortars <= 0 || a.Threat == ArmoryTier.Unknown)
+        if (mortars <= 0)
         {
             return [];
         }
@@ -64,14 +64,6 @@ public static class ArmoryShellsRules
             return Unknown<bool>();
         }
 
-        foreach (var t in targets)
-        {
-            if (have.GetValueOrDefault(t.Resource) * 2 < t.Count)
-            {
-                return Known(true);
-            }
-        }
-
-        return Known(false);
+        return Known(targets.Any(t => have.GetValueOrDefault(t.Resource) * 2 < t.Count));
     }
 }

@@ -33,6 +33,6 @@ internal static class RoundsArmoryShells
     {
         var mortars = MortarsBuilt(journal, snapshot, ct);
         var shells = await LoadMortarShellsAsync(native, snapshot, ct).ConfigureAwait(false);
-        return ArmoryShellsRules.MortarShellTargets(mortars, ArmoryRules.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research), shells);
+        return ArmoryShellsRules.MortarShellTargets(mortars, ArmoryRules.AssessArmory(projection.Facts), shells);
     }
 }

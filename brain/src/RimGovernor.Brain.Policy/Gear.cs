@@ -296,8 +296,8 @@ public sealed record GearRecipe
     /// <summary>The declare-only class of the recipe by what it makes, production for every other recipe.</summary>
     public LedgerBillKind Kind { get; init; }
 
-    /// <summary>The armory ladder rung of the recipe at this bench, unknown for a recipe that makes no ordinary weapon.</summary>
-    public ArmoryTier Armory { get; init; }
+    /// <summary>The armory ladder rung of the recipe at this bench, unladdered for a recipe that makes no ordinary weapon.</summary>
+    public ArmoryRung Armory { get; init; } = new ArmoryRung.Unladdered();
 }
 
 public sealed record GearBench

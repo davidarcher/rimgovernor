@@ -48,8 +48,8 @@ public sealed record ThreatScheduleTable
 /// <summary>
 /// The expected major threats per day and the share of them that are raids, from the comps the schedule models; Findings name the
 /// comps it does not (<c>threat_comp_unmodelled:&lt;comps&gt;</c>), which add no threats. Not <see cref="Assessed"/>, with a
-/// finding naming the fact, when a fact it reads is unread: the storyteller, the days passed, the threat points a curve reads,
-/// the storyteller's def in the catalog, or a comp's props.
+/// finding naming the gap, when the review did not read the storyteller, the days passed or the raid points
+/// (<see cref="Unobserved"/>), or when the catalog lacks the storyteller's def or a comp's props are invalid.
 /// </summary>
 public sealed record ThreatSchedule
 {
@@ -76,21 +76,17 @@ public sealed record ThreatSchedule
     /// The schedule at <paramref name="daysPassed"/> (GenDate.DaysPassedFloat) of <paramref name="storyteller"/>'s def name, its
     /// threat-points curves at <paramref name="threatPoints"/> (StorytellerUtility.DefaultThreatPointsNow, the observed raid points).
     /// </summary>
-    public static ThreatSchedule Of(ThreatScheduleTable table, Fact<string> storyteller, Fact<double> daysPassed, Fact<double> threatPoints)
+    public static ThreatSchedule Of(ThreatScheduleTable table, string storyteller, double daysPassed, double threatPoints)
     {
-        if (!storyteller.TryGetValue(out var name))
+        var days = daysPassed;
+        if (!double.IsFinite(days) || days < 0)
         {
-            return Unread("storyteller_unobserved");
+            return Unread("days_passed_invalid");
         }
 
-        if (!daysPassed.TryGetValue(out var days) || !double.IsFinite(days) || days < 0)
+        if (!table.Storytellers.TryGetValue(storyteller, out var threats))
         {
-            return Unread("days_passed_unobserved");
-        }
-
-        if (!table.Storytellers.TryGetValue(name, out var threats))
-        {
-            return Unread("storyteller_unknown:" + name);
+            return Unread("storyteller_unknown:" + storyteller);
         }
 
         var perDay = 0.0;
@@ -107,13 +103,7 @@ public sealed record ThreatSchedule
                 continue;
             }
 
-            var points = 0.0;
-            if (cycle.AcceptByThreatPoints.Count > 0 && !threatPoints.TryGetValue(out points))
-            {
-                return Unread("raid_points_unobserved");
-            }
-
-            perDay += CyclePerDay(cycle, days, points);
+            perDay += CyclePerDay(cycle, days, threatPoints);
         }
 
         foreach (var comp in threats.Mtbs)
@@ -156,6 +146,9 @@ public sealed record ThreatSchedule
         var accept = Curve(cycle.AcceptByDaysPassed, days) * Curve(cycle.AcceptByThreatPoints, threatPoints);
         return (cycle.MinIncidents + cycle.MaxIncidents) / 2 * accept * IntervalsPerDay / length;
     }
+
+    /// <summary>The schedule of a review that did not read a fact it needs (the storyteller, the days passed or the raid points), named by <paramref name="finding"/>.</summary>
+    public static ThreatSchedule Unobserved(string finding) => Unread(finding);
 
     private static ThreatSchedule Unread(string finding) => new() { Findings = [finding] };
 

@@ -69,8 +69,8 @@ public sealed class ThreatScheduleTests
 
         Assert.False(ghost.Assessed);
         Assert.Equal(["storyteller_unknown:Ghost"], ghost.Findings);
-        Assert.Equal(["storyteller_unobserved"], P.ThreatSchedule.Of(table, Unknown<string>(), Known(30.0), Known(500.0)).Findings);
-        Assert.Equal(["days_passed_unobserved"], P.ThreatSchedule.Of(table, Known("Cassandra"), Unknown<double>(), Known(500.0)).Findings);
+        Assert.Equal(["days_passed_invalid"], Of(table, "Cassandra", -1).Findings);
+        Assert.Equal(["storyteller_unobserved"], P.ThreatSchedule.Unobserved("storyteller_unobserved").Findings);
         Assert.Equal(["storyteller_unknown:Cassandra"], Of(new P.ThreatScheduleTable(), "Cassandra", 30.0).Findings);
     }
 
@@ -98,10 +98,8 @@ public sealed class ThreatScheduleTests
         Assert.True(schedule.Assessed);
         Assert.Empty(schedule.Findings);
         Assert.Equal((0.1 * 0.5) + 0.25 + (1 / 15.0) + 0.05, schedule.MajorThreatsPerDay, 9);
-        // The threat-points curve reads the observed raid points.
-        var unread = P.ThreatSchedule.Of(table, Known("Assembled"), Known(30.0), Unknown<double>());
-        Assert.False(unread.Assessed);
-        Assert.Equal(["raid_points_unobserved"], unread.Findings);
+        // The threat-points curve reads the observed raid points: at 1000 its accept is 0 and the cycle adds nothing.
+        Assert.Equal(0.25 + (1 / 15.0) + 0.05, P.ThreatSchedule.Of(table, "Assembled", 30.0, 1000).MajorThreatsPerDay, 9);
     }
 
     [Fact]
@@ -147,7 +145,7 @@ public sealed class ThreatScheduleTests
 
     /// <summary>The schedule of <paramref name="storyteller"/> at <paramref name="days"/> and 500 threat points.</summary>
     private static P.ThreatSchedule Of(P.ThreatScheduleTable table, string storyteller, double days) =>
-        P.ThreatSchedule.Of(table, Known(storyteller), Known(days), Known(500.0));
+        P.ThreatSchedule.Of(table, storyteller, days, 500.0);
 
     private static P.ThreatScheduleTable Table() => Catalog(Cassandra(), Phoebe(), Randy()).ThreatSchedule();
 

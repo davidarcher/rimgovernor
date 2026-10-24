@@ -145,7 +145,7 @@ public sealed partial class DefinitionCatalog
             Precision = precision,
             AP = penetration,
             Damage = amount,
-            ArmorCategory = ArmorCategoryOf(damage),
+            Armor = ArmorOf(ArmorCategoryOf(damage)),
             Damages = Domain.EquatableArray.From([new P.WeaponDamage(damage.defName, 1)]),
             DPS = cycle > 0 ? amount * burst / cycle : weapon.DPS,
         };
@@ -204,7 +204,7 @@ public sealed partial class DefinitionCatalog
         return weight > 0
             ? weapon with
             {
-                Reach = reach, DPS = dps / weight, AP = penetration / weight, Damage = damageSum / weight, ArmorCategory = dominant,
+                Reach = reach, DPS = dps / weight, AP = penetration / weight, Damage = damageSum / weight, Armor = ArmorOf(dominant),
                 Damages = Domain.EquatableArray.From(damageWeights.Select(d => new P.WeaponDamage(d.Key, d.Value / weight))),
             }
             : weapon with { Reach = reach };
@@ -216,6 +216,9 @@ public sealed partial class DefinitionCatalog
         damage?.armorCategory is { } category
             ? Enum.TryParse<P.ArmorCategory>(category.defName, out var family) ? family : throw new CatalogException($"damage armor category {category.defName} of {damage.defName} is not a policy armor category")
             : null;
+
+    private static P.DamageArmor ArmorOf(P.ArmorCategory? category) =>
+        category is { } family ? new P.DamageArmor.Resisted(family) : new P.DamageArmor.Unresisted();
 
     // Every maneuver def of tool capacity: the melee verbs a tool of that capacity has (Tool.Maneuvers).
     private List<ManeuverDef> Maneuvers(ToolCapacityDef capacity)

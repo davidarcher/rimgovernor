@@ -465,8 +465,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Definition = DefenseMortarDefinition,
             Stock = projection.Resources,
-            Max = DefenseMortarsPolicy.MortarBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets),
-            Available = Known(DefenseDefinitionAvailable(read, DefenseMortarDefinition)),
+            Max = DefenseMortarsPolicy.MortarBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets),
+            Available = DefenseDefinitionAvailable(read, DefenseMortarDefinition),
         };
         foreach (var d in projection.Definitions)
         {
@@ -514,7 +514,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var projection = read.Projection;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = DefenseStock(projection), Max = DefenseBudget.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = DefenseStock(projection), Max = DefenseBudget.TurretBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
         var drawRead = false;
         foreach (var d in projection.Definitions)
         {

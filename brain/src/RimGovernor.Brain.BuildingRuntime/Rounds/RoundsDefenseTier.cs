@@ -71,5 +71,5 @@ public sealed partial class RoundsDefenseLayoutPlanner
 partial class RoundsDefenseLayoutPlanner
 {
     internal static bool DefensePromoted(ColonyProjection projection) =>
-        DefenseTier.DefensePromoted(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity);
+        DefenseTier.DefensePromoted(RaidDefense.Of(projection.Facts));
 }

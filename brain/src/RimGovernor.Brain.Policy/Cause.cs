@@ -105,7 +105,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause UnreadArtNeed = new("art_need");
     public static readonly Cause UnreadGearRecover = new("gear_recovery");
     public static readonly Cause UnreadGearDemand = new("gear_demand");
-    public static readonly Cause UnreadArmoryTier = new("armory_tier");
     public static readonly Cause UnreadWeapons = new("weapon_demand");
     public static readonly Cause UnreadShells = new("shell_targets");
     public static readonly Cause UnreadFoodFacts = new("food_facts");
@@ -141,7 +140,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         UrgentCompetingWork,
         UnreadReview, UnreadStock, UnreadBenchDef, UnreadRecipes,
         UnreadDefinitions, UnreadNativeRead, UnreadMedicine, UnreadArtists, UnreadArtNeed,
-        UnreadGearRecover, UnreadGearDemand, UnreadArmoryTier, UnreadWeapons,
+        UnreadGearRecover, UnreadGearDemand, UnreadWeapons,
         UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
         UnreadMechs, UnreadWort, UnreadQuestOffers, UnreadSilverGap,
         UnreadWorkers, UnreadTraderCash, UnreadBuyers, UnreadSurplus, UnreadRunways,
@@ -287,7 +286,6 @@ public static class CauseRules
         [Cause.UnreadArtNeed] = UnreadWording("whether art is wanted"),
         [Cause.UnreadGearRecover] = UnreadWording("whether colonists have recovered"),
         [Cause.UnreadGearDemand] = UnreadWording("the gear census"),
-        [Cause.UnreadArmoryTier] = UnreadWording("the armory tier"),
         [Cause.UnreadWeapons] = UnreadWording("the weapon demand"),
         [Cause.UnreadShells] = UnreadWording("the mortar shell targets"),
         [Cause.UnreadFoodFacts] = UnreadWording("the food facts"),

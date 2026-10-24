@@ -27,6 +27,7 @@ internal static class EquipCandidates
             Dead = row.Dead,
             Downed = row.Downed,
             Drafted = row.Drafted,
+            RaidArmor = row.RaidArmor,
             MentalState = row.MentalState is not null,
             IncapableOfViolence = row.Biography.DisabledWorkTags.Contains("Violent"),
             Armed = row.Equipment.Armed,
@@ -36,10 +37,6 @@ internal static class EquipCandidates
         if (work.Work.Priorities().Any(w => w.Work == WorkType.Hunting && w.Priority > 0 && !w.Disabled))
         {
             facts = facts with { Role = WeaponRole.Hunter };
-        }
-        if (row.RaidArmor is O.RaidArmor.Rated armor)
-        {
-            facts = facts with { RaidArmor = Known(armor.Mean) };
         }
         facts = facts with { Position = row.Pawn.Place is O.EntityPlace.OnMap { Cell: var at } ? new Cell(at.X, at.Z) : default };
         foreach (var tag in row.Biography.DisabledWorkTags)

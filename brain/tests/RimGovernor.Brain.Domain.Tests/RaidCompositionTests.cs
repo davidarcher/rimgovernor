@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 // #3542: the expected composition of a ground raid from the hostile factions' combat groups.
 public sealed class RaidCompositionTests
 {
-    private static readonly WeaponDef Rifle = new() { Ranged = true, Damage = 12, AP = 0.18, ArmorCategory = ArmorCategory.Sharp };
-    private static readonly WeaponDef Club = new() { Melee = true, Damage = 10, AP = 0.15, ArmorCategory = ArmorCategory.Blunt };
+    private static readonly WeaponDef Rifle = new() { Ranged = true, Damage = 12, AP = 0.18, Armor = new DamageArmor.Resisted(ArmorCategory.Sharp) };
+    private static readonly WeaponDef Club = new() { Melee = true, Damage = 10, AP = 0.15, Armor = new DamageArmor.Resisted(ArmorCategory.Blunt) };
 
     private static RaidKind Kind(string def, double power, WeaponDef weapon, double weight = 1) =>
         new() { Def = def, Weight = weight, CombatPower = power, Weapons = [new RaidWeapon { Def = def + "Gun", Weapon = weapon }] };
@@ -19,12 +19,24 @@ public sealed class RaidCompositionTests
 
     private static readonly RaidFaction Pirates = Faction("Pirate", Kind("Scavenger", 60, Rifle), Kind("Thug", 100, Club));
 
-    [Fact]
-    public void FourHundredPointsOfSixtyAndOneHundredPowerKindsIsAboutFivePawnsWeightedBySelection()
-    {
-        var composition = RaidCompositionRules.Of(400, ["Pirate"], Table(Pirates));
+    private static RaidComposition.Expected Composed(double points, IReadOnlyList<string> factions, RaidTable table) =>
+        Assert.IsType<RaidComposition.Expected>(RaidCompositionRules.Of(points, factions, table));
 
-        Assert.Equal(5, composition.Pawns.Value, 9);
+    [Fact]
+    public void AWeaponWhoseDamageIgnoresArmorJoinsNoBin()
+    {
+        var unresisted = Rifle with { Armor = new DamageArmor.Unresisted() };
+        var composition = Composed(400, ["Pirate"], Table(Faction("Pirate", Kind("Scavenger", 60, unresisted), Kind("Thug", 100, Club))));
+
+        Assert.Equal(ArmorCategory.Blunt, composition.Bins.Single().Category);
+        Assert.Contains("raid_weapon_no_damage:ScavengerGun", composition.Findings);
+    }
+
+    [Fact]
+    public void FourHundredPointsOfSixtyAndOneHundredPowerKindsSplitTheBinsBySelection()
+    {
+        var composition = Composed(400, ["Pirate"], Table(Pirates));
+
         Assert.Equal(1, composition.Bins.Sum(b => b.Weight), 9);
         Assert.Equal(0.5, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
         Assert.Equal(0.5, composition.Bins.Single(b => b.Category == ArmorCategory.Blunt).Weight, 9);
@@ -36,7 +48,7 @@ public sealed class RaidCompositionTests
     {
         var table = Table(Faction("Pirate", Kind("Scavenger", 60, Rifle, weight: 3), Kind("Thug", 100, Club, weight: 1)));
 
-        var composition = RaidCompositionRules.Of(400, ["Pirate"], table);
+        var composition = Composed(400, ["Pirate"], table);
 
         Assert.Equal(0.75, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
         Assert.Equal(ArmorCategory.Blunt, composition.Bins.Single(b => b.Category == ArmorCategory.Blunt).Category);
@@ -47,29 +59,27 @@ public sealed class RaidCompositionTests
     {
         var capped = Pirates with { CostCurve = [new CurvePoint(0, 70), new CurvePoint(1000, 70)] };
 
-        var composition = RaidCompositionRules.Of(420, ["Pirate"], Table(capped));
+        var composition = Composed(420, ["Pirate"], Table(capped));
 
-        Assert.Equal(7, composition.Pawns.Value, 9);
         Assert.Equal(1, composition.Bins.Single().Weight, 9);
         Assert.Equal(ArmorCategory.Sharp, composition.Bins.Single().Category);
     }
 
     [Fact]
-    public void AFactionWithNoCombatGroupMakesTheCompositionUnknownWithAFinding()
+    public void AFactionWithNoCombatGroupLeavesTheRaidUncomposedWithAFinding()
     {
         var composition = RaidCompositionRules.Of(400, ["Pirate", "Traders"], Table(Pirates, new RaidFaction { Def = "Traders" }));
 
-        Assert.False(composition.Pawns.IsKnown);
-        Assert.Empty(composition.Bins);
+        Assert.IsType<RaidComposition.Uncomposed>(composition);
         Assert.Equal(["raid_faction_no_combat_group:Traders"], composition.Findings);
     }
 
     [Fact]
-    public void NoHostileFactionIsAnUnknownCompositionWithAFinding()
+    public void NoHostileFactionLeavesTheRaidUncomposedWithAFinding()
     {
         var composition = RaidCompositionRules.Of(400, [], Table(Pirates));
 
-        Assert.False(composition.Pawns.IsKnown);
+        Assert.IsType<RaidComposition.Uncomposed>(composition);
         Assert.Equal(["raid_no_hostile_factions"], composition.Findings);
     }
 
@@ -78,20 +88,18 @@ public sealed class RaidCompositionTests
     {
         var kind = Kind("Scavenger", 60, Rifle) with { MissingTags = ["Laser"] };
 
-        var composition = RaidCompositionRules.Of(120, ["Pirate"], Table(Faction("Pirate", kind)));
+        var composition = Composed(120, ["Pirate"], Table(Faction("Pirate", kind)));
 
-        Assert.True(composition.Pawns.IsKnown);
         Assert.Equal(["raid_weapon_tag_unmatched:Laser"], composition.Findings);
     }
 
     [Fact]
-    public void AKindWhoseTagsSelectNoWeaponDropsOutOfTheBinsButStillCountsAsPawns()
+    public void AKindWhoseTagsSelectNoWeaponDropsOutOfTheBins()
     {
         var bare = new RaidKind { Def = "Bare", Weight = 1, CombatPower = 60, MissingTags = ["Laser"] };
 
-        var composition = RaidCompositionRules.Of(240, ["Pirate"], Table(Faction("Pirate", bare, Kind("Thug", 100, Club))));
+        var composition = Composed(240, ["Pirate"], Table(Faction("Pirate", bare, Kind("Thug", 100, Club))));
 
-        Assert.Equal(3, composition.Pawns.Value, 9);
         Assert.Equal(1, composition.Bins.Single().Weight, 9);
         Assert.Contains("raid_kind_no_weapon:Bare", composition.Findings);
     }
@@ -107,7 +115,7 @@ public sealed class RaidCompositionTests
             Weapons = [new RaidWeapon { Def = "Rifle", Commonality = 3, Weapon = Rifle }, new RaidWeapon { Def = "Club", Commonality = 1, Weapon = Club }],
         };
 
-        var composition = RaidCompositionRules.Of(60, ["Pirate"], Table(Faction("Pirate", kind)));
+        var composition = Composed(60, ["Pirate"], Table(Faction("Pirate", kind)));
 
         Assert.Equal(0.75, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
     }
@@ -117,9 +125,8 @@ public sealed class RaidCompositionTests
     {
         var tribe = Faction("Tribe", Kind("Hunter", 100, Club));
 
-        var composition = RaidCompositionRules.Of(400, ["Pirate", "Tribe"], Table(Pirates, tribe));
+        var composition = Composed(400, ["Pirate", "Tribe"], Table(Pirates, tribe));
 
-        Assert.Equal((5 + 4) / 2.0, composition.Pawns.Value, 9);
         Assert.Equal(1.25 / 4.5, composition.Bins.Single(b => b.Category == ArmorCategory.Sharp).Weight, 9);
     }
 }
