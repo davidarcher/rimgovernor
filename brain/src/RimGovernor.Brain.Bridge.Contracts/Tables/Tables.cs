@@ -104,9 +104,6 @@ public readonly record struct Buildings(Table<BuildingState> Table)
 /// <summary>A frame's things table by id, the canonical rows every food stock reference resolves against.</summary>
 public readonly record struct Things(Table<Thing> Table)
 {
-    /// <summary>Names the things table in the colony mirror, keyed by thing id.</summary>
-    public const string Section = "things";
-
     /// <summary>The number of rows.</summary>
     public int Count => Table.Count;
 

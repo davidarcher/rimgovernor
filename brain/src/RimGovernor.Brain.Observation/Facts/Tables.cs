@@ -113,23 +113,4 @@ public static class StoreTables
             return table.Version;
         }
     }
-
-    /// <summary>The section's persistent table under scope, false when none is held.</summary>
-    public static bool TryGetKeyed(FactStore? store, Scope scope, string name, out KeyedTable table)
-    {
-        table = default!;
-        if (store is null)
-        {
-            return false;
-        }
-        lock (store.Gate)
-        {
-            if (store.CurrentScope != scope || !store.Tables.TryGetValue(name, out var held) || held is not KeyedTable typed)
-            {
-                return false;
-            }
-            table = typed;
-            return true;
-        }
-    }
 }

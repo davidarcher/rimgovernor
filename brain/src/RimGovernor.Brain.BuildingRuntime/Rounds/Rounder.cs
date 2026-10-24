@@ -247,23 +247,15 @@ public sealed partial class Rounder
     internal RoundsPolicy Seasonal(RoundsFacts facts) => Policy.Seasonal(facts.Calendar, facts.DisasterConditions);
 
     /// <summary>
-    /// Puts the review frame's colony facts, pawn and things tables into the colony mirror, which recordings and
-    /// planners serve. A section the frame lacks keeps the table the mirror holds, and its tick.
+    /// Keeps the review frame's colony facts, by reference, for the census the review retains: planner reads inside
+    /// the reuse window are served that section (<see cref="ColonyFactsAsync"/>). The frame is immutable once
+    /// published. A frame without colony facts keeps the section already held.
     /// </summary>
-    internal void PublishFrame(Identity expected, RoundsFrame frame)
+    internal void PublishFrame(RoundsFrame frame)
     {
-        if (Store is null)
-        {
-            Census.RememberColony(null);
-            return;
-        }
-        expected.NativeGeneration.TryGetValue(out var generation);
-        var scope = new FactScope(expected.Load.Value, expected.Map.Value, generation.Value);
-        ClockMirror.PublishPawns(Store, scope, frame.Tables.Pawns, frame.Context?.Tick ?? 0);
-        ClockMirror.PublishThings(Store, scope, frame.Tables.Things, frame.Context?.Tick ?? 0);
         if (frame.Colony is not null)
         {
-            Census.RememberColony(ColonyMirror.PublishColony(Store, scope, frame.Colony));
+            Census.RememberColony(frame.Colony);
         }
     }
 
@@ -426,7 +418,7 @@ public sealed partial class Rounder
             LapInputs.Left(name, reading.Projection);
         }
         Lap("observe");
-        PublishFrame(expected, reading.Frame);
+        PublishFrame(reading.Frame);
         await BreakDispatch.ReleaseBreakWorkAsync(p.Journal, state.Snapshot, reading.Emergency, plans, ct).ConfigureAwait(false);
         LogTechTier(reading.Projection, ct);
         LogQuestSkips(reading.Projection.Facts, ct);

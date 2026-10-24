@@ -6,9 +6,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 internal static class ClockMirror
 {
-    /// <summary>Section name of the review's own mirrored pawn read (#795 step 3).</summary>
-    public const string PawnSectionName = "pawns";
-
     /// <summary>Section name of the review's own mirrored bench read (#795 step 3).</summary>
     public const string BenchSectionName = "benches";
 
@@ -21,17 +18,6 @@ internal static class ClockMirror
         }
         return output;
     }
-
-    /// <summary>Publishes the review frame's things table as the things section keyed by thing id.</summary>
-    public static void PublishThings(FactStore m, FactScope scope, Things things, long tick) =>
-        StoreTables.PutKeyed(m, scope, Things.Section, new KeyedTableRows<PbObservations.Thing>(things.Table), Watermark.At(tick));
-
-    /// <summary>
-    /// Publishes the review frame's pawn table as the pawn section keyed by pawn id; the recording keeps only the
-    /// rows that changed.
-    /// </summary>
-    public static void PublishPawns(FactStore m, FactScope scope, Pawns pawns, long tick) =>
-        StoreTables.PutKeyed(m, scope, PawnSectionName, new KeyedTableRows<PbObservations.PawnState>(pawns.Table), Watermark.At(tick));
 
     /// <summary>
     /// Reads the gear bench census (each bench's bill stack and recipe catalog) and publishes it as the bench

@@ -8,7 +8,8 @@ internal sealed partial class RoundsCensus
     public bool Claims;
     public HashSet<string> Definitions = new(StringComparer.Ordinal);
     public ulong Generation;
-    public IReadOnlyDictionary<string, ulong>? Colony;
+    /// <summary>The review frame's colony facts, by reference: planner reads inside the reuse window are served it.</summary>
+    public PbObservations.ColonyFactsSnapshot? Colony;
 }
 
 /// <summary>
@@ -38,13 +39,13 @@ internal sealed class RoundsCensusStore
     internal Identity RoyaltyScope = new();
     internal IReadOnlyList<string> Worship = [];
     internal ulong Benches;
-    internal IReadOnlyDictionary<string, ulong>? ReadColony;
+    internal PbObservations.ColonyFactsSnapshot? ReadColony;
 
-    internal void RememberColony(IReadOnlyDictionary<string, ulong>? versions)
+    internal void RememberColony(PbObservations.ColonyFactsSnapshot colony)
     {
         lock (Mu)
         {
-            ReadColony = versions;
+            ReadColony = colony;
         }
     }
 
@@ -169,6 +170,27 @@ internal sealed class RoundsCensusStore
             Latest = census;
             Benches = 0;
         }
+    }
+
+    /// <summary>
+    /// The retained review's colony facts, the same instance its frame published, while that review serves
+    /// <paramref name="expected"/> under the reuse rule (same world and native generation, not behind the review, no
+    /// invalidation since); null otherwise, and the read goes to native.
+    /// </summary>
+    internal PbObservations.ColonyFactsSnapshot? ServedColony(Identity expected)
+    {
+        RoundsCensus? census;
+        ulong generation;
+        lock (Mu)
+        {
+            census = Latest;
+            generation = Generation;
+        }
+        if (census is null || census.Generation != generation || !RoundsCensus.SameObservedIdentity(census.Reading.Projection.Identity, expected))
+        {
+            return null;
+        }
+        return census.Colony;
     }
 
     internal void Invalidate()

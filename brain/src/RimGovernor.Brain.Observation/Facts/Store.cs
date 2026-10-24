@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Facts;
 
 // The controller-side state store: the decoded colony state a scheduler step planned against, held per
 // section with the tick each section describes, so a later step can ask what is held and how old it is
-// instead of reconstituting everything from a fresh bundle, and the keyed tables of the colony mirror
+// instead of reconstituting everything from a fresh bundle, and the keyed tables the scheduler refreshes
 // (Tables.cs). It follows FactFamily for invalidation.
 
 /// <summary>
