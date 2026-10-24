@@ -113,11 +113,12 @@ public sealed class EconomyRounds
             {
                 throw new ControlException("economy read: research context", e);
             }
-            if ((read.Context?.Tick ?? 0) < review.Tick.Value)
+            if (read.Context.Tick < review.Tick.Value)
             {
                 throw new ControlException("economy read: research read older than the review");
             }
-            facts = facts with { Research = Known(read.Census()) };
+            var catalog = await _native.DefinitionCatalogAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
+            facts = facts with { Research = Known(EconomyRules.ResearchCensusOf(read, catalog.Research)) };
         }
         if (_resource is not null)
         {

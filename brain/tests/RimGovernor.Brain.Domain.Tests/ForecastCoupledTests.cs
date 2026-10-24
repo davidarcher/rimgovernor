@@ -31,6 +31,7 @@ public sealed class ForecastCoupledTests
                 },
                 Coupled = new()
                 {
+                    Research = ActivityContinuationFixtures.NoResearch,
                     Tick = 100,
                     Food = new()
                     {

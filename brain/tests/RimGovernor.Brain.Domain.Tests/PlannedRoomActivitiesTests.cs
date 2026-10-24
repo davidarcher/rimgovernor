@@ -118,6 +118,7 @@ public sealed class PlannedRoomActivitiesTests
                 Needs = new() { Tick = 100, Pawns = EquatableArray.From(others.Select(p => Idle(p)).Append(Idle(Pawn, level, fall))) },
                 Coupled = new()
                 {
+                    Research = ActivityContinuationFixtures.NoResearch,
                     Tick = 100,
                     Food = new() { Options = EquatableArray.From(Plants.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10)

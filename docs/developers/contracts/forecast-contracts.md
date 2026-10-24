@@ -469,7 +469,7 @@ chance); plus the weather's accuracy multiplier. It holds no roster, target or e
 estimates them.
 
 `ResearchActivityRead` is the research part of that frame (#3527): for the current project (`ResearchManager.GetProject()`;
-none is Known with no workers and the finding `research_no_current_project`), every free colonist who has a job on
+none reads no workers and the finding `research_no_current_project`), every free colonist who has a job on
 every bench the project can be researched at (`WorkGiver_Researcher.HasJobOnThing`, reservable and reachable), with the
 points the game adds per work tick (`ResearchSpeed` x the bench's `ResearchSpeedFactor` x the difficulty's research speed,
 as `ResearchManager.ResearchPerformed` applies them). The bench's interaction cell joins the coupled route locations, so the

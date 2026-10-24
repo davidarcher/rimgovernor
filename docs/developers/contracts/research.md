@@ -29,7 +29,7 @@ A knowledge-category project is selected through the same `ResearchIntent` into 
 knowledge, not research work: no researcher, no clock ticks and no bench unless it names one.
 
 - The research read lists every unfinished knowledge project with its lock reasons (`hidden` while the
-  entity codex hides it) and every category's slot (`ResearchRead.Knowledge`); only the ordinary
+  entity codex hides it) and every category's slot (`ResearchSnapshot.Slots`); only the ordinary
   slot's project is the current project.
 - An empty slot with a startable project of its own category is an `economy/research` deficit (knowledge
   arriving for a category with no project is lost). The step fills it, before the ordinary slot is
@@ -42,8 +42,10 @@ knowledge, not research work: no researcher, no clock ticks and no bench unless 
 ## Prerequisite graph and selection
 
 The installed prerequisite graph, costs, tabs, techprints and required benches are the
-`ResearchProjectDef` rows of the definition catalog; `Observations.ReadResearch` supplies progress,
-lock reasons and finished projects only. Unknown or ambiguous definitions stay unknown.
+`ResearchProjectDef` rows of the definition catalog; `Observations.ReadResearch` supplies progress (the
+researched fraction of the cost, 1 for a zero-cost project), lock reasons and finished projects only; its
+progress read lists every current, knowledge or started project, so an unlisted unfinished project has none.
+A project outside the definition catalog fails the read.
 
 - Ordinary and hidden prerequisites both participate in traversal. Missing and hidden (entity-codex)
   projects block research; knowledge-category projects do not.

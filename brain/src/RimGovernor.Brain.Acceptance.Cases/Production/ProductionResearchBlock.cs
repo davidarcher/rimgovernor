@@ -58,8 +58,7 @@ internal static class ProductionResearchBlock
             IncludeFinished = true,
             NameContains = Project,
         }, cancellationToken).ConfigureAwait(false);
-        var read = TypedReads.Observed(label, NativeOps.ReadResearch, reply, reply.Outcome?.Observed);
-        return read.Projects.FirstOrDefault(p => p.Project?.DefName == Project);
+        return reply.Projects.FirstOrDefault(p => p.Project.DefName == Project);
     }
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)

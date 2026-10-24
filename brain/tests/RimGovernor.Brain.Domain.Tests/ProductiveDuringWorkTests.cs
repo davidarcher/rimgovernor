@@ -18,9 +18,9 @@ public sealed class ProductiveDuringWorkTests
     [Fact]
     public void GeneratedResearchBlockKeepsRealLearningAndIncreasedPointsAcrossMidnight()
     {
-        var worker = new ResearchWorker("pawn", "bench", new(1, 1), "research", "giver", "job", Known(.5))
+        var worker = new ResearchWorker("pawn", "bench", new(1, 1), "research", "giver", "job", .5)
             { SkillWork = Work("Intellectual", 10000, .5, fixedDuration: true) };
-        var read = new ResearchActivityRead { Known = true, Workers = [worker] };
+        var read = new ResearchActivityRead { Workers = [worker], Findings = [] };
         Assert.Equal(read, WireJson.Deserialize<ResearchActivityRead>(WireJson.Serialize(read)));
         var generated = ResearchMethodCandidates.Generate(read, GameTime.TicksPerDay, new([], [], [], []), GameTime.TicksPerDay);
         var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0);
@@ -28,7 +28,7 @@ public sealed class ProductiveDuringWorkTests
         var learning = Assert.IsType<ForecastProductiveLearning>(result.Evidence);
         Assert.Equal(250, learning.After.AppliedGain.Value, 8);
         Assert.Equal(2, learning.After.StoredLevel.Value);
-        Assert.True(learning.WorkAmount > GameTime.TicksPerHour * worker.PointsPerTick.Value);
+        Assert.True(learning.WorkAmount > GameTime.TicksPerHour * worker.PointsPerTick);
         Assert.True(ForecastProductiveWorkPolicy.CompletionTick(learning, 100).Value < 200);
         Assert.Single(learning.Callbacks);
         Assert.Equal(GameTime.TicksPerHour, learning.Callbacks[0].Count);

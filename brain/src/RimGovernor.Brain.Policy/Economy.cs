@@ -235,6 +235,48 @@ public static class EconomyRules
         };
     }
 
+    /// <summary>
+    /// The research census of a native research read: every project's static facts from the definition catalog
+    /// (<paramref name="catalog"/>) with the read's rows over them. A listed row carries its lock reasons and
+    /// progress; a project the read does not list is unfinished with no progress, or finished (full progress). Only
+    /// the ordinary slot's project is the current project; the knowledge slots are sorted by category. A row the
+    /// catalog does not hold is a contract violation (<see cref="DomainException"/>).
+    /// </summary>
+    public static ResearchCensus ResearchCensusOf(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog)
+    {
+        var finished = new HashSet<string>(read.Finished, StringComparer.Ordinal);
+        var projects = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);
+        foreach (var (name, facts) in catalog)
+        {
+            projects[name] = facts with { Progress = finished.Contains(name) ? 1 : 0 };
+        }
+        var current = "";
+        foreach (var row in read.Projects)
+        {
+            var name = row.Project.DefName;
+            if (!projects.TryGetValue(name, out var facts))
+            {
+                throw new DomainException($"research project {name} outside the definition catalog");
+            }
+            projects[name] = facts with
+            {
+                LockReasons = row.LockReasons,
+                Census = true,
+                Progress = row.ProgressFraction,
+                Hidden = row.LockReasons.Contains(ResearchRules.ResearchLockHidden),
+            };
+            // A knowledge project is current in its category slot: only the ordinary slot's project is the current project.
+            if (row.Current && facts.KnowledgeCategory.Length == 0)
+            {
+                current = name;
+            }
+        }
+        var knowledge = read.Slots.Where(slot => slot.Category.Length != 0)
+            .Select(slot => new KnowledgeSlot { Category = slot.Category, Current = new ResearchProjectId(slot.CurrentProject) })
+            .OrderBy(slot => slot.Category, StringComparer.Ordinal);
+        return new ResearchCensus { Current = current, Projects = projects, Finished = read.Finished, Knowledge = [.. knowledge] };
+    }
+
     /// <summary>The review-shaped summary of a research census: current project and its bench lock, listed and finished projects, and the knowledge pick.</summary>
     public static ResearchFacts ResearchSummary(ResearchCensus read)
     {

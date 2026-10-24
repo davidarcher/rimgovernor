@@ -221,18 +221,12 @@ public sealed record ProjectGraph
                 Visit(prerequisite);
             }
 
-            var progress = 0.0;
-            if (!listed.Progress.TryGetValue(out progress))
-            {
-                findings.Add($"research_progress_unknown:{id}");
-            }
-
             nodes.Add(new ProjectNode
             {
                 Id = ResearchId(id),
                 Kind = ProjectKind.Research,
                 Prerequisites = EquatableArray.From(listed.Prerequisites.Where(p => !done.Contains(p)).Select(ResearchId)),
-                Work = listed.Cost * (1 - progress),
+                Work = listed.Cost * (1 - listed.Progress),
             });
         }
 

@@ -10,10 +10,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ResearchMethodCandidatesTests
 {
     static ResearchWorker Worker(string pawn, string bench = "bench", double points = 0.5)
-        => new(pawn, bench, new(5, 5), "Stonecutting", "Research", "Research", Known(points));
+        => new(pawn, bench, new(5, 5), "Stonecutting", "Research", "Research", points);
 
     static ResearchActivityRead Read(params ResearchWorker[] workers)
-        => new() { Known = true, Workers = EquatableArray.From(workers) };
+        => new() { Workers = EquatableArray.From(workers), Findings = [] };
 
     static WorkResourceClaims Claims(string[]? pawns = null, string[]? targets = null)
         => new([], EquatableArray.From(pawns ?? []), EquatableArray.From(targets ?? []), []);
@@ -42,17 +42,15 @@ public sealed class ResearchMethodCandidatesTests
     }
 
     [Fact]
-    public void UnknownSpeedAndShortHorizonAndUnknownReadAreFindingsNotTasks()
+    public void NoSpeedAndShortHorizonAndNoProjectAreFindingsNotTasks()
     {
-        var unknown = ResearchMethodCandidates.Generate(Read(new ResearchWorker("a", "bench", new(5, 5), "p", "Research", "Research", default)), GameTime.TicksPerDay, Claims(), 1);
-        Assert.Empty(unknown.Tasks);
-        Assert.Contains("research_speed_unknown:a", unknown.Findings);
+        var still = ResearchMethodCandidates.Generate(Read(new ResearchWorker("a", "bench", new(5, 5), "p", "Research", "Research", 0)), GameTime.TicksPerDay, Claims(), 1);
+        Assert.Empty(still.Tasks);
+        Assert.Contains("research_speed_none:a", still.Findings);
         var short_ = ResearchMethodCandidates.Generate(Read(Worker("a")), GameTime.TicksPerHour - 1, Claims(), 1);
         Assert.Empty(short_.Tasks);
         Assert.Contains("research_block_exceeds_horizon", short_.Findings);
-        var absent = ResearchMethodCandidates.Generate(new ResearchActivityRead(), GameTime.TicksPerDay, Claims(), 1);
-        Assert.Contains("research_observation_unknown", absent.Findings);
-        var none = ResearchMethodCandidates.Generate(new() { Known = true, Findings = ["research_no_current_project"] }, GameTime.TicksPerDay, Claims(), 1);
+        var none = ResearchMethodCandidates.Generate(new() { Workers = [], Findings = ["research_no_current_project"] }, GameTime.TicksPerDay, Claims(), 1);
         Assert.Empty(none.Tasks);
         Assert.Equal(["research_no_current_project"], none.Findings);
     }

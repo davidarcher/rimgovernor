@@ -8,11 +8,10 @@ namespace RimGovernor.Contracts.Wire.Observations;
 /// </summary>
 public sealed record ResearchActivityRead
 {
-    public bool Known { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchWorker>))]
-    public EquatableArray<ResearchWorker> Workers { get; init; }
+    public required EquatableArray<ResearchWorker> Workers { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Findings { get; init; }
+    public required EquatableArray<string> Findings { get; init; }
 }
 
 /// <summary>
@@ -20,7 +19,7 @@ public sealed record ResearchActivityRead
 /// ResearchSpeed, the bench's ResearchSpeedFactor, the difficulty's research speed and the project's cost factor).
 /// </summary>
 public sealed record ResearchWorker(string Pawn, string Bench, Cell Location, string Project,
-    string WorkGiver, string Job, Fact<double> PointsPerTick)
+    string WorkGiver, string Job, double PointsPerTick)
 {
     public ProductiveSkillWork? SkillWork { get; init; }
 }

@@ -11,7 +11,7 @@ public interface IDefinitionSource
 /// <summary>The research read whose finished projects make a definition available.</summary>
 public interface IResearchSource
 {
-    Task<ResearchRead> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken);
+    Task<O.ResearchSnapshot> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken);
 }
 
 /// <summary>

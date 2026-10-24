@@ -45,27 +45,27 @@ internal static class ResearchReads
                 IncludeFinished = true,
                 NameContains = nameContains,
             }, cancellationToken).ConfigureAwait(false);
-            return TypedReads.Observed(label, NativeOps.ReadResearch, reply, reply.Outcome?.Observed);
+            return reply;
         }
 
         var full = await ReadAsync("full", null).ConfigureAwait(false);
         var problems = new List<string>();
-        var finished = full.Projects.FirstOrDefault(p => p.Project?.DefName == Finished);
+        var finished = full.Projects.FirstOrDefault(p => p.Project.DefName == Finished);
         if (finished?.Finished != true || !full.Finished.Contains(Finished))
         {
             problems.Add($"{Finished} not read finished: {finished}");
         }
 
-        var started = full.Projects.FirstOrDefault(p => p.Project?.DefName == Started);
-        if (started is not { Finished: false, ProgressFraction: { } fraction } || Math.Abs(fraction - Progress) > 0.01)
+        var started = full.Projects.FirstOrDefault(p => p.Project.DefName == Started);
+        if (started is not { Finished: false } || Math.Abs(started.ProgressFraction - Progress) > 0.01)
         {
             problems.Add($"{Started} not read {Progress} done: {started}");
         }
 
         var filtered = await ReadAsync("filtered", Started).ConfigureAwait(false);
-        if (filtered.Projects.Count == 0 || filtered.Projects.Any(p => p.Project?.DefName?.Contains(Started, StringComparison.OrdinalIgnoreCase) != true))
+        if (filtered.Projects.Count == 0 || filtered.Projects.Any(p => !p.Project.DefName.Contains(Started, StringComparison.OrdinalIgnoreCase)))
         {
-            problems.Add($"filter \"{Started}\" returned [{string.Join(' ', filtered.Projects.Select(p => p.Project?.DefName))}]");
+            problems.Add($"filter \"{Started}\" returned [{string.Join(' ', filtered.Projects.Select(p => p.Project.DefName))}]");
         }
 
         var again = await ReadAsync("full-again", null).ConfigureAwait(false);

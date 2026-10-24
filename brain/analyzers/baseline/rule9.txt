@@ -75,8 +75,6 @@ BuildingRuntime/Client/FacadeNativeClient.Pawns.cs|Fact|2
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Fact|9
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|4
-BuildingRuntime/Client/FacadeNativeClient.Research.cs|Fact|1
-BuildingRuntime/Client/FacadeNativeClient.Research.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Fact|1
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|4
@@ -376,7 +374,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|715
+Contracts/Observations.cs|NullableValue|710
 Contracts/Observations.cs|UnknownMember|17
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
@@ -389,7 +387,6 @@ Contracts/Presentation.cs|UnknownMember|1
 Contracts/Receipts.cs|NullableValue|32
 Contracts/Receipts.cs|UnknownMember|5
 Contracts/RecipeActivities.cs|Fact|7
-Contracts/ResearchActivities.cs|Fact|1
 Contracts/SkillLearning.cs|Fact|24
 Contracts/SowingActivities.cs|Fact|2
 Contracts/SupportActivities.cs|Fact|10
@@ -495,8 +492,8 @@ Observation/RoundsContainment.cs|Fact|41
 Observation/RoundsContainment.cs|Unknown|20
 Observation/RoundsMood.cs|Fact|43
 Observation/RoundsMood.cs|Unknown|8
-Observation/RoundsRead.cs|Fact|52
-Observation/RoundsRead.cs|Unknown|17
+Observation/RoundsRead.cs|Fact|51
+Observation/RoundsRead.cs|Unknown|16
 Observation/RoundsWork.cs|Fact|43
 Observation/RoundsWork.cs|Unknown|6
 Observation/RoyaltyColonyProjection.cs|Fact|6
@@ -587,7 +584,7 @@ Policy/ColonyForecast.cs|Fact|36
 Policy/ColonyForecast.cs|Unknown|6
 Policy/ColonyForecastFacts.cs|Fact|2
 Policy/ColonyModel/ColonyModel.cs|Fact|12
-Policy/ColonyModel/ColonyModelInput.cs|Fact|75
+Policy/ColonyModel/ColonyModelInput.cs|Fact|72
 Policy/ColonyModel/ColonyModelPolicy.cs|Fact|1
 Policy/ColonyModel/ColonyModelState.cs|Fact|18
 Policy/ColonyModel/ColonyTrajectory.cs|NullableValue|1
@@ -598,7 +595,7 @@ Policy/ColonyModel/GoalPaths.cs|Fact|9
 Policy/ColonyModel/GoalPaths.cs|NullableValue|2
 Policy/ColonyModel/PawnCycle.cs|Fact|47
 Policy/ColonyModel/PawnCycle.cs|Unknown|11
-Policy/ColonyModel/ProjectGraph.cs|Fact|23
+Policy/ColonyModel/ProjectGraph.cs|Fact|22
 Policy/ColonyModel/ProjectMarginalValue.cs|Fact|7
 Policy/ColonyModel/ProjectRun.cs|Discard|1
 Policy/ColonyModel/ProjectRun.cs|Fact|19
@@ -860,7 +857,6 @@ Policy/GearSurplus.cs|Fact|3
 Policy/GeneBankConcern.cs|Fact|8
 Policy/GeneBankConcern.cs|Unknown|3
 Policy/GoalValues.cs|Fact|4
-Policy/GoalValues.cs|ValueOrDefault|1
 Policy/Goals.cs|NullableValue|9
 Policy/GoalsFamily.cs|Discard|7
 Policy/GoalsFamily.cs|Fact|105
@@ -1037,7 +1033,7 @@ Policy/Methods/Generation/FoodRecipeActivity.cs|Fact|2
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Discard|1
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Fact|56
 Policy/Methods/Generation/PracticeMethodCandidates.cs|Fact|19
-Policy/Methods/Generation/ResearchMethodCandidates.cs|Fact|5
+Policy/Methods/Generation/ResearchMethodCandidates.cs|Fact|2
 Policy/Methods/Generation/SowingMethodCandidates.cs|Fact|5
 Policy/Methods/Generation/SupportMethodCandidates.cs|Fact|22
 Policy/Military.cs|Fact|36
@@ -1151,7 +1147,6 @@ Policy/RemoteHold.cs|Unknown|1
 Policy/RemoteLoot.cs|Fact|9
 Policy/RemoteSalvage.cs|Fact|2
 Policy/Rescue.cs|Fact|18
-Policy/Research.cs|Fact|1
 Policy/ResearchFacts.cs|Fact|31
 Policy/ResearchFacts.cs|Unknown|9
 Policy/ResourceConsumption.cs|Fact|2

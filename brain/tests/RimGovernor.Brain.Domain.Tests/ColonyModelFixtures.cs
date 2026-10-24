@@ -68,7 +68,7 @@ internal static class ColonyModelFixtures
                 Details = new Dictionary<string, ResearchProjectFacts>
                 {
                     [Prerequisite] = new() { Cost = 650 },
-                    [Project] = new() { Cost = 800, Prerequisites = [new ResearchProjectId(Prerequisite)], Progress = Known(0.25) },
+                    [Project] = new() { Cost = 800, Prerequisites = [new ResearchProjectId(Prerequisite)], Progress = 0.25 },
                 },
             }),
             MedicalReserve = new MedicalReserveObservation

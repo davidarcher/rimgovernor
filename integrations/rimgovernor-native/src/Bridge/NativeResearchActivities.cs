@@ -39,7 +39,7 @@ internal static class NativeResearchActivities
     internal static Obs.ResearchActivityRead Read(Map map)
     {
         var project = Find.ResearchManager.GetProject();
-        if (project == null) return new() { Known = true, Findings = ["research_no_current_project"] };
+        if (project == null) return new() { Workers = [], Findings = ["research_no_current_project"] };
         // WorkGiverDefOf has no Research field: the typed route is the work type's own giver.
         var giver = WorkTypeDefOf.Research.workGiversByPriority.First(g => g.Worker is WorkGiver_Researcher);
         var scanner = (WorkGiver_Researcher)giver.Worker;
@@ -62,13 +62,13 @@ internal static class NativeResearchActivities
                 var perTick = speed * bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty
                     / project.CostFactor(pawn.Faction.def.techLevel);
                 workers.Add(new(pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), new(cell.x, cell.z), project.defName,
-                    giver.defName, JobDefOf.Research.defName, Fact.Known((double)perTick))
+                    giver.defName, JobDefOf.Research.defName, (double)perTick)
                 { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, project.Cost - project.ProgressReal,
                     bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty / project.CostFactor(pawn.Faction.def.techLevel),
                     0.1, false, true, "JobDriver_Research: points then Intellectual 0.1 XP per callback tick") is { } learning
                     ? learning with { CallbackOrder = order.TryGetValue(pawn, out var at) ? Fact.Known(at) : default } : null });
             }
         }
-        return new() { Known = true, Workers = EquatableArray.From(workers) };
+        return new() { Workers = EquatableArray.From(workers), Findings = [] };
     }
 }

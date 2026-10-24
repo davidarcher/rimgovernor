@@ -2675,32 +2675,31 @@ public abstract record GetCellsReplyOutcome
 /// Progress and availability only: the project's definition facts (cost, tab,
 /// prerequisites, techprints, required bench) are ResearchProjectDef rows of
 /// the definition catalog, and what a project unlocks is a reverse index over
-/// the rows that name it as a prerequisite. progress_fraction is absent for a
-/// zero-cost project; available and can_start are set exactly when the census
-/// computed the lock reasons.
+/// the rows that name it as a prerequisite. ProgressFraction is the share of
+/// the cost researched (0 to 1; a zero-cost project has nothing left to
+/// research and reads 1). LockReasons are the native CanStartNow predicates
+/// the project fails, empty when it can start now.
 /// </summary>
 public sealed record ResearchProject
 {
-    public DefinitionRef Project { get; init; } = new();
+    public required DefinitionRef Project { get; init; }
 
-    public double? ProgressFraction { get; init; }
+    public required double ProgressFraction { get; init; }
 
-    public bool Finished { get; init; }
+    public required bool Finished { get; init; }
 
-    public bool Current { get; init; }
-
-    public bool? CanStart { get; init; }
+    public required bool Current { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> LockReasons { get; init; }
+    public required EquatableArray<string> LockReasons { get; init; }
 }
 
 /// <summary>A research slot: Category is empty on the ordinary slot and names the knowledge category otherwise; CurrentProject is empty while the slot has none.</summary>
 public sealed record ResearchSlot
 {
-    public string Category { get; init; } = "";
+    public required string Category { get; init; }
 
-    public string CurrentProject { get; init; } = "";
+    public required string CurrentProject { get; init; }
 }
 
 /// <summary>
@@ -2708,72 +2707,34 @@ public sealed record ResearchSlot
 /// </summary>
 public sealed record ResearchSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchSlot>))]
-    public EquatableArray<ResearchSlot> Slots { get; init; }
+    public required EquatableArray<ResearchSlot> Slots { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchProject>))]
-    public EquatableArray<ResearchProject> Projects { get; init; }
+    public required EquatableArray<ResearchProject> Projects { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Finished { get; init; }
+    public required EquatableArray<string> Finished { get; init; }
 }
 
 /// <summary>
-/// progress_only lists only the current projects, with their lock
-/// reasons, and the started unfinished ones; the other filters are ignored.
+/// progress_only lists the current projects, every unfinished knowledge
+/// project and the started unfinished ones, each with its lock reasons; the
+/// other filters are ignored. The flags are false when omitted.
 /// </summary>
 public sealed record ResearchRequest
 {
     public ReadScope? Scope { get; init; }
 
-    public bool? IncludeLocked { get; init; }
+    public bool IncludeLocked { get; init; }
 
-    public bool? IncludeFinished { get; init; }
+    public bool IncludeFinished { get; init; }
 
     public string? NameContains { get; init; }
 
-    public bool? ProgressOnly { get; init; }
-}
-
-public sealed record ResearchReply
-{
-    public ResearchReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ResearchReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ResearchReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ResearchReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ResearchReplyOutcome.FailureCase), "failure")]
-public abstract record ResearchReplyOutcome
-{
-    private protected ResearchReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ResearchSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ResearchSnapshot Value) : ResearchReplyOutcome;
-
-    public static implicit operator ResearchReplyOutcome(ResearchSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ResearchReplyOutcome;
-
-    public static implicit operator ResearchReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ResearchReplyOutcome;
-
-    public static implicit operator ResearchReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public bool ProgressOnly { get; init; }
 }
 
 public sealed record AccessTarget

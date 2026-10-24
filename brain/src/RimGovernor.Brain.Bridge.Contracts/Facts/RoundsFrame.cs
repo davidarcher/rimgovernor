@@ -29,7 +29,8 @@ public sealed record RoundsFrame
 
     public PrisonerCensus? Population { get; init; }
 
-    public ResearchRead? Research { get; init; }
+    /// <summary>The research section a decoded routine frame always carries; null only on the empty carrier frame a room reconcile passes.</summary>
+    public ResearchSnapshot? Research { get; init; }
 
     public TradersRead? Traders { get; init; }
 

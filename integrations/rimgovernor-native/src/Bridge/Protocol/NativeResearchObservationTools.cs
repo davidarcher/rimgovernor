@@ -1,12 +1,9 @@
 #nullable enable
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -17,21 +14,23 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeResearchObservationTools
     {
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.ResearchReply HandleReadResearch(Obs.ResearchRequest parsed)
+        // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
+        // or a research state that cannot be read completely throws.
+        internal static Obs.ResearchSnapshot HandleReadResearch(Obs.ResearchRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ResearchReply { Outcome = invalidRequest };
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ResearchReply { Outcome = error };
-            try
+            if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out _, out var context, out var error))
+                throw NativeFaults.Refused(error);
+            var manager = Find.ResearchManager;
+            if (manager == null || Faction.OfPlayerSilentFail?.def == null)
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Research manager or player faction is unavailable." });
+            try { return Read(parsed, context, manager); }
+            catch (Exception thrown)
             {
-                var manager = Find.ResearchManager;
-                var player = Faction.OfPlayerSilentFail;
-                if (manager == null || player?.def == null)
-                    return new Obs.ResearchReply { Outcome = Missing(Common.UnavailableReason.NativeComponentMissing, "Research manager or player faction is unavailable.") };
-                return new Obs.ResearchReply { Outcome = Read(parsed, context, manager) };
+                ModLog.Error("observe", "Research read failed: " + thrown);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message) });
             }
-            catch (Exception thrown) { ModLog.Error("observe", "Research read failed: " + thrown); return new Obs.ResearchReply { Outcome = Missing(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message)) }; }
         }
 
         // The research state as a frame section: a read that throws fails the frame.
@@ -47,7 +46,7 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required; name_contains must be an identifier.");
             return request?.Scope?.ExpectedIdentity != null
-                && (request.NameContains is null || (request.NameContains ?? "").Length == 0 || ProtoBoundary.IsIdentifier(request.NameContains));
+                && (request.NameContains is null || request.NameContains.Length == 0 || ProtoBoundary.IsIdentifier(request.NameContains));
         }
 
         // These exact backing fields avoid GetProgress's saved zero insertion and
@@ -66,11 +65,11 @@ namespace HomeBridge.BridgeTools
             Number(value); return value;
         }
         internal static bool Finished(double progress, double cost) { Number(progress); Number(cost); return progress >= cost; }
+        // The researched share of the cost; a zero-cost project has nothing left to research (Finished holds).
         internal static double Fraction(double progress, double cost)
         {
             Number(progress); Number(cost);
-            if (cost <= 0) throw new InvalidOperationException("Nonpositive research cost.");
-            return Math.Min(1, progress / cost);
+            return cost <= 0 ? 1 : Math.Min(1, progress / cost);
         }
 
         private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, ResearchManager manager)
@@ -80,101 +79,95 @@ namespace HomeBridge.BridgeTools
             var anomaly = ModsConfig.AnomalyActive;
             var current = manager.GetProject(); // Null-category overload reads only currentProj.
             var selected = new HashSet<ResearchProjectDef>();
-            var snapshot = new Obs.ResearchSnapshot { Context = context };
-            var ordinary = new Obs.ResearchSlot();
-            if (current != null) { ordinary = ordinary with { CurrentProject = Id(current.defName) }; selected.Add(current); }
-            snapshot = snapshot with { Slots = [.. snapshot.Slots, ordinary] };
+            var slots = new List<Obs.ResearchSlot>();
+            if (current != null) selected.Add(current);
+            slots.Add(new Obs.ResearchSlot { Category = "", CurrentProject = current != null ? Id(current.defName) : "" });
             if (anomaly)
             {
                 var field = typeof(ResearchManager).GetField("currentAnomalyKnowledgeProjects", BindingFlags.Instance | BindingFlags.NonPublic);
                 if (field == null || field.FieldType != typeof(List<ResearchManager.KnowledgeCategoryProject>)) throw new InvalidOperationException();
-                var slots = (List<ResearchManager.KnowledgeCategoryProject>?)field.GetValue(manager);
+                var saved = (List<ResearchManager.KnowledgeCategoryProject>?)field.GetValue(manager);
                 var categories = DefDatabase<KnowledgeCategoryDef>.AllDefsListForReading;
                 foreach (var category in categories.OrderBy(d => d.defName, StringComparer.Ordinal))
                 {
-                    var matches = slots?.Where(s => s.category == category).ToList();
+                    var matches = saved?.Where(s => s.category == category).ToList();
                     if (matches != null && matches.Count > 1) throw new InvalidOperationException();
                     var project = matches?.SingleOrDefault()?.project;
-                    var slot = new Obs.ResearchSlot { Category = Id(category.defName) };
-                    if (project != null) { slot = slot with { CurrentProject = Id(project.defName) }; selected.Add(project); }
-                    snapshot = snapshot with { Slots = [.. snapshot.Slots, slot] };
+                    if (project != null) selected.Add(project);
+                    slots.Add(new Obs.ResearchSlot { Category = Id(category.defName), CurrentProject = project != null ? Id(project.defName) : "" });
                 }
-                if (slots != null && slots.Any(s => s == null || !categories.Contains(s.category))) throw new InvalidOperationException();
+                if (saved != null && saved.Any(s => s == null || !categories.Contains(s.category))) throw new InvalidOperationException();
             }
-            var definitions = DefDatabase<ResearchProjectDef>.AllDefsListForReading;
+            var finishedNames = new List<string>();
             var built = new List<Obs.ResearchProject>();
-            foreach (var def in definitions.OrderBy(d => d.defName, StringComparer.Ordinal))
+            foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.OrderBy(d => d.defName, StringComparer.Ordinal))
             {
                 var reached = Progress(def, progress, knowledge, anomaly);
                 var cost = def.Cost;
                 var finished = Finished(reached, cost);
-                if (finished) snapshot = snapshot with { Finished = [.. snapshot.Finished, Id(def.defName)] };
+                if (finished) finishedNames.Add(Id(def.defName));
                 var hidden = !finished && anomaly && Find.EntityCodex.Hidden(def);
-                if (request.ProgressOnly.GetValueOrDefault())
+                var isSelected = selected.Contains(def);
+                if (request.ProgressOnly)
                 {
-                    // The current projects, with their lock reasons, and the
-                    // started ones; the static fields are the catalog's. Every
-                    // unfinished anomaly knowledge project is listed with its
-                    // lock reasons too (hidden ones carry "hidden"): the
-                    // knowledge slots are filled from this list.
-                    var selectedRow = selected.Contains(def);
+                    // The current projects, every unfinished anomaly knowledge
+                    // project (the knowledge slots are filled from this list)
+                    // and every started one, hidden or not, each with its lock
+                    // reasons; the static fields are the catalog's. A project
+                    // left out is unfinished with no progress, or finished.
                     var knowledgeRow = anomaly && def.knowledgeCategory != null && !finished;
-                    if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) continue;
-                    var slim = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selectedRow);
-                    var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current };
-                    if (slim.ProgressFraction is not null) kept = kept with { ProgressFraction = slim.ProgressFraction };
-                    if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; }
-                    built.Add(kept);
+                    if (finished && !isSelected || !isSelected && !knowledgeRow && reached <= 0) continue;
+                    built.Add(Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, isSelected));
                     continue;
                 }
-                if (hidden || finished && !request.IncludeFinished.GetValueOrDefault() || request.NameContains is not null && (request.NameContains ?? "").Length != 0
-                    && def.defName.IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0
-                    && (def.label ?? "").IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0) continue;
-                var row = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selected.Contains(def));
-                if (!finished && !row.CanStart.GetValueOrDefault() && !request.IncludeLocked.GetValueOrDefault()) continue;
+                if (hidden || finished && !request.IncludeFinished || request.NameContains is { Length: > 0 } name
+                    && def.defName.IndexOf(name, StringComparison.OrdinalIgnoreCase) < 0
+                    && (def.label ?? "").IndexOf(name, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                var row = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, isSelected);
+                if (!finished && row.LockReasons.Count != 0 && !request.IncludeLocked) continue;
                 built.Add(row);
             }
-            snapshot = snapshot with { Projects = [.. snapshot.Projects, .. built] };
-            return snapshot;
+            return new Obs.ResearchSnapshot { Context = context, Slots = [.. slots], Projects = [.. built], Finished = [.. finishedNames] };
         }
 
         private static Obs.ResearchProject Project(ResearchProjectDef def, ResearchManager manager,
             IDictionary<ResearchProjectDef, float> progress, IDictionary<ResearchProjectDef, float> knowledge,
             bool anomaly, float points, float cost, bool finished, bool current)
         {
-            var row = new Obs.ResearchProject { Project = Definition(def), Finished = finished, Current = current };
             Number(cost); Number(def.baseCost);
-            if (cost > 0) row = row with { ProgressFraction = Fraction(points, cost) };
+            var locks = new List<string>();
             foreach (var prerequisite in def.prerequisites ?? new List<ResearchProjectDef>())
-                if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row = row with { LockReasons = [.. row.LockReasons, "prerequisite:" + Id(prerequisite.defName)] };
+                if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) locks.Add("prerequisite:" + Id(prerequisite.defName));
             foreach (var prerequisite in def.hiddenPrerequisites ?? new List<ResearchProjectDef>())
-                if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row = row with { LockReasons = [.. row.LockReasons, "hidden_prerequisite:" + Id(prerequisite.defName)] };
+                if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) locks.Add("hidden_prerequisite:" + Id(prerequisite.defName));
             var applied = manager.GetTechprints(def); var needed = def.TechprintCount;
             if (applied < 0 || needed < 0) throw new InvalidOperationException();
-            if (applied < needed) row = row with { LockReasons = [.. row.LockReasons, "techprints"] };
+            if (applied < needed) locks.Add("techprints");
             // Native CanStartNow only demands a bench for a project that names
             // one, yet no project progresses without a bench the researcher can
             // work at: the lock is reported whenever none stands.
             // A knowledge project accrues from study, not bench work, so it
             // needs a bench only when it names one (native CanStartNow).
-            if ((def.knowledgeCategory == null || def.requiredResearchBuilding != null) && !def.PlayerHasAnyAppropriateResearchBench) row = row with { LockReasons = [.. row.LockReasons, "research_building_or_facilities"] };
+            if ((def.knowledgeCategory == null || def.requiredResearchBuilding != null) && !def.PlayerHasAnyAppropriateResearchBench) locks.Add("research_building_or_facilities");
             // The entity codex hides a project until its entity is discovered
             // (or the monolith reaches level 1); native CanStartNow refuses it.
-            if (anomaly && !finished && Find.EntityCodex.Hidden(def)) row = row with { LockReasons = [.. row.LockReasons, "hidden"] };
-            if (!def.PlayerMechanitorRequirementMet) row = row with { LockReasons = [.. row.LockReasons, "mechanitor"] };
-            if (!def.AnalyzedThingsRequirementsMet) row = row with { LockReasons = [.. row.LockReasons, "analysis"] };
-            if (!def.InspectionRequirementsMet) row = row with { LockReasons = [.. row.LockReasons, "inspection"] };
-            if (finished) row = row with { LockReasons = [.. row.LockReasons, "finished"] };
-            // Native CanStartNow's predicates with dictionary-only progress reads,
-            // plus the bench: a selectable project nobody can research is not
-            // available to the controller.
-            row = row with { CanStart = row.LockReasons.Count == 0 };
-            return row;
+            if (anomaly && !finished && Find.EntityCodex.Hidden(def)) locks.Add("hidden");
+            if (!def.PlayerMechanitorRequirementMet) locks.Add("mechanitor");
+            if (!def.AnalyzedThingsRequirementsMet) locks.Add("analysis");
+            if (!def.InspectionRequirementsMet) locks.Add("inspection");
+            if (finished) locks.Add("finished");
+            return new Obs.ResearchProject
+            {
+                Project = Definition(def),
+                ProgressFraction = Fraction(points, cost),
+                Finished = finished,
+                Current = current,
+                LockReasons = [.. locks],
+            };
         }
 
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
         private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName) };
-        private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

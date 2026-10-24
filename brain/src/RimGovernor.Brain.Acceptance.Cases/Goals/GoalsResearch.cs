@@ -60,14 +60,14 @@ internal static class GoalsResearch
             IncludeFinished = true,
             NameContains = Project,
         }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.ReadResearch, reply, reply.Outcome?.Observed);
+        return reply;
     }
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // The precondition: the project is unfinished and nothing is being researched, so any selection is the brain's.
         var before = await ReadAsync(s, "before", cancellationToken).ConfigureAwait(false);
-        var row = before.Projects.FirstOrDefault(p => p.Project?.DefName == Project);
+        var row = before.Projects.FirstOrDefault(p => p.Project.DefName == Project);
         if (row is not { Finished: false, Current: false })
         {
             throw new AcceptanceException($"{Project} is not staged unfinished and idle: {row}");
@@ -84,7 +84,7 @@ internal static class GoalsResearch
         _ = await s.ServeUntilAsync("research-goal", s.TicksLeft, async ct =>
         {
             var read = await ReadAsync(s, "observe", ct).ConfigureAwait(false);
-            var project = read.Projects.FirstOrDefault(p => p.Project?.DefName == Project);
+            var project = read.Projects.FirstOrDefault(p => p.Project.DefName == Project);
             selected |= project is { Current: true } || project is { Finished: true };
             var met = GoalReviews.Of(s, GoalId).Any(r => r.Verdict == "met");
             return (string.Create(CultureInfo.InvariantCulture, $"{project?.ProgressFraction} {project?.Current} {read.Finished.Contains(Project)} {met}"), project is { Finished: true } && met);

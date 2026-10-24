@@ -4,6 +4,7 @@ using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -280,5 +281,39 @@ public sealed class EconomyFamilyTests
         Assert.Equal("trade/" + participant.Key(), held.Conflict!.Claim);
         Assert.Empty(journal.LoadNeed(EconomyFamily.TradeMission, World, ct).Methods);
         Assert.Single(journal.OwnerMethodAttempts(journal.LoadNeed(EconomyFamily.Caravan, World, ct), new("trade-open-a"), ct));
+    }
+
+    /// <summary>A research read with no project listed, nothing finished and both slots empty.</summary>
+    private static Obs.ResearchSnapshot NoResearch => new()
+    {
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+        Slots = [new() { Category = "", CurrentProject = "" }],
+        Projects = [],
+        Finished = [],
+    };
+
+    [Fact]
+    public void TheResearchReadOverlaysTheCatalogAndRoundTripsOnTheWire()
+    {
+        var read = NoResearch with
+        {
+            Slots = [new() { Category = "", CurrentProject = "Smithing" }, new() { Category = "Basic", CurrentProject = "" }],
+            Projects = [new() { Project = new() { DefName = "Smithing" }, ProgressFraction = .25, Finished = false, Current = true, LockReasons = ["hidden"] }],
+            Finished = ["Stonecutting"],
+        };
+        Assert.Equal(read, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.ResearchSnapshot>(RimGovernor.Contracts.Wire.WireJson.Serialize(read)));
+        var catalog = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal)
+        {
+            ["Smithing"] = new() { Cost = 700 }, ["Stonecutting"] = new() { Cost = 300 }, ["Brewing"] = new() { Cost = 500 },
+        };
+        var census = EconomyRules.ResearchCensusOf(read, catalog);
+        Assert.Equal("Smithing", census.Current);
+        Assert.Equal((.25, true, true), (census.Projects["Smithing"].Progress, census.Projects["Smithing"].Census, census.Projects["Smithing"].Hidden));
+        // A project the read does not list is finished or unstarted.
+        Assert.Equal((1.0, false), (census.Projects["Stonecutting"].Progress, census.Projects["Stonecutting"].Census));
+        Assert.Equal(0.0, census.Projects["Brewing"].Progress);
+        Assert.Equal("Basic", Assert.Single(census.Knowledge).Category);
+        Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal)));
+        Assert.Empty(EconomyRules.ResearchCensusOf(NoResearch, catalog).Current);
     }
 }

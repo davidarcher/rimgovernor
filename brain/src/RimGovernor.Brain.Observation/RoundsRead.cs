@@ -49,13 +49,8 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
 
     public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken)
     {
-        var tables = frame.Tables;
         // A power row's wattage includes the upgrades the frame's research census says are finished.
-        if (frame.Research is { } research)
-        {
-            tables = tables with { FinishedResearch = Known<EquatableArray<string>>([.. research.Finished]) };
-        }
-        return Task.FromResult(tables);
+        return Task.FromResult(frame.Tables with { FinishedResearch = Known<EquatableArray<string>>([.. RoundsReads.ResearchSection(frame).Finished]) });
     }
 
     public Task<ZonesRead> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
@@ -77,14 +72,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     public Task<DefinitionCatalog> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => inner.DefinitionCatalogAsync(id, cancellationToken);
 
     /// <summary>The frame's research section.</summary>
-    public Task<ResearchRead> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken)
-    {
-        if (frame.Research is not { } research)
-        {
-            throw new BridgeUnavailableException();
-        }
-        return Task.FromResult(research);
-    }
+    public Task<O.ResearchSnapshot> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken) => Task.FromResult(RoundsReads.ResearchSection(frame));
 }
 
 public static class RoundsReads
@@ -156,7 +144,7 @@ public static class RoundsReads
                 ResearchBenchSpeeds = catalog.ResearchBenchSpeeds(),
                 LaboratoryBench = p.Shapes.Furniture.BenchFor(RoomRole.Laboratory),
                 Filth = p.Stations.Filth,
-                Crafts = frame.Research is { } research ? catalog.CraftRecipes(new HashSet<string>(research.Finished, StringComparer.Ordinal)) : default,
+                Crafts = catalog.CraftRecipes(new HashSet<string>(ResearchSection(frame).Finished, StringComparer.Ordinal)),
             },
         };
         p = p with { Facts = p.Facts with { Containment = RoundsContainmentReads.ContainmentPlanningOf(frame, catalog, p.Definitions) } };
@@ -223,7 +211,7 @@ public static class RoundsReads
                 GeneBankOwed = GeneBankConcernRules.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.Biotech)),
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
-                Research = FrameResearch(frame.Research),
+                Research = Known(FrameResearch(ResearchSection(frame), catalog)),
                 BuiltBuildings = BuiltBuildingsOf(frame.Buildings),
             },
         };
@@ -541,8 +529,12 @@ public static class RoundsReads
         return Known(EquatableArray.From(counts.Select(c => new Amount(new Resource(c.Key), c.Value))));
     }
 
-    internal static Fact<ResearchFacts> FrameResearch(ResearchRead? read) =>
-        read is null ? Unknown<ResearchFacts>() : Known(EconomyRules.ResearchSummary(read.Census()));
+    /// <summary>The research section of a frame read from the source; the empty carrier frame has none.</summary>
+    internal static O.ResearchSnapshot ResearchSection(RoundsFrame frame) =>
+        frame.Research ?? throw new BridgeUnavailableException("The frame holds no research section.");
+
+    internal static ResearchFacts FrameResearch(O.ResearchSnapshot read, DefinitionCatalog catalog) =>
+        EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog.Research));
 
     /// <summary>The primary ideoligion; unknown when the frame carries no ideology section.</summary>
     internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);

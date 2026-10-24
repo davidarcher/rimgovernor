@@ -79,15 +79,14 @@ internal static class NativeProtoResearchProbe
         Check((double)Call("Fraction", 25d, 100d) == .25d, "Fraction not percentage");
         foreach (var bad in new[] { -1d, double.NaN, double.PositiveInfinity })
             Refused(() => Call("Finished", bad, 100d), "Invalid native progress unavailable");
-        Refused(() => Call("Fraction", 0d, 0d), "Undefined fraction cannot become fabricated zero");
+        Check((double)Call("Fraction", 0d, 0d) == 1d, "A zero-cost project has nothing left to research");
         knowledge[def] = float.NaN;
         Refused(() => Call("Progress", def, progress, knowledge, true), "Corrupt stored progress rejected");
 
-        var observed = Get(Get(Wire("ResearchReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"projects\":[{\"progress\":0,\"finished\":false,\"canStart\":false}],\"slots\":[{}]}}}"), "Outcome"), "Observed");
-        var row = ((IList)Get(observed, "Projects"))[0]!;
-        Check(Get(row, "Progress") is double progressValue && progressValue == 0, "Known zero progress retained");
-        Check(Get(row, "CanStart") is false, "Known false eligibility retained");
-        Check(Get(observed, "Snapshot") == null, "No fabricated CAS token");
+        var observed = Wire("ResearchSnapshot", "{\"context\":{\"identity\":{\"colonyId\":\"c\",\"loadToken\":\"l\",\"mapId\":0},\"tick\":1},\"projects\":[{\"project\":{\"defName\":\"P\"},\"progressFraction\":0,\"finished\":false,\"current\":false,\"lockReasons\":[\"techprints\"]}],\"slots\":[{\"category\":\"\",\"currentProject\":\"\"}],\"finished\":[]}");
+        var row = ((IEnumerable)Get(observed, "Projects")).Cast<object>().Single();
+        Check(Get(row, "ProgressFraction") is double progressValue && progressValue == 0, "Zero progress retained");
+        Check(((IEnumerable)Get(row, "LockReasons")).Cast<object>().Count() == 1, "Lock reasons retained");
 
         // N01.03: Capability() (bench/facility/researcher projection) and Read()'s Anomaly
         // path (ModsConfig.AnomalyActive, KnowledgeCategoryProject, EntityCodex.Hidden) cannot

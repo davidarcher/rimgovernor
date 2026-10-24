@@ -19,18 +19,17 @@ internal sealed record ResearchMethodCandidates(ForecastActivity[] Tasks, Foreca
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var roots = new List<ForecastCommitment>(); var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal); var truncated = false;
-        if (!read.Known) findings.Add("research_observation_unknown");
         foreach (var worker in read.Workers)
         {
             if (horizon < ResearchBlockTicks) { findings.Add("research_block_exceeds_horizon"); break; }
             if (claims.Pawns.Contains(worker.Pawn) || claims.Targets.Contains(worker.Bench)) continue;
-            if (!worker.PointsPerTick.IsKnown || worker.PointsPerTick.Value <= 0) { findings.Add("research_speed_unknown:" + worker.Pawn); continue; }
+            if (!(worker.PointsPerTick > 0)) { findings.Add("research_speed_none:" + worker.Pawn); continue; }
             if (worker.SkillWork is null) findings.Add("productive_learning_unknown:research:" + worker.Pawn);
             if (tasks.Count >= MaxTasks) { truncated = true; break; }
             var id = "research/" + worker.Pawn + "/" + worker.Bench;
             var location = ForecastLocations.Of(worker.Location);
             tasks.Add(new(id, location, location, []) { ChoiceIdentity = "research/" + worker.Pawn,
-                ProjectProgress = new(worker.Project, worker.PointsPerTick.Value) });
+                ProjectProgress = new(worker.Project, worker.PointsPerTick) });
             options.Add(new(id, worker.Pawn, Known(ResearchBlockTicks), Known(0d)) { Equipment = [worker.Bench], SkillWork = worker.SkillWork });
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Bench, worker.WorkGiver, worker.Job,
                 0, deadline, worker.Location);

@@ -29,8 +29,8 @@ public sealed record ModelProject
     /// <summary>The project's cost in research points (the catalog's cost).</summary>
     public double Cost { get; init; }
 
-    /// <summary>The researched fraction of the cost; unknown when the census did not list the project.</summary>
-    public Fact<double> Progress { get; init; }
+    /// <summary>The researched fraction of the cost (0 to 1).</summary>
+    public double Progress { get; init; }
 
     public EquatableArray<ResearchProjectId> Prerequisites { get; init; }
 }
@@ -335,14 +335,10 @@ public sealed record ColonyModelInput
         {
             var unknownPrerequisite = project.Prerequisites.FirstOrDefault(p => !listed.Contains(p));
             if (project.Project.IsEmpty || !Number(project.Cost) || project.Cost <= 0
-                || project.Progress.TryGetValue(out var progress) && !(progress >= 0 && progress <= 1)
+                || !(project.Progress >= 0 && project.Progress <= 1)
                 || !unknownPrerequisite.IsEmpty)
             {
                 gaps.Add($"research: project '{project.Project}' has no positive cost, a progress outside 0..1 or a prerequisite ('{unknownPrerequisite}') outside the census");
-            }
-            else if (project.Project == research.Current && !project.Progress.IsKnown)
-            {
-                gaps.Add($"research: current project {project.Project} has no progress reading");
             }
         }
 

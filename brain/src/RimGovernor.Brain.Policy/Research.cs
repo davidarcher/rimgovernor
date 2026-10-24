@@ -52,8 +52,8 @@ public sealed record ResearchProjectFacts
     public EquatableArray<string> LockReasons { get; init; }
 
     /// <summary>
-    /// Says the native census listed the project with its lock reasons: without it an empty LockReasons is
-    /// unread, not startable.
+    /// Says the native census listed the project with its lock reasons: a project it does not list carries no lock
+    /// reasons, which is not startable.
     /// </summary>
     public bool Census { get; init; }
 
@@ -63,8 +63,8 @@ public sealed record ResearchProjectFacts
     /// <summary>The project's tech level (ResearchProjectDef.techLevel), from the definition catalog.</summary>
     public TechLevel TechLevel { get; init; }
 
-    /// <summary>The native progress fraction of the cost already researched (0 to 1); unknown for a project the census did not list or a zero-cost one.</summary>
-    public Fact<double> Progress { get; init; }
+    /// <summary>The native progress fraction of the cost already researched (0 to 1): a project the census does not list is unfinished with none, or finished.</summary>
+    public double Progress { get; init; }
 }
 
 public static partial class ResearchRules

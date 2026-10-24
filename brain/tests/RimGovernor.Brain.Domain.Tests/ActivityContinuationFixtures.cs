@@ -7,6 +7,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 // Generation and selection are exercised by the coupled portfolio tests.
 internal static class ActivityContinuationFixtures
 {
+    /// <summary>A coupled capture's research section with no researcher at a bench.</summary>
+    internal static ResearchActivityRead NoResearch => new() { Workers = [], Findings = [] };
+
     internal static PawnActivities Harvest(string pawn = "pawn", string? helper = null, long deadline = 500)
     {
         var worker = new SelectedActivityTask("harvest", pawn, [],

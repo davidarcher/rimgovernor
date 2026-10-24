@@ -65,7 +65,7 @@ public sealed partial class FacadeNativeClient :
     Task<BridgeCatalog> IDefinitionSource.DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) =>
         DefinitionCatalogAsync(id, cancellationToken);
 
-    Task<ResearchRead> IResearchSource.ReadResearchAsync(C.Identity id, CancellationToken cancellationToken) =>
+    Task<O.ResearchSnapshot> IResearchSource.ReadResearchAsync(C.Identity id, CancellationToken cancellationToken) =>
         ReadResearchAsync(id, cancellationToken);
 
     Task<RoundsFrame> IRoundsSource.ReadRoundsFrameAsync(C.Identity identity, CancellationToken cancellationToken) =>

@@ -29,7 +29,7 @@ public static partial class GoalRules
                 foreach (var project in open)
                 {
                     var detail = census.Details[project];
-                    var remaining = detail.Cost * (1 - Math.Clamp(detail.Progress.ValueOrDefault, 0, 1));
+                    var remaining = detail.Cost * (1 - Math.Clamp(detail.Progress, 0, 1));
                     if (remaining > 0)
                     {
                         research.Add(new(project, 1.0 / (open.Count * remaining)));

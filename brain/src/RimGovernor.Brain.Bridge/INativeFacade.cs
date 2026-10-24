@@ -84,7 +84,7 @@ public interface INativeFacade
 
     Task<Obs.RoomsSnapshot> ListRoomsAsync(Obs.ListRoomsRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.ResearchReply> ReadResearchAsync(Obs.ResearchRequest request, CancellationToken cancellationToken);
+    Task<Obs.ResearchSnapshot> ReadResearchAsync(Obs.ResearchRequest request, CancellationToken cancellationToken);
 
     Task<Obs.DefinitionCatalogAck> ReadDefinitionCatalogAsync(Obs.DefinitionCatalogRequest request, CancellationToken cancellationToken);
 

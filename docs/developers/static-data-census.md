@@ -454,7 +454,6 @@ Kept, reason recorded:
 | ResearchSlot | message | 826 | 2 | state | Current project per research category |  |  |
 | ResearchSnapshot | message | 828 | 5 | state | Research snapshot: slots, projects, finished |  |  |
 | ResearchRequest | message | 833 | 6 | state | Read request parameters |  |  |
-| ResearchReply | message | 834 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | AccessTarget | message | 836 | 4 | code | Per-cell native/projected reachability |  |  |
 | PawnAccess | message | 837 | 8 | code | Reachability counts and per-target access for a pawn |  |  |
 | SpatialAccessSnapshot | message | 840 | 4 | code | Pawn access results and map walkable counts |  |  |

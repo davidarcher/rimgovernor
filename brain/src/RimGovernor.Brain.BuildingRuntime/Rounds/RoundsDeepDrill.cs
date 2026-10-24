@@ -123,7 +123,7 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: stale research context");
         }
-        if (!RoundsBuildingPlanner.RoundsCachedFresh(FactFamily.Research, new Tick(research.Context?.Tick ?? 0), f.Identity.Tick))
+        if (!RoundsBuildingPlanner.RoundsCachedFresh(FactFamily.Research, new Tick(research.Context.Tick), f.Identity.Tick))
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity");
         }

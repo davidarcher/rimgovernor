@@ -164,7 +164,7 @@ public sealed class GoalValueTests
             Research = Known(new ResearchFacts
             {
                 Projects = [new("Smithing")], Finished = [],
-                Details = new Dictionary<string, ResearchProjectFacts> { ["Smithing"] = new() { Cost = 800, Progress = Known(.5) } },
+                Details = new Dictionary<string, ResearchProjectFacts> { ["Smithing"] = new() { Cost = 800, Progress = .5 } },
             }),
             Tier = Known(TechTier.Camp),
         };

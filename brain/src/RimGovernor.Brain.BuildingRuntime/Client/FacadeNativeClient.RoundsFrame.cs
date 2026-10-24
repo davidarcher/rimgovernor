@@ -57,6 +57,7 @@ public sealed partial class FacadeNativeClient
             Bills = v.Bills,
             Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
             Tables = new Tables(held.Buildings, pawns, held.Things),
+            Research = v.Research ?? throw BridgeContractException.Contract("routine frame without its research section"),
         };
         if (prepared.Emergency is { } emergency)
         {
@@ -69,10 +70,6 @@ public sealed partial class FacadeNativeClient
         if (v.Population is not null)
         {
             output = output with { Population = PopulationDecoder.Decode(v.Population, pawns, catalog) };
-        }
-        if (v.Research is not null)
-        {
-            output = output with { Research = ResearchReadSnapshot(v.Research, catalog) };
         }
         if (v.Traders is not null)
         {
