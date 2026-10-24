@@ -858,7 +858,7 @@ public static partial class ForecastCoupled
                 var roofKey = (p, choicesId, Key(closedRooms));
                 if (!roofs.TryGetValue(roofKey, out var roof))
                     roofs.Add(roofKey, roof = Next(ForecastRoofConsequences.RoofMoodOf(pawn, context.Needs, choiceKeys.Array(choicesId), closedRooms,
-                        context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon)));
+                        context.ColonistThoughts, horizon)));
                 var roofMood = roof.Value;
                 var grantedId = pawns.Granted[p].Count == 0 ? 0 : grantedKeys.Id(pawns.Granted[p]);
                 var situationalId = pawns.Situational[p].Count == 0 ? 0 : situationalKeys.Id(pawns.Situational[p]);
@@ -1012,9 +1012,11 @@ public static partial class ForecastCoupled
             var key = (p, exposure.Id, roof.Id, choicesId);
             if (banded.TryGetValue(key, out var result)) return result;
             var cardPawn = context.CardPawns.GetValueOrDefault(pawn.Pawn);
-            var observed = context.ObservedThoughts.GetValueOrDefault(pawn.Pawn);
             var thoughts = new List<BandedThought>(temperatureCards.Length + roof.Value.Banded.Count + 2);
-            foreach (var card in temperatureCards) thoughts.Add(ForecastMood.TemperatureThought(card, cardPawn, observed, exposure.Value.Spans));
+            // A colonist whose thoughts were not read keeps each card's observed constant.
+            var read = context.ColonistThoughts.TryGetValue(pawn.Pawn, out var observed);
+            foreach (var card in temperatureCards)
+                thoughts.Add(read ? ForecastMood.TemperatureThought(card, cardPawn, observed, exposure.Value.Spans) : (card.Def, []));
             thoughts.AddRange(roof.Value.Banded);
             thoughts.AddRange(ForecastMood.NeedThoughts(needs));
             banded.Add(key, result = Next(thoughts.ToArray()));

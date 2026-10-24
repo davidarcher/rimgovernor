@@ -86,7 +86,7 @@ public sealed class ForecastConditionalMoodTests
         // Comfortable from 10 C; a span cooling from 5 C to -25 C is a deficit of 5 rising to 35: stages 0..3 (-4..-16).
         var card = MechanicCards.ByDef["EnvironmentCold"] with { Status = MechanicCardStatus.Verified };
         var facts = new CardPawnFacts { Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]), IdeologyActive = Known(false) };
-        var observed = Known<EquatableArray<MoodThought>>([new("EnvironmentCold", -4)]);
+        EquatableArray<MoodThought> observed = [new("EnvironmentCold", -4)];
         var (thought, spans) = ForecastMood.TemperatureThought(card, facts, observed, [new(0, 30 * Hour, 5, -25, 10, 30)]);
         Assert.Equal("EnvironmentCold", thought);
         double Delta(double tick) => spans.Single(s => s.Start <= tick && tick < s.End).OffsetDelta;
@@ -95,9 +95,8 @@ public sealed class ForecastConditionalMoodTests
         Assert.Equal(-8, Delta(16 * Hour));
         Assert.Equal(-12, Delta(26 * Hour));
         Assert.Equal(30 * Hour, spans.Sum(s => s.End - s.Start), 6);
-        // Unknown facts or observations give no spans: the observed constant stays.
+        // Unknown facts give no spans: the observed constant stays.
         Assert.Empty(ForecastMood.TemperatureThought(card, facts with { IdeologyActive = Known(true) }, observed, [new(0, Hour, 5, 5, 10, 30)]).Spans);
-        Assert.Empty(ForecastMood.TemperatureThought(card, facts, default, [new(0, Hour, 5, 5, 10, 30)]).Spans);
         Assert.Empty(ForecastMood.TemperatureThought(card, null, observed, [new(0, Hour, 5, 5, 10, 30)]).Spans);
         // Only a Live card prices: the shipped extracted card waits for its probe (#3328).
         Assert.True(ForecastMood.TemperatureCard(card));

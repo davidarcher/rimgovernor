@@ -1,18 +1,18 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One colonist as the ledger reads it: the observed thought rows plus the attributes immunity and expectation gating need. An unknown attribute never excludes a thought; it marks the source unverified.</summary>
+/// <summary>One colonist as the ledger reads it: the observed thought rows plus the attributes immunity and expectation gating need. An expectation level off the vanilla ladder never excludes a thought; it marks the source unverified.</summary>
 public sealed record MoodLedgerPawn
 {
-    public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
-    public Fact<EquatableArray<string>> Traits { get; init; }
-    public Fact<EquatableArray<string>> Precepts { get; init; }
-    public Fact<string> Expectation { get; init; }
+    public required EquatableArray<MoodThought> Thoughts { get; init; }
+    public required EquatableArray<string> Traits { get; init; }
+    public required EquatableArray<string> Precepts { get; init; }
+    public required string Expectation { get; init; }
 }
 
-/// <summary>The mood one pawn loses per thought: negative offsets that apply to it, most negative first. Unknown when its thoughts were unreadable.</summary>
+/// <summary>The mood one pawn loses per thought: negative offsets that apply to it, most negative first.</summary>
 public sealed record MoodPawnLoss
 {
-    public Fact<EquatableArray<MoodThought>> Lost { get; init; }
+    public required EquatableArray<MoodThought> Lost { get; init; }
 }
 
 /// <summary>One thought's colony total: pawns affected x offset.</summary>
@@ -23,7 +23,7 @@ public sealed record MoodLedgerSource
     public double Lost { get; init; }
     public IReadOnlyList<NeedId> Owners { get; init; } = [];
 
-    /// <summary>Affected pawns whose immunity or expectation gating could not be checked (no ThoughtFacts for the def, or an unknown pawn attribute); their loss is still counted.</summary>
+    /// <summary>Affected pawns whose immunity or expectation gating could not be checked (no ThoughtFacts for the def, or an expectation level off the ladder); their loss is still counted.</summary>
     public int Unverified { get; init; }
 }
 
@@ -37,9 +37,6 @@ public sealed record MoodLedger
     public IReadOnlyList<MoodLedgerSource> Sources { get; init; } = [];
     public IReadOnlyList<MoodLedgerSource> Unowned { get; init; } = [];
     public IReadOnlyList<MoodLedgerExpectation> Expectation { get; init; } = [];
-
-    /// <summary>Pawns whose thoughts were unreadable.</summary>
-    public int UnknownPawns { get; init; }
 }
 
 public static partial class MoodRules
@@ -61,60 +58,28 @@ public static partial class MoodRules
     /// <summary>The vanilla ExpectationDef ladder, lowest first; a ThoughtFacts.MinExpectation or a pawn level outside it is unknown.</summary>
     private static readonly string[] MoodExpectationOrder = ["ExtremelyLow", "VeryLow", "Low", "Moderate", "High", "SkyHigh"];
 
-    /// <summary>Whether the def's facts let the pawn carry the thought; Known is false when a needed pawn attribute is unreadable.</summary>
+    /// <summary>Whether the def's facts let the pawn carry the thought; Known is false when the pawn's or the def's expectation level is off the ladder.</summary>
     private static (bool Applies, bool Known) ThoughtApplies(ThoughtFacts f, MoodLedgerPawn p)
     {
-        var known = true;
-        var tk = p.Traits.TryGetValue(out var traits);
-        var pk = p.Precepts.TryGetValue(out var precepts);
-        foreach (var t in f.NullifyingTraits)
+        if (f.NullifyingTraits.Any(p.Traits.Contains) || f.NullifyingPrecepts.Any(p.Precepts.Contains))
         {
-            if (!tk)
-            {
-                known = false;
-            }
-            else if (traits!.Contains(t))
-            {
-                return (false, true);
-            }
+            return (false, true);
         }
-        foreach (var t in f.NullifyingPrecepts)
+        if (f.RequiredTraits.Count > 0 && !f.RequiredTraits.Any(p.Traits.Contains))
         {
-            if (!pk)
-            {
-                known = false;
-            }
-            else if (precepts!.Contains(t))
-            {
-                return (false, true);
-            }
+            return (false, true);
         }
-        if (f.RequiredTraits.Count > 0)
+        if (f.MinExpectation == "")
         {
-            if (!tk)
-            {
-                known = false;
-            }
-            else if (!f.RequiredTraits.Any(t => traits!.Contains(t)))
-            {
-                return (false, true);
-            }
+            return (true, true);
         }
-        if (f.MinExpectation != "")
+        var have = Array.IndexOf(MoodExpectationOrder, p.Expectation);
+        var min = Array.IndexOf(MoodExpectationOrder, f.MinExpectation);
+        if (have < 0 || min < 0)
         {
-            var lk = p.Expectation.TryGetValue(out var level);
-            var have = Array.IndexOf(MoodExpectationOrder, level);
-            var min = Array.IndexOf(MoodExpectationOrder, f.MinExpectation);
-            if (!lk || have < 0 || min < 0)
-            {
-                known = false;
-            }
-            else if (have < min)
-            {
-                return (false, true);
-            }
+            return (true, false);
         }
-        return (true, known);
+        return (have >= min, true);
     }
 
     /// <summary>
@@ -125,23 +90,13 @@ public static partial class MoodRules
     public static MoodLedger BuildMoodLedger(IReadOnlyList<MoodLedgerPawn> pawns, IReadOnlyDictionary<string, ThoughtFacts> facts)
     {
         var pawnLosses = new List<MoodPawnLoss>();
-        var unknownPawns = 0;
         var sources = new Dictionary<string, MoodLedgerSource>(StringComparer.Ordinal);
         var levels = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var p in pawns)
         {
-            if (p.Expectation.TryGetValue(out var level))
-            {
-                levels[level] = levels.GetValueOrDefault(level) + 1;
-            }
-            if (!p.Thoughts.TryGetValue(out var rows))
-            {
-                unknownPawns++;
-                pawnLosses.Add(new MoodPawnLoss { Lost = Unknown<EquatableArray<MoodThought>>() });
-                continue;
-            }
+            levels[p.Expectation] = levels.GetValueOrDefault(p.Expectation) + 1;
             var lost = new List<MoodThought>();
-            foreach (var t in rows)
+            foreach (var t in p.Thoughts)
             {
                 if (t.Offset >= 0)
                 {
@@ -164,13 +119,12 @@ public static partial class MoodRules
                 }
                 sources[t.Def] = s with { Pawns = s.Pawns + 1, Lost = s.Lost + t.Offset, Unverified = s.Unverified + (verified ? 0 : 1) };
             }
-            pawnLosses.Add(new MoodPawnLoss { Lost = Known(EquatableArray.From(SortThoughts(lost))) });
+            pawnLosses.Add(new MoodPawnLoss { Lost = EquatableArray.From(SortThoughts(lost)) });
         }
         var ranked = sources.Values.OrderBy(s => s.Lost).ThenBy(s => s.Def, StringComparer.Ordinal).ToList();
         return new MoodLedger
         {
             Pawns = pawnLosses,
-            UnknownPawns = unknownPawns,
             Sources = ranked,
             Unowned = [.. ranked.Where(s => s.Owners.Count == 0)],
             Expectation = [.. levels.Select(kv => new MoodLedgerExpectation(kv.Key, kv.Value)).OrderByDescending(e => e.Pawns).ThenBy(e => e.Level, StringComparer.Ordinal)],
@@ -180,12 +134,6 @@ public static partial class MoodRules
     private static List<MoodThought> SortThoughts(IEnumerable<MoodThought> rows) => [.. rows.OrderBy(t => t.Offset).ThenBy(t => t.Def, StringComparer.Ordinal)];
 
     /// <summary>The pawn's negative thoughts with no audited owner, most negative first; the ledger's unowned bucket for one pawn.</summary>
-    internal static List<MoodThought> MoodUnowned(Fact<EquatableArray<MoodThought>> f)
-    {
-        if (!f.TryGetValue(out var rows))
-        {
-            return [];
-        }
-        return SortThoughts(rows.Where(t => t.Offset < 0 && ThoughtOwners(t.Def).Count == 0));
-    }
+    internal static List<MoodThought> MoodUnowned(EquatableArray<MoodThought> rows) =>
+        SortThoughts(rows.Where(t => t.Offset < 0 && ThoughtOwners(t.Def).Count == 0));
 }

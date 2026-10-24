@@ -75,7 +75,7 @@ public sealed class PeopleFamilyTests
         var mood = new PeopleNeeds { Mood = true };
         Assert.Equal("mood review", Assert.Throws<RequiredFactException>(() => new PeopleFamily(mood).Derive(new PeopleFacts())).Fact);
 
-        var states = EquatableArray.From<MoodState>([AtRisk("a"), AtRisk("b") with { Active = false, Pawn = AtRisk("b").Pawn with { Mood = new NeedLevel.Has(.9) } }, AtRisk("c") with { Missing = true }]);
+        var states = EquatableArray.From<MoodState>([AtRisk("a"), AtRisk("b") with { Active = false, Pawn = AtRisk("b").Pawn with { Mood = new MoodLevel.Has(.9, .2) } }, AtRisk("c") with { Missing = true }]);
         var needs = new PeopleFamily(mood).Derive(new PeopleFacts { Mood = Known(states) });
         Assert.Equal([PeopleFamily.Mood(new("a")), PeopleFamily.Mood(new("b")), PeopleFamily.Mood(new("c"))], needs.Select(n => n.Id));
         // A pawn no longer tracked (c is missing) owes nothing.
@@ -107,7 +107,7 @@ public sealed class PeopleFamilyTests
     [Fact]
     public void MoodReliefIsOneThresholdWithNoEntryOrRecoveryBand()
     {
-        MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = new NeedLevel.Has(.15 + mood), Target = Known(.15 + mood) };
+        MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = new MoodLevel.Has(.15 + mood, .15 + mood) };
         bool Review(double mood, bool prior) =>
             MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([Pawn(mood)]),
                 new MoodHistory { States = prior ? [AtRisk("a")] : [] }).States.Any(s => s.Active);
@@ -128,7 +128,7 @@ public sealed class PeopleFamilyTests
     {
         Pawn = new MoodPawn
         {
-            Id = new(pawn), Mood = new NeedLevel.Has(.2), Threshold = .15, Target = Known(.2),
+            Id = new(pawn), Mood = new MoodLevel.Has(.2, .2), Threshold = .15,
         },
         Active = true,
     };

@@ -1161,9 +1161,8 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
             Break = e.GetOr<MentalState?>("Break", null, o),
             HighExpectations = e.Bool("HighExpectations"),
             Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
-            Mood = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Mood", o),
+            Mood = e.Get<MoodLevel>("Mood", o),
             Threshold = e.Dbl("Threshold"),
-            Target = e.Get<Fact<double>>("Target", o),
             Food = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Food", o),
             Rest = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Rest", o),
             Joy = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Joy", o),
@@ -1172,17 +1171,19 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
             Downed = e.Bool("Downed"),
             Drafted = e.Bool("Drafted"),
             PlayerForced = e.Bool("PlayerForced"),
-            Thoughts = e.Get<Fact<EquatableArray<MoodThought>>>("Thoughts", o),
+            Thoughts = e.Get<EquatableArray<MoodThought>>("Thoughts", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, MoodPawn v, Codecs o)
     {
-        w.Put("Break", v.Break, o);
+        if (v.Break is { } brk)
+        {
+            w.Put("Break", brk, o);
+        }
         w.WriteBoolean("HighExpectations", v.HighExpectations);
         w.Put("Id", v.Id, o);
         w.Put("Mood", v.Mood, o);
         w.WriteNum("Threshold", v.Threshold);
-        w.Put("Target", v.Target, o);
         w.Put("Food", v.Food, o);
         w.Put("Rest", v.Rest, o);
         w.Put("Joy", v.Joy, o);
@@ -1220,6 +1221,36 @@ internal sealed class NeedLevelConverter : ObjectCodec<RimGovernor.Contracts.Wir
         else
         {
             throw new JsonException($"unknown need level {v.GetType().Name}");
+        }
+    }
+}
+
+/// <summary>A colonist's mood as a persisted state: <c>has</c> with its level and target, or <c>lacks</c> (#3897).</summary>
+internal sealed class MoodLevelConverter : ObjectCodec<MoodLevel>
+{
+    protected override MoodLevel Read(JsonElement e, Codecs o) =>
+        e.Str("Kind") switch
+        {
+            "has" => new MoodLevel.Has(e.Dbl("Level"), e.Dbl("Target")),
+            "lacks" => new MoodLevel.Lacks(),
+            var kind => throw new JsonException($"unknown mood level {kind}"),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, MoodLevel v, Codecs o)
+    {
+        if (v is MoodLevel.Has has)
+        {
+            w.WriteString("Kind", "has");
+            w.WriteNum("Level", has.Level);
+            w.WriteNum("Target", has.Target);
+        }
+        else if (v is MoodLevel.Lacks)
+        {
+            w.WriteString("Kind", "lacks");
+        }
+        else
+        {
+            throw new JsonException($"unknown mood level {v.GetType().Name}");
         }
     }
 }

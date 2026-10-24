@@ -82,9 +82,6 @@ internal sealed record MoodLedger
     [JsonPropertyName("unowned")]
     public IReadOnlyList<MoodSource>? Unowned { get; init; }
 
-    [JsonPropertyName("unknownPawns")]
-    public int UnknownPawns { get; init; }
-
     [JsonPropertyName("expectation")]
     public IReadOnlyList<MoodExpectation>? Expectation { get; init; }
 }

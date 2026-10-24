@@ -22,20 +22,15 @@ public static partial class SuitePriorityRules
     };
 
     /// <summary>
-    /// Each pawn's summed negative offset of the SuitePressureThoughts (0 or less); a pawn whose thoughts are
-    /// unknown is left out.
+    /// Each pawn's summed negative offset of the SuitePressureThoughts (0 or less).
     /// </summary>
     public static Dictionary<PawnId, double> SuitePressure(IReadOnlyList<MoodPawn> pawns)
     {
         var output = new Dictionary<PawnId, double>();
         foreach (var p in pawns)
         {
-            if (!p.Thoughts.TryGetValue(out var thoughts))
-            {
-                continue;
-            }
             var sum = 0.0;
-            foreach (var t in thoughts)
+            foreach (var t in p.Thoughts)
             {
                 if (SuitePressureThoughts.Contains(t.Def) && t.Offset < 0)
                 {

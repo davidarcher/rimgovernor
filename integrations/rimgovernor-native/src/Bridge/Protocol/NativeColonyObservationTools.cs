@@ -466,11 +466,8 @@ namespace HomeBridge.BridgeTools
         private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, Obs.NeedsForecastRead needs, Obs.CoupledForecastRead coupled)
         {
             var patients = new List<Obs.PatientForecast>();
-            foreach (var patient in source.patients) {
-                var row = new Obs.PatientForecast { PawnId = patient.id };
-                if (patient.moodTarget.HasValue) row = row with { MoodTarget = Finite(patient.moodTarget.Value) };
-                patients.Add(row);
-            }
+            foreach (var patient in source.patients)
+                patients.Add(new Obs.PatientForecast { PawnId = patient.id, MoodTarget = Finite(patient.moodTarget) });
             return new Obs.ForecastFacts { Needs = needs, Coupled = coupled, CombinedFoodSupply = Food(source.combinedFoodSupply), Patients = [.. patients] };
         }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)

@@ -45,7 +45,7 @@ public sealed class BedroomCreditTests
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] },
             InvestmentHorizonDays = Horizon,
             PlannedBeds = SleepFixtures.Beds(1, 1), Thermal = SleepFixtures.Outdoors(),
-            ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known(EquatableArray.From(observed)) },
+            ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>> { ["pawn"] = EquatableArray.From(observed) },
         };
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>.</summary>
@@ -83,11 +83,12 @@ public sealed class BedroomCreditTests
     {
         // A shared barracks gives an ascetic no Ascetic thought (observed none); an awful room's stage gives +5.
         var context = Context(Pawn(ascetic: true, barracksStage: 2), bedroomStage: 0);
-        Assert.Equal(Known(5d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0), context.ObservedThoughts["pawn"]));
+        Assert.Equal(Known(5d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0), context.ColonistThoughts));
         var row = Credit(context, Closing(0, 0.05));
         Assert.Equal(-(context.Value.WellbeingWeight * 5 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value) * Horizon, row.Value, 12);
         // Owning a room alone, its Ascetic thought is lost: an awful room (+5) to another awful one gains nothing.
-        Assert.Equal(Known(0d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0), Known(EquatableArray.From([new MoodThought("Ascetic", 5)]))));
+        Assert.Equal(Known(0d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0),
+            new Dictionary<string, EquatableArray<MoodThought>> { ["pawn"] = EquatableArray.From([new MoodThought("Ascetic", 5)]) }));
     }
 
     /// <summary>
@@ -180,7 +181,7 @@ public sealed class BedroomCreditTests
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = EquatableArray.From(ids) },
             PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [1] = [.. ids.Select(_ => new SleepingBedFacts("Bed", "WoodLog", false, 1, .75))] },
             ComfortCurve = curve, Thermal = SleepFixtures.Outdoors(), InvestmentHorizonDays = Horizon,
-            ObservedThoughts = ids.ToDictionary(id => id, _ => Known(EquatableArray.From(Array.Empty<MoodThought>())), StringComparer.Ordinal),
+            ColonistThoughts = ids.ToDictionary(id => id, _ => EquatableArray.From(Array.Empty<MoodThought>()), StringComparer.Ordinal),
         };
 
         // Each term on its own, from the game's numbers.

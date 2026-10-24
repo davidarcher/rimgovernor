@@ -264,9 +264,8 @@ public sealed class RoundsMoodPawnConverter : ObjectCodec<RoundsMoodPawn>
         {
             Break = e.GetNullableRef<MentalState>("Break", o),
             Id = new PawnId(e.Str("ID")),
-            Mood = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Mood", o),
+            Mood = e.Get<MoodLevel>("Mood", o),
             Threshold = e.Dbl("Threshold"),
-            Target = e.GetNullable<double>("Target", o),
             Food = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Food", o),
             Rest = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Rest", o),
             Joy = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Joy", o),
@@ -286,7 +285,6 @@ public sealed class RoundsMoodPawnConverter : ObjectCodec<RoundsMoodPawn>
         w.WriteString("ID", v.Id.Value);
         w.Put("Mood", v.Mood, o);
         w.WriteNum("Threshold", v.Threshold);
-        w.PutNullable("Target", v.Target, o);
         w.Put("Food", v.Food, o);
         w.Put("Rest", v.Rest, o);
         w.Put("Joy", v.Joy, o);
@@ -348,8 +346,7 @@ public sealed class RoundsMoodMethodConverter : ObjectCodec<RoundsMoodMethod>
             Concern = e.GetOr("Concern", default(ConcernId), o),
             Thought = e.StrOr("Thought"),
             Target = e.Dbl("Target"),
-            NeedBenefit = e.GetNullable<double>("NeedBenefit", o),
-            MoodBenefit = e.GetNullable<double>("MoodBenefit", o),
+            NeedBenefit = e.Dbl("NeedBenefit"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsMoodMethod v, Codecs o)
@@ -366,8 +363,7 @@ public sealed class RoundsMoodMethodConverter : ObjectCodec<RoundsMoodMethod>
             w.WriteString("Thought", v.Thought);
         }
         w.WriteNum("Target", v.Target);
-        w.PutNullable("NeedBenefit", v.NeedBenefit, o);
-        w.PutNullable("MoodBenefit", v.MoodBenefit, o);
+        w.WriteNum("NeedBenefit", v.NeedBenefit);
     }
 }
 

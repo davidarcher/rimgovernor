@@ -372,14 +372,14 @@ public static class ForecastMood
     /// A temperature card's offset along a pawn's assessed exposure spans (#3327), as deltas from the thought's observed
     /// contribution (its <c>MoodPawn.Thoughts</c> rows; none is 0). Each span is cut where the stage input, linear in the
     /// span's temperature, crosses a literal the card compares against, and each piece is evaluated at its midpoint. No
-    /// spans (the observed constant stays) when the facts, the observed thoughts or any piece's offset are unknown.
+    /// spans (the observed constant stays) when the facts or any piece's offset are unknown.
     /// </summary>
     internal static (string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans) TemperatureThought(MechanicCard card,
-        CardPawnFacts? pawn, Fact<EquatableArray<MoodThought>> observed, IReadOnlyList<ForecastThermalSpan> exposure)
+        CardPawnFacts? pawn, EquatableArray<MoodThought> observed, IReadOnlyList<ForecastThermalSpan> exposure)
     {
         var none = (card.Def, (IReadOnlyList<(double, double, double)>)[]);
-        if (pawn is null || !observed.TryGetValue(out var thoughts)) return none;
-        var current = thoughts.Where(t => t.Def == card.Def).Sum(t => t.Offset);
+        if (pawn is null) return none;
+        var current = observed.Where(t => t.Def == card.Def).Sum(t => t.Offset);
         var cuts = MechanicCardGuards.StageCuts(card);
         var rows = new List<(double Start, double End, double OffsetDelta)>();
         foreach (var span in exposure)

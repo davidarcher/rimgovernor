@@ -38,11 +38,7 @@ internal static class MoodProbe
                 continue;
             }
 
-            if (!RoundsMoodReads.MoodThoughts(state).TryGetValue(out var thoughts))
-            {
-                throw new AcceptanceException($"{label}: the pawn's mood thoughts are unknown");
-            }
-
+            var thoughts = RoundsMoodReads.MoodThoughts(state);
             return (thoughts.FirstOrDefault(t => t.Def == thought)?.Offset ?? 0, social.Situational.FirstOrDefault(r => r.DefName == thought), advanced, state);
         }
     }

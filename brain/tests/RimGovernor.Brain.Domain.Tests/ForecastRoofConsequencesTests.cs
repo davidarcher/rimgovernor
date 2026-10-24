@@ -202,20 +202,23 @@ public sealed class ForecastRoofConsequencesTests
             Awake = false, BedThoughts = new BedThoughtOnset.Given(), OwnedBed = "bed", OwnedBedRoom = NeedsFixtures.BedRoom("Bedroom", 2, false),
             LyingIn = new(new("bed", true, false, .00005, 0, 20), false, false), ThoughtStages = EquatableArray.From(BedStages),
         };
-        var renewal = Assert.Single(ForecastRoofConsequences.RoofMoodOf(asleep, NeedsFixtures.Empty, [], [], Known<EquatableArray<MoodThought>>([]), Horizon).Renewals);
+        var renewal = Assert.Single(ForecastRoofConsequences.RoofMoodOf(asleep, NeedsFixtures.Empty, [], [], NoThoughts(asleep), Horizon).Renewals);
         Assert.Equal((0d, 1d), (renewal.At, renewal.Chance));
         Assert.Equal(["SleptOutside", "SleptInBedroom"], renewal.Gains.Select(g => g.Id));
         Assert.Equal([2d], renewal.Gains.Where(g => g.Id == "SleptInBedroom").Select(g => g.Offset));
         // On the ground: SleptOutside alone. A due onset or an awake pawn: no renewal.
         var ground = ForecastRoofConsequences.RoofMoodOf(asleep with { LyingIn = asleep.LyingIn! with { Place = asleep.LyingIn.Place with { Bed = "" } } },
-            NeedsFixtures.Empty, [], [], Known<EquatableArray<MoodThought>>([]), Horizon);
+            NeedsFixtures.Empty, [], [], NoThoughts(asleep), Horizon);
         Assert.Equal(["SleptOutside"], Assert.Single(ground.Renewals).Gains.Select(g => g.Id));
         Assert.Empty(ForecastRoofConsequences.RoofMoodOf(asleep with { BedThoughts = new BedThoughtOnset.Due(10) }, NeedsFixtures.Empty, [], [],
-            Known<EquatableArray<MoodThought>>([]), Horizon).Renewals);
+            NoThoughts(asleep), Horizon).Renewals);
         // Without the lie-down read, the woken pawn's bed thoughts are a required fact.
         Assert.Throws<RequiredFactException>(() => ForecastRoofConsequences.RoofMoodOf(asleep with { LyingIn = null }, NeedsFixtures.Empty, [], [],
-            Known<EquatableArray<MoodThought>>([]), Horizon));
+            NoThoughts(asleep), Horizon));
     }
+
+    /// <summary>The pawn's observed thoughts read, none held.</summary>
+    private static Dictionary<string, EquatableArray<MoodThought>> NoThoughts(NeedsForecastPawn pawn) => new() { [pawn.Pawn] = [] };
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
         => new([Inside],PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", 30d, 2, 4, open, false), closedAt, roofedAt);
@@ -232,7 +235,7 @@ public sealed class ForecastRoofConsequencesTests
             ThoughtStages = [Stage("NeedOutdoors", "need_outdoors", 4, -3), Stage("NeedOutdoors", "need_outdoors", 3, -5)],
         };
         ForecastNeedChoice[] joy = [new("joy", "pawn", "joy", "pin", "", 0, 0, 0, 12000, 1, [])];
-        var observed = Known<EquatableArray<MoodThought>>([]);
+        var observed = NoThoughts(pawn);
         var roofed = ForecastRoofConsequences.RoofMoodOf(pawn, NeedsFixtures.Empty, joy, [Room(0, 0)], observed, Horizon);
         var (thought, spans) = Assert.Single(roofed.Banded);
         Assert.Equal("NeedOutdoors", thought);

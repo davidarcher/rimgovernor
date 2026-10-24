@@ -157,7 +157,7 @@ public static class RoundsMoodReads
         var forecasts = new Dictionary<string, O.PatientForecast>(StringComparer.Ordinal);
         foreach (var f in colony.Forecast.Patients)
         {
-            forecasts[f.PawnId ?? ""] = f;
+            forecasts[f.PawnId] = f;
         }
         var rows = new List<MoodPawn>();
         foreach (var pawn in emergency.Colonists)
@@ -171,7 +171,8 @@ public static class RoundsMoodReads
             {
                 return unknown;
             }
-            var p = new MoodPawn
+            var n = r.Needs;
+            rows.Add(new MoodPawn
             {
                 Break = pawn.MentalState,
                 Id = pawn.Id,
@@ -179,47 +180,46 @@ public static class RoundsMoodReads
                 Downed = r.Downed,
                 Drafted = r.Drafted,
                 Mental = r.MentalState is not null,
-            };
-            var n = r.Needs;
-            p = p with
-            {
                 PlayerForced = r.Job.PlayerForced,
-                Mood = n.Mood,
+                Mood = MoodLevelOf(pawn.Id.Value, n.Mood, forecasts),
                 Threshold = n.BreakThresholdMinor,
                 Food = n.Food is O.FoodNeed.Has food ? new O.NeedLevel.Has(food.Level) : new O.NeedLevel.Lacks(),
                 Rest = n.Rest,
                 Joy = n.Joy,
-            };
-            if (forecasts.TryGetValue(pawn.Id.Value, out var f))
-            {
-                p = p with { Target = ColonyDecodeReads.Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
-            }
-            p = p with
-            {
                 Thoughts = MoodThoughts(r),
                 HighExpectations = r.Social.HighExpectations,
-            };
-            rows.Add(p);
+            });
         }
         return Known(EquatableArray.From(rows));
     }
 
     /// <summary>
+    /// A colonist's mood level with the target it is heading to: the forecast's patient row carries the target of
+    /// every colonist with a mood need, so a mood need without one is a missing read, and a colonist without a
+    /// mood need has neither.
+    /// </summary>
+    public static MoodLevel MoodLevelOf(string id, O.NeedLevel mood, IReadOnlyDictionary<string, O.PatientForecast> forecasts)
+    {
+        if (mood is not O.NeedLevel.Has { Level: var level })
+        {
+            return new MoodLevel.Lacks();
+        }
+        if (!forecasts.TryGetValue(id, out var f))
+        {
+            throw new RequiredFactException($"mood target of {id}");
+        }
+        return new MoodLevel.Has(level, f.MoodTarget);
+    }
+
+    /// <summary>
     /// Lifts a pawn row's grouped native thought rows (memories and the situational cache) into the thoughts the
     /// mood census keeps: one row per def with its total offset, most negative first, positive thoughts
-    /// (KnowBuriedInSarcophagus) last. A skipped or unreadable social block, or a missing memories/situational
-    /// list, leaves the thoughts unknown rather than empty.
+    /// (KnowBuriedInSarcophagus) last.
     /// </summary>
-    public static Fact<EquatableArray<MoodThought>> MoodThoughts(O.PawnState r)
+    public static EquatableArray<MoodThought> MoodThoughts(O.PawnState r)
     {
-        var unknown = Unknown<EquatableArray<MoodThought>>();
-        var social = r.Social;
-        if (social is null)
-        {
-            return unknown;
-        }
         var byDef = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var rows in new[] { social.Memories, social.Situational })
+        foreach (var rows in new[] { r.Social.Memories, r.Social.Situational })
         {
             foreach (var t in rows)
             {
@@ -235,50 +235,40 @@ public static class RoundsMoodReads
             }
         }
         result.Sort((a, b) => a.Offset != b.Offset ? a.Offset.CompareTo(b.Offset) : string.CompareOrdinal(a.Def, b.Def));
-        return Known(EquatableArray.From(result));
+        return EquatableArray.From(result);
     }
 
 
     /// <summary>
     /// Builds the colony mood ledger from the review's mood census, each pawn's traits and precepts, and the
-    /// catalog's ThoughtFacts. The ledger is unknown when the census is. A pawn attribute the snapshot lacks (an
-    /// unread biography, policy or social block) stays unknown, so MinExpectation thoughts of such a pawn stay
-    /// unverified.
+    /// catalog's ThoughtFacts. The ledger is unknown when the census is; a census pawn the snapshot lacks is a
+    /// missing read.
     /// </summary>
-    internal static Fact<MoodLedger> RoundsMoodLedger(Fact<EquatableArray<MoodPawn>> census, O.PawnSnapshot? snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
+    internal static Fact<MoodLedger> RoundsMoodLedger(Fact<EquatableArray<MoodPawn>> census, O.PawnSnapshot snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
     {
         if (!census.TryGetValue(out var moods))
         {
             return Unknown<MoodLedger>();
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
-        if (snapshot is not null)
+        foreach (var p in snapshot.Pawns)
         {
-            foreach (var p in snapshot.Pawns)
-            {
-                byId[p.Pawn.Id ?? ""] = p;
-            }
+            byId[p.Pawn.Id ?? ""] = p;
         }
         var pawns = new List<MoodLedgerPawn>(moods.Count);
         foreach (var m in moods)
         {
-            var pawn = new MoodLedgerPawn
+            if (!byId.TryGetValue(m.Id.Value, out var r))
+            {
+                throw new RequiredFactException($"pawn row of {m.Id.Value}");
+            }
+            pawns.Add(new MoodLedgerPawn
             {
                 Thoughts = m.Thoughts,
-                Traits = Unknown<EquatableArray<string>>(),
-                Precepts = Unknown<EquatableArray<string>>(),
-                Expectation = Unknown<string>(),
-            };
-            if (byId.TryGetValue(m.Id.Value, out var r))
-            {
-                pawn = pawn with
-                {
-                    Traits = Known<EquatableArray<string>>([.. r.Biography.Traits.Select(t => t.DefName)]),
-                    Expectation = Known(r.Social.ExpectationDefName),
-                    Precepts = Known<EquatableArray<string>>(r.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member ideo ? [.. ideo.Precepts] : []),
-                };
-            }
-            pawns.Add(pawn);
+                Traits = [.. r.Biography.Traits.Select(t => t.DefName)],
+                Expectation = r.Social.ExpectationDefName,
+                Precepts = r.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member ideo ? [.. ideo.Precepts] : [],
+            });
         }
         return Known(MoodRules.BuildMoodLedger(pawns, facts));
     }

@@ -32,9 +32,9 @@ public sealed class RoyalRoomCreditTests
     private static readonly RoyalRoomNeed KnightBedroom = new("pawn", 24, 40);
 
     private static ForecastCoupledContext Context(PlannedRole role, double impressiveness, int cells, RoyalRoomNeed? need, params MoodThought[] observed)
-        => Context(role, impressiveness, cells, need, Known(EquatableArray.From(observed)));
+        => Context(role, impressiveness, cells, need, EquatableArray.From(observed));
 
-    private static ForecastCoupledContext Context(PlannedRole role, double impressiveness, int cells, RoyalRoomNeed? need, Fact<EquatableArray<MoodThought>> observed)
+    private static ForecastCoupledContext Context(PlannedRole role, double impressiveness, int cells, RoyalRoomNeed? need, EquatableArray<MoodThought>? observed)
         => ForecastValueTests.Context(Knight()) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = role },
@@ -42,7 +42,7 @@ public sealed class RoyalRoomCreditTests
                 PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", impressiveness, 3, cells, 0, false))],
             RoyalRooms = need is null ? new Dictionary<int, RoyalRoomNeed>() : new Dictionary<int, RoyalRoomNeed> { [1] = need },
             InvestmentHorizonDays = Horizon,
-            ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = observed },
+            ColonistThoughts = Read(observed),
         };
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>; the room serves at <paramref name="servedAt"/>.</summary>
@@ -109,7 +109,7 @@ public sealed class RoyalRoomCreditTests
     [Fact]
     public void UnreadObservedThoughtsThrowARequiredFact()
     {
-        var context = Context(PlannedRole.Suite, 60, 30, KnightBedroom, default(Fact<EquatableArray<MoodThought>>));
+        var context = Context(PlannedRole.Suite, 60, 30, KnightBedroom, (EquatableArray<MoodThought>?)null);
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), context, Day));
     }
 
@@ -189,7 +189,7 @@ public sealed class RoyalRoomCreditTests
     /// <summary>Core's Jealous row (ThoughtWorker_BedroomJealous); 0 for a colonist without the trait (CanGetThought refuses it).</summary>
     private static NeedThoughtStage JealousStage(bool jealous) => Stage("Jealous", ForecastHousing.JealousRole, jealous ? -8 : 0);
 
-    private static ForecastCoupledContext TraitContext(NeedsForecastPawn pawn, double impressiveness, int stage, RoyalRoomNeed need, Fact<EquatableArray<MoodThought>> observed)
+    private static ForecastCoupledContext TraitContext(NeedsForecastPawn pawn, double impressiveness, int stage, RoyalRoomNeed need, EquatableArray<MoodThought>? observed)
         => ForecastValueTests.Context(pawn) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Suite },
@@ -197,8 +197,12 @@ public sealed class RoyalRoomCreditTests
                 PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", impressiveness, stage, 49, 0, false))],
             RoyalRooms = new Dictionary<int, RoyalRoomNeed> { [1] = need },
             InvestmentHorizonDays = Horizon,
-            ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = observed },
+            ColonistThoughts = Read(observed),
         };
+
+    /// <summary>The pawn's observed thoughts, or no row when they were not read.</summary>
+    private static Dictionary<string, EquatableArray<MoodThought>> Read(EquatableArray<MoodThought>? observed) =>
+        observed is { } rows ? new() { ["pawn"] = rows } : [];
 
     private static readonly RoyalRoomNeed Untitled = new("pawn", 0, 0);
 
@@ -222,7 +226,7 @@ public sealed class RoyalRoomCreditTests
     public void AGreedyOccupantsSuiteEarnsTheGreedyMoodItRelieves()
     {
         // Greedy at -6 now (a decent room: stage 3 + 1); the suite is slightly impressive (stage 4), so Greedy stage 5, null: 0.
-        var context = TraitContext(Traited(greedy: true, jealous: false), 55, 4, Untitled, Known(EquatableArray.From([new MoodThought("Greedy", -6)])));
+        var context = TraitContext(Traited(greedy: true, jealous: false), 55, 4, Untitled, EquatableArray.From([new MoodThought("Greedy", -6)]));
         Assert.True(SuiteValue(context, 6) > 0);
     }
 
@@ -230,14 +234,14 @@ public sealed class RoyalRoomCreditTests
     public void AGreedyOccupantsSuiteStillBelowItsWantRelievesOnlyTheDifference()
     {
         // A mediocre suite (stage 2) leaves Greedy at stage 3 (-6) against -8 now (no room: stage 0).
-        var context = TraitContext(Traited(greedy: true, jealous: false), 35, 2, Untitled, Known(EquatableArray.From([new MoodThought("Greedy", -8)])));
+        var context = TraitContext(Traited(greedy: true, jealous: false), 35, 2, Untitled, EquatableArray.From([new MoodThought("Greedy", -8)]));
         SuiteValue(context, 2);
     }
 
     [Fact]
     public void AJealousOccupantsSuiteEarnsTheJealousMoodWhenNoOtherRoomBeatsItByATenth()
     {
-        var jealous = Known(EquatableArray.From([new MoodThought("Jealous", -8)]));
+        var jealous = EquatableArray.From([new MoodThought("Jealous", -8)]);
         // 65 - 60 = 5 < 6: the jealousy goes.
         SuiteValue(TraitContext(Traited(greedy: false, jealous: true, 20, 65), 60, 4, Untitled, jealous), 8);
         // 66 - 60 = 6 >= 6 (ThoughtWorker_BedroomJealous's |own x 0.1|): it stays, and the suite relieves nothing.
@@ -247,7 +251,7 @@ public sealed class RoyalRoomCreditTests
     [Fact]
     public void AnUntraitedUntitledOccupantsSuiteEarnsZeroWithoutReadingItsThoughts()
     {
-        var context = TraitContext(Traited(greedy: false, jealous: false, 90), 60, 4, Untitled, default);
+        var context = TraitContext(Traited(greedy: false, jealous: false, 90), 60, 4, Untitled, null);
         var ledger = ForecastValue.Of(Serving(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
     }
@@ -256,7 +260,7 @@ public sealed class RoyalRoomCreditTests
     public void ATitledGreedyOccupantsSuiteEarnsBothThoughtsItRelieves()
     {
         var pawn = Knight() with { ThoughtStages = EquatableArray.From([.. TitleStages, .. GreedyStages(true), JealousStage(false)]) };
-        var observed = Known(EquatableArray.From([new MoodThought("TitleBedroomRequirementsNotMet", -6), new MoodThought("Greedy", -6)]));
+        var observed = EquatableArray.From([new MoodThought("TitleBedroomRequirementsNotMet", -6), new MoodThought("Greedy", -6)]);
         SuiteValue(TraitContext(pawn, 55, 4, KnightBedroom, observed), 12);
     }
 
@@ -264,7 +268,7 @@ public sealed class RoyalRoomCreditTests
     public void AGreedyOccupantsUnreadThoughtsAreARequiredFact()
     {
         var pawn = Traited(greedy: true, jealous: false);
-        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), TraitContext(pawn, 55, 4, Untitled, default), Day));
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), TraitContext(pawn, 55, 4, Untitled, null), Day));
     }
 
     [Fact]

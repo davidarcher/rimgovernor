@@ -26,7 +26,7 @@ public sealed record SleepingBedFacts(string Def, string Stuff, bool Ground, dou
 public sealed record BedroomGainFacts
 {
     public IReadOnlyDictionary<string, NeedsForecastPawn> Pawns { get; init; } = new Dictionary<string, NeedsForecastPawn>();
-    public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> Thoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
+    public IReadOnlyDictionary<string, EquatableArray<MoodThought>> Thoughts { get; init; } = new Dictionary<string, EquatableArray<MoodThought>>();
     public MoodBreakModel Breaks { get; init; } = new();
     public double WellbeingWeight { get; init; }
 
@@ -38,7 +38,7 @@ public sealed record BedroomGainFacts
         Pawns = (facts.ForecastObserved.Needs?.Pawns ?? []).GroupBy(p => p.Pawn, StringComparer.Ordinal).Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.Single(), StringComparer.Ordinal),
         Thoughts = (facts.MoodPawns.TryGetValue(out var moods) ? moods : [])
-            .GroupBy(m => m.Id.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count() == 1 ? g.Single().Thoughts : default, StringComparer.Ordinal),
+            .GroupBy(m => m.Id.Value, StringComparer.Ordinal).Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Thoughts, StringComparer.Ordinal),
         Breaks = facts.MoodBreak,
         WellbeingWeight = ForecastValuePolicy.For(facts.Preferences).WellbeingWeight,
         PlannedStages = facts.PlannedRoomPredictions
@@ -49,7 +49,7 @@ public sealed record BedroomGainFacts
 
     /// <summary>The <see cref="ForecastHousing.BedroomGain"/> of moving <paramref name="pawn"/> into a bedroom (or, with <paramref name="barracks"/>, a barracks) at <paramref name="stage"/>; null when unread.</summary>
     public double? Gain(string pawn, Fact<int> stage, bool barracks = false) => Pawns.TryGetValue(pawn, out var row)
-        ? ForecastHousing.BedroomGain(row, stage, Thoughts.GetValueOrDefault(pawn), Breaks, WellbeingWeight, barracks) : null;
+        ? ForecastHousing.BedroomGain(row, stage, Thoughts, Breaks, WellbeingWeight, barracks) : null;
 
     /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unknown without one.</summary>
     public Fact<int> BedStage(string pawn, string bed) => Pawns.TryGetValue(pawn, out var row)
@@ -144,7 +144,7 @@ public static class ForecastHousing
     /// thought it has now. Either loses slept_outside when it sleeps psychologically outdoors now (the closed room is not).
     /// Every offset is the game's read. The bed's own terms are <see cref="BedMoodDelta"/>'s.
     /// </summary>
-    public static Fact<double> BedroomMoodDelta(NeedsForecastPawn pawn, Fact<int> stage, Fact<EquatableArray<MoodThought>> observed, bool barracks = false)
+    public static Fact<double> BedroomMoodDelta(NeedsForecastPawn pawn, Fact<int> stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, bool barracks = false)
     {
         if (!stage.TryGetValue(out var index) || SleepNow(pawn) is not { } now) return default;
         var stages = pawn.ThoughtStages;
@@ -158,7 +158,7 @@ public static class ForecastHousing
         {
             var defs = stages.Where(r => r.Role == "ascetic").Select(r => r.Thought).Distinct(StringComparer.Ordinal).ToArray();
             if (defs.Length == 0) return default;
-            if (!observed.TryGetValue(out var thoughts)) return default;
+            if (!observed.TryGetValue(pawn.Pawn, out var thoughts)) return default;
             double next = 0;
             foreach (var def in barracks ? Array.Empty<string>() : defs)
             {
@@ -285,7 +285,7 @@ public static class ForecastHousing
     /// over a flat mood that holds the observed unclamped target and break threshold constant across tier 1's horizon. Null
     /// when the delta, the target, the threshold or the break curve is unread.
     /// </summary>
-    public static double? BedroomGain(NeedsForecastPawn pawn, Fact<int> stage, Fact<EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight, bool barracks = false)
+    public static double? BedroomGain(NeedsForecastPawn pawn, Fact<int> stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight, bool barracks = false)
     {
         if (!BedroomMoodDelta(pawn, stage, observed, barracks).TryGetValue(out var delta)
             || pawn.Mood is not { UnclampedTarget: var target, BreakThreshold: var threshold } || !double.IsFinite(target)
@@ -371,7 +371,7 @@ public static class ForecastHousing
     {
         if (RestRate(pawn) is not { } rate) return new(pawn, 0, 0, null, null) { Sleeps = false };
         var now = SleepNow(pawn) ?? throw new RequiredFactException("sleep place:" + pawn.Pawn);
-        if (!BedroomMoodDelta(pawn, Known(closure.Prediction.Stage), c.ObservedThoughts.GetValueOrDefault(pawn.Pawn), barracks).TryGetValue(out var room))
+        if (!BedroomMoodDelta(pawn, Known(closure.Prediction.Stage), c.ColonistThoughts, barracks).TryGetValue(out var room))
             throw new RequiredFactException("bedroom mood delta:" + pawn.Pawn);
         var (ground, comfort, gain) = planned is not null ? (planned.Ground, planned.Comfort, rate.GainPerTickPerEffectiveness * planned.RestEffectiveness)
             : now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed) ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)
@@ -419,7 +419,7 @@ public static class ForecastHousing
             var jealous = role == PlannedRole.Suite && Gets(JealousRole);
             var traits = greedy || jealous;
             if (!traits && !roles.Any(Gets)) { royal[key] = (need.Pawn, 0); continue; }
-            if (!c.ObservedThoughts.GetValueOrDefault(need.Pawn).TryGetValue(out var thoughts)) throw new RequiredFactException("observed thoughts:" + need.Pawn);
+            if (!c.ColonistThoughts.TryGetValue(need.Pawn, out var thoughts)) throw new RequiredFactException("observed thoughts:" + need.Pawn);
             string[] Defs(string r) => [.. rows.Where(s => s.Role == r).Select(s => s.Thought).Distinct(StringComparer.Ordinal)];
             double Now(string r) => thoughts.Where(t => Defs(r).Contains(t.Def, StringComparer.Ordinal)).Sum(t => t.Offset);
             var relieved = -rows.Where(r => r.Stage == 0 && roles.Contains(r.Role, StringComparer.Ordinal) && thoughts.Any(t => t.Def == r.Thought))

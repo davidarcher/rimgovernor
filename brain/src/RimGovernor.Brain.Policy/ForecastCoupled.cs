@@ -177,10 +177,9 @@ public sealed record ForecastCoupledContext
     public EquatableArray<string> Findings { get; init; }
     /// <summary>Per pawn, what the temperature cards are evaluated against (#3327); a pawn without a row keeps their thoughts constant.</summary>
     public IReadOnlyDictionary<string, CardPawnFacts> CardPawns { get; init; } = new Dictionary<string, CardPawnFacts>();
-    /// <summary>Per pawn, the observed thought rows (MoodPawn.Thoughts) a temperature card's offset replaces (#3327).</summary>
-    public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> ObservedThoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
-    /// <summary>Per colonist read whole, its observed thought rows (the plain copy of <see cref="ObservedThoughts"/>, #3805), which the
-    /// joiner's mood takes the colony's thoughts from (<see cref="JoinerMoodRules.ColonyThoughts"/>); a colonist without a row was not read.</summary>
+    /// <summary>Per colonist read whole, its observed thought rows (MoodPawn.Thoughts, #3805): the rows a temperature card's offset
+    /// replaces (#3327), the room and roof thoughts a move changes, and the colony's thoughts the joiner's mood takes
+    /// (<see cref="JoinerMoodRules.ColonyThoughts"/>); a colonist without a row was not read.</summary>
     public IReadOnlyDictionary<string, EquatableArray<MoodThought>> ColonistThoughts { get; init; } = new Dictionary<string, EquatableArray<MoodThought>>(StringComparer.Ordinal);
     /// <summary>The mechanic cards; null is the shipped catalog. Only Live cards price.</summary>
     public IReadOnlyDictionary<string, MechanicCard>? Cards { get; init; }

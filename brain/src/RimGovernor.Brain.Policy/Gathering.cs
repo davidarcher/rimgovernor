@@ -115,19 +115,12 @@ public static class GatheringRules
         return Known(new GatheringPlan { Organizer = organizer });
     }
 
-    /// <summary>Reports whether the pawn carries the AttendedParty memory. A pawn whose thoughts are unreadable is not counted either way.</summary>
-    private static bool HasPartyMemory(MoodPawn p)
-    {
-        if (!p.Thoughts.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        return rows.Any(t => t.Def == PartyThought && t.Offset > 0);
-    }
+    /// <summary>Reports whether the pawn carries the AttendedParty memory.</summary>
+    private static bool HasPartyMemory(MoodPawn p) => p.Thoughts.Any(t => t.Def == PartyThought && t.Offset > 0);
 
     private static bool HasPartySpot(CurrentConstruction c) => c.Buildings.Any(b => b.Building!.Definition == PartySpotRules.PartySpotDefinition && b.Cells.Count > 0);
 
-    /// <summary>Whether at least GatheringGuestShare of the ledger's colonists lose at least the party's own mood effect. A pawn whose thoughts were unreadable is not counted as under pressure.</summary>
+    /// <summary>Whether at least GatheringGuestShare of the ledger's colonists lose at least the party's own mood effect.</summary>
     private static bool GatheringPressure(MoodLedger l, double benefit)
     {
         if (l.Pawns.Count == 0)
@@ -137,12 +130,8 @@ public static class GatheringRules
         var pressed = 0;
         foreach (var p in l.Pawns)
         {
-            if (!p.Lost.TryGetValue(out var rows))
-            {
-                continue;
-            }
             var lost = 0.0;
-            foreach (var t in rows)
+            foreach (var t in p.Lost)
             {
                 lost -= t.Offset;
             }
@@ -164,7 +153,7 @@ public static class GatheringRules
         var able = new List<(MoodPawn Pawn, double Mood)>();
         foreach (var p in pawns)
         {
-            if (p.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood } && !p.Dead && !p.Downed && !p.Drafted && !p.Mental)
+            if (p.Mood is MoodLevel.Has { Level: var mood } && !p.Dead && !p.Downed && !p.Drafted && !p.Mental)
             {
                 able.Add((p, mood));
             }

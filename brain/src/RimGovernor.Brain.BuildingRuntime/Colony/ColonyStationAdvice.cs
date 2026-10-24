@@ -530,9 +530,9 @@ internal static class StationFactsBuilder
     }
 
     /// <summary>
-    /// The colonists' mean mood level, each colonist at the level its thoughts forecast (Target) or else its
-    /// current one: the mood price's baseline. Unknown while any colonist has neither, so the comfort tiers go
-    /// unpriced rather than priced on part of the colony.
+    /// The colonists' mean mood level, each colonist at the level its thoughts forecast (Target): the mood price's
+    /// baseline. Unknown while any colonist has no mood need, so the comfort tiers go unpriced rather than priced on
+    /// part of the colony.
     /// </summary>
     public static Fact<double> ExpectedMood(Fact<EquatableArray<MoodPawn>> pawns)
     {
@@ -543,18 +543,11 @@ internal static class StationFactsBuilder
         var sum = 0.0;
         foreach (var p in rows)
         {
-            if (p.Target.TryGetValue(out var target))
-            {
-                sum += target;
-            }
-            else if (p.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood })
-            {
-                sum += mood;
-            }
-            else
+            if (p.Mood is not MoodLevel.Has { Target: var target })
             {
                 return Unknown<double>();
             }
+            sum += target;
         }
         return Known(sum / rows.Count);
     }

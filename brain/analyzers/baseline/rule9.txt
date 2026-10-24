@@ -53,7 +53,7 @@ BuildingRuntime/Colony/ColonyExtent.cs|Fact|2
 BuildingRuntime/Colony/ColonyPlan.cs|Fact|8
 BuildingRuntime/Colony/ColonyPlanCut.cs|Fact|3
 BuildingRuntime/Colony/ColonyPlanCut.cs|Unknown|2
-BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|13
+BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|12
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Unknown|3
 BuildingRuntime/Colony/ColonyStatus.cs|Fact|24
 BuildingRuntime/Colony/ColonyStatus.cs|Unknown|7
@@ -278,7 +278,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|59
+Contracts/Observations.cs|NullableValue|58
 Contracts/Observations.cs|UnknownMember|1
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -354,7 +354,7 @@ Observation/Definitions.cs|Fact|8
 Observation/Facts/Store.cs|Discard|2
 Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
-Observation/MealTier.cs|Fact|11
+Observation/MealTier.cs|Fact|9
 Observation/Observation.cs|Fact|4
 Observation/PlanningView.cs|Fact|28
 Observation/PlanningView.cs|Unknown|2
@@ -365,8 +365,8 @@ Observation/RitualSites.cs|Fact|7
 Observation/RitualSites.cs|Unknown|2
 Observation/RoundsContainment.cs|Fact|11
 Observation/RoundsContainment.cs|Unknown|5
-Observation/RoundsMood.cs|Fact|24
-Observation/RoundsMood.cs|Unknown|8
+Observation/RoundsMood.cs|Fact|19
+Observation/RoundsMood.cs|Unknown|4
 Observation/RoundsRead.cs|Fact|35
 Observation/RoundsRead.cs|Unknown|11
 Observation/RoundsWork.cs|Fact|4
@@ -560,8 +560,8 @@ Policy/ForecastClaims.cs|Fact|27
 Policy/ForecastComposedCandidates.cs|Fact|9
 Policy/ForecastConstruction.cs|Fact|29
 Policy/ForecastConstruction.cs|Unknown|1
-Policy/ForecastCoupled.cs|Fact|17
-Policy/ForecastCoupledCandidates.cs|Fact|24
+Policy/ForecastCoupled.cs|Fact|15
+Policy/ForecastCoupledCandidates.cs|Fact|23
 Policy/ForecastCoupledEvaluation.cs|Fact|131
 Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|22
@@ -573,16 +573,16 @@ Policy/ForecastFoodCandidates.cs|Fact|37
 Policy/ForecastFoodCandidates.cs|ValueOrDefault|1
 Policy/ForecastHandoff.cs|Fact|66
 Policy/ForecastHandoffProjects.cs|Fact|14
-Policy/ForecastHousing.cs|Fact|25
+Policy/ForecastHousing.cs|Fact|19
 Policy/ForecastIncumbentPreparation.cs|Fact|19
 Policy/ForecastLiveEvidence.cs|Fact|3
 Policy/ForecastMaintenance.cs|Fact|7
 Policy/ForecastMaterialChoices.cs|Fact|5
-Policy/ForecastMood.cs|Fact|23
+Policy/ForecastMood.cs|Fact|21
 Policy/ForecastNeeds.cs|Fact|40
 Policy/ForecastProductiveWork.cs|Fact|9
 Policy/ForecastResearchWork.cs|Fact|4
-Policy/ForecastRoofConsequences.cs|Fact|6
+Policy/ForecastRoofConsequences.cs|Fact|2
 Policy/ForecastServiceInvestments.cs|Fact|19
 Policy/ForecastShelter.cs|Fact|26
 Policy/ForecastSupport.cs|Fact|11
@@ -593,7 +593,7 @@ Policy/ForecastValue.cs|Fact|16
 Policy/ForecastWorkInputs.cs|Fact|1
 Policy/FuelRunway.cs|Fact|19
 Policy/FuelRunway.cs|Unknown|3
-Policy/Gathering.cs|Fact|17
+Policy/Gathering.cs|Fact|15
 Policy/Gathering.cs|Unknown|2
 Policy/Gear.cs|Fact|6
 Policy/GearClimate.cs|Fact|2
@@ -641,7 +641,7 @@ Policy/HuntSquad.cs|Unknown|1
 Policy/HusbandryUpkeep.cs|Fact|24
 Policy/HusbandryUpkeep.cs|Unknown|6
 Policy/IdeoligionDesign.cs|Discard|2
-Policy/IdeoligionDesign.cs|Fact|36
+Policy/IdeoligionDesign.cs|Fact|35
 Policy/IdeoligionDesign.cs|NullableValue|1
 Policy/IdeoligionDesign.cs|Unknown|19
 Policy/Ideology.cs|Fact|6
@@ -737,10 +737,7 @@ Policy/Military.cs|Fact|32
 Policy/Military.cs|Unknown|2
 Policy/Military.cs|ValueOrDefault|1
 Policy/Monolith.cs|Fact|12
-Policy/Mood.cs|Fact|15
-Policy/MoodLedger.cs|Fact|13
-Policy/MoodLedger.cs|Unknown|1
-Policy/MoodProvision.cs|Fact|5
+Policy/Mood.cs|Fact|2
 Policy/Needs.cs|Fact|2
 Policy/OrderedWork.cs|Fact|4
 Policy/OrganHarvest.cs|Fact|22
@@ -888,7 +885,6 @@ Policy/StoreIndustry.cs|Fact|1
 Policy/StoreInflow.cs|Fact|6
 Policy/StoreInflow.cs|Unknown|5
 Policy/StoreView.cs|Fact|3
-Policy/SuitePriority.cs|Fact|1
 Policy/SupplyPlan.cs|Fact|14
 Policy/Surgery.cs|Fact|20
 Policy/Surgery.cs|Unknown|3
@@ -941,7 +937,7 @@ Store/Codec/ActionPayloadConverters2.cs|Discard|5
 Store/Codec/DomainActionConverter.cs|Discard|1
 Store/Codec/DomainActionConverter.cs|Fact|4
 Store/Codec/JsonKit.cs|Fact|7
-Store/Codec/PolicyConverters.cs|Fact|7
+Store/Codec/PolicyConverters.cs|Fact|5
 Store/Codec/ProductionAdmissionCodecs.cs|Fact|19
 Store/Owners/ActivityContinuation.cs|Fact|6
 Store/Owners/Combat.cs|Fact|1
@@ -960,8 +956,8 @@ Store/Plans/WorkResources.cs|Fact|1
 Store/Rounds/ResourceRunway.cs|Fact|2
 Store/Rounds/ResourceRunway.cs|Unknown|1
 Store/Rounds/RoundsLoot.cs|Fact|2
-Store/Rounds/RoundsMood.cs|Fact|8
-Store/Rounds/RoundsMood.cs|Unknown|2
+Store/Rounds/RoundsMood.cs|Fact|4
+Store/Rounds/RoundsMood.cs|Unknown|1
 Store/Rounds/RoundsRecovery.cs|Fact|6
 Store/Rounds/RoundsReview.cs|Fact|10
 Telemetry/Otlp/ForecastHandoffReader.cs|Fact|7

@@ -49,8 +49,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 44 reads disaster and recovery facts whole (#3888): a condition persists as permanent or timed, a short circuit as seen or none, and a recovery building's and candidate's flags as plain booleans with their hit points and fuel absent for an untracked or unrefuelable building.
     /// Version 45 reads the construction census whole (#3879): the work-admission evidence's frozen census is one StandingConstruction record, its standing buildings and owed material written together under the same Standing and Construction keys, or both null when no routine frame read it.
     /// Version 46 reads a combat role by duty (#3911): a role's post and standby cell are present or free, its fire is its own, a mortar crew (mortar, aim and shell together) or a ground shot, and its repair a door or none; the memory's sapper breach is guarded or not. A role writes Shell only for a mortar crew.
+    /// Version 47 reads a colonist's mood whole (#3897): a mood persists as has (level and the forecast's target) or lacks, its thoughts as a plain list, and a mood method's need benefit as a plain number without the never-set mood benefit.
     /// </summary>
-    public const int SchemaVersion = 46;
+    public const int SchemaVersion = 47;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

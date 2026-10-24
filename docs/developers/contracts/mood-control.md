@@ -273,36 +273,33 @@ comparator's break-risk and cold-exposure ranking and the apparel policy write.
 ### Mood ledger
 
 `policy.BuildMoodLedger` (pure) turns pawns' thought rows (`MoodLedgerPawn`: the
-`MoodThought` rows plus traits, precepts and expectation level as facts) and a
+`MoodThought` rows plus traits, precepts and expectation level) and a
 `map[def]ThoughtFacts` into:
 
 - per pawn, the mood lost per thought: negative offsets only, most negative first, after
   dropping thoughts the pawn cannot carry (a nullifying trait or precept, a missing
-  required trait, an expectation below `MinExpectation`); unknown when the pawn's thoughts
-  are unreadable;
+  required trait, an expectation below `MinExpectation`);
 - per colony thought, `Pawns` affected and summed `Lost`, ranked most negative first,
   with the audit owners;
 - `Unowned`, the same ranking restricted to thoughts with no owner;
 - the expectation levels by pawn count, shown only (no concern fixes it).
 
-An unknown attribute or a def without facts never drops or zeroes a loss: the observed
+An expectation level off the vanilla ladder or a def without facts never drops or zeroes a loss: the observed
 row counts and the source's `Unverified` count rises.
 
 Every Round builds the ledger in `RoundsMood.cs` and publishes it as
 `RoundsFacts.MoodLedger` (unknown whenever the mood census is). Inputs: the census thought
 rows, `AllThoughtFacts()` from the load's catalog (none without a catalog, so every source
 is unverified), each pawn's biography traits and the ideology precepts from its policy
-inputs. A pawn whose biography or policy block was skipped has unknown traits or precepts.
+inputs; a census pawn without its pawn row is a missing read.
 The expectation level is the native `PawnSocial.expectation_def_name` (the pawn's current
-`ExpectationDef`); a pawn whose social block was skipped or carried none has an unknown
-level, so its `MinExpectation` thoughts stay unverified and it is left out of the ledger's
-expectation list. Later children
+`ExpectationDef`). Later children
 (display, the colony aggregate, the gathering trigger) read this fact; the ledger itself
 changes no relief or provisioning decision.
 
 The colony status route (`/api/player/colony`) carries the held fact as `moodLedger`
 (null until a review has filed): `sources` ranked by mood lost, the `unowned` subset
-(empty `owners`), each source's `unverified` count, `unknownPawns` and the `expectation`
+(empty `owners`), each source's `unverified` count and the `expectation`
 levels (empty while the level is unobserved). `RimGovernor.cmd colonyreview` copies it into each
 frame and the hourly panel renders the two tables, saying "Expectation level not
 observed" rather than assuming one. Unowned thoughts ranked by mood lost choose the next gap-fill.

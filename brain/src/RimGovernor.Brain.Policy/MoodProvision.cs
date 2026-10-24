@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -27,8 +26,7 @@ public static partial class MoodRules
     /// </summary>
     internal static IReadOnlyList<MoodProvision> MealMoodProvision(MoodPawn p, IReadOnlyList<MoodProvision> rows)
     {
-        if (!p.HighExpectations
-            || p.Mood is not RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood } || !p.Target.TryGetValue(out var target) || mood >= target)
+        if (!p.HighExpectations || p.Mood is not MoodLevel.Has { Level: var mood, Target: var target } || mood >= target)
         {
             return rows;
         }
@@ -41,12 +39,8 @@ public static partial class MoodRules
         return SortProvision(result);
     }
 
-    internal static void ValidateMoodThoughts(Fact<EquatableArray<MoodThought>> f)
+    internal static void ValidateMoodThoughts(IEnumerable<MoodThought> rows)
     {
-        if (!f.TryGetValue(out var rows))
-        {
-            return;
-        }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var t in rows)
         {
@@ -82,14 +76,10 @@ public static partial class MoodRules
     /// <summary>
     /// Reduces a pawn's observed negative thoughts to the owner Needs of its removable environment thoughts.
     /// The result is empty unless those thoughts dominate: they carry at least half of the pawn's total
-    /// negative thought offset. Unknown thoughts provision nothing.
+    /// negative thought offset.
     /// </summary>
-    internal static IReadOnlyList<MoodProvision> MoodProvisioning(Fact<EquatableArray<MoodThought>> f)
+    internal static IReadOnlyList<MoodProvision> MoodProvisioning(EquatableArray<MoodThought> rows)
     {
-        if (!f.TryGetValue(out var rows))
-        {
-            return [];
-        }
         double total = 0, owned = 0;
         var byNeed = new Dictionary<NeedId, double>();
         foreach (var t in rows)

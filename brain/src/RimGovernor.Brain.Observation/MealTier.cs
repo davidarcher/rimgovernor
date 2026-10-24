@@ -70,20 +70,13 @@ public sealed partial record ColonyProjection
         if (Facts.MoodPawns.TryGetValue(out var moodPawns))
         {
             var pressure = false;
-            var complete = true;
             foreach (var pawn in moodPawns)
             {
-                if (pawn.HighExpectations && pawn.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has { Level: var mood }
-                    && pawn.Target.TryGetValue(out var target) && mood < target)
+                if (pawn.HighExpectations && pawn.Mood is MoodLevel.Has { Level: var mood, Target: var target } && mood < target)
                 {
                     pressure = true;
                 }
-                if (!pawn.Thoughts.TryGetValue(out var thoughts))
-                {
-                    complete = false;
-                    continue;
-                }
-                foreach (var thought in thoughts)
+                foreach (var thought in pawn.Thoughts)
                 {
                     if (thought.Def == "HighExpectations" || thought.Def == "SkyHighExpectations")
                     {
@@ -91,10 +84,7 @@ public sealed partial record ColonyProjection
                     }
                 }
             }
-            if (complete || pressure)
-            {
-                r = r with { HighExpectations = Known(pressure) };
-            }
+            r = r with { HighExpectations = Known(pressure) };
         }
         if (ProductionBenches.TryGetValue(out var benches))
         {

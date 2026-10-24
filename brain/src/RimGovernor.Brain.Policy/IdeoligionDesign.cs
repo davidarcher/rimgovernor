@@ -194,12 +194,7 @@ public static class IdeoligionDesignRules
                 moodKnown = false;
                 continue;
             }
-            if (!row.Thoughts.TryGetValue(out var observed))
-            {
-                moodKnown = false;
-                continue;
-            }
-            thoughts.AddRange(observed);
+            thoughts.AddRange(row.Thoughts);
         }
         if (believers != ideo.Believers)
         {

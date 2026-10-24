@@ -206,7 +206,7 @@
     h += l.sources.length ? ledgerRows(l.sources) : '<p class="muted">No negative thoughts.</p>';
     h += '<h3>Unowned</h3>';
     h += l.unowned.length ? ledgerRows(l.unowned) : '<p class="muted">None.</p>';
-    h += '<p class="muted">' + (l.unknownPawns ? l.unknownPawns + ' colonist(s) with unreadable thoughts · ' : '') +
+    h += '<p class="muted">' +
       (l.expectation.length ? 'Expectation: ' + l.expectation.map(function (e) { return esc(e.level) + ' ' + e.pawns; }).join(', ') : 'Expectation level not observed') + '</p>';
     return h;
   }

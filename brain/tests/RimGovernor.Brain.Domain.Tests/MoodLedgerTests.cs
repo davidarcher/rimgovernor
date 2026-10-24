@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,10 +19,10 @@ public sealed class MoodLedgerTests
     {
         var pawn = new MoodLedgerPawn
         {
-            Thoughts = Known(EquatableArray.From<MoodThought>([new(Owned, -4), new(Free, -6)])),
-            Traits = Known(EquatableArray.From<string>([])),
-            Precepts = Known(EquatableArray.From<string>([])),
-            Expectation = Known("Moderate"),
+            Thoughts = [new(Owned, -4), new(Free, -6)],
+            Traits = [],
+            Precepts = [],
+            Expectation = "Moderate",
         };
 
         var ledger = MoodRules.BuildMoodLedger([pawn], new Dictionary<string, ThoughtFacts>());

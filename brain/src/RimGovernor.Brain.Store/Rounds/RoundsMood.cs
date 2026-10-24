@@ -16,34 +16,24 @@ internal static class PersistedFact
     public static T? Value<T>(Fact<T> fact)
         where T : struct => fact.TryGetValue(out var value) ? value : null;
 
-    /// <summary>The known value of a reference fact, or null while it is unknown.</summary>
-    public static T? Reference<T>(Fact<T> fact)
-        where T : class => fact.TryGetValue(out var value) ? value : null;
-
     /// <summary>The fact of a stored struct value: unknown when the value is absent.</summary>
     public static Fact<T> Of<T>(T? value)
         where T : struct => value is { } known ? Known(known) : Unknown<T>();
-
-    /// <summary>The fact of a stored reference value: unknown when the value is absent.</summary>
-    public static Fact<T> OfReference<T>(T? value)
-        where T : class => value is null ? Unknown<T>() : Known(value);
 }
 
 /// <summary>One mood need's measured level in a persisted mood state.</summary>
 public sealed record RoundsMoodCause(MoodNeed Need, double Level);
 
-/// <summary>A persisted pawn's mood evidence, read whole from its pawn row (#3768); only the forecast's target can be unknown (null).</summary>
+/// <summary>A persisted pawn's mood evidence, read whole from its pawn row and the forecast's mood target (#3768).</summary>
 public sealed record RoundsMoodPawn
 {
     public MentalState? Break { get; init; }
 
     public PawnId Id { get; init; }
 
-    public NeedLevel Mood { get; init; } = new NeedLevel.Lacks();
+    public MoodLevel Mood { get; init; } = new MoodLevel.Lacks();
 
     public double Threshold { get; init; }
-
-    public double? Target { get; init; }
 
     public NeedLevel Food { get; init; } = new NeedLevel.Lacks();
 
@@ -91,7 +81,6 @@ public sealed record RoundsMoodState
                 Id = p.Id,
                 Mood = p.Mood,
                 Threshold = p.Threshold,
-                Target = PersistedFact.Value(p.Target),
                 Food = p.Food,
                 Rest = p.Rest,
                 Joy = p.Joy,
@@ -120,7 +109,6 @@ public sealed record RoundsMoodState
                 Id = Pawn.Id,
                 Mood = Pawn.Mood,
                 Threshold = Pawn.Threshold,
-                Target = PersistedFact.Of(Pawn.Target),
                 Food = Pawn.Food,
                 Rest = Pawn.Rest,
                 Joy = Pawn.Joy,
@@ -161,9 +149,8 @@ public sealed record RoundsMoodMethod
 
     public double Target { get; init; }
 
-    public double? NeedBenefit { get; init; }
-
-    public double? MoodBenefit { get; init; }
+    /// <summary>The need level a relief proposal restores toward one half; zero for any other reason.</summary>
+    public double NeedBenefit { get; init; }
 }
 
 public sealed partial class Store
@@ -188,8 +175,7 @@ public sealed partial class Store
                     Concern = p.Provider.IsValid ? p.Provider.FilingKey : default,
                     Thought = p.Thought,
                     Target = p.Target,
-                    NeedBenefit = PersistedFact.Value(p.NeedBenefit),
-                    MoodBenefit = PersistedFact.Value(p.MoodBenefit),
+                    NeedBenefit = p.NeedBenefit,
                 }
             );
         }

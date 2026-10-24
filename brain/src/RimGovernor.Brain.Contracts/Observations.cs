@@ -5184,11 +5184,12 @@ public sealed record FoodSupplyFacts
     public required FoodLarderFacts Larder { get; init; }
 }
 
+/// <summary>A colonist with a mood need and the level its mood is heading to now (Need_Mood.CurInstantLevel); a colonist without a mood need has no row.</summary>
 public sealed record PatientForecast
 {
-    public string? PawnId { get; init; }
+    public required string PawnId { get; init; }
 
-    public double? MoodTarget { get; init; }
+    public required double MoodTarget { get; init; }
 }
 
 /// <summary>

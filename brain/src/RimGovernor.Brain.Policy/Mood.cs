@@ -10,8 +10,21 @@ public enum MoodNeed
 }
 
 /// <summary>
+/// A colonist's mood need (#3897): <see cref="Has"/> its current level and the <see cref="Has.Target"/> its thoughts carry
+/// it to now (the forecast's Need_Mood.CurInstantLevel), or <see cref="Lacks"/> a mood need, with neither.
+/// </summary>
+public abstract record MoodLevel
+{
+    private protected MoodLevel() { }
+
+    public sealed record Has(double Level, double Target) : MoodLevel;
+
+    public sealed record Lacks : MoodLevel;
+}
+
+/// <summary>
 /// One colonist's mood evidence, read whole from its pawn row (#3768). A need the pawn does not have is
-/// <see cref="NeedLevel.Lacks"/>, never an absent number.
+/// <see cref="NeedLevel.Lacks"/> (<see cref="MoodLevel.Lacks"/> for mood), never an absent number.
 /// </summary>
 public sealed record MoodPawn
 {
@@ -19,11 +32,8 @@ public sealed record MoodPawn
     public MentalState? Break { get; init; }
     public bool HighExpectations { get; init; }
     public PawnId Id { get; init; }
-    public NeedLevel Mood { get; init; } = new NeedLevel.Lacks();
+    public MoodLevel Mood { get; init; } = new MoodLevel.Lacks();
     public double Threshold { get; init; }
-
-    /// <summary>The forecast's mood target; its uncertainty belongs to the forecast family (#3783).</summary>
-    public Fact<double> Target { get; init; }
     public NeedLevel Food { get; init; } = new NeedLevel.Lacks();
     public NeedLevel Rest { get; init; } = new NeedLevel.Lacks();
     public NeedLevel Joy { get; init; } = new NeedLevel.Lacks();
@@ -33,11 +43,8 @@ public sealed record MoodPawn
     public bool Drafted { get; init; }
     public bool PlayerForced { get; init; }
 
-    /// <summary>
-    /// The pawn's observed thought rows, negative and positive, most negative first. Consumers must be sign-aware.
-    /// The forecasts' thought copies are Fact-typed, so this stays a fact until the forecast family hardens them (#3783).
-    /// </summary>
-    public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
+    /// <summary>The pawn's observed thought rows, negative and positive, most negative first. Consumers must be sign-aware.</summary>
+    public EquatableArray<MoodThought> Thoughts { get; init; }
 
     public void Validate()
     {
@@ -45,11 +52,11 @@ public sealed record MoodPawn
         {
             throw new DomainException("invalid mood pawn");
         }
-        if (!double.IsFinite(Threshold) || !MoodRules.MoodNumber(Target))
+        if (!double.IsFinite(Threshold) || Mood is MoodLevel.Has { Level: var mood, Target: var target } && (!double.IsFinite(mood) || !double.IsFinite(target)))
         {
             throw new DomainException("nonfinite mood evidence");
         }
-        foreach (var level in new[] { Mood, Food, Rest, Joy })
+        foreach (var level in new[] { Food, Rest, Joy })
         {
             if (level is NeedLevel.Has { Level: var v } && !double.IsFinite(v))
             {
@@ -99,7 +106,7 @@ public sealed record MoodState
         {
             return Finding.Unmet;
         }
-        if (Pawn.Dead || Pawn.Mood is not NeedLevel.Has)
+        if (Pawn.Dead || Pawn.Mood is not MoodLevel.Has)
         {
             return Finding.Unclear;
         }
@@ -130,16 +137,15 @@ public sealed record MoodHistory
                     throw new DomainException("invalid mood unowned thought");
                 }
             }
-            MoodRules.ValidateMoodThoughts(Known(EquatableArray.From(s.Unowned)));
+            MoodRules.ValidateMoodThoughts(s.Unowned);
             if (s.Provision.Count > 0 && s.Unowned.Count > 0)
             {
                 throw new DomainException("mood state both provisioned and unowned");
             }
             seen.Add(s.Pawn.Id);
             var threshold = s.Pawn.Threshold;
-            var pk = s.Pawn.Target.TryGetValue(out var target);
             if (!s.Active && (s.Missing || s.MentalRisk || s.Pawn.Mental
-                || (s.Pawn.Mood is NeedLevel.Has { Level: var m } && (m <= threshold || (pk && target < m && target <= threshold)))))
+                || (s.Pawn.Mood is MoodLevel.Has { Level: var m, Target: var target } && (m <= threshold || (target < m && target <= threshold)))))
             {
                 throw new DomainException("observed mood risk marked inactive");
             }
@@ -202,14 +208,13 @@ public sealed record MoodProposal
     public NeedId Provider { get; init; }
     public string Thought { get; init; } = "";
     public double Target { get; init; }
-    public Fact<double> NeedBenefit { get; init; }
-    public Fact<double> MoodBenefit { get; init; }
+
+    /// <summary>The need level a <see cref="MoodMethodReason.Relief"/> proposal restores (its target less the cause's level); 0 for any other, which relieves no need.</summary>
+    public double NeedBenefit { get; init; }
 }
 
 public static partial class MoodRules
 {
-    internal static bool MoodNumber(Fact<double> f) => !f.TryGetValue(out var v) || (!double.IsNaN(v) && !double.IsInfinity(v));
-
     /// <summary>
     /// The native situational thought a psychic drone puts on every pawn of the gender it targets; the census keeps
     /// it only while it pulls the mood down, so its presence is the drone's own word that this pawn is affected for
@@ -221,13 +226,9 @@ public static partial class MoodRules
     private const double PsychicDroneEntryMargin = .15;
 
     /// <summary>The margin a pawn under a psychic drone gets: relief starts while the drone's offset would still leave the pawn above the minor-break threshold. Zero without the thought.</summary>
-    private static double PsychicDroneMargin(Fact<EquatableArray<MoodThought>> thoughts)
+    private static double PsychicDroneMargin(EquatableArray<MoodThought> thoughts)
     {
-        if (!thoughts.TryGetValue(out var rows))
-        {
-            return 0;
-        }
-        foreach (var t in rows)
+        foreach (var t in thoughts)
         {
             if (t.Def == PsychicDroneThought && t.Offset < 0)
             {
@@ -276,10 +277,10 @@ public static partial class MoodRules
                 var active = prior.Active;
                 var drone = PsychicDroneMargin(p.Thoughts);
                 // A pawn without a mood need keeps its prior activity: nothing measures it recovered.
-                if (p.Mood is NeedLevel.Has { Level: var m })
+                if (p.Mood is MoodLevel.Has { Level: var m, Target: var target })
                 {
                     active = p.Mental || m <= threshold + Math.Max(MoodReliefMargin, drone);
-                    if (p.Target.TryGetValue(out var target) && target < m && target <= threshold)
+                    if (target < m && target <= threshold)
                     {
                         active = true;
                     }
@@ -301,11 +302,6 @@ public static partial class MoodRules
                 if (provision.Count == 0)
                 {
                     unowned = MoodUnowned(p.Thoughts);
-                }
-                if (!p.Thoughts.IsKnown)
-                {
-                    provision = prior.Provision;
-                    unowned = prior.Unowned;
                 }
                 // Death cannot certify an active need recovered.
                 if (prior.Active && p.Dead)
@@ -379,7 +375,7 @@ public static partial class MoodRules
             {
                 continue;
             }
-            return r with { Need = cause.Need, Reason = MoodMethodReason.Relief, Target = .5, NeedBenefit = Known(.5 - cause.Level) };
+            return r with { Need = cause.Need, Reason = MoodMethodReason.Relief, Target = .5, NeedBenefit = .5 - cause.Level };
         }
         return r;
     }

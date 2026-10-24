@@ -16,9 +16,10 @@ namespace HomeBridge.BridgeTools
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
             var food = things.Where(FoodSupplyFacts.SharedFood).ToList();
-            var patients = people.Select(p => new Patient {
+            // A colonist without a mood need has no mood target, so no row.
+            var patients = people.Where(p => p.needs?.mood != null).Select(p => new Patient {
                 id = p.GetUniqueLoadID(),
-                moodTarget = ReadNumber(() => p.needs.mood?.CurInstantLevel)
+                moodTarget = p.needs.mood!.CurInstantLevel
             }).ToList();
             return new Snapshot { readable = true, tick = Find.TickManager.TicksGame,
                 combinedFoodSupply = FoodSupplyFacts.Read(people.Concat(animals).ToList(), food),
@@ -32,14 +33,8 @@ namespace HomeBridge.BridgeTools
             public List<Patient> patients { get; set; } = new List<Patient>();
         }
         internal sealed class Patient {
-            public string? id { get; set; }
-            public float? moodTarget { get; set; }
-        }
-        private static float? ReadNumber(Func<float?> read)
-        {
-            try { var value = read(); return value.HasValue && !float.IsNaN(value.Value)
-                && !float.IsInfinity(value.Value) ? value : null; }
-            catch { return null; }
+            public string id { get; set; } = "";
+            public float moodTarget { get; set; }
         }
     }
 }

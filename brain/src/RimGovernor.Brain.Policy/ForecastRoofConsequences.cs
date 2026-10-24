@@ -161,7 +161,7 @@ public static class ForecastRoofConsequences
     /// throws <see cref="RequiredFactException"/> (#3871): native reads every one.
     /// </summary>
     internal static ForecastRoofMood RoofMoodOf(NeedsForecastPawn pawn, NeedsForecastRead read, IReadOnlyList<ForecastNeedChoice> choices,
-        IReadOnlyList<ForecastClosedRoom> rooms, Fact<EquatableArray<MoodThought>> observed, double horizon)
+        IReadOnlyList<ForecastClosedRoom> rooms, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, double horizon)
     {
         var renewals = new List<ForecastMemoryRenewal>();
         var banded = new List<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>();
@@ -266,8 +266,9 @@ public static class ForecastRoofConsequences
         }
 
         var awake = spans.Where(s => !s.Asleep).ToArray();
-        var thoughts = observed.TryGetValue(out var rows) ? rows : default;
-        double Current(string def) => thoughts.Where(t => t.Def == def).Sum(t => t.Offset);
+        // The observed thought rows, read only where a thought changes (a pawn without a row was not read).
+        double Current(string def) => (observed.TryGetValue(pawn.Pawn, out var rows) ? rows : throw Unread("observed thoughts"))
+            .Where(t => t.Def == def).Sum(t => t.Offset);
 
         // The outdoors need along the known spans (Need_Outdoors.NeedInterval), its category held between them.
         if (pawn.Outdoors is NeedLevel.Has { Level: var level } && !pawn.OutdoorsDisabled && stages.Any(r => r.Role == "need_outdoors" && r.Offset != 0))
@@ -304,7 +305,6 @@ public static class ForecastRoofConsequences
             }
             if (changes.Count > 0)
             {
-                if (!observed.IsKnown) throw Unread("observed thoughts");
                 foreach (var def in stages.Where(r => r.Role == "need_outdoors").Select(r => r.Thought).Distinct(StringComparer.Ordinal))
                 {
                     var current = Current(def);
@@ -327,7 +327,6 @@ public static class ForecastRoofConsequences
             foreach (var def in stages.Where(r => r.Role == role && r.Offset != 0).Select(r => r.Thought).Distinct(StringComparer.Ordinal))
             {
                 if (awake.Length == 0) continue;
-                if (!observed.IsKnown) throw Unread("observed thoughts");
                 var offset = stages.First(r => r.Thought == def && r.Stage == stages.Where(s => s.Thought == def).Min(s => s.Stage)).Offset;
                 var rowsOut = new List<(double Start, double End, double OffsetDelta)>();
                 foreach (var span in awake)

@@ -853,8 +853,8 @@ public sealed class ForecastCoupledSelectionTests
                     Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]),
                     IdeologyActive = Known(false), Precepts = Known<EquatableArray<string>>([])
                 } },
-                ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>>
-                { ["pawn"] = Known<EquatableArray<MoodThought>>(mild ? [] : [new("EnvironmentCold", -12)]) },
+                ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>>
+                { ["pawn"] = mild ? [] : [new("EnvironmentCold", -12)] },
             }
         } };
         var work = candidates.Alternatives.Where(c => c.ActivityCompletions.Count > 0)
@@ -1035,7 +1035,7 @@ public sealed class ForecastCoupledSelectionTests
                     Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]),
                     IdeologyActive = Known(false), Precepts = Known<EquatableArray<string>>([])
                 } },
-                ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known<EquatableArray<MoodThought>>([new("EnvironmentCold", -12)]) },
+                ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>> { ["pawn"] = [new("EnvironmentCold", -12)] },
             }
         }).Priced(Horizon) };
         // The wearer's outdoor harvest is the incumbent work the parka would warm.

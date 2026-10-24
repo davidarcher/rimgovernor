@@ -252,7 +252,7 @@ internal static class ReadProjections
     {
         static List<MoodSourceDto> Project(IReadOnlyList<MoodLedgerSource> rows) =>
             [.. rows.Select(s => new MoodSourceDto(s.Def, s.Pawns, s.Lost, [.. s.Owners.Select(o => o.Value)], s.Unverified))];
-        return new MoodLedgerDto(Project(l.Sources), Project(l.Unowned), l.UnknownPawns, [.. l.Expectation.Select(e => new MoodExpectationDto(e.Level, e.Pawns))]);
+        return new MoodLedgerDto(Project(l.Sources), Project(l.Unowned), [.. l.Expectation.Select(e => new MoodExpectationDto(e.Level, e.Pawns))]);
     }
 
     private static FoodPlanDto FoodPlanRow(FoodPlan p, IReadOnlyDictionary<RimGovernor.Brain.Domain.PawnId, string> labels)

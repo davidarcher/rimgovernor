@@ -384,9 +384,10 @@ public sealed class BedMergePriceTests
         var stages = EquatableArray.From(new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2), Stage("SleptInBarracks", "slept_in_barracks", -2), new NeedThoughtStage("Ascetic", "ascetic", 0, 3, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)) });
         var plain = NeedsFixtures.Pawn() with { Pawn = "a", ThoughtStages = stages, Sleep = SleepFixtures.Ground() };
         var ascetic = plain with { Pawn = "b", Ascetic = true };
-        Assert.Equal(Known(-2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default, barracks: true));
-        Assert.Equal(Known(2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default));
-        var observed = Known(EquatableArray.From(new[] { new MoodThought("Ascetic", 3) }));
+        var none = new Dictionary<string, EquatableArray<MoodThought>>();
+        Assert.Equal(Known(-2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), none, barracks: true));
+        Assert.Equal(Known(2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), none));
+        var observed = new Dictionary<string, EquatableArray<MoodThought>> { ["b"] = EquatableArray.From(new[] { new MoodThought("Ascetic", 3) }) };
         Assert.Equal(Known(-3.0), ForecastHousing.BedroomMoodDelta(ascetic, Known(0), observed, barracks: true));
         Assert.True(PlannedRoomCredits.Shipped.ContainsKey(PlannedRole.Barracks));
     }

@@ -202,7 +202,6 @@ internal sealed record ColonyStatusPawnDto(
 internal sealed record MoodLedgerDto(
     IReadOnlyList<MoodSourceDto> Sources,
     IReadOnlyList<MoodSourceDto> Unowned,
-    int UnknownPawns,
     IReadOnlyList<MoodExpectationDto> Expectation);
 
 internal sealed record MoodSourceDto(string Def, int Pawns, double Lost, IReadOnlyList<string> Owners, int Unverified);
