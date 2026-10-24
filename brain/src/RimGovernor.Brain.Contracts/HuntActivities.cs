@@ -11,61 +11,75 @@ namespace RimGovernor.Contracts.Wire.Observations;
 /// </summary>
 public sealed record HuntActivityRead
 {
-    public bool Known { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntActorRead>))]
-    public EquatableArray<HuntActorRead> Hunters { get; init; }
+    public required EquatableArray<HuntActorRead> Hunters { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntActorRead>))]
-    public EquatableArray<HuntActorRead> Prey { get; init; }
+    public required EquatableArray<HuntActorRead> Prey { get; init; }
     /// <summary>The current weather's shot accuracy multiplier (WeatherManager.CurWeatherAccuracyMultiplier).</summary>
-    public Fact<double> WeatherAccuracy { get; init; }
+    public required double WeatherAccuracy { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Findings { get; init; }
+    public required EquatableArray<string> Findings { get; init; }
 }
 
-/// <summary>A pawn of the hunt read: Pawn is the game's unique load id, Kind the race (prey) or pawn kind (hunter).</summary>
+/// <summary>
+/// A pawn of the hunt read: Pawn is the game's unique load id, Kind the race (prey) or pawn kind (hunter). Every
+/// member is read for hunters and prey alike; the role-only blocks say whose they are.
+/// </summary>
 public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, double Age)
 {
-    public string Xenotype { get; init; } = "";
-    public HuntGearRead? Weapon { get; init; }
-    /// <summary>The weapon's longest attack range in cells, unknown when it has no ranged attack verb.</summary>
-    public Fact<double> WeaponRange { get; init; }
-    /// <summary>Hunters: that ranged attack verb's shot as the game resolves it; null without one.</summary>
-    public HuntGunRead? Gun { get; init; }
+    public required string Xenotype { get; init; }
+    /// <summary>The primary weapon; null when the pawn holds none.</summary>
+    public required HuntGearRead? Weapon { get; init; }
+    /// <summary>Hunters: the longest ranged attack verb's shot as the game resolves it; null without a ranged verb that launches a damaging projectile.</summary>
+    public required HuntGunRead? Gun { get; init; }
     /// <summary>The pawn's body as damage meets it; null when native cannot state it (no health tracker).</summary>
-    public HuntBodyRead? Body { get; init; }
+    public required HuntBodyRead? Body { get; init; }
     /// <summary>Prey: its melee attack averaged over its verbs as the game's MeleeDPS stat does; null when it has no melee verb.</summary>
-    public HuntMeleeRead? Melee { get; init; }
+    public required HuntMeleeRead? Melee { get; init; }
     /// <summary>Prey: per hunter, the chance one damage instance from him turns it manhunter, and its pack's chance to join.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntRevengeRead>))]
-    public EquatableArray<HuntRevengeRead> Revenge { get; init; }
+    public required EquatableArray<HuntRevengeRead> Revenge { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntGearRead>))]
-    public EquatableArray<HuntGearRead> Apparel { get; init; }
+    public required EquatableArray<HuntGearRead> Apparel { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntSkillRead>))]
-    public EquatableArray<HuntSkillRead> Skills { get; init; }
+    public required EquatableArray<HuntSkillRead> Skills { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntTraitRead>))]
-    public EquatableArray<HuntTraitRead> Traits { get; init; }
+    public required EquatableArray<HuntTraitRead> Traits { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntHediffRead>))]
-    public EquatableArray<HuntHediffRead> Health { get; init; }
+    public required EquatableArray<HuntHediffRead> Health { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> MissingParts { get; init; }
+    public required EquatableArray<string> MissingParts { get; init; }
     /// <summary>Hunters: able to take a hunt order now (free, standing, not mentally broken, hunting not disabled).</summary>
-    public bool Available { get; init; }
+    public required bool Available { get; init; }
     /// <summary>Hunters: hauling work is active for the pawn, so it may retrieve a corpse as native hauling work.</summary>
-    public bool Hauls { get; init; }
-    /// <summary>
-    /// Prey: the cell its corpse would be hauled to, the nearest cell of the highest-priority player store that accepts
-    /// the corpse (native's own store choice); null when no store accepts it, which leaves every return trip unknown.
-    /// </summary>
-    public Cell? CorpseStore { get; init; }
+    public required bool Hauls { get; init; }
+    /// <summary>Where the pawn's corpse would be hauled (<see cref="HuntCorpseStore"/>): native's own store choice.</summary>
+    public required HuntCorpseStore CorpseStore { get; init; }
     /// <summary>Downed or in a mental state: such a prey is not proposed; such a rostered gunner releases the formation.</summary>
-    public bool Downed { get; init; }
-    public bool Mental { get; init; }
+    public required bool Downed { get; init; }
+    public required bool Mental { get; init; }
     /// <summary>Prey: the game's herd of this animal group, empty when it is alone.</summary>
-    public string Herd { get; init; } = "";
-    /// <summary>Prey meat if it is killed and butchered by a colonist, unknown when native has no stat for it.</summary>
-    public Fact<double> Meat { get; init; }
-    /// <summary>Prey: nutrition one unit of its meat gives when eaten.</summary>
-    public Fact<double> MeatNutrition { get; init; }
+    public required string Herd { get; init; }
+    /// <summary>The pawn's meat if it is killed and butchered by a colonist (the live MeatAmount stat).</summary>
+    public required double Meat { get; init; }
+    /// <summary>The nutrition one unit of the pawn's meat gives when eaten; a race without meat gives none.</summary>
+    public required double MeatNutrition { get; init; }
+}
+
+/// <summary>
+/// Where a corpse would be hauled: <see cref="Store"/> at the nearest cell of the highest-priority player store that
+/// accepts the corpse def, or <see cref="NoStore"/> when no store accepts it (a return trip cannot be priced).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HuntCorpseStore.Store), "store")]
+[JsonDerivedType(typeof(HuntCorpseStore.NoStore), "no_store")]
+public abstract record HuntCorpseStore
+{
+    private protected HuntCorpseStore() { }
+
+    public sealed record Store(Cell Cell) : HuntCorpseStore;
+
+    public sealed record NoStore : HuntCorpseStore;
 }
 
 /// <summary>A worn or held item as the release judges it: its def, stuff and quality (not its wear).</summary>
@@ -76,7 +90,7 @@ public sealed record HuntTraitRead(string Definition, int Degree);
 public sealed record HuntHediffRead(string Definition, string Part);
 
 /// <summary>
-/// A ranged shot as ShotReport.HitReportFor and Verb resolve it. Accuracy is the shooter's per-cell ShootingAccuracyPawn
+/// A ranged shot as ShotReport.HitReportFor and Verb resolve it. Range is the verb's range in cells. Accuracy is the shooter's per-cell ShootingAccuracyPawn
 /// and Factor* his ShootingAccuracyFactor_Touch/Short/Medium/Long stats; Weapon* the weapon's hit chance factor at the
 /// band edges (3, 12, 25 and 40 cells). GoesWild is verbProps.canGoWild (without it the shooter's factor is 1),
 /// IgnoresWeather a unique weapon's IgnoreAccuracyMaluses. WarmupTicks already carries AimingDelayFactor; CooldownTicks
@@ -84,7 +98,7 @@ public sealed record HuntHediffRead(string Definition, string Part);
 /// ArmorPenetration are the projectile's per hit, Sharp whether its damage meets sharp armour, PainPerDamage its
 /// injury's pain per severity.
 /// </summary>
-public sealed record HuntGunRead(double Accuracy, double FactorTouch, double FactorShort, double FactorMedium, double FactorLong,
+public sealed record HuntGunRead(double Range, double Accuracy, double FactorTouch, double FactorShort, double FactorMedium, double FactorLong,
     double WeaponTouch, double WeaponShort, double WeaponMedium, double WeaponLong, bool GoesWild, bool IgnoresWeather,
     int WarmupTicks, int CooldownTicks, int Burst, int BurstGapTicks, double Damage, double ArmorPenetration, bool Sharp, double PainPerDamage);
 

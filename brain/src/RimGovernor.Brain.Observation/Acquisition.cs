@@ -39,27 +39,29 @@ public static class AcquisitionReads
         {
             var source = tables.Entity(row.Source);
             races.Race(new Resource(source?.DefName ?? ""), out var race);
+            var hunt = row.Kind as O.AcquisitionKind.Hunt;
+            var plant = row.Kind as O.AcquisitionKind.Plant;
             var offered = new AcquisitionSource
             {
-                Id = row.Source?.Id ?? "",
-                Resource = row.Resource ?? "",
-                Token = row.SourceSnapshot?.Token ?? "",
+                Id = row.Source.Id ?? "",
+                Resource = row.Resource,
+                Token = row.Token,
                 Definition = source?.DefName ?? "",
                 Cell = source is null ? default : ColonyDecodeReads.MapCellOf(source),
-                Hunt = row.Hunt.GetValueOrDefault(),
-                Food = row.Food.GetValueOrDefault(),
-                Designated = row.Designated.GetValueOrDefault(),
-                Yield = row.Yield.GetValueOrDefault(),
-                HerdSize = (int)row.HerdSize.GetValueOrDefault(),
-                Downed = row.Downed.GetValueOrDefault(),
-                Sleeping = row.Sleeping.GetValueOrDefault(),
+                Hunt = hunt is not null,
+                Food = plant?.Food ?? false,
+                Designated = row.Designation is O.AcquisitionDesignation.Designated,
+                Yield = row.Yield,
+                HerdSize = (int)(hunt?.HerdSize ?? 0),
+                Downed = hunt?.Downed ?? false,
+                Sleeping = hunt?.Sleeping ?? false,
                 Pest = race.Pest,
-                DesignatedTick = new Tick((long)row.DesignatedTick.GetValueOrDefault()),
-                Taken = row.Taken.GetValueOrDefault(),
-                Growth = row.Growth.GetValueOrDefault(),
-                Plantation = row.Plantation.GetValueOrDefault(),
+                DesignatedTick = row.Designation is O.AcquisitionDesignation.Designated { Since: var since } ? since : default,
+                Taken = row.Taken,
+                Growth = plant?.Growth ?? 0,
+                Plantation = plant?.Plantation ?? false,
             };
-            if (offered.Hunt)
+            if (hunt is not null)
             {
                 // The race row's own flags and numbers: an inedible hunt is only ever a pest; the meat's
                 // nutrition is the live MeatAmount stat times the meat def's Nutrition.
@@ -71,13 +73,13 @@ public static class AcquisitionReads
                 offered = offered with { RevengeChance = chance };
                 if (!race.Pest)
                 {
-                    if (!race.MeatNutritionPerUnit.TryGetValue(out var perUnit) || row.MeatAmount is null)
+                    if (!race.MeatNutritionPerUnit.TryGetValue(out var perUnit))
                     {
                         return unknown;
                     }
-                    offered = offered with { NutritionYield = Math.Max(0, row.MeatAmount.GetValueOrDefault()) * perUnit };
+                    offered = offered with { NutritionYield = Math.Max(0, hunt.MeatAmount) * perUnit };
                 }
-                offered = offered with { MeleeOnly = Meleeable(row, tables.Pawns, race, offered) };
+                offered = offered with { MeleeOnly = Meleeable(row.Source, hunt, tables.Pawns, race, offered) };
             }
             else
             {
@@ -88,7 +90,7 @@ public static class AcquisitionReads
                     bool shown;
                     try
                     {
-                        (nutrition, shown) = catalog.ShownStatValue((row.Resource ?? ""), "", CatalogStats.Nutrition);
+                        (nutrition, shown) = catalog.ShownStatValue(row.Resource, "", CatalogStats.Nutrition);
                     }
                     catch (DomainException)
                     {
@@ -96,14 +98,14 @@ public static class AcquisitionReads
                     }
                     if (shown)
                     {
-                        offered = offered with { NutritionYield = row.Yield.GetValueOrDefault() * (float)nutrition };
+                        offered = offered with { NutritionYield = row.Yield * (float)nutrition };
                     }
                 }
             }
-            if (offered.Hunt)
+            if (hunt is not null)
             {
                 offered = offered with { Products = race.Butchery };
-                var verdict = census.Gate(new HuntPrey { Source = offered, Fogged = row.Fogged.GetValueOrDefault(), Mental = row.InMentalState });
+                var verdict = census.Gate(new HuntPrey { Source = offered, Fogged = hunt.Fogged, Mental = hunt.InMentalState });
                 if (verdict.Hold is { } held)
                 {
                     holds.Add(held with { Source = offered });
@@ -124,7 +126,7 @@ public static class AcquisitionReads
     /// baseBodySize; a prey whose row or stage is not held is not known to be small, so not meleeable. The
     /// comparison is in float32, as the game's.
     /// </summary>
-    private static bool Meleeable(O.AcquisitionFacts row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
+    private static bool Meleeable(C.Ref source, O.AcquisitionKind.Hunt row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
     {
         if (row.InMentalState || race.Predator || !race.MeatNutritionPerUnit.TryGetValue(out var nutrition) || !(nutrition > 0))
         {
@@ -138,7 +140,7 @@ public static class AcquisitionReads
         {
             return false;
         }
-        if (!pawns.TryGetRow(row.Source, out var state) || state.AnimalState is not O.PawnAnimalState.Animal { State: var animal } || !race.BodySize.TryGetValue(out var size))
+        if (!pawns.TryGetRow(source, out var state) || state.AnimalState is not O.PawnAnimalState.Animal { State: var animal } || !race.BodySize.TryGetValue(out var size))
         {
             return false;
         }
@@ -151,21 +153,21 @@ public static class AcquisitionReads
     }
 
     /// <summary>Decodes native's raw hunt facts.</summary>
-    private static HuntCensus HuntCensusOf(O.HuntCensus? v, DefinitionCatalog catalog)
+    private static HuntCensus HuntCensusOf(O.HuntCensus v, DefinitionCatalog catalog)
     {
         var hunters = new List<HuntHunter>();
-        foreach (var h in v?.Hunters ?? [])
+        foreach (var h in v.Hunters)
         {
             hunters.Add(new HuntHunter
             {
-                ID = h.PawnId ?? "",
-                Cell = ColonyDecodeReads.CellOf(h.Position),
-                Downed = h.Downed.GetValueOrDefault(),
+                ID = h.Pawn.Value,
+                Cell = h.Position,
+                Downed = h.Downed,
                 MentalState = h.InMentalState,
-                HuntingActive = h.HuntingActive.GetValueOrDefault(),
-                RangedBlockingShield = h.RangedBlockingShield.GetValueOrDefault(),
+                HuntingActive = h.HuntingActive,
+                RangedBlockingShield = h.RangedBlockingShield,
                 // The weapon's verbs and projectile are the def rows' (Catalog.HuntWeapon).
-                Weapon = catalog.HuntWeapon((h.WeaponDef ?? "")),
+                Weapon = catalog.HuntWeapon(h.WeaponDef ?? ""),
             });
         }
         return new HuntCensus { Hunters = hunters };

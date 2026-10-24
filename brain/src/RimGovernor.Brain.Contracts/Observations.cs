@@ -5520,91 +5520,96 @@ public sealed record CookingFacts
     public SnapshotRef? BenchSnapshot { get; init; }
 }
 
+/// <summary>
+/// One harvest or hunt source of the colony read: the source thing (its head is a table row), its CAS token, the
+/// resource it yields and how many units, whether it is designated (<see cref="AcquisitionDesignation"/>), whether a
+/// pawn's reservation or a colonist's current job targets it, and its kind's own facts (<see cref="AcquisitionKind"/>).
+/// </summary>
 public sealed record AcquisitionFacts
 {
-    public Common.Ref? Source { get; init; }
+    public required Common.Ref Source { get; init; }
 
-    public SnapshotRef? SourceSnapshot { get; init; }
+    /// <summary>The source's exact entity snapshot CAS token.</summary>
+    public required string Token { get; init; }
 
-    public string? Resource { get; init; }
+    public required string Resource { get; init; }
 
-    public bool? Food { get; init; }
+    /// <summary>The units one harvest yields (a sampled YieldNow for a plant, one corpse for a hunt).</summary>
+    public required double Yield { get; init; }
 
-    /// <summary>
-    /// plant rows only: every eater WillEat the harvest
-    /// </summary>
-    public double? Yield { get; init; }
+    public required AcquisitionDesignation Designation { get; init; }
 
-    public bool? Designated { get; init; }
+    public required bool Taken { get; init; }
 
-    public bool? Hunt { get; init; }
+    public required AcquisitionKind Kind { get; init; }
+}
 
-    public uint? HerdSize { get; init; }
+/// <summary>
+/// A source's harvest or hunt designation: <see cref="Open"/> without one, <see cref="Designated"/> with the tick
+/// native first saw it (reset on load).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AcquisitionDesignation.Open), "open")]
+[JsonDerivedType(typeof(AcquisitionDesignation.Designated), "designated")]
+public abstract record AcquisitionDesignation
+{
+    private protected AcquisitionDesignation() { }
 
-    public bool? Downed { get; init; }
+    public sealed record Open : AcquisitionDesignation;
 
-    public long? DesignatedTick { get; init; }
+    public sealed record Designated(Tick Since) : AcquisitionDesignation;
+}
 
-    public bool? Taken { get; init; }
+/// <summary>
+/// What a source is. <see cref="Plant"/>: Food is every eater WillEat the harvest, Growth the plant's growth fraction
+/// (0..1), Plantation a sown tree of a harvest-destroys crop standing in a growing zone (RimWorld's growers fell it
+/// only at maturity; the brain may fell it earlier). <see cref="Hunt"/>: a wild animal that bears a corpse, whatever
+/// policy then decides. MeatAmount is the live animal's MeatAmount stat (wounds, missing parts and malnutrition scale
+/// it); HerdSize counts same-race animals (the prey included) within the request's herd radius; Fogged and
+/// InMentalState are native's current reading of the animal. The brain prices the meat off the race and meat rows and
+/// derives food, revenge chance, predator, melee-only and tree.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AcquisitionKind.Plant), "plant")]
+[JsonDerivedType(typeof(AcquisitionKind.Hunt), "hunt")]
+public abstract record AcquisitionKind
+{
+    private protected AcquisitionKind() { }
 
-    public bool? Sleeping { get; init; }
+    public sealed record Plant(bool Food, double Growth, bool Plantation) : AcquisitionKind;
 
-    /// <summary>
-    /// herd_size counts same-race animals (the prey included) within the request's herd_radius;
-    /// absent when the request carried no radius (unknown, never 0).
-    /// Raw hunt prey facts: a hunt row is every wild animal that bears a corpse, whatever
-    /// policy then decides. fogged and in_mental_state are native's current reading of the animal.
-    /// </summary>
-    public bool? Fogged { get; init; }
-
-    public bool InMentalState { get; init; }
-
-    /// <summary>
-    /// meat_amount is the live animal's MeatAmount stat (wounds, missing parts and malnutrition scale it);
-    /// The brain prices the meat off the race and meat rows and derives food, revenge chance, predator, melee-only and tree.
-    /// </summary>
-    public double? MeatAmount { get; init; }
-
-    /// <summary>
-    /// Plant rows: growth is the plant's growth fraction (0..1) on every plant row.
-    /// plantation marks a sown tree of a harvest-destroys crop standing in a growing zone
-    /// (RimWorld's growers fell it only at maturity; the brain may fell it earlier); wild trees and
-    /// crops in a zone never carry it.
-    /// </summary>
-    public double? Growth { get; init; }
-
-    public bool? Plantation { get; init; }
+    public sealed record Hunt(double MeatAmount, uint HerdSize, bool Downed, bool Sleeping, bool Fogged, bool InMentalState) : AcquisitionKind;
 }
 
 /// <summary>
 /// Raw hunt census: what the brain needs to decide whether a hunt row is offered. Native states
 /// facts and keeps only physical validity; weapon rules, hunter eligibility and
 /// the pending-hunt cap are brain policy (policy.HuntGate).
-/// One free colonist. hunting_active is
-/// WorkIsActive. weapon_def is the primary weapon def (absent for an unarmed pawn); the brain reads its verbs and projectile off the ThingDef rows.
-/// ranged_blocking_shield mirrors WorkGiver_HunterHunt.HasShieldAndRangedWeapon.
+/// One free colonist. HuntingActive is WorkIsActive. WeaponDef is the primary weapon def (null for an unarmed pawn);
+/// the brain reads its verbs and projectile off the ThingDef rows.
+/// RangedBlockingShield mirrors WorkGiver_HunterHunt.HasShieldAndRangedWeapon.
 /// </summary>
 public sealed record HunterFacts
 {
-    public string? PawnId { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public Common.Cell? Position { get; init; }
+    public required Cell Position { get; init; }
 
-    public bool? Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public bool InMentalState { get; init; }
+    public required bool InMentalState { get; init; }
 
-    public bool? HuntingActive { get; init; }
+    public required bool HuntingActive { get; init; }
 
-    public string? WeaponDef { get; init; }
+    public required string? WeaponDef { get; init; }
 
-    public bool? RangedBlockingShield { get; init; }
+    public required bool RangedBlockingShield { get; init; }
 }
 
 public sealed record HuntCensus
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<HunterFacts>))]
-    public EquatableArray<HunterFacts> Hunters { get; init; }
+    public required EquatableArray<HunterFacts> Hunters { get; init; }
 }
 
 public sealed record ButcheringFacts
@@ -6567,7 +6572,7 @@ public sealed record ColonyFactsSnapshot
     public EquatableArray<CookingFacts> Cooking { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<AcquisitionFacts>))]
-    public EquatableArray<AcquisitionFacts> Acquisition { get; init; }
+    public required EquatableArray<AcquisitionFacts> Acquisition { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ButcheringFacts>))]
     public EquatableArray<ButcheringFacts> Butchering { get; init; }
@@ -7313,8 +7318,7 @@ public sealed record JoinerLetter
 }
 
 /// <summary>
-/// herd_radius: cells within which same-race animals count toward a hunt row's herd_size;
-/// absent, herd_size is unknown (omitted).
+/// HerdRadius: the cells within which same-race animals count toward a hunt row's herd size.
 /// </summary>
 public sealed record ColonyFactsRequest
 {
@@ -7323,7 +7327,7 @@ public sealed record ColonyFactsRequest
     /// <summary>Whether the read carries the planning facts (<see cref="Observations.Planning.Requested"/>); false when omitted.</summary>
     public bool Planning { get; init; }
 
-    public uint? HerdRadius { get; init; }
+    public uint HerdRadius { get; init; } = 25;
 }
 
 /// <summary>
@@ -7633,11 +7637,6 @@ public sealed record SnapshotStreamRequest
     /// past it report RouteTravel.path_skipped. Absent: measure every pair.
     /// </summary>
     public uint? RoutePathBudgetMs { get; init; }
-
-    /// <summary>
-    /// The ColonyFactsRequest herd_radius of each frame's colony facts read.
-    /// </summary>
-    public uint? HerdRadius { get; init; }
 
     /// <summary>
     /// The LinesOfFireRequest budget_ms of each frame's combat lines of fire.

@@ -7,28 +7,28 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class HuntEstimatorTests
 {
     // A bolt-action rifle in a shooting-8 colonist's hands, roughly as the game states it.
-    static readonly HuntGunRead Rifle = new(0.97, 1, 1, 1, 1, 0.65, 0.85, 0.9, 0.8, true, false, 102, 90, 1, 0, 18, 0.27, true, 0.0125);
+    static readonly HuntGunRead Rifle = new(37, 0.97, 1, 1, 1, 1, 0.65, 0.85, 0.9, 0.8, true, false, 102, 90, 1, 0, 18, 0.27, true, 0.0125);
     static readonly HuntBodyRead Colonist = new(1, 1, 0.8, false, 0, 0, 0, 0, 13, 0);
     static readonly HuntBodyRead BoarBody = new(0.85, 0.85, 0.8, false, 0, 0, 0, 0, 13, 0);
     static readonly HuntMeleeRead Tusk = new(9, 120, 0.6, 0.13, 1, 0.0125);
 
-    static HuntActorRead Hunter(string id, int x = 0) => new(id, "Colonist", new(x, 0), 30)
+    static HuntActorRead Hunter(string id, int x = 0) => HuntFixtures.Actor(id, "Colonist", new(x, 0), 30) with
     {
-        Weapon = new("Gun_BoltActionRifle", "", "Normal"), WeaponRange = Fact.Known(37.0), Gun = Rifle, Body = Colonist, Available = true,
+        Weapon = new("Gun_BoltActionRifle", "", "Normal"), Gun = Rifle, Body = Colonist, Available = true,
     };
-    static HuntActorRead Boar(string id = "boar", double revenge = 0.5, double pack = 0, int z = 30) => new(id, "Boar", new(0, z), 3)
+    static HuntActorRead Boar(string id = "boar", double revenge = 0.5, double pack = 0, int z = 30) => HuntFixtures.Actor(id, "Boar", new(0, z), 3) with
     {
         Body = BoarBody, Melee = Tusk, Revenge = [new("a", revenge, pack), new("b", revenge, pack)],
-        Meat = Fact.Known(70.0), MeatNutrition = Fact.Known(0.05),
+        Meat = 70, MeatNutrition = 0.05,
     };
-    static HuntActorRead Hare() => new("hare", "Hare", new(0, 30), 1)
+    static HuntActorRead Hare() => HuntFixtures.Actor("hare", "Hare", new(0, 30), 1) with
     {
         Body = new(0.2, 0.2, 0.8, false, 0, 0, 0, 0, 10, 0), Melee = new(2, 100, 0.5, 0, 0, 0.0125), Revenge = [new("a", 0, 0), new("b", 0, 0)],
-        Meat = Fact.Known(15.0), MeatNutrition = Fact.Known(0.05),
+        Meat = 15, MeatNutrition = 0.05,
     };
-    static HuntActivityRead Read(params HuntActorRead[] prey) => new()
+    static HuntActivityRead Read(params HuntActorRead[] prey) => HuntFixtures.NoHunt with
     {
-        Known = true, Hunters = [Hunter("a"), Hunter("b", 2)], Prey = EquatableArray.From(prey), WeatherAccuracy = Fact.Known(1.0),
+        Hunters = [Hunter("a"), Hunter("b", 2)], Prey = EquatableArray.From(prey), WeatherAccuracy = 1.0,
     };
     static HuntRoster Roster(string[] gunners, params string[] prey) => new(EquatableArray.From(gunners), EquatableArray.From(prey));
     static HuntEstimate Estimated(HuntActivityRead read, HuntRoster roster)
@@ -174,8 +174,6 @@ public sealed class HuntEstimatorTests
         Assert.Equal("gunner_unarmed:a", Refusal(Read(Boar()) with { Hunters = [Hunter("a") with { Gun = null }] }));
         Assert.Equal("body_unobserved:a", Refusal(Read(Boar()) with { Hunters = [Hunter("a") with { Body = null }] }));
         Assert.Equal("body_unobserved:boar", Refusal(Read(Boar() with { Body = null })));
-        Assert.Equal("prey_yield_unknown", Refusal(Read(Boar() with { Meat = default })));
         Assert.Equal("revenge_unobserved:boar", Refusal(Read(Boar() with { Revenge = [] })));
-        Assert.Equal("weather_unobserved", Refusal(Read(Boar()) with { WeatherAccuracy = default }));
     }
 }

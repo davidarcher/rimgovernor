@@ -9,7 +9,7 @@ public sealed record CoupledForecastRead
     public long Tick { get; init; }
     public PracticeActivityRead Practice { get; init; } = new();
     public required ResearchActivityRead Research { get; init; }
-    public HuntActivityRead Hunt { get; init; } = new();
+    public required HuntActivityRead Hunt { get; init; }
     public SowingActivityRead Sowing { get; init; } = new();
     public SupportActivityRead Support { get; init; } = new();
     public CoupledThermalRead? Thermal { get; init; }

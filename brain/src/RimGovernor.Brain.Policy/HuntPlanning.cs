@@ -26,7 +26,7 @@ public static class HuntPlanningRules
     internal static HuntPlan PlanHunt(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources, IReadOnlyList<CoupledRoute> routes, double nutritionNeeded,
         Func<HuntActivityRead, HuntRoster, (HuntEstimate? Estimate, string Refusal)> estimateOf, IReadOnlySet<string>? busy = null)
     {
-        if (read is null || !read.Known) return new(null, ["hunt_observation_unknown"]);
+        if (read is null) return new(null, ["hunt_observation_unknown"]);
         if (nutritionNeeded <= 0) return new(null, ["no_nutrition_needed"]);
         // Only prey the food plan may send a hunt at: not designated or taken, still standing and food-yielding.
         var allowed = sources.Where(s => s.SquadPrey() && s.Food && !s.Downed).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);

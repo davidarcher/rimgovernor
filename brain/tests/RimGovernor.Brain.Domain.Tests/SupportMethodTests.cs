@@ -22,7 +22,7 @@ public sealed class SupportMethodTests
                     [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(1d), Known(0d), Known(.3))] }] },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch,
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
                     Tick = 100, Support = support,
                     FoodSources = cooking ? [new("rice", "Rice", new(1, 1), 4, Known(1000d))] : [],
                     FoodConversions = cooking ? [new("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1,

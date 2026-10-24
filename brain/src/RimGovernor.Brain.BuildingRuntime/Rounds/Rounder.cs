@@ -811,7 +811,7 @@ public sealed partial class Rounder
         }
         if (reading.Projection.Facts.ForecastObserved.Coupled?.Hunt is { } huntRead)
         {
-            attrs.Add((RoundsReviewTelemetry.HuntReadKey, $"known={huntRead.Known} hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} findings=[{string.Join(";", huntRead.Findings)}]"));
+            attrs.Add((RoundsReviewTelemetry.HuntReadKey, $"hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} findings=[{string.Join(";", huntRead.Findings)}]"));
             attrs.Add((RoundsReviewTelemetry.HuntChoiceKey, Census.HuntNote));
         }
         ClockEvents.Event("routine", RoundsReviewTelemetry.Kind, "rounds ran", [.. attrs]);

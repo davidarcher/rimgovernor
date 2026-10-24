@@ -8,17 +8,17 @@ public sealed class HuntAlternativesTests
 {
     static readonly string[] Eligible = ["a", "b"];
     static readonly Cell Store = new(50, 50);
-    static HuntActorRead Hunter(string id, int shooting = 8, bool available = true, bool armed = true, bool hauls = false) => new(id, "Colonist", new(0, 0), 30)
+    static HuntActorRead Hunter(string id, int shooting = 8, bool available = true, bool armed = true, bool hauls = false) => HuntFixtures.Actor(id, "Colonist", new(0, 0), 30) with
     {
-        Weapon = armed ? new("Gun_BoltActionRifle", "", "Normal") : null, WeaponRange = armed ? Fact.Known(30.0) : default,
+        Weapon = armed ? new("Gun_BoltActionRifle", "", "Normal") : null, Gun = armed ? HuntFixtures.Gun(30) : null,
         Skills = [new("Shooting", shooting)], Available = available, Hauls = hauls,
     };
-    static HuntActorRead Prey(string id, int x, string herd = "", bool known = true, bool store = true) => new(id, "Boar", new(x, 10), 3)
+    static HuntActorRead Prey(string id, int x, string herd = "", bool store = true) => HuntFixtures.Actor(id, "Boar", new(x, 10), 3) with
     {
-        Herd = herd, Meat = known ? Fact.Known(100.0) : default, MeatNutrition = Fact.Known(0.05), CorpseStore = store ? Store : null,
+        Herd = herd, Meat = 100, MeatNutrition = 0.05, CorpseStore = store ? new HuntCorpseStore.Store(Store) : new HuntCorpseStore.NoStore(),
     };
     static HuntActivityRead Read(IEnumerable<HuntActorRead> hunters, IEnumerable<HuntActorRead> prey) =>
-        new() { Known = true, Hunters = EquatableArray.From(hunters), Prey = EquatableArray.From(prey) };
+        HuntFixtures.NoHunt with { Hunters = EquatableArray.From(hunters), Prey = EquatableArray.From(prey) };
     static HuntRoster Roster(string[] gunners, params string[] prey) => new(EquatableArray.From(gunners), EquatableArray.From(prey));
     /// <summary>An estimate with its harm and death chances in sixteenths.</summary>
     static HuntEstimate Estimate(HuntRoster r, int harm, int death, double nutrition, double ticks = 1000) =>

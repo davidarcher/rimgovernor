@@ -42,7 +42,7 @@ public sealed class ForecastPortfolioChoiceTests
                     Needs = EquatableArray.From(needs.Pawns[0].Needs.Select(n => n with { Level = Known(1d), FallPerTick = Known(0d) })) }] : needs.Pawns },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch,
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
                     Tick = 100, Food = new(), FoodSources = EquatableArray.From(sources),
                     FoodConversions = EquatableArray.From(conversions),
                     FoodUses = [new("pawn", "Meal", Destination, Known(true), Known(.8), Known(10d), 1, Known(1000d))],

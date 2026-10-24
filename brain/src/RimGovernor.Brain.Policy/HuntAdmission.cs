@@ -75,7 +75,7 @@ public sealed class HuntAdmission
                 return "gunner_hungry:" + id;
             }
         }
-        if (read is not { Known: true })
+        if (read is null)
         {
             return "";
         }
@@ -122,7 +122,7 @@ public sealed class HuntAdmission
 
     /// <summary>
     /// Whether the gunner is still the pawn the estimate described, apart from where the hunt has walked him and that it
-    /// drafted him: his kind, xenotype, weapon and apparel (by def, stuff and quality, not wear), traits, health set (each hediff by definition and part, not its
+    /// drafted him (nor where his own corpse would be stored, nor his meat): his kind, xenotype, weapon and its range, apparel (by def, stuff and quality, not wear), traits, health set (each hediff by definition and part, not its
     /// severity) and missing parts, under the same weather. His skill levels are not judged either: they move with every
     /// shot and would release the hunt that moved them (#3525); nor are the shot and body numbers derived from skill,
     /// pain and injury severity. An executing formation moves and drafts its gunners, so neither stales it; a downed or
@@ -152,7 +152,7 @@ public sealed class HuntAdmission
         if (a.Xenotype != n.Xenotype) fields.Add("xenotype");
         if (Math.Abs(a.Age - n.Age) >= AgeTolerance) fields.Add("age");
         if (Gear(a.Weapon) != Gear(n.Weapon)) fields.Add("weapon");
-        if (a.WeaponRange != n.WeaponRange) fields.Add("weapon_range");
+        if (a.Gun?.Range != n.Gun?.Range) fields.Add("weapon_range");
         if (Outfit(a) != Outfit(n)) fields.Add("apparel");
         if (Character(a) != Character(n)) fields.Add("traits");
         var before = HealthSet(a);
@@ -177,9 +177,9 @@ public sealed class HuntAdmission
         && Math.Abs(x.Age - y.Age) < AgeTolerance
         && HealthSet(x).SetEquals(HealthSet(y))
         && Gear(x.Weapon) == Gear(y.Weapon) && Outfit(x) == Outfit(y) && Character(x) == Character(y)
-        && Judged(x) == Judged(y);
+        && x.Gun?.Range == y.Gun?.Range && Judged(x) == Judged(y);
 
-    private static HuntActorRead Judged(HuntActorRead a) => a with { Location = default, Age = 0, Skills = [], Health = [], Gun = null, Body = null, Weapon = null, Apparel = [], Traits = [] };
+    private static HuntActorRead Judged(HuntActorRead a) => a with { Location = default, Age = 0, Skills = [], Health = [], Gun = null, Body = null, Weapon = null, Apparel = [], Traits = [], CorpseStore = new HuntCorpseStore.NoStore(), Meat = 0, MeatNutrition = 0 };
 
     private static string Gear(HuntGearRead? g) => g is null ? "" : g.Definition + "/" + g.Stuff + "/" + g.Quality;
 

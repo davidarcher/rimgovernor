@@ -126,7 +126,7 @@ internal static class NativeCoupledForecast
             foreach (var i in hunters)
             {
                 FromStart(i, prey.Location);
-                if (prey.CorpseStore is { } store) One(i, prey.Location, store);
+                if (prey.CorpseStore is Obs.HuntCorpseStore.Store store) One(i, prey.Location, store.Cell);
                 One(i, prey.Location, starts[i]);
             }
             foreach (var from in locations)

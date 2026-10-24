@@ -272,8 +272,6 @@ public sealed partial class FacadeNativeClient : IDisposable
     /// <summary>The main-thread time one frame may spend pathing facility x colonist pairs.</summary>
     internal const uint RoutePathBudgetMs = 100;
 
-    internal const uint HerdRadius = 25;
-
     internal const uint LinesOfFireBudgetMs = 15;
 
     /// <summary>One wait for the next frame.</summary>
@@ -318,7 +316,6 @@ public sealed partial class FacadeNativeClient : IDisposable
             var request = new PbObservations.SnapshotStreamRequest
             {
                 RoutePathBudgetMs = RoutePathBudgetMs,
-                HerdRadius = ColonyFactsParameters.HerdRadius,
                 LinesOfFireBudgetMs = LinesOfFireBudgetMs,
             };
             PbObservations.SnapshotStreamReply reply;

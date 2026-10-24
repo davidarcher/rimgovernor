@@ -51,7 +51,8 @@ public sealed class ColonyFactsCoreTests
         Anomaly = null,
         Royalty = null,
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
-        HuntCensus = new(),
+        HuntCensus = new() { Hunters = [] },
+        Acquisition = [],
     };
 
     /// <summary>A projection with its total core set: the given identity, an empty map, no workers, no deliveries and nothing pending.</summary>

@@ -415,9 +415,8 @@ the 100 cells live only in the gate above, and a plant needs only a colonist wit
 enabled who can reach it. This is the lone designation channel: selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. A formation hunt is the food plan's roster comparison ([forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame)): its chosen prey and gunners file on `military/combat` and are released on that contract's triggers, and every animal the formation does not take stays a lone channel. Supervised play pauses when an
 active hunt loses its route.
 
-Acquisition reports revenge chance, same-race herd size within the request's `herd_radius`
-(the brain sets `bridge.HerdRadius`, 25; the prey included; absent radius leaves `herd_size` unset,
-unknown, never 0, and the bridge refuses a hunt row without it), melee eligibility and downed state; the brain derives the longest weapon range among the
+Acquisition reports revenge chance, same-race herd size within the request's `HerdRadius`
+(25 unless the request says otherwise; the prey included), melee eligibility and downed state; the brain derives the longest weapon range among the
 eligible hunters from the census, and the animal's leather and butcher products from its
 race row. Food selection keeps forage priority, then downed animals, then lower revenge
 chance times herd size.

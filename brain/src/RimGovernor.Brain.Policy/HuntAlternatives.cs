@@ -94,8 +94,7 @@ public static class HuntAlternatives
     public static (EquatableArray<HuntRoster> Rosters, EquatableArray<string> Findings) Propose(HuntActivityRead read, IReadOnlySet<string> busy, IReadOnlyList<CoupledRoute> routes)
     {
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
-        if (!read.Known) { findings.Add("hunt_observation_unknown"); return ([], EquatableArray.From(findings)); }
-        var pool = read.Hunters.Where(h => h.Available && !busy.Contains(h.Pawn) && h.Weapon is not null && h.WeaponRange.IsKnown && h.WeaponRange.Value > 0)
+        var pool = read.Hunters.Where(h => h.Available && !busy.Contains(h.Pawn) && h.Weapon is not null && h.Gun is { Range: > 0 })
             .OrderByDescending(h => Shooting(h)).ThenBy(h => h.Pawn, StringComparer.Ordinal)
             .Take(MaxGunnerPool).ToArray();
         if (pool.Length == 0) findings.Add("no_available_gunner");
@@ -158,7 +157,7 @@ public static class HuntAlternatives
         var loads = 0.0;
         foreach (var p in group)
         {
-            if (Leg(routes, pawn, p.Location, p.CorpseStore) is not { } load) return null;
+            if (Haul(routes, pawn, p) is not { } load) return null;
             loads += load;
         }
         return walk + loads;
@@ -167,8 +166,12 @@ public static class HuntAlternatives
     private static double? Walk(IReadOnlyList<CoupledRoute> routes, string pawn, Cell to) =>
         routes.FirstOrDefault(r => r.FromStart && r.Pawn == pawn && r.To == to) is { Ticks.IsKnown: true } r ? r.Ticks.Value : null;
 
-    private static double? Leg(IReadOnlyList<CoupledRoute> routes, string pawn, Cell from, Cell? to) =>
-        to is { } t && routes.FirstOrDefault(r => !r.FromStart && r.Pawn == pawn && r.From == from && r.To == t) is { Ticks.IsKnown: true } r ? r.Ticks.Value : null;
+    private static double? Leg(IReadOnlyList<CoupledRoute> routes, string pawn, Cell from, Cell to) =>
+        routes.FirstOrDefault(r => !r.FromStart && r.Pawn == pawn && r.From == from && r.To == to) is { Ticks.IsKnown: true } r ? r.Ticks.Value : null;
+
+    /// <summary>The pawn's load of the prey's corpse to its store; null when no store takes the corpse or the leg is unrouted.</summary>
+    private static double? Haul(IReadOnlyList<CoupledRoute> routes, string pawn, HuntActorRead prey) =>
+        prey.CorpseStore is HuntCorpseStore.Store store ? Leg(routes, pawn, prey.Location, store.Cell) : null;
 
     /// <summary>
     /// Chooses among the proposed rosters and no hunt, in the epic's order: serious harm first (the chance of a death,
@@ -229,7 +232,7 @@ public static class HuntAlternatives
         var hauled = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in prey)
         {
-            var trip = carriers.Select(c => (Carrier: c, Ticks: Leg(routes, c, p.Location, p.CorpseStore))).Where(x => x.Ticks is not null).OrderBy(x => x.Ticks).ThenBy(x => x.Carrier, StringComparer.Ordinal).FirstOrDefault();
+            var trip = carriers.Select(c => (Carrier: c, Ticks: Haul(routes, c, p))).Where(x => x.Ticks is not null).OrderBy(x => x.Ticks).ThenBy(x => x.Carrier, StringComparer.Ordinal).FirstOrDefault();
             if (trip.Carrier is null) return (null, "return_route_unknown");
             haul += trip.Ticks!.Value;
             hauled.Add(trip.Carrier);

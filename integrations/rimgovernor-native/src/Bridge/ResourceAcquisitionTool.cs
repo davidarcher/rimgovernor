@@ -24,13 +24,13 @@ namespace HomeBridge.BridgeTools
         // a new Game (load) starts it empty, so designations read fresh.
         private static Game? designationGame;
         private static readonly Dictionary<string, int> designationSeen = new Dictionary<string, int>();
-        internal static long? DesignatedTick(Thing t, bool designated)
+        internal static RimGovernor.Contracts.Wire.Observations.AcquisitionDesignation Designation(Thing t, bool designated)
         {
             if (!ReferenceEquals(designationGame, Current.Game)) { designationSeen.Clear(); designationGame = Current.Game; }
             var id = t.GetUniqueLoadID();
-            if (!designated) { designationSeen.Remove(id); return null; }
+            if (!designated) { designationSeen.Remove(id); return new RimGovernor.Contracts.Wire.Observations.AcquisitionDesignation.Open(); }
             if (!designationSeen.TryGetValue(id, out var tick)) designationSeen[id] = tick = Find.TickManager.TicksGame;
-            return tick;
+            return new RimGovernor.Contracts.Wire.Observations.AcquisitionDesignation.Designated(new RimGovernor.Brain.Domain.Tick(tick));
         }
         // Taken: any pawn's reservation, or a colonist's current job, targets the thing.
         internal static bool Taken(Thing t) => Taken(t, null);

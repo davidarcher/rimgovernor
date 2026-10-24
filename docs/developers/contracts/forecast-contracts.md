@@ -554,7 +554,8 @@ the choice is not to hunt.
 `HuntEstimator` (policy, pure and synchronous, #3533) is the analytic estimate from the game's formulas: no
 simulation, no worker, no clock hold, so the food plan estimates every roster inside its review. Every input is a
 read; a missing one refuses the roster (`prey_unobserved`, `hunter_unobserved`, `gunner_unarmed:<pawn>`,
-`body_unobserved:<pawn>`, `prey_yield_unknown`, `revenge_unobserved:<prey>`, `weather_unobserved`), never a default.
+`body_unobserved:<pawn>`, `revenge_unobserved:<prey>`), never a default. The prey's meat (a race without meat yields none) and
+the weather's accuracy are always read.
 The gunners take the prey one at a time, nearest first. Each walks into 95% of his range (the hunt job's cast
 position) and fires casts of warmup, burst and cooldown at ShotReport's hit chance (the shooter's per-cell accuracy to
 the distance times his range-band factor, floored at 0.0201 when the shot can go wild; the weapon's banded factor; the

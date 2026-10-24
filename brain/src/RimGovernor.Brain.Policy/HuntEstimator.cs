@@ -45,19 +45,17 @@ public static class HuntEstimator
         if (gunners.Length == 0 || gunners.Any(g => g is null)) return (null, "hunter_unobserved");
         foreach (var g in gunners)
         {
-            if (g!.Gun is null || !g.WeaponRange.IsKnown) return (null, "gunner_unarmed:" + g.Pawn);
+            if (g!.Gun is null) return (null, "gunner_unarmed:" + g.Pawn);
             if (g.Body is null) return (null, "body_unobserved:" + g.Pawn);
         }
         foreach (var p in prey)
         {
-            if (!p!.Meat.IsKnown || !p.MeatNutrition.IsKnown) return (null, "prey_yield_unknown");
-            if (p.Body is null) return (null, "body_unobserved:" + p.Pawn);
+            if (p!.Body is null) return (null, "body_unobserved:" + p.Pawn);
             if (p.Melee is { Damage: > 0 } && gunners.Any(g => p.Revenge.All(r => r.Hunter != g!.Pawn))) return (null, "revenge_unobserved:" + p.Pawn);
         }
-        if (!read.WeatherAccuracy.TryGetValue(out var weather) && gunners.Any(g => !g!.Gun!.IgnoresWeather)) return (null, "weather_unobserved");
         var g2 = gunners.Select(g => g!).ToArray();
         var ordered = prey.Select(p => p!).OrderBy(p => g2.Min(g => Distance(g.Location, p.Location))).ThenBy(p => p.Pawn, StringComparer.Ordinal).ToArray();
-        return (Run(g2, ordered, roster, weather), "");
+        return (Run(g2, ordered, roster, read.WeatherAccuracy), "");
     }
 
     /// <summary>Whether the prey can harm a gunner of the roster at all: a damaging melee attack and a revenge chance above zero against one of them.</summary>
@@ -82,7 +80,7 @@ public static class HuntEstimator
             {
                 var g = gunners[i];
                 var distance = Distance(g.Location, p.Location);
-                var reach = Math.Min(distance, EngageRangeFactor * g.WeaponRange.Value);
+                var reach = Math.Min(distance, EngageRangeFactor * g.Gun!.Range);
                 var gun = g.Gun!;
                 starts[i] = end + (distance - reach) * g.Body!.TicksPerCell + gun.WarmupTicks;
                 rates[k][i] = HitsPerTick(gun, HitChance(gun, reach, weather, p.Body!.BodySize));
@@ -99,7 +97,7 @@ public static class HuntEstimator
                 if (t >= end && s < steps - 1) mean += survival[k][s] * Step;
             }
             var down = 1 - survival[k][steps - 1];
-            nutrition += down * p.Meat.Value * p.MeatNutrition.Value;
+            nutrition += down * p.Meat * p.MeatNutrition;
             downed *= down;
             end = Math.Min(Horizon, end + mean);
         }
@@ -256,8 +254,8 @@ public static class HuntEstimator
 
     private static HuntActorRead Nearest(HuntActorRead[] gunners, HuntActorRead prey, out double reach)
     {
-        var best = gunners.OrderBy(g => Math.Min(Distance(g.Location, prey.Location), EngageRangeFactor * g.WeaponRange.Value)).ThenBy(g => g.Pawn, StringComparer.Ordinal).First();
-        reach = Math.Min(Distance(best.Location, prey.Location), EngageRangeFactor * best.WeaponRange.Value);
+        var best = gunners.OrderBy(g => Math.Min(Distance(g.Location, prey.Location), EngageRangeFactor * g.Gun!.Range)).ThenBy(g => g.Pawn, StringComparer.Ordinal).First();
+        reach = Math.Min(Distance(best.Location, prey.Location), EngageRangeFactor * best.Gun!.Range);
         return best;
     }
 

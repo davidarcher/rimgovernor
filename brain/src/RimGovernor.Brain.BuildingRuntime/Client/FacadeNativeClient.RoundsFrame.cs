@@ -236,9 +236,9 @@ public sealed partial class FacadeNativeClient
         {
             foreach (var row in colony.Acquisition)
             {
-                if (row.Hunt.GetValueOrDefault())
+                if (row.Kind is PbObservations.AcquisitionKind.Hunt)
                 {
-                    ids.Add(row.Source?.Id ?? "");
+                    ids.Add(row.Source.Id ?? "");
                 }
             }
         }

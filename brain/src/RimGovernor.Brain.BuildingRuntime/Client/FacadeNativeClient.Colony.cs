@@ -11,15 +11,6 @@ public sealed partial class FacadeNativeClient
 
     private const string CombatFrameMethod = "rimgovernor/snapshot_frame_combat";
 
-    /// <summary>
-    /// The hunt census parameters of every colony facts read: a direct read carries them, and the snapshot stream
-    /// (<see cref="OpenFramesAsync"/>) hands them to each frame's colony facts read.
-    /// </summary>
-    private static readonly PbObservations.ColonyFactsRequest ColonyFactsParameters = new()
-    {
-        HerdRadius = HerdRadius,
-    };
-
     /// <summary>The loaded identity.</summary>
     internal Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken) =>
         Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken);
@@ -38,7 +29,7 @@ public sealed partial class FacadeNativeClient
             return await FrameReadAsync(ReadColonyFactsMethod, identity, view => view.Snapshot.ColonyFacts, cancellationToken).ConfigureAwait(false);
         }
         // The stream seeds the colony_facts section under the planning form only, so no frame carries this form.
-        var request = ColonyFactsParameters with
+        var request = new PbObservations.ColonyFactsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Planning = false,

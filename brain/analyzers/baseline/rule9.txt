@@ -354,8 +354,6 @@ Contracts/ConstructionActivities.cs|UnknownMember|2
 Contracts/CoupledFood.cs|Fact|11
 Contracts/CoupledForecast.cs|Fact|1
 Contracts/FoodActivities.cs|Fact|4
-Contracts/HuntActivities.cs|Fact|4
-Contracts/HuntActivities.cs|NullableValue|1
 Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Json/ObservedConditionalThoughtsJsonConverter.cs|Fact|5
 Contracts/Json/ObservedNeedsJsonConverter.cs|Fact|10
@@ -365,7 +363,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|560
+Contracts/Observations.cs|NullableValue|542
 Contracts/Observations.cs|UnknownMember|10
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -884,10 +882,9 @@ Policy/HumanFood.cs|Unknown|2
 Policy/HumanFoodPlan.cs|Fact|24
 Policy/HumanFoodPlan.cs|ValueOrDefault|4
 Policy/HuntAdmission.cs|Fact|2
-Policy/HuntAlternatives.cs|Fact|6
+Policy/HuntAlternatives.cs|Fact|4
 Policy/HuntCredit.cs|Fact|7
 Policy/HuntCredit.cs|ValueOrDefault|1
-Policy/HuntEstimator.cs|Fact|9
 Policy/HuntPlanning.cs|Fact|12
 Policy/HuntPlanning.cs|Unknown|1
 Policy/HuntPrerequisite.cs|Fact|3

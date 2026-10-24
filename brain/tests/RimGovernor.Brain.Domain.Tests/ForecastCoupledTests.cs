@@ -31,7 +31,7 @@ public sealed class ForecastCoupledTests
                 },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch,
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
                     Tick = 100,
                     Food = new()
                     {

@@ -8,19 +8,19 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class HuntPlanningTests
 {
     static readonly Cell Store = new(50, 50);
-    static HuntActorRead Hunter(string id) => new(id, "Colonist", new(0, 0), 30)
+    static HuntActorRead Hunter(string id) => HuntFixtures.Actor(id, "Colonist", new(0, 0), 30) with
     {
-        Weapon = new("Gun_BoltActionRifle", "", "Normal"), WeaponRange = Fact.Known(30.0), Skills = [new("Shooting", 8)], Available = true,
+        Weapon = new("Gun_BoltActionRifle", "", "Normal"), Gun = HuntFixtures.Gun(30), Skills = [new("Shooting", 8)], Available = true,
     };
-    static HuntActorRead Prey(string id, int x) => new(id, "Boar", new(x, 10), 3)
+    static HuntActorRead Prey(string id, int x) => HuntFixtures.Actor(id, "Boar", new(x, 10), 3) with
     {
-        Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05), CorpseStore = Store,
+        Meat = 100, MeatNutrition = 0.05, CorpseStore = new HuntCorpseStore.Store(Store),
     };
     static AcquisitionSource Source(string id, bool designated = false, bool downed = false) =>
         new() { Id = id, Food = true, Hunt = true, Designated = designated, Downed = downed };
-    static HuntActivityRead Read() => new()
+    static HuntActivityRead Read() => HuntFixtures.NoHunt with
     {
-        Known = true, Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)], WeatherAccuracy = Fact.Known(1.0),
+        Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)],
     };
     static IEnumerable<CoupledRoute> Legs(string pawn, int x) =>
     [
@@ -69,7 +69,6 @@ public sealed class HuntPlanningTests
         Assert.Equal((opened.Hunters, opened.Prey), (held!.Hunters, held.Prey));
         // An unknown hunt read decides nothing about the gunners.
         Assert.Equal("", admission.Release(null, sources));
-        Assert.Equal("", admission.Release(new HuntActivityRead(), sources));
     }
 
     [Fact]
@@ -130,7 +129,7 @@ public sealed class HuntPlanningTests
         var (admission, _, _) = Opened(sources);
         Assert.Equal("gunner_changed:a:health(+Cut/arm)", admission.Release(Hunters(a => a with { Health = [new("Cut", "arm")] }), sources));
         Assert.Equal("gunner_changed:a:weapon", admission.Release(Hunters(a => a with { Weapon = new("Gun_Autopistol", "", "Normal") }), sources));
-        Assert.Equal("gunner_changed:a:weather", admission.Release(Read() with { WeatherAccuracy = Fact.Known(0.8) }, sources));
+        Assert.Equal("gunner_changed:a:weather", admission.Release(Read() with { WeatherAccuracy = 0.8 }, sources));
         // Walking and ageing a little during the hunt are not changes to the gunner.
         Assert.Equal("", admission.Release(Hunters(a => a with { Location = new(50, 30), Age = a.Age + 0.001 }), sources));
     }
@@ -151,7 +150,7 @@ public sealed class HuntPlanningTests
         Assert.Equal("gunner_changed:a:health(-Cut/arm)", admission.Release(Read(), sources));
     }
 
-    static HuntGunRead Gun(double accuracy) => new(accuracy, 1, 1, 1, 1, 1, 1, 1, 1, true, false, 60, 60, 1, 0, 18, 0.27, true, 1);
+    static HuntGunRead Gun(double accuracy) => new(30, accuracy, 1, 1, 1, 1, 1, 1, 1, 1, true, false, 60, 60, 1, 0, 18, 0.27, true, 1);
     static HuntBodyRead Body(double pain) => new(1, 1, 0.8, false, pain, 0, 0, 0, 13, 0);
 
     [Fact]

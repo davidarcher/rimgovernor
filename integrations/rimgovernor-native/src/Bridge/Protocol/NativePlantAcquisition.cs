@@ -21,16 +21,15 @@ namespace HomeBridge.BridgeTools
             && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, plant));
         // Cutter has no distance reach: the measured cost (#2567) is the
         // all-plants eligibility scan, which the reach never bounded.
-        internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context, EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
-                plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
+        internal static string Token(Plant plant, Common.ObservationContext context) => NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
+            plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant));
         // The acquisition rows and pending values of one colony read; a read it cannot make throws.
         internal sealed class Facts
         {
             internal List<Obs.AcquisitionFacts> Rows = new List<Obs.AcquisitionFacts>();
             internal double PendingFoodNutrition;
             internal uint PendingHunts;
-            internal Obs.HuntCensus HuntCensus = new Obs.HuntCensus();
+            internal Obs.HuntCensus HuntCensus = new Obs.HuntCensus { Hunters = [] };
         }
         internal static Facts Read(Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
@@ -46,16 +45,12 @@ namespace HomeBridge.BridgeTools
             foreach (var (plant, yield) in selected)
             {
                 var resource = plant.def.plant.harvestedThingDef;
-                var food = humanFood(resource);
-                var designated = ResourceAcquisitionTools.Designated(plant);
-                var row = new Obs.AcquisitionFacts {
-                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, context),
-                    Resource = resource.defName, Food = food, Yield = yield,
-                    Growth = plant.Growth, Plantation = ResourceAcquisitionTools.Plantation(plant),
-                    Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };
-                var tick = ResourceAcquisitionTools.DesignatedTick(plant, designated);
-                if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
-                result.Rows.Add(row);
+                result.Rows.Add(new Obs.AcquisitionFacts {
+                    Source = NativeRef.Thing(plant), Token = Token(plant, context),
+                    Resource = resource.defName, Yield = yield,
+                    Designation = ResourceAcquisitionTools.Designation(plant, ResourceAcquisitionTools.Designated(plant)),
+                    Taken = ResourceAcquisitionTools.Taken(plant),
+                    Kind = new Obs.AcquisitionKind.Plant(humanFood(resource), plant.Growth, ResourceAcquisitionTools.Plantation(plant)) });
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
             result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));

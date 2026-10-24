@@ -28,29 +28,29 @@ internal static class NativeHuntActivity
         var prey = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == null && p.RaceProps.Animal && !p.Dead
             && p.RaceProps.meatDef?.IsNutritionGivingIngestible == true && !p.Position.Fogged(map))
             .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-        var hunterReads = hunters.Select(h => Actor(h, true, prey)).ToArray();
-        var preyReads = prey.Select(p => Actor(p, false, prey) with { CorpseStore = CorpseStore(map, p), Melee = Melee(p), Revenge = Revenge(p, hunters) }).ToArray();
+        var hunterReads = hunters.Select(h => Actor(map, h, true, prey, hunters)).ToArray();
+        var preyReads = prey.Select(p => Actor(map, p, false, prey, hunters)).ToArray();
         return new()
         {
-            Known = true, Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads),
-            WeatherAccuracy = Fact.Known((double)map.weatherManager.CurWeatherAccuracyMultiplier),
+            Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads),
+            WeatherAccuracy = map.weatherManager.CurWeatherAccuracyMultiplier,
             Findings = ["needs_genes_and_effects_are_not_observed_here"],
         };
     }
 
-    static Obs.HuntActorRead Actor(Pawn p, bool hunter, List<Pawn> prey)
+    static Obs.HuntActorRead Actor(Map map, Pawn p, bool hunter, List<Pawn> prey, List<Pawn> hunters)
     {
         var weapon = p.equipment?.Primary;
         var verb = weapon?.GetComp<CompEquippable>()?.AllVerbs.Where(v => !v.verbProps.IsMeleeAttack).OrderByDescending(v => v.verbProps.range).FirstOrDefault();
         var herdSize = !hunter ? prey.Count(q => q.def == p.def && q.Position.DistanceToSquared(p.Position) <= 24 * 24) : 0;
-        var meat = p.RaceProps.meatDef;
-        var read = new Obs.HuntActorRead(p.GetUniqueLoadID(), p.kindDef.defName, new(p.Position.x, p.Position.z), p.ageTracker.AgeBiologicalYearsFloat)
+        return new Obs.HuntActorRead(p.GetUniqueLoadID(), p.kindDef.defName, new(p.Position.x, p.Position.z), p.ageTracker.AgeBiologicalYearsFloat)
         {
             Xenotype = p.genes?.Xenotype?.defName ?? "",
             Weapon = Gear(weapon),
-            WeaponRange = verb == null ? default : Fact.Known((double)verb.verbProps.range),
             Gun = hunter && verb != null && weapon != null ? Gun(p, weapon, verb) : null,
             Body = Body(p),
+            Melee = hunter ? null : Melee(p),
+            Revenge = hunter ? [] : Revenge(p, hunters),
             Apparel = EquatableArray.From((p.apparel?.WornApparel ?? []).Select(a => Gear(a)!).Where(g => g != null)),
             Skills = EquatableArray.From((p.skills?.skills ?? []).Select(s => new Obs.HuntSkillRead(s.def.defName, s.Level))),
             Traits = EquatableArray.From((p.story?.traits.allTraits ?? []).Select(t => new Obs.HuntTraitRead(t.def.defName, t.Degree))),
@@ -59,14 +59,12 @@ internal static class NativeHuntActivity
             MissingParts = EquatableArray.From(p.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part?.Label ?? "")),
             Available = hunter && !p.Downed && !p.InMentalState && !p.Drafted,
             Hauls = hunter && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hauling) == true,
+            CorpseStore = CorpseStore(map, p),
             Downed = p.Downed, Mental = p.InMentalState,
-        };
-        if (hunter) return read;
-        return read with
-        {
             Herd = herdSize > 1 ? "wild-herd" : "",
-            Meat = Fact.Known(Math.Max(0d, p.GetStatValue(StatDefOf.MeatAmount))),
-            MeatNutrition = meat == null ? default : Fact.Known((double)meat.GetStatValueAbstract(StatDefOf.Nutrition)),
+            Meat = Math.Max(0d, p.GetStatValue(StatDefOf.MeatAmount)),
+            // A race without meat (a mechanoid) gives no nutrition when butchered.
+            MeatNutrition = p.RaceProps.meatDef?.GetStatValueAbstract(StatDefOf.Nutrition) ?? 0,
         };
     }
 
@@ -77,7 +75,7 @@ internal static class NativeHuntActivity
         if (projectile?.damageDef == null) return null;
         var unique = weapon.TryGetComp<CompUniqueWeapon>(out var comp) && comp.IgnoreAccuracyMaluses;
         var props = verb.verbProps;
-        return new(p.GetStatValue(StatDefOf.ShootingAccuracyPawn),
+        return new(props.range, p.GetStatValue(StatDefOf.ShootingAccuracyPawn),
             p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Touch), p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Short),
             p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Medium), p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Long),
             props.GetHitChanceFactor(weapon, Touch), props.GetHitChanceFactor(weapon, Short), props.GetHitChanceFactor(weapon, Medium), props.GetHitChanceFactor(weapon, Long),
@@ -128,21 +126,21 @@ internal static class NativeHuntActivity
         PawnUtility.GetManhunterOnDamageChance(prey, h), Find.Storyteller.difficulty.allowBigThreats ? 0.5 * PawnUtility.GetManhunterChanceFactorForInstigator(h) : 0)));
 
     /// <summary>
-    /// Where native would haul the prey's corpse: the store of highest priority whose settings accept its corpse def,
-    /// at its cell nearest the prey (StoreUtility's own order: priority, then distance from the corpse). None: null.
+    /// Where native would haul the pawn's corpse: the store of highest priority whose settings accept its corpse def,
+    /// at its cell nearest the pawn (StoreUtility's own order: priority, then distance from the corpse).
     /// </summary>
-    static RimGovernor.Brain.Domain.Cell? CorpseStore(Map map, Pawn prey)
+    static Obs.HuntCorpseStore CorpseStore(Map map, Pawn pawn)
     {
-        var corpse = prey.RaceProps.corpseDef;
-        if (corpse == null) return null;
+        var corpse = pawn.RaceProps.corpseDef;
+        if (corpse == null) return new Obs.HuntCorpseStore.NoStore();
         var groups = map.haulDestinationManager.AllGroupsListInPriorityOrder
             .Where(g => (g.parent is not Thing parent || parent.Faction == Faction.OfPlayer) && g.parent.HaulDestinationEnabled && g.Settings.AllowedToAccept(corpse) && g.CellsList.Count > 0)
             .ToList();
-        if (groups.Count == 0) return null;
+        if (groups.Count == 0) return new Obs.HuntCorpseStore.NoStore();
         var best = groups[0].Settings.Priority;
         var cell = groups.Where(g => g.Settings.Priority == best).SelectMany(g => g.CellsList)
-            .OrderBy(c => c.DistanceToSquared(prey.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
-        return new RimGovernor.Brain.Domain.Cell(cell.x, cell.z);
+            .OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+        return new Obs.HuntCorpseStore.Store(new RimGovernor.Brain.Domain.Cell(cell.x, cell.z));
     }
 
     static Obs.HuntGearRead? Gear(ThingWithComps? thing)

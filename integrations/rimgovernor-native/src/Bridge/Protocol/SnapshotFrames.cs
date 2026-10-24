@@ -141,14 +141,8 @@ namespace HomeBridge.BridgeTools
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 
-        // The frame's colony facts request: planning, with the stream's herd
-        // radius carried through when the brain supplied it.
-        private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope, Obs.SnapshotStreamRequest request)
-        {
-            var colony = new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
-            if (request.HerdRadius is not null) colony = colony with { HerdRadius = request.HerdRadius };
-            return colony;
-        }
+        // The frame's colony facts request: the planning form.
+        private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope) => new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
 
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
@@ -158,7 +152,7 @@ namespace HomeBridge.BridgeTools
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope(), request), context, request.RoutePathBudgetMs is not null ? request.RoutePathBudgetMs.GetValueOrDefault() : (uint?)null)) };
+                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope()), context, request.RoutePathBudgetMs is not null ? request.RoutePathBudgetMs.GetValueOrDefault() : (uint?)null)) };
                 ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts?.Resources.Count ?? 0);
             }
             {

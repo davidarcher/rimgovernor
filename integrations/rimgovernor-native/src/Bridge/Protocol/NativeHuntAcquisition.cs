@@ -52,9 +52,8 @@ namespace HomeBridge.BridgeTools
         // The brain multiplies it by the meat's nutrition off the def rows.
         private static double MeatAmount(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount));
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
-        private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context, EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Hunt(context.Identity,
-                prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, Designated(prey)) };
+        private static string Token(Pawn prey, Common.ObservationContext context) => NativeAcquisitionToken.Hunt(context.Identity,
+            prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, Designated(prey));
         // A hunt row is a wild animal that bears a corpse and is a food source or a pest, whatever
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
         private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal
@@ -69,24 +68,18 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => PestRace(p.RaceProps) && Candidate(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
                 .ToList();
-            // herd_size counts same-race animals within the request's herd_radius; without a radius it is
-            // left unset (unknown), never 0.
-            var herdSquared = request.HerdRadius is not null ? (long)request.HerdRadius.GetValueOrDefault() * request.HerdRadius.GetValueOrDefault() : -1;
+            // The herd size counts same-race animals within the request's herd radius, the prey included.
+            var herdSquared = (long)request.HerdRadius * request.HerdRadius;
             foreach (var animal in prey)
             {
                 var designated = Designated(animal);
-                var row = new Obs.AcquisitionFacts {
-                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, context),
-                Resource = animal.RaceProps.corpseDef.defName, Hunt = true,
-                Yield = 1, MeatAmount = MeatAmount(animal), Designated = designated,
-                Downed = animal.Downed, Sleeping = !animal.Awake(),
-                Taken = ResourceAcquisitionTools.Taken(animal),
-                Fogged = animal.Position.Fogged(map), InMentalState = animal.InMentalState };
-                if (herdSquared >= 0)
-                    row = row with { HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared) };
-                var tick = ResourceAcquisitionTools.DesignatedTick(animal, designated);
-                if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
-                result.Rows.Add(row);
+                var herd = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared);
+                result.Rows.Add(new Obs.AcquisitionFacts {
+                    Source = NativeRef.Thing(animal), Token = Token(animal, context),
+                    Resource = animal.RaceProps.corpseDef.defName, Yield = 1,
+                    Designation = ResourceAcquisitionTools.Designation(animal, designated),
+                    Taken = ResourceAcquisitionTools.Taken(animal),
+                    Kind = new Obs.AcquisitionKind.Hunt(MeatAmount(animal), herd, animal.Downed, !animal.Awake(), animal.Position.Fogged(map), animal.InMentalState) });
             }
             result.HuntCensus = Census(map);
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
@@ -94,18 +87,14 @@ namespace HomeBridge.BridgeTools
         // Raw facts per free colonist; policy decides who can hunt what.
         private static Obs.HuntCensus Census(Map map)
         {
-            var census = new Obs.HuntCensus();
-            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
-            {
-                var settings = pawn.workSettings;
-                var hunter = new Obs.HunterFacts { PawnId = pawn.GetUniqueLoadID(), Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
-                    Downed = pawn.Downed, InMentalState = pawn.InMentalState,
-                    HuntingActive = settings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
-                    RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
-                if (pawn.equipment?.Primary != null) hunter = hunter with { WeaponDef = pawn.equipment.Primary.def.defName };
-                census = census with { Hunters = [.. census.Hunters, hunter] };
-            }
-            return census;
+            var hunters = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Select(pawn => new Obs.HunterFacts {
+                Pawn = new RimGovernor.Brain.Domain.PawnId(pawn.GetUniqueLoadID()),
+                Position = new RimGovernor.Brain.Domain.Cell(pawn.Position.x, pawn.Position.z),
+                Downed = pawn.Downed, InMentalState = pawn.InMentalState,
+                HuntingActive = pawn.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
+                WeaponDef = pawn.equipment?.Primary?.def.defName,
+                RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) });
+            return new Obs.HuntCensus { Hunters = RimGovernor.Brain.Domain.EquatableArray.From(hunters) };
         }
         internal const string Kind = "Hunt";
         // Prepare is the apply-time precondition list for hunt (action-contracts.md): physical

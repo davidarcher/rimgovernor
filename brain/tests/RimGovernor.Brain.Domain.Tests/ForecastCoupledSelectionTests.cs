@@ -51,7 +51,7 @@ public sealed class ForecastCoupledSelectionTests
                 }] },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch,
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
                     Tick = 100,
                     Food = new() { Options = EquatableArray.From(sources.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, harvest)
