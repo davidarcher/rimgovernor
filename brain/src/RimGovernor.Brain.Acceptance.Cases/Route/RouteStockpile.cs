@@ -62,7 +62,7 @@ internal static class RouteStockpile
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("stage: no site");
         var upkeep = await TypedApply.UpkeepAsync(s, "routes", cancellationToken).ConfigureAwait(false);
-        var routes = upkeep.Routes?.Outcome ?? throw new AcceptanceException($"routes: section unavailable: {upkeep.Routes?.Outcome}");
+        var routes = upkeep.Routes;
         var colonists = routes.PawnIds.Count;
         var problems = new List<string>();
 

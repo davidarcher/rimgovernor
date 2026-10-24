@@ -40,4 +40,19 @@ public sealed class CoupledReadWireTests
         Assert.Equal(read.FoodUses, back.FoodUses);
         Assert.Equal(read.Support.Workers, back.Support.Workers);
     }
+
+    /// <summary>The forecast read carries its coupled read and combined food supply as plain required members, with no
+    /// section wrapper: a forecast without its coupled read is a contract error.</summary>
+    [Fact]
+    public void TheForecastReadRequiresItsCoupledRead()
+    {
+        var forecast = new ForecastFacts { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new(), Patients = [new() { PawnId = "p", MoodTarget = .5 }] };
+        var json = WireJson.Serialize(forecast);
+        var back = WireJson.Deserialize<ForecastFacts>(json);
+        Assert.Equal(forecast.Patients, back.Patients);
+        Assert.Equal(forecast.CombinedFoodSupply, back.CombinedFoodSupply);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+        node.Remove("coupled");
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ForecastFacts>(node.ToJsonString()));
+    }
 }

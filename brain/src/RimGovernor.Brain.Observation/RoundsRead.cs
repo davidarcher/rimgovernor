@@ -235,7 +235,7 @@ public static class RoundsReads
                 QuestSites = WorldSitesReads.FrameWorldSites(frame.Quests),
                 QuestExpeditionTrips = QuestReads.FrameExpeditionTrips(frame.Quests, expected.Map),
                 QuestWorkers = p.WorkPawns,
-                ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast?.Outcome?.Needs, Coupled = colony.Forecast?.Outcome?.Coupled },
+                ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast.Needs, Coupled = colony.Forecast.Coupled },
                 EssentialInputs = new() { Benches = p.ProductionBenches, Power = p.PowerPlanning },
             },
         };

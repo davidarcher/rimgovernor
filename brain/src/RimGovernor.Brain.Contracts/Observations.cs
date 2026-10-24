@@ -4988,20 +4988,21 @@ public sealed record PatientForecast
     public string? PawnId { get; init; }
 
     public double? MoodTarget { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
+/// <summary>
+/// The forecast read, whole: the needs and coupled activity reads, the food supply the colony's people and animals share,
+/// and each patient's mood target.
+/// </summary>
 public sealed record ForecastFacts
 {
     public required NeedsForecastRead Needs { get; init; }
-    public CoupledForecastRead? Coupled { get; init; }
+    public required CoupledForecastRead Coupled { get; init; }
 
-    public FoodSupplyFacts? CombinedFoodSupply { get; init; }
+    public required FoodSupplyFacts CombinedFoodSupply { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PatientForecast>))]
-    public EquatableArray<PatientForecast> Patients { get; init; }
+    public required EquatableArray<PatientForecast> Patients { get; init; }
 }
 
 /// <summary>
@@ -5841,16 +5842,6 @@ public sealed record ChoiceDialog
 }
 
 
-public sealed record FoodSupplySection
-{
-    public FoodSupplyFacts Outcome { get; init; } = null!;
-}
-
-public sealed record ForecastSection
-{
-    public ForecastFacts Outcome { get; init; } = null!;
-}
-
 public sealed record DevelopmentSection
 {
     public DevelopmentFacts Outcome { get; init; } = null!;
@@ -6042,14 +6033,8 @@ public sealed record RoutesFacts
     public uint? TrafficSamples { get; init; }
 }
 
-public sealed record RoutesSection
-{
-    public RoutesFacts Outcome { get; init; } = null!;
-}
-
 /// <summary>
-/// The upkeep censuses, read whole: a census native cannot read fails the colony read. Routes stays a section, null
-/// when native could not read it (#3782).
+/// The upkeep censuses, read whole: a census native cannot read fails the colony read, the routes census included (#3782).
 /// </summary>
 public sealed record UpkeepFacts
 {
@@ -6082,7 +6067,7 @@ public sealed record UpkeepFacts
 
     public required FlooringFacts Flooring { get; init; }
 
-    public RoutesSection? Routes { get; init; }
+    public required RoutesFacts Routes { get; init; }
 
     /// <summary>The colony's slaves: shelter/sleeping gives each a bed set for slaves.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepPerson>))]
@@ -6709,9 +6694,9 @@ public sealed record ColonyFactsSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<ButcheringFacts>))]
     public EquatableArray<ButcheringFacts> Butchering { get; init; }
 
-    public required FoodSupplySection FoodSupply { get; init; }
+    public required FoodSupplyFacts FoodSupply { get; init; }
 
-    public required ForecastSection Forecast { get; init; }
+    public required ForecastFacts Forecast { get; init; }
 
     public required UpkeepFacts Upkeep { get; init; }
 

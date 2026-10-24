@@ -475,38 +475,32 @@ public static class ColonyDecodeReads
             r = r with { CookingBenches = Known(EquatableArray.From(benches)) };
         }
         // A food supply whose stock the things table misses stays unknown until a later frame.
-        if (v.FoodSupply?.Outcome is { } food)
+        if (FoodSupplyReads.DecodeFoodSupply(v.FoodSupply, tables.Things, catalog) is { } supply)
         {
-            if (FoodSupplyReads.DecodeFoodSupply(food, tables.Things, catalog) is { } supply)
-            {
-                r = r with { FoodSupply = Known(supply) };
-                f = f with { FoodStorageUpkeep = FoodStorageUpkeepRules.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
-            }
+            r = r with { FoodSupply = Known(supply) };
+            f = f with { FoodStorageUpkeep = FoodStorageUpkeepRules.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
         }
-        if (v.Forecast?.Outcome is { } forecast)
+        var combined = FoodSupplyReads.DecodeFoodSupply(v.Forecast.CombinedFoodSupply, tables.Things, catalog);
+        if (combined is not null)
         {
-            var combined = FoodSupplyReads.DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things, catalog);
-            if (combined is not null)
+            r = r with { CombinedFoodSupply = Known(combined) };
+        }
+        if (combined is not null && r.FoodSupply.TryGetValue(out var human) && human.Consumers.Count > 0)
+        {
+            var selected = new List<PawnId>(human.Consumers.Count);
+            foreach (var consumer in human.Consumers)
             {
-                r = r with { CombinedFoodSupply = Known(combined) };
+                selected.Add(consumer.Id);
             }
-            if (combined is not null && r.FoodSupply.TryGetValue(out var human) && human.Consumers.Count > 0)
+            try
             {
-                var selected = new List<PawnId>(human.Consumers.Count);
-                foreach (var consumer in human.Consumers)
-                {
-                    selected.Add(consumer.Id);
-                }
-                try
-                {
-                    var forecastFood = FoodForecastRules.ForecastFood(combined, selected);
-                    f = f with { FoodDays = forecastFood.RunwayDays };
-                    r = r with { FoodAtRiskNutrition = Known(forecastFood.AtRiskNutrition) };
-                }
-                catch (DomainException)
-                {
-                    // A forecast the policy refuses leaves the runway unknown.
-                }
+                var forecastFood = FoodForecastRules.ForecastFood(combined, selected);
+                f = f with { FoodDays = forecastFood.RunwayDays };
+                r = r with { FoodAtRiskNutrition = Known(forecastFood.AtRiskNutrition) };
+            }
+            catch (DomainException)
+            {
+                // A forecast the policy refuses leaves the runway unknown.
             }
         }
         f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = r.CombinedFoodSupply } };

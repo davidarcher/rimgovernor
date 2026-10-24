@@ -34,7 +34,7 @@ public sealed class ColonyFactsCoreTests
         SleepingTemperature = new SleepingTemperature.NoIndoorBed(),
         OutdoorTemperatureC = 0,
         FoodSupply = new(),
-        Forecast = new(),
+        Forecast = new() { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new(), Patients = [] },
         Upkeep = UpkeepFactsTests.NoUpkeep,
         Development = new(),
         Planning = new Planning.NotRequested(),

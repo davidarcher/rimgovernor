@@ -90,16 +90,16 @@ namespace HomeBridge.BridgeTools
             // diet, held-food, rot and competing-animal forecast.
             var demand = people.Sum(p => p.needs?.food == null ? 0.0 : GameTime.PerDay((double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             Span("cf.nutrition");
-            var foodSupply = new Obs.FoodSupplySection { Outcome = Food(FoodSupplyFacts.Read(people, things.Where(FoodSupplyFacts.SharedFood).ToList())) };
+            var foodSupply = Food(FoodSupplyFacts.Read(people, things.Where(FoodSupplyFacts.SharedFood).ToList()));
             Span("cf.foodSupply");
-            // The forecast is the cf.fc.* spans: needs, facts, the coupled read's own sub-read spans, then the section wrap.
+            // The forecast is the cf.fc.* spans: needs, facts, the coupled read's own sub-read spans, then its assembly.
             var needs = NativeNeedsForecast.Read(map, people);
             Span("cf.fc.needs");
             var forecastFacts = ForecastFacts.Read(map, people, things);
             Span("cf.fc.facts");
             var coupled = NativeCoupledForecast.Read(map, context, needs);
             mark = System.Diagnostics.Stopwatch.GetTimestamp();
-            var forecast = new Obs.ForecastSection { Outcome = Forecast(forecastFacts, needs) with { Coupled = coupled } };
+            var forecast = Forecast(forecastFacts, needs, coupled);
             Span("cf.fc.wrap");
             var upkeep = ReadUpkeep(map, things, routePathBudgetMs);
             Span("cf.upkeep");
@@ -466,16 +466,15 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
-        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, Obs.NeedsForecastRead needs)
+        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, Obs.NeedsForecastRead needs, Obs.CoupledForecastRead coupled)
         {
-            var result = new Obs.ForecastFacts { Needs = needs, CombinedFoodSupply = Food(source.combinedFoodSupply),
-                };
+            var patients = new List<Obs.PatientForecast>();
             foreach (var patient in source.patients) {
                 var row = new Obs.PatientForecast { PawnId = patient.id };
                 if (patient.moodTarget.HasValue) row = row with { MoodTarget = Finite(patient.moodTarget.Value) };
-                result = result with { Patients = [.. result.Patients, row] };
+                patients.Add(row);
             }
-            return result;
+            return new Obs.ForecastFacts { Needs = needs, Coupled = coupled, CombinedFoodSupply = Food(source.combinedFoodSupply), Patients = [.. patients] };
         }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {

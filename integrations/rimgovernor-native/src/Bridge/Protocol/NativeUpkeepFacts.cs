@@ -212,12 +212,11 @@ namespace HomeBridge.BridgeTools
             return DomainWire.TryParse<Obs.RoomRole>(Id(role.defName), out var parsed) ? parsed : Obs.RoomRole.Unrecognized;
         }
 
-        // The routes census (#3782 owns its shape): a failed read leaves it null.
-        private static Obs.RoutesSection? Routes(Map map, ThingSets sets, uint? routePathBudgetMs)
+        // The routes census: a read native cannot make fails the colony read, like every other upkeep census (#3782).
+        private static Obs.RoutesFacts Routes(Map map, ThingSets sets, uint? routePathBudgetMs)
         {
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { return new Obs.RoutesSection { Outcome = RoutesFacts(map, sets, routePathBudgetMs) }; }
-            catch (Exception) { return null; }
+            try { return RoutesFacts(map, sets, routePathBudgetMs); }
             finally { ObservationWork.Detail("cf.upkeep.routes", System.Diagnostics.Stopwatch.GetTimestamp() - began); }
         }
 

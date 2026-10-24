@@ -17,7 +17,7 @@ public static class ColonyUpkeepReads
         };
         try
         {
-            // The flooring census joins the routes census's traffic evidence, so an unread routes census leaves
+            // The flooring census joins the routes census's traffic evidence, so a routes census with an unread row leaves
             // flooring unknown too rather than judging the traffic tier from nothing.
             return r with { Flooring = ColonyFlooring(u.Flooring, u.Routes, catalog) };
         }
@@ -60,11 +60,11 @@ public static class ColonyUpkeepReads
     /// <summary>
     /// Decodes the flooring census; a terrain the catalog has no stat or def row for throws.
     /// </summary>
-    private static Fact<FlooringObservation> ColonyFlooring(O.FlooringFacts f, O.RoutesSection? routes, DefinitionCatalog? catalog)
+    private static Fact<FlooringObservation> ColonyFlooring(O.FlooringFacts f, O.RoutesFacts routes, DefinitionCatalog? catalog)
     {
         var terrains = ColonyDecodeReads.RequireCatalog(catalog).FloorTerrains();
         var r = new FlooringObservation { Terrains = new Dictionary<string, FloorTerrain>(terrains, StringComparer.Ordinal) };
-        // The traffic tier reads the routes census's observed travel; an unread routes census leaves the whole
+        // The traffic tier reads the routes census's observed travel; a routes census with an unread row leaves the whole
         // flooring census unknown rather than silently dropping the tier. Traffic cells whose terrain the
         // flooring table does not name are unmeasured and left out.
         if (!ColonyRoutes(routes).TryGetValue(out var routed))
@@ -102,16 +102,11 @@ public static class ColonyUpkeepReads
     }
 
     /// <summary>
-    /// Decodes the routes section; a travel row missing its reachability leaves the whole census unknown so
+    /// Decodes the routes census; a travel row missing its reachability leaves the whole census unknown so
     /// the layout/routes Need reads unknown instead of declaring a facility reachable by omission.
     /// </summary>
-    private static Fact<RoutesObservation> ColonyRoutes(O.RoutesSection? section)
+    private static Fact<RoutesObservation> ColonyRoutes(O.RoutesFacts f)
     {
-        var f = section?.Outcome;
-        if (f is null)
-        {
-            return default;
-        }
         var facilities = new List<RouteFacility>();
         var traffic = new List<TrafficCell>();
         var r = new RoutesObservation { Pawns = [.. f.PawnIds], TrafficSamples = f.TrafficSamples.GetValueOrDefault() };

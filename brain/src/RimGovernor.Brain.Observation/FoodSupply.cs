@@ -14,9 +14,9 @@ public static class FoodSupplyReads
     /// catalog; null when the table misses a stock or no catalog is held, and the supply is then unknown until a
     /// later frame. A stock whose def the catalog lacks is a contract error.
     /// </summary>
-    public static FoodSupply? DecodeFoodSupply(O.FoodSupplyFacts? v, Things things, DefinitionCatalog? catalog)
+    public static FoodSupply? DecodeFoodSupply(O.FoodSupplyFacts v, Things things, DefinitionCatalog? catalog)
     {
-        if (v is null || FoodSupplyRules.JoinFoodSupply(v, things) is not { } rows || catalog is null)
+        if (FoodSupplyRules.JoinFoodSupply(v, things) is not { } rows || catalog is null)
         {
             return null;
         }

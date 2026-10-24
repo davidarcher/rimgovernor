@@ -622,8 +622,6 @@ Kept, reason recorded:
 | ChoiceDialogOption | message | 1559 | 6 | state | One option of a force-pausing dialog |  |  |
 | ChoiceDialog | message | 1560 | 6 | state | Open force-pausing dialog window |  |  |
 | ComfortSection | message | 1563 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
-| FoodSupplySection | message | 1564 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
-| ForecastSection | message | 1565 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | DevelopmentSection | message | 1566 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | WallRemovalRecord | message | 1568 | 7 | state | Wall removal job progress record |  |  |
 | WallRemovalFacts | message | 1569 | 2 | state | Wall removal records |  |  |
@@ -646,7 +644,6 @@ Kept, reason recorded:
 | RouteFacility | message | 1625 | 6 | state | Facility with per colonist travel and breaches |  |  |
 | TrafficCell | message | 1626 | 6 | state | Decayed traffic sample count per cell and layer |  |  |
 | RoutesFacts | message | 1627 | 5 | state | Facility routes and traffic census |  |  |
-| RoutesSection | message | 1628 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | UpkeepFacts | message | 1629 | 20 | state | Upkeep bundle: items, beds, structures, fires, filth, people, animals, sections, home area |  |  |
 | ThreatFacts | message | 1657 | 9 | code | Colony wealth and raid points computed by the storyteller |  |  |
 | ThreatSection | message | 1658 | 1 | state | Section wrapper (observed; a failed threat read fails the census) |  |  |

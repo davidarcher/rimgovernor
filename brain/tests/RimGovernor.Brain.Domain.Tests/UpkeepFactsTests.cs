@@ -26,6 +26,7 @@ public sealed class UpkeepFactsTests
         Lighting = LightingTests.NoLighting,
         WildAnimals = [],
         Flooring = new() { Rooms = [] },
+        Routes = new(),
         Slaves = [],
         Guests = [],
     };
@@ -127,5 +128,19 @@ public sealed class UpkeepFactsTests
             """{"rooms":[{"room":"room-3","role":"Kitchen","cells":[{"cell":{"x":3,"z":4},"terrain":"Soil","pending":"WoodPlankFloor"},{"cell":{"x":4,"z":4},"terrain":"Soil","pending":null}]}]}""",
             WireJson.Serialize(flooring));
         Assert.Equal(flooring, WireJson.Deserialize<FlooringFacts>(WireJson.Serialize(flooring)));
+    }
+
+    /// <summary>The routes census is a plain required member (#3782): no section wrapper, and an upkeep read without it is
+    /// a contract error, never an unknown census.</summary>
+    [Fact]
+    public void TheRoutesCensusIsPlainAndRequired()
+    {
+        var upkeep = NoUpkeep with { Routes = new() { PawnIds = ["Colonist1"], TrafficSamples = 12 } };
+        var json = WireJson.Serialize(upkeep);
+        Assert.Contains("\"routes\":{\"facilities\":[],\"pawnIds\":[\"Colonist1\"],\"traffic\":[],\"trafficSamples\":12}", json, StringComparison.Ordinal);
+        Assert.Equal(upkeep.Routes, WireJson.Deserialize<UpkeepFacts>(json).Routes);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+        node.Remove("routes");
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<UpkeepFacts>(node.ToJsonString()));
     }
 }

@@ -126,18 +126,15 @@ public static class ColonyGearReads
                 supply.Add(hunt);
             }
         }
-        if (v.FoodSupply?.Outcome is { } food)
+        var butcher = catalog.ButcherWork();
+        var races = catalog.AnimalRaces();
+        foreach (var held in v.FoodSupply.Stocks)
         {
-            var butcher = catalog.ButcherWork();
-            var races = catalog.AnimalRaces();
-            foreach (var held in food.Stocks)
+            if (tables.Things.TryRow(held.Item, out var row) && row.Corpse && !row.Forbidden && !catalog.HumanlikeCorpse(row.Entity.DefName)
+                && races.Race(new Resource(catalog.CorpseRace(row.Entity.DefName)), out var race)
+                && ClothingDemandRules.CorpseYieldCandidate(row.Entity.Id, race.Butchery, butcher / GameTime.TicksPerDay) is { } corpse)
             {
-                if (tables.Things.TryRow(held.Item, out var row) && row.Corpse && !row.Forbidden && !catalog.HumanlikeCorpse(row.Entity.DefName)
-                    && races.Race(new Resource(catalog.CorpseRace(row.Entity.DefName)), out var race)
-                    && ClothingDemandRules.CorpseYieldCandidate(row.Entity.Id, race.Butchery, butcher / GameTime.TicksPerDay) is { } corpse)
-                {
-                    supply.Add(corpse);
-                }
+                supply.Add(corpse);
             }
         }
         foreach (var f in fields.ValueOrDefault)

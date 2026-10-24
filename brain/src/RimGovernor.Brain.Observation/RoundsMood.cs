@@ -155,12 +155,9 @@ public static class RoundsMoodReads
             byId[(p.Pawn.Id ?? "")] = p;
         }
         var forecasts = new Dictionary<string, O.PatientForecast>(StringComparer.Ordinal);
-        if (colony.Forecast?.Outcome is { } observed)
+        foreach (var f in colony.Forecast.Patients)
         {
-            foreach (var f in observed.Patients)
-            {
-                forecasts[f.PawnId ?? ""] = f;
-            }
+            forecasts[f.PawnId ?? ""] = f;
         }
         var rows = new List<MoodPawn>();
         foreach (var pawn in emergency.Colonists)
@@ -193,7 +190,7 @@ public static class RoundsMoodReads
                 Rest = n.Rest,
                 Joy = n.Joy,
             };
-            if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !ColonyDecodeReads.HasIssue(f.Issues, "mood_target"))
+            if (forecasts.TryGetValue(pawn.Id.Value, out var f))
             {
                 p = p with { Target = ColonyDecodeReads.Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
             }

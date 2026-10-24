@@ -542,9 +542,9 @@ service state from the catalog and building rows).
   floor, never a receipt.
 - A traffic tier joins the routes census: the busiest natural home cells outside tiered rooms
   are deficient once the window holds at least four times the per-cell minimum and the cell
-  at least that minimum; a floor with any path cost never qualifies. An unknown routes census
-  makes the flooring census unknown; a native without the routes section measures room tiers
-  alone.
+  at least that minimum; a floor with any path cost never qualifies. A routes census with an unread
+  row makes the flooring census unknown; a routes census native cannot read fails the colony read
+  (#3782).
 
 ### Routes
 
