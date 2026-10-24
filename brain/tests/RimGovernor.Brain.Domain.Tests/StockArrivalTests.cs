@@ -66,6 +66,35 @@ public sealed class StockArrivalTests
         Assert.Equal(0, new StockWait(stock, []).Expected(30));
     }
 
+    private static TradeSource Trade(Resource resource, double perDay, double from = 0) => new(resource, from, perDay)
+    {
+        Kinds = [new TradeKindChance(1, new TraderOffer { UnitValue = 100, Draws = [new StockDraw(1, 1, 1, 1, 1, 1, 0, 0, 100)] })],
+        PriceFactor = 1,
+        Silver = 1000,
+    };
+
+    [Fact]
+    public void ATradeSourceIsExponentialFromItsStartAndTheWaitIntegratesItExactlyWithTheCraftSteps()
+    {
+        // A visit every 10 days that always carries the arm: E[min(W, 30)] = (1 − e^−3) × 10.
+        var trade = new StockArrival { Trade = [Trade(Arm, 0.1)] };
+        Assert.Equal(Math.Exp(-0.5), trade.NotArrived(Need(Arm), 5), 12);
+        Assert.Equal((1 - Math.Exp(-3)) * 10, trade.ExpectedWait([Need(Arm)], 30), 12);
+
+        // Starting on day 5: five days certain, then the exponential over the 25 left.
+        var later = new StockArrival { Trade = [Trade(Arm, 0.1, from: 5)] };
+        Assert.Equal(1, later.NotArrived(Need(Arm), 5));
+        Assert.Equal(5 + ((1 - Math.Exp(-2.5)) * 10), later.ExpectedWait([Need(Arm)], 30), 12);
+
+        // With a bench making the arm on day 4: the trade until then, nothing after.
+        var both = new StockArrival { Sources = [new StockSource(Arm, 0.25, 10, 1)], Trade = [Trade(Arm, 0.1)] };
+        Assert.Equal((1 - Math.Exp(-0.4)) * 10, both.ExpectedWait([Need(Arm)], 30), 12);
+
+        // Two needs by trade at 0.1 and 0.2 a day: ∫ 1 − (1 − e^−0.1t)(1 − e^−0.2t) = 1/0.1 + 1/0.2 − 1/0.3 with no cap that binds.
+        var two = new StockArrival { Trade = [Trade(Arm, 0.1), Trade(Herbal, 0.2)] };
+        Assert.Equal(10 + 5 - (1 / 0.3), two.ExpectedWait([Need(Arm), Need(Herbal)], 1e6), 6);
+    }
+
     [Fact]
     public void AnUnreadModelThrowsOnceAConsumerWaitsOnIt()
     {
@@ -102,12 +131,12 @@ public sealed class StockArrivalTests
         var source = Assert.Single(crafted.Sources);
         Assert.Equal((Arm, 2L), (source.Resource, source.Units));
         Assert.Equal(8 * 2500 * 1.2 * 0.9 / 10_000, source.PerDay, 12);
-        Assert.Contains(StockArrival.TradeUnmodelled, crafted.Findings);
+        Assert.Empty(crafted.Findings);
 
-        // No usable bench of the recipe: no source, only the trade finding.
+        // No usable bench of the recipe: no source.
         var none = StockArrivalRules.Craft([Recipe(Arm)], [new("FabricationBench", false, 1)], [Crafter("Anna", 8, 1.2)], Stock);
         Assert.Empty(none.Sources);
-        Assert.Equal([StockArrival.TradeUnmodelled], none.Findings);
+        Assert.Empty(none.Findings);
 
         // A bench stat the census does not read is named; a crafter without the recipe's speed stat leaves the model unread.
         var otherStat = StockArrivalRules.Craft([Recipe(Arm) with { BenchSpeedStat = "DrugCookingSpeed" }], benches, [Crafter("Anna", 8, 1.2)], Stock);

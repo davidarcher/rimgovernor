@@ -305,9 +305,29 @@ each pawn's speed stats from the pawn (`PawnBiography.WorkSpeeds`), each bench's
 | `ConstructionWorkFactor` | 1.7: building work a tick is `ConstructionSpeed` × 1.7 (`DefenseBlock.ConstructionSpeedStat`); the stuff's `ConstructionSpeedFactor` is not applied | `JobDriver_ConstructFinishFrame`, `JobDriver_RemoveBuilding` |
 
 The model's own choices, not game rules: a source's arrival is a fixed delay (a step) once the bill and its ingredients exist, the
-crafter works its timetable's work hours on the bill alone, and trade is no source yet (`stock_arrival_trade_unmodelled`, #3869).
+crafter works its timetable's work hours on the bill alone.
 The medicine stock target the colony model crafts toward is `MedicalReservePolicy.TargetPerColonist` (3) a colonist, the reserve's
 own target, standing in for the player's stock-target bill count.
+
+## Mirrored game rules: trader stock (#3869)
+
+`TradeArrivalRules` and the trade records (`brain/src/RimGovernor.Brain.Policy/TradeArrival.cs`), the catalog's `TraderStock`
+(`brain/src/RimGovernor.Brain.Bridge/Catalog/TraderStock.cs`) and trader comps (`Catalog/Storyteller.cs`), and the native
+`NativeTradeVisitFacts` mirror the trade rules no def carries. Read with ilspycmd (1.7).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Days a year of a FactionInteraction comp's incidents | 60 | `IncidentCycleUtility.IncidentCountThisInterval`, `GenDate.DaysPerYear` |
+| Buy price | market value × 1.4 × PriceType multiplier × (1 + `tradePriceFactorLoss`) × (1 − `TradePriceImprovement`), at least 0.5, rounded above 99.5 | `TradeUtility.GetPricePlayerBuy`, `PriceFactorBuy_Global` |
+| PriceType multipliers | VeryCheap 0.4, Cheap 0.7, Normal 1, Expensive 2, Exorbitant 5; the first generator whose `HandlesThingDef` takes the def gives it, else Normal | `PriceTypeUtlity.PriceMultiplier`, `TraderKindDef.PriceTypeFor` |
+| Trader can sell | tradeability All or Buyable | `TradeabilityUtility.TraderCanSell` |
+| Count draw with a price range | up to 100 draws kept when the total price is in range, the 101st kept whatever it costs | `StockGenerator.RandomCountOf` |
+| Passing ships | none arrive at 5 | `IncidentWorker_OrbitalTraderArrival.MaxShips` |
+
+The model's own choices, not game rules: a visit's purchases are paid from today's silver (all the colony's silver, not only what
+lies in beacon range), the part and medicine purchases are independent, the accept curves are taken at today's days and points,
+`minRefireDays` is not applied, and the Tag pool's `PlayerAcquirable` reads only `destroyOnDrop` (a def requiring a faction absent
+from the world stays in the pool).
 
 ## Mirrored game rules: food hauling (#3849)
 

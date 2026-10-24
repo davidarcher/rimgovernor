@@ -37,6 +37,12 @@ public static class GameMembers
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "excludedCategories")]
     public static extern ref List<ThingCategoryDef>? StockExcludedCategories(StockGenerator_Category generator);
 
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "thingDefCountRange")]
+    public static extern ref IntRange StockCategoryDefCount(StockGenerator_Category generator);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "thingDefCountRange")]
+    public static extern ref IntRange StockTagDefCount(StockGenerator_Tag generator);
+
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "damageAmountBase")]
     public static extern ref int DamageAmountBase(ProjectileProperties projectile);
 

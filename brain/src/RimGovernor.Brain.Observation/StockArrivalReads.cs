@@ -2,9 +2,10 @@ namespace RimGovernor.Brain.Observation;
 
 /// <summary>
 /// The stock-arrival model's read boundary (#3868): the catalog's stock recipes with the research finished, the bills census's
-/// benches, the colonists who may craft and the stock on hand, in plain values, built once a review into
-/// <see cref="StockArrival"/> (<see cref="StockArrivalRules.Craft"/>). A census the frame did not carry leaves the model unread,
-/// named in <see cref="StockArrival.Unread"/>.
+/// benches, the colonists who may craft and the stock on hand, and the trader visits (#3869: the storyteller's trader comps, the
+/// trader kinds' stock, the threat section's TradeVisitFacts and today's silver), in plain values, built once a review into
+/// <see cref="StockArrival"/> (<see cref="StockArrivalRules.Craft"/>, <see cref="TradeArrivalRules.Sources"/>). A census the frame
+/// did not carry leaves the model unread, named in <see cref="StockArrival.Unread"/>.
 /// </summary>
 public static class StockArrivalReads
 {
@@ -49,6 +50,39 @@ public static class StockArrivalReads
                 EquatableArray.From(row.Biography.Skills.Select(s => new SkillLevel(s.DefName, s.Level))), row.Biography.WorkSpeeds));
         }
 
-        return StockArrivalRules.Craft(catalog.StockRecipes(finished), benches, crafters, stock) with { Medicines = EquatableArray.From(medicines) };
+        var craft = StockArrivalRules.Craft(catalog.StockRecipes(finished), benches, crafters, stock);
+        if (craft.Unread.Length != 0)
+        {
+            return craft;
+        }
+
+        var (trade, findings, unread) = Trade(catalog, colony.Threat.Observed, stock);
+        return unread.Length != 0
+            ? new StockArrival { Unread = unread }
+            : craft with
+            {
+                Trade = EquatableArray.From(trade),
+                Findings = EquatableArray.From(craft.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)),
+                Medicines = EquatableArray.From(medicines),
+            };
+    }
+
+    // The trader-visit sources (#3869): the storyteller's decoded trader comps, the trader kinds' stock, the visit facts the native
+    // read carries, the colony's wealth and raid points, and today's silver (#3855 Q2 A).
+    private static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Trade(DefinitionCatalog catalog, O.ThreatFacts threat,
+        IReadOnlyDictionary<Resource, long> stock)
+    {
+        if (threat.Trade is not { } facts)
+        {
+            return ([], [], "stock_arrival_trade_facts");
+        }
+
+        if (!catalog.TradeSchedule().Storytellers.TryGetValue(threat.Storyteller, out var storyteller))
+        {
+            return ([], [], "storyteller_unknown:" + threat.Storyteller);
+        }
+
+        var silver = stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef));
+        return TradeArrivalRules.Sources(storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal, silver);
     }
 }

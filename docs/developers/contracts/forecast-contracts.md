@@ -444,7 +444,7 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
   `organ_replacement_tier:<recipe>`. Named: `raid_part_loss_spread_unmodelled`, `raid_part_loss_hit_accumulation_unmodelled`,
   `raid_part_loss_fresh_wound_unmodelled`, `raid_part_loss_damage_independence_unmodelled`,
   `raid_part_hit_unmodelled:<def>` (a modded worker), and the stock model's findings when a replacement waits on stock or is
-  short of its part (`stock_arrival_trade_unmodelled`). Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-part-loss-3847).
+  short of its part (`stock_arrival_trade_silver_income_unmodelled` and the other trade findings below). Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-part-loss-3847).
 
 ### Stock arrival (#3868)
 
@@ -461,10 +461,34 @@ Crafting is the first source (`StockArrivalRules.Craft`): each catalog recipe ma
 census hosting it and the best eligible crafter (the bench's DoBill work type enabled, every `skillRequirements` level met) runs at
 work hours × 2500 × the crafter's `workSpeedStat` × the bench's `WorkTableWorkSpeedFactor` ÷ `WorkAmountTotal` × batch units a
 day (`Toils_Recipe.DoRecipeWork`), up to the iterations the stock of the scarcest ingredient slot pays for. A recipe whose bench
-stat is another (`workTableSpeedStat`) is named `stock_arrival_bench_speed_unmodelled:<recipe>`. Trade is named,
-`stock_arrival_trade_unmodelled` (#3869). A census the frame did not carry, or a crafter's unread speed stat, leaves the model
+stat is another (`workTableSpeedStat`) is named `stock_arrival_bench_speed_unmodelled:<recipe>`.
+
+Trader visits are the second source (#3869, `TradeArrivalRules.Sources` into `StockArrival.Trade`). The catalog decodes the
+storyteller's trader comps by exact class (`DefinitionCatalog.TradeSchedule`): a `StorytellerCompProperties_FactionInteraction`
+comp of an `IncidentWorker_TraderCaravanArrival` incident sends baseIncidentsPerYear ÷ 60 a day × the ally fraction
+(`StorytellerUtility.AllyIncidentFraction`, full allies when the comp says so; none at or below 0 or below its minWealth); an
+`OnOffCycle` comp of an `IncidentWorker_OrbitalTraderArrival` incident sends its cycle's rate (`ThreatSchedule.CyclePerDay`). Each
+starts at max(minDaysPassed, earliestDay) − the days since settling. Every other comp that may send a trader (a minDanger gate, a
+category comp, a RandomMain or CategoryMTB drawing OrbitalVisitor or FactionArrival, a visitor-group or modded trader worker) is
+named `stock_arrival_trade_comp_unmodelled:<comps>`. A visit's kind is drawn as the incident draws it: a source faction uniformly
+(`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality`, or for an orbital trader a kind by `CalculatedCommonality`
+over `CanSpawn` (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
+reads every trader kind's stock (`DefinitionCatalog.TraderStock`): SingleDef, MultiDef, Category and Tag generators by exact class,
+each picking the def with the chance its draw of distinct defs gives and making `StockGenerator.RandomCountOf` of it; the Buy
+generators make nothing, another class handling a stock resource is named `stock_arrival_trade_stock_unmodelled:<kind>:<class>`.
+A visit supplies n units when its kind makes n and n × the buy price (the def's market value × 1.4 × its PriceType multiplier ×
+(1 + tradePriceFactorLoss) × (1 − the best negotiator's TradePriceImprovement)) is within today's silver (#3855 Q2 A, silver income
+named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
+supply chance × (t − start)), multiplied with the craft steps, and the expected wait integrates the product exactly. True zeros are
+named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_console`, `stock_arrival_orbital_no_trade_beacon`,
+`stock_arrival_trade_blocked:<incident>:<gates>`; a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
+[kept constants](kept-constants.md#mirrored-game-rules-trader-stock-3869).
+
+A census the frame did not carry, or a crafter's unread speed stat, leaves the model
 unread (`StockArrival.Unread`: `stock_arrival_bills`, `stock_arrival_pawns`, `stock_arrival_resources`,
-`stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`), and a rule that then waits on stock throws `RequiredFactException`.
+`stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`, `stock_arrival_trade_facts`, `storyteller_unknown:<def>`,
+`trade_incident_unread:<incident>`, `trader_kind_unknown:<kind>`), and a rule that then waits on stock throws
+`RequiredFactException` (as does an offer whose market value is unread, `market_value:<def>`).
 `SurgeryRules.RestorePick` takes the best-tier candidate with its part and medicine on the map, else the best whose needs arrive
 within the horizon.
 
@@ -585,7 +609,7 @@ costs each pawn.
   out: `illness_untended`, `illness_prior_immunity_unassessed` (an earlier immunity record),
   `disease_severity_factors_unpriced:<hediff>`, `disease_part_stage_death_unmodelled:<hediff>` (a stage offset that kills is priced
   downed), and the stock model's findings when a replacement waits on stock or is short of its part
-  (`stock_arrival_trade_unmodelled`). A pawn without part rows for a
+  (`stock_arrival_trade_silver_income_unmodelled` and the other trade findings of the stock-arrival model). A pawn without part rows for a
   part-striking incident throws `RequiredFactException` (`disease_parts:<pawn>:<def>`).
 - `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
   — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when the disease table does not

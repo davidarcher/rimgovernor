@@ -128,7 +128,7 @@ public sealed class RaidPartLossTests
         var booked = Lost(Of(Gun(20), Pawn(1, Replacement("InstallBionicArm", stocked: false), Replacement("InstallNaturalArm")), findings), "Arm")!;
         Assert.Equal("InstallNaturalArm", booked.Pick!.Recipe);
         Assert.Equal(0, booked.Loss);
-        Assert.DoesNotContain(StockArrival.TradeUnmodelled, findings);
+        Assert.DoesNotContain(TradeArrivalRules.SilverIncomeUnmodelled, findings);
 
         // Halved manipulation to the horizon.
         var expected = Days * (1 - ForecastValue.CapabilityFactor(Whole, [1, 1, 0.5, 1, 1], 0.15));

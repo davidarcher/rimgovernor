@@ -117,8 +117,8 @@ internal static class NativeDiseaseFacts
         map.mapPawns.FreeColonistsAndPrisoners.Where(p => p.ParentHolder is not CompBiosculpterPod);
 
     // The game-state gates of IncidentWorker.CanFireNow the catalog cannot see: the difficulty's disabledWhen, the planet layer lists
-    // and ScenPart_DisableIncident.
-    private static IEnumerable<string> Blocked(Map map, IncidentDef def, Difficulty difficulty)
+    // and ScenPart_DisableIncident (the trader incidents read them too, NativeTradeVisitFacts).
+    internal static IEnumerable<string> Blocked(Map map, IncidentDef def, Difficulty difficulty)
     {
         if (Find.Scenario.AllParts.Any(p => p is ScenPart_DisableIncident disable && disable.Incident == def)) yield return "scenario";
         if (!difficulty.AllowedBy(def.disabledWhen)) yield return "difficulty";

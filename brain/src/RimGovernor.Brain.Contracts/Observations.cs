@@ -6330,7 +6330,69 @@ public sealed record ThreatFacts
 
     /// <summary>What the storyteller's disease comps read of the colony now (#3824); absent when the native read did not run.</summary>
     public DiseaseFacts? Disease { get; init; }
+
+    /// <summary>What the storyteller's trader visits read of the colony now (#3869); absent when the native read did not run.</summary>
+    public TradeVisitFacts? Trade { get; init; }
 }
+
+/// <summary>
+/// The colony facts a trader visit reads (#3869), read without changing game state: StorytellerUtility.AllyIncidentFraction for
+/// fullAlliesOnly false and true (StorytellerComp_FactionInteraction's accept fraction; at or below 0 no faction can visit),
+/// GenDate.DaysPassedSinceSettleFloat (IncidentCycleUtility counts from settling), whether a colonist comms console is powered
+/// (IncidentWorker_OrbitalTraderArrival announces, and so lets the colony trade with, a ship only then) and an orbital trade beacon
+/// is powered (a ship drops its goods and takes its silver there), the best eligible negotiator's TradePriceImprovement (<see cref="Negotiator"/> false: no free colonist can negotiate), the
+/// difficulty's tradePriceFactorLoss, and one row per trader incident (a TraderCaravanArrival or OrbitalTraderArrival worker).
+/// </summary>
+public sealed record TradeVisitFacts
+{
+    public double AllyFraction { get; init; }
+
+    public double FullAllyFraction { get; init; }
+
+    public double DaysSinceSettle { get; init; }
+
+    public bool CommsConsole { get; init; }
+
+    public bool TradeBeacon { get; init; }
+
+    public bool Negotiator { get; init; }
+
+    public double NegotiatorPriceImprovement { get; init; }
+
+    public double PriceFactorLoss { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TraderIncidentRead>))]
+    public EquatableArray<TraderIncidentRead> Incidents { get; init; }
+}
+
+/// <summary>
+/// One trader incident on the map now (#3869): Blocked names the game-state gates of IncidentWorker.CanFireNow and its worker's
+/// CanFireNowSub that hold now (<c>scenario</c>, <c>difficulty</c>, <c>planet_layer</c> as a disease incident's;
+/// <c>biome</c>; <c>min_population</c>; <c>greatest_population</c>; <c>condition</c>: a condition preventing incidents or neutral
+/// visitors; <c>void_awakening</c>; <c>ships_full</c>: 5 passing ships; <c>no_faction</c>: no faction can be a caravan's source;
+/// <c>no_trader_kind</c>: no orbital kind can spawn). Sources are the draws a visit makes: a caravan's candidate
+/// factions (IncidentWorker_NeutralGroup.FactionCanBeGroupSource, drawn uniformly), each with its caravanTraderKinds by
+/// IncidentWorker_TraderCaravanArrival.TraderKindCommonality; an orbital trader's one source of the orbital kinds that CanSpawn,
+/// by CalculatedCommonality.
+/// </summary>
+public sealed record TraderIncidentRead(string Incident)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Blocked { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TraderSourceRead>))]
+    public EquatableArray<TraderSourceRead> Sources { get; init; }
+}
+
+/// <summary>One draw a trader visit can make (a caravan's candidate faction, an orbital trader's one draw): its trader kinds' weights.</summary>
+public sealed record TraderSourceRead
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TraderKindWeight>))]
+    public EquatableArray<TraderKindWeight> Kinds { get; init; }
+}
+
+/// <summary>A trader kind's draw weight: its TraderKindDef and the commonality the incident draws it by now.</summary>
+public sealed record TraderKindWeight(string Kind, double Weight);
 
 /// <summary>
 /// The colony facts StorytellerComp_Disease and IncidentWorker_DiseaseHuman read (#3824). Read-only: the storyteller and the

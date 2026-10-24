@@ -27,16 +27,7 @@ public sealed partial class DefinitionCatalog
     // The catalog's recipes do not change: the stock recipe rows are read once per catalog, research judged per call.
     private IReadOnlyList<StockRecipeRow> StockRecipeRows() => LazyInitializer.EnsureInitialized(ref _stockRecipes, () =>
     {
-        var parts = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var install in Rows<RecipeDef>().Values.Where(r => r.workerClass is { } worker
-            && (typeof(Recipe_InstallNaturalBodyPart).IsAssignableFrom(worker) || typeof(Recipe_InstallArtificialBodyPart).IsAssignableFrom(worker))))
-        {
-            foreach (var slot in install.ingredients.Seq().Where(i => i.IsFixedIngredient && i.FixedIngredient is { } part && !Medicine(part.defName)))
-            {
-                parts.Add(slot.FixedIngredient.defName);
-            }
-        }
-
+        var parts = InstallParts();
         var rows = new List<StockRecipeRow>();
         foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
         {
@@ -69,6 +60,23 @@ public sealed partial class DefinitionCatalog
 
         return rows;
     });
+
+    // The parts a stock rule waits on: the fixed non-medicine ingredient of every Recipe_InstallNaturalBodyPart or
+    // Recipe_InstallArtificialBodyPart recipe (the craft and the trade sources, #3868, #3869).
+    private HashSet<string> InstallParts()
+    {
+        var parts = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var install in Rows<RecipeDef>().Values.Where(r => r.workerClass is { } worker
+            && (typeof(Recipe_InstallNaturalBodyPart).IsAssignableFrom(worker) || typeof(Recipe_InstallArtificialBodyPart).IsAssignableFrom(worker))))
+        {
+            foreach (var slot in install.ingredients.Seq().Where(i => i.IsFixedIngredient && i.FixedIngredient is { } part && !Medicine(part.defName)))
+            {
+                parts.Add(slot.FixedIngredient.defName);
+            }
+        }
+
+        return parts;
+    }
 
     // The stock recipe row of the recipe; null when the catalog cannot read its facts, as CraftRowOf leaves such a recipe out.
     private P.StockRecipe? StockRecipeOf(RecipeDef row, ThingDef product, int batch, List<P.StockRecipeBench> benches)

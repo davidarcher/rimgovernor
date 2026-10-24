@@ -107,19 +107,13 @@ public sealed record ThreatSchedule
                 continue;
             }
 
-            var accept = Curve(cycle.AcceptByDaysPassed, days);
-            if (cycle.AcceptByThreatPoints.Count > 0)
+            var points = 0.0;
+            if (cycle.AcceptByThreatPoints.Count > 0 && !threatPoints.TryGetValue(out points))
             {
-                if (!threatPoints.TryGetValue(out var points))
-                {
-                    return Unread("raid_points_unobserved");
-                }
-
-                accept *= Curve(cycle.AcceptByThreatPoints, points);
+                return Unread("raid_points_unobserved");
             }
 
-            // The hit count is GenMath.RoundRandom(Rand.Range(min, max)) and the accepted count RoundRandom(hits * fraction): unbiased, so the means multiply.
-            perDay += (cycle.MinIncidents + cycle.MaxIncidents) / 2 * accept * IntervalsPerDay / length;
+            perDay += CyclePerDay(cycle, days, points);
         }
 
         foreach (var comp in threats.Mtbs)
@@ -144,6 +138,23 @@ public sealed record ThreatSchedule
             RaidFraction = days < RaidsForcedBeforeDays ? 1.0 : RaidFractionAfterForced,
             Findings = threats.Unmodelled.Count > 0 ? ["threat_comp_unmodelled:" + string.Join(",", threats.Unmodelled)] : [],
         };
+    }
+
+    /// <summary>
+    /// An OnOffCycle comp's incidents a day at <paramref name="days"/> passed and <paramref name="threatPoints"/>: the mean count of
+    /// its range, kept with the accept curves' chance, over the cycle's intervals. The hit count is GenMath.RoundRandom(Rand.Range(min,
+    /// max)) and the accepted count RoundRandom(hits × fraction): unbiased, so the means multiply. The trader cycles (#3869) read it too.
+    /// </summary>
+    internal static double CyclePerDay(ThreatCycleComp cycle, double days, double threatPoints)
+    {
+        var length = Intervals(cycle.OnDays) + Intervals(cycle.OffDays);
+        if (length <= 0)
+        {
+            return 0;
+        }
+
+        var accept = Curve(cycle.AcceptByDaysPassed, days) * Curve(cycle.AcceptByThreatPoints, threatPoints);
+        return (cycle.MinIncidents + cycle.MaxIncidents) / 2 * accept * IntervalsPerDay / length;
     }
 
     private static ThreatSchedule Unread(string finding) => new() { Findings = [finding] };

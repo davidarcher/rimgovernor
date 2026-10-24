@@ -225,6 +225,7 @@ namespace HomeBridge.BridgeTools
                 HostileFactions = [.. HostileRaidFactions()], Raids = [.. NativeDefenseObservationTools.RaidTracks(map)],
                 Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
                 Disease = NativeDiseaseFacts.Read(map),
+                Trade = NativeTradeVisitFacts.Read(map),
             };
             return new Obs.ThreatSection { Observed = facts };
         }

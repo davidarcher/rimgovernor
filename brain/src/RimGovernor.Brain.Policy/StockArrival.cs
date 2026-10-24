@@ -4,8 +4,8 @@ namespace RimGovernor.Brain.Policy;
 
 // The stock-arrival model (#3868 of #3650): when a stock a rule waits on (a replacement part, an organ, a medicine kind) arrives
 // once it is wanted. Each source gives the chance a count of units has not arrived t days after the want; independent sources
-// multiply those chances, and a consumer prices the expected wait capped at the days it has left, E[min(W, R)]. Crafting is the
-// first source (StockArrivalRules.Craft); trade is named (StockArrival.TradeUnmodelled) until #3869.
+// multiply those chances, and a consumer prices the expected wait capped at the days it has left, E[min(W, R)]. Crafting is a step
+// source (StockArrivalRules.Craft); trader visits an exponential one from the day their comp starts (TradeArrivalRules.Sources, #3869).
 
 /// <summary>
 /// One source of a resource (#3868): from the want on it makes <see cref="Batch"/> units an iteration at <see cref="PerDay"/> units a
@@ -46,16 +46,17 @@ public sealed record MedicineCraft(Resource Kind, double PerDay, double Units, d
 
 /// <summary>
 /// The stock-arrival model of one review (#3868), built once at the read boundary (<see cref="StockArrivalRules.Craft"/>) and carried on
-/// <see cref="ForecastCoupledContext.Stock"/>. A source's not-arrived chance is a step: 1 until its arrival day, 0 after (crafting is a
-/// fixed delay once the bill and its inputs exist); a resource no source makes never arrives. <see cref="Unread"/> names the fact the
-/// boundary could not read; a rule that then waits on stock raises <see cref="RequiredFactException"/>.
+/// <see cref="ForecastCoupledContext.Stock"/>. A craft source's not-arrived chance is a step: 1 until its arrival day, 0 after (crafting
+/// is a fixed delay once the bill and its inputs exist); a trade source's is 1 until its comp starts and exponential after (#3869); a
+/// resource no source makes never arrives. <see cref="Unread"/> names the fact the boundary could not read; a rule that then waits on
+/// stock raises <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record StockArrival
 {
-    /// <summary>Trade (trader visits, brain-started trade) is no source yet (#3869, #3870).</summary>
-    public const string TradeUnmodelled = "stock_arrival_trade_unmodelled";
-
     public EquatableArray<StockSource> Sources { get; init; }
+
+    /// <summary>The trader-visit sources (#3869), one per comp and resource.</summary>
+    public EquatableArray<TradeSource> Trade { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
 
@@ -71,6 +72,14 @@ public sealed record StockArrival
         Require();
         var chance = 1.0;
         foreach (var source in Sources)
+        {
+            if (need.AnyOf.Contains(source.Resource))
+            {
+                chance *= source.NotArrived(need.Count, t);
+            }
+        }
+
+        foreach (var source in Trade)
         {
             if (need.AnyOf.Contains(source.Resource))
             {
@@ -98,7 +107,8 @@ public sealed record StockArrival
 
     /// <summary>
     /// E[min(W, cap)] for W the day all of <paramref name="needs"/> have arrived: the integral of <see cref="NotReady"/> from 0 to
-    /// <paramref name="cap"/>, exact over the sources' steps. 0 for no need.
+    /// <paramref name="cap"/>, exact: between the craft sources' steps and the trade sources' starts each need's not-arrived chance is
+    /// c·e^(−r·s), so 1 − Π(1 − cᵢe^(−rᵢs)) integrates by inclusion–exclusion over the needs. 0 for no need.
     /// </summary>
     public double ExpectedWait(IReadOnlyList<StockNeed> needs, double cap)
     {
@@ -107,24 +117,52 @@ public sealed record StockArrival
             return 0;
         }
 
+        Require();
         var steps = new SortedSet<double> { 0, cap };
         foreach (var need in needs)
         {
-            foreach (var source in Sources.Where(s => need.AnyOf.Contains(s.Resource)))
-            {
-                var day = source.ArrivalDay(need.Count);
-                if (day > 0 && day < cap)
-                {
-                    steps.Add(day);
-                }
-            }
+            var days = Sources.Where(s => need.AnyOf.Contains(s.Resource)).Select(s => s.ArrivalDay(need.Count))
+                .Concat(Trade.Where(s => need.AnyOf.Contains(s.Resource)).Select(s => s.From));
+            steps.UnionWith(days.Where(day => day > 0 && day < cap));
+        }
+
+        if (needs.Count > 16)
+        {
+            throw new DomainException($"stock wait over {needs.Count} needs");
         }
 
         var cuts = steps.ToArray();
         var total = 0.0;
+        var chances = new double[needs.Count];
+        var rates = new double[needs.Count];
         for (var i = 0; i + 1 < cuts.Length; i++)
         {
-            total += (cuts[i + 1] - cuts[i]) * NotReady(needs, cuts[i]);
+            var length = cuts[i + 1] - cuts[i];
+            for (var n = 0; n < needs.Count; n++)
+            {
+                chances[n] = NotArrived(needs[n], cuts[i]);
+                rates[n] = Trade.Where(s => needs[n].AnyOf.Contains(s.Resource) && s.From <= cuts[i]).Sum(s => s.Rate(needs[n].Count));
+            }
+
+            // ∫₀ᴸ 1 − Π(1 − cₙe^(−rₙs)) ds = Σ over non-empty subsets S of (−1)^(|S|+1) Π cₙ ∫₀ᴸ e^(−R_S s) ds.
+            for (var subset = 1; subset < 1 << needs.Count; subset++)
+            {
+                var product = 1.0;
+                var rate = 0.0;
+                var size = 0;
+                for (var n = 0; n < needs.Count; n++)
+                {
+                    if ((subset & (1 << n)) != 0)
+                    {
+                        product *= chances[n];
+                        rate += rates[n];
+                        size++;
+                    }
+                }
+
+                var integral = rate > 0 ? -double.ExpM1(-rate * length) / rate : length;
+                total += (size % 2 == 1 ? 1 : -1) * product * integral;
+            }
         }
 
         return total;
@@ -168,7 +206,7 @@ public sealed record StockWait(StockArrival Stock, EquatableArray<StockNeed> Nee
     public double Expected(double cap) => Needs.Count == 0 ? 0 : Stock.ExpectedWait(Needs, cap);
 
     /// <summary>
-    /// Names <paramref name="stock"/>'s findings (trade unmodelled, a bench stat unread) when a replacement waits on its stock or is
+    /// Names <paramref name="stock"/>'s findings (silver income unmodelled, a bench stat unread) when a replacement waits on its stock or is
     /// short of a part: the wait or the shortage is what those sources would change.
     /// </summary>
     internal static void Name(StockArrival stock, SurgeryWantReason reason, StockWait? wait, SortedSet<string> findings)
@@ -227,13 +265,13 @@ public static class StockArrivalRules
     /// <c>work hours × TicksPerHour × the crafter's workSpeedStat × the bench's WorkTableWorkSpeedFactor ÷ WorkAmountTotal × batch</c>
     /// units a day (Toils_Recipe.DoRecipeWork), up to the iterations the stock of its scarcest ingredient slot pays for. A crafter is
     /// eligible with the bench's work type and every skill requirement met (<c>RecipeDef.PawnSatisfiesSkillRequirements</c>). A recipe
-    /// no crafter, bench or ingredient serves is no source. Trade is named, <see cref="StockArrival.TradeUnmodelled"/>. A crafter
-    /// without the recipe's speed stat read leaves the model unread (<see cref="StockArrival.Unread"/>).
+    /// no crafter, bench or ingredient serves is no source. A crafter without the recipe's speed stat read leaves the model unread
+    /// (<see cref="StockArrival.Unread"/>).
     /// </summary>
     public static StockArrival Craft(IReadOnlyList<StockRecipe> recipes, IReadOnlyList<StockBench> benches, IReadOnlyList<StockCrafter> crafters,
         IReadOnlyDictionary<Resource, long> stock)
     {
-        var findings = new SortedSet<string>(StringComparer.Ordinal) { StockArrival.TradeUnmodelled };
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
         var sources = new List<StockSource>();
         foreach (var recipe in recipes.OrderBy(r => r.Recipe, StringComparer.Ordinal))
         {

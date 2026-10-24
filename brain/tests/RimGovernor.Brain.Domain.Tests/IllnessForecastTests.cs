@@ -231,7 +231,7 @@ public sealed class IllnessForecastTests
         var rest = 30 - LostOn;
         var policy = new ForecastValuePolicy();
         Assert.Equal((heart * (rest + policy.DeathTerminalValue)) + (kidney * rest * (1 - (0.95 * 0.95 * 0.95 * 0.95))), Mean(d), 6);
-        Assert.DoesNotContain(StockArrival.TradeUnmodelled, d.Findings);
+        Assert.DoesNotContain(TradeArrivalRules.SilverIncomeUnmodelled, d.Findings);
 
         // A doctor beyond the 0.20 failure cap queues nothing: the loss stays, named NoDoctor.
         var refused = Organs(DecayCourse(), Decaying(Body(), Replacement("Lung", "InstallNaturalLung", chance: 0.7))).Distribution;
