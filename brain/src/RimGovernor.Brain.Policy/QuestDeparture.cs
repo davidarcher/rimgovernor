@@ -80,7 +80,7 @@ public static class QuestDeparture
             {
                 continue;
             }
-            if (!objective.Count.TryGetValue(out var count))
+            if (objective.Goal is not Pb.QuestObjectiveGoal.Pawns { Count: var count })
             {
                 return (none, "pawn_demand_unknown");
             }

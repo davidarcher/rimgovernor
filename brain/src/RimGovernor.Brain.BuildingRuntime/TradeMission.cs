@@ -174,7 +174,7 @@ async
     {
         if (!TradeMissionValid(m)
             || (m.Phase != TradeMissionPhase.Planned && m.Phase != TradeMissionPhase.Departing && m.Phase != TradeMissionPhase.Outbound)
-            || read?.Context?.Identity is null
+            || read?.Context.Identity is null
             || (read.Context.Identity.ColonyId ?? "") != m.HomeColony.Value)
         {
             return (m.Phase, false);
@@ -221,7 +221,7 @@ partial class RoundsTradePlanner
 {
     internal static bool TradeMissionCurrentRead(GenerationSnapshot world, WorldProgressionRead? read)
     {
-        if (read?.Context?.Identity is not { } id)
+        if (read?.Context.Identity is not { } id)
         {
             return false;
         }

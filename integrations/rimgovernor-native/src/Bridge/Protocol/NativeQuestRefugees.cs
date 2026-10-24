@@ -16,9 +16,9 @@ namespace HomeBridge.BridgeTools
             var pawns = quest.PartsListForReading.OfType<QuestPart_DropPods>().SelectMany(p => p.Things)
                 .OfType<Pawn>().Where(p => !p.Destroyed).Distinct().OrderBy(p => p.GetUniqueLoadID()).ToArray();
             if (pawns.Length == 0) yield break;
-            var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.RescuePawns, Active = quest.State == QuestState.Ongoing };
-            row = row with { PawnIds = [.. row.PawnIds, .. pawns.Select(p => p.GetUniqueLoadID())] };
-            yield return row;
+            yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.RescuePawns, Goal = new Obs.QuestObjectiveGoal.Uncounted(), Timing = new Obs.QuestObjectiveTiming.Untimed(),
+                PawnIds = [.. pawns.Select(p => new RimGovernor.Brain.Domain.PawnId(p.GetUniqueLoadID()))], Active = quest.State == QuestState.Ongoing,
+                MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
         }
     }
 }

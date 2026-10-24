@@ -117,7 +117,7 @@ public static class QuestPeaceTalksPolicy
             var mission = offer with
             {
                 Profile = Known(new QuestProfile { Family = QuestFamily.PawnLend }),
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Count = Known(1L) }],
+                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Goal = new Pb.QuestObjectiveGoal.Pawns(1) }],
             };
             var (crew, reason) = QuestDeparture.DepartureSquadOf(mission, trial, false);
             if (!reason.IsNone || crew.Count != 1)

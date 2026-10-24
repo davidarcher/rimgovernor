@@ -49,7 +49,7 @@ public static partial class TradePolicyRules
             var offer = new JoinerOffer
             {
                 Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
-                Objectives = [new QuestObjective { Kind = O.QuestObjectiveKind.LoadPawns, Count = Known(1L) }],
+                Objectives = [new QuestObjective { Kind = O.QuestObjectiveKind.LoadPawns, Goal = new O.QuestObjectiveGoal.Pawns(1) }],
             };
             var (crew, reason) = QuestDeparture.DepartureSquadWithCrew(offer, candidate, false, true);
             if (reason.Value.Length == 0)

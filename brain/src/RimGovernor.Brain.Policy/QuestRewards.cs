@@ -4,22 +4,6 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Typed native benefit evidence. Choice -1 applies to every option.</summary>
-public sealed record QuestReward
-{
-    public int Choice { get; init; }
-
-    public IReadOnlyList<Amount> Items { get; init; } = [];
-
-    public int Goodwill { get; init; }
-
-    public int Psylink { get; init; }
-
-    public int PermitPoints { get; init; }
-
-    public IReadOnlyList<string> Permits { get; init; } = [];
-}
-
 /// <summary>
 /// Gives pending titles priority, then observed shortages, then useful benefits. Scores compare only quest
 /// rewards, never colony purchases.
@@ -73,23 +57,24 @@ public static class QuestRewards
     }
 
     /// <summary>
-    /// Keeps native option indices and aggregates all rows for a choice. A multiple-part quest is refused
-    /// because native cannot choose it.
+    /// Scores each native option (its index in Rewards) with the favor the quest grants whatever is taken; a quest
+    /// without a reward choice is scored on that favor alone as choice -1. A multiple-part quest is refused because
+    /// native cannot choose it.
     /// </summary>
     public static QuestRewardChoice SelectQuestReward(JoinerOffer offer, RoundsFacts f)
     {
-        if (offer.RewardChoiceParts.TryGetValue(out var parts) && parts > 1)
+        if (offer.RewardChoiceParts > 1)
         {
             return new QuestRewardChoice { Choice = -1, Reason = "reward_choices" };
         }
         var indices = new List<int>();
-        if (offer.ChoiceCount == 0)
+        if (offer.Rewards.Count == 0)
         {
             indices.Add(-1);
         }
         else
         {
-            for (var i = 0; i < offer.ChoiceCount; i++)
+            for (var i = 0; i < offer.Rewards.Count; i++)
             {
                 indices.Add(i);
             }
@@ -127,29 +112,20 @@ public static class QuestRewards
             var index = indices[ordinal];
             long titleFavor = 0;
             double needed = 0, benefits = 0;
-            long favor = 0;
-            foreach (var row in offer.Favor)
-            {
-                if (row.Choice == index || row.Choice == -1)
-                {
-                    favor += row.Favor;
-                }
-            }
+            long favor = offer.Favor + (index >= 0 ? offer.Rewards[index].Favor : 0);
             if (titles)
             {
                 titleFavor = favor;
             }
             benefits += favor;
             var quantities = new Dictionary<Resource, long>();
-            foreach (var row in offer.Rewards)
+            // The option's own row; choice -1 belongs to a quest with no option rows.
+            foreach (var row in offer.Rewards.Skip(Math.Max(index, 0)).Take(1))
             {
-                if (row.Choice != index && row.Choice != -1)
-                {
-                    continue;
-                }
                 foreach (var item in row.Items)
                 {
-                    quantities[item.Resource] = quantities.GetValueOrDefault(item.Resource) + item.Count;
+                    var resource = new Resource(item.DefName);
+                    quantities[resource] = quantities.GetValueOrDefault(resource) + item.Units;
                 }
                 benefits += Math.Max(0, row.Goodwill);
                 benefits += (double)row.Psylink * PermitChoiceRules.PermitValue(PermitCategory.Psycast, true);

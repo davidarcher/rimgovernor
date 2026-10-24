@@ -15,7 +15,7 @@ internal static class NativeDependentPatients
     {
         var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
         var refugees = Find.QuestManager.QuestsListForReading.SelectMany(NativeQuestRefugees.Read)
-            .Where(o => o.Active == true).SelectMany(o => o.PawnIds).ToHashSet(StringComparer.Ordinal);
+            .Where(o => o.Active).SelectMany(o => o.PawnIds).Select(p => p.Value).ToHashSet(StringComparer.Ordinal);
         var result = new List<(Pawn, DependentPatientGroup, bool, bool)>();
         foreach (var pawn in map.mapPawns.AllPawnsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {

@@ -57,8 +57,8 @@ public static class QuestSurvey
             duration = Math.Max(0L, running.EndTick.Value - now.Value);
         }
         site = site with { HoldTicks = duration };
-        var fk = offer.ThreatPoints.TryGetValue(out var forced);
-        if (!fk || site.Threat is not ExpeditionThreat.Bounded { Points: var initial } || !TradePolicyRules.Finite(forced) || !TradePolicyRules.Finite(initial) || forced < 0 || initial < 0)
+        var forced = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
+        if (site.Threat is not ExpeditionThreat.Bounded { Points: var initial } || !TradePolicyRules.Finite(initial) || initial < 0)
         {
             return (site, "threat_unknown");
         }

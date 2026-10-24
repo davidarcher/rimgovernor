@@ -34,18 +34,14 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        internal static Obs.QuestObjective LodgerMood(Quest quest, Obs.QuestObjective row, IEnumerable<Pawn> pawns)
+        // The lodgers' mood floor (the highest QuestPart_MoodBelow threshold over them) and the mood of every lodger the
+        // game tracks one for.
+        internal static (Obs.QuestMoodFloor Floor, RimGovernor.Brain.Domain.EquatableArray<Obs.QuestLodgerMood> Moods) LodgerMood(Quest quest, Pawn[] guests)
         {
-            var guests = pawns.ToArray();
             var thresholds = quest.PartsListForReading.OfType<QuestPart_MoodBelow>().Where(p => p.pawns.Any(guests.Contains)).ToArray();
-            if (thresholds.Length > 0) row = row with { MinimumMood = thresholds.Max(p => p.threshold) };
-            foreach (var pawn in guests)
-            {
-                var state = new Obs.QuestLodgerMood();
-                if (pawn.Spawned && !pawn.Dead && pawn.needs?.mood != null) state = state with { Mood = pawn.needs.mood.CurLevel };
-                row = row with { LodgerMoods = [.. row.LodgerMoods, state] };
-            }
-            return row;
+            Obs.QuestMoodFloor floor = thresholds.Length > 0 ? new Obs.QuestMoodFloor.Floor(thresholds.Max(p => p.threshold)) : new Obs.QuestMoodFloor.NoFloor();
+            RimGovernor.Brain.Domain.EquatableArray<Obs.QuestLodgerMood> moods = [.. guests.Where(p => p.Spawned && !p.Dead && p.needs?.mood != null).Select(p => new Obs.QuestLodgerMood(p.needs!.mood!.CurLevel))];
+            return (floor, moods);
         }
     }
 }

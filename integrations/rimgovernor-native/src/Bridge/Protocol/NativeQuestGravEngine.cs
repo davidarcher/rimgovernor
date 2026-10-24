@@ -17,7 +17,8 @@ namespace HomeBridge.BridgeTools
             var engines = quest.QuestLookTargets.Select(t => t.Thing).OfType<Building_GravEngine>().Distinct().ToArray();
             if (engines.Length != 1)
             {
-                yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.InspectGravEngine };
+                yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.InspectGravEngine, Active = true, Goal = new Obs.QuestObjectiveGoal.Uncounted(),
+                    Timing = new Obs.QuestObjectiveTiming.Untimed(), PawnIds = [], MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
                 yield break;
             }
             var engine = engines[0];
@@ -27,7 +28,8 @@ namespace HomeBridge.BridgeTools
                 Inspected = Find.ResearchManager.gravEngineInspected,
                 Place = Place(engine),
             };
-            yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.InspectGravEngine, GravEngine = row };
+            yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.InspectGravEngine, GravEngine = row, Active = true, Goal = new Obs.QuestObjectiveGoal.Uncounted(),
+                Timing = new Obs.QuestObjectiveTiming.Untimed(), PawnIds = [], MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
         }
 
         private static Obs.GravEnginePlace Place(Building_GravEngine engine)

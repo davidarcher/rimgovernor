@@ -185,17 +185,16 @@ public static class QuestCapacityForecast
                 continue;
             }
             if (offer.State == "Ongoing"
-                && objective.Active.TryGetValue(out var active) && !active && objective.Kind != Pb.QuestObjectiveKind.Monument)
+                && !objective.Active && objective.Kind != Pb.QuestObjectiveKind.Monument)
             {
                 continue;
             }
-            var dk = objective.DeadlineTicks.TryGetValue(out var deadline);
-            var tk = objective.DurationTicks.TryGetValue(out var duration);
-            if (!dk && !tk)
+            long deadline;
+            if (objective.Timing is Pb.QuestObjectiveTiming.Deadline due)
             {
-                continue;
+                deadline = due.Tick;
             }
-            if (!dk)
+            else if (objective.Timing is Pb.QuestObjectiveTiming.Duration { Ticks: var duration })
             {
                 if (duration > long.MaxValue - now)
                 {
@@ -203,7 +202,12 @@ public static class QuestCapacityForecast
                 }
                 deadline = now + duration;
             }
-            if (objective.Count.TryGetValue(out var count) && objective.Produced.TryGetValue(out var produced) && produced >= count)
+            else
+            {
+                // An untimed objective sets no deadline.
+                continue;
+            }
+            if (objective.Goal is Pb.QuestObjectiveGoal.Things things && things.Done >= things.Count)
             {
                 continue;
             }

@@ -600,17 +600,26 @@ a def-name list.
 
 ## Quest census Empire fields
 
-`QuestState.faction_id` is the first non-player faction in `Quest.InvolvedFactions`
-(the id `FactionState` rows use) and `QuestState.map_id` the map of the first
-`QuestLookTargets` entry on a map; both are absent when native has none (a
-quest anchored only to a world object has no `map_id`). `QuestReward.favor` is
-the royal favor a `Reward_RoyalFavor` grants; summed per `choice_index`, it is
-what the Empire quest planner maximises. the brain read carries
-`FactionState` id and hostile beside the quests, and a quest with no
-`map_id` or one off the identity map is off-map. A `QuestPart_GiveRoyalFavor`
-outside every choice's part list emits a reward with absent `choice_index`:
-its favor applies independently of reward selection. The brain represents this with
-choice -1 and does not count it as an option.
+Every `QuestState` member is required; native builds the row whole and fails the
+read on a quest it cannot read. `QuestState.faction_id` is the first non-player
+faction in `Quest.InvolvedFactions` (the id `FactionState` rows use), null when
+the quest involves none. `place` is `on_map` with the map of the first
+`QuestLookTargets` entry on a map, or `off_map` for a quest anchored only to a
+world object; the brain read carries `FactionState` id and hostile beside the
+quests, and a quest off the identity map is off-map. `acceptance` is `accepted`
+with the acceptance tick or `not_accepted`; `expiry` is `expires_in` with the
+ticks left on the offer or `no_expiry`. `threat` is `points` with the raid
+budget the quest's threat parts generate, or `no_threat` for a quest without
+threat parts (the colony then faces no quest raid).
+
+`QuestState.rewards` holds one row per option of the quest's reward choice, in
+the game's order; a row's position is the `AcceptQuestIntent` reward index, and
+it totals every reward that option grants. `QuestState.favor` is the royal favor
+the quest grants whatever option is taken (its `QuestPart_GiveRoyalFavor` parts
+outside every choice); `QuestReward.favor` is the favor an option's
+`Reward_RoyalFavor` grants. An option's favor is the quest favor plus its own,
+what the Empire quest planner maximises. A quest with no reward choice has no
+rows and is scored on its quest favor alone.
 
 `QuestReward.items` contains exact native item def names and stack counts.
 `goodwill` carries the signed faction relation change.
@@ -623,26 +632,30 @@ the number of independent native choice parts; more than one remains unsupported
 Reward selection prioritizes favor while a recorded holder lacks the next
 title's favor, then items that meet observed resource, construction or food
 shortages, then the remaining native benefits. Ties choose the lowest option
-index. Independent favor contributes equally to every option.
+index. Quest favor contributes equally to every option.
 
 `QuestState.objectives` carries a closed `QuestObjectiveKind`: produce_item,
 harvest_plant, kill_animals, host_lodgers, accept_requirement_unmet,
-load_pawns, load_named_pawns, monument, expiry, or unknown. Definition and stuff
-are native def names; count and produced are native required and completed units.
-Missing optional fields remain unknown. `deadline_ticks` is an absolute game
-tick; expiry is the offer expiry. Named pawn objectives carry exact pawn IDs.
-`unmet_requirement` is native display text for an acceptance refusal, never
-policy input. Unsupported parts emit unknown without raw part data. These rows
-are derived observations, not persisted intent.
+load_pawns, load_named_pawns, monument, expiry, rescue_pawns,
+inspect_grav_engine, hold_survey_scanner, hack_things or give_items. Every
+objective's `goal` is `things` (native def and stuff names with the required and
+completed units), `pawns` (the pawns the part requires) or `uncounted`; its
+`timing` is `deadline` (an absolute game tick), `duration` (ticks the part runs)
+or `untimed`; the expiry objective's deadline is the offer expiry. Named pawn
+objectives carry exact pawn IDs. A hosted-lodgers objective's `minimum_mood` is
+`floor` with the mood the lodgers must keep or `no_floor`, and `lodger_moods`
+lists the mood of every spawned, living lodger with a mood need. Native display
+text for an acceptance refusal is not on the wire. These rows are derived
+observations, not persisted intent.
 
-`QuestObjective.active` is the native activable part's enabled state; it is
-absent for a non-activable part. Decree work rows use the earliest enabled
-native timeout as their absolute deadline. A decree's `asker_pawn_id` and
-`asker_faction_player` come from its `DecreeUnmet` situational-thought recipient,
-the exact requester reference in the native decree script. Conflicting or
-missing recipients remain unknown. `violent_quests_allowed` is the current
-storyteller difficulty setting.
-
+`QuestObjective.active` is the native activable part's enabled state; a part
+with no enable state is in force while the quest lists it. Decree work rows use
+the earliest enabled native timeout as their absolute deadline. A decree's
+`asker` comes from its `DecreeUnmet` situational-thought recipient, the exact
+requester reference in the native decree script: `player_faction`,
+`other_faction`, `no_single_asker` when the recipients conflict or are missing,
+or `not_decree`. Only a player-faction asker is worked. `violent_quests_allowed`
+is the current storyteller difficulty setting.
 Completed monuments belonging to an ongoing quest remain protected at the native
 write boundary: construction and reinstall previews refuse their sketch area;
 removal guards refuse sketch pieces, its terrain and the marker. The guard reads

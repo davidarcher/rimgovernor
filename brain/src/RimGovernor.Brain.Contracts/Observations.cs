@@ -3565,57 +3565,50 @@ public sealed record CaravanState
     public required EquatableArray<Quantity> Inventory { get; init; }
 }
 
-public sealed record QuestReward
-{
-    public uint? ChoiceIndex { get; init; }
+/// <summary>
+/// One option of the quest's reward choice, totalled over every reward the option grants. Its position in
+/// <see cref="QuestState.Rewards"/> is the option's QuestAccept reward index. Psylink counts bestowed psylink levels and
+/// psychic amplifiers; Favor is the option's own royal favor (favor every option grants is <see cref="QuestState.Favor"/>).
+/// </summary>
+public sealed record QuestReward(
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<QuestRewardItem>))] EquatableArray<QuestRewardItem> Items,
+    int Favor,
+    int Goodwill,
+    int Psylink,
+    int PermitPoints,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Permits);
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Items { get; init; }
+/// <summary>An item stack a reward option grants: the exact native def name and stack count.</summary>
+public sealed record QuestRewardItem(string DefName, long Units);
 
-    public int? Favor { get; init; }
-
-    public int? Goodwill { get; init; }
-
-    public int? Psylink { get; init; }
-
-    public int? PermitPoints { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Permits { get; init; }
-}
-
+/// <summary>
+/// One requirement a quest states and its observed progress. Members that only some kinds carry are named per kind:
+/// <see cref="Goal"/> (what is counted), <see cref="Timing"/> (when it is due) and <see cref="MinimumMood"/> (hosted
+/// lodgers' mood floor).
+/// </summary>
 public sealed record QuestObjective
 {
     public required QuestObjectiveKind Kind { get; init; }
 
-    public string? Def { get; init; }
+    public required QuestObjectiveGoal Goal { get; init; }
 
-    public string? Stuff { get; init; }
+    public required QuestObjectiveTiming Timing { get; init; }
 
-    public long? Count { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> PawnIds { get; init; }
 
-    public long? Produced { get; init; }
-
-    public long? DeadlineTicks { get; init; }
-
-    public string? UnmetRequirement { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
-
-    public bool? Active { get; init; }
+    /// <summary>
+    /// The quest part's enable state; an objective whose part has no enable state is in force while the quest lists it.
+    /// </summary>
+    public required bool Active { get; init; }
 
     public QuestMonument? Monument { get; init; }
 
-    public double? MinimumMood { get; init; }
+    public required QuestMoodFloor MinimumMood { get; init; }
 
+    /// <summary>The current mood of every hosted lodger the game tracks a mood for (spawned, alive, with a mood need).</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestLodgerMood>))]
-    public EquatableArray<QuestLodgerMood> LodgerMoods { get; init; }
-
-    /// <summary>
-    /// Time available after acceptance; never an offer expiry.
-    /// </summary>
-    public long? DurationTicks { get; init; }
+    public required EquatableArray<QuestLodgerMood> LodgerMoods { get; init; }
 
     public QuestWorkload? Workload { get; init; }
 
@@ -4036,9 +4029,57 @@ public sealed record QuestWorkload
     public required double RateFactor { get; init; }
 }
 
-public sealed record QuestLodgerMood
+public sealed record QuestLodgerMood(double Mood);
+
+/// <summary>
+/// What a quest objective counts: <see cref="Things"/> made, harvested or killed of one def (Stuff null when any stuff
+/// counts), <see cref="Pawns"/> to load or host, or <see cref="Uncounted"/> for a kind that counts nothing.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestObjectiveGoal.Things), "things")]
+[JsonDerivedType(typeof(QuestObjectiveGoal.Pawns), "pawns")]
+[JsonDerivedType(typeof(QuestObjectiveGoal.Uncounted), "uncounted")]
+public abstract record QuestObjectiveGoal
 {
-    public double? Mood { get; init; }
+    private protected QuestObjectiveGoal() { }
+
+    public sealed record Things(string Def, string? Stuff, long Count, long Done) : QuestObjectiveGoal;
+
+    public sealed record Pawns(long Count) : QuestObjectiveGoal;
+
+    public sealed record Uncounted : QuestObjectiveGoal;
+}
+
+/// <summary>
+/// When a quest objective is due: by an absolute <see cref="Deadline"/> tick, within a <see cref="Duration"/> that starts
+/// at acceptance (never an offer expiry), or <see cref="Untimed"/>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestObjectiveTiming.Deadline), "deadline")]
+[JsonDerivedType(typeof(QuestObjectiveTiming.Duration), "duration")]
+[JsonDerivedType(typeof(QuestObjectiveTiming.Untimed), "untimed")]
+public abstract record QuestObjectiveTiming
+{
+    private protected QuestObjectiveTiming() { }
+
+    public sealed record Deadline(long Tick) : QuestObjectiveTiming;
+
+    public sealed record Duration(long Ticks) : QuestObjectiveTiming;
+
+    public sealed record Untimed : QuestObjectiveTiming;
+}
+
+/// <summary>The mood hosted lodgers must stay above (the highest QuestPart_MoodBelow threshold), or <see cref="NoFloor"/>.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestMoodFloor.Floor), "floor")]
+[JsonDerivedType(typeof(QuestMoodFloor.NoFloor), "no_floor")]
+public abstract record QuestMoodFloor
+{
+    private protected QuestMoodFloor() { }
+
+    public sealed record Floor(double Mood) : QuestMoodFloor;
+
+    public sealed record NoFloor : QuestMoodFloor;
 }
 
 /// <summary>
@@ -4225,48 +4266,132 @@ public sealed record QuestShuttleState
     public required EquatableArray<PawnId> PendingPawnIds { get; init; }
 }
 
+/// <summary>
+/// One visible quest, read whole. Rewards lists the reward choice's options in the game's order (empty without a
+/// choice part); Favor is the royal favor the quest grants whatever option is taken.
+/// </summary>
 public sealed record QuestState
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public Receipts.QuestStatus? State { get; init; }
+    public required Receipts.QuestStatus State { get; init; }
 
-    public long? AcceptedTick { get; init; }
+    public required QuestAcceptance Acceptance { get; init; }
 
-    public long? ExpiresInTicks { get; init; }
+    public required QuestExpiry Expiry { get; init; }
 
-    public bool? RequiresAccepter { get; init; }
+    public required bool RequiresAccepter { get; init; }
 
-    public bool? CanAccept { get; init; }
+    public required bool CanAccept { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> EligiblePawns { get; init; }
+    /// <summary>The spawned free colonists the game lets accept the quest.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> EligiblePawns { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestReward>))]
-    public EquatableArray<QuestReward> Rewards { get; init; }
+    public required EquatableArray<QuestReward> Rewards { get; init; }
 
-    public string? ScriptDef { get; init; }
+    public required int Favor { get; init; }
 
-    public string? FactionId { get; init; }
+    /// <summary>The root QuestScriptDef's defName.</summary>
+    public required string ScriptDef { get; init; }
 
-    public int? MapId { get; init; }
+    /// <summary>The first non-player faction the quest involves, null when it involves none.</summary>
+    public required string? FactionId { get; init; }
+
+    public required QuestPlace Place { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestObjective>))]
-    public EquatableArray<QuestObjective> Objectives { get; init; }
+    public required EquatableArray<QuestObjective> Objectives { get; init; }
 
-    public int? ChoicePartCount { get; init; }
+    public required int ChoicePartCount { get; init; }
 
-    public bool? AskerFactionPlayer { get; init; }
+    public required DecreeAsker Asker { get; init; }
 
-    public bool? ViolentQuestsAllowed { get; init; }
+    /// <summary>The storyteller difficulty's allowViolentQuests.</summary>
+    public required bool ViolentQuestsAllowed { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestShuttleState>))]
-    public EquatableArray<QuestShuttleState> Shuttles { get; init; }
+    public required EquatableArray<QuestShuttleState> Shuttles { get; init; }
 
-    public double? ThreatPoints { get; init; }
+    public required QuestThreat Threat { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> DeparturePawnIds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> DeparturePawnIds { get; init; }
+}
+
+/// <summary>Whether the quest was accepted, and at which game tick.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestAcceptance.Accepted), "accepted")]
+[JsonDerivedType(typeof(QuestAcceptance.NotAccepted), "not_accepted")]
+public abstract record QuestAcceptance
+{
+    private protected QuestAcceptance() { }
+
+    public sealed record Accepted(long Tick) : QuestAcceptance;
+
+    public sealed record NotAccepted : QuestAcceptance;
+}
+
+/// <summary>The ticks left before an unaccepted offer expires, or <see cref="NoExpiry"/> for an offer that never does.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestExpiry.ExpiresIn), "expires_in")]
+[JsonDerivedType(typeof(QuestExpiry.NoExpiry), "no_expiry")]
+public abstract record QuestExpiry
+{
+    private protected QuestExpiry() { }
+
+    public sealed record ExpiresIn(long Ticks) : QuestExpiry;
+
+    public sealed record NoExpiry : QuestExpiry;
+}
+
+/// <summary>
+/// The first map any look target of the quest sits on (a map parent's own map counts), or <see cref="OffMap"/> for a
+/// quest anchored only to world objects.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestPlace.OnMap), "on_map")]
+[JsonDerivedType(typeof(QuestPlace.OffMap), "off_map")]
+public abstract record QuestPlace
+{
+    private protected QuestPlace() { }
+
+    public sealed record OnMap(int MapId) : QuestPlace;
+
+    public sealed record OffMap : QuestPlace;
+}
+
+/// <summary>
+/// The threat a quest generates: the summed points of its big and small threat incidents plus the combat power of its
+/// hostile arrivals, or <see cref="NoThreat"/> when it carries neither.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestThreat.Points), "points")]
+[JsonDerivedType(typeof(QuestThreat.NoThreat), "no_threat")]
+public abstract record QuestThreat
+{
+    private protected QuestThreat() { }
+
+    public sealed record Points(double Value) : QuestThreat;
+
+    public sealed record NoThreat : QuestThreat;
+}
+
+/// <summary>Whose decree a quest is: the faction of the one pawn carrying its DecreeUnmet thought.</summary>
+[JsonConverter(typeof(WireEnumConverter<DecreeAsker>))]
+public enum DecreeAsker
+{
+    /// <summary>The quest root is not a Decree_ script.</summary>
+    [WireName("not_decree")]
+    NotDecree,
+    [WireName("player_faction")]
+    PlayerFaction,
+    [WireName("other_faction")]
+    OtherFaction,
+    /// <summary>A decree whose DecreeUnmet thought sits on no single pawn with a faction.</summary>
+    [WireName("no_single_asker")]
+    NoSingleAsker,
 }
 
 public sealed record FactionState
@@ -4305,30 +4430,30 @@ public sealed record CaravanAssembly
 
 public sealed record WorldProgressionSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorldMap>))]
-    public EquatableArray<WorldMap> Maps { get; init; }
+    public required EquatableArray<WorldMap> Maps { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FactionState>))]
-    public EquatableArray<FactionState> Factions { get; init; }
+    public required EquatableArray<FactionState> Factions { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CaravanState>))]
-    public EquatableArray<CaravanState> Caravans { get; init; }
+    public required EquatableArray<CaravanState> Caravans { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CaravanAssembly>))]
-    public EquatableArray<CaravanAssembly> Assemblies { get; init; }
+    public required EquatableArray<CaravanAssembly> Assemblies { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestState>))]
-    public EquatableArray<QuestState> Quests { get; init; }
+    public required EquatableArray<QuestState> Quests { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorldSite>))]
-    public EquatableArray<WorldSite> Sites { get; init; }
+    public required EquatableArray<WorldSite> Sites { get; init; }
 }
 
 public sealed record WorldProgressionRequest
 {
-    public ReadScope? Scope { get; init; }
+    public required ReadScope Scope { get; init; }
 }
 
 /// <summary>

@@ -74,17 +74,7 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>The vanilla QuestState name ("NotYetAccepted", ...).</summary>
+    /// <summary>The vanilla QuestState name ("NotYetAccepted", ...): every QuestStatus member is named after its QuestState.</summary>
     public static string QuestStatusName(QuestStatus status) =>
-        status switch
-        {
-            QuestStatus.NotYetAccepted => "NotYetAccepted",
-            QuestStatus.Ongoing => "Ongoing",
-            QuestStatus.EndedUnknownOutcome => "EndedUnknownOutcome",
-            QuestStatus.EndedSuccess => "EndedSuccess",
-            QuestStatus.EndedFailed => "EndedFailed",
-            QuestStatus.EndedOfferExpired => "EndedOfferExpired",
-            QuestStatus.EndedInvalid => "EndedInvalid",
-            _ => "",
-        };
+        Enum.GetName(status) ?? throw new BridgeContractException("quest status " + (int)status + " is not a QuestStatus member");
 }

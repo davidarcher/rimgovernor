@@ -42,7 +42,7 @@ internal static class QuestAccept
                 ?? throw new AcceptanceException($"{label}: fixture quest {questId} not found in world progression");
 
         var before = await Target("target-before").ConfigureAwait(false);
-        if (before.State != Receipts.QuestStatus.NotYetAccepted || before.RequiresAccepter == true || before.CanAccept != true)
+        if (before.State != Receipts.QuestStatus.NotYetAccepted || before.RequiresAccepter || !before.CanAccept)
         {
             throw new AcceptanceException($"target-before: expected an acceptable not-yet-accepted quest needing no accepter, got {before}");
         }
@@ -84,7 +84,7 @@ internal static class QuestAccept
         Accepted("apply", result);
         var after = await Target("target-after-apply").ConfigureAwait(false);
         s.RecordWire("accepted", after);
-        if (after.State == Receipts.QuestStatus.NotYetAccepted || after.CanAccept == true || after.AcceptedTick is not >= 0)
+        if (after.State == Receipts.QuestStatus.NotYetAccepted || after.CanAccept || after.Acceptance is not Observations.QuestAcceptance.Accepted { Tick: >= 0 })
         {
             throw new AcceptanceException($"target-after-apply: expected an accepted quest with its acceptance tick, no longer acceptable, got {after}");
         }

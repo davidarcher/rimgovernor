@@ -400,10 +400,9 @@ public static class RoundsReads
                 State = quest.State,
                 CanAccept = quest.CanAccept,
                 RequiresAccepter = quest.RequiresAccepter,
-                ChoiceCount = quest.ChoiceCount,
                 FactionId = quest.FactionId,
                 FactionHostile = Unknown<bool>(),
-                OnMap = quest.MapKnown && new MapId(quest.MapId) == home,
+                OnMap = quest.Place is O.QuestPlace.OnMap place && new MapId(place.MapId) == home,
                 Class = Unknown<QuestClass>(),
             };
             try
@@ -428,31 +427,15 @@ public static class RoundsReads
             }
             offer = offer with
             {
-                Favor = [.. quest.Favor.Select(f => new QuestFavor(f.Choice, f.Favor))],
-                RewardChoiceParts = quest.RewardChoiceParts is { } parts ? Known(parts) : default,
+                Favor = quest.Favor,
+                RewardChoiceParts = quest.RewardChoiceParts,
                 DeparturePawnIds = [.. quest.DeparturePawnIds.Select(i => new PawnId(i))],
-                AskerFactionPlayer = quest.AskerFactionPlayer is { } player ? Known(player) : default,
-                ViolentQuestsAllowed = quest.ViolentQuestsAllowed is { } violent ? Known(violent) : default,
-                ThreatPoints = ColonyDecodeReads.Optional(quest.ThreatPoints.HasValue, quest.ThreatPoints.GetValueOrDefault()),
-            };
-            var rewards = new List<QuestReward>();
-            foreach (var reward in quest.Rewards)
-            {
-                rewards.Add(new QuestReward
-                {
-                    Choice = reward.Choice,
-                    Goodwill = reward.Goodwill,
-                    Psylink = reward.Psylink,
-                    PermitPoints = reward.PermitPoints,
-                    Permits = [.. reward.Permits],
-                    Items = [.. reward.Items.Select(item => new Amount(new Resource(item.Def), item.Count))],
-                });
-            }
-            offer = offer with
-            {
-                Rewards = rewards,
+                Asker = quest.Asker,
+                ViolentQuestsAllowed = quest.ViolentQuestsAllowed,
+                Threat = quest.Threat,
+                Rewards = quest.Rewards,
                 EligiblePawnIds = [.. quest.EligiblePawnIds.Select(i => new PawnId(i))],
-                ExpiresInTicks = quest.ExpiresInTicks is { } expires ? Known(expires) : default,
+                Expiry = quest.Expiry,
             };
             var objectives = new List<QuestObjective>();
             foreach (var objective in quest.Objectives)
@@ -460,18 +443,16 @@ public static class RoundsReads
                 var row = new QuestObjective
                 {
                     Kind = objective.Kind,
-                    Def = objective.Def,
-                    Stuff = objective.Stuff,
-                    MinimumMood = ColonyDecodeReads.Optional(objective.MinimumMood.HasValue, objective.MinimumMood.GetValueOrDefault()),
+                    Def = objective.Goal is O.QuestObjectiveGoal.Things things ? things.Def : "",
+                    Stuff = objective.Goal is O.QuestObjectiveGoal.Things { Stuff: { } stuff } ? stuff : "",
+                    Goal = objective.Goal,
+                    Timing = objective.Timing,
+                    MinimumMood = objective.MinimumMood,
                     GravEngine = objective.GravEngine,
                     SurveyScanner = objective.SurveyScanner,
-                    DurationTicks = ColonyDecodeReads.Optional(objective.DurationTicks.HasValue, objective.DurationTicks.GetValueOrDefault()),
                     Workload = QuestReads.QuestWorkloadOf(objective.Workload, catalog),
-                    LodgerMoods = [.. objective.LodgerMoods.Select(m => new QuestLodgerMood(ColonyDecodeReads.Optional(m.Mood.HasValue, m.Mood.GetValueOrDefault())))],
-                    Count = objective.Count is { } count ? Known(count) : default,
-                    Active = objective.Active is { } active ? Known(active) : default,
-                    Produced = objective.Produced is { } produced ? Known(produced) : default,
-                    DeadlineTicks = objective.DeadlineTicks is { } deadline ? Known(deadline) : default,
+                    LodgerMoods = objective.LodgerMoods,
+                    Active = objective.Active,
                     PawnIds = [.. objective.PawnIds.Select(i => new PawnId(i))],
                     Monument = objective.Monument,
                     HackTargets = objective.HackTargets,

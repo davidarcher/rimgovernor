@@ -36,14 +36,7 @@ public static class QuestCapacity
             return (default, false);
         }
         var royalKnown = facts.Royalty.TryGetValue(out var royal);
-        long favor = 0;
-        foreach (var reward in offer.Favor)
-        {
-            if (reward.Choice == choice || reward.Choice == -1)
-            {
-                favor += reward.Favor;
-            }
-        }
+        long favor = offer.Favor + (choice >= 0 && choice < offer.Rewards.Count ? offer.Rewards[choice].Favor : 0);
         var priorities = new Dictionary<PawnId, int>();
         if (!workers.TryGetValue(out var pawns))
         {

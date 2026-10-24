@@ -108,8 +108,6 @@ public enum SurgeryState
 [JsonConverter(typeof(WireEnumConverter<QuestStatus>))]
 public enum QuestStatus
 {
-    [WireName("QUEST_STATUS_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("QUEST_STATUS_NOT_YET_ACCEPTED")]
     NotYetAccepted = 1,
     [WireName("QUEST_STATUS_ONGOING")]

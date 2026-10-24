@@ -154,11 +154,11 @@ public static class QuestHospitality
                 {
                     continue;
                 }
-                if (objective.MinimumMood.TryGetValue(out var threshold))
+                if (objective.MinimumMood is Pb.QuestMoodFloor.Floor { Mood: var threshold })
                 {
                     foreach (var guest in objective.LodgerMoods)
                     {
-                        if (guest.Mood.TryGetValue(out var mood) && mood < threshold)
+                        if (guest.Mood < threshold)
                         {
                             return work with { Reason = "lodger_mood_upkeep", Waiting = true };
                         }
@@ -183,7 +183,7 @@ public static class QuestHospitality
         {
             if (objective.Kind == Pb.QuestObjectiveKind.HostLodgers)
             {
-                if (!objective.Count.TryGetValue(out var count))
+                if (objective.Goal is not Pb.QuestObjectiveGoal.Pawns { Count: var count })
                 {
                     return "guest_count_unknown";
                 }

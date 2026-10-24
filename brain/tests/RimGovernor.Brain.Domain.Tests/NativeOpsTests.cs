@@ -27,6 +27,7 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.ReadStorageOccupancy) ? """{"groups":[],"sinceHour":0}"""
                 : ReferenceEquals(op, NativeOps.ListResourceSources) ? """{"resource":""}"""
                 : ReferenceEquals(op, NativeOps.ReadRecipes) ? """{"benchId":""}"""
+                : ReferenceEquals(op, NativeOps.ReadWorldProgression) ? """{"scope":{}}"""
                 : ReferenceEquals(op, NativeOps.ReadCombatGeometry) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"cells":[],"hostileIds":[]}"""
                 : ReferenceEquals(op, NativeOps.ReadDefenseSite) ? """{"scope":{},"region":{}}"""
                 : ReferenceEquals(op, NativeOps.ReadLinesOfFire) ? """{"scope":{},"firingCells":[],"approachCells":[],"budgetMs":0}"""

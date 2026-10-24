@@ -207,9 +207,7 @@ public static class QuestMonumentPolicy
                     return "monument_ambiguous";
                 }
                 marker = m;
-                var d = objective.DeadlineTicks.TryGetValue(out _);
-                var t = objective.DurationTicks.TryGetValue(out _);
-                timed = d || t;
+                timed = objective.Timing is not Pb.QuestObjectiveTiming.Untimed;
             }
         }
         if (marker is null)
@@ -278,9 +276,8 @@ public static class QuestMonumentPolicy
         }
         if ((profile.Demands & QuestDemand.Security) != 0)
         {
-            var tk = offer.ThreatPoints.TryGetValue(out var threat);
-            var dk = f.DefenseCapacity.TryGetValue(out var defense);
-            if (!tk || !dk)
+            var threat = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
+            if (!f.DefenseCapacity.TryGetValue(out var defense))
             {
                 return "defense_unknown";
             }

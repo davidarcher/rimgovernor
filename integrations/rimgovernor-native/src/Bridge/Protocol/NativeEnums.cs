@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
             RimWorld.QuestState.EndedFailed => Receipts.QuestStatus.EndedFailed,
             RimWorld.QuestState.EndedOfferExpired => Receipts.QuestStatus.EndedOfferExpired,
             RimWorld.QuestState.EndedInvalid => Receipts.QuestStatus.EndedInvalid,
-            _ => Receipts.QuestStatus.Unspecified
+            _ => throw new System.InvalidOperationException("Unknown quest state " + state + ".")
         };
     }
 }

@@ -49,10 +49,8 @@ public static class QuestSelection
         {
             return "colony_busy";
         }
-        if (!offer.ThreatPoints.TryGetValue(out var threat) || !TradePolicyRules.Finite(threat) || threat < 0)
-        {
-            return "threat_unknown";
-        }
+        // A quest without threat parts threatens no raid.
+        var threat = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
         if (!facts.DefenseCapacity.TryGetValue(out var defense) || !TradePolicyRules.Finite(defense) || defense < 0)
         {
             return "defense_unknown";
@@ -74,11 +72,7 @@ public static class QuestSelection
         {
             return "";
         }
-        if (!offer.ExpiresInTicks.TryGetValue(out var remaining))
-        {
-            return "expiry_unknown";
-        }
-        if (remaining <= 0)
+        if (offer.Expiry is Pb.QuestExpiry.ExpiresIn { Ticks: <= 0 })
         {
             return "expired";
         }
@@ -110,7 +104,7 @@ public static class QuestSelection
         }
         if (profile.Family == QuestFamily.Bestowing)
         {
-            if (offer.RewardChoiceParts.TryGetValue(out var parts) && parts > 1)
+            if (offer.RewardChoiceParts > 1)
             {
                 return (false, "reward_choices");
             }
@@ -153,7 +147,7 @@ public static class QuestSelection
         {
             return (false, "needs_accepter");
         }
-        if (profile.Family == QuestFamily.OdysseyGround && offer.ChoiceCount > 1)
+        if (profile.Family == QuestFamily.OdysseyGround && offer.Rewards.Count > 1)
         {
             return (false, "reward_choices");
         }
@@ -211,7 +205,7 @@ public static class QuestSelection
         {
             return "class_unknown";
         }
-        if (offer.ExpiresInTicks.TryGetValue(out var expires) && expires == 0)
+        if (offer.Expiry is Pb.QuestExpiry.ExpiresIn { Ticks: 0 })
         {
             return "expired";
         }
@@ -325,7 +319,7 @@ public static class QuestSelection
                     need = Math.Max(need, objective.PawnIds.Count);
                     break;
                 case Pb.QuestObjectiveKind.LoadPawns:
-                    if (!objective.Count.TryGetValue(out var count))
+                    if (objective.Goal is not Pb.QuestObjectiveGoal.Pawns { Count: var count })
                     {
                         return (0, "pawn_demand_unknown");
                     }

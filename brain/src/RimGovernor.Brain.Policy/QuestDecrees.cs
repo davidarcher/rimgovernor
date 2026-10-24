@@ -74,12 +74,9 @@ public static class QuestDecrees
         }
         foreach (var objective in offer.Objectives)
         {
-            var ck = objective.Count.TryGetValue(out var count);
-            var pk = objective.Produced.TryGetValue(out var produced);
-            var ak = objective.Active.TryGetValue(out var active);
-            if (objective.Kind == kind && ck && pk && ak && active && count > produced && objective.Def.Length != 0)
+            if (objective.Kind == kind && objective.Active && objective.Goal is Pb.QuestObjectiveGoal.Things things && things.Count > things.Done)
             {
-                return (objective, count - produced, true);
+                return (objective, things.Count - things.Done, true);
             }
         }
         return (null, 0, false);
@@ -229,10 +226,10 @@ public static class QuestDecrees
         return (plan, "");
     }
 
-    public static (IReadOnlyList<AcquisitionSource> Prey, string Reason) PlanDecreeHunt<TSources>(QuestObjective objective, long remaining, Fact<bool> allowed, Fact<TSources> sources)
+    public static (IReadOnlyList<AcquisitionSource> Prey, string Reason) PlanDecreeHunt<TSources>(QuestObjective objective, long remaining, bool allowed, Fact<TSources> sources)
         where TSources : IReadOnlyList<AcquisitionSource>
     {
-        if (!allowed.TryGetValue(out var violent) || !violent)
+        if (!allowed)
         {
             return ([], "violent_quests_off");
         }
@@ -288,13 +285,8 @@ public static class QuestDecrees
             {
                 continue;
             }
-            if (!offer.AskerFactionPlayer.TryGetValue(out var player))
-            {
-                output.Unread(Cause.UnreadQuestAsker);
-                continue;
-            }
-            var hasDeadline = objective.DeadlineTicks.TryGetValue(out var deadline);
-            if (!player || (hasDeadline && deadline <= r.Now))
+            if (offer.Asker != Pb.DecreeAsker.PlayerFaction
+                || (objective.Timing is Pb.QuestObjectiveTiming.Deadline due && due.Tick <= r.Now))
             {
                 continue;
             }

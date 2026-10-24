@@ -19,8 +19,8 @@ public sealed class QuestPolicyTests
         ScriptDef = "ThreatReward_Raid_Joiner",
         State = "NotYetAccepted",
         CanAccept = true,
-        ChoiceCount = 2,
-        ThreatPoints = Known(threat),
+        Rewards = [QuestStateTests.NoReward, QuestStateTests.NoReward],
+        Threat = new Pb.QuestThreat.Points(threat),
     };
 
     private static RoundsFacts Calm(params JoinerOffer[] offers) => new()
@@ -67,9 +67,8 @@ public sealed class QuestPolicyTests
     {
         Kind = Pb.QuestObjectiveKind.ProduceItem,
         Def = "Gun_Revolver",
-        Count = Known(3L),
-        Produced = Known(1L),
-        Active = Known(true),
+        Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 1),
+        Active = true,
     };
 
     private static readonly string[] RevolverIngredients = ["ComponentIndustrial", "Steel"];
@@ -99,7 +98,7 @@ public sealed class QuestPolicyTests
 
         // Inventory is never progress: only an active objective with native production outstanding is owed.
         Assert.False(QuestDecrees.DecreeObjective(offer with { State = "NotYetAccepted" }).Owed);
-        Assert.False(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Produced = Known(3L) }] }).Owed);
+        Assert.False(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 3) }] }).Owed);
 
         Fact<EquatableArray<Amount>> stock = Known<EquatableArray<Amount>>([new(new("Steel"), 100), new(new("ComponentIndustrial"), 10)]);
         var (bill, reason) = QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver()], stock);

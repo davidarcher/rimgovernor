@@ -115,7 +115,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause UnreadMechs = new("mech_gestation");
     public static readonly Cause UnreadWort = new("wort");
     public static readonly Cause UnreadQuestOffers = new("quest_offers");
-    public static readonly Cause UnreadQuestAsker = new("quest_asker");
     public static readonly Cause UnreadSilverGap = new("silver_gap");
     public static readonly Cause UnreadWorkers = new("workers");
     public static readonly Cause UnreadTraderCash = new("trader_cash");
@@ -145,7 +144,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         UnreadDefinitions, UnreadNativeRead, UnreadMedicine, UnreadArtists, UnreadArtNeed,
         UnreadGearRecover, UnreadGearDemand, UnreadArmoryTier, UnreadWeapons,
         UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
-        UnreadMechs, UnreadWort, UnreadQuestOffers, UnreadQuestAsker, UnreadSilverGap,
+        UnreadMechs, UnreadWort, UnreadQuestOffers, UnreadSilverGap,
         UnreadWorkers, UnreadTraderCash, UnreadBuyers, UnreadSurplus, UnreadRunways,
         UnreadSupply, UnreadSources,
     ];
@@ -299,7 +298,6 @@ public static class CauseRules
         [Cause.UnreadMechs] = UnreadWording("the mech gestation"),
         [Cause.UnreadWort] = UnreadWording("which wort makes beer"),
         [Cause.UnreadQuestOffers] = UnreadWording("the quest offers"),
-        [Cause.UnreadQuestAsker] = UnreadWording("who a quest's asker is"),
         [Cause.UnreadSilverGap] = UnreadWording("the silver gap"),
         [Cause.UnreadWorkers] = UnreadWording("the workers' skills"),
         [Cause.UnreadTraderCash] = UnreadWording("what traders can pay"),

@@ -25,60 +25,27 @@ partial record WorldProgressionRead
 partial record QuestOffer
 {
 
-    internal static QuestOffer DecodeQuest(QuestState row)
+    internal static QuestOffer DecodeQuest(QuestState row) => new()
     {
-        var choices = new HashSet<uint>();
-        var favor = new Dictionary<int, int>();
-        foreach (var reward in row.Rewards)
-        {
-            var choice = -1;
-            if (reward.ChoiceIndex is { } index)
-            {
-                choice = (int)index;
-                choices.Add(index);
-            }
-            if (reward.Favor.GetValueOrDefault() > 0)
-            {
-                favor[choice] = favor.GetValueOrDefault(choice) + reward.Favor.GetValueOrDefault();
-            }
-        }
-        var rewards = new List<QuestRewardFact>(row.Rewards.Count);
-        foreach (var reward in row.Rewards)
-        {
-            rewards.Add(new QuestRewardFact
-            {
-                Choice = reward.ChoiceIndex is { } index ? (int)index : -1,
-                Goodwill = reward.Goodwill.GetValueOrDefault(),
-                Psylink = reward.Psylink.GetValueOrDefault(),
-                PermitPoints = reward.PermitPoints.GetValueOrDefault(),
-                Permits = [.. reward.Permits],
-                Items = [.. reward.Items.Select(item => new QuestTradeItemFact(item.DefName, item.Units))],
-            });
-        }
-        return new QuestOffer
-        {
-            Id = row.Id ?? "",
-            ScriptDef = row.ScriptDef ?? "",
-            State = WireEnums.QuestStatusName(row.State.GetValueOrDefault()),
-            RequiresAccepter = row.RequiresAccepter.GetValueOrDefault(),
-            CanAccept = row.CanAccept.GetValueOrDefault(),
-            ChoiceCount = choices.Count,
-            EligiblePawnIds = [.. row.EligiblePawns.Select(pawn => pawn.Id ?? "")],
-            DeparturePawnIds = [.. row.DeparturePawnIds],
-            FactionId = row.FactionId ?? "",
-            MapKnown = row.MapId is not null,
-            MapId = row.MapId.GetValueOrDefault(),
-            ExpiresInTicks = row.ExpiresInTicks,
-            AskerFactionPlayer = row.AskerFactionPlayer,
-            ViolentQuestsAllowed = row.ViolentQuestsAllowed,
-            ThreatPoints = row.ThreatPoints,
-            RewardChoiceParts = row.ChoicePartCount,
-            Rewards = rewards,
-            Objectives = [.. row.Objectives.Select(QuestObjectiveFact.DecodeObjective)],
-            Shuttles = [.. row.Shuttles],
-            Favor = [.. favor.Select(pair => new QuestFavorFact(pair.Key, pair.Value)).OrderBy(fact => fact.Choice)],
-        };
-    }
+        Id = row.Id,
+        ScriptDef = row.ScriptDef,
+        State = WireEnums.QuestStatusName(row.State),
+        RequiresAccepter = row.RequiresAccepter,
+        CanAccept = row.CanAccept,
+        EligiblePawnIds = [.. row.EligiblePawns.Select(pawn => pawn.Value)],
+        DeparturePawnIds = [.. row.DeparturePawnIds.Select(pawn => pawn.Value)],
+        FactionId = row.FactionId ?? "",
+        Place = row.Place,
+        Expiry = row.Expiry,
+        Asker = row.Asker,
+        ViolentQuestsAllowed = row.ViolentQuestsAllowed,
+        Threat = row.Threat,
+        RewardChoiceParts = row.ChoicePartCount,
+        Rewards = [.. row.Rewards],
+        Favor = row.Favor,
+        Objectives = [.. row.Objectives.Select(QuestObjectiveFact.DecodeObjective)],
+        Shuttles = [.. row.Shuttles],
+    };
 }
 
 partial record QuestObjectiveFact
@@ -87,13 +54,9 @@ partial record QuestObjectiveFact
     internal static QuestObjectiveFact DecodeObjective(QuestObjective objective) => new()
     {
         Kind = objective.Kind,
-        Def = objective.Def ?? "",
-        Stuff = objective.Stuff ?? "",
-        Count = objective.Count,
-        Produced = objective.Produced,
-        DeadlineTicks = objective.DeadlineTicks,
-        UnmetRequirement = objective.UnmetRequirement ?? "",
-        PawnIds = [.. objective.PawnIds],
+        Goal = objective.Goal,
+        Timing = objective.Timing,
+        PawnIds = [.. objective.PawnIds.Select(pawn => pawn.Value)],
         Active = objective.Active,
         MinimumMood = objective.MinimumMood,
         Monument = objective.Monument,
@@ -101,9 +64,8 @@ partial record QuestObjectiveFact
         Gift = objective.GiftRequest,
         HackRisk = objective.HackRisk,
         GravEngine = objective.GravEngine,
-        DurationTicks = objective.DurationTicks,
         SurveyScanner = objective.SurveyScanner,
         Workload = objective.Workload,
-        LodgerMoods = [.. objective.LodgerMoods.Select(mood => new QuestLodgerMoodFact(mood.Mood))],
+        LodgerMoods = [.. objective.LodgerMoods],
     };
 }

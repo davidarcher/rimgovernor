@@ -14,6 +14,7 @@ using Verse;
 using Verse.AI.Group;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
+using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace HomeBridge.BridgeTools
 {
@@ -96,86 +97,131 @@ namespace HomeBridge.BridgeTools
                     Pawns = [.. l.ownedPawns.Select(p => new RimGovernor.Brain.Domain.PawnId(p.GetUniqueLoadID()))],
                 }))];
 
+        // One row per option of the quest's reward choice, in the game's order; an option's rows total every reward it
+        // grants. A quest with several choice parts lists them index by index (the brain refuses such a quest).
         private static List<Obs.QuestReward> Rewards(Quest quest)
         {
             var rows = new List<Obs.QuestReward>();
             foreach (var part in quest.PartsListForReading.OfType<QuestPart_Choice>())
             {
-                foreach (var indexed in part.choices.Select((choice, index) => (choice, index)))
+                for (var index = 0; index < part.choices.Count; index++)
                 {
-                    if (indexed.choice.rewards.Count == 0) rows.Add(new Obs.QuestReward { ChoiceIndex = (uint)indexed.index });
-                    foreach (var reward in indexed.choice.rewards)
+                    var option = Reward(part.choices[index]);
+                    if (index < rows.Count)
                     {
-                        var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index };
-                                                if (reward is Reward_RoyalFavor favor) row = row with { Favor = favor.amount };
-                        if (reward is Reward_Goodwill goodwill) row = row with { Goodwill = goodwill.amount };
-                        if (reward is Reward_BestowingCeremony ceremony)
-                        {
-                            row = row with { Psylink = ceremony.givePsylink ? 1 : 0 };
-                            if (ceremony.royalTitle != null)
-                            {
-                                row = row with { PermitPoints = ceremony.royalTitle.permitPointsAwarded };
-                                if (ceremony.royalTitle.permits != null) row = row with { Permits = [.. row.Permits, .. ceremony.royalTitle.permits.Select(p => p.defName)] };
-                            }
-                        }
-                        if (reward is Reward_Items items)
-                        {
-                            row = row with { Items = [.. row.Items, .. items.items.Select(t => new Obs.Quantity { DefName = t.def.defName, Units = t.stackCount })] };
-                            row = row with { Psylink = items.items.Where(t => t.def == ThingDefOf.PsychicAmplifier).Sum(t => t.stackCount) };
-                        }
-                        rows.Add(row);
+                        var row = rows[index];
+                        option = new Obs.QuestReward([.. row.Items, .. option.Items], row.Favor + option.Favor, row.Goodwill + option.Goodwill,
+                            row.Psylink + option.Psylink, row.PermitPoints + option.PermitPoints, [.. row.Permits, .. option.Permits]);
+                        rows[index] = option;
                     }
+                    else rows.Add(option);
                 }
             }
+            return rows;
+        }
+
+        private static Obs.QuestReward Reward(QuestPart_Choice.Choice choice)
+        {
+            var items = new List<Obs.QuestRewardItem>();
+            var permits = new List<string>();
+            int favor = 0, goodwill = 0, psylink = 0, permitPoints = 0;
+            foreach (var reward in choice.rewards)
+            {
+                switch (reward)
+                {
+                    case Reward_RoyalFavor royal:
+                        favor += royal.amount;
+                        break;
+                    case Reward_Goodwill good:
+                        goodwill += good.amount;
+                        break;
+                    case Reward_BestowingCeremony ceremony:
+                        if (ceremony.givePsylink) psylink++;
+                        if (ceremony.royalTitle != null)
+                        {
+                            permitPoints += ceremony.royalTitle.permitPointsAwarded;
+                            if (ceremony.royalTitle.permits != null) permits.AddRange(ceremony.royalTitle.permits.Select(p => p.defName));
+                        }
+                        break;
+                    case Reward_Items stacks:
+                        items.AddRange(stacks.items.Select(t => new Obs.QuestRewardItem(t.def.defName, t.stackCount)));
+                        psylink += stacks.items.Where(t => t.def == ThingDefOf.PsychicAmplifier).Sum(t => t.stackCount);
+                        break;
+                }
+            }
+            return new Obs.QuestReward([.. items], favor, goodwill, psylink, permitPoints, [.. permits]);
+        }
+
+        // The royal favor the quest grants whatever option is taken: its favor parts outside every choice.
+        private static int QuestFavor(Quest quest)
+        {
             var choiceParts = new HashSet<QuestPart>(quest.PartsListForReading.OfType<QuestPart_Choice>()
                 .SelectMany(p => p.choices).SelectMany(c => c.questParts));
-            foreach (var favor in quest.PartsListForReading.OfType<QuestPart_GiveRoyalFavor>().Where(p => !choiceParts.Contains(p) && p.amount > 0))
-                rows.Add(new Obs.QuestReward { Favor = favor.amount });
-            return rows;
+            return quest.PartsListForReading.OfType<QuestPart_GiveRoyalFavor>().Where(p => !choiceParts.Contains(p) && p.amount > 0).Sum(p => p.amount);
         }
 
         private static readonly AccessTools.FieldRef<QuestPart_ThingsProduced, int> Produced = AccessTools.FieldRefAccess<QuestPart_ThingsProduced, int>("produced");
         private static readonly AccessTools.FieldRef<QuestPart_PlantsHarvested, int> Harvested = AccessTools.FieldRefAccess<QuestPart_PlantsHarvested, int>("harvested");
         private static readonly AccessTools.FieldRef<QuestPart_PawnsKilled, int> Killed = AccessTools.FieldRefAccess<QuestPart_PawnsKilled, int>("killed");
 
-        // The objective one quest part states; null for a part that states none the brain reads.
-        private static Obs.QuestObjective? Objective(Quest quest, QuestPart part, bool decree)
+        private static readonly Obs.QuestObjectiveGoal Uncounted = new Obs.QuestObjectiveGoal.Uncounted();
+        private static readonly Obs.QuestObjectiveTiming Untimed = new Obs.QuestObjectiveTiming.Untimed();
+
+        // A hosted-lodgers objective: the lodgers, their mood floor and the moods the game tracks.
+        private static Obs.QuestObjective HostLodgers(Quest quest, Pawn[] lodgers)
         {
+            var (floor, moods) = NativeQuestShuttles.LodgerMood(quest, lodgers);
+            return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HostLodgers, Goal = new Obs.QuestObjectiveGoal.Pawns(lodgers.Length), Timing = Untimed,
+                PawnIds = [.. lodgers.Select(pawn => new PawnId(pawn.GetUniqueLoadID()))], Active = true, MinimumMood = floor, LodgerMoods = moods };
+        }
+
+        // An objective that counts things of one def; a decree's counted objectives are due at its bad delay.
+        private static Obs.QuestObjective Counted(Obs.QuestObjectiveKind kind, string def, string? stuff, long count, long done, long? decreeDeadline, bool active) =>
+            new Obs.QuestObjective { Kind = kind, Goal = new Obs.QuestObjectiveGoal.Things(def, stuff, count, done),
+                Timing = decreeDeadline.HasValue ? new Obs.QuestObjectiveTiming.Deadline(decreeDeadline.Value) : Untimed,
+                PawnIds = [], Active = active, MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
+
+        // The objective one quest part states; null for a part that states none the brain reads. A part without an
+        // enable state is in force while the quest lists it.
+        private static Obs.QuestObjective? Objective(Quest quest, QuestPart part, bool decree, long? decreeDeadline)
+        {
+            var active = !(part is QuestPartActivable activable) || activable.State == QuestPartState.Enabled;
             switch (part)
             {
                 case QuestPart_ThingsProduced p:
-                    return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.ProduceItem, Def = p.def?.defName ?? "", Stuff = p.stuff?.defName ?? "",
-                        Count = p.count, Produced = Produced(p) };
+                    return Counted(Obs.QuestObjectiveKind.ProduceItem, p.def?.defName ?? throw new InvalidOperationException("A produce objective names no thing."),
+                        p.stuff?.defName, p.count, Produced(p), decreeDeadline, active);
                 case QuestPart_PlantsHarvested p:
-                    return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HarvestPlant, Def = p.plant?.defName ?? "", Count = p.count, Produced = Harvested(p) };
+                    return Counted(Obs.QuestObjectiveKind.HarvestPlant, p.plant?.defName ?? throw new InvalidOperationException("A harvest objective names no plant."),
+                        null, p.count, Harvested(p), decreeDeadline, active);
                 case QuestPart_PawnsKilled p when p.race?.race?.Animal == true:
-                    return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.KillAnimals, Def = p.race.defName, Count = p.count, Produced = Killed(p) };
+                    return Counted(Obs.QuestObjectiveKind.KillAnimals, p.race.defName, null, p.count, Killed(p), decreeDeadline, active);
                 case QuestPart_RequirementsToAccept p:
-                    var report = p.CanAccept();
-                    return report.Accepted ? null : new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.AcceptRequirementUnmet, UnmetRequirement = report.Reason ?? "" };
+                    return p.CanAccept().Accepted ? null : new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.AcceptRequirementUnmet, Goal = Uncounted, Timing = Untimed,
+                        PawnIds = [], Active = active, MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
                 case QuestPart_RequiredShuttleThings p:
+                    // requiredColonistCount is -1 when the shuttle asks for no colonist count.
                     var shuttle = p.shuttle?.TryGetComp<CompShuttle>();
                     var named = shuttle != null && shuttle.requiredPawns.Count > 0;
-                    var load = new Obs.QuestObjective { Kind = named ? Obs.QuestObjectiveKind.LoadNamedPawns : Obs.QuestObjectiveKind.LoadPawns };
-                    if (p.requiredColonistCount >= 0) load = load with { Count = p.requiredColonistCount };
-                    if (named) load = load with { PawnIds = [.. shuttle!.requiredPawns.Select(pawn => pawn.GetUniqueLoadID())] };
-                    return load;
+                    return new Obs.QuestObjective { Kind = named ? Obs.QuestObjectiveKind.LoadNamedPawns : Obs.QuestObjectiveKind.LoadPawns,
+                        Goal = p.requiredColonistCount >= 0 ? new Obs.QuestObjectiveGoal.Pawns(p.requiredColonistCount) : Uncounted, Timing = Untimed,
+                        PawnIds = named ? [.. shuttle!.requiredPawns.Select(pawn => new PawnId(pawn.GetUniqueLoadID()))] : [],
+                        Active = active, MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
                 case QuestPart_DropMonumentMarkerCopy _:
-                    var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Monument };
+                    var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Monument, Goal = Uncounted, Timing = Untimed,
+                        PawnIds = [], Active = active, MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
                     var monument = NativeQuestMonuments.Read(quest); if (monument != null) row = row with { Monument = monument };
                     var timer = quest.PartsListForReading.OfType<QuestPart_Delay>().Where(d => d.isBad &&
                         (decree || d.inSignalDisable?.EndsWith(".MonumentCompleted", StringComparison.Ordinal) == true))
                         .OrderBy(d => d.delayTicks).FirstOrDefault();
                     if (timer != null)
                     {
-                        if (timer.State == QuestPartState.Enabled) row = row with { DeadlineTicks = Math.Max(0, (long)Find.TickManager.TicksGame + timer.TicksLeft) };
-                        else if (quest.State == QuestState.NotYetAccepted && timer.State == QuestPartState.NeverEnabled) row = row with { DurationTicks = timer.delayTicks };
+                        if (timer.State == QuestPartState.Enabled) row = row with { Timing = new Obs.QuestObjectiveTiming.Deadline(Math.Max(0, (long)Find.TickManager.TicksGame + timer.TicksLeft)) };
+                        else if (quest.State == QuestState.NotYetAccepted && timer.State == QuestPartState.NeverEnabled) row = row with { Timing = new Obs.QuestObjectiveTiming.Duration(timer.delayTicks) };
                     }
                     return row;
                 case QuestPart_PawnsArrive p when p.pawns.Any(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)):
-                    var lodgers = p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)).ToArray();
-                    var host = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HostLodgers, PawnIds = [.. lodgers.Select(pawn => pawn.GetUniqueLoadID())], Count = lodgers.Length };
-                    return NativeQuestShuttles.LodgerMood(quest, host, lodgers);
+                    return HostLodgers(quest, p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)).ToArray());
                 default:
                     return null;
             }
@@ -187,15 +233,13 @@ namespace HomeBridge.BridgeTools
             rows.AddRange(NativeQuestGravEngine.Read(quest));
             rows.AddRange(NativeQuestSurvey.Read(quest));
             rows.AddRange(NativeQuestSitePeople.Read(quest));
-            var decree = quest.root?.defName.StartsWith("Decree_", StringComparison.Ordinal) == true;
+            var decree = quest.root.defName.StartsWith("Decree_", StringComparison.Ordinal);
             var deadline = decree ? quest.PartsListForReading.OfType<QuestPart_Delay>().Where(p => p.isBad && p.State == QuestPartState.Enabled)
                 .Select(p => (long?)Math.Max(0, (long)Find.TickManager.TicksGame + p.TicksLeft)).Min() : null;
             foreach (var part in quest.PartsListForReading)
             {
-                var row = Objective(quest, part, decree);
+                var row = Objective(quest, part, decree, deadline);
                 if (row == null) continue;
-                if (part is QuestPartActivable activable) row = row with { Active = activable.State == QuestPartState.Enabled };
-                if (deadline.HasValue && row.Kind is Obs.QuestObjectiveKind.ProduceItem or Obs.QuestObjectiveKind.HarvestPlant or Obs.QuestObjectiveKind.KillAnimals) row = row with { DeadlineTicks = deadline.Value };
                 var workload = NativeQuestWorkload.Read(row, quest); if (workload != null) row = row with { Workload = workload };
                 rows.Add(row);
             }
@@ -205,84 +249,83 @@ namespace HomeBridge.BridgeTools
                     ? quest.PartsListForReading.OfType<QuestPart_RequirementsToAcceptBedroom>().SelectMany(p => p.targetPawns)
                     : Enumerable.Empty<Pawn>()).Distinct().ToArray();
             if (hosted.Length > 0 && !rows.Any(r => r.Kind == Obs.QuestObjectiveKind.HostLodgers))
-            {
-                var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HostLodgers, Count = hosted.Length };
-                row = row with { PawnIds = [.. row.PawnIds, .. hosted.Select(p => p.GetUniqueLoadID())] };
-                row = NativeQuestShuttles.LodgerMood(quest, row, hosted);
-                rows.Add(row);
-            }
+                rows.Add(HostLodgers(quest, hosted));
             if (quest.TicksUntilExpiry >= 0 && quest.State == QuestState.NotYetAccepted)
-                rows.Add(new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Expiry, DeadlineTicks = (long)Find.TickManager.TicksGame + quest.TicksUntilExpiry });
+                rows.Add(new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Expiry, Goal = Uncounted,
+                    Timing = new Obs.QuestObjectiveTiming.Deadline((long)Find.TickManager.TicksGame + quest.TicksUntilExpiry),
+                    PawnIds = [], Active = true, MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] });
             rows.AddRange(NativeQuestRefugees.Read(quest));
             rows.AddRange(NativeQuestHackGift.Read(quest));
             return rows;
         }
 
-        // First map any look target of the quest sits on (a map parent's own
-        // map counts); absent for a quest anchored only to a world object.
-        private static int? QuestMapId(Quest quest)
+        // First map any look target of the quest sits on (a map parent's own map counts); off map for a quest anchored
+        // only to world objects.
+        private static Obs.QuestPlace QuestPlace(Quest quest)
         {
             foreach (var target in quest.QuestLookTargets)
             {
                 var map = target.Map ?? (target.HasWorldObject ? (target.WorldObject as MapParent)?.Map : null);
-                if (map != null) return map.uniqueID;
+                if (map != null) return new Obs.QuestPlace.OnMap(map.uniqueID);
             }
-            return null;
+            return new Obs.QuestPlace.OffMap();
         }
 
-        private static List<Obs.QuestState> Quests(Common.ObservationContext context)
+        // Whose decree the quest is: the faction of the one pawn its DecreeUnmet thought sits on.
+        private static Obs.DecreeAsker Asker(Quest quest)
+        {
+            if (!quest.root.defName.StartsWith("Decree_", StringComparison.Ordinal)) return Obs.DecreeAsker.NotDecree;
+            var asker = quest.PartsListForReading.OfType<QuestPart_SituationalThought>().Where(p => p.def?.defName == "DecreeUnmet").Select(p => p.pawn).Distinct().ToArray();
+            if (asker.Length != 1 || asker[0]?.Faction == null) return Obs.DecreeAsker.NoSingleAsker;
+            return asker[0].Faction.IsPlayer ? Obs.DecreeAsker.PlayerFaction : Obs.DecreeAsker.OtherFaction;
+        }
+
+        private static List<Obs.QuestState> Quests()
         {
             var rows = new List<Obs.QuestState>();
             foreach (var q in Find.QuestManager.QuestsListForReading.Where(q => !q.hidden && !q.hiddenInUI))
             {
-                var row = new Obs.QuestState
+                if (q.root == null) throw new InvalidOperationException("Quest " + q.GetUniqueLoadID() + " has no root script.");
+                if (!NativeQuestThreats.TryRead(q, out var threatPoints, out var threatFound))
+                    throw new InvalidOperationException("Quest " + q.GetUniqueLoadID() + " has a threat budget or combat power the game does not hold as a finite, non-negative number.");
+                rows.Add(new Obs.QuestState
                 {
                     Id = q.GetUniqueLoadID(),
-                    State = NativeEnums.Quest(q.State), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
-                    RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
+                    State = NativeEnums.Quest(q.State),
+                    Acceptance = q.acceptanceTick >= 0 ? new Obs.QuestAcceptance.Accepted(q.acceptanceTick) : new Obs.QuestAcceptance.NotAccepted(),
+                    Expiry = q.TicksUntilExpiry >= 0 ? new Obs.QuestExpiry.ExpiresIn(q.TicksUntilExpiry) : new Obs.QuestExpiry.NoExpiry(),
+                    RequiresAccepter = q.RequiresAccepter,
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
+                    EligiblePawns = [.. Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
+                        .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(p => new PawnId(p.GetUniqueLoadID()))],
+                    Rewards = [.. Rewards(q)],
+                    Favor = QuestFavor(q),
+                    ScriptDef = q.root.defName,
+                    FactionId = q.InvolvedFactions.FirstOrDefault(f => f != null && !f.IsPlayer)?.GetUniqueLoadID(),
+                    Place = QuestPlace(q),
+                    Objectives = [.. Objectives(q)],
                     ChoicePartCount = q.PartsListForReading.OfType<QuestPart_Choice>().Count(),
-                };
-                var faction = q.InvolvedFactions.FirstOrDefault(f => f != null && !f.IsPlayer);
-                if (faction != null) row = row with { FactionId = faction.GetUniqueLoadID() };
-                var mapId = QuestMapId(q);
-                if (mapId.HasValue) row = row with { MapId = mapId.Value };
-                row = row with { EligiblePawns = [.. row.EligiblePawns, .. Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
-                    .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(NativeRef.Thing)] };
-                var asker = q.root?.defName.StartsWith("Decree_", StringComparison.Ordinal) == true
-                    ? q.PartsListForReading.OfType<QuestPart_SituationalThought>().Where(p => p.def?.defName == "DecreeUnmet").Select(p => p.pawn).Distinct().ToArray() : Array.Empty<Pawn>();
-                if (asker.Length == 1 && asker[0]?.Faction != null) row = row with { AskerFactionPlayer = asker[0].Faction.IsPlayer };
-                row = row with { ViolentQuestsAllowed = Find.Storyteller.difficulty.allowViolentQuests };
-                if (NativeQuestThreats.TryRead(q, out var threatPoints, out var threatFound) && threatFound) row = row with { ThreatPoints = threatPoints };
-                row = row with { Shuttles = [.. row.Shuttles, .. NativeQuestShuttles.Read(q)] };
-                row = row with { DeparturePawnIds = [.. row.DeparturePawnIds, .. q.PartsListForReading.OfType<QuestPart_LendColonistsToFaction>()
-                    .SelectMany(p => p.LentColonistsListForReading).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct()] };
-                row = row with { Objectives = [.. row.Objectives, .. Objectives(q)] };
-                row = row with { Rewards = [.. row.Rewards, .. Rewards(q)] };
-                rows.Add(row);
+                    Asker = Asker(q),
+                    ViolentQuestsAllowed = Find.Storyteller.difficulty.allowViolentQuests,
+                    Shuttles = [.. NativeQuestShuttles.Read(q)],
+                    Threat = threatFound ? new Obs.QuestThreat.Points(threatPoints) : new Obs.QuestThreat.NoThreat(),
+                    DeparturePawnIds = [.. q.PartsListForReading.OfType<QuestPart_LendColonistsToFaction>()
+                        .SelectMany(p => p.LentColonistsListForReading).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct().Select(id => new PawnId(id))],
+                });
             }
             return rows;
         }
 
-        internal static Obs.WorldProgressionSnapshot Build(Common.ObservationContext context)
+        internal static Obs.WorldProgressionSnapshot Build(Common.ObservationContext context) => new Obs.WorldProgressionSnapshot
         {
-            var maps = Maps(context);
-            var factions = Factions();
-            var caravans = Caravans(context);
-            var assemblies = Assemblies();
-            var quests = Quests(context);
-            var snapshot = new Obs.WorldProgressionSnapshot
-            {
-                Context = context,
-            };
-            snapshot = snapshot with { Maps = [.. snapshot.Maps, .. maps] };
-            snapshot = snapshot with { Factions = [.. snapshot.Factions, .. factions] };
-            snapshot = snapshot with { Caravans = [.. snapshot.Caravans, .. caravans] };
-            snapshot = snapshot with { Assemblies = [.. snapshot.Assemblies, .. assemblies] };
-            snapshot = snapshot with { Quests = [.. snapshot.Quests, .. quests] };
-            snapshot = snapshot with { Sites = [.. snapshot.Sites, .. NativeWorldSites.Read(context)] };
-            return snapshot;
-        }
+            Context = context,
+            Maps = [.. Maps(context)],
+            Factions = [.. Factions()],
+            Caravans = [.. Caravans(context)],
+            Assemblies = [.. Assemblies()],
+            Quests = [.. Quests()],
+            Sites = [.. NativeWorldSites.Read(context)],
+        };
     }
 
     internal static class NativeWorldProgressionObservationTools
@@ -291,7 +334,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.WorldProgressionSnapshot HandleReadWorldProgression(Obs.WorldProgressionRequest request)
         {
             if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out _, out var context, out var invalid))
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out _, out var context, out var invalid))
                 throw NativeFaults.Refused(invalid);
             try
             {
@@ -308,7 +351,7 @@ namespace HomeBridge.BridgeTools
         private static bool Validate(Obs.WorldProgressionRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity are required.");
-            return request?.Scope?.ExpectedIdentity != null;
+            return request.Scope.ExpectedIdentity != null;
         }
     }
 }

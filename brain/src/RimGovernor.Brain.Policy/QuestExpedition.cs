@@ -301,7 +301,7 @@ public static class QuestExpedition
         {
             foreach (var objective in offer.Objectives)
             {
-                if (objective.DeadlineTicks.TryGetValue(out var deadline) && (double)deadline - now.Value <= (double)ticks + hold)
+                if (objective.Timing is Pb.QuestObjectiveTiming.Deadline due && (double)due.Tick - now.Value <= (double)ticks + hold)
                 {
                     return Fail("deadline_capacity");
                 }
@@ -338,7 +338,7 @@ public static class QuestExpedition
             var mission = offer with
             {
                 Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Count = Known((long)explicitCrew.Count) }],
+                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Goal = new Pb.QuestObjectiveGoal.Pawns(explicitCrew.Count) }],
             };
             var (selected, reason) = QuestDeparture.DepartureSquadWithCrew(mission, f with { QuestSparePawns = Known(EquatableArray.From(filtered)) }, false, true);
             if (!reason.IsNone)
@@ -353,7 +353,7 @@ public static class QuestExpedition
             var mission = offer with
             {
                 Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Count = Known((long)count) }],
+                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Goal = new Pb.QuestObjectiveGoal.Pawns(count) }],
             };
             var (candidate, reason) = QuestDeparture.DepartureSquadOf(mission, f, true);
             if (!reason.IsNone)

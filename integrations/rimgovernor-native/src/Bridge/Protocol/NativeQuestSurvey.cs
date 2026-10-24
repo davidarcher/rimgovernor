@@ -36,7 +36,8 @@ namespace HomeBridge.BridgeTools
                     Complete = alert.State == QuestPartState.Disabled && condition == Obs.SurveyScannerCondition.Intact && scanner!.Spawned
                         && End(alert) > 0 && GenTicks.TicksGame >= End(alert),
                 };
-                yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HoldSurveyScanner, Active = alert.State != QuestPartState.Disabled, DurationTicks = Duration(alert), SurveyScanner = state };
+                yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HoldSurveyScanner, Active = alert.State != QuestPartState.Disabled, Timing = new Obs.QuestObjectiveTiming.Duration(Duration(alert)), SurveyScanner = state,
+                    Goal = new Obs.QuestObjectiveGoal.Uncounted(), PawnIds = [], MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
             }
         }
     }

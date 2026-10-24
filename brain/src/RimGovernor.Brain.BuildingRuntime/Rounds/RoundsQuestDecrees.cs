@@ -22,13 +22,13 @@ public sealed partial class JoinersRounds
                 continue;
             }
 
-            if (!offer.AskerFactionPlayer.TryGetValue(out var player) || !player)
+            if (offer.Asker != O.DecreeAsker.PlayerFaction)
             {
                 DecreeSkip(offer, "asker_faction", call);
                 continue;
             }
 
-            if (objective.DeadlineTicks.TryGetValue(out var deadline) && deadline <= read.Projection.Identity.Tick.Value)
+            if (objective.Timing is O.QuestObjectiveTiming.Deadline due && due.Tick <= read.Projection.Identity.Tick.Value)
             {
                 DecreeSkip(offer, "deadline", call);
                 continue;

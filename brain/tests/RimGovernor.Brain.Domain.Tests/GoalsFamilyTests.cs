@@ -284,7 +284,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "EndedSuccess"))).State);
         var expired = GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "EndedOfferExpired")));
         Assert.Equal((GoalState.NoMethod, "expired"), (expired.State, expired.Reason));
-        var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { ExpiresInTicks = Known(0L) }));
+        var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { Expiry = new RimGovernor.Contracts.Wire.Observations.QuestExpiry.ExpiresIn(0) }));
         Assert.Equal((GoalState.NoMethod, "expired"), (lapsed.State, lapsed.Reason));
         Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, QuestFacts(Offer("q1"))).State);
         Assert.Equal("quest offers", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);

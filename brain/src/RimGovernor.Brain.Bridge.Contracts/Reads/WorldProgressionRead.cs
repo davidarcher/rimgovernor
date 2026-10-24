@@ -13,73 +13,52 @@ public static class WorldProgressionCrews
 
 /// <summary>
 /// The validated subset of one world-progression quest row the quest-accept boundary
-/// needs. Absent optional fields stay null.
+/// needs. Rewards holds one row per option of the quest's reward choice (its position is the QuestAccept
+/// reward index); Favor is the royal favor the quest grants whatever option is taken.
 /// </summary>
 public sealed partial record QuestOffer
 {
-    public double? ThreatPoints { get; init; }
+    public required QuestThreat Threat { get; init; }
 
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    /// <summary>The root QuestScriptDef defName, empty for a quest built without one.</summary>
-    public string ScriptDef { get; init; } = "";
+    /// <summary>The root QuestScriptDef defName.</summary>
+    public required string ScriptDef { get; init; }
 
-    public string State { get; init; } = "";
+    public required string State { get; init; }
 
-    public bool RequiresAccepter { get; init; }
+    public required bool RequiresAccepter { get; init; }
 
-    public bool CanAccept { get; init; }
+    public required bool CanAccept { get; init; }
 
-    public int ChoiceCount { get; init; }
+    public required IReadOnlyList<string> EligiblePawnIds { get; init; }
 
-    public IReadOnlyList<string> EligiblePawnIds { get; init; } = [];
-
-    public IReadOnlyList<string> DeparturePawnIds { get; init; } = [];
+    public required IReadOnlyList<string> DeparturePawnIds { get; init; }
 
     /// <summary>The first non-player faction the quest involves, empty when none.</summary>
-    public string FactionId { get; init; } = "";
+    public required string FactionId { get; init; }
 
-    public int MapId { get; init; }
+    public required QuestPlace Place { get; init; }
 
-    /// <summary>False for a quest anchored only to a world object.</summary>
-    public bool MapKnown { get; init; }
+    public required int Favor { get; init; }
 
-    /// <summary>The Empire favor each reward choice grants, ascending by choice, omitting choices that grant none.</summary>
-    public IReadOnlyList<QuestFavorFact> Favor { get; init; } = [];
+    public required IReadOnlyList<QuestObjectiveFact> Objectives { get; init; }
 
-    public IReadOnlyList<QuestObjectiveFact> Objectives { get; init; } = [];
+    public required IReadOnlyList<QuestShuttleState> Shuttles { get; init; }
 
-    public IReadOnlyList<QuestShuttleState> Shuttles { get; init; } = [];
+    public required QuestExpiry Expiry { get; init; }
 
-    public long? ExpiresInTicks { get; init; }
 
-    public int? RewardChoiceParts { get; init; }
+    public required int RewardChoiceParts { get; init; }
 
-    public IReadOnlyList<QuestRewardFact> Rewards { get; init; } = [];
+    public required IReadOnlyList<QuestReward> Rewards { get; init; }
 
-    public bool? AskerFactionPlayer { get; init; }
+    public required DecreeAsker Asker { get; init; }
 
-    public bool? ViolentQuestsAllowed { get; init; }
+    public required bool ViolentQuestsAllowed { get; init; }
 }
 
-public sealed record QuestRewardFact
-{
-    public int Choice { get; init; }
-
-    public IReadOnlyList<QuestTradeItemFact> Items { get; init; } = [];
-
-    public int Goodwill { get; init; }
-
-    public int Psylink { get; init; }
-
-    public int PermitPoints { get; init; }
-
-    public IReadOnlyList<string> Permits { get; init; } = [];
-}
-
-public sealed record QuestTradeItemFact(string Def, long Count);
-
-/// <summary>Typed native progress; absent fields stay absent.</summary>
+/// <summary>Typed native progress; the monument, grav-engine, scanner, hack, gift and workload blocks stay absent for other kinds.</summary>
 public sealed partial record QuestObjectiveFact
 {
     public QuestMonument? Monument { get; init; }
@@ -94,37 +73,23 @@ public sealed partial record QuestObjectiveFact
 
     public QuestHackRisk? HackRisk { get; init; }
 
-    public QuestObjectiveKind Kind { get; init; }
+    public required QuestObjectiveKind Kind { get; init; }
 
-    public string Def { get; init; } = "";
+    public required QuestObjectiveGoal Goal { get; init; }
 
-    public string Stuff { get; init; } = "";
-
-    public long? Count { get; init; }
-
-    public long? Produced { get; init; }
-
-    public long? DeadlineTicks { get; init; }
-
-    public long? DurationTicks { get; init; }
+    public required QuestObjectiveTiming Timing { get; init; }
 
     public QuestWorkload? Workload { get; init; }
 
-    public string UnmetRequirement { get; init; } = "";
+    public required IReadOnlyList<string> PawnIds { get; init; }
 
-    public IReadOnlyList<string> PawnIds { get; init; } = [];
+    public required bool Active { get; init; }
 
-    public bool? Active { get; init; }
+    public required QuestMoodFloor MinimumMood { get; init; }
 
-    public double? MinimumMood { get; init; }
-
-    public IReadOnlyList<QuestLodgerMoodFact> LodgerMoods { get; init; } = [];
+    public required IReadOnlyList<QuestLodgerMood> LodgerMoods { get; init; }
 }
 
-public sealed record QuestLodgerMoodFact(double? Mood);
-
-/// <summary>The royal favor one reward choice grants in total.</summary>
-public sealed record QuestFavorFact(int Choice, int Favor);
 
 /// <summary>The validated subset of one factions row the quest planners join to a quest's faction id.</summary>
 public sealed record FactionFact(string Id, bool Player, bool Hostile);
@@ -140,7 +105,7 @@ public sealed partial record WorldProgressionRead
 
     public IReadOnlyList<WorldSite> Sites { get; init; } = [];
 
-    public ObservationContext? Context { get; init; }
+    public required ObservationContext Context { get; init; }
 
     public IReadOnlyList<WorldMap> Maps { get; init; } = [];
 

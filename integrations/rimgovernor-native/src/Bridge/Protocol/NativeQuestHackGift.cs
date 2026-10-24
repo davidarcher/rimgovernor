@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
             }
             if (targets.Count > 0 || quest.root?.defName == "Hack_WorshippedTerminal")
             {
-                var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HackThings, Active = quest.State == QuestState.Ongoing };
+                var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HackThings, Active = quest.State == QuestState.Ongoing, Goal = new Obs.QuestObjectiveGoal.Uncounted(), Timing = new Obs.QuestObjectiveTiming.Untimed(), PawnIds = [], MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
                 if (risk != null) row = row with { HackRisk = risk };
                 foreach (var target in targets.Distinct().OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
                 {
@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
                     Pawns = [.. part.pawns.Where(p => p != null).Select(p => p.GetUniqueLoadID()).Distinct().Select(id => new PawnId(id))],
                     Ask = ask,
                 };
-                yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.GiveItems, GiftRequest = gift, Active = quest.State == QuestState.Ongoing };
+                yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.GiveItems, GiftRequest = gift, Active = quest.State == QuestState.Ongoing, Goal = new Obs.QuestObjectiveGoal.Uncounted(), Timing = new Obs.QuestObjectiveTiming.Untimed(), PawnIds = [], MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
             }
         }
     }

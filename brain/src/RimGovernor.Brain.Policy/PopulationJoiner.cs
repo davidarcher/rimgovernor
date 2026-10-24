@@ -12,7 +12,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record JoinerOffer
 {
-    public Fact<double> ThreatPoints { get; init; }
+    /// <summary>The raid points the quest threatens, or none for a quest without threat parts.</summary>
+    public Pb.QuestThreat Threat { get; init; } = new Pb.QuestThreat.NoThreat();
 
     public QuestId Quest { get; init; }
 
@@ -24,9 +25,7 @@ public sealed record JoinerOffer
 
     public bool RequiresAccepter { get; init; }
 
-    public int ChoiceCount { get; init; }
-
-    public Fact<long> ExpiresInTicks { get; init; }
+    public Pb.QuestExpiry Expiry { get; init; } = new Pb.QuestExpiry.NoExpiry();
 
     public IReadOnlyList<PawnId> EligiblePawnIds { get; init; } = [];
 
@@ -40,22 +39,23 @@ public sealed record JoinerOffer
 
     // FactionId is the quest's first non-player faction ("" when none); FactionHostile is that faction's
     // FactionState.hostile, unknown when the census carries no row for it. OnMap is true when the quest's map
-    // is the colony's identity map. Favor is each reward choice's royal favor.
+    // is the colony's identity map. Favor is the royal favor the quest grants whatever option is taken; Rewards
+    // holds one row per reward option, its position the QuestAccept reward index.
     public string FactionId { get; init; } = "";
 
     public Fact<bool> FactionHostile { get; init; }
 
     public bool OnMap { get; init; }
 
-    public IReadOnlyList<QuestFavor> Favor { get; init; } = [];
+    public int Favor { get; init; }
 
-    public IReadOnlyList<QuestReward> Rewards { get; init; } = [];
+    public IReadOnlyList<Pb.QuestReward> Rewards { get; init; } = [];
 
-    public Fact<int> RewardChoiceParts { get; init; }
+    public int RewardChoiceParts { get; init; }
 
-    public Fact<bool> AskerFactionPlayer { get; init; }
+    public Pb.DecreeAsker Asker { get; init; }
 
-    public Fact<bool> ViolentQuestsAllowed { get; init; }
+    public bool ViolentQuestsAllowed { get; init; }
 
     /// <summary>
     /// The quest root's ground or ship-only classification from the catalog's QuestScriptDef rows
@@ -91,30 +91,22 @@ public sealed record QuestObjective
 
     public string Stuff { get; init; } = "";
 
-    public Fact<long> Count { get; init; }
+    public Pb.QuestObjectiveGoal Goal { get; init; } = new Pb.QuestObjectiveGoal.Uncounted();
 
-    public Fact<long> Produced { get; init; }
-
-    public Fact<long> DeadlineTicks { get; init; }
-
-    public Fact<long> DurationTicks { get; init; }
+    public Pb.QuestObjectiveTiming Timing { get; init; } = new Pb.QuestObjectiveTiming.Untimed();
 
     /// <summary>The work an unfinished produce or harvest objective still needs; null when it needs none or no usable bench hosts its recipe.</summary>
     public QuestWorkload? Workload { get; init; }
 
     public IReadOnlyList<PawnId> PawnIds { get; init; } = [];
 
-    public Fact<double> MinimumMood { get; init; }
+    public Pb.QuestMoodFloor MinimumMood { get; init; } = new Pb.QuestMoodFloor.NoFloor();
 
-    public IReadOnlyList<QuestLodgerMood> LodgerMoods { get; init; } = [];
+    public IReadOnlyList<Pb.QuestLodgerMood> LodgerMoods { get; init; } = [];
 
-    public Fact<bool> Active { get; init; }
+    public bool Active { get; init; }
 }
 
-public sealed record QuestLodgerMood(Fact<double> Mood);
-
-/// <summary>The royal favor one QuestAccept reward choice grants.</summary>
-public sealed record QuestFavor(int Choice, int Favor);
 
 /// <summary>Names why the joiner planner did or did not propose a quest acceptance.</summary>
 public enum JoinerPlanReason
@@ -296,7 +288,7 @@ public static partial class PopulationRules
                 refused = true;
                 continue;
             }
-            return new JoinerChoice { Quest = offer.Quest, RewardChoice = offer.ChoiceCount > 0 ? 0 : -1 };
+            return new JoinerChoice { Quest = offer.Quest, RewardChoice = offer.Rewards.Count > 0 ? 0 : -1 };
         }
         return new JoinerChoice { Reason = refused ? JoinerPlanReason.NoCapacity : JoinerPlanReason.NoOffer };
     }
