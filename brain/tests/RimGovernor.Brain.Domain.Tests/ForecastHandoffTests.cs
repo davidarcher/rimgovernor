@@ -90,7 +90,7 @@ public sealed class ForecastHandoffTests
         request = request with { Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with
         { Pawns = Known<EquatableArray<ModelPawn>>([new() { Pawn = "pawn", Skills = Known<EquatableArray<WorkSkill>>([]), ComfortableMin = Known(10d), ComfortableMax = Known(30d) }]) } },
             Shelters = [new(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["research"], Known(0d), Known(5d), Known(.01),
-                [new("heater", new(1, 1), false, Known(.1), Known(20d), Known(90000d))], [])] } };
+                [new("heater", new(1, 1), false, .1, 20d, CoupledThermalTests.Powered(90000d))], [])] } };
         var commitment = new ForecastCommitment("warm", []) { ActivityCompletions = ["research"], ComfortShifts = [new("pawn", -5, 2)] };
         var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "", default, default, default)],
             ServedRooms = [new(1, "Wood", 50)], Shelters = [new(new(ForecastShelterSource.Planned, "1"), Known(50d), Known(20d), [], [])] };
@@ -105,7 +105,7 @@ public sealed class ForecastHandoffTests
         Assert.Single(handoff.Shelters);
         var shelter = Assert.Single(handoff.ShelterPlans);
         Assert.Equal(20, shelter.InitialTemperature.Value);
-        Assert.Equal(30050, Assert.Single(shelter.Sources).SupplyTicks.Value);
+        Assert.Equal(30050, Assert.IsType<RimGovernor.Contracts.Wire.Observations.HeatSupply.Powered>(Assert.Single(shelter.Sources).Supply).Ticks);
         Assert.Empty(shelter.Prerequisites);
     }
 

@@ -45,11 +45,11 @@ public sealed class ForecastRoofConsequencesTests
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
         var open = new[] { Inside, WallCell, DoorCell };
-        var thermal = new CoupledThermalRead
+        var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = Known(20d), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
-            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(20d), "none", !open.Contains(c), false, "", false, false, 0, false))),
-            Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", Inside, Known(1d))],
+            Outdoors = 20d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, 20d, "none", !open.Contains(c), false, "", false, false, 0, false))),
+            Workers = [new("pawn", 5d)], RoofRoutes = [new("pawn", Inside, new RoofApproach.Path(1d))],
         };
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {

@@ -768,11 +768,22 @@ site id, definition and cell. `ConstructionActivityRead.Thermal` answers with a
   `Building_Heater` or a fueled heat pusher. `Target` is the planned site id and
   `Complete` is false. Heat per tick, default target and power draw come from the
   definition. The network is the one a connector at the planned cell would join
-  (`BestTransmitterForConnector`). Supply is known only when that network's current
-  surplus covers the draw. A fueled source is read as below.
+  (`BestTransmitterForConnector`). A fueled source is read as below.
   Any other definition, or a cell off the map, returns no source.
 - `Workers`, `Outdoors` and the exchange constants are read as in the coupled capture.
   `RoofRoutes` is empty, because a planned roof is a planned site.
+
+Every member of the read is set. `Supply` is a `HeatSupply` state: an electric heater
+is `Powered` (network id, its additional draw, the network's surplus, supplied for a
+day) when the network's current surplus covers its draw and a built heater is on,
+`ShortOfPower` when it does not, and `Unconnected` with no network at its cell. The
+forecast prices heat only from `Powered` and `Burning` sources, and a schedule that
+overloads a network turns its sources `ShortOfPower`. A `ThermalWorker` is a free
+colonist who can do construction and has a construction speed; one without is not
+listed. A `ThermalRoofRoute`'s `Approach` is a `Path` of ticks or `Unreachable`; an
+unreachable colonist gets no roof option for that cell, never a free approach. The
+roof exchange rates are `RoomTempTracker`'s private constants, and the read throws
+when a game version lacks one.
 
 The caps are 4 rooms, 16 heaters and 1,024 cells; anything past them sets `Truncated`.
 Rounds ask once per round
@@ -784,10 +795,9 @@ reads standing ones, blueprints and frames beside the electric heaters, and the
 planned read the requested ones. `HeatPerTick` is `heatPerSecond / 60`,
 `TargetTemperature` is `heatPushMaxTemperature`, and it has no power network. When
 the burn is steady (not `consumeFuelOnlyWhenUsed`, `consumeFuelOnlyWhenPowered` or
-`externalTicking`) and of one fuel def, `SupplyTicks` is unlimited (positive
-infinity), `Fuel` is that def and `FuelPerTick` is `fuelConsumptionRate / 60000 /
-FuelMultiplierCurrentDifficulty` items a tick; otherwise `Fuel` is empty and the burn
-and supply are unknown. The brain charges the fuel as material
+`externalTicking`) and of one fuel def, its supply is `Burning`: unlimited, `Fuel`
+that def and `FuelPerTick` `fuelConsumptionRate / 60000 /
+FuelMultiplierCurrentDifficulty` items a tick; otherwise it is `UnsteadyBurn`. The brain charges the fuel as material
 ([forecast value](../architecture/forecast-value.md)).
 
 ### Planned room prediction read

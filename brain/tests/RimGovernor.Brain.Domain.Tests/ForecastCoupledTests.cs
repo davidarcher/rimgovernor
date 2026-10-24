@@ -212,7 +212,7 @@ public sealed class ForecastCoupledTests
     }
     /// <summary>A complete heat source in the shelter at (1, 1) with ample supply.</summary>
     internal static ThermalSource Heater(double heatPerTick, double target) =>
-        new("heater", new(1, 1), true, Known(heatPerTick), Known(target), Known(1000.0));
+        new("heater", new(1, 1), true, heatPerTick, target, CoupledThermalTests.Powered(1000.0));
 
     /// <summary>
     /// #3679: every source in a room pushes its heat while the room is below its own target, so a heater and a torch heat
@@ -222,8 +222,8 @@ public sealed class ForecastCoupledTests
     public void AHeaterAndATorchSumTheirHeatBelowTheTorchsTargetAndOnlyTheHeatersAbove()
     {
         const double loss = .001, outdoors = -10;
-        var heater = Heater(.025, 20) with { SupplyTicks = Known(1e6) };
-        var torch = new ThermalSource("torch", new(1, 1), true, Known(.01), Known(10.0), Known(double.PositiveInfinity)) { Fuel = "WoodLog", FuelPerTick = Known(.001) };
+        var heater = Heater(.025, 20) with { Supply = CoupledThermalTests.Powered(1e6) };
+        var torch = new ThermalSource("torch", new(1, 1), true, .01, 10.0, new HeatSupply.Burning("WoodLog", .001));
         var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(outdoors), Known(outdoors), Known(loss), [heater, torch], []);
         var result = ForecastShelterPolicy.ForecastShelter(room, new([], 0, 0), 20000);
         // Below 10 C both push: the room relaxes toward -10 + (.025 + .01) / .001 = 25 C.
@@ -233,11 +233,11 @@ public sealed class ForecastCoupledTests
         // Above it only the heater pushes, toward -10 + .025 / .001 = 15 C, under its own 20 C target.
         Assert.Equal(15, result.TemperatureAtHorizon.Value, 6);
         Assert.All(result.Trajectory, p => Assert.True(p.Temperature <= 15 + 1e-9));
-        // Each unknown source makes the room unknown.
-        Assert.Contains("unknown_shelter_thermal_estimate", ForecastShelterPolicy.ForecastShelter(
-            room with { Sources = [heater, torch with { HeatPerTick = default }] }, new([], 0, 0), 20000).Findings);
+        // A source that is not supplied (an unsteady burn) is named, never priced as heat.
+        Assert.Contains("unsupplied_shelter_heat_source", ForecastShelterPolicy.ForecastShelter(
+            room with { Sources = [heater, torch with { Supply = new HeatSupply.UnsteadyBurn() }] }, new([], 0, 0), 20000).Findings);
         // A weak heater above a strong torch's target: the room holds at the torch's target.
-        var held = ForecastShelterPolicy.ForecastShelter(room with { Sources = [heater with { HeatPerTick = Known(.015) }, torch with { HeatPerTick = Known(.02) }] },
+        var held = ForecastShelterPolicy.ForecastShelter(room with { Sources = [heater with { HeatPerTick = .015 }, torch with { HeatPerTick = .02 }] },
             new([], 0, 0), 20000);
         Assert.Equal(10, held.TemperatureAtHorizon.Value, 9);
     }
@@ -256,7 +256,7 @@ public sealed class ForecastCoupledTests
     [Fact]
     public void TwoHeatersCannotIndependentlySpendOneObservedNetworkSurplus()
     {
-        var heater = Heater(.35, 20.0) with { Target = "heater1", PowerNetwork = "net", AdditionalWatts = Known(100.0), SurplusWatts = Known(150.0) };
+        var heater = Heater(.35, 20.0) with { Target = "heater1", Supply = new HeatSupply.Powered("net", 100.0, 150.0, 1000.0) };
         var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), [heater], []);
         Assert.True(ForecastShelterPolicy.ForecastShelters([first], new([], 0, 0), 300).Single().TemperatureAtHorizon.IsKnown);
         var result = ForecastShelterPolicy.ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Sources = [heater with { Target = "heater2" }] }], new([], 0, 0), 300);
@@ -285,16 +285,16 @@ public sealed class ForecastCoupledTests
         var cells = Enumerable.Range(0, 5).SelectMany(x => Enumerable.Range(0, 5).Select(z => new Cell(x, z))).ToArray();
         var inside = cells.Where(c => c.X is > 0 and < 4 && c.Z is > 0 and < 4).ToArray();
         var wall = facts.ForecastObserved.Coupled!.Construction.Options.Single() with { Location = new(0, 1) };
-        var thermal = new CoupledThermalRead
+        var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = Known(-10.0),
-            ThinRoofExchangePerTick = Known(.00005),
-            WallExchangePerTick = Known(.000017),
-            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", !inside.Contains(c) && c != wall.Location, false,
+            Outdoors = -10.0,
+            ThinRoofExchangePerTick = .00005,
+            WallExchangePerTick = .000017,
+            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", !inside.Contains(c) && c != wall.Location, false,
                 c == wall.Location ? wall.Site : "", c == wall.Location, false, 0, inside.Contains(c)))),
-            Workers = [new("pawn", Known(5.0))],
-            RoofRoutes = EquatableArray.From(inside.Select(c => new ThermalRoofRoute("pawn", c, Known(1.0)))),
-            Sources = [new("heater", new(2, 2), true, Known(.35), Known(20.0), Known(60000.0))]
+            Workers = [new("pawn", 5.0)],
+            RoofRoutes = EquatableArray.From(inside.Select(c => new ThermalRoofRoute("pawn", c, new RoofApproach.Path(1.0)))),
+            Sources = [new("heater", new(2, 2), true, .35, 20.0, CoupledThermalTests.Powered(60000.0))]
         };
         facts = facts with
         {
@@ -367,11 +367,11 @@ public sealed class ForecastCoupledTests
         context = context with
         {
             Shelters = [room],
-            Thermal = new()
+            Thermal = CoupledThermalTests.NoThermal with
             {
                 Cells = [
-            new(new(1,1),Known(-10.0),"thin",false,false,"",false,false,0,false),
-            new(new(5,5),Known(-10.0),"none",false,false,"",false,false,0,false)]
+            new(new(1,1),-10.0,"thin",false,false,"",false,false,0,false),
+            new(new(5,5),-10.0,"none",false,false,"",false,false,0,false)]
             },
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
         };
@@ -394,7 +394,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review();
         var context = facts.CoupledAlternatives!.Context;
-        var thermal = new CoupledThermalRead { Cells = [new(new(5, 5), Known(0.0), "none", false, false, "", false, false, 0, false)], Outdoors = Known(-10.0) };
+        var thermal = CoupledThermalTests.NoThermal with { Cells = [new(new(5, 5), 0.0, "none", false, false, "", false, false, 0, false)], Outdoors = -10.0 };
         context = context with
         {
             Shelters = [], Thermal = thermal,
@@ -406,10 +406,10 @@ public sealed class ForecastCoupledTests
         var filled = ForecastThermalExposure.PawnExposureOf(context, tasks, context.Needs.Pawns[0], work, work, [], 300, [], []);
         Assert.Equal(0, filled.UnknownTicks);
         Assert.Equal(4000, filled.AssessedColdDegreeTicks, 6);
-        // With no outdoor temperature the ticks before any located one stay unknown.
-        var unread = ForecastThermalExposure.PawnExposureOf(context with { Thermal = thermal with { Outdoors = default } }, tasks, context.Needs.Pawns[0], work, work, [], 300, [], []);
-        Assert.Equal(100, unread.UnknownTicks);
-        Assert.Equal(2000, unread.AssessedColdDegreeTicks, 6);
+        // With no thermal read (#3771: an unread outdoor temperature is no read at all) every tick stays unknown.
+        var unread = ForecastThermalExposure.PawnExposureOf(context with { Thermal = null }, tasks, context.Needs.Pawns[0], work, work, [], 300, [], []);
+        Assert.Equal(300, unread.UnknownTicks);
+        Assert.Equal(0, unread.AssessedColdDegreeTicks);
     }
 
     [Fact]
@@ -425,7 +425,7 @@ public sealed class ForecastCoupledTests
             Context = generated.Context with
             {
                 Shelters = [],
-                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, "", false, false, 0, false))) },
+                Thermal = CoupledThermalTests.NoThermal with { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", false, false, "", false, false, 0, false))) },
                 Needs = generated.Context.Needs with { Pawns = [generated.Context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
             }
         };
@@ -440,9 +440,11 @@ public sealed class ForecastCoupledTests
         Assert.True(plain.AssessedColdDegreeTicks > 0);
         Assert.True(warm.AssessedColdDegreeTicks < plain.AssessedColdDegreeTicks);
         Assert.Equal(plain.AssessedTicks, warm.AssessedTicks);
-        // No stationary outdoor task: the shift has no exposure to change.
+        // No stationary outdoor task: the pawn idles at the comfortable 20 C outdoors, so the shift has no exposure to change.
         var idle = Outcome(gear).ThermalExposure.Single();
-        Assert.Equal(Evaluate(facts).Baseline.Coupled!.Alternatives.Single().ThermalExposure.Single(), idle);
+        var baseline = Evaluate(facts).Baseline.Coupled!.Alternatives.Single().ThermalExposure.Single();
+        Assert.Equal((baseline.AssessedTicks, baseline.AssessedColdDegreeTicks, baseline.AssessedHotDegreeTicks),
+            (idle.AssessedTicks, idle.AssessedColdDegreeTicks, idle.AssessedHotDegreeTicks));
     }
 
     [Fact]

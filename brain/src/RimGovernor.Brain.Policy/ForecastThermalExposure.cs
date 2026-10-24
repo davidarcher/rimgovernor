@@ -79,7 +79,7 @@ public sealed partial record ForecastThermalExposure
                 // A room still to be finished is as it stands (#3534): it trends to outdoors at its open cells' rate.
                 EquatableArray<ForecastTemperaturePoint> standing = room is null ? [] : ForecastShelterPolicy.Standing(room, horizon);
                 if (untouched && standing.Count > 0) Trajectory(spans, ref assessed, standing, from, end, min, max, shifts);
-                else if ((room is null || untouched) && cell.Temperature.TryGetValue(out var ambient)) Integrate(spans, ref assessed, from, end, ambient, ambient, min, max, shifts);
+                else if (room is null || untouched) Integrate(spans, ref assessed, from, end, cell.Temperature, cell.Temperature, min, max, shifts);
                 else if (projection is { TemperatureAtHorizon.IsKnown: true, CompleteAt.IsKnown: true })
                 {
                     if (from < projection.CompleteAt.Value && standing.Count > 0)
@@ -91,11 +91,11 @@ public sealed partial record ForecastThermalExposure
             }
             // A tick at no located allocation (idle, transit, an unread cell) is at the last located temperature, else
             // outdoors (#3673); with neither known it stays unknown.
-            if (spans.Count > 0 || context.Thermal is { Outdoors.IsKnown: true })
+            if (spans.Count > 0 || context.Thermal is not null)
             {
                 var located = spans.OrderBy(s => s.Start).ToArray();
                 double cursor = 0;
-                double? last = context.Thermal is { Outdoors.IsKnown: true } read ? read.Outdoors.Value : null;
+                double? last = context.Thermal?.Outdoors;
                 foreach (var s in located)
                 {
                     if (s.Start > cursor && last is { } before) Integrate(spans, ref assessed, cursor, Math.Min(s.Start, horizon), before, before, min, max, shifts);

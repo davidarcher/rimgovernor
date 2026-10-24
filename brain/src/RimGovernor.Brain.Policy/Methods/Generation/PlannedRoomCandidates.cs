@@ -56,15 +56,14 @@ internal static class PlannedRoomCandidates
         // Routes between planned sites (#3313): a site is worked at its first position, a route reaching its nearest one.
         bool Routed(string pawn, Cell to) => between.Any(r => r.Pawn == pawn && r.To == to && r.Ticks.IsKnown);
         ForecastActivityOption[] RoofOptions(PlannedBuildSite site, string id) => thermal is null ? [] : thermal.Workers
-            .Where(w => w.RoofCellWorkTicks.IsKnown && pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn)
-                && Routed(w.Pawn, site.Positions[0]))
-            .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks.Value * site.Positions.Count), Known(0.0))
+            .Where(w => pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn) && Routed(w.Pawn, site.Positions[0]))
+            .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks * site.Positions.Count), Known(0.0))
             { SkillWork = w.SkillWork is { WorkAmount.IsKnown: true } learning
                 ? learning with { WorkAmount = Known(learning.WorkAmount.Value * site.Positions.Count), WorkQuantum = learning.WorkAmount.Value } : null }).ToArray();
         (Assessment Verdict, string Reason) Assess(PlannedBuildSite site)
         {
             if (site.Op == OpKind.RoofIn)
-                return thermal is null || !thermal.Workers.Any(w => w.RoofCellWorkTicks.IsKnown) ? (Assessment.Unvalued, "roof_work_unknown")
+                return thermal is null ? (Assessment.Unvalued, "roof_work_unread") : thermal.Workers.Count == 0 ? (Assessment.Unvalued, "no_roof_worker")
                     : RoofOptions(site, "").Length == 0 ? (Assessment.Unvalued, "roof_unrouted") : (Assessment.Valued, "");
             if (site.Verdict == PlannedSiteVerdict.Illegal) return (Assessment.Infeasible, "illegal");
             if (site.Verdict == PlannedSiteVerdict.Unestimable) return (Assessment.Unvalued, "unestimable");

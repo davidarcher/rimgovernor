@@ -46,7 +46,7 @@ public static class ForecastShelterPolicy
     /// <summary>A search's scratch for <see cref="ForecastShelters(IReadOnlyList{ForecastShelterPlan}, IReadOnlyDictionary{string, ForecastActivityAllocation}, IReadOnlyDictionary{string, Fact{bool}}?, double, ShelterScratch)"/>, reused by every projection.</summary>
     internal sealed class ShelterScratch
     {
-        public readonly Dictionary<string, (double Watts, double Surplus, bool Unknown)> Networks = new(StringComparer.Ordinal);
+        public readonly Dictionary<string, (double Watts, double Surplus)> Networks = new(StringComparer.Ordinal);
         public readonly HashSet<(string Network, string Source)> Sources = [];
     }
 
@@ -56,8 +56,8 @@ public static class ForecastShelterPolicy
     internal static EquatableArray<ForecastShelterOutcome> ForecastShelters(IReadOnlyList<ForecastShelterPlan> rooms,
         IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed, double horizon, ShelterScratch scratch)
     {
-        // Each powered source of a room whose prerequisites are all scheduled draws on its network; the network is overloaded
-        // when any such source's draw or surplus is unknown, or the draws (one per source) exceed the smallest surplus.
+        // Each networked source of a room whose prerequisites are all scheduled draws on its network; the network is
+        // overloaded when the draws (one per source) exceed the smallest surplus.
         var networks = scratch.Networks; var sources = scratch.Sources;
         networks.Clear(); sources.Clear();
         foreach (var room in rooms)
@@ -74,19 +74,15 @@ public static class ForecastShelterPolicy
             if (!selected) continue;
             foreach (var source in room.Sources)
             {
-                if (source.PowerNetwork.Length == 0) continue;
-                var network = networks.GetValueOrDefault(source.PowerNetwork, (0, double.PositiveInfinity, false));
-                if (!source.AdditionalWatts.TryGetValue(out var watts) || !source.SurplusWatts.TryGetValue(out var surplus)) network.Unknown = true;
-                else
-                {
-                    if (sources.Add((source.PowerNetwork, source.Target))) network.Watts += watts;
-                    network.Surplus = Math.Min(network.Surplus, surplus);
-                }
-                networks[source.PowerNetwork] = network;
+                if (!HeatSupplies.OnNetwork(source.Supply, out var id, out var watts, out var surplus)) continue;
+                var network = networks.GetValueOrDefault(id, (0, double.PositiveInfinity));
+                if (sources.Add((id, source.Target))) network.Watts += watts;
+                network.Surplus = Math.Min(network.Surplus, surplus);
+                networks[id] = network;
             }
         }
-        bool Short(ThermalSource source) => source.PowerNetwork.Length != 0 && networks.TryGetValue(source.PowerNetwork, out var network)
-            && (network.Unknown || network.Watts > network.Surplus);
+        bool Short(ThermalSource source) => HeatSupplies.OnNetwork(source.Supply, out var id, out _, out _)
+            && networks.TryGetValue(id, out var network) && network.Watts > network.Surplus;
         var outcomes = new ForecastShelterOutcome[rooms.Count];
         for (var i = 0; i < outcomes.Length; i++)
         {
@@ -99,8 +95,8 @@ public static class ForecastShelterPolicy
             if (!byRoom.TryGetValue(key, out var outcome))
                 byRoom[key] = outcome = ShelterAt(shared ? room with
                     {
-                        // A short network's sources have no known supply.
-                        Sources = EquatableArray.From(room.Sources.Select(s => Short(s) ? s with { SupplyTicks = default } : s)),
+                        // A short network's sources are short of power.
+                        Sources = EquatableArray.From(room.Sources.Select(s => Short(s) ? s with { Supply = HeatSupplies.Overloaded(s.Supply) } : s)),
                         Findings = [.. room.Findings, "shared_power_capacity_shortfall"],
                     } : room, key.Item2, horizon);
             outcomes[i] = outcome;
@@ -111,7 +107,7 @@ public static class ForecastShelterPolicy
     private static bool Powered(ForecastShelterPlan room)
     {
         foreach (var source in room.Sources)
-            if (source.PowerNetwork.Length != 0) return true;
+            if (HeatSupplies.OnNetwork(source.Supply, out _, out _, out _)) return true;
         return false;
     }
 
@@ -157,20 +153,21 @@ public static class ForecastShelterPolicy
         if (complete > horizon) return new(room.Room, Known(complete), default, [], [.. findings, "shelter_beyond_horizon"]);
         var known = room.InitialTemperature.IsKnown && room.Outdoors.IsKnown && room.ExchangePerTick.IsKnown
             && room.Sources.Count != 0 && room.Interior.Count != 0;
-        foreach (var source in room.Sources)
-            known &= source.HeatPerTick.IsKnown && source.TargetTemperature.IsKnown && source.SupplyTicks.IsKnown;
         if (!known)
             return new(room.Room, Known(complete), default, [], [.. findings, "unknown_shelter_thermal_estimate"]);
+        // A source short of power, unconnected or burning unsteadily heats nothing the forecast can count on.
+        if (room.Sources.Any(s => !HeatSupplies.Supplied(s.Supply, out _)))
+            return new(room.Room, Known(complete), default, [], [.. findings, "unsupplied_shelter_heat_source"]);
         var outside = room.Outdoors.Value;
         var temperature = room.InitialTemperature.Value;
         var loss = room.ExchangePerTick.Value;
         // Each source's heat per interior cell and its thermostat, at most the full-efficiency bound.
-        var heats = room.Sources.Select(s => (Heat: s.HeatPerTick.Value / room.Interior.Count, Target: Math.Min(20, s.TargetTemperature.Value))).ToArray();
+        var heats = room.Sources.Select(s => (Heat: s.HeatPerTick / room.Interior.Count, Target: Math.Min(20, s.TargetTemperature))).ToArray();
         if (!double.IsFinite(loss) || loss <= 0 || heats.Any(h => !double.IsFinite(h.Heat) || h.Heat < 0 || !double.IsFinite(h.Target))
             || temperature > 20 || outside > 20 || Math.Abs(outside - temperature) > 100)
             return new(room.Room, Known(complete), default, [], [.. findings, "unsupported_shelter_temperature_regime"]);
-        if (room.Sources.Any(s => s.SupplyTicks.Value < horizon - complete))
-            return new(room.Room, Known(complete), default, [], [.. findings, "unknown_shelter_energy_duration"]);
+        if (room.Sources.Any(s => HeatSupplies.Supplied(s.Supply, out var ticks) && ticks < horizon - complete))
+            return new(room.Room, Known(complete), default, [], [.. findings, "shelter_energy_runs_out"]);
         // Until the shell completes the room is as it stands, else open air at the observed current outdoor temperature.
         if (complete > 0) temperature = Standing(room, horizon) is { Count: > 0 } standing ? TemperatureAt(standing, complete) : outside;
         var points = Project(temperature, complete, horizon, outside, loss, heats);
@@ -183,8 +180,8 @@ public static class ForecastShelterPolicy
     /// <summary>
     /// The room as it stands from tick 0 to <paramref name="horizon"/> (#3534): its observed temperature relaxing to
     /// outdoors at its <see cref="ForecastShelterPlan.StandingExchangePerTick"/>, heated by its complete sources. Empty when
-    /// the standing exchange, a complete source's mechanics or its supply over the horizon is unknown, or outside the
-    /// heater's full-efficiency regime.
+    /// the standing exchange is unknown, a complete source is not supplied over the horizon, or outside the heater's
+    /// full-efficiency regime.
     /// </summary>
     internal static EquatableArray<ForecastTemperaturePoint> Standing(ForecastShelterPlan room, double horizon) =>
         Standings.GetValue(room, static _ => new()).GetOrAdd(horizon, h =>
@@ -196,9 +193,9 @@ public static class ForecastShelterPolicy
             foreach (var s in room.Sources)
             {
                 if (!s.Complete) continue;
-                if (!s.HeatPerTick.TryGetValue(out var heat) || !s.TargetTemperature.TryGetValue(out var target) || !s.SupplyTicks.TryGetValue(out var supply)
-                    || supply < h || !double.IsFinite(heat) || heat < 0 || !double.IsFinite(target)) return [];
-                heats.Add((heat / room.Interior.Count, Math.Min(20, target)));
+                if (!HeatSupplies.Supplied(s.Supply, out var supply) || supply < h || !double.IsFinite(s.HeatPerTick) || s.HeatPerTick < 0
+                    || !double.IsFinite(s.TargetTemperature)) return [];
+                heats.Add((s.HeatPerTick / room.Interior.Count, Math.Min(20, s.TargetTemperature)));
             }
             return EquatableArray.From(Project(temperature, 0, h, outside, loss, heats.ToArray()));
         });
@@ -270,4 +267,55 @@ public static class ForecastShelterPolicy
         }
         return temperature;
     }
+}
+
+/// <summary>Policy reads of a heat source's <see cref="HeatSupply"/>.</summary>
+public static class HeatSupplies
+{
+    /// <summary>Whether the source draws on a power network: its id, its additional draw and the network's current surplus.</summary>
+    public static bool OnNetwork(HeatSupply supply, out string network, out double watts, out double surplus)
+    {
+        switch (supply)
+        {
+            case HeatSupply.Powered p:
+                (network, watts, surplus) = (p.Network, p.AdditionalWatts, p.SurplusWatts);
+                return true;
+            case HeatSupply.ShortOfPower s:
+                (network, watts, surplus) = (s.Network, s.AdditionalWatts, s.SurplusWatts);
+                return true;
+            case HeatSupply.Unconnected or HeatSupply.Burning or HeatSupply.UnsteadyBurn:
+                (network, watts, surplus) = ("", 0, 0);
+                return false;
+        }
+        throw new ArgumentOutOfRangeException(nameof(supply), supply, "unhandled heat supply");
+    }
+
+    /// <summary>
+    /// Whether the source is supplied, and for how many ticks: a powered heater's <see cref="HeatSupply.Powered.Ticks"/>, a
+    /// steady burn's unlimited. Short of power, unconnected and an unsteady burn are not supplied.
+    /// </summary>
+    public static bool Supplied(HeatSupply supply, out double ticks)
+    {
+        switch (supply)
+        {
+            case HeatSupply.Powered p:
+                ticks = p.Ticks;
+                return true;
+            case HeatSupply.Burning:
+                ticks = double.PositiveInfinity;
+                return true;
+            case HeatSupply.ShortOfPower or HeatSupply.Unconnected or HeatSupply.UnsteadyBurn:
+                ticks = 0;
+                return false;
+        }
+        throw new ArgumentOutOfRangeException(nameof(supply), supply, "unhandled heat supply");
+    }
+
+    /// <summary>A powered source whose network the schedule overloads is short of power.</summary>
+    public static HeatSupply Overloaded(HeatSupply supply) =>
+        supply is HeatSupply.Powered p ? new HeatSupply.ShortOfPower(p.Network, p.AdditionalWatts, p.SurplusWatts) : supply;
+
+    /// <summary>The supply <paramref name="elapsed"/> ticks on: a powered heater's remaining ticks, every other supply as it is.</summary>
+    public static HeatSupply After(HeatSupply supply, double elapsed) =>
+        supply is HeatSupply.Powered p ? p with { Ticks = Math.Max(0, p.Ticks - elapsed) } : supply;
 }

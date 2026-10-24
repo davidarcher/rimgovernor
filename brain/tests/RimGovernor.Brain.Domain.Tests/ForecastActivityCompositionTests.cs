@@ -316,14 +316,14 @@ public sealed class ForecastActivityCompositionTests
             {
                 Food = new(), FoodUses = [],
                 Construction = new() { Context = context, Known = true, Options = [Option("a"), Option("b")] },
-                Thermal = new()
+                Thermal = CoupledThermalTests.NoThermal with
                 {
-                    Outdoors = Known(-10d), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
-                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10d), c == inside ? "none" : "thin",
+                    Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10d, c == inside ? "none" : "thin",
                         c != inside && c != wall, false, c == wall ? "wall" : "",
                         c == wall, false, 0, c == inside))),
-                    Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", inside, Known(1d))],
-                    Sources = [new("heater", inside, true, Known(.35), Known(20d), Known(1000d))],
+                    Workers = [new("pawn", 5d)], RoofRoutes = [new("pawn", inside, new RoofApproach.Path(1d))],
+                    Sources = [new("heater", inside, true, .35, 20d, CoupledThermalTests.Powered(1000d))],
                 },
             } },
         };

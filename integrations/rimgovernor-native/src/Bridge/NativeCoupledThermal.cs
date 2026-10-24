@@ -43,10 +43,9 @@ internal static class NativeCoupledThermal
         foreach (var cell in rows.Where(c => c.BuildRoof && c.Roof == "none"))
         {
             var ticks = legs.Cost(pawn, pawn.Position, new IntVec3(cell.Cell.X, 0, cell.Cell.Z), PathEndMode.OnCell);
-            roofRoutes.Add(new(pawn.GetUniqueLoadID(), cell.Cell, ticks is { } t ? Fact.Known((double)t) : default));
+            roofRoutes.Add(new(pawn.GetUniqueLoadID(), cell.Cell, ticks is { } t ? new Obs.RoofApproach.Path(t) : new Obs.RoofApproach.Unreachable()));
         }
-        return Mechanics(map) with { Cells = EquatableArray.From(rows), Sources = EquatableArray.From(sources),
-            RoofRoutes = EquatableArray.From(roofRoutes) };
+        return Mechanics(map, EquatableArray.From(rows), EquatableArray.From(sources), EquatableArray.From(roofRoutes));
     }
 
     /// <summary>
@@ -73,7 +72,7 @@ internal static class NativeCoupledThermal
             if (Fueled(definition)) sources.Add(FueledSource(heater.Site, cell, definition, false));
             else if (typeof(Building_Heater).IsAssignableFrom(definition.thingClass)) sources.Add(Source(map, heater.Site, cell, definition, false, null, null));
         }
-        return Mechanics(map) with { Cells = EquatableArray.From(cells.Select(c => Row(map, c))), Sources = EquatableArray.From(sources) };
+        return Mechanics(map, EquatableArray.From(cells.Select(c => Row(map, c))), EquatableArray.From(sources), []);
     }
 
     // Adds an in-bounds cell.
@@ -89,7 +88,7 @@ internal static class NativeCoupledThermal
         var future = site?.def.entityDefToBuild as ThingDef;
         var door = edifice as Building_Door; var doorDef = door?.def ?? (future?.IsDoor == true ? future : null);
         var roof = cell.GetRoof(map);
-        return new Obs.ThermalCell(new(c.X, c.Z), Fact.Known((double)cell.GetTemperature(map)),
+        return new Obs.ThermalCell(new(c.X, c.Z), cell.GetTemperature(map),
             roof == null ? "none" : roof.isThickRoof ? "thick" : "thin",
             edifice?.def.Fillage == FillCategory.Full, door?.HoldOpen == true,
             site?.GetUniqueLoadID() ?? "", future?.Fillage == FillCategory.Full,
@@ -101,20 +100,22 @@ internal static class NativeCoupledThermal
     private static Obs.ThermalSource Source(Map map, string target, IntVec3 position, ThingDef definition, bool ready,
         CompPowerTrader? power, float? targetTemperature)
     {
-        var temperature = definition.GetCompProperties<CompProperties_TempControl>();
+        var temperature = definition.GetCompProperties<CompProperties_TempControl>()
+            ?? throw new InvalidOperationException($"heater def {definition.defName} has no CompProperties_TempControl");
         var transmitter = PowerConnectionMaker.BestTransmitterForConnector(position, map);
         var net = power?.PowerNet ?? transmitter?.PowerNet;
+        var heat = temperature.energyPerSecond / 60.0;
+        var goal = (double)(targetTemperature ?? temperature.defaultTargetTemperature);
+        if (net == null) return new(target, new(position.x, position.z), ready, heat, goal, new Obs.HeatSupply.Unconnected());
         var watts = definition.GetCompProperties<CompProperties_Power>()?.PowerConsumption ?? 0;
         // No future weather/fuel claim: supply is assessed only from the current network's observed surplus.
-        var surplus = net == null ? 0 : net.powerComps.Where(p => p.PowerOn).Sum(p => p.PowerOutput);
-        var additional = Math.Max(0, watts + (ready ? power?.PowerOutput ?? 0 : 0));
-        Fact<double> supply = net != null && (ready ? power?.PowerOn == true && surplus >= additional : surplus >= additional)
-            ? Fact.Known((double)RimGovernor.Brain.Domain.GameTime.TicksPerDay) : default;
-        return new Obs.ThermalSource(target, new(position.x, position.z), ready,
-            temperature == null ? default : Fact.Known(temperature.energyPerSecond / 60.0),
-            Fact.Known((double)(targetTemperature ?? temperature?.defaultTargetTemperature ?? 20)), supply)
-            { PowerNetwork = net == null ? "" : string.Join("/", net.powerComps.Select(p => p.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)),
-                AdditionalWatts = Fact.Known((double)additional), SurplusWatts = net == null ? default : Fact.Known((double)surplus) };
+        double surplus = net.powerComps.Where(p => p.PowerOn).Sum(p => p.PowerOutput);
+        double additional = Math.Max(0, watts + (ready ? power?.PowerOutput ?? 0 : 0));
+        var network = string.Join("/", net.powerComps.Select(p => p.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal));
+        Obs.HeatSupply supply = (ready ? power is { PowerOn: true } && surplus >= additional : surplus >= additional)
+            ? new Obs.HeatSupply.Powered(network, additional, surplus, RimGovernor.Brain.Domain.GameTime.TicksPerDay)
+            : new Obs.HeatSupply.ShortOfPower(network, additional, surplus);
+        return new(target, new(position.x, position.z), ready, heat, goal, supply);
     }
 
     // A def that heats by burning fuel (#3673): a heat pusher with a positive push and a refuelable comp (a campfire).
@@ -122,9 +123,8 @@ internal static class NativeCoupledThermal
         definition?.GetCompProperties<CompProperties_HeatPusher>() is { heatPerSecond: > 0 } && definition.GetCompProperties<CompProperties_Refuelable>() != null;
 
     // A fueled heat pusher's mechanics (#3673): its push every 60 ticks spread over them, pushing below heatPushMaxTemperature,
-    // with unlimited supply. The burn is known when it is steady (not use-, power- or externally driven) and of one fuel def:
-    // fuelConsumptionRate fuel units a day, an item worth FuelMultiplierCurrentDifficulty units. Otherwise the burn and the
-    // supply are unknown.
+    // with unlimited supply. The burn is Burning when it is steady (not use-, power- or externally driven) and of one fuel def:
+    // fuelConsumptionRate fuel units a day, an item worth FuelMultiplierCurrentDifficulty units. Otherwise it is UnsteadyBurn.
     private static Obs.ThermalSource FueledSource(string target, IntVec3 position, ThingDef definition, bool ready)
     {
         var push = definition.GetCompProperties<CompProperties_HeatPusher>();
@@ -132,28 +132,35 @@ internal static class NativeCoupledThermal
         var fuels = refuel.fuelFilter?.AllowedThingDefs.ToArray() ?? [];
         var steady = !refuel.consumeFuelOnlyWhenUsed && !refuel.consumeFuelOnlyWhenPowered && !refuel.externalTicking
             && fuels.Length == 1 && refuel.FuelMultiplierCurrentDifficulty > 0;
-        return new Obs.ThermalSource(target, new(position.x, position.z), ready, Fact.Known(push.heatPerSecond / 60.0),
-            Fact.Known((double)push.heatPushMaxTemperature), steady ? Fact.Known(double.PositiveInfinity) : default)
-            { Fuel = steady ? fuels[0].defName : "", FuelPerTick = steady
-                ? Fact.Known(refuel.fuelConsumptionRate / (double)RimGovernor.Brain.Domain.GameTime.TicksPerDay / refuel.FuelMultiplierCurrentDifficulty) : default };
+        Obs.HeatSupply supply = steady
+            ? new Obs.HeatSupply.Burning(fuels[0].defName, refuel.fuelConsumptionRate / (double)RimGovernor.Brain.Domain.GameTime.TicksPerDay / refuel.FuelMultiplierCurrentDifficulty)
+            : new Obs.HeatSupply.UnsteadyBurn();
+        return new(target, new(position.x, position.z), ready, push.heatPerSecond / 60.0, push.heatPushMaxTemperature, supply);
     }
 
-    // The map's builders and exchange constants, shared by both reads.
-    private static Obs.CoupledThermalRead Mechanics(Map map)
+    // The map's builders and exchange constants, shared by both reads: every free colonist who can do construction and
+    // has a construction speed (one without cannot roof and is no builder).
+    private static Obs.CoupledThermalRead Mechanics(Map map, EquatableArray<Obs.ThermalCell> cells, EquatableArray<Obs.ThermalSource> sources,
+        EquatableArray<Obs.ThermalRoofRoute> roofRoutes)
     {
         var workers = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
-            .Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)).Select(p => new Obs.ThermalWorker(p.GetUniqueLoadID(),
-                p.GetStatValue(StatDefOf.ConstructionSpeed) > 0
-                    ? Fact.Known(65.0 / (p.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7)) : default)
+            .Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && p.GetStatValue(StatDefOf.ConstructionSpeed) > 0)
+            .Select(p => new Obs.ThermalWorker(p.GetUniqueLoadID(), 65.0 / (p.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7))
                 { SkillWork = NativeProductiveSkill.ReadWork(p, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
                     65, 1.7, 0, false, false, "JobDriver_AffectRoof: construction speed, no learning") }).ToArray();
-        // Constants are read from this game's mechanics; unsupported versions produce unknown observations.
-        // The roof rates are private consts, so no typed route reaches them: they are read by name.
-        var thin = typeof(RoomTempTracker).GetField("ThinRoofEqualizeRate", BindingFlags.Static | BindingFlags.NonPublic);
-        var open = typeof(RoomTempTracker).GetField("NoRoofEqualizeRate", BindingFlags.Static | BindingFlags.NonPublic);
-        return new() { Workers = EquatableArray.From(workers), Outdoors = Fact.Known((double)map.mapTemperature.OutdoorTemp),
-            ThinRoofExchangePerTick = thin?.GetRawConstantValue() is float rate ? Fact.Known((double)rate) : default,
-            NoRoofExchangePerTick = open?.GetRawConstantValue() is float none ? Fact.Known((double)none) : default,
-            WallExchangePerTick = Fact.Known((double)RoomTempTracker.WallEqualizeFactor * RoomTempTracker.FractionWallEqualizeCells * RoomTempTracker.EqualizationPowerOfFilledCells) };
+        // The roof rates are private consts, so no typed route reaches them: they are read by name, and a game whose
+        // RoomTempTracker lacks one fails the read.
+        return new()
+        {
+            Cells = cells, Sources = sources, RoofRoutes = roofRoutes, Workers = EquatableArray.From(workers),
+            Outdoors = map.mapTemperature.OutdoorTemp,
+            ThinRoofExchangePerTick = RoofRate("ThinRoofEqualizeRate"),
+            NoRoofExchangePerTick = RoofRate("NoRoofEqualizeRate"),
+            WallExchangePerTick = (double)RoomTempTracker.WallEqualizeFactor * RoomTempTracker.FractionWallEqualizeCells * RoomTempTracker.EqualizationPowerOfFilledCells,
+        };
     }
+
+    private static double RoofRate(string name) =>
+        typeof(RoomTempTracker).GetField(name, BindingFlags.Static | BindingFlags.NonPublic)?.GetRawConstantValue() is float rate
+            ? rate : throw new InvalidOperationException($"RoomTempTracker.{name} is not a float constant in this game version");
 }

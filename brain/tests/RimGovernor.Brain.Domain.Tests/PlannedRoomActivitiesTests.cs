@@ -126,7 +126,7 @@ public sealed class PlannedRoomActivitiesTests
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d))],
                     Construction = new() { Context = Context, Known = true },
                     // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.
-                    Thermal = roofCellWork > 0 ? new() { Workers = [new(Pawn, Known(roofCellWork))] } : null,
+                    Thermal = roofCellWork > 0 ? CoupledThermalTests.NoThermal with { Workers = [new(Pawn, roofCellWork)] } : null,
                 },
             },
         };

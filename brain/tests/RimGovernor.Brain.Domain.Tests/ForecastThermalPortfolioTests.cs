@@ -16,15 +16,15 @@ public sealed class ForecastThermalPortfolioTests
         var inside = new Cell(1, 1);
         var wall = facts.ForecastObserved.Coupled!.Construction.Options.Single() with { Location = new(0, 1) };
         var bed = occupiedInside ? inside : new Cell(3, 1);
-        var thermal = new CoupledThermalRead
+        var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
-            Cells = EquatableArray.From(cells.Append(new Cell(3, 1)).Select(c => new ThermalCell(c, Known(ambient), "none",
+            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Cells = EquatableArray.From(cells.Append(new Cell(3, 1)).Select(c => new ThermalCell(c, ambient, "none",
                 c != inside && c != wall.Location && c != new Cell(3, 1), false,
                 c == wall.Location ? wall.Site : "", c == wall.Location,
                 false, 0, c == inside))),
-            Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", inside, Known(1d))],
-            Sources = [new("heater", inside, true, Known(.35), Known(20d), Known(60000d))],
+            Workers = [new("pawn", 5d)], RoofRoutes = [new("pawn", inside, new RoofApproach.Path(1d))],
+            Sources = [new("heater", inside, true, .35, 20d, CoupledThermalTests.Powered(60000d))],
         };
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
@@ -107,14 +107,14 @@ public sealed class ForecastThermalPortfolioTests
         Cell bed = new(1, 1), heater = new(2, 1), door = new(3, 1);
         var interior = new[] { bed, heater };
         var frame = facts.ForecastObserved.Coupled!.Construction.Options.Single() with { Location = heater };
-        var thermal = new CoupledThermalRead
+        var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
-            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(ambient), interior.Contains(c) ? "thin" : "none",
+            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, ambient, interior.Contains(c) ? "thin" : "none",
                 !interior.Contains(c), c == door && doorHeldOpen, c == heater ? frame.Site : "", false, false,
                 c == door ? .00267 : 0, false))),
-            Workers = [new("pawn", Known(5d))], RoofRoutes = [],
-            Sources = [new(frame.Site, heater, false, Known(.35), Known(20d), Known(60000d))],
+            Workers = [new("pawn", 5d)], RoofRoutes = [],
+            Sources = [new(frame.Site, heater, false, .35, 20d, CoupledThermalTests.Powered(60000d))],
         };
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {

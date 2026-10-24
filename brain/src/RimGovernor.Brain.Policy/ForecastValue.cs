@@ -229,9 +229,9 @@ public static partial class ForecastValue
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         /// <summary>The activities whose consumed inputs are charged as construction material (#3653).</summary>
         public readonly HashSet<string> MaterialCharged = ChargedMaterialActivities(context);
-        /// <summary>The fueled sources with a known burn (#3673) of each shelter (#3679), by room.</summary>
-        public readonly Dictionary<ForecastShelterId, ThermalSource[]> Fueled = FueledShelters(context)
-            .GroupBy(s => s.Shelter.Room).ToDictionary(g => g.Key, g => g.Select(s => s.Source).DistinctBy(s => s.Target).ToArray());
+        /// <summary>The fueled sources with a steady burn (#3673) of each shelter (#3679), by room.</summary>
+        public readonly Dictionary<ForecastShelterId, (string Target, HeatSupply.Burning Burn)[]> Fueled = FueledShelters(context)
+            .GroupBy(s => s.Shelter.Room).ToDictionary(g => g.Key, g => g.Select(s => (s.Target, s.Burn)).DistinctBy(s => s.Target).ToArray());
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -458,7 +458,7 @@ public static partial class ForecastValue
         if (index.Fueled.Count != 0)
             foreach (var shelter in outcome.Shelters)
                 if (index.Fueled.TryGetValue(shelter.Room, out var fueled) && shelter.CompleteAt.TryGetValue(out var complete))
-                    foreach (var source in fueled) Material(source.Target, "", new(source.Fuel), source.FuelPerTick.Value * (horizon - complete));
+                    foreach (var source in fueled) Material(source.Target, "", new(source.Burn.Fuel), source.Burn.FuelPerTick * (horizon - complete));
 
         foreach (var allocation in outcome.Plan.Allocations)
         {

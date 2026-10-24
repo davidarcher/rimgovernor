@@ -140,12 +140,12 @@ public sealed class ServiceInvestmentTests
     {
         var facts = ForecastThermalPortfolioTests.Review(-10);
         var read = facts.ForecastObserved.Coupled!;
-        var noPower = read.Thermal! with { Sources = EquatableArray.From(read.Thermal!.Sources.Select(s => s with { SupplyTicks = default })) };
+        var noPower = read.Thermal! with { Sources = EquatableArray.From(read.Thermal!.Sources.Select(s => s with { Supply = new HeatSupply.Unconnected() })) };
         var unavailable = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with { Thermal = noPower } } };
         unavailable = unavailable with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(unavailable, 1000)?.Priced() };
         Assert.Empty(ForecastThermalPortfolioTests.Select(unavailable).Selected.CompletedDevelopmentSites);
         var solved = read.Thermal with { Cells = EquatableArray.From(read.Thermal.Cells.Select(c => c with
-        { Temperature = Known(20d), Roof = "thin", Solid = c.Cell != new Cell(1, 1) && c.Cell != new Cell(3, 1), Site = "", FutureSolid = false })) };
+        { Temperature = 20d, Roof = "thin", Solid = c.Cell != new Cell(1, 1) && c.Cell != new Cell(3, 1), Site = "", FutureSolid = false })) };
         var alternate = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with { Thermal = solved } } };
         alternate = alternate with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(alternate, 1000)?.Priced() };
         var choice = ForecastThermalPortfolioTests.Select(alternate);

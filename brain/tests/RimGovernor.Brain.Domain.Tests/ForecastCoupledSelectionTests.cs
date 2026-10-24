@@ -816,9 +816,9 @@ public sealed class ForecastCoupledSelectionTests
             {
                 Needs = candidates.Context.Needs with { Pawns = [pawn] },
                 Shelters = nearBreak ? candidates.Context.Shelters : [],
-                Thermal = nearBreak ? candidates.Context.Thermal : new()
+                Thermal = nearBreak ? candidates.Context.Thermal : CoupledThermalTests.NoThermal with
                 {
-                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, "", false, false, 0, false))),
+                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", false, false, "", false, false, 0, false))),
                 },
             }
         } };
@@ -846,7 +846,7 @@ public sealed class ForecastCoupledSelectionTests
             {
                 Needs = candidates.Context.Needs with { Pawns = [pawn] },
                 Shelters = [],
-                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(mild ? 20.0 : -10.0), "none", false, false, "", false, false, 0, false))) },
+                Thermal = CoupledThermalTests.NoThermal with { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, mild ? 20.0 : -10.0, "none", false, false, "", false, false, 0, false))) },
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
                 CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
                 {
@@ -952,10 +952,11 @@ public sealed class ForecastCoupledSelectionTests
     {
         var (facts, work, gear) = ColdWorkReview(.28);
         var today = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { Cards = new Dictionary<string, MechanicCard>() } } };
-        // No outdoor work: the shift has no span to act on; the mood is today's and names the constant thought.
-        var idle = Outcome(facts, gear).Needs["pawn"].Mood!;
-        var plain = Outcome(today, gear).Needs["pawn"].Mood!;
-        Assert.Equal(0, Outcome(facts, gear).ThermalExposure.Single().AssessedTicks);
+        // No thermal read: the shift has no span to act on; the mood is today's and names the constant thought.
+        static RoundsFacts Unread(RoundsFacts f) => f with { CoupledAlternatives = f.CoupledAlternatives! with { Context = f.CoupledAlternatives.Context with { Thermal = null } } };
+        var idle = Outcome(Unread(facts), gear).Needs["pawn"].Mood!;
+        var plain = Outcome(Unread(today), gear).Needs["pawn"].Mood!;
+        Assert.Equal(0, Outcome(Unread(facts), gear).ThermalExposure.Single().AssessedTicks);
         Assert.Equal(plain.Trajectory, idle.Trajectory);
         Assert.Equal(plain.BreakRisk, idle.BreakRisk);
         Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", idle.Findings);
@@ -1027,7 +1028,7 @@ public sealed class ForecastCoupledSelectionTests
             {
                 Needs = candidates.Context.Needs with { Pawns = [wearer, template with { Pawn = "tailor", Mood = Known(.9), MoodTarget = Known(.9), MoodUnclampedTarget = Known(.9) }] },
                 Shelters = [],
-                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, "", false, false, 0, false))) },
+                Thermal = CoupledThermalTests.NoThermal with { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", false, false, "", false, false, 0, false))) },
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
                 CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
                 {

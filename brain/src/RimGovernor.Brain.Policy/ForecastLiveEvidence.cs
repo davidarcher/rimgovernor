@@ -73,9 +73,9 @@ public static class ForecastLiveEvidence
             reason = room is null ? "shelter_geometry_unobserved" : "temperature_coverage_incomplete";
             if (room is not null && room.Interior.Count > 0 && context?.Thermal is { } thermal)
             {
-                var temperatures = room.Interior.Select(c => thermal.Cells.FirstOrDefault(s => s.Cell == c)?.Temperature ?? default).ToArray();
-                if (temperatures.All(t => t.IsKnown) && temperatures.Select(t => t.Value).Distinct().Count() == 1)
-                    value = temperatures[0];
+                var temperatures = room.Interior.Select(c => thermal.Cells.FirstOrDefault(s => s.Cell == c)?.Temperature).ToArray();
+                if (temperatures.All(t => t is not null) && temperatures.Distinct().Count() == 1)
+                    value = Known(temperatures[0]!.Value);
             }
         }
         else if (key.Metric == ForecastMetric.FoodStock)

@@ -164,9 +164,10 @@ internal static class CoupledShelterCandidates
                 operations.Add(id, new(task, shell, [supply]) { ChoiceGroup = "roof-cell/" + cell.X + "/" + cell.Z });
                 foreach (var worker in read!.Workers)
                 {
-                    var approach = read.RoofRoutes.SingleOrDefault(r => r.Pawn == worker.Pawn && r.Cell == cell)?.ApproachTicks ?? default;
-                    options.Add(new(id, worker.Pawn, worker.RoofCellWorkTicks, Known(0d)) { SkillWork = worker.SkillWork });
-                    routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, approach));
+                    // A colonist with no path to the cell (or no route read to it) cannot roof it: it gets no option, never a free approach.
+                    if (read.RoofRoutes.SingleOrDefault(r => r.Pawn == worker.Pawn && r.Cell == cell)?.Approach is not RoofApproach.Path path) continue;
+                    options.Add(new(id, worker.Pawn, Known(worker.RoofCellWorkTicks), Known(0d)) { SkillWork = worker.SkillWork });
+                    routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, Known(path.Ticks)));
                     bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work,
                         // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.
                         "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };
@@ -189,17 +190,19 @@ internal static class CoupledShelterCandidates
                 }
             var valid = notes.All(n => n == "roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
             var cells = interior.Where(observed.ContainsKey).Select(c => observed[c]).ToArray();
-            var temperature = valid && cells.Length != 0 && cells.All(c => c.Temperature.IsKnown) ? Known(cells.Average(c => c.Temperature.Value)) : default;
-            var walls = valid && read is { WallExchangePerTick.IsKnown: true }
-                ? Known((ring.Count * read.WallExchangePerTick.Value + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count) : default;
-            var exchange = walls.IsKnown && read is { ThinRoofExchangePerTick.IsKnown: true } ? Known(read.ThinRoofExchangePerTick.Value + walls.Value) : default;
-            // The room as it stands (#3534) holds only behind a closed ring; its roof terms are RoomTempTracker's coverage
-            // terms, each open cell at the no-roof rate and the rest at the thin-roof rate.
-            var open = cells.Count(c => c.Roof == "none");
-            var standing = exchange.IsKnown && read is { NoRoofExchangePerTick.IsKnown: true }
-                && ring.All(c => observed.TryGetValue(c, out var row) && row.Solid && !row.DoorHeldOpen)
-                ? Known((read.ThinRoofExchangePerTick.Value * (interior.Count - open) + read.NoRoofExchangePerTick.Value * open) / interior.Count + walls.Value) : default;
-            plans.Add(new(room.Id, interior, [], temperature, read?.Outdoors ?? default, exchange, EquatableArray.From(sources), EquatableArray.From(notes.Distinct()))
+            var temperature = valid && cells.Length != 0 ? Known(cells.Average(c => c.Temperature)) : default;
+            Fact<double> exchange = default, standing = default;
+            if (valid && read is not null)
+            {
+                var walls = (ring.Count * read.WallExchangePerTick + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count;
+                exchange = Known(read.ThinRoofExchangePerTick + walls);
+                // The room as it stands (#3534) holds only behind a closed ring; its roof terms are RoomTempTracker's coverage
+                // terms, each open cell at the no-roof rate and the rest at the thin-roof rate.
+                var open = cells.Count(c => c.Roof == "none");
+                standing = ring.All(c => observed.TryGetValue(c, out var row) && row.Solid && !row.DoorHeldOpen)
+                    ? Known((read.ThinRoofExchangePerTick * (interior.Count - open) + read.NoRoofExchangePerTick * open) / interior.Count + walls) : default;
+            }
+            plans.Add(new(room.Id, interior, [], temperature, read is null ? default : Known(read.Outdoors), exchange, EquatableArray.From(sources), EquatableArray.From(notes.Distinct()))
                 { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = developmentRoom, StandingExchangePerTick = standing,
                     RoofCells = developmentRoom == 0 ? [] : EquatableArray.From(roofCells) });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));

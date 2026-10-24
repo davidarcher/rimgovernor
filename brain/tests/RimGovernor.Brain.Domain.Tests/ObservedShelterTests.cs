@@ -23,15 +23,15 @@ public sealed class ObservedShelterTests
             {
                 Food = facts.ForecastObserved.Coupled!.Food with { Options = [] }, FoodUses = [],
                 Construction = facts.ForecastObserved.Coupled!.Construction with { Options = [] },
-                Thermal = new()
+                Thermal = CoupledThermalTests.NoThermal with
                 {
-                    Outdoors = Known(-10d), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
-                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10d),
+                    Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10d,
                         Interior.Contains(c) && c.Z == 1 ? "none" : "thin", !Interior.Contains(c), false,
                         "", false, false, 0, Interior.Contains(c) && c.Z == 1))),
-                    Workers = [new("pawn", Known(5d))],
-                    RoofRoutes = [new("pawn", new(1, 1), Known(1d)), new("pawn", new(2, 1), Known(1d))],
-                    Sources = [new("heater", new(1, 2), true, Known(.35), Known(20d), Known(1000d))]
+                    Workers = [new("pawn", 5d)],
+                    RoofRoutes = [new("pawn", new(1, 1), new RoofApproach.Path(1d)), new("pawn", new(2, 1), new RoofApproach.Path(1d))],
+                    Sources = [new("heater", new(1, 2), true, .35, 20d, CoupledThermalTests.Powered(1000d))]
                 }
             } }
         };
@@ -69,10 +69,10 @@ public sealed class ObservedShelterTests
             {
                 Cells = EquatableArray.From(facts.ForecastObserved.Coupled!.Thermal!.Cells.Select(c => c with
                 {
-                    Temperature = Interior.Contains(c.Cell) ? Known(20d) : c.Temperature,
+                    Temperature = Interior.Contains(c.Cell) ? 20d : c.Temperature,
                     Roof = c.Cell == new Cell(1, 1) || !Interior.Contains(c.Cell) ? c.Roof : "thin", BuildRoof = c.Cell == new Cell(1, 1)
                 })),
-                RoofRoutes = [new("pawn", new(1, 1), Known(1d))]
+                RoofRoutes = [new("pawn", new(1, 1), new RoofApproach.Path(1d))]
             }
         } } };
         ForecastCoupledSelection Select(RoundsFacts facts)
@@ -105,10 +105,10 @@ public sealed class ObservedShelterTests
             var facts = Facts() with { PlannedShelters = [] };
             var thermal = facts.ForecastObserved.Coupled!.Thermal! with
             {
-                NoRoofExchangePerTick = Known(.0007),
+                NoRoofExchangePerTick = .0007,
                 Cells = EquatableArray.From(facts.ForecastObserved.Coupled!.Thermal!.Cells.Select(c => Interior.Contains(c.Cell)
-                    ? c with { Temperature = Known(20d), Roof = open && c.Cell.Z == 1 ? "none" : "thin", BuildRoof = open && c.Cell.Z == 1 } : c)),
-                Sources = [new("heater", new(1, 2), true, Known(0d), Known(20d), Known(1e6))],
+                    ? c with { Temperature = 20d, Roof = open && c.Cell.Z == 1 ? "none" : "thin", BuildRoof = open && c.Cell.Z == 1 } : c)),
+                Sources = [new("heater", new(1, 2), true, 0d, 20d, CoupledThermalTests.Powered(1e6))],
             };
             facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with { Thermal = thermal } } };
             return ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);

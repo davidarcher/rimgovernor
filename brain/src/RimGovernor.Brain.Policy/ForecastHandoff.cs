@@ -144,8 +144,8 @@ public static class ForecastHandoffPolicy
             .Select(p => p with { InitialTemperature = outcome.Shelters.Single(s => s.Room == p.Room).TemperatureAtHorizon,
                 Prerequisites = [], AlternativePrerequisites = [], RoofCells = [], StandingExchangePerTick = p.ExchangePerTick,
                 Sources = EquatableArray.From(p.Sources.Select(s => s with { Complete = true,
-                    SupplyTicks = s.SupplyTicks.IsKnown ? Known(Math.Max(0, s.SupplyTicks.Value -
-                        (day * GameTime.TicksPerDay - outcome.Shelters.Single(o => o.Room == p.Room).CompleteAt.Value))) : default })) }));
+                    Supply = HeatSupplies.After(s.Supply,
+                        day * GameTime.TicksPerDay - outcome.Shelters.Single(o => o.Room == p.Room).CompleteAt.Value) })) }));
         return new(state, EquatableArray.From(needs), EquatableArray.From(dates), EquatableArray.From(gaps))
         { Graph = projected.Graph, ActiveEffects = active, Shelters = outcome.Shelters, ShelterPlans = shelterPlans, ServedRooms = outcome.ServedRooms };
     }

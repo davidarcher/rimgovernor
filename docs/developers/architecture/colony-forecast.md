@@ -686,8 +686,9 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    `Illegal` verdict makes the alternative infeasible (`planned_room_alternative_infeasible:{alt}:{site}`). An
    `Unestimable` or unread verdict, no finish row, no delivery row for owed material, or a clearing with no
    routable row leaves it unvalued (`planned_room_alternative_unvalued:{alt}:{site}:{reason}`). A roof is
-   valued only when a free pawn shows `RoofCellWorkTicks` (else `roof_work_unknown`) and has a known route to
-   the roof (else `roof_unrouted`). Nothing is emitted for an
+   valued only when the thermal read was made (else `roof_work_unread`), lists a roof worker (a colonist with a
+   construction speed; else `no_roof_worker`), and a free one has a known route to the roof (else `roof_unrouted`).
+   Nothing is emitted for an
    alternative that is not valued.
 3. Each site of a valued alternative is generated in the placed-site shape: a delivery per material source
    (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish. Whole-stack

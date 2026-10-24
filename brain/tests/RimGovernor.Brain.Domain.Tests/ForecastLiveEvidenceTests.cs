@@ -150,10 +150,10 @@ public sealed class ForecastLiveEvidenceTests
         selected = selected with { Selected = selected.Selected with { Shelters = [new(room, Known(0d), Known(21d), [], [])] } };
         var prediction = ForecastLiveEvidence.Predictions("run", "load", "1", "review", 100, selected, context,
             ForecastAdmission.Admitted, [Batch], "method").Single(p => p.Key.Metric == ForecastMetric.ShelterTemperature);
-        ThermalCell Cell(int z) => new(new(1, z), Known(23d), "roof", false, false, "", false, false, 0, false);
-        var observed = context with { Needs = Needs(200), Thermal = new() { Cells = [Cell(1), Cell(2)] } };
+        ThermalCell Cell(int z) => new(new(1, z), 23d, "roof", false, false, "", false, false, 0, false);
+        var observed = context with { Needs = Needs(200), Thermal = CoupledThermalTests.NoThermal with { Cells = [Cell(1), Cell(2)] } };
         Assert.Equal(23, ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed, ForecastExecution.Unknown).Value.Value);
-        var partial = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Thermal = new() { Cells = [Cell(1)] } }, ForecastExecution.Unknown);
+        var partial = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Thermal = CoupledThermalTests.NoThermal with { Cells = [Cell(1)] } }, ForecastExecution.Unknown);
         Assert.Equal("temperature_coverage_incomplete", partial.UnknownReason); Assert.False(partial.Value.IsKnown);
         var changed = ForecastLiveEvidence.Observe(prediction, 200, Needs(200), observed with { Shelters = [geometry with { Interior = [new(9, 9)] }] }, ForecastExecution.Unknown);
         Assert.Equal("shelter_geometry_unobserved", changed.UnknownReason); Assert.False(changed.Value.IsKnown);

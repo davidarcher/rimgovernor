@@ -40,8 +40,7 @@ public sealed class PlannedShelterTests
             { Verdict = verdict, Options = [row] };
     }
 
-    private static readonly ThermalSource PlannedHeater = new(HeaterSite, Inside, false, Known(.35), Known(20d), Known(60000d))
-        { PowerNetwork = "net", AdditionalWatts = Known(175d), SurplusWatts = Known(500d) };
+    private static readonly ThermalSource PlannedHeater = new(HeaterSite, Inside, false, .35, 20d, new HeatSupply.Powered("net", 175d, 500d, 60000d));
 
     // unplaced: nothing at all is placed, so the coupled capture holds no cell or source of the room (#3323); its cells
     // and the planned heater (plannedSources, else a powered heater) come only from the round's planned thermal read.
@@ -52,13 +51,13 @@ public sealed class PlannedShelterTests
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
         // Nothing is placed: the open ring cells and the unroofed interior are owed only by the planned sites.
         var open = new[] { Inside, WallCell, DoorCell };
-        var thermal = new CoupledThermalRead
+        var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
-            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(ambient), "none",
+            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, ambient, "none",
                 !open.Contains(c), false, "", false, false, 0, buildRoof && c == Inside))),
-            Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", Inside, Known(1d))],
-            Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))],
+            Workers = [new("pawn", 5d)], RoofRoutes = [new("pawn", Inside, new RoofApproach.Path(1d))],
+            Sources = [new("heater", Inside, true, .35, 20d, CoupledThermalTests.Powered(60000d))],
         };
         CoupledThermalRead? plannedThermal = null;
         if (unplaced)
@@ -222,7 +221,7 @@ public sealed class PlannedShelterTests
         var plan = Assert.Single(candidates.Context.Shelters);
         Assert.Equal("planned/1", plan.Room.ToString());
         Assert.Empty(plan.Findings);
-        Assert.Equal((HeaterSite, "net"), (plan.Sources.Single().Target, plan.Sources.Single().PowerNetwork));
+        Assert.Equal((HeaterSite, "net"), (plan.Sources.Single().Target, Assert.IsType<HeatSupply.Powered>(plan.Sources.Single().Supply).Network));
         // Wall, door, roof and heater: one prerequisite each, realized by the planned site's own finish.
         Assert.Equal(4, plan.AlternativePrerequisites.Count);
         var heater = candidates.Context.PlannedSites.Single(s => s.Site == HeaterSite);
@@ -257,13 +256,12 @@ public sealed class PlannedShelterTests
     public void APlannedCampfireHeatsItsShelterAndIsChargedItsFuelFromTheShellsCompletion()
     {
         const double burn = 10d / GameTime.TicksPerDay, perLog = .01;
-        var campfire = new ThermalSource(CampfireSite, Inside, false, Known(21 / 60d), Known(23d), Known(double.PositiveInfinity))
-            { Fuel = "WoodLog", FuelPerTick = Known(burn) };
+        var campfire = new ThermalSource(CampfireSite, Inside, false, 21 / 60d, 23d, new HeatSupply.Burning("WoodLog", burn));
         var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50, def: "Campfire")], unplaced: true, plannedSources: [campfire]);
         var plan = Assert.Single(facts.CoupledAlternatives!.Context.Shelters);
         Assert.Empty(plan.Findings);
         var source = plan.Sources.Single();
-        Assert.Equal(("WoodLog", "", burn), (source.Fuel, source.PowerNetwork, source.FuelPerTick.Value));
+        Assert.Equal(new HeatSupply.Burning("WoodLog", burn), source.Supply);
         Assert.Equal([new Resource("WoodLog")], ForecastValue.ChargedMaterials(facts.CoupledAlternatives.Context));
         var alternatives = facts.CoupledAlternatives with { Context = facts.CoupledAlternatives.Context with
             { MaterialValues = new Dictionary<Resource, ConstructionMaterialValue> { [new("WoodLog")] = new(MaterialValueBasis.Labor, perLog) } } };
@@ -289,8 +287,8 @@ public sealed class PlannedShelterTests
     {
         const double burn = 10d / GameTime.TicksPerDay, oil = 2d / GameTime.TicksPerDay;
         const string lampSite = "planned/room1/build/Lamp/1/1";
-        var campfire = new ThermalSource(CampfireSite, Inside, false, Known(.1), Known(23d), Known(double.PositiveInfinity)) { Fuel = "WoodLog", FuelPerTick = Known(burn) };
-        var lamp = new ThermalSource(lampSite, Inside, false, Known(.05), Known(15d), Known(double.PositiveInfinity)) { Fuel = "Chemfuel", FuelPerTick = Known(oil) };
+        var campfire = new ThermalSource(CampfireSite, Inside, false, .1, 23d, new HeatSupply.Burning("WoodLog", burn));
+        var lamp = new ThermalSource(lampSite, Inside, false, .05, 15d, new HeatSupply.Burning("Chemfuel", oil));
         var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50), Heater(20, def: "Campfire"), Heater(10, def: "Lamp")],
             unplaced: true, plannedSources: [PlannedHeater, campfire, lamp]);
         var candidates = facts.CoupledAlternatives!;
@@ -334,7 +332,7 @@ public sealed class PlannedShelterTests
     [Fact]
     public void ABuiltSourceDoesNotStandInForAnUnvaluedPlannedOne()
     {
-        var torch = new ThermalSource("torch", Inside, true, Known(.05), Known(23d), Known(double.PositiveInfinity)) { Fuel = "WoodLog", FuelPerTick = Known(.0001) };
+        var torch = new ThermalSource("torch", Inside, true, .05, 23d, new HeatSupply.Burning("WoodLog", .0001));
         var built = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true, plannedSources: [PlannedHeater, torch]);
         var plan = Assert.Single(built.CoupledAlternatives!.Context.Shelters);
         Assert.Empty(plan.Findings);
@@ -421,12 +419,12 @@ public sealed class PlannedShelterTests
     [Fact]
     public void TheCoupledCaptureKeepsItsCellsAndSourcesOverThePlannedRead()
     {
-        ThermalCell Row(Cell cell, double temperature) => new(cell, Known(temperature), "none", false, false, "", false, false, 0, false);
-        var observed = new CoupledThermalRead { Cells = [Row(Inside, 5)], Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))] };
-        var planned = new CoupledThermalRead
+        ThermalCell Row(Cell cell, double temperature) => new(cell, temperature, "none", false, false, "", false, false, 0, false);
+        var observed = CoupledThermalTests.NoThermal with { Cells = [Row(Inside, 5)], Sources = [new("heater", Inside, true, .35, 20d, CoupledThermalTests.Powered(60000d))] };
+        var planned = CoupledThermalTests.NoThermal with
         {
             Cells = [Row(Inside, -10), Row(WallCell, -10)],
-            Sources = [new("heater", Inside, false, default, default, default), new(HeaterSite, Inside, false, Known(.35), Known(20d), default)],
+            Sources = [new("heater", Inside, false, .35, 20d, new HeatSupply.Unconnected()), new(HeaterSite, Inside, false, .35, 20d, new HeatSupply.Unconnected())],
         };
         var joined = PlannedRules.WithPlannedThermal(observed, planned)!;
         Assert.Equal([Row(Inside, 5), Row(WallCell, -10)], joined.Cells);

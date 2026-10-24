@@ -41,9 +41,9 @@ public static partial class ForecastValue
         return charged;
     }
 
-    /// <summary>Each shelter's fueled sources with a known burn (#3673), whose fuel the ledger charges per source (#3679).</summary>
-    internal static IEnumerable<(ForecastShelterPlan Shelter, ThermalSource Source)> FueledShelters(ForecastCoupledContext context) =>
-        context.Shelters.SelectMany(s => s.Sources.Where(f => f.Fuel.Length != 0 && f.FuelPerTick.IsKnown).Select(f => (s, f)));
+    /// <summary>Each shelter's fueled sources with a steady burn (#3673), whose fuel the ledger charges per source (#3679).</summary>
+    internal static IEnumerable<(ForecastShelterPlan Shelter, string Target, HeatSupply.Burning Burn)> FueledShelters(ForecastCoupledContext context) =>
+        context.Shelters.SelectMany(s => s.Sources.Where(f => f.Supply is HeatSupply.Burning).Select(f => (s, f.Target, (HeatSupply.Burning)f.Supply)));
 
     /// <summary>
     /// The materials the charged activities consume and the fueled shelters burn, and the stock a planned store keeps from
@@ -53,7 +53,7 @@ public static partial class ForecastValue
     {
         var charged = ChargedMaterialActivities(context);
         return [.. context.Activities.Activities.Where(a => charged.Contains(a.Id)).SelectMany(a => a.Inputs).Select(i => i.Resource)
-            .Concat(FueledShelters(context).Select(s => new Resource(s.Source.Fuel)))
+            .Concat(FueledShelters(context).Select(s => new Resource(s.Burn.Fuel)))
             .Concat(ForecastStorage.StockMaterials(context))
             .Distinct().OrderBy(r => r.Value, StringComparer.Ordinal)];
     }
