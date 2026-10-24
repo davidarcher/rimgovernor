@@ -13,7 +13,14 @@ internal static class NeedsFixtures
     public static NeedsForecastRead Read(long tick, params NeedsForecastPawn[] pawns) => new()
     {
         Tick = new(tick), Pawns = [.. pawns], WeatherThought = "", WeatherThoughtStages = 0, RainRate = 0, MapArea = 0,
-        Deterioration = null, ResearchBenches = [], Corpses = [], Deathrest = null,
+        Deterioration = null, ResearchBenches = [], Corpses = [], Deathrest = null, Prison = NoPrison,
+    };
+
+    /// <summary>The recruitment read of no warden and no prisoner, at the game's curves (InteractionWorker_RecruitAttempt, 1.7).</summary>
+    public static PrisonRecruitRead NoPrison => new()
+    {
+        MoodCurve = [new(0, .2), new(.5, 1), new(1, 1.5)], OpinionCurve = [new(-100, .5), new(0, 1), new(100, 1.5)],
+        MaxInteractionsPerDay = 2, Wardens = [], Prisoners = [],
     };
 
     /// <summary>The read of no pawns at tick 0.</summary>

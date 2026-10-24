@@ -78,31 +78,31 @@ public sealed class TrainingRangeCreditTests
     {
         ForecastRoomService range = new(1, "", Served * Day);
         // No capable pawn: nobody to train is a named zero.
-        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([], [], 0)), Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(new([], [], 0)), Day));
         // A trainee without a ranged primary lands no shots at any level.
         var unarmed = new SkillStatCurve(SkillStatCurve.RangedDefenseDps, "Shooting", EquatableArray.From(Enumerable.Range(0, 3).Select(l => new SkillStatLevel(l, 0))), "test");
-        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([Trainee("a", curve: unarmed)], [], 0)), Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(new([Trainee("a", curve: unarmed)], [], 0)), Day));
         // A standing Shooting target: the colony already drills without the range.
-        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), Context(One() with { Targets = 1 }), Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(One() with { Targets = 1 }), Day));
         // A trainee already at the ceiling gains nothing.
-        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([Trainee("a", 2)], [], 0)), Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(new([Trainee("a", 2)], [], 0)), Day));
         // No raid to expect: the Shooting saves no harm.
-        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), Context(One(), Raids(0)), Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(One(), Raids(0)), Day));
         // A second range takes no trainees: the lowest id does.
         var two = Context(One()) with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.TrainingRange, [3] = PlannedRole.TrainingRange } };
-        Assert.Empty(ForecastTrainingRange.RangeCredit(new(3, "", Served * Day), Stub(), two, Day));
-        Assert.NotEmpty(ForecastTrainingRange.RangeCredit(range, Stub(), two, Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(new(3, "", Served * Day), Stub(), [], two, Day));
+        Assert.NotEmpty(ForecastTrainingRange.RangeCredit(range, Stub(), [], two, Day));
     }
 
     [Fact]
     public void UnreadTraineesMechanicsOrHarmAreRequiredFacts()
     {
         ForecastRoomService range = new(1, "", Served * Day);
-        Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(null), Day)).Fact);
-        Assert.StartsWith("range trainees", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([Trainee("a")], ["c"], 0)), Day)).Fact, StringComparison.Ordinal);
+        Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(null), Day)).Fact);
+        Assert.StartsWith("range trainees", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(new([Trainee("a")], ["c"], 0)), Day)).Fact, StringComparison.Ordinal);
         var unread = Trainee("a") with { Learning = Shooting() with { Xp = double.NaN } };
-        Assert.StartsWith("shooting learning a", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(new([unread], [], 0)), Day)).Fact, StringComparison.Ordinal);
-        Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), Context(One(), Raids() with { RaidPoints = default }), Day)).Fact, StringComparison.Ordinal);
+        Assert.StartsWith("shooting learning a", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(new([unread], [], 0)), Day)).Fact, StringComparison.Ordinal);
+        Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastTrainingRange.RangeCredit(range, Stub(), [], Context(One(), Raids() with { RaidPoints = default }), Day)).Fact, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -137,6 +137,6 @@ public sealed class TrainingRangeCreditTests
         var brawler = pawns[0] with { Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 3, Learning = Shooting() with { Practice = new SkillPractice.Range(false, true, 2, 3000, 3000) } }])) };
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([brawler])) } })!.Context;
         Assert.Empty(fresh.Range!.Trainees);
-        Assert.Empty(ForecastTrainingRange.RangeCredit(new(1, "", 0), Stub(), fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.TrainingRange } }, Day));
+        Assert.Empty(ForecastTrainingRange.RangeCredit(new(1, "", 0), Stub(), [], fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.TrainingRange } }, Day));
     }
 }

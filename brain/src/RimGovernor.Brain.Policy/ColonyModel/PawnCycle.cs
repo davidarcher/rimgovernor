@@ -195,7 +195,13 @@ public sealed record PawnCycle
     /// the ticks to the next. A pawn whose overheads are unread or exceed the day in a twelfth the horizon reaches has no row (its
     /// cycle's findings name why), and no pawn has one without the climate read.
     /// </summary>
-    public static IReadOnlyDictionary<string, double> FreeHoursByPawn(ColonyModelInput input, double horizonDays)
+    public static IReadOnlyDictionary<string, double> FreeHoursByPawn(ColonyModelInput input, double horizonDays) => FreeHoursByPawn(input, horizonDays, pawns => pawns);
+
+    /// <summary>
+    /// The same free hours of the pawns <paramref name="pawnsOf"/> makes of the input's (#3805: a joiner served as each colonist
+    /// is, <see cref="JoinerMoodRules"/>); none without the input's pawns.
+    /// </summary>
+    public static IReadOnlyDictionary<string, double> FreeHoursByPawn(ColonyModelInput input, double horizonDays, Func<IReadOnlyList<ModelPawn>, IEnumerable<ModelPawn>> pawnsOf)
     {
         DomainException.Require(horizonDays > 0 && double.IsFinite(horizonDays), "free hours horizon");
         var output = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -215,7 +221,7 @@ public sealed record PawnCycle
             remaining -= spent;
         }
 
-        foreach (var pawn in pawns)
+        foreach (var pawn in pawnsOf(pawns))
         {
             var total = 0d;
             var whole = true;

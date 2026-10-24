@@ -18,7 +18,7 @@ public sealed record PenRoamer(string Id, string Race, double RoamMtbDays, doubl
 internal static class ForecastPens
 {
     /// <summary>The pen's credit (<see cref="RoomCredit"/>): one row per roamer it takes, under the roamer's id.</summary>
-    internal static IReadOnlyList<RoomGain> PenCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> PenCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (!context.PenHerds.TryGetValue(room.Room, out var herd)) return [];
         if (context.PenHerds.Where(p => p.Value == herd).Min(p => p.Key) != room.Room) return [];

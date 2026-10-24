@@ -26,7 +26,7 @@ internal static class ForecastTrainingRange
     ];
 
     /// <summary>The range's credit (<see cref="RoomCredit"/>): one row per trainee whose Shooting saves harm, under its pawn id.</summary>
-    internal static IReadOnlyList<RoomGain> RangeCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> RangeCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (context.PlannedRoomRoles.Where(p => p.Value == PlannedRole.TrainingRange).Min(p => p.Key) != room.Room) return [];
         var range = context.Range ?? throw new RequiredFactException("work pawns");

@@ -48,6 +48,8 @@ public sealed record ForecastCoupledContext
 {
     public required ForecastActivityProblem Activities { get; init; }
     public ForecastModelBasis? ModelBasis { get; init; }
+    /// <summary>What a joiner's value is priced from beside <see cref="ModelBasis"/> (#3805, <see cref="JoinerMoodRules"/>); null before tier 2 ran.</summary>
+    public JoinerBasis? Joiners { get; init; }
     public bool Truncated { get; init; }
     public required NeedsForecastRead Needs { get; init; }
     public EquatableArray<ForecastMaintenanceRequirement> MaintenanceRequirements { get; init; }
@@ -177,6 +179,9 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, CardPawnFacts> CardPawns { get; init; } = new Dictionary<string, CardPawnFacts>();
     /// <summary>Per pawn, the observed thought rows (MoodPawn.Thoughts) a temperature card's offset replaces (#3327).</summary>
     public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> ObservedThoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
+    /// <summary>Per colonist read whole, its observed thought rows (the plain copy of <see cref="ObservedThoughts"/>, #3805), which the
+    /// joiner's mood takes the colony's thoughts from (<see cref="JoinerMoodRules.ColonyThoughts"/>); a colonist without a row was not read.</summary>
+    public IReadOnlyDictionary<string, EquatableArray<MoodThought>> ColonistThoughts { get; init; } = new Dictionary<string, EquatableArray<MoodThought>>(StringComparer.Ordinal);
     /// <summary>The mechanic cards; null is the shipped catalog. Only Live cards price.</summary>
     public IReadOnlyDictionary<string, MechanicCard>? Cards { get; init; }
     /// <summary>The player's unmet goals as the ledger values them (#3503); none without goals.</summary>

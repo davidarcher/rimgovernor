@@ -34,7 +34,7 @@ internal static class ForecastWorship
     /// <see cref="RequiredFactException"/> (#3835) when the room's prediction or layout room, the filth model, the demand
     /// moods or a believer's mood is unread.
     /// </summary>
-    internal static IReadOnlyList<RoomGain> WorshipCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> WorshipCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var worship = context.Worship;
         if (worship.Believers.Count == 0 || worship.Need is null) return [];
@@ -44,7 +44,7 @@ internal static class ForecastWorship
     }
 
     /// <summary>The worship mechanics the credit leaves out (<see cref="PlannedRoomCredits.Unmodelled"/>), named per served room.</summary>
-    internal static IEnumerable<string> Unmodelled(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IEnumerable<string> Unmodelled(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var worship = context.Worship;
         if (worship.Believers.Count == 0 || worship.Need is null) return [];

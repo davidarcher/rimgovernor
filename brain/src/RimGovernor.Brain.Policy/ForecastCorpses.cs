@@ -17,11 +17,11 @@ internal static class ForecastCorpses
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Moods> Cache = new();
 
     /// <summary>The morgue's credit (<see cref="RoomCredit"/>).</summary>
-    internal static IReadOnlyList<RoomGain> MorgueCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> MorgueCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
         => Credit(PlannedRole.Morgue, room, outcome, context, horizon);
 
     /// <summary>The tomb's credit (<see cref="RoomCredit"/>).</summary>
-    internal static IReadOnlyList<RoomGain> TombCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> TombCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
         => Credit(PlannedRole.Tomb, room, outcome, context, horizon);
 
     /// <summary>

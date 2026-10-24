@@ -58,21 +58,21 @@ public sealed class PenCreditTests
         var alpaca = new PenRoamer("alpaca1", "Alpaca", 4, 200, true);
         var roamers = new[] { Cow("cow1"), alpaca };
         // The cows' pen takes the cow only.
-        Assert.Equal(["cow1"], ForecastPens.PenCredit(new(1, "", 0), default!, Context(roamers), 0).Select(g => g.Subject));
+        Assert.Equal(["cow1"], ForecastPens.PenCredit(new(1, "", 0), default!, [], Context(roamers), 0).Select(g => g.Subject));
         // A misc pen takes the roamers whose race has no pen of its own.
         var pens = new Dictionary<int, string> { [1] = "", [3] = "Cow" };
-        Assert.Equal(["alpaca1"], ForecastPens.PenCredit(new(1, "", 0), default!, Context(roamers, pens), 0).Select(g => g.Subject));
+        Assert.Equal(["alpaca1"], ForecastPens.PenCredit(new(1, "", 0), default!, [], Context(roamers, pens), 0).Select(g => g.Subject));
         // With two pens of a herd the lowest id takes them.
         pens = new Dictionary<int, string> { [1] = "Cow", [3] = "Cow" };
-        Assert.Single(ForecastPens.PenCredit(new(1, "", 0), default!, Context(roamers, pens), 0));
-        Assert.Empty(ForecastPens.PenCredit(new(3, "", 0), default!, Context(roamers, pens), 0));
+        Assert.Single(ForecastPens.PenCredit(new(1, "", 0), default!, [], Context(roamers, pens), 0));
+        Assert.Empty(ForecastPens.PenCredit(new(3, "", 0), default!, [], Context(roamers, pens), 0));
         Assert.Equal(200 / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay / 4, ForecastPens.LossPerDay(alpaca), 12);
     }
 
     [Fact]
     public void AContextWithoutTheAnimalCensusIsARequiredFact()
     {
-        var thrown = Assert.Throws<RequiredFactException>(() => ForecastPens.PenCredit(new(1, "", 0), default!, Context(null), 0));
+        var thrown = Assert.Throws<RequiredFactException>(() => ForecastPens.PenCredit(new(1, "", 0), default!, [], Context(null), 0));
         Assert.Equal("animal census", thrown.Fact);
     }
 
@@ -90,10 +90,10 @@ public sealed class PenCreditTests
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         Assert.Same(facts.PlannedPens, context.PenHerds);
         Assert.Equal([Cow("cow1")], context.Roamers!);
-        Assert.Single(ForecastPens.PenCredit(new(1, "", 0), default!, context, 0));
+        Assert.Single(ForecastPens.PenCredit(new(1, "", 0), default!, [], context, 0));
         // A fresh colony (an empty animal census) credits its planned pen nothing and throws nothing.
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { AnimalUpkeep = new() { Roamers = AnimalUpkeepReads.ColonyRoamers(Census()) } })!.Context;
-        Assert.Empty(ForecastPens.PenCredit(new(1, "", 0), default!, fresh, 0));
+        Assert.Empty(ForecastPens.PenCredit(new(1, "", 0), default!, [], fresh, 0));
     }
 
     private static ColonyAnimal Feed(string id, AnimalRoam? roam = null) => new()

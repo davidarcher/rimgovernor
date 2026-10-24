@@ -350,6 +350,17 @@ unknown. What the game does not have is a case, never an unknown:
   `SteadyEnvironmentEffects.FinalDeteriorationRate` now (every DeteriorationRate part
   applied), whether the environmental part applies, the terrain's
   extraDeteriorationFactor and edifice protection.
+- `NeedsForecastRead.Prison` (#3805, `PrisonRecruitRead`): `InteractionWorker_RecruitAttempt`'s
+  private mood and opinion resistance curves, `Pawn_GuestTracker.MaxInteractionsPerDay`, the
+  Warden-capable colonists' `NegotiationAbility`, and per held prisoner (`PrisonersOfColonySpawned`)
+  `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`, its mood (the unclamped
+  level, its PrisonCell/PrisonBarracks thought now, and those thoughts' stage offsets for it; none for
+  an Ascetic), its opinion of each warden rebuilt from its social thoughts and relations without
+  `OpinionOf` (whose recalculation drops memories), and its `JoinerRead`: its upkeep as a colonist,
+  its joiner mood (base level, colonistMoodOffset, break threshold, trait thoughts as unattached
+  `MakeThought` offsets, the names of trait thoughts whose worker reads the situation, and its
+  memories, which `RecruitUtility.Recruit` keeps) and its need rates, joy from its own Need\_Joy or a
+  detached one built under `Rand.PushState`.
 
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).

@@ -158,7 +158,7 @@ public sealed class CorpseCreditTests
         Assert.Same(facts.ForecastObserved.Needs, context.Needs);
         Assert.Equal(PlannedRole.Morgue, context.PlannedRoomRoles[1]);
         // A fresh colony's review (no corpse in sight, no sighting record) credits the morgue nothing and throws nothing.
-        Assert.Empty(ForecastCorpses.MorgueCredit(new(1, "", Day), Outcome(0), context, Day)!);
+        Assert.Empty(ForecastCorpses.MorgueCredit(new(1, "", Day), Outcome(0), [], context, Day)!);
         Assert.Empty(ForecastCorpses.BreakShifts(context));
     }
 }

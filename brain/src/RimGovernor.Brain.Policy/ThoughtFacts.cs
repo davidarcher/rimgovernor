@@ -26,8 +26,15 @@ public sealed record ThoughtFacts
     public string MinExpectation { get; init; } = "";
 }
 
-/// <summary>One row of thought_triggers.tsv: the owner column the mood ledger reads.</summary>
-public sealed record ThoughtAudit(string Owner);
+/// <summary>One row of thought_triggers.tsv: the owner column the mood ledger reads, and the grant and dependency columns the joiner's mood (#3805, JoinerMoodRules) chooses the colony's thoughts by.</summary>
+public sealed record ThoughtAudit(string Owner)
+{
+    /// <summary>The grant column: its first space-separated token is the grant category (ingest, sleep, other+sleep, a worker class).</summary>
+    public string Grant { get; init; } = "";
+
+    /// <summary>The dependency column, ;-separated (need:food, room, room_role:Bedroom, room_stat:Impressiveness, other).</summary>
+    public string Dependency { get; init; } = "";
+}
 
 public static partial class ThoughtFactsRules
 {
@@ -52,7 +59,7 @@ public static partial class ThoughtFactsRules
             var f = line.TrimEnd('\r').Split('\t');
             if (f.Length == 5)
             {
-                rows[f[0]] = new ThoughtAudit(f[4]);
+                rows[f[0]] = new ThoughtAudit(f[4]) { Grant = f[2], Dependency = f[3] };
             }
         }
         return rows;

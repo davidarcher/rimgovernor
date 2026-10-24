@@ -365,7 +365,7 @@ public static partial class ForecastValue
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
         var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
-        PlannedRoomCredits.Credit(outcome, context, horizon, investmentRows, findings);
+        PlannedRoomCredits.Credit(outcome, commitments?.ToArray() ?? [], context, horizon, investmentRows, findings);
         ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;

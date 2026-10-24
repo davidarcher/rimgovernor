@@ -93,26 +93,26 @@ public sealed class IsolationCreditTests
     public void AHeldCreepjoinerWhoseDownsideMayPulseIsCreditedTheOtherColonistsFirstPulse()
     {
         var context = Context(Held());
-        var gain = Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), context, Day));
+        var gain = Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), [], context, Day));
         var expected = ForecastIsolation.FirstPulseChance(Table(), 2, 2 + Horizon, 2) * ForecastIsolation.PulseLoss(ForecastValueTests.HarmPawn(), Agony);
         Assert.True(expected > 0);
         Assert.Equal(("cj", "", 0d), (gain.Subject, gain.Pawn, gain.PerDay));
         Assert.Equal(expected, gain.Once, 12);
-        Assert.Equal(ForecastIsolation.NotModelled, ForecastIsolation.Findings(Room, Outcome(), context, Day));
+        Assert.Equal(ForecastIsolation.NotModelled, ForecastIsolation.Findings(Room, Outcome(), [], context, Day));
     }
 
     [Fact]
     public void NoAgonyDownsideOrNoHeldCreepjoinerEarnsANamedZero()
     {
         var noAgony = Context(Held(agony: false));
-        Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), noAgony, Day));
-        Assert.Equal([ForecastIsolation.NoAgony], ForecastIsolation.Findings(Room, Outcome(), noAgony, Day));
+        Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), [], noAgony, Day));
+        Assert.Equal([ForecastIsolation.NoAgony], ForecastIsolation.Findings(Room, Outcome(), [], noAgony, Day));
         var none = Context(new() { Unread = "", Held = [], Table = Table() });
-        Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), none, Day));
-        Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), none, Day));
+        Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), [], none, Day));
+        Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), [], none, Day));
         // Unread creepjoiners, or a pulsing downside with no pulse read, are required facts.
-        Assert.Throws<RequiredFactException>(() => ForecastIsolation.IsolationCredit(Room, Outcome(), Context(new()), Day));
-        Assert.Throws<RequiredFactException>(() => ForecastIsolation.IsolationCredit(Room, Outcome(), Context(Held() with { Table = Table() with { Agony = null } }), Day));
+        Assert.Throws<RequiredFactException>(() => ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(new()), Day));
+        Assert.Throws<RequiredFactException>(() => ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(Held() with { Table = Table() with { Agony = null } }), Day));
     }
 
     [Fact]
@@ -214,12 +214,12 @@ public sealed class IsolationCreditTests
         Assert.Equal("", forecast.Unread);
         Assert.Equal([new HeldCreepJoiner("cj", 2.5)], forecast.Held);
         Assert.Same(table, forecast.Table);
-        Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), Context(forecast), Day));
+        Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(forecast), Day));
 
         // A fresh colony holds no creepjoiner apart: a named zero, nothing thrown.
         var fresh = RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Isolation = new IsolationPlanning { Pawns = Known(EquatableArray.From(Array.Empty<PawnId>())) } }, frame, catalog);
-        Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), Context(fresh), Day));
-        Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), Context(fresh), Day));
+        Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(fresh), Day));
+        Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), [], Context(fresh), Day));
         // An unread census of the held apart is unread.
         Assert.NotEqual("", RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Isolation = new IsolationPlanning() }, frame, catalog).Unread);
     }

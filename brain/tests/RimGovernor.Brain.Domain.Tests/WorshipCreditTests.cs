@@ -291,8 +291,8 @@ public sealed class WorshipCreditTests
         Assert.Equal(PlannedRole.Worship, context.LayoutRooms[1].Role);
         // A fresh colony's review (no Ideology: the frame carries no section) credits nothing and throws nothing.
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(ForecastCoupledTests.ConstructionReview())!.Context;
-        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), fresh, Day));
+        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), [], fresh, Day));
         // With the ideoligion but no prediction of the planned room (a shape whose ring closes no room, #3834), it earns nothing.
-        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), context, Day));
+        Assert.Empty(ForecastWorship.WorshipCredit(new(1, "", Day), Served(0), [], context, Day));
     }
 }

@@ -22,7 +22,7 @@ internal static class ForecastSparring
     ];
 
     /// <summary>The ring's credit (<see cref="RoomCredit"/>): one row per trainee whose Melee saves harm, under its pawn id.</summary>
-    internal static IReadOnlyList<RoomGain> RingCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> RingCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (context.PlannedRoomRoles.Where(p => p.Value == PlannedRole.SparringRing).Min(p => p.Key) != room.Room) return [];
         var sparring = context.Sparring ?? throw new RequiredFactException("work pawns");

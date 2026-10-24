@@ -131,7 +131,7 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>The test-only workshop credit: one capability-day a served day, booked to no pawn.</summary>
     private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> WorkshopCredit = new Dictionary<PlannedRole, RoomCredit>
     {
-        [PlannedRole.Workshop] = (_, _, _, _) => [new("bench", "", 1)],
+        [PlannedRole.Workshop] = (_, _, _, _, _) => [new("bench", "", 1)],
     };
 
     /// <summary>
@@ -788,7 +788,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.True(fresh.Priced(1));
         Assert.Null(fresh.StoreStock);
         // No stockpile request (#3835): the no-stock state, worth nothing.
-        Assert.Empty(ForecastStorage.StorageCredit(served, null!, fresh, Horizon));
+        Assert.Empty(ForecastStorage.StorageCredit(served, null!, [], fresh, Horizon));
 
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { PlannedStoreStock = StoreRules.PlannedStoreStock(request, [room]) }, Horizon)!.Context;
         var stock = context.StoreStock![1];
@@ -796,9 +796,9 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(["Thing_Cloth1", "Thing_Steel1"], stock.Rows.Select(r => r.Supply.Thing).Order(StringComparer.Ordinal));
         Assert.Contains(new Resource("Cloth"), ForecastValue.ChargedMaterials(context));
         // Unread until the round prices the stock with the charged materials (it throws); then the cloth alone is credited.
-        Assert.Throws<RequiredFactException>(() => ForecastStorage.StorageCredit(served, null!, context, Horizon));
+        Assert.Throws<RequiredFactException>(() => ForecastStorage.StorageCredit(served, null!, [], context, Horizon));
         var priced = context with { MaterialValues = new Dictionary<Resource, ConstructionMaterialValue> { [new("Cloth")] = new(MaterialValueBasis.Market, .01) } };
-        Assert.Equal("Thing_Cloth1", Assert.Single(ForecastStorage.StorageCredit(served, null!, priced, Horizon)).Subject);
+        Assert.Equal("Thing_Cloth1", Assert.Single(ForecastStorage.StorageCredit(served, null!, [], priced, Horizon)).Subject);
     }
 
     /// <summary>

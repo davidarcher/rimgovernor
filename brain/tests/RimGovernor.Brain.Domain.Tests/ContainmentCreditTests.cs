@@ -54,10 +54,10 @@ public sealed class ContainmentCreditTests
         // (0.4 knowledge a day at ×0.5 now, at ×1 in the cell, each point worth 3).
         var avoided = (1 / (MtbDays * 0.05) - 1 / MtbDays) * fight;
         var study = Knowledge / ForecastContainment.StudiesPerKnowledge * (1 - 0.5) * Price;
-        var gain = Assert.Single(ForecastContainment.CellCredit(Cell, outcome, context, Day));
+        var gain = Assert.Single(ForecastContainment.CellCredit(Cell, outcome, [], context, Day));
         Assert.Equal(("entity1", ""), (gain.Subject, gain.Pawn));
         Assert.Equal(avoided + study, gain.PerDay, 9);
-        Assert.Equal(ForecastContainment.NotModelled, ForecastContainment.CellFindings(Cell, outcome, context, Day));
+        Assert.Equal(ForecastContainment.NotModelled, ForecastContainment.CellFindings(Cell, outcome, [], context, Day));
 
         // The harm term counts the escapes the entity makes on its platform now: a fight each, over the horizon's day.
         var ledger = ForecastValue.Of(outcome, context, Day);
@@ -105,7 +105,7 @@ public sealed class ContainmentCreditTests
         var context = Context([waiting], held: "");
         var outcome = Outcome();
         var fight = ForecastValue.EscapeLoss(outcome, context, Day, 1000);
-        var gain = Assert.Single(ForecastContainment.CellCredit(Cell, outcome, context, Day));
+        var gain = Assert.Single(ForecastContainment.CellCredit(Cell, outcome, [], context, Day));
         Assert.Equal("entity2", gain.Subject);
         Assert.Equal(Knowledge / ForecastContainment.StudiesPerKnowledge * Price - 1 / MtbDays * fight, gain.PerDay, 9);
         // A waiting entity escapes no platform, so the harm term counts no escape for it.
@@ -116,8 +116,8 @@ public sealed class ContainmentCreditTests
     public void ACellWithNoEntityEarnsNothingAndAColonyWithoutEntitiesNeedsNoCurves()
     {
         var context = Context([], held: "", curves: new ContainmentCurves { Reason = "never read" });
-        Assert.Empty(ForecastContainment.CellCredit(Cell, Outcome(), context, Day));
-        Assert.Empty(ForecastContainment.CellFindings(Cell, Outcome(), context, Day));
+        Assert.Empty(ForecastContainment.CellCredit(Cell, Outcome(), [], context, Day));
+        Assert.Empty(ForecastContainment.CellFindings(Cell, Outcome(), [], context, Day));
         Assert.Equal(new EscapeTerm(0, 0, 0), ForecastValue.Of(Outcome(), context, Day).HarmDetail!.Escape);
         // A second cell holding no one, with the entity in the first, earns nothing either.
         var two = Context([Entity()]) with
@@ -125,7 +125,7 @@ public sealed class ContainmentCreditTests
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.ContainmentCell, [2] = PlannedRole.ContainmentCell },
             ContainmentCells = [new PlannedContainmentCell(1, Planned, "entity1"), new PlannedContainmentCell(2, Planned, "")],
         };
-        Assert.Empty(ForecastContainment.CellCredit(new(2, "", 0), Outcome(), two, Day));
+        Assert.Empty(ForecastContainment.CellCredit(new(2, "", 0), Outcome(), [], two, Day));
     }
 
     [Fact]
@@ -133,13 +133,13 @@ public sealed class ContainmentCreditTests
     {
         var unread = Context([], unread: "entity1: the held block failed");
         Assert.Equal("containment entities: entity1: the held block failed",
-            Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), unread, Day)).Fact);
+            Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), [], unread, Day)).Fact);
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Outcome(), unread, Day));
         var curves = Context([Entity()], curves: new ContainmentCurves { Reason = "game constant ContainmentUtility.X is absent" });
         Assert.Equal("containment curves: game constant ContainmentUtility.X is absent",
-            Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), curves, Day)).Fact);
+            Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), [], curves, Day)).Fact);
         var prediction = Context([Entity()]) with { ContainmentCells = [new PlannedContainmentCell(1, 0, "entity1", "the containment defs are unread")] };
-        Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), prediction, Day));
+        Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), [], prediction, Day));
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class ContainmentCreditTests
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(ForecastCoupledTests.ConstructionReview()
             with { Containment = new() { Forecast = RoundsContainmentReads.ContainmentForecastOf([], [], curves) } })!.Context;
         Assert.Empty(fresh.Harm.Containment.Entities);
-        Assert.Empty(ForecastContainment.CellCredit(Cell, Outcome(), fresh, Day));
+        Assert.Empty(ForecastContainment.CellCredit(Cell, Outcome(), [], fresh, Day));
     }
 
     [Fact]

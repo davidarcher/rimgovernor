@@ -43,7 +43,7 @@ internal static class ForecastDeathrest
     /// mood shift. A required fact the read lacks (the deathrest defs, a stage row, the room's closure prediction in the stuff it
     /// serves in, the mood forecast) raises <see cref="RequiredFactException"/>.
     /// </summary>
-    internal static IReadOnlyList<RoomGain> ChamberCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> ChamberCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var chamber = Cache.GetValue(context, Of);
         if (chamber.Room != room.Room) return [];

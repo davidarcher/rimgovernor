@@ -126,7 +126,7 @@ public sealed class DeathrestCreditTests
             DeathrestFurniture = [new("DeathrestCasket", 1), new("DeathrestAccelerator", 3), new("HemogenAmplifier", 1)],
             InvestmentHorizonDays = Horizon,
         };
-        var gains = ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), context, Day);
+        var gains = ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), [], context, Day);
         var gain = Assert.Single(gains);
         Assert.Equal("a", gain.Pawn);
         Assert.Equal(Share(1) - Share(1.1 * 1.2 * 1.2), gain.PerDay, 12);
@@ -136,9 +136,9 @@ public sealed class DeathrestCreditTests
     public void ADeathresterWithoutTheDeathrestDefsOrAChamberStageRowIsARequiredFact()
     {
         var context = Context(Deathrester(), CasketAndAccelerator);
-        Assert.Throws<RequiredFactException>(() => ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), context with { Needs = context.Needs with { Deathrest = null } }, Day));
+        Assert.Throws<RequiredFactException>(() => ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), [], context with { Needs = context.Needs with { Deathrest = null } }, Day));
         var unread = Deathrester(chamberStage: 1) with { ThoughtStages = [] };
-        Assert.Throws<RequiredFactException>(() => ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), Context(unread, CasketAndAccelerator), Day));
+        Assert.Throws<RequiredFactException>(() => ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), [], Context(unread, CasketAndAccelerator), Day));
     }
 
     // The production path: the staging's chamber need (ChildRoomsRules.ChildRoomNeeds over the work pawns' Biotech facts) resolved
@@ -182,7 +182,7 @@ public sealed class DeathrestCreditTests
         var furniture = Staged(Defs, a, a with { Id = new("b") });
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 2), new DeathrestPiece("DeathrestAccelerator", 4)], furniture.Items);
         var context = Context(Deathrester("a", capacity: 3), furniture) with { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester("a", capacity: 3), Deathrester("b", capacity: 3)], Deathrest = Defs } };
-        var gains = ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), context, Day);
+        var gains = ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), [], context, Day);
         Assert.Equal(["a", "b"], gains.Select(g => g.Pawn));
         Assert.All(gains, g => Assert.Equal(Share(1) - Share(1.1 * 1.2 * 1.2), g.PerDay, 12));
     }

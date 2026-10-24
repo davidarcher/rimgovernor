@@ -37,7 +37,9 @@ public sealed record WorkShortfall
 public static class WorkShortfallRules
 {
     /// <summary>
-    /// The work the selection left unscheduled (#3825). Every candidate root (alternatives and incumbents) is one outcome among those
+    /// The work an outcome leaves unscheduled (#3825; per outcome since #3805): the outcome chose the <paramref name="chosen"/> roots
+    /// and allocates <paramref name="allocations"/> over <paramref name="horizon"/> ticks. Every candidate root (<paramref name="roots"/>,
+    /// the alternatives and incumbents) is one outcome among those
     /// sharing its <see cref="ForecastCommitment.ExclusiveOutcome"/> (its own id without one); an outcome the selection serves with
     /// none of its roots is unserved, and costs its cheapest root's work: the activities of that root's completions and their
     /// prerequisites the plan does not allocate, each counted once over all outcomes. An activity is work by its binding: a
@@ -49,14 +51,11 @@ public static class WorkShortfallRules
     /// work activity no option prices, a giver, job or recipe the defs do not map, or a pawn speed the read lacks throws
     /// <see cref="RequiredFactException"/>.
     /// </summary>
-    public static WorkShortfall Of(ForecastCoupledCandidates candidates, ForecastCoupledSelection selection, WorkSpeedFacts work,
+    public static WorkShortfall Of(ForecastCoupledContext context, IReadOnlyList<ForecastCommitment> roots, IReadOnlySet<string> chosen,
+        IReadOnlyList<ForecastActivityAllocation> allocations, double horizon, WorkSpeedFacts work,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> speeds)
     {
-        var context = candidates.Context;
-        var horizon = selection.Horizon;
         DomainException.Require(double.IsFinite(horizon) && horizon > 0, "work shortfall horizon");
-        var chosen = selection.Selection.Selected.ToHashSet(StringComparer.Ordinal);
-        var allocations = selection.Selected.Plan.Allocations;
         var bound = context.Bindings.GroupBy(b => b.Key.Task, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.OrderBy(b => b.Key.Pawn, StringComparer.Ordinal).First().Value, StringComparer.Ordinal);
         // One piece of work under every task that does it: a delayed variant is its original's binding under a new id.
@@ -98,7 +97,6 @@ public static class WorkShortfallRules
             }
         }
 
-        var roots = candidates.Alternatives.Concat(candidates.Incumbents).ToArray();
         var unscheduled = new SortedDictionary<string, string>(StringComparer.Ordinal);
         foreach (var outcome in roots.GroupBy(r => r.ExclusiveOutcome.Length == 0 ? r.Id : r.ExclusiveOutcome, StringComparer.Ordinal))
         {

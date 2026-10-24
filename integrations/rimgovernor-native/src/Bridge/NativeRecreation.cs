@@ -55,13 +55,13 @@ internal static class NativeRecreation
     /// joyGainRate × 0.36 / 2500 × the pawn's tolerance factor for the job's joy kind (Need_Joy.GainJoy); 0 when the giver's own
     /// CanBeGivenTo (capacities, outdoors preference, joy kind) refuses both. Both givers and both drivers also require
     /// JoyUtility.EnjoyableOutsideNow; when it holds is <see cref="OutdoorShares"/> (#3825 D7), not this rate. Skygaze's
-    /// game-condition gain factor (aurora, eclipse) is not applied.
+    /// game-condition gain factor (aurora, eclipse) is not applied. The tolerances are <paramref name="joy"/>'s: the pawn's own
+    /// need, or a detached one of a pawn without it now (#3805).
     /// </summary>
-    internal static double UnservedGainPerTick(Pawn pawn)
+    internal static double UnservedGainPerTick(Pawn pawn, Need_Joy joy)
     {
         outdoorGivers ??= DefDatabase<JoyGiverDef>.AllDefsListForReading
             .Where(g => g.jobDef != null && (g.giverClass == typeof(JoyGiver_GoForWalk) || g.giverClass == typeof(JoyGiver_Skygaze))).ToArray();
-        if (pawn.needs?.joy is not { } joy) return 0;
         return outdoorGivers.Where(g => g.Worker.CanBeGivenTo(pawn))
             .Select(g => g.jobDef.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * joy.tolerances.JoyFactorFromTolerance(g.jobDef.joyKind))
             .DefaultIfEmpty(0).Max();

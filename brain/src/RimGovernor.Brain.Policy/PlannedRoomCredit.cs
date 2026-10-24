@@ -25,14 +25,15 @@ public readonly record struct RoomGain(string Subject, string Pawn, double PerDa
 
 /// <summary>
 /// A planned room role's credit (#3796): the gains a day of <paramref name="room"/> serving earns in
-/// <paramref name="outcome"/>, over the tier-1 <paramref name="horizonTicks"/>. Empty earns nothing: each credit names the
+/// <paramref name="outcome"/> of the portfolio <paramref name="commitments"/> (the roots it chose, #3805: the work it leaves
+/// unscheduled is the outcome's own), over the tier-1 <paramref name="horizonTicks"/>. Empty earns nothing: each credit names the
 /// real states that earn nothing. A fact it needs unread throws <see cref="RequiredFactException"/> (epic #3650 P10 as
 /// revised, #3835): there is no unassessed credit.
 /// </summary>
-public delegate IReadOnlyList<RoomGain> RoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
+public delegate IReadOnlyList<RoomGain> RoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizonTicks);
 
 /// <summary>The named findings a served room's credit adds to the ledger (#3811): what it leaves out, or a part it could not price.</summary>
-public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
+public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizonTicks);
 
 /// <summary>
 /// The per-role planned-room credit seam (#3796, epic #3650): a role is priced when it has a credit
@@ -52,7 +53,7 @@ public static class PlannedRoomCredits
     /// chamber mood its caskets and accelerators give each deathrester (#3810); Hospital by the infection, illness, sleep mood
     /// and queued surgery failures its bed relieves (#3804); ContainmentCell by the escapes its strength stops and the study it adds
     /// for the entity it holds, or the study less the escapes of the entity it captures (#3811); SparringRing by the raid harm its
-    /// trainees' Melee saves (#3813); TrainingRange by the raid harm its trainees' Shooting saves (#3846); IsolationRoom by the first agony pulse a held creepjoiner keeps from the other colonists (#3844).</summary>
+    /// trainees' Melee saves (#3813); TrainingRange by the raid harm its trainees' Shooting saves (#3846); IsolationRoom by the first agony pulse a held creepjoiner keeps from the other colonists (#3844); Prison by the days sooner each prisoner it beds is recruited, at its value as a colonist (#3805).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -76,22 +77,24 @@ public static class PlannedRoomCredits
         [PlannedRole.SparringRing] = ForecastSparring.RingCredit,
         [PlannedRole.TrainingRange] = ForecastTrainingRange.RangeCredit,
         [PlannedRole.IsolationRoom] = ForecastIsolation.IsolationCredit,
+        [PlannedRole.Prison] = ForecastPrison.PrisonCredit,
     };
 
     /// <summary>
     /// The mechanics a role's credit leaves out, named with each room of it served (<see cref="RoomFindings"/>): the hospital's
     /// (#3804); the containment cell's, with its held entity's unpriced knowledge category (#3811); the worship room's demand
     /// requirements and ritual outcomes it cannot predict (#3835); the sparring ring's (#3813); the training range's (#3846);
-    /// the isolation room's, or the named state it earns nothing in (#3844).
+    /// the isolation room's, or the named state it earns nothing in (#3844); the prison's, with the named states it earns nothing in (#3805).
     /// </summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomFindings> Unmodelled = new Dictionary<PlannedRole, RoomFindings>
     {
-        [PlannedRole.Hospital] = (_, _, _, _) => ForecastHospital.Unmodelled,
+        [PlannedRole.Hospital] = (_, _, _, _, _) => ForecastHospital.Unmodelled,
         [PlannedRole.Worship] = ForecastWorship.Unmodelled,
         [PlannedRole.ContainmentCell] = ForecastContainment.CellFindings,
-        [PlannedRole.SparringRing] = (_, _, _, _) => ForecastSparring.Unmodelled,
-        [PlannedRole.TrainingRange] = (_, _, _, _) => ForecastTrainingRange.Unmodelled,
+        [PlannedRole.SparringRing] = (_, _, _, _, _) => ForecastSparring.Unmodelled,
+        [PlannedRole.TrainingRange] = (_, _, _, _, _) => ForecastTrainingRange.Unmodelled,
         [PlannedRole.IsolationRoom] = ForecastIsolation.Findings,
+        [PlannedRole.Prison] = ForecastPrison.Findings,
     };
 
     /// <summary>
@@ -161,7 +164,7 @@ public static class PlannedRoomCredits
     /// service day to tier 2's horizon (<see cref="ForecastCoupledContext.InvestmentHorizonDays"/>; none before tier 2
     /// ran) plus its once gain (<see cref="RoomGain.Once"/>), each a gain (negative), and its role's <see cref="Unmodelled"/> mechanics named.
     /// </summary>
-    internal static void Credit(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
+    internal static void Credit(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon,
         List<ForecastInvestmentContribution> rows, SortedSet<string> findings)
     {
         var days = context.InvestmentHorizonDays;
@@ -171,8 +174,8 @@ public static class PlannedRoomCredits
             if (!context.PlannedRoomRoles.TryGetValue(served.Room, out var role) || !context.RoomCredits.TryGetValue(role, out var credit)) continue;
             var units = RingClosure.CreditDays(days, served.ServedAt);
             if (units <= 0) continue;
-            var gains = credit(served, outcome, context, horizon);
-            if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named(served, outcome, context, horizon));
+            var gains = credit(served, outcome, commitments, context, horizon);
+            if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named(served, outcome, commitments, context, horizon));
             foreach (var gain in gains)
                 rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -((gain.PerDay * units) + gain.Once)));
         }

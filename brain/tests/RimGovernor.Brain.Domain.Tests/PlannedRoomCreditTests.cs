@@ -23,7 +23,7 @@ public sealed class PlannedRoomCreditTests
     /// <summary>The test-only storage credit: one capability-day a served day, booked to no pawn.</summary>
     private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> StorageCredit = new Dictionary<PlannedRole, RoomCredit>
     {
-        [PlannedRole.Storage] = (_, _, _, _) => [new("shelves", "", 1)],
+        [PlannedRole.Storage] = (_, _, _, _, _) => [new("shelves", "", 1)],
     };
 
     private static ForecastPlannedSite Site(string id, string stuff = "") => new(id, 1, stuff, id == Wall ? [Delivery] : [], [id + "/finish"]);
@@ -130,7 +130,7 @@ public sealed class PlannedRoomCreditTests
     /// <summary>The test-only bedroom credit: one capability-day a served day.</summary>
     private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> BedroomCredit = new Dictionary<PlannedRole, RoomCredit>
     {
-        [PlannedRole.Bedroom] = (_, _, _, _) => [new("rest", "", 1)],
+        [PlannedRole.Bedroom] = (_, _, _, _, _) => [new("rest", "", 1)],
     };
 
     /// <summary>
@@ -230,7 +230,7 @@ public sealed class PlannedRoomCreditTests
     private static ForecastCoupledContext Barracks() => ForecastValueTests.Context(ForecastValueTests.Pawn()) with
     {
         PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Barracks },
-        RoomCredits = new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Barracks] = (_, _, _, _) => [new("rest", "", 1)] },
+        RoomCredits = new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Barracks] = (_, _, _, _, _) => [new("rest", "", 1)] },
         PlannedSites =
         [
             new(BarracksWall, 1, "WoodLog", [], [BarracksWall + "/finish"]),
@@ -283,7 +283,7 @@ public sealed class PlannedRoomCreditTests
     [Fact]
     public void ACreditWhoseFactIsUnreadThrowsARequiredFact()
     {
-        var unread = Context(new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Storage] = (_, _, _, _) => throw new RequiredFactException("stock") });
+        var unread = Context(new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Storage] = (_, _, _, _, _) => throw new RequiredFactException("stock") });
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Outcome(unread), unread, Day));
     }
 
@@ -783,7 +783,7 @@ public sealed class PlannedRoomCreditTests
         };
         Assert.All(roles, r => Assert.Equal(r.Role, context.PlannedRoomRoles[r.Room]));
         var served = outcome with { ServedRooms = [.. roles.Select(r => new ForecastRoomService(r.Room, "", Day))] };
-        foreach (var (room, role) in roles) Assert.NotNull(PlannedRoomCredits.Shipped[role](new(room, "", Day), served, context, horizon));
+        foreach (var (room, role) in roles) Assert.NotNull(PlannedRoomCredits.Shipped[role](new(room, "", Day), served, [], context, horizon));
         Assert.NotNull(ForecastValue.Of(served, context, horizon));
     }
 }

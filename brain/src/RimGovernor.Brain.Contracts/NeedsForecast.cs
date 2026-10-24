@@ -37,7 +37,104 @@ public sealed record NeedsForecastRead
     public required EquatableArray<CorpseSightingRead> Corpses { get; init; }
     /// <summary>The deathrest defs the deathrest chamber credit reads (#3810); null without Biotech, where no pawn deathrests.</summary>
     public required DeathrestDefsRead? Deathrest { get; init; }
+    /// <summary>The recruitment mechanics the prison credit reads (#3805): the wardens among the colonists given and every prisoner of the colony on the map.</summary>
+    public required PrisonRecruitRead Prison { get; init; }
 }
+/// <summary>
+/// The recruitment mechanics (#3805), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance is
+/// above 0, each warden chat lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/> at the
+/// prisoner's instant mood (1 without a mood need) times <see cref="OpinionCurve"/> at its opinion of the warden; at 0 the next
+/// chat recruits. A prisoner is chatted with at most <see cref="MaxInteractionsPerDay"/> times a day
+/// (<c>Pawn_GuestTracker.MaxInteractionsPerDay</c>, as <c>ScheduledForInteraction</c> gates it). The two curves are the worker's
+/// private <c>ResistanceImpactFactorCurve_Mood</c> and <c>ResistanceImpactFactorCurve_Opinion</c>, point by point.
+/// </summary>
+public sealed record PrisonRecruitRead
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
+    public required EquatableArray<CurvePointRead> MoodCurve { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
+    public required EquatableArray<CurvePointRead> OpinionCurve { get; init; }
+    public required int MaxInteractionsPerDay { get; init; }
+    /// <summary>Every colonist given that can do Warden work (not <c>Pawn.WorkTypeIsDisabled</c>), in pawn id order. Empty means none can.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<WardenRead>))]
+    public required EquatableArray<WardenRead> Wardens { get; init; }
+    /// <summary>Every spawned prisoner of the colony on the map (<c>MapPawns.PrisonersOfColonySpawned</c>), in pawn id order. Empty means none is held.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PrisonerRecruitRead>))]
+    public required EquatableArray<PrisonerRecruitRead> Prisoners { get; init; }
+}
+/// <summary>One point of a game <c>SimpleCurve</c>, in its order.</summary>
+public sealed record CurvePointRead(double X, double Y);
+/// <summary>A colonist who can do Warden work and its <c>StatDefOf.NegotiationAbility</c>.</summary>
+public sealed record WardenRead(string Pawn, double NegotiationAbility);
+/// <summary>A prisoner's opinion of one warden (#3805), rebuilt as <c>Pawn_RelationsTracker.OpinionOf</c> computes it without its thought cache.</summary>
+public sealed record WardenOpinionRead(string Warden, int Opinion);
+/// <summary>
+/// One prisoner as the prison credit reads it (#3805): <c>Pawn_GuestTracker.Recruitable</c> (false for the unwaveringly loyal),
+/// its <c>Resistance</c>, whether it owns a prison bed (<c>ownership.OwnedBed.ForPrisoners</c>), whether it is a wild man (recruited
+/// by a taming chance instead, <c>AnimalOrWildMan</c>), its mood now (null without a mood need), its opinion of each warden
+/// (<see cref="PrisonRecruitRead.Wardens"/> order) and what it would be as a colonist (<see cref="JoinerRead"/>).
+/// <para>
+/// The duplicated Recruitable and Resistance of the population census are read here again on purpose: this read is one capture
+/// with the mood and opinions the rate is priced from.
+/// </para>
+/// </summary>
+public sealed record PrisonerRecruitRead
+{
+    public required string Pawn { get; init; }
+    public required bool Recruitable { get; init; }
+    public required double Resistance { get; init; }
+    public required bool PrisonBed { get; init; }
+    public required bool WildMan { get; init; }
+    public required PrisonerMoodRead? Mood { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<WardenOpinionRead>))]
+    public required EquatableArray<WardenOpinionRead> Opinions { get; init; }
+    public required JoinerRead Joiner { get; init; }
+}
+/// <summary>
+/// A prisoner's mood now (#3805): its unclamped instant mood (as <see cref="NeedMood.UnclampedTarget"/>: the base level plus the
+/// thoughts' total and the difficulty's colonistMoodOffset, over 100; <c>Need_Mood.CurInstantLevel</c> clamps it), the mood offset
+/// of its PrisonCell and PrisonBarracks thought groups now, and those thoughts' offset at every stage (<see cref="NeedThoughtStage"/>,
+/// roles <c>prison_cell</c> and <c>prison_barracks</c>; the stage is the room's Impressiveness score stage, a null stage or an
+/// Ascetic prisoner a 0 row, as <c>ThoughtWorker_RoomImpressiveness</c> leaves the thought inactive).
+/// </summary>
+public sealed record PrisonerMoodRead(double UnclampedLevel, double CellThought)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
+    public required EquatableArray<NeedThoughtStage> CellStages { get; init; }
+}
+/// <summary>
+/// A pawn as it would be once it joins the colony (#3805; the joiner's mood model, shared by any pawn not yet a colonist): its
+/// <see cref="PawnUpkeepRead"/> (its <see cref="PawnUpkeepRead.Mood"/> null: <see cref="Mood"/> holds what the joiner's mood is
+/// built from), its mood parts (null without a mood need) and its food, rest and joy needs (<see cref="NeedRate"/>; a need it lacks
+/// now that a colonist has, such as a prisoner's joy, read from a detached need of the pawn at the need's second threshold).
+/// </summary>
+public sealed record JoinerRead
+{
+    public required PawnUpkeepRead Upkeep { get; init; }
+    public required JoinerMoodRead? Mood { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedRate>))]
+    public required EquatableArray<NeedRate> Needs { get; init; }
+}
+/// <summary>
+/// What a joiner's mood is built from (#3805), its own part: the mood base level (<c>OverrideMoodBase</c> or the need's
+/// baseLevel), the difficulty's colonistMoodOffset a colonist gets, its minor break threshold, its trait thoughts and its live
+/// memories, which joining keeps (<c>RecruitUtility.Recruit</c> clears none), one row per memory group (<c>MoodOffsetOfGroup</c>'s
+/// stacking over the memories alone). A trait thought is a situational non-social def whose requiredTraits the pawn has
+/// (<c>ThoughtUtility.CanGetThought</c>'s trait clause) and its traits do not disallow: a <c>ThoughtWorker_AlwaysActive</c> one is
+/// in <see cref="Traits"/> at its unattached thought's MoodOffset (stage 0, nullification included); one whose worker reads the
+/// pawn's situation is named in <see cref="SituationalTraits"/>. The colony's part is the colonists' (JoinerMoodRules).
+/// </summary>
+public sealed record JoinerMoodRead(double BaseLevel, double ColonistOffset, double Threshold)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ThoughtOffsetRead>))]
+    public required EquatableArray<ThoughtOffsetRead> Traits { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> SituationalTraits { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ThoughtOffsetRead>))]
+    public required EquatableArray<ThoughtOffsetRead> Memories { get; init; }
+}
+/// <summary>A thought def's mood offset for one pawn.</summary>
+public sealed record ThoughtOffsetRead(string Thought, double Offset);
 /// <summary>
 /// The deathrest defs (#3810): <c>Need_Deathrest.FallPerDay</c> and <c>GainPerDayDeathresting</c> (the need a day awake loses, and a
 /// day of deathrest gains at efficiency 1), every building def with a <c>CompProperties_DeathrestBindable</c>, and the minScore of each

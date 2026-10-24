@@ -101,7 +101,7 @@ internal static class ForecastHospital
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, ConcurrentDictionary<(int Room, string Stuff), Part>> Cache = new();
 
     /// <summary>The served hospital's gains (<see cref="RoomCredit"/>, see the class summary): a row per colonist under its id, and a row per queued surgery under <c>surgery:{demand}</c>.</summary>
-    internal static IReadOnlyList<RoomGain> HospitalCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> HospitalCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var part = Cache.GetValue(context, _ => new()).GetOrAdd((room.Room, room.Stuff), key => PartOf(context, key.Room, key.Stuff));
         var gains = new List<RoomGain>();

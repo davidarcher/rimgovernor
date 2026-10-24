@@ -479,7 +479,7 @@ public static class ForecastHousing
     /// (<see cref="PlannedRoomCredits.Prediction"/>). None for a room serving nobody, or one that changes none of its colonist's
     /// thoughts; throws when a fact it needs is unread (<see cref="RoyalDeltasOf"/>, <see cref="PlannedRoomCredits.MoodGain"/>).
     /// </summary>
-    internal static IReadOnlyList<RoomGain> RoyalRoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> RoyalRoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (!context.RoyalRooms.ContainsKey(room.Room) || PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { Stuff: var stuff }) return [];
         if (!Cache.GetValue(context, MovesOf).Royal.TryGetValue((room.Room, stuff), out var move) || move.Delta == 0) return [];
@@ -494,7 +494,7 @@ public static class ForecastHousing
     /// (<see cref="PlannedRoomCredits.Prediction"/>). None without occupants; throws when an occupant's fact, the room's
     /// temperature, a memory row or the mood is unread (#3835).
     /// </summary>
-    internal static IReadOnlyList<RoomGain> BedroomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> BedroomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { Stuff: var stuff }) return [];
         if (!Cache.GetValue(context, MovesOf).Deltas.TryGetValue((room.Room, stuff), out var moves) || moves.Length == 0) return [];

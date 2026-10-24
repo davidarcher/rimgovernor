@@ -22,7 +22,7 @@ public static class KitchenCredits
     /// None for a kitchen that cooks nothing. Throws <see cref="RequiredFactException"/> when the kitchen's layout room,
     /// prediction, the filth model or the poisoning price is unread.
     /// </summary>
-    internal static IReadOnlyList<RoomGain> KitchenCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> KitchenCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var kitchen = Layout(context, room.Room);
         if (!(kitchen.Meals > 0)) return [];
@@ -39,7 +39,7 @@ public static class KitchenCredits
     /// stuff does not move the stat). None for a butchery without runs or a plan without a kitchen, or a kitchen that cooks
     /// nothing; throws as <see cref="KitchenCredit"/> for a layout room, prediction, filth model or the price.
     /// </summary>
-    internal static IReadOnlyList<RoomGain> ButcheryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> ButcheryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var butchery = Layout(context, room.Room);
         if (butchery.FilthRuns.Values.All(r => !(r.Runs > 0))) return [];

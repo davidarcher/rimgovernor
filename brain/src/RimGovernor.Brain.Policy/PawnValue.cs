@@ -202,7 +202,8 @@ public static class PawnValueRules
     {
         var context = candidates.Context;
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
-        var shortfall = WorkShortfallRules.Of(candidates, selection, work, speeds);
+        var shortfall = WorkShortfallRules.Of(context, [.. candidates.Alternatives, .. candidates.Incumbents], selection.Selection.Selected.ToHashSet(StringComparer.Ordinal),
+            selection.Selected.Plan.Allocations, selection.Horizon, work, speeds);
         if (context.FoodHaul is not { } haul) return (shortfall, [], AwaitingLayoutPlan);
         var hours = PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays);
         var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays };

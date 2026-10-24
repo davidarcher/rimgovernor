@@ -162,8 +162,8 @@ public sealed class CreepJoinerHarmTests
             InvestmentHorizonDays = Horizon,
         };
         Assert.True(Term(context).Loss > 0);
-        Assert.Empty(ForecastIsolation.IsolationCredit(new(1, "", 0), Outcome(), context, Day));
-        Assert.Equal([ForecastIsolation.NoAgony], ForecastIsolation.Findings(new(1, "", 0), Outcome(), context, Day));
+        Assert.Empty(ForecastIsolation.IsolationCredit(new(1, "", 0), Outcome(), [], context, Day));
+        Assert.Equal([ForecastIsolation.NoAgony], ForecastIsolation.Findings(new(1, "", 0), Outcome(), [], context, Day));
     }
 
     // ----- the production path: the catalog's Anomaly-shaped downside defs, the native tracker row, and the hediffs they trigger.

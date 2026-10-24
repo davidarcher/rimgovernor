@@ -1,0 +1,171 @@
+using RimGovernor.Contracts.Wire.Observations;
+
+namespace RimGovernor.Brain.Policy;
+
+/// <summary>
+/// What a joiner's value is priced from beside <see cref="ForecastCoupledContext.ModelBasis"/> (#3805): the candidate roots an
+/// outcome chooses among (the alternatives and incumbents, whose unchosen work is the outcome's shortfall), the defs' work map and
+/// the catalog's food work. Set by the review beside the model basis; null before tier 2 ran.
+/// </summary>
+public sealed record JoinerBasis
+{
+    public EquatableArray<ForecastCommitment> Roots { get; init; }
+
+    public WorkSpeedFacts Work { get; init; } = new();
+
+    public FoodWorkFacts Food { get; init; } = new();
+}
+
+/// <summary>
+/// The joiner's model (#3805, epic #3650 D6 revised): a pawn not yet a colonist (a prisoner; wanderers, quest joiners and
+/// creepjoiners later) as it would be once it joins. Its mood is the colony's situational thoughts plus its own trait thoughts
+/// and memories; its needs are its own falls served as the colonists' are; its value is <see cref="PawnValueRules.Of"/> of the
+/// work an outcome leaves short.
+/// </summary>
+public static class JoinerMoodRules
+{
+    /// <summary>
+    /// Whether the colony's situation gives a colonist the thought (the food, room and recreation thoughts, from the audit table
+    /// thought_triggers.tsv): its owner is a food or rooms Need or shelter/sleeping; its grant category is ingesting or sleeping;
+    /// or it depends on the food or joy need, the room, the room's role or a room stat. A def with no row is none.
+    /// </summary>
+    public static bool ColonyThought(string def)
+    {
+        var (row, ok) = ThoughtFactsRules.ThoughtAuditRow(def);
+        if (!ok) return false;
+        if (row.Owner.Split(';', StringSplitOptions.RemoveEmptyEntries).Any(o => o.StartsWith("food/", StringComparison.Ordinal)
+            || o.StartsWith("rooms/", StringComparison.Ordinal) || o == "shelter/sleeping"))
+            return true;
+        var grant = row.Grant.Split(' ', 2)[0].Split('+');
+        if (grant.Contains("ingest") || grant.Contains("sleep")) return true;
+        return row.Dependency.Split(';', StringSplitOptions.RemoveEmptyEntries).Any(d => d is "need:food" or "need:joy" or "room"
+            || d.StartsWith("room_role:", StringComparison.Ordinal) || d.StartsWith("room_stat:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The colony's situational thoughts a joiner takes on (#3805): per <see cref="ColonyThought"/> def any colonist of the needs
+    /// read has, the median over every colonist of its observed offset (<see cref="ForecastCoupledContext.ColonistThoughts"/>, the
+    /// def's rows summed; 0 for a colonist without it). A colonist whose thoughts were not read throws
+    /// <see cref="RequiredFactException"/>. Cached per context.
+    /// </summary>
+    public static IReadOnlyDictionary<string, double> ColonyThoughts(ForecastCoupledContext context) => Colony.GetValue(context, c =>
+    {
+        var rows = new List<Dictionary<string, double>>();
+        foreach (var pawn in c.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            var thoughts = c.ColonistThoughts.TryGetValue(pawn, out var read) ? read : throw new RequiredFactException("observed thoughts:" + pawn);
+            rows.Add(thoughts.Where(t => ColonyThought(t.Def)).GroupBy(t => t.Def, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Sum(t => t.Offset), StringComparer.Ordinal));
+        }
+
+        return rows.SelectMany(r => r.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+            .ToDictionary(d => d, d => Median([.. rows.Select(r => r.GetValueOrDefault(d))]), StringComparer.Ordinal);
+    });
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double>> Colony = new();
+
+    /// <summary>
+    /// The joiner's mood as a colonist (#3805): its base level plus, over 100, the colony's thoughts, its trait thoughts, its
+    /// memories and the colonistMoodOffset (unclamped, as <see cref="PawnMoodRead.Target"/>), at its own break threshold; null
+    /// without a mood (it never breaks). A colony thought that is one of the joiner's trait thoughts counts once, at the joiner's
+    /// own offset: its traits decide it, not the colonists'.
+    /// </summary>
+    public static PawnMoodRead? MoodOf(JoinerMoodRead? mood, IReadOnlyDictionary<string, double> colony)
+    {
+        if (mood is null) return null;
+        var own = mood.Traits.Select(t => t.Thought).ToHashSet(StringComparer.Ordinal);
+        var shared = colony.Where(c => !own.Contains(c.Key)).Sum(c => c.Value);
+        return new(mood.BaseLevel + ((shared + mood.Traits.Sum(t => t.Offset) + mood.Memories.Sum(m => m.Offset) + mood.ColonistOffset) / 100), mood.Threshold);
+    }
+
+    /// <summary>
+    /// The joiner served as <paramref name="colonist"/> is (#3805), as the pawn cycle reads it under <paramref name="id"/>: each of
+    /// its needs the colonist's service of that need, at the joiner's own fall and threshold. Rest at the colonist's bed
+    /// effectiveness (its rest gain over its GainPerTickPerEffectiveness, <paramref name="colonistRates"/>) times the joiner's, at
+    /// least the joiner's unserved rest; joy at the colonist's sheltered gain, the joiner's own walk where the weather allows it;
+    /// food at the colonist's meal, service and approach. A need the colonist does not have is the joiner's unserved one.
+    /// </summary>
+    public static ModelPawn ServedAs(string id, JoinerRead joiner, ModelPawn colonist, IReadOnlyList<NeedRate> colonistRates)
+    {
+        var needs = new List<ModelNeed>();
+        foreach (var need in joiner.Needs)
+        {
+            var own = new ModelNeed { Kind = need.Kind, Fall = need.FallPerTick, Gain = need.UnservedGainPerTick, Threshold = need.Threshold, OutdoorShares = need.OutdoorShareByTwelfth };
+            var served = colonist.Needs.FirstOrDefault(n => n.Kind == need.Kind) is not { } theirs ? own : need.Kind switch
+            {
+                "rest" => theirs with
+                {
+                    Fall = need.FallPerTick, Threshold = need.Threshold, OutdoorShares = need.OutdoorShareByTwelfth, Gain = Math.Max(need.UnservedGainPerTick,
+                        colonistRates.FirstOrDefault(r => r.Kind == "rest") is { GainPerTickPerEffectiveness: > 0 } rate ? theirs.Gain / rate.GainPerTickPerEffectiveness * need.GainPerTickPerEffectiveness : 0),
+                },
+                "joy" => theirs with
+                {
+                    Fall = need.FallPerTick, Threshold = need.Threshold, OutdoorShares = need.OutdoorShareByTwelfth, Gain = Math.Max(need.UnservedGainPerTick, theirs.ShelteredGain),
+                },
+                _ => theirs with { Fall = need.FallPerTick, Threshold = need.Threshold },
+            };
+            needs.Add(served);
+        }
+
+        return new ModelPawn { Pawn = id, Needs = EquatableArray.From(needs) };
+    }
+
+    /// <summary>
+    /// The joiner's value (#3825's <see cref="PawnValueRules.Of"/>) against <paramref name="shortfall"/>: its read speeds, incapable
+    /// work and food, its mood as a colonist (<see cref="MoodOf"/>) and its free hours over the investment horizon, the median over
+    /// the colonists of its hours served as each is (<see cref="ServedAs"/>, <see cref="PawnCycle.FreeHoursByPawn"/>), on the colony's
+    /// food work, break curve, bed and planned food walks. A colonist the joiner served as it has no free hours, no colonist, or a
+    /// context without the model basis, the joiner basis or the layout's food walks, throws <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static PawnValue ValueOf(string pawn, JoinerRead joiner, WorkShortfall shortfall, ForecastCoupledContext context)
+    {
+        var basis = context.ModelBasis ?? throw new RequiredFactException("colony model basis");
+        var joiners = context.Joiners ?? throw new RequiredFactException("joiner basis");
+        var haul = context.FoodHaul ?? throw new RequiredFactException(PawnValueRules.AwaitingLayoutPlan);
+        var rates = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (IReadOnlyList<NeedRate>)[.. g.First().Needs], StringComparer.Ordinal);
+        var colonists = new List<string>();
+        var hours = PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays, modelled =>
+        {
+            colonists.AddRange(modelled.Select(c => c.Pawn));
+            return modelled.Select(c => ServedAs(pawn + "@" + c.Pawn, joiner, c, rates.GetValueOrDefault(c.Pawn) ?? []));
+        });
+        if (colonists.Count == 0) throw new RequiredFactException("colony model pawns");
+        var free = Median([.. colonists.Select(c => hours.TryGetValue(pawn + "@" + c, out var h) ? h : throw new RequiredFactException("free hours of " + pawn + " served as " + c))]);
+        return PawnValueRules.Of(new PawnValueFacts(pawn)
+        {
+            Speeds = joiner.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), Incapable = joiner.Upkeep.IncapableWork,
+            FoodPerDay = joiner.Upkeep.FoodPerDay, Mood = MoodOf(joiner.Mood, ColonyThoughts(context)), FreeTicksPerDay = free * GameTime.TicksPerHour,
+        }, new PawnValueColony { Shortfall = shortfall, Food = joiners.Food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays });
+    }
+
+    /// <summary>
+    /// The work <paramref name="outcome"/> leaves short (#3805, <see cref="WorkShortfallRules.Of"/>): the joiner basis's roots, the
+    /// outcome's chosen <paramref name="commitments"/> and allocations over the tier-1 <paramref name="horizon"/>, at the colonists'
+    /// read speeds. Cached per outcome, for its context and chosen roots. A context without the joiner basis throws
+    /// <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static WorkShortfall ShortfallOf(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
+    {
+        var chosen = string.Join('\n', commitments.Select(c => c.Id).Order(StringComparer.Ordinal));
+        if (Shortfalls.TryGetValue(outcome, out var cached) && ReferenceEquals(cached.Context, context) && cached.Chosen == chosen && cached.Horizon == horizon)
+            return cached.Shortfall;
+        var joiners = context.Joiners ?? throw new RequiredFactException("joiner basis");
+        var speeds = context.Needs.Pawns.ToDictionary(p => p.Pawn,
+            p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
+        var shortfall = WorkShortfallRules.Of(context, joiners.Roots, commitments.Select(c => c.Id).ToHashSet(StringComparer.Ordinal),
+            outcome.Plan.Allocations, horizon, joiners.Work, speeds);
+        Shortfalls.AddOrUpdate(outcome, new(context, chosen, horizon, shortfall));
+        return shortfall;
+    }
+
+    private sealed record CachedShortfall(ForecastCoupledContext Context, string Chosen, double Horizon, WorkShortfall Shortfall);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledOutcome, CachedShortfall> Shortfalls = new();
+
+    private static double Median(IReadOnlyList<double> values)
+    {
+        var sorted = values.Order().ToArray();
+        var mid = sorted.Length / 2;
+        return sorted.Length % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+}

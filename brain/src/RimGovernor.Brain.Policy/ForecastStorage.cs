@@ -21,7 +21,7 @@ public static class ForecastStorage
     /// <see cref="RequiredFactException"/> when the room's stock rows, a kept stack's material value or the map's area is unread
     /// (<see cref="Gain"/>); a DeteriorationRate stat without an environmental part saves nothing in a room.
     /// </summary>
-    internal static IReadOnlyList<RoomGain> StorageCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> StorageCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (context.PlannedRoomRoles.GetValueOrDefault(room.Room) == PlannedRole.Reserve || context.StoreStock is null) return [];
         return Cache.GetValue(context, Gains).TryGetValue(room.Room, out var gains) ? gains

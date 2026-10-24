@@ -26,32 +26,10 @@ internal static class NativeNeedsForecast
         (Thing Thing, string Kind)[]? possible = null;
         // The map's outdoor recreation weather, read once for every colonist with a joy need (#3825 D7).
         NativeRecreation.OutdoorClimate? outdoorClimate = null;
+        NativeRecreation.OutdoorClimate Climate() => outdoorClimate ??= new(map);
         foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
-            var needs = new List<Obs.NeedRate>();
-            if (pawn.needs?.food is { } food) needs.Add(new("food", F(food.CurLevelPercentage, "food level"),
-                F(food.FoodFallPerTick / food.MaxLevel, "food fall"), F(food.PercentageThreshHungry, "hungry threshold"))
-                { UnservedGainPerTick = 0, GainPerTickPerEffectiveness = 0, Unsupported = ["food_category_and_bed_rate_changes"] });
-            if (pawn.needs?.rest is { } rest) needs.Add(new("rest", F(rest.CurLevelPercentage, "rest level"),
-                F(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor), "rest fall"), Need_Rest.ThreshTired)
-                {
-                    UnservedGainPerTick = F(Need_Rest.BaseRestGainPerTick * RestEffectiveness(null) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "unserved rest gain"),
-                    GainPerTickPerEffectiveness = Need_Rest.BaseRestGainPerTick * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
-                    Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"],
-                });
-            if (pawn.needs?.joy is { } joy)
-            {
-                var decay = typeof(Need_Joy).GetProperty("FallPerInterval", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(joy) as float?
-                    ?? throw new InvalidOperationException("Need_Joy.FallPerInterval is not readable.");
-                var thresholds = BridgeCommon.PrivateInstanceField(typeof(Need), "threshPercents")?.GetValue(joy) as List<float>;
-                if (thresholds is not { Count: > 1 }) throw new InvalidOperationException("Need.threshPercents is not readable for joy.");
-                needs.Add(new("joy", F(joy.CurLevelPercentage, "joy level"), F(decay / 150.0 * pawn.GetStatValue(StatDefOf.JoyFallRateFactor), "joy fall"), thresholds[1])
-                    {
-                        UnservedGainPerTick = F(NativeRecreation.UnservedGainPerTick(pawn), "unserved joy gain"), GainPerTickPerEffectiveness = 0,
-                        OutdoorShareByTwelfth = EquatableArray.From(NativeRecreation.OutdoorShares(pawn, map, outdoorClimate ??= new(map))),
-                        Unsupported = ["joy_category_rate_changes", "future_tolerance_changes", "skygaze_condition_gain"],
-                    });
-            }
+            var needs = NeedRatesOf(pawn, map, Climate, pawn.needs?.joy);
             var state = pawn.Dead ? "dead" : pawn.Downed ? "downed" : pawn.InMentalState ? "mental_state"
                 : pawn.Drafted ? "drafted" : !pawn.IsColonistPlayerControlled ? "player_authority"
                 : pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 ? "player_work" : "eligible";
@@ -156,7 +134,44 @@ internal static class NativeNeedsForecast
         return new() { Tick = new(Find.TickManager.TicksGame), Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
             RainRate = F(map.weatherManager.RainRate, "rain rate"), MapArea = map.Area, Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
-            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs() };
+            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate) };
+    }
+    /// <summary>
+    /// The pawn's food, rest and joy rates (Obs.NeedRate), each need it has; joy from <paramref name="joy"/>, the pawn's own or a
+    /// detached one of a pawn that lacks it now (the joiner read, #3805), none when null.
+    /// </summary>
+    internal static List<Obs.NeedRate> NeedRatesOf(Pawn pawn, Map map, Func<NativeRecreation.OutdoorClimate> climate, Need_Joy? joy)
+    {
+        var needs = new List<Obs.NeedRate>();
+        if (pawn.needs?.food is { } food) needs.Add(new("food", F(food.CurLevelPercentage, "food level"),
+            F(food.FoodFallPerTick / food.MaxLevel, "food fall"), F(food.PercentageThreshHungry, "hungry threshold"))
+            { UnservedGainPerTick = 0, GainPerTickPerEffectiveness = 0, Unsupported = ["food_category_and_bed_rate_changes"] });
+        if (pawn.needs?.rest is { } rest) needs.Add(new("rest", F(rest.CurLevelPercentage, "rest level"),
+            F(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor), "rest fall"), Need_Rest.ThreshTired)
+            {
+                UnservedGainPerTick = F(Need_Rest.BaseRestGainPerTick * RestEffectiveness(null) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "unserved rest gain"),
+                GainPerTickPerEffectiveness = Need_Rest.BaseRestGainPerTick * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
+                Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"],
+            });
+        if (joy != null)
+        {
+            var decay = typeof(Need_Joy).GetProperty("FallPerInterval", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(joy) as float?
+                ?? throw new InvalidOperationException("Need_Joy.FallPerInterval is not readable.");
+            needs.Add(new("joy", F(joy.CurLevelPercentage, "joy level"), F(decay / 150.0 * pawn.GetStatValue(StatDefOf.JoyFallRateFactor), "joy fall"), JoyThreshold(joy))
+                {
+                    UnservedGainPerTick = F(NativeRecreation.UnservedGainPerTick(pawn, joy), "unserved joy gain"), GainPerTickPerEffectiveness = 0,
+                    OutdoorShareByTwelfth = EquatableArray.From(NativeRecreation.OutdoorShares(pawn, map, climate())),
+                    Unsupported = ["joy_category_rate_changes", "future_tolerance_changes", "skygaze_condition_gain"],
+                });
+        }
+        return needs;
+    }
+    /// <summary>The joy need's second threshold (Need.threshPercents[1], the Satisfied category's floor), under which a pawn seeks recreation.</summary>
+    internal static double JoyThreshold(Need_Joy joy)
+    {
+        var thresholds = BridgeCommon.PrivateInstanceField(typeof(Need), "threshPercents")?.GetValue(joy) as List<float>;
+        if (thresholds is not { Count: > 1 }) throw new InvalidOperationException("Need.threshPercents is not readable for joy.");
+        return thresholds[1];
     }
     /// <summary>
     /// The pawn's deathrest (#3810): null without a Gene_Deathrest. Its efficiency is Gene_Deathrest.DeathrestEfficiency's product
@@ -191,7 +206,7 @@ internal static class NativeNeedsForecast
     /// disabled for it; the work types it is incapable of; its food fall at the Fed category over a day; its mood target and minor
     /// break threshold, null without a mood need or a mental breaker. A mood need whose target was not read is a broken read.
     /// </summary>
-    private static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Obs.NeedMood? needMood)
+    internal static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Obs.NeedMood? needMood)
     {
         var speeds = WorkSpeeds(pawn);
         var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
@@ -549,7 +564,7 @@ internal static class NativeNeedsForecast
     ];
     private static readonly FieldInfo? SituationalStage = BridgeCommon.PrivateInstanceField(typeof(Thought_Situational), "curStageIndex");
     /// <summary>Thought.MoodOffset of an unattached thought at one stage: a memory forced to the stage, a situational thought with its stage set.</summary>
-    private static double StageOffset(Pawn pawn, ThoughtDef def, int stage)
+    internal static double StageOffset(Pawn pawn, ThoughtDef def, int stage)
     {
         Thought thought;
         if (def.IsMemory) thought = ThoughtMaker.MakeThought(def, stage);

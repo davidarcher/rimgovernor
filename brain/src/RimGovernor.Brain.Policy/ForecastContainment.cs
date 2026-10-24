@@ -113,7 +113,7 @@ public static class ForecastContainment
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<int, (PlannedContainmentCell Cell, ContainedEntity Entity)>> Cache = new();
 
     /// <summary>The cell's credit (<see cref="RoomCredit"/>): one row under the entity it holds, none for a cell with no entity.</summary>
-    public static IReadOnlyList<RoomGain> CellCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    public static IReadOnlyList<RoomGain> CellCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (!Cache.GetValue(context, Assign).TryGetValue(room.Room, out var held)) return [];
         var (cell, entity) = held;
@@ -139,7 +139,7 @@ public static class ForecastContainment
     /// The served cell's named findings (<see cref="PlannedRoomCredits.Unmodelled"/>): <see cref="NotModelled"/> for a cell
     /// that holds an entity, and <c>knowledge_unpriced:&lt;category&gt;</c> when tier 2 gave the category no price (no study).
     /// </summary>
-    public static IEnumerable<string> CellFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    public static IEnumerable<string> CellFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (!Cache.GetValue(context, Assign).TryGetValue(room.Room, out var held)) return [];
         var entity = held.Entity;

@@ -21,7 +21,7 @@ internal static class ForecastLaboratory
     /// (<see cref="PlannedRoomCredits.Prediction"/>). None without research, or for a shape that closes no room. Throws <see cref="RequiredFactException"/> (#3835)
     /// when the room's layout room or filth model, a stat part, or a research bench's row, factor or bench model is unread.
     /// </summary>
-    internal static IReadOnlyList<RoomGain> LaboratoryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    internal static IReadOnlyList<RoomGain> LaboratoryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var tasks = context.Activities.Activities.Where(t => t.ProjectProgress is { } p && !p.Project.StartsWith(ForecastProjectProgress.SowPrefix, StringComparison.Ordinal))
             .GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().ProjectProgress!, StringComparer.Ordinal);

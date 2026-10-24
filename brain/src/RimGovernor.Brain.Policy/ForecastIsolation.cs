@@ -180,7 +180,7 @@ public static class ForecastIsolation
     public const string NoAgony = "isolation_no_agony_downside";
 
     /// <summary>The credit (<see cref="RoomCredit"/>): one once gain per held creepjoiner, under the creepjoiner.</summary>
-    public static IReadOnlyList<RoomGain> IsolationCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    public static IReadOnlyList<RoomGain> IsolationCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         var held = HeldOf(context.CreepJoiners);
         var table = context.CreepJoiners.Table;
@@ -204,7 +204,7 @@ public static class ForecastIsolation
     /// The served isolation room's named findings (<see cref="PlannedRoomCredits.Unmodelled"/>): <see cref="NoneHeld"/> or
     /// <see cref="NoAgony"/> for a room that earns nothing, else <see cref="NotModelled"/>.
     /// </summary>
-    public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (HeldOf(context.CreepJoiners).Count == 0) return [NoneHeld];
         return context.CreepJoiners.Table.Downsides.Any(d => d.PsychicAgony) ? NotModelled : [NoAgony];

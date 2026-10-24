@@ -288,7 +288,7 @@ public sealed class RoyalRoomCreditTests
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         context = context with { RoyalRooms = ProductionRooms(Sleeping(null), null) };
         Assert.Equal(PlannedRole.Suite, context.PlannedRoomRoles[2]);
-        Assert.Empty(ForecastHousing.RoyalRoomCredit(new(2, "", Day), Serving(0, 0.06), context, Day)!);
+        Assert.Empty(ForecastHousing.RoyalRoomCredit(new(2, "", Day), Serving(0, 0.06), [], context, Day)!);
         Assert.Empty(ForecastHousing.BreakShifts(context));
     }
 }

@@ -392,10 +392,13 @@ public sealed partial record ForecastCoupledCandidates
                 ? EffectSourcesRules.EffectSourceFactsOf(census, facts.MedicalPawns, facts.IdeologyInstalled).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
                     .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Card, StringComparer.Ordinal)
                 : new Dictionary<string, CardPawnFacts>(),
-            // Two rows for one pawn are contradictory evidence: unknown.
-            ObservedThoughts = facts.MoodPawns.TryGetValue(out var moods)
-                ? moods.GroupBy(m => m.Id.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count() == 1 ? g.Single().Thoughts : default, StringComparer.Ordinal)
-                : new Dictionary<string, Fact<EquatableArray<MoodThought>>>(),
+            // Two rows for one pawn are contradictory evidence: unknown. An unread census gives no pawn a row.
+            ObservedThoughts = (facts.MoodPawns.TryGetValue(out var moods) ? moods : []).GroupBy(m => m.Id.Value, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Count() == 1 ? g.Single().Thoughts : default, StringComparer.Ordinal),
+            // Their plain copy, the colonists read whole (#3805).
+            ColonistThoughts = moods.GroupBy(m => m.Id.Value, StringComparer.Ordinal).Where(g => g.Count() == 1)
+                .Select(g => (g.Key, Read: g.Single().Thoughts.TryGetValue(out var rows), Rows: rows)).Where(r => r.Read)
+                .ToDictionary(r => r.Key, r => r.Rows, StringComparer.Ordinal),
         },
             EquatableArray.From(DistinctAlternatives(alternatives)), EquatableArray.From(findings), truncated)
         { CompositionExpansions = composed.Expansions };

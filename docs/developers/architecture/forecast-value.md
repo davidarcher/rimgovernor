@@ -533,7 +533,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813) and `TrainingRange` (#3846).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813), `TrainingRange` (#3846) and `Prison` (#3805).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -849,6 +849,24 @@ prediction, layout room, filth curves, threat or disease schedule, tending, hosp
 bed room or thought rows, or a patient's mood. Named as not modelled with each served hospital: a planned bed's linked facilities (`hospital_bed_facilities_unmodelled`), the
 `BotchedMySurgery` thought, the temperature sleep thoughts, the colony's standing medical beds (#3817), outcome classes other
 than success, death and failure, and surgeries on non-colonists. Two planned hospitals each credit every patient.
+
+*Prison credit (#3805).* A planned prison the outcome serves is credited (`ForecastPrison.PrisonCredit`) the recruitment it
+enables, per prisoner under `prison/<room>/<prisoner>`. A held prisoner without a prison bed is never recruited; the outcome's
+served prisons, in service order, bed the recruitable ones (not unwaveringly loyal, not wild men) up to their beds (planned beds
+plus the prediction's), the most valuable first. One chat of the best-NegotiationAbility warden lowers resistance by
+NegotiationAbility × the mood curve at the prisoner's instant mood in the room (its unclamped mood with its prison thought now
+replaced by the room's PrisonCell, one bed, or PrisonBarracks stage) × the opinion curve at its opinion of the warden; recruitment
+takes `ceil(resistance / perChat) + 1` chats at two a day (`ForecastPrison.RecruitDays`). The prisoner's value is its #3825 value
+as a colonist (`JoinerMoodRules.ValueOf`) against the work the outcome leaves short (`WorkShortfallRules.Of` over the outcome's
+chosen roots, cached per outcome): its own speeds, food and incapable work; its mood the colony's food, room and recreation thoughts
+(the median of the colonists' observed rows, picked by thought_triggers.tsv owner, grant and dependency) plus its trait thoughts (a colony thought that is one of them counted once, at its own offset)
+and memories; its free hours the median over the colonists of its own need falls served as each is served. The row is that value a
+day with a `Once` of −value × the recruitment days: the value over the days the room saves. A non-positive value earns nothing
+(`prison_joiner_costs_more`). Named states, each earning nothing: no prisoner (`prison_no_prisoner`), no recruitable prisoner
+without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
+no bed (`prison_no_bed`) and the review before the first layout plan (`prison_awaiting:layout_plan`). Named as not modelled: a wild
+man's taming chance, trait thoughts whose worker reads the situation, the warden's chat labour, `Inspired_Recruitment`, and the
+prisoner's mood, memories and opinion held at now's over the recruitment.
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from

@@ -136,9 +136,9 @@ public sealed class LaboratoryCreditTests
         Assert.Same(facts.ResearchBenchSpeeds, context.ResearchBenchSpeeds);
         Assert.Same(facts.Filth, context.Filth);
         // A fresh colony's review (no research yet, no prediction of the planned lab) credits it nothing and throws nothing.
-        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(research: false), context, Day));
+        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(research: false), [], context, Day));
         // With research but no prediction of the planned lab (a shape whose ring closes no room, #3834), it earns nothing.
-        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(), context with
+        Assert.Empty(ForecastLaboratory.LaboratoryCredit(new(1, "", Day), Outcome(), [], context with
         {
             Activities = Context(InRoom, Unroofed).Activities, Investment = new Dictionary<string, double> { ["Project"] = PointValue },
         }, Day));
