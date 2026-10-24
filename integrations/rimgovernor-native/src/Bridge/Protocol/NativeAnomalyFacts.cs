@@ -28,7 +28,9 @@ namespace HomeBridge.BridgeTools
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
             var state = new Obs.StudyState {
-                CurrentlyStudiable = study.CurrentlyStudiable() };
+                CurrentlyStudiable = study.CurrentlyStudiable(),
+                Yield = new Obs.StudyYieldState { Knowledge = study.AnomalyKnowledge, Category = study.KnowledgeCategory?.defName ?? "",
+                    FrequencyTicks = study.Props.frequencyTicks } };
             return state;
         }
 
@@ -82,6 +84,7 @@ namespace HomeBridge.BridgeTools
                     }
                     var perDay = CompProducesBioferrite.BioferritePerDay(pawn);
                     if (Finite(perDay)) held = held with { BioferritePerDay = perDay };
+                    held = held with { Escape = Escape(pawn, target) };
                     row = row with { Held = held };
                 }
             }
@@ -91,6 +94,22 @@ namespace HomeBridge.BridgeTools
             try { row = row with { Creepjoiner = CreepJoiner(pawn) }; }
             catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("creepjoiner", ex)] }; }
             return row;
+        }
+
+        // The inputs of ContainmentUtility.InitiateEscapeMtbDays other than the
+        // platform's strength, each as that method reads it (#3811); the
+        // brain applies the captivity and strength curves. A non-finite
+        // factor throws, which drops the held block next to its ReadIssue.
+        private static Obs.EntityEscapeState Escape(Pawn pawn, CompHoldingPlatformTarget target)
+        {
+            var moving = 1f / UnityEngine.Mathf.Clamp(pawn.health.capacities.GetLevel(PawnCapacityDefOf.Moving), 0.01f, 1f);
+            var cold = ContainmentUtility.TryGetColdContainmentBonus(pawn, out var modifier) ? modifier : 1f;
+            var escape = new Obs.EntityEscapeState { BaseMtbDays = target.Props.baseEscapeIntervalMtbDays, MovingFactor = moving,
+                DaysInCaptivity = pawn.mindState.entityTicksInCaptivity / (double)GenDate.TicksPerDay, ColdFactor = cold,
+                CombatPower = pawn.kindDef.combatPower, CanEscape = ContainmentUtility.CanParticipateInEscape(pawn) };
+            if (!Finite(escape.BaseMtbDays) || !Finite(escape.MovingFactor) || !Finite(escape.ColdFactor) || !Finite(escape.CombatPower))
+                throw new InvalidOperationException("a non-finite escape factor");
+            return escape;
         }
 
         // The tracker keeps triggeredDownside private: true once the game has

@@ -25,6 +25,7 @@ public static class RoundsContainmentReads
             Demand = ContainmentDemandOf(frame.Tables.Pawns.Table.Values()),
             Holders = BuiltHolders(frame.Tables.Buildings.Table.Values()),
             Entities = CapturableEntities(frame.Tables.Pawns.Table.Values()),
+            Forecast = ContainmentForecastOf(frame.Tables.Pawns.Table.Values(), frame.Tables.Buildings.Table.Values(), CurvesOf(catalog!)),
         };
         static (PlanningDefinition? Def, string Reason) Definition(IReadOnlyList<PlanningDefinition> all, string name)
         {
@@ -115,6 +116,75 @@ public static class RoundsContainmentReads
             demand = demand with { Entities = demand.Entities + 1, Required = Math.Max(demand.Required, strength) };
         }
         return Known(demand);
+    }
+
+    /// <summary>The catalog's containment curves (#3811); a failed read leaves them empty with its reason.</summary>
+    private static ContainmentCurves CurvesOf(DefinitionCatalog catalog)
+    {
+        try
+        {
+            return catalog.ContainmentCurves();
+        }
+        catch (DomainException e)
+        {
+            return new ContainmentCurves { Reason = e.Message };
+        }
+    }
+
+    /// <summary>
+    /// The escape term's and the cell credit's entities (#3811): each living entity held on a platform, with that platform's
+    /// cell and strength, and each one the game lets the colony capture that no platform holds, with its need, escape and
+    /// study facts; and the catalog's containment curves (a failed read is their reason). The entities are unread, which the
+    /// readers raise as a required fact, when a pawn's held block failed or an entity's need, held state, escape or study
+    /// facts or its platform are unread, the reason naming the pawn.
+    /// </summary>
+    public static ContainmentForecast ContainmentForecastOf(IEnumerable<O.PawnState> pawns, IEnumerable<O.BuildingState> buildings, ContainmentCurves curves)
+    {
+        ContainmentForecast Unread(string pawn, string what) => new() { Unread = pawn + ": " + what, Curves = curves };
+        var platforms = new Dictionary<string, EntityPlatform>(StringComparer.Ordinal);
+        foreach (var row in buildings)
+        {
+            if (row.Anomaly?.Holder is { HeldPawn.Id: { Length: > 0 } held, ContainmentStrength: { } strength } && row.Building.Position is { } at)
+            {
+                platforms[held] = new EntityPlatform(new Cell(at.X, at.Z), strength);
+            }
+        }
+        var entities = new List<ContainedEntity>();
+        foreach (var row in pawns)
+        {
+            if (row.Dead || row.Anomaly is not O.PawnAnomalyState.Active { Facts: var a })
+            {
+                continue;
+            }
+            if (a.Issues.Any(i => i.Field == "held"))
+            {
+                return Unread(row.Pawn.Id, "the held block failed");
+            }
+            if (a.Held is not { } h || a.Entity == false)
+            {
+                continue;
+            }
+            if (h.Held is not { } isHeld || h.CanBeCaptured is not { } capturable || a.Entity is null)
+            {
+                return Unread(row.Pawn.Id, "its entity, held or capturable fact is unread");
+            }
+            if (!isHeld && !capturable)
+            {
+                continue;
+            }
+            if (a.MinContainmentStrength is not { } need || h.Escape is not { } e || a.Issues.Any(i => i.Field == "study") || a.Study is { Yield: null })
+            {
+                return Unread(row.Pawn.Id, "its containment need, escape or study facts are unread");
+            }
+            EntityPlatform? platform = null;
+            if (isHeld && !platforms.TryGetValue(row.Pawn.Id, out platform))
+            {
+                return Unread(row.Pawn.Id, "no platform with a read strength and cell holds it");
+            }
+            var study = a.Study?.Yield is { } y ? new StudyKnowledge(y.Knowledge, y.Category, y.FrequencyTicks) : null;
+            entities.Add(new ContainedEntity(row.Pawn.Id, need, new EntityEscape(e.BaseMtbDays, e.MovingFactor, e.DaysInCaptivity, e.ColdFactor, e.CombatPower, e.CanEscape), study, platform));
+        }
+        return new ContainmentForecast { Entities = EquatableArray.From(entities), Curves = curves };
     }
 
     /// <summary>The standing holding platforms' native strength and availability; a holder whose facts are unread makes the list unknown.</summary>

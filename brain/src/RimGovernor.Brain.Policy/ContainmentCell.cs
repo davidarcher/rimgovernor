@@ -53,6 +53,9 @@ public sealed record ContainmentPlanning
 
     /// <summary>The entity pawn rows the capture rule decides; unknown without Anomaly.</summary>
     public Fact<EquatableArray<CapturableEntity>> Entities { get; init; }
+
+    /// <summary>The held and waiting entities' escape and study facts and the game's containment curves, which the escape term and the cell credit read (#3811).</summary>
+    public ContainmentForecast Forecast { get; init; } = new();
 }
 
 
@@ -77,7 +80,7 @@ public static class ContainmentCellRules
         FlooringFacts floors)
     {
         if (!p.Demand.TryGetValue(out var demand) || demand.Entities == 0
-            || !p.Holders.TryGetValue(out var holders) || !p.Defs.TryGetValue(out var defs))
+            || !p.Holders.TryGetValue(out var holders) || DefsOf(p) is not { } defs)
         {
             return null;
         }
@@ -128,14 +131,11 @@ public static class ContainmentCellRules
                 floored = ContainmentFloorLaid(defs.Floor, floors, sizes[0].W * sizes[0].D);
             }
         }
-        if (floors.Layout.TryGetValue(out var plan) && plan is not null)
+        foreach (var room in PlannedCells(floors))
         {
-            foreach (var room in plan.Rooms)
+            if (ContainmentRoomFloorLaid(defs.Floor, floors, room))
             {
-                if (room.Role == PlannedRole.ContainmentCell && ContainmentRoomFloorLaid(defs.Floor, floors, room))
-                {
-                    floored = true;
-                }
+                floored = true;
             }
         }
         double strength;
@@ -148,6 +148,35 @@ public static class ContainmentCellRules
             return null;
         }
         return strength < required ? null : need;
+    }
+
+    /// <summary>The prediction's def inputs; null when they are unread (<see cref="ContainmentPlanning.DefsReason"/> says why).</summary>
+    private static ContainmentDefs? DefsOf(ContainmentPlanning p) => p.Defs.TryGetValue(out var defs) ? defs : null;
+
+    /// <summary>The layout plan's containment cells; none while the plan is unread.</summary>
+    public static IEnumerable<PlannedRoom> PlannedCells(FlooringFacts floors) =>
+        floors.Layout.TryGetValue(out var plan) && plan is not null ? plan.Rooms.Where(r => r.Role == PlannedRole.ContainmentCell) : [];
+
+    /// <summary>
+    /// The strength the catalog's platform predicts in planned cell <paramref name="room"/> once it is built (#3811): its
+    /// floor term the containment floor when the room is laid with it or the stock lays it (<see cref="ContainmentRoomFloorLaid"/>),
+    /// with no glow, as <see cref="ContainmentCellNeed"/> predicts. The reason is set, and the strength 0, when the defs are
+    /// unread or the prediction cannot be made.
+    /// </summary>
+    public static (double Strength, string Reason) PlannedCellStrength(ContainmentPlanning p, FlooringFacts floors, PlannedRoom room)
+    {
+        if (DefsOf(p) is not { } defs)
+        {
+            return (0, p.DefsReason.Length != 0 ? p.DefsReason : "the containment defs are unread");
+        }
+        try
+        {
+            return (defs.Predict(new ContainmentRoom { Floored = ContainmentRoomFloorLaid(defs.Floor, floors, room) }), "");
+        }
+        catch (DomainException e)
+        {
+            return (0, e.Message);
+        }
     }
 
     /// <summary>

@@ -30,6 +30,9 @@ public readonly record struct RoomGain(string Subject, string Pawn, double PerDa
 /// </summary>
 public delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
 
+/// <summary>The named findings a served room's credit adds to the ledger (#3811): what it leaves out, or a part it could not price.</summary>
+public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizonTicks);
+
 /// <summary>
 /// The per-role planned-room credit seam (#3796, epic #3650): a role is priced when it has a credit
 /// (<see cref="ForecastCoupledContext.RoomCredits"/>, <see cref="Shipped"/> by default). No planned room's units count as
@@ -46,7 +49,8 @@ public static class PlannedRoomCredits
     /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
     /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Pen by the roamers it keeps from walking off the map (#3812); DeathrestChamber by the work days and
     /// chamber mood its caskets and accelerators give each deathrester (#3810); Hospital by the infection, illness, sleep mood
-    /// and queued surgery failures its bed relieves (#3804).</summary>
+    /// and queued surgery failures its bed relieves (#3804); ContainmentCell by the escapes its strength stops and the study it adds
+    /// for the entity it holds, or the study less the escapes of the entity it captures (#3811).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -66,12 +70,17 @@ public static class PlannedRoomCredits
         [PlannedRole.Pen] = ForecastPens.PenCredit,
         [PlannedRole.DeathrestChamber] = ForecastDeathrest.ChamberCredit,
         [PlannedRole.Hospital] = ForecastHospital.HospitalCredit,
+        [PlannedRole.ContainmentCell] = ForecastContainment.CellCredit,
     };
 
-    /// <summary>The mechanics a role's credit leaves out, named with each room of it served (#3804: the hospital's).</summary>
-    public static readonly IReadOnlyDictionary<PlannedRole, string[]> Unmodelled = new Dictionary<PlannedRole, string[]>
+    /// <summary>
+    /// The mechanics a role's credit leaves out, named with each room of it served (<see cref="RoomFindings"/>): the hospital's
+    /// (#3804); the containment cell's, with its held entity's unpriced escape fight or knowledge category (#3811).
+    /// </summary>
+    public static readonly IReadOnlyDictionary<PlannedRole, RoomFindings> Unmodelled = new Dictionary<PlannedRole, RoomFindings>
     {
-        [PlannedRole.Hospital] = ForecastHospital.Unmodelled,
+        [PlannedRole.Hospital] = (_, _, _, _) => ForecastHospital.Unmodelled,
+        [PlannedRole.ContainmentCell] = ForecastContainment.CellFindings,
     };
 
     /// <summary>
@@ -136,7 +145,7 @@ public static class PlannedRoomCredits
             if (credit(served, outcome, context, horizon) is not { } gains) { findings.Add(Unassessed(role, served.Room)); continue; }
             var units = RingClosure.CreditDays(days, served.ServedAt);
             if (units <= 0) continue;
-            if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named);
+            if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named(served, outcome, context, horizon));
             foreach (var gain in gains)
                 rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -((gain.PerDay * units) + gain.Once)));
         }

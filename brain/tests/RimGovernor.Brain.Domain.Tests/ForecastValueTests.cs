@@ -33,7 +33,7 @@ public sealed class ForecastValueTests
         LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
     };
 
-    private static ForecastNeedsResult Timeline(NeedsForecastPawn pawn) => ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [], mood: false);
+    internal static ForecastNeedsResult Timeline(NeedsForecastPawn pawn) => ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [], mood: false);
 
     private static ForecastMoodResult Mood(double pressure, double[]? tiers) => new([], default, default, default, default, default, [])
     {

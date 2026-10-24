@@ -697,6 +697,19 @@ public static partial class ForecastValue
     }
 
     /// <summary>
+    /// The loss of one escape of an entity of <paramref name="points"/> combatPower in <paramref name="outcome"/> over
+    /// <paramref name="horizon"/> ticks (#3811), as the harm term's escape part prices it (<see cref="HarmLedger.FightLoss"/>,
+    /// the worn outfits). Null when the fight cannot be priced.
+    /// </summary>
+    internal static double? EscapeLoss(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon, double points)
+    {
+        var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+        var ordered = outcome.Needs.Keys.ToArray();
+        Array.Sort(ordered, StringComparer.Ordinal);
+        return HarmLedger.FightLoss(points, ordered, outcome, context, horizon, index.Harm, index.Rows, null, new SortedSet<string>(StringComparer.Ordinal))?.Loss;
+    }
+
+    /// <summary>
     /// The capability-days one poisoning case loses: its severity starts at the def's initial severity and follows the
     /// SeverityPerDay comp until it is gone, the Disappears comp's mean ends it, or the horizon does. The case lands on one
     /// of the colony's pawns, unknown which, so it is the mean over them; it is counted from the horizon's start, as the

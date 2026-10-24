@@ -485,7 +485,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812) and `DeathrestChamber` (#3810).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804) and `ContainmentCell` (#3811).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -698,6 +698,23 @@ its own, and of several pens of one herd the lowest id. An animal that does not 
 an animal census native could not read raises `RequiredFactException("animal census")`. Not modelled: the game's five-day roaming
 grace at a new colony and the cooldown after a roam, handlers roping a roamer back before it exits, the animal's future products
 beyond its market value, and pen capacity.
+
+*Containment cell credit (#3811).* A planned containment cell the outcome serves is credited through the same seam
+(`ForecastContainment.CellCredit`) under `containment-cell/<room>/<entity>`, for the entity it holds
+(`ForecastCoupledContext.ContainmentCells`: per planned cell, the strength `ContainmentDefs.Predict` gives its platform there, floored
+as the cell need floors it, and the entity on a standing platform inside it). An entity already held there gains the escapes the
+cell's strength stops, (escapes a day at its platform's strength now − at the cell's) × the loss of one escape, plus the study the
+cell adds, (yield at the cell's strength − yield now). A cell holding no one takes the next waiting entity by id (one the game lets
+the colony capture that no platform holds), which gains its study at the cell's strength less its escapes there × the loss of one;
+it is taken as healed, new to captivity and without the cold bonus. The escape rate and the loss of one escape are the harm term's
+([escape term](../contracts/forecast-contracts.md#escape-term-3811)); a study gives `AnomalyKnowledge` × the study curve ÷ 5 once
+per `frequencyTicks`, each point at `Investment[ProjectGraph.KnowledgeKey(category)]` (#3843; 0 until tier 2 prices a category,
+named `knowledge_unpriced:<category>`). No Anomaly or no entity earns nothing; unread entities, curves or a held entity's cell
+prediction are required facts. The served cell names what is not modelled (`PlannedRoomCredits.Unmodelled`):
+`containment_escape_raid_calibration_assumed` (an escape is priced as a raid of the entity's points),
+`containment_escape_join_unmodelled` (other held entities joining an escape), `containment_captivity_growth_unmodelled` (the days
+held growing over the horizon), `containment_cell_cold_unmodelled` (the cell's temperature) and
+`containment_study_activity_unmodelled` (an entity's activity level and an attached electroharvester).
 
 *Hospital credit (#3804).* A planned hospital the outcome serves is credited through the same seam
 (`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it owns now (none: the ground, at the

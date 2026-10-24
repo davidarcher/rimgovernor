@@ -134,6 +134,9 @@ public sealed record ForecastCoupledContext
     /// RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf); none while no deathrester owes a chamber. Set by the round beside
     /// <see cref="RoyalRooms"/>.</summary>
     public EquatableArray<DeathrestPiece> DeathrestFurniture { get; init; }
+    /// <summary>The planned containment cells, their predicted strength and the entity each already holds (#3811,
+    /// <see cref="ForecastContainment.CellsOf"/>); none without a planned cell. Set by the round beside <see cref="DeathrestFurniture"/>.</summary>
+    public EquatableArray<PlannedContainmentCell> ContainmentCells { get; init; }
     /// <summary>The benches the colony cooks at now (the coupled food read's conversion benches, #3802): the kitchen credit's
     /// current room is theirs (SupportDemand.FoodPoisonChance of their bench demands).</summary>
     public EquatableArray<string> CookingBenches { get; init; }

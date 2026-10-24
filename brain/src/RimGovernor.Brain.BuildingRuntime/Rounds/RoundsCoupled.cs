@@ -313,6 +313,10 @@ public sealed partial class Rounder
                     ["pawn"] = p.Pawn, ["patient_days_per_day"] = p.PatientDaysPerDay, ["tends_per_day"] = p.TendsPerDay, ["deaths_per_day"] = p.DeathsPerDay,
                 }).ToArray(),
             } : null,
+            ["escape"] = new Dictionary<string, object?>
+            {
+                ["escapes_per_day"] = detail.Escape.EscapesPerDay, ["loss"] = detail.Escape.Loss, ["deaths_per_day"] = detail.Escape.DeathsPerDay,
+            },
         } : null, ["investment"] = Number(value.Ledger.Investment),
         ["investment_contributions"] = value.Ledger.InvestmentContributions.Select(c => new Dictionary<string, object?> { ["activity"] = c.Activity, ["pawn"] = c.Pawn, ["key"] = c.Key, ["units"] = c.Units, ["value"] = c.Value }).ToArray(),
         ["goals"] = Number(value.Ledger.Goals),

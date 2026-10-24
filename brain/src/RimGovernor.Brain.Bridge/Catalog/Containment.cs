@@ -33,6 +33,32 @@ public sealed partial class DefinitionCatalog
         return shared with { WallHP = HitPoints(wall, wallStuff), DoorHP = HitPoints(door, doorStuff) };
     }
 
+    /// <summary>
+    /// The escape and study curves of a held entity (#3811): ContainmentUtility's escape interval and study knowledge
+    /// multipliers over the containment strength margin, and its escape factor over the days held. A curve the game renames
+    /// or retypes is an error naming it.
+    /// </summary>
+    public P.ContainmentCurves ContainmentCurves() =>
+        _containmentCurves ?? LazyInitializer.EnsureInitialized(ref _containmentCurves, ReadContainmentCurves);
+
+    // The curves depend on the game assembly alone, so a catalog reads them once.
+    private P.ContainmentCurves? _containmentCurves;
+
+    private static P.ContainmentCurves ReadContainmentCurves()
+    {
+        // ContainmentUtility keeps these curves private static readonly with no accessor (GetEscapeIntervalMultiplier and
+        // GetStudyKnowledgeAmountMultiplier need a held entity and its holder), so no typed route exists: they are read by name.
+        static EquatableArray<P.CurvePoint> Curve(string name) =>
+            EquatableArray.From(GameConstants.Read<SimpleCurve>(typeof(ContainmentUtility), name).Points.Select(p => new P.CurvePoint(p.x, p.y)));
+
+        return new P.ContainmentCurves
+        {
+            Escape = Curve("EscapeIntervalMultiplierFromContainmentStrengthCurve"),
+            Study = Curve("StudyKnowledgeMultiplierFromContainmentStrengthCurve"),
+            Captivity = Curve("DaysInCaptivityEscapeFactorCurve"),
+        };
+    }
+
     private P.ContainmentDefs ContainmentShared()
     {
         var stat = DefRow<StatDef>(ContainmentStat) ?? throw new CatalogException($"the catalog has no {ContainmentStat} stat def");

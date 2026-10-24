@@ -36,7 +36,10 @@ public sealed record HarmInputs
     /// <summary>The colony's disease incidents (<see cref="IllnessSchedule.Of"/>, #3824); unassessed by default.</summary>
     public IllnessSchedule Illness { get; init; } = new();
 
-    /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts.</summary>
+    /// <summary>The entities the colony holds or could capture and the containment curves (#3811), which the escape term reads; none by default.</summary>
+    public ContainmentForecast Containment { get; init; } = new();
+
+    /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
     internal static HarmInputs Of(RoundsFacts facts) => new()
     {
         Schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed),
@@ -48,6 +51,7 @@ public sealed record HarmInputs
         Coverage = facts.HarmCatalog.Coverage,
         Natural = facts.HarmCatalog.Natural,
         Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
+        Containment = facts.Containment.Forecast,
     };
 }
 
@@ -63,9 +67,19 @@ public sealed record HarmDetail(double RaidsPerDay, double ExposureLo, double Ex
     /// <summary>The illness part (#3824); null when it is unassessed (the term then holds the raids alone, with an <c>illness_unassessed</c> finding).</summary>
     public IllnessTerm? Illness { get; init; }
 
-    /// <summary>Expected pawn deaths per day, from raids and illness: the death floor's measure.</summary>
-    public double DeathsPerDay => RaidsPerDay * DeathProbability + (Illness?.DeathsPerDay ?? 0);
+    /// <summary>The escape part (#3811): the held entities' escapes; none without a held entity.</summary>
+    public EscapeTerm Escape { get; init; } = new(0, 0, 0);
+
+    /// <summary>Expected pawn deaths per day, from raids, illness and escapes: the death floor's measure.</summary>
+    public double DeathsPerDay => RaidsPerDay * DeathProbability + (Illness?.DeathsPerDay ?? 0) + Escape.DeathsPerDay;
 }
+
+/// <summary>
+/// The escape part of the harm term (#3811): the held entities' escapes a day (Σ 1 / InitiateEscapeMtbDays), their loss over
+/// the horizon in capability-days (each escape one fight at the entity's combatPower) and the pawn deaths a day they cause.
+/// An entity whose fight cannot be priced adds nothing and is named <c>escape_unassessed:&lt;entity&gt;</c>.
+/// </summary>
+public sealed record EscapeTerm(double EscapesPerDay, double Loss, double DeathsPerDay);
 
 /// <summary>The harm term of one outcome: the loss in capability-days (unknown with <see cref="Findings"/> saying why) and the detail behind it.</summary>
 internal sealed record HarmTerm(Fact<double> Loss, HarmDetail? Detail, IReadOnlyList<string> Findings);
@@ -107,8 +121,8 @@ internal static class HarmLedger
             raidsPerDay = expected;
             if (raidsPerDay == 0)
             {
-                // A schedule with no raids to expect has no raid harm to price, whatever else is unobserved; illness is priced alone.
-                return WithIllness(new HarmDetail(0, 0, 0, 0, 0, 0), ordered, outcome, context, horizon, pawns, illnessCache, findings);
+                // A schedule with no raids to expect has no raid harm to price, whatever else is unobserved; illness and escapes are priced alone.
+                return WithIllness(new HarmDetail(0, 0, 0, 0, 0, 0), ordered, outcome, context, horizon, cache, pawns, commitments, illnessCache, findings);
             }
         }
         else
@@ -122,6 +136,7 @@ internal static class HarmLedger
         if (bins.Length == 0)
         {
             complete = false;
+            bins = [];
             findings.Add(CompositionUnknown);
             findings.UnionWith(inputs.Composition.Findings);
         }
@@ -166,48 +181,18 @@ internal static class HarmLedger
                 continue;
             }
 
-            var role = RoleOf(wearing);
-            var reading = RaidExposure.HitsPerColonist(inputs.Exposure, ratio, role);
-            findings.UnionWith(reading.Findings);
-            if (!reading.Hits.TryGetValue(out var hits))
+            if (PawnFight(pawn, row, wearing, ratio, bins, outcome, context, horizon, cache, commitments, findings) is not { } fight)
             {
                 complete = false;
                 continue;
             }
 
-            if (OutfitsOf(pawn, wearing, commitments, outcome.OutfitTicks, horizon) is not { } outfits)
-            {
-                complete = false;
-                findings.Add("outfit_change_timing_unknown:" + pawn);
-                continue;
-            }
-
-            // Each outfit is worn for its share of the horizon, and the raids in that share meet it (#3621).
-            foreach (var (outfit, share) in outfits)
-            {
-                var key = (pawn, role, outfit, outcome.Support, hits);
-                if (!cache.TryGetValue(key, out var distribution))
-                {
-                    var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
-                    cache[key] = distribution = HarmConsequences.Of(hits, bins, response, row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
-                }
-
-                findings.UnionWith(distribution.Findings);
-                if (!distribution.Known)
-                {
-                    complete = false;
-                    break;
-                }
-
-                var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
-                risked += share * Risk(mean, tail, context.Value.HarmRiskWeight);
-                down += share * distribution.DownProbability;
-                death += share * distribution.DeathProbability;
-                cvar += share * tail;
-            }
-
-            lo = Math.Min(lo, hits.Lo);
-            hi = Math.Max(hi, hits.Hi);
+            risked += fight.Risked;
+            down += fight.Down;
+            death += fight.Death;
+            cvar += fight.Cvar;
+            lo = Math.Min(lo, fight.Hits.Lo);
+            hi = Math.Max(hi, fight.Hits.Hi);
         }
 
         if (!complete)
@@ -216,19 +201,168 @@ internal static class HarmLedger
         }
 
         findings.UnionWith(Unmodelled);
-        return WithIllness(new HarmDetail(raidsPerDay, lo, hi, down, death, cvar) { RaidLoss = raidsPerDay * days * risked }, ordered, outcome, context, horizon, pawns, illnessCache, findings);
+        return WithIllness(new HarmDetail(raidsPerDay, lo, hi, down, death, cvar) { RaidLoss = raidsPerDay * days * risked }, ordered, outcome, context, horizon, cache, pawns, commitments, illnessCache, findings);
+    }
+
+    /// <summary>One pawn's part of one fight: its risked loss, its down and death probabilities, its CVaR and the hits it takes.</summary>
+    private readonly record struct Fight(double Risked, double Down, double Death, double Cvar, HitRange Hits);
+
+    /// <summary>
+    /// <paramref name="pawn"/>'s part of one fight at <paramref name="ratio"/> (points over defense capacity): the hits its exposure role
+    /// takes (<see cref="RaidExposure"/>) against each outfit it wears under <paramref name="commitments"/> for its share of the horizon
+    /// (#3621), each the risk transform of <see cref="HarmConsequences.Of"/>. Null, with the finding, when the exposure cell, an
+    /// outfit change's timing or a distribution is unknown.
+    /// </summary>
+    private static Fight? PawnFight(string pawn, NeedsForecastPawn row, EquatableArray<GearOption> wearing, double ratio, WeaponBin[] bins, ForecastCoupledOutcome outcome,
+        ForecastCoupledContext context, double horizon, ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache,
+        IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
+    {
+        var inputs = context.Harm;
+        var role = RoleOf(wearing);
+        var reading = RaidExposure.HitsPerColonist(inputs.Exposure, ratio, role);
+        findings.UnionWith(reading.Findings);
+        if (!reading.Hits.TryGetValue(out var hits))
+        {
+            return null;
+        }
+
+        if (OutfitsOf(pawn, wearing, commitments, outcome.OutfitTicks, horizon) is not { } outfits)
+        {
+            findings.Add("outfit_change_timing_unknown:" + pawn);
+            return null;
+        }
+
+        double risked = 0, down = 0, death = 0, cvar = 0;
+        // Each outfit is worn for its share of the horizon, and the fights in that share meet it (#3621).
+        foreach (var (outfit, share) in outfits)
+        {
+            var key = (pawn, role, outfit, outcome.Support, hits);
+            if (!cache.TryGetValue(key, out var distribution))
+            {
+                var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
+                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
+            }
+
+            findings.UnionWith(distribution.Findings);
+            if (!distribution.Known)
+            {
+                return null;
+            }
+
+            var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
+            risked += share * Risk(mean, tail, context.Value.HarmRiskWeight);
+            down += share * distribution.DownProbability;
+            death += share * distribution.DeathProbability;
+            cvar += share * tail;
+        }
+
+        return new(risked, down, death, cvar, hits);
     }
 
     /// <summary>
-    /// The term of a known raid part with the illness part added (#3824): the loss is the raids' plus the illness's, priced alike;
-    /// an unassessed illness leaves the raids' alone with its findings.
+    /// The colony's risked loss of one fight at <paramref name="points"/> (#3811), in capability-days over the horizon, and the pawn
+    /// deaths it causes: Σ over <paramref name="ordered"/> of <see cref="PawnFight"/> at points ÷ defense capacity, the raid's
+    /// weapon bins and exposure table standing in for the fight's (the raid-calibration assumption). Null, with the findings, when
+    /// the defense, the bins, a pawn's capacities, outfit or fight is unknown, or there is no pawn.
+    /// </summary>
+    internal static (double Loss, double Deaths)? FightLoss(double points, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
+        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache,
+        IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
+    {
+        if (RatioOf(context.Harm, points) is not { } ratio)
+        {
+            findings.Add("defense_capacity_unobserved");
+            return null;
+        }
+
+        if (BinsOf(context.Harm) is not { } bins)
+        {
+            findings.Add(CompositionUnknown);
+            return null;
+        }
+
+        if (ordered.Length == 0)
+        {
+            findings.Add("harm_unassessed:no_pawns");
+            return null;
+        }
+
+        double loss = 0, deaths = 0;
+        foreach (var pawn in ordered)
+        {
+            if (!pawns.TryGetValue(pawn, out var row) || !context.Outfits.TryGetValue(pawn, out var wearing))
+            {
+                findings.Add((pawns.ContainsKey(pawn) ? "outfit_unobserved:" : "capacities_unobserved:") + pawn);
+                return null;
+            }
+
+            if (PawnFight(pawn, row, wearing, ratio, bins, outcome, context, horizon, cache, commitments, findings) is not { } fight)
+            {
+                return null;
+            }
+
+            loss += fight.Risked;
+            deaths += fight.Death;
+        }
+
+        return (loss, deaths);
+    }
+
+    /// <summary>
+    /// The escape part (#3811): per entity held on a platform, its escapes a day at the platform's strength now
+    /// (<see cref="ForecastContainment.EscapesPerDay"/>) times the days of the horizon and the loss of one fight at its combatPower
+    /// (<see cref="FightLoss"/>). No held entity adds nothing; an entity whose fight is unknown adds nothing and is named
+    /// <see cref="ForecastContainment.EscapeUnassessed"/>. Unread entities or curves raise <see cref="RequiredFactException"/>.
+    /// </summary>
+    private static EscapeTerm Escapes(string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
+        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache,
+        IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
+    {
+        var held = ForecastContainment.EntitiesOf(context.Harm.Containment).Where(e => e.Platform is not null).OrderBy(e => e.Id, StringComparer.Ordinal).ToArray();
+        if (held.Length == 0)
+        {
+            return new(0, 0, 0);
+        }
+
+        var curves = ForecastContainment.Curves(context);
+        var days = horizon / GameTime.TicksPerDay;
+        double perDay = 0, loss = 0, deaths = 0;
+        foreach (var entity in held)
+        {
+            var rate = ForecastContainment.EscapesPerDay(entity, entity.Platform!.Strength, curves);
+            if (rate == 0)
+            {
+                continue;
+            }
+
+            if (FightLoss(entity.Escape.CombatPower, ordered, outcome, context, horizon, cache, pawns, commitments, findings) is not { } fight)
+            {
+                findings.Add(ForecastContainment.EscapeUnassessed(entity.Id));
+                continue;
+            }
+
+            findings.Add(ForecastContainment.NotModelled[0]);
+            perDay += rate;
+            loss += rate * days * fight.Loss;
+            deaths += rate * fight.Deaths;
+        }
+
+        return new(perDay, loss, deaths);
+    }
+
+    /// <summary>
+    /// The term of a known raid part with the illness (#3824) and escape (#3811) parts added: the loss is the raids' plus the
+    /// illness's plus the escapes', priced alike; an unassessed illness leaves the others alone with its findings.
     /// </summary>
     private static HarmTerm WithIllness(HarmDetail raids, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        IReadOnlyDictionary<string, NeedsForecastPawn> pawns, ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
+        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> fights,
+        IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
+        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
     {
         var illness = IllnessForecast.Term(context.Harm.Illness, ordered, pawns, context.CapacityPenalties, outcome.Support, context.Value, horizon, cache, findings);
-        var detail = raids with { Illness = illness };
-        return new(Known(detail.RaidLoss + (illness?.Loss ?? 0)), detail, [.. findings]);
+        var escape = Escapes(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
+        var detail = raids with { Illness = illness, Escape = escape };
+        return new(Known(detail.RaidLoss + (illness?.Loss ?? 0) + escape.Loss), detail, [.. findings]);
     }
 
     /// <summary>
@@ -275,8 +409,11 @@ internal static class HarmLedger
         inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && inputs.Schedule.RaidFraction.TryGetValue(out var share) ? threats * share : null;
 
     /// <summary>The raid's points ÷ the colony's defense capacity, the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
-    internal static double? PointsRatio(HarmInputs inputs) =>
-        inputs.RaidPoints.TryGetValue(out var points) && inputs.DefenseCapacity.TryGetValue(out var defense) && defense > 0 ? points / defense : null;
+    internal static double? PointsRatio(HarmInputs inputs) => inputs.RaidPoints.TryGetValue(out var points) ? RatioOf(inputs, points) : null;
+
+    /// <summary><paramref name="points"/> ÷ the colony's defense capacity (a raid's, or an escaped entity's combatPower, #3811); null when the capacity is unread or not positive.</summary>
+    private static double? RatioOf(HarmInputs inputs, double points) =>
+        inputs.DefenseCapacity.TryGetValue(out var defense) && defense > 0 ? points / defense : null;
 
     /// <summary>The raid composition's weapon bins; null when the composition is unread or has none.</summary>
     internal static WeaponBin[]? BinsOf(HarmInputs inputs) =>

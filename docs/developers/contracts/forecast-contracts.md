@@ -368,7 +368,8 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `RoundsFacts.HarmCatalog.Raid`), `RaidPoints`,
   `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage` and `Natural` (`HarmCatalog`, from the
   catalog), and `Illness` (`IllnessSchedule.Of` over `RoundsFacts.DiseaseTable` and `RoundsFacts.Disease`; see
-  [illness term](#illness-term-3824)). Each defaults to unknown. The hediff tables are `CapacityPenalties`.
+  [illness term](#illness-term-3824)), and `Containment` (`ContainmentPlanning.Forecast`; see [escape term](#escape-term-3811)).
+  Each defaults to unknown, `Containment` to no entity. The hediff tables are `CapacityPenalties`.
 - `Harm` = raids per day (major threats per day × raid fraction) × horizon days × Σ over the outcome's pawns of
   (1 − `HarmRiskWeight`) × E + `HarmRiskWeight` × CVaR`HarmRiskAlpha` of `HarmConsequences.Of` for the pawn. Its inputs are
   `RaidExposure.HitsPerColonist(points ÷ DefenseCapacity, role)` and `ArmorResponseRules.OfOutfit` of the pawn's outfit. The role
@@ -387,7 +388,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   `adaptation_feedback_unassessed`, `fire_unassessed` and `exposure_layout_unassessed`. An unknown `Harm` makes `Total` unknown;
   a comparison still uses the terms both sides assess (`LossAgainst`).
 - `ForecastValueExplanation.Death` is assessed when the outcome's and the reference's `Harm` are: its excess is the expected deaths per
-  day (`HarmDetail.DeathsPerDay`: raids per day × Σ death probability, plus the illness term's deaths per day) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
+  day (`HarmDetail.DeathsPerDay`: raids per day × Σ death probability, plus the illness and escape terms' deaths per day) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
   worn outfits. `CompareConsequences` ranks the floors urgent zero, death, break risk, in that order, before the ledger.
 - The search evaluates an outcome in that order (#3723): `ForecastValue.Stage` prices the urgent-zero time, the harm term and death
   excess, the break-risk excess and the goal terms at evaluation, and the remaining ledger terms on the first read of the
@@ -411,7 +412,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   and no bound exists for the death and break-risk floors, the ledger or the tiebreaks. The unpruned search is the test control
   `CompareActivityOutcomesUnpruned`; it ranks the same selection, vectors and findings.
 - `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`, `raid_loss`,
-  `illness`) is reported as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
+  `illness`, `escape`) is reported as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
   a served review reports `exposure_cell_uncalibrated:…` and `harm` null.
 
 ### Illness term (#3824)
@@ -457,6 +458,28 @@ costs each pawn.
   then `HarmDetail.RaidLoss` alone with `illness_unassessed` and the reason. `ColonyValue`'s raid loss reads `RaidLoss`, so its
   doctor and medicine prices leave illness out (#3829). Mirrored literals:
   [kept constants](kept-constants.md#mirrored-game-literals-illness-3824).
+
+### Escape term (#3811)
+
+The harm term's held-entity part: how often an entity held on a holding platform escapes, and what the fight costs.
+
+- Native reads, read-only (`NativeAnomalyFacts`), inside the pawn's held block (a failed read drops the block with a `held`
+  `ReadIssue`): `HeldState.Escape` (`EntityEscapeState`: the comp's `baseEscapeIntervalMtbDays`, 1 / Clamp(Moving, 0.01, 1),
+  `entityTicksInCaptivity` in days, `ContainmentUtility.TryGetColdContainmentBonus`'s modifier or 1, the kind's `combatPower`, and
+  `ContainmentUtility.CanParticipateInEscape`); and in the study block `StudyState.Yield` (`StudyYieldState`: `AnomalyKnowledge`, the
+  `KnowledgeCategory` defName, `Props.frequencyTicks`). The catalog reads `ContainmentUtility`'s three private curves by name
+  (`DefinitionCatalog.ContainmentCurves`: escape interval and study knowledge over the strength margin, escape factor over days held).
+- `RoundsContainmentReads.ContainmentForecastOf` lifts the pawn rows into `ContainmentForecast.Entities` (`ContainedEntity`): each
+  living entity held on a platform, with the building row whose holder holds it (its cell and `ContainmentStrength`), and each one the
+  game lets the colony capture that no platform holds. `Unread` names the pawn when its held block failed or a fact it needs is absent;
+  either reader then raises `RequiredFactException("containment entities: …")`, as unread curves raise `containment curves`.
+- Escapes a day per held entity: 1 / (base MTB × moving × captivity curve(days) × escape curve(platform strength − need) × cold), 0 for
+  one that cannot escape (`ForecastContainment.EscapesPerDay`). Each escape is one fight at the entity's combat power:
+  `HarmLedger.FightLoss` prices it as a raid of those points against `DefenseCapacity`, with the raid's weapon bins and the exposure
+  table, Σ over the pawns of the risk transform (`containment_escape_raid_calibration_assumed`). A fight that cannot be priced adds
+  nothing and names `escape_unassessed:<entity>`.
+- `HarmDetail.Escape` (`EscapeTerm`: escapes a day, the loss — escapes a day × horizon days × one fight — and deaths a day) is zero
+  without a held entity; its loss and deaths join the term's.
 
 ### Threat schedule (#3539)
 

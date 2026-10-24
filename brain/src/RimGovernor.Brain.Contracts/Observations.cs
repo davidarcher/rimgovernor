@@ -7883,6 +7883,31 @@ public sealed record HeldState
     public bool? HarvesterAttached { get; init; }
 
     public double? BioferritePerDay { get; init; }
+
+    /// <summary>The ContainmentUtility.InitiateEscapeMtbDays inputs (#3811), read with the rest of the block.</summary>
+    public EntityEscapeState? Escape { get; init; }
+}
+
+/// <summary>
+/// An entity's escape facts (#3811), the inputs of ContainmentUtility.InitiateEscapeMtbDays other than the
+/// platform's strength: base_mtb_days is the comp's baseEscapeIntervalMtbDays; moving_factor
+/// 1 / Clamp(Moving, 0.01, 1); days_in_captivity mindState.entityTicksInCaptivity in days; cold_factor
+/// TryGetColdContainmentBonus's modifier where the entity stands (1 without the bonus); combat_power the
+/// kind's combatPower; can_escape ContainmentUtility.CanParticipateInEscape.
+/// </summary>
+public sealed record EntityEscapeState
+{
+    public double BaseMtbDays { get; init; }
+
+    public double MovingFactor { get; init; }
+
+    public double DaysInCaptivity { get; init; }
+
+    public double ColdFactor { get; init; }
+
+    public double CombatPower { get; init; }
+
+    public bool CanEscape { get; init; }
 }
 
 /// <summary>
@@ -7892,6 +7917,23 @@ public sealed record HeldState
 public sealed record StudyState
 {
     public bool? CurrentlyStudiable { get; init; }
+
+    /// <summary>What one study gives (#3811), read with the rest of the block.</summary>
+    public StudyYieldState? Yield { get; init; }
+}
+
+/// <summary>
+/// A study's yield (#3811): knowledge is CompStudiable.AnomalyKnowledge (before the containment strength
+/// curve and the ÷ 5 per study), category its KnowledgeCategory's defName ("" none) and frequency_ticks
+/// Props.frequencyTicks, the least interval between studies.
+/// </summary>
+public sealed record StudyYieldState
+{
+    public double Knowledge { get; init; }
+
+    public string Category { get; init; } = "";
+
+    public int FrequencyTicks { get; init; }
 }
 
 /// <summary>

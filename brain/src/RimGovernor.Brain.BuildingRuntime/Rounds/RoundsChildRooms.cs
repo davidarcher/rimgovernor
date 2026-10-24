@@ -93,6 +93,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static EquatableArray<DeathrestPiece> DeathrestFurnitureOf(ColonyProjection facts) =>
         ChildRoomsRules.DeathrestFurniture(ChildRoomNeeds(facts), FurnitureDefinitions(facts));
 
+    /// <summary>The planned containment cells the containment cell credit reads (#3811), predicted as the cell need predicts them.</summary>
+    internal static EquatableArray<PlannedContainmentCell> ContainmentCellsOf(ColonyProjection facts) =>
+        ForecastContainment.CellsOf(facts.Facts.Containment, RoundsBuildingPlanner.FlooringFactsOf(facts));
+
     internal static List<FurnitureDefinition> FurnitureDefinitions(ColonyProjection facts)
     {
         var names = new HashSet<string>(WorshipDefinitions(facts).Concat(ContainmentDefinitions(facts)).Concat(facts.Isolation.Beds), StringComparer.Ordinal);
