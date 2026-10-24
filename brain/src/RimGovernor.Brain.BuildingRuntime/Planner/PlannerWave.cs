@@ -118,7 +118,7 @@ internal sealed class PlannerWave : IDisposable
                 // failure; it runs again next step.
                 span?.SetTag("rimgovernor.verdict", RequiredFactTelemetry.Verdict);
                 span?.SetTag("rimgovernor.reason", RequiredFactTelemetry.Reason);
-                Tel.Decide(Scoped(Tallied(RequiredFactTelemetry.Skipped("clock-scheduler", entry.Name, unread.Fact) with { Dur = took }, reads.Tally)));
+                Tel.Decide(Scoped(Tallied(RequiredFactTelemetry.Skipped("clock-scheduler", entry.Name, unread.Fact, unread.Site) with { Dur = took }, reads.Tally)));
                 return;
             }
             var decision = Scoped(Tallied(StepDecision(entry, reason, error, took, late), reads.Tally));

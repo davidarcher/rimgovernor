@@ -170,7 +170,8 @@ internal static class NativeNeedsForecast
     /// <summary>
     /// The stage rows of the thoughts #3339 and the bedroom credit (#3655) value, each priced by the game's MoodOffset for this
     /// pawn on an unattached thought (zero when ThoughtUtility.CanGetThought refuses it, as the game would never give it). The
-    /// ascetic rows also carry each null stage at 0: ThoughtWorker_Ascetic leaves the thought inactive at those room stages.
+    /// bed and ascetic rows also carry each null stage at 0: Toils_LayDown.ApplyBedThoughts gains no bed memory at a null
+    /// room stage (SleptInBedroom's dull stage, #3822), and ThoughtWorker_Ascetic leaves the thought inactive at those stages.
     /// </summary>
     private static EquatableArray<Obs.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
     {
@@ -183,7 +184,7 @@ internal static class NativeNeedsForecast
             {
                 if (def.stages[stage] == null)
                 {
-                    if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, default, false));
+                    if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, def.IsMemory ? K(def.DurationTicks) : default, def.IsMemory && def.lerpMoodToZero));
                     continue;
                 }
                 var offset = can ? StageOffset(pawn, def, stage) : 0;
@@ -193,8 +194,8 @@ internal static class NativeNeedsForecast
             }
         }
         Rows(ThoughtDefOf.SleptOutside, "slept_outside");
-        Rows(ThoughtDefOf.SleptInBedroom, "slept_in_bedroom");
-        Rows(ThoughtDefOf.SleptInBarracks, "slept_in_barracks");
+        Rows(ThoughtDefOf.SleptInBedroom, "slept_in_bedroom", nullStagesInactive: true);
+        Rows(ThoughtDefOf.SleptInBarracks, "slept_in_barracks", nullStagesInactive: true);
         Rows(map.weatherManager.CurWeatherLerped?.weatherThought, "weather");
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_NeedOutdoors)))
             Rows(def, "need_outdoors");

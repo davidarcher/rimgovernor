@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 
@@ -72,6 +73,62 @@ public sealed class FirstPlanHeldTests
         Assert.False(Decide(curve.Fact).Run);
 
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, priced, []);
+        Assert.True(plan.IsKnown);
+        Assert.NotEmpty(plan.Value.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan.Value.RoomsOf(PlannedRole.Barracks)));
+    }
+
+    // The game's SleptInBedroom and SleptInBarracks stage offsets (Thoughts_Memory_RoomStats.xml) up to the stages the
+    // catalog reads; null is SleptInBedroom's dull stage, where Toils_LayDown.ApplyBedThoughts gains no memory.
+    private static readonly double?[] BedroomOffsets = [-2, null, 1, 2, 3, 4, 5, 6, 7, 8];
+    private static readonly string[] FreshIds = ["Thing_Human1", "Thing_Human2", "Thing_Human3"];
+    private static readonly double?[] BarracksOffsets = [-7, -5, -4, -3, -2, -1, 1, 2, 3, 4];
+
+    /// <summary>
+    /// A fresh colonist's bed thought stages as NativeNeedsForecast.ThoughtStagesOf reads them: no owned bed, the mood and
+    /// break threshold read, and each null stage a row at 0 (#3822), or left out as the read did before it.
+    /// </summary>
+    private static NeedsForecastPawn FreshColonist(string id, bool nullStageRow)
+    {
+        var stages = new List<NeedThoughtStage>();
+        void Rows(string def, string role, double?[] offsets)
+        {
+            for (var s = 0; s < BedMergePriceTests.Levels.StageCount; s++)
+            {
+                if (offsets[s] is not null || nullStageRow)
+                {
+                    stages.Add(new(def, role, s, offsets[s] ?? 0, Known((double)GameTime.TicksPerDay), false));
+                }
+            }
+        }
+        Rows("SleptInBedroom", "slept_in_bedroom", BedroomOffsets);
+        Rows("SleptInBarracks", "slept_in_barracks", BarracksOffsets);
+        return new NeedsForecastPawn { Pawn = id, MoodUnclampedTarget = Known(0.6), BreakThreshold = Known(0.35), ThoughtStages = EquatableArray.From(stages) };
+    }
+
+    private static BedMergeFacts FreshSleepers(bool nullStageRow) => new BedroomGainFacts
+    {
+        Pawns = FreshIds.ToDictionary(p => p, p => FreshColonist(p, nullStageRow), StringComparer.Ordinal),
+        Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+        WellbeingWeight = 0.1,
+    }.BedMerge(BedMergePriceTests.Levels);
+
+    [Fact]
+    public void AFreshColonysFirstPlanReadsTheSleepersMoodAtTheBedroomsNullDullStage()
+    {
+        // #3822: SleptInBedroom has no dull stage, so the read left that row out, every sleeper's gain at it was unread
+        // and the first plan of every colony failed on sleeper_mood at ChooseBeds, holding the clock for good.
+        var s = FirstLayoutPlanTests.Survey("mild");
+        var priced = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "mild");
+        StationFacts With(BedMergeFacts sleepers) => priced with { BedMerge = priced.BedMerge with { Sleepers = sleepers.Sleepers, Levels = sleepers.Levels } };
+
+        var before = Assert.Throws<RequiredFactException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, With(FreshSleepers(nullStageRow: false)), []));
+        Assert.Equal("sleeper_mood", before.Fact);
+        Assert.StartsWith("LayoutBedMerge.cs:", before.Site, StringComparison.Ordinal);
+        Assert.EndsWith(" ChooseBeds", before.Site, StringComparison.Ordinal);
+
+        var read = FreshSleepers(nullStageRow: true);
+        Assert.True(read.Sleepers.IsKnown);
+        var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, With(read), []);
         Assert.True(plan.IsKnown);
         Assert.NotEmpty(plan.Value.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan.Value.RoomsOf(PlannedRole.Barracks)));
     }

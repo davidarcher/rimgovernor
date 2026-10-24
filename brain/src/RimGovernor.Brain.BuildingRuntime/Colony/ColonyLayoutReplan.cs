@@ -162,7 +162,7 @@ public sealed partial class Rounder
         switch (run.Error)
         {
             case RequiredFactException unread:
-                Tel.Decide(RequiredFactTelemetry.Skipped("layout", decision.Kind, unread.Fact) with { Dur = decision.Dur });
+                Tel.Decide(RequiredFactTelemetry.Skipped("layout", decision.Kind, unread.Fact, unread.Site) with { Dur = decision.Dur });
                 return false;
             case not null:
                 Tel.Decide(decision with { Level = TelemetryLevel.Warn, Verdict = "failed", Reason = "tile_error", Attrs = new Dictionary<string, object?> { ["error"] = run.Error.ToString(), ["adopted"] = waited } });

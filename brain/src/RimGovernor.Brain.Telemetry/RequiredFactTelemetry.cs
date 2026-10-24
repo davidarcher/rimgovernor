@@ -17,8 +17,11 @@ public static class RequiredFactTelemetry
     /// <summary>The attr naming the unread fact.</summary>
     public const string FactKey = "fact";
 
-    /// <summary>The decision of <paramref name="planner"/>'s run skipped for the unread <paramref name="fact"/>.</summary>
-    public static Decision Skipped(string component, string planner, string fact) => new()
+    /// <summary>The attr naming the throw that found the fact unread (file:line member, #3822).</summary>
+    public const string SiteKey = "site";
+
+    /// <summary>The decision of <paramref name="planner"/>'s run skipped for the unread <paramref name="fact"/>, found at <paramref name="site"/>.</summary>
+    public static Decision Skipped(string component, string planner, string fact, string site) => new()
     {
         Kind = Kind,
         Component = component,
@@ -26,7 +29,7 @@ public static class RequiredFactTelemetry
         Verdict = Verdict,
         Reason = Reason,
         Target = planner,
-        Attrs = new Dictionary<string, object?> { [FactKey] = fact },
+        Attrs = new Dictionary<string, object?> { [FactKey] = fact, [SiteKey] = site },
     };
 
     /// <summary>The unread fact a sink's record names, or null when the record is no required_fact decision.</summary>

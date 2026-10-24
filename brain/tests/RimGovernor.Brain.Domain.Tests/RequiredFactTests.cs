@@ -57,10 +57,10 @@ public sealed class RequiredFactTests
     [Fact]
     public void TheTestSinkThrowsOnARequiredFactRow()
     {
-        var e = Assert.Throws<InvalidOperationException>(() => RequiredFactSink.Emitter().Decide(RequiredFactTelemetry.Skipped("clock-scheduler", "test-unread", "outdoor_curve")));
+        var e = Assert.Throws<InvalidOperationException>(() => RequiredFactSink.Emitter().Decide(RequiredFactTelemetry.Skipped("clock-scheduler", "test-unread", "outdoor_curve", "Test.cs:1 Test")));
         Assert.Contains("outdoor_curve", e.Message, StringComparison.Ordinal);
         // It is the runtime's static emitter in every test, so a planner under test fails on the skip.
-        Assert.Throws<InvalidOperationException>(() => Tel.Decide(RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, "resource demand")));
+        Assert.Throws<InvalidOperationException>(() => Tel.Decide(RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, "resource demand", "Test.cs:1 Test")));
         // Every other row passes.
         RequiredFactSink.Emitter().Decide(new Decision { Kind = Decision.PlannerStepKind, Verdict = "skipped", Reason = "no_verdict" });
     }
@@ -111,7 +111,7 @@ public sealed class RequiredFactCaseTests
             {
                 var emitter = new TelemetryEmitter(writer);
                 emitter.Decide(new Decision { Kind = Decision.PlannerStepKind, Component = "clock-scheduler", Verdict = "ok", Reason = "no_verdict", Target = "work" });
-                emitter.Decide(RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, "outdoor_curve"));
+                emitter.Decide(RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, "outdoor_curve", "Test.cs:1 Test"));
             }
 
             var failure = RequiredFactRows.Failure(ServiceLogs.ServiceLogsPath(output));

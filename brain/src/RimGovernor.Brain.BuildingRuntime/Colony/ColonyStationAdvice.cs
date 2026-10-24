@@ -235,7 +235,7 @@ internal static class StationAdviceLog
         switch (error)
         {
             case RequiredFactException unread:
-                decision = RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, unread.Fact);
+                decision = RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, unread.Fact, unread.Site);
                 break;
             case not null:
                 decision = decision with { Level = TelemetryLevel.Warn };
