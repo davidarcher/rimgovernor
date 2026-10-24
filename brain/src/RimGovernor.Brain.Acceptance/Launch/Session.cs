@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Contracts.Wire;
 using IdentityRequest = RimGovernor.Contracts.Wire.Lifecycle.IdentityRequest;
 
@@ -284,9 +285,9 @@ public static class GameSessions
                 round).ConfigureAwait(false);
             return null;
         }
-        catch (NativeRefusedException)
+        catch (Exception e) when (e is NativeRefusedException or NativeFailureException or BridgeUnavailableException)
         {
-            // The game answered, which is all a connect asks.
+            // The game answered, which is all a connect asks: a game still at the menu answers NotLoaded.
             return null;
         }
         catch (NativeTransportException e)
