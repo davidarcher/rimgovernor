@@ -284,7 +284,26 @@ read as the thermal read, for each unplaced planned room closed in each ring stu
 `PlannedClosuresOf` joins each answer to the room's ring (wall and door sites of that
 stuff) and roof sites. In a schedule a room closes when the last of its ring sites
 finishes, earliest stuff first, and is roofed when its roof site (or the planned
-shelter's roof cells) has finished. Between those times a cell's state is the
+shelter's roof cells) has finished. A ring the schedule leaves open gets a projected
+closure past the horizon instead of none (#3744, `ProjectedClosures`, D6): a ring
+is open when its room is observed started (`Context.StartedRooms`, from
+`PlannedRoomStartedOf`) or the schedule finished one of its planned sites. Its
+remaining ring work, per stuff, is the ring work (`Context.RingWork`, by site id)
+of its unfinished ring, vent and roof sites (the least finish option, FinishTicks or
+a roof's `RoofCellWorkTicks` times its cells, plus the least delivery option of each
+of its `PlannedSiteOperations.WorkGroups`) and of its unfinished placed ring sites
+(the least work of their FinishFrame tasks); the least stuff wins, and a ring with
+a site without a ring-work row is not projected. The builders
+(`Context.PlannedBuilders`: the needs census's free colonists capable of
+Construction, `LayoutClusterRules.BuildersOf`; none, or their work facts unread,
+projects nothing) first spend the ring work the schedule finished, then the started
+rings, then the rings the schedule opened, each group by its remaining work; the
+k-th closes at the cumulative work over the builders (`RingClosure.ClosedAt`, the
+estimate the bed merge sizes rooms with, #3748), never before the horizon, and its
+roof is not done. Only the outcome's final read projects; the reads inside the
+schedule keep the scheduled closures. The bedroom credit runs from the closure,
+scheduled or projected, to tier 2's horizon (`RingClosure.CreditDays`), none at or
+past it. Between those times a cell's state is the
 mirrored `Room` formulas over the predicted cell and open-roof counts:
 PsychologicallyOutdoors (300 open roof cells, or half open at the map edge) and
 UsesOutdoorTemperature (a quarter open, or the map edge). Before closure the cell's
@@ -702,7 +721,8 @@ spans several cells: it leaves from the site's first position and reaches the ne
 `ForecastCoupledCandidates.Context.PlannedSites` (`ForecastPlannedSite`: site, room, stuff, composed activities,
 finishes) and `Context.PlannedRooms` keep the mapping back. The evaluated outcome's `PlannedRooms` lists, per room
 with a site finished in the horizon, the completed sites and the alternatives completed whole. A room left
-partial names `planned_room_effect_unassessed` instead of a whole-room value.
+partial names `planned_room_effect_unassessed` instead of a whole-room value, unless its open ring's closure is
+projected (#3744, [roof and room consequences](#roof-and-room-consequences)), which values it.
 
 The thermal-relief gate exempts allocations in the closure of a selected planned site root (#3651). Binding skips unplaced planned
 allocations (`CoordinatedActivityBinding.Start`): a planned site has no action template until placed, except its

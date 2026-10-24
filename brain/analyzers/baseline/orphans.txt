@@ -157,7 +157,6 @@ Policy|ForecastNeedWindow.Ticks
 Policy|ForecastNeedsResult.MemoryAdjustedMoodTarget
 Policy|ForecastNeedsResult.ThoughtOffsetAtHorizon
 Policy|ForecastNeedsReview.Alternatives
-Policy|ForecastPlannedSite.Stuff
 Policy|ForecastShelterEffect.Enclosed
 Policy|ForecastShelterEffect.Location
 Policy|ForecastShelterEffect.MaxC

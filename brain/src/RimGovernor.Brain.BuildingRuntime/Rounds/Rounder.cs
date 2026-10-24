@@ -734,10 +734,14 @@ public sealed partial class Rounder
             var materials = await MaterialValuesAsync(state.Snapshot, coupled.Context, reading.Projection.Stations, reading.Projection.Facts.Items, ct).ConfigureAwait(false);
             var occupantFindings = new SortedSet<string>(coupled.Context.Findings, StringComparer.Ordinal);
             var occupants = RoundsSleepingUpkeepPlanner.BedroomOccupantsOf(reading.Projection, occupantFindings);
+            // The started planned rooms, whose open rings close first in the ring-closure projection (#3744), of the plan
+            // the layout review read (a later retired-ground drop leaves its rooms as they are).
+            var started = layoutPlan is null ? []
+                : layoutPlan.Rooms.Where(r => RoundsBuildingPlanner.PlannedRoomStartedOf(reading.Projection, layoutPlan, r) == true).Select(r => r.Id).ToHashSet();
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = occupants, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = occupants, StartedRooms = started, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);

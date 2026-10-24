@@ -238,7 +238,8 @@ public static class ForecastHousing
 
     /// <summary>
     /// The bedroom investment credit (#3655): per priced planned bedroom (or barracks, #3658) the outcome closes and per occupant, its
-    /// <see cref="GainPerDay"/> times the days from closure to tier 2's horizon, a gain (negative) under
+    /// <see cref="GainPerDay"/> times the days from closure to tier 2's horizon (RingClosure.CreditDays, #3744: the scheduled
+    /// closure, or the projected one of a ring the schedule leaves open; none at or past the horizon), a gain (negative) under
     /// <see cref="BedroomKey"/>. An occupant whose delta or mood is unknown is named bedroom_credit_unassessed and credited nothing.
     /// </summary>
     internal static void BedroomCredits(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
@@ -255,7 +256,7 @@ public static class ForecastHousing
                 var gain = !move.Delta.TryGetValue(out var delta) ? null
                     : GainPerDay(delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
                 if (gain is not { } perDay) { findings.Add("bedroom_credit_unassessed:" + move.Pawn); continue; }
-                var units = days - closed.ClosedAt / GameTime.TicksPerDay;
+                var units = RingClosure.CreditDays(days, closed.ClosedAt);
                 if (units > 0) rows.Add(new("", move.Pawn, BedroomKey(closed.Room, move.Pawn), units, -perDay * units));
             }
         }

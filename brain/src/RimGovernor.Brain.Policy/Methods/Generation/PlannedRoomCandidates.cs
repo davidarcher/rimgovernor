@@ -2,8 +2,15 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
-/// <summary>The composition operations one planned site was generated as, and its finish.</summary>
-internal sealed record PlannedSiteOperations(string Site, int Room, string Stuff, string[] Operations, string Finish);
+/// <summary>
+/// The composition operations one planned site was generated as, and its finish. WorkGroups (#3744) are a ring or roof
+/// site's ring work: its finish, then its deliveries (the alternative sources as one group, or each stack of its set as
+/// its own); the ring work is the sum over groups of the least work of a group's options. None for any other site.
+/// </summary>
+internal sealed record PlannedSiteOperations(string Site, int Room, string Stuff, string[] Operations, string Finish)
+{
+    public string[][] WorkGroups { get; init; } = [];
+}
 
 internal sealed record PlannedRoomCandidatesResult(
     ForecastCompositionOperation[] Operations, ForecastCompositionSupply[] Observed, ForecastActivityOption[] Options,
@@ -118,6 +125,7 @@ internal static class PlannedRoomCandidates
             {
                 var finish = site.Id + "/finish";
                 var ids = new List<string>();
+                var hauls = new List<string[]>();
                 var requirements = new List<ForecastCompositionRequirement>();
                 string siteLocation;
                 if (site.Op == OpKind.RoofIn)
@@ -170,6 +178,8 @@ internal static class PlannedRoomCandidates
                             }
                             readies.Add(ready); ids.Add(delivery);
                         }
+                        var delivered = ids.Where(id => id.StartsWith(site.Id + "/delivery/", StringComparison.Ordinal)).ToArray();
+                        if (delivered.Length > 0) hauls.AddRange(shares is null ? [delivered] : delivered.Select(id => new[] { id }));
                         if (shares is null)
                             requirements.Add(new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
                                 Known(EquatableArray.From(readies)), Known(0.0), Known(horizon)));
@@ -229,7 +239,8 @@ internal static class PlannedRoomCandidates
                     [new("completed-site/" + finish, completed, Known(1), roomLocation, Known(0.0), Known(horizon))
                     { Producer = finish, Lot = site.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "planned-finish-site:" + site.Id }]));
                 ids.Add(finish); finishes[site.Id] = finish;
-                roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish));
+                roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish)
+                    { WorkGroups = ring || site.Op == OpKind.RoofIn ? [[finish], .. hauls] : [] });
             }
             if (operations.Count + roomOperations.Count > OperationBudget)
             {

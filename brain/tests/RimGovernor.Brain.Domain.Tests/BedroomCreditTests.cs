@@ -88,6 +88,35 @@ public sealed class BedroomCreditTests
         Assert.Equal(Known(0d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0), Known(EquatableArray.From([new MoodThought("Ascetic", 5)]))));
     }
 
+    /// <summary>
+    /// #3744 acceptance (d): a started bedroom ring with <paramref name="ringDays"/> of ring work left and one builder is
+    /// projected to close then, and its credit runs from that day to tier 2's horizon: none at or past it.
+    /// </summary>
+    [Theory]
+    [InlineData(3, 7)]
+    [InlineData(10, 0)]
+    [InlineData(12, 0)]
+    public void TheCreditRunsFromTheProjectedClosureAndIsZeroAtOrPastTheHorizon(double ringDays, double units)
+    {
+        var context = Context(Pawn(ascetic: false, barracksStage: 2), bedroomStage: 2) with
+        {
+            PlannedSites = [new("planned/room1/wall/WoodLog", 1, "WoodLog", [], ["planned/room1/wall/WoodLog/finish"])],
+            RingWork = new Dictionary<string, double> { ["planned/room1/wall/WoodLog"] = ringDays * Day },
+            StartedRooms = new HashSet<int> { 1 },
+            PlannedBuilders = 1,
+        };
+        var closed = Assert.Single(ForecastRoofConsequences.PlannedClosedRooms(context, new Dictionary<string, double>(), Day));
+        Assert.Equal(ringDays * Day, closed.ClosedAt);
+        var rows = ForecastValue.Of(Closing(closed.ClosedAt, 0.06), context, Day).InvestmentContributions
+            .Where(r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal)).ToArray();
+        if (units == 0)
+        {
+            Assert.Empty(rows);
+            return;
+        }
+        Assert.Equal(units, Assert.Single(rows).Units, 9);
+    }
+
     [Fact]
     public void AnOccupantWithUnreadStagesIsNamedAndNotCredited()
     {

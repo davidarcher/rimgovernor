@@ -49,7 +49,8 @@ public sealed record ForecastRoomClosure(int Room, string Stuff, double ClosedAt
 /// <summary>
 /// What one schedule completes of a planned room: the planned sites (ids) whose finish completes inside the horizon,
 /// and the room alternatives all of whose sites do. A room with completed sites and no complete alternative reports
-/// its later effect unassessed (planned_room_effect_unassessed), never as zero.
+/// its later effect unassessed (planned_room_effect_unassessed), never as zero, unless its open ring's closure is
+/// projected (#3744), which assesses it.
 /// </summary>
 public sealed record ForecastPlannedRoomOutcome(int Room, EquatableArray<string> CompletedSites, EquatableArray<string> Complete);
 
@@ -75,6 +76,16 @@ public sealed record ForecastCoupledContext
     public IReadOnlySet<PlannedRole> PricedRoomRoles { get; init; } = ForecastPlannedSite.PricedRoomRoles;
     /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
     public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
+    /// <summary>The builders an unfinished ring's closure is projected over (#3744): the free colonists of the needs census
+    /// capable of Construction (LayoutClusterRules.BuildersOf). None (none free, or their work facts unread) projects nothing.</summary>
+    public int PlannedBuilders { get; init; }
+    /// <summary>The ring work in ticks (#3744) of each planned ring, vent and roof site (by site id: the least finish,
+    /// FinishTicks or a roof's RoofCellWorkTicks per cell, plus the least delivery haul it was generated with) and of each
+    /// placed ring site (by thing id: the least work of its FinishFrame tasks). A ring with a site without a row is not projected.</summary>
+    public IReadOnlyDictionary<string, double> RingWork { get; init; } = new Dictionary<string, double>(StringComparer.Ordinal);
+    /// <summary>The planned rooms observed started (#3744, RoundsBuildingPlanner.PlannedRoomStartedOf): their open rings close
+    /// first in the projection. Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
+    public IReadOnlySet<int> StartedRooms { get; init; } = new HashSet<int>();
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
@@ -129,7 +140,8 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     public EquatableArray<string> CompletedDevelopmentSites { get; init; }
     /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
     public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
-    /// <summary>The planned rooms the schedule closes inside the horizon (ForecastRoofConsequences.PlannedClosedRooms, #3655).</summary>
+    /// <summary>The planned rooms the schedule closes inside the horizon (ForecastRoofConsequences.PlannedClosedRooms, #3655),
+    /// and the open rings it leaves at their projected closure past the horizon (#3744).</summary>
     public EquatableArray<ForecastRoomClosure> ClosedRooms { get; init; }
     /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
     /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development, except a unit

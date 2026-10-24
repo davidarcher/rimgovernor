@@ -68,13 +68,14 @@ public sealed partial record ForecastCoupledCandidates
         var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
         // Planned rooms are construction (#3276): the same gate as placed sites, from the round's planned-site facts.
         var plannedFindings = new List<string>();
-        var allPlannedSites = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedFacts) ? plannedFacts.Sites : [];
+        var plannedFacts = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedRead) ? plannedRead : null;
+        var allPlannedSites = plannedFacts is null ? [] : plannedFacts.Sites;
         var plannedSites = urgent.Count == 0 ? allPlannedSites : [];
-        if (shelterEnabled && !facts.PlannedSites.IsKnown) plannedFindings.Add("planned_sites_unknown");
+        if (shelterEnabled && plannedFacts is null) plannedFindings.Add("planned_sites_unknown");
         var plannedAlternatives = PlannedRules.PlannedRoomAlternatives(plannedSites);
         plannedFindings.AddRange(plannedAlternatives.Findings);
         var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
-            shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedRoutes) ? plannedRoutes.Routes : [], read.Thermal, resources,
+            plannedFacts is null ? [] : plannedFacts.Routes, read.Thermal, resources,
             needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline);
         var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))
@@ -273,6 +274,24 @@ public sealed partial record ForecastCoupledCandidates
         // A placed ring site's finishes are its FinishFrame tasks, any one of them (#3537).
         var placedFinishes = bindings.Values.Where(b => b.Kind == PawnActivityKind.Work && b.Job == "FinishFrame").GroupBy(b => b.Target, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => EquatableArray.From(g.Select(b => b.Id).Distinct().Order(StringComparer.Ordinal)), StringComparer.Ordinal);
+        // The ring work (#3744): a planned ring or roof site's, the least work of each of its work groups' options, summed;
+        // a placed ring site's, the least work of its finishes. A site with a group of no option with work has no row.
+        double LeastWork(IEnumerable<string> activities)
+        {
+            var of = activities.ToHashSet(StringComparer.Ordinal);
+            var least = double.PositiveInfinity;
+            foreach (var option in options.Where(o => of.Contains(o.Activity)))
+                if (option.WorkTicks.TryGetValue(out var ticks)) least = Math.Min(least, ticks);
+            return least;
+        }
+        var ringWork = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var site in planned.Sites.Where(s => s.WorkGroups.Length > 0))
+        {
+            var groups = site.WorkGroups.Select(g => LeastWork(g.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []))).ToArray();
+            if (groups.All(double.IsFinite)) ringWork[site.Site] = groups.Sum();
+        }
+        foreach (var (site, finishes) in placedFinishes)
+            if (LeastWork(finishes) is var work && double.IsFinite(work)) ringWork[site] = work;
         var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(allPlannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions,
             facts.CurrentConstruction.TryGetValue(out var placedSites) ? placedSites.Sites : [], placedFinishes) : [];
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
@@ -317,6 +336,9 @@ public sealed partial record ForecastCoupledCandidates
             PlannedRooms = EquatableArray.From(planned.Rooms),
             PlannedRoomRoles = PlannedRoomRolesOf(facts),
             Closures = closures,
+            PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
+                pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,
+            RingWork = ringWork,
             InitialLots = EquatableArray.From(lots),
             FoodUses = read.FoodUses,
             Bindings = bindings,

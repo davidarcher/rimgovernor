@@ -39,7 +39,7 @@ public sealed class PlannedRoomActivitiesTests
     /// stack (count owed from each, which holds its available), approach and delivery walked to the nearest position.
     /// </summary>
     private static PlannedBuildSite Site(string id, OpKind op, string def, string stuff, Cell[] cells, double finish, int count,
-        IReadOnlyList<(string Id, Cell At, double Available)> stacks, PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible)
+        IReadOnlyList<(string Id, Cell At, double Available)> stacks, PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible, int room = 1)
     {
         var at = cells[0];
         var reach = Ticks(Start, Nearest(cells, Start));
@@ -47,7 +47,7 @@ public sealed class PlannedRoomActivitiesTests
             ? [new ConstructionActivityOption(id, def, at, Pawn, "", "", at, 0, 0, "Finish", default, default, Known(finish)) { SiteApproachTicks = Known(reach) }]
             : stacks.Select(s => new ConstructionActivityOption(id, def, at, Pawn, stuff, s.Id, s.At, count, 75, "Finish", Known(Ticks(Start, s.At)),
                 Known(Ticks(s.At, Nearest(cells, s.At))), Known(finish)) { SiteApproachTicks = Known(reach), AvailableInput = Known(s.Available) }).ToArray();
-        return new PlannedBuildSite(id, 1, op, def, op == OpKind.FloorIn ? "" : stuff, Rotation.North, EquatableArray.From(cells))
+        return new PlannedBuildSite(id, room, op, def, op == OpKind.FloorIn ? "" : stuff, Rotation.North, EquatableArray.From(cells))
         {
             Verdict = verdict, Options = EquatableArray.From(rows),
             Material = count > 0 ? [new RimGovernor.Brain.Policy.Amount(new Resource(stuff), count)] : [],
@@ -621,18 +621,18 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
-    /// The handoff places only what the plan completes (#3278, #3342): the door's finish falls past the horizon (its
-    /// delivery may be scheduled, its finish is not completed), so a selected alternative root that names the door
-    /// records the wall alone; the reconcile places the door once the room has started.
+    /// The handoff places only what the plan starts (#3278, #3342, #3744): the door's finish falls past the horizon and the
+    /// schedule starts none of its activities, so a selected alternative root that names the door records the wall alone;
+    /// the reconcile places the door once the room has started.
     /// </summary>
     [Fact]
-    public void ASiteNotFinishedInTheHorizonIsNotPlacedByTheSelection()
+    public void ASiteTheScheduleDoesNotStartIsNotPlacedByTheSelection()
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 400, count: 5, available: 50)]);
         var result = Select(facts);
         var candidates = facts.CoupledAlternatives!;
         var door = candidates.Context.PlannedSites.Single(s => s.Site == "planned/room1/door/WoodLog");
-        Assert.DoesNotContain(result.Selected.Plan.Allocations, a => door.Finishes.Contains(a.Activity) && a.End <= Horizon);
+        Assert.DoesNotContain(result.Selected.Plan.Allocations, a => door.Activities.Concat(door.Finishes).Contains(a.Activity));
         Assert.DoesNotContain(door.Site, result.Selected.RequestedDevelopment);
         var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
         var record = PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = [root.Id] } }, facts.PlannedSites)!;
@@ -839,5 +839,140 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal([1], record.Assessed);
         Assert.Empty(record.Sites);
         Assert.Equal(PlannedRoomGate.Hold, PlannedRules.PlannedRoomGateOf(record, 1, started: false).Gate);
+    }
+
+    private const double Day = GameTime.TicksPerDay;
+
+    /// <summary>A wall run of room 2, east of room 1, the builder finishes in finish ticks with nothing to deliver.</summary>
+    private static PlannedBuildSite RoomTwoWall(double finish) =>
+        Site("planned/room2/wall/WoodLog", OpKind.WallIn, "Wall", "WoodLog", [new(14, 4), new(14, 5), new(14, 6)], finish, 0, [], room: 2);
+
+    /// <summary>
+    /// #3744: planned rings over a one-day horizon. Every colonist sleeps in a barracks at stage 0 now (bed thoughts read);
+    /// each room of <paramref name="occupants"/> is a bedroom native predicts at stage 2 in WoodLog, its occupant moving in.
+    /// <paramref name="builders"/> are the projection's builders (unknown when null), <paramref name="started"/> the rooms
+    /// observed started; tier 2's horizon is 10 days and wellbeing is weighed a capability-day per mood-day, so a day's
+    /// delay of a bedroom is worth more than the ledger's tie resolution.
+    /// </summary>
+    private static RoundsFacts Rings(IEnumerable<PlannedBuildSite> planned, Dictionary<int, PlannedRole> roles,
+        Dictionary<int, string> occupants, int? builders, int[] started, int colonists = 1, IReadOnlyDictionary<string, double>? material = null)
+    {
+        var facts = Review(planned, horizon: Day, colonists: colonists);
+        var indoors = new NeedCell(Known(true), Known(false), Known(false), Known(false), Known(false));
+        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p with
+        {
+            ThoughtStages = EquatableArray.From(BedroomStages),
+            OwnedBed = "bed-" + p.Pawn,
+            Targets = [new("bed-" + p.Pawn, "rest", "", 1, Known(0d), default, default, Known(.00005)) { Bed = new("Barracks", Known(0), false), Cell = indoors, Location = Start }],
+        });
+        facts = facts with
+        {
+            PlannedSites = Known(facts.PlannedSites.Value with { Roles = EquatableArray.From(roles.Select(r => (r.Key, r.Value))) }),
+            PlannedShelters = [.. occupants.Keys.Select(room => new PlannedRoom { Id = room, Role = roles[room],
+                Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * (room - 1)), Z = 5, Width = 3, Height = 3 }) })],
+            PlannedRoomPredictions = Known(EquatableArray.From(occupants.Keys.Select(room => new PlannedRoomPrediction(
+                room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", Known(30d), Known(2), 9, 0, false)))),
+            MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+            ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
+        };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!.Priced();
+        return facts with
+        {
+            CoupledAlternatives = generated with
+            {
+                Context = generated.Context with
+                {
+                    BedroomOccupants = occupants.ToDictionary(o => o.Key, o => EquatableArray.From([o.Value])),
+                    InvestmentHorizonDays = Known(10d),
+                    PlannedBuilders = builders ?? 0,
+                    StartedRooms = started.ToHashSet(),
+                    Value = generated.Context.Value with { WellbeingWeight = 1 },
+                    MaterialValues = (material ?? new Dictionary<string, double>()).ToDictionary(m => new Resource(m.Key), m => new ConstructionMaterialValue(MaterialValueBasis.Labor, m.Value)),
+                },
+            },
+        };
+    }
+
+    private static ForecastRoomClosure ClosureOf(ForecastCoupledOutcome outcome, int room) => Assert.Single(outcome.ClosedRooms, c => c.Room == room);
+
+    /// <summary>
+    /// #3744 acceptance (a): one builder, bedroom ring A (room 1) started with two days of ring work left, which no
+    /// schedule of the day finishes, and a storage ring B (room 2) a third of a day long. A's closure is projected past the
+    /// horizon at its remaining work over the builder; opening B would push it later by B's work, which A's credit pays, so
+    /// B is not opened though its sites count development. With A closed (its ring owes nothing), B opens.
+    /// </summary>
+    [Fact]
+    public void OneBuilderLeavesAStorageRingClosedWhileABedroomRingIsOpenAndOpensItOnceTheBedroomCloses()
+    {
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Storage };
+        var bedroom = new Dictionary<int, string> { [1] = Pawn };
+        var b = RoomTwoWall(Day / 3);
+        var facts = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: 1, started: [1]);
+        var result = Select(facts, Day);
+        Assert.False(PlannedSelected(result, b.Id), Why(facts, result));
+        Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ClosedAt);
+        Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
+        // The delay is what holds B: unprojected, A's ring carries no credit for B to delay and B's development opens it.
+        var unprojected = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: null, started: [1]);
+        Assert.True(PlannedSelected(Select(unprojected, Day), b.Id));
+
+        var closed = Rings([b], roles, bedroom, builders: 1, started: [1]);
+        var opened = Select(closed, Day);
+        Assert.True(PlannedSelected(opened, b.Id), Why(closed, opened));
+        Assert.Contains("planned/room2/wall/WoodLog", PlannedRules.PlannedSelectionOf(closed.CoupledAlternatives, opened, closed.PlannedSites)!.Sites
+            .Select(s => "planned/room" + s.Room + "/wall/" + s.Stuff));
+    }
+
+    /// <summary>
+    /// #3744 acceptance (b): three builders, bedroom ring A (room 1) started with six days left and a second bedroom ring B
+    /// (room 2) a third of a day long, colonist-01 moving in. Opening B delays A's projected closure by a third of B's work,
+    /// and B's own credit, from its closure inside the day to tier 2's horizon, outweighs that delay: B opens beside A.
+    /// </summary>
+    [Fact]
+    public void ThreeBuildersOpenASecondBedroomBesideAnOpenOneWhenItsCreditOutweighsAThirdOfItsWork()
+    {
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Bedroom };
+        var b = RoomTwoWall(Day / 3);
+        var facts = Rings([Ring(OpKind.WallIn, "WoodLog", 6 * Day), b], roles,
+            new Dictionary<int, string> { [1] = Pawn, [2] = "colonist-01" }, builders: 3, started: [1], colonists: 2);
+        var result = Select(facts, Day);
+        Assert.True(PlannedSelected(result, b.Id), Why(facts, result));
+        var work = facts.CoupledAlternatives!.Context.RingWork[b.Id];
+        Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ClosedAt);
+        Assert.Equal(2 * Day + (work / 3), ClosureOf(result.Selected, 1).ClosedAt, 6);
+        Assert.True(ClosureOf(result.Selected, 2).ClosedAt < Day);
+        Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/2/colonist-01" && c.Value < 0);
+    }
+
+    /// <summary>
+    /// #3744 acceptance (c): one builder, a new bedroom whose ring takes three builder-days: its wall half a day (the logs
+    /// hauled from their stack), its door two and a half. No schedule of the day closes it, yet the wall the day builds
+    /// opens the ring, whose closure is projected at its whole ring work over the builder, and the credit from then to the
+    /// horizon beats the logs: the room is assessed and its wall, the site the schedule starts, is placed. Without
+    /// builders nothing is projected and the wall alone, closing nothing, is never selected.
+    /// </summary>
+    [Fact]
+    public void ABedroomWhoseRingTakesThreeBuilderDaysIsAssessedAndItsFirstSitesPlaced()
+    {
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom };
+        var bedroom = new Dictionary<int, string> { [1] = Pawn };
+        PlannedBuildSite[] ring = [Ring(OpKind.WallIn, "WoodLog", Day / 2, count: 10, available: 50), Ring(OpKind.DoorIn, "WoodLog", 2.5 * Day)];
+        var wood = new Dictionary<string, double> { ["WoodLog"] = .001 };
+        var facts = Rings(ring, roles, bedroom, builders: 1, started: [], material: wood);
+        var context = facts.CoupledAlternatives!.Context;
+        Assert.Equal([1], context.PlannedRooms.Select(a => a.Room).Distinct());
+        var result = Select(facts, Day);
+        Assert.True(PlannedSelected(result, ring[0].Id), Why(facts, result));
+        var work = context.PlannedSites.Sum(s => context.RingWork[s.Site]);
+        Assert.True(work > 3 * Day);
+        Assert.Equal(work, ClosureOf(result.Selected, 1).ClosedAt, 6);
+        Assert.DoesNotContain(result.Selected.Findings, f => f.Reason == "planned_room_effect_unassessed");
+        Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
+        var record = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites)!;
+        Assert.Equal([1], record.Assessed);
+        Assert.Equal([OpKind.WallIn], PlannedRules.PlannedRoomGateOf(record, 1, started: false).Sites.Select(s => s.Op));
+
+        var unknown = Rings(ring, roles, bedroom, builders: null, started: [], material: wood);
+        Assert.False(PlannedSelected(Select(unknown, Day), ring[0].Id));
     }
 }

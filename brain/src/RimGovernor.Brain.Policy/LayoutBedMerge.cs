@@ -91,9 +91,10 @@ public static partial class LayoutClusterRules
 
     /// <summary>
     /// The colonists able to build (#3748): each available pawn with an enabled Construction work row it is capable of.
-    /// Unknown while any pawn's availability or work rows are unread.
+    /// Unknown while any pawn's availability or work rows are unread. With <paramref name="free"/>, only the pawns it
+    /// names free count (#3744: the needs census's colonists no running method claims).
     /// </summary>
-    public static Fact<int> BuildersOf(Fact<EquatableArray<WorkPawn>> fact)
+    public static Fact<int> BuildersOf(Fact<EquatableArray<WorkPawn>> fact, Func<string, bool>? free = null)
     {
         if (!fact.TryGetValue(out var pawns))
         {
@@ -102,6 +103,10 @@ public static partial class LayoutClusterRules
         var n = 0;
         foreach (var pawn in pawns)
         {
+            if (free is not null && !free(pawn.Id.Value))
+            {
+                continue;
+            }
             if (!pawn.Available.TryGetValue(out var available))
             {
                 return default;
@@ -431,7 +436,7 @@ internal sealed partial class Clusterer
             foreach (var r in rooms.OrderByDescending(r => r.Rate / r.Work))
             {
                 work += r.Work;
-                total += (r.Rate * Math.Max(0, _horizon - (work / builders / GameTime.TicksPerDay))) - r.Cost;
+                total += (r.Rate * RingClosure.CreditDays(_horizon, RingClosure.ClosedAt(work, builders))) - r.Cost;
             }
             return total;
         }

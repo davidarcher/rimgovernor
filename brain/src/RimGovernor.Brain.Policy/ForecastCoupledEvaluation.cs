@@ -751,7 +751,7 @@ public static partial class ForecastCoupled
             // Temperature mood (#3327): each Live temperature card along the pawn's assessed exposure spans, comfort shifts included.
             var temperatureCards = TemperatureCards(context);
             var needsByPawn = new Dictionary<string, ForecastNeedsResult>(pawns.Pawns.Length, StringComparer.Ordinal);
-            var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
+            var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt, horizon);
             // A bedroom occupant's mood also integrates breaks at its move's shift (#3655); constant per pawn, so the mood key holds.
             var breakShifts = ForecastHousing.BreakShifts(context);
             HashSet<string>? rejectedWork = null;
@@ -881,7 +881,9 @@ public static partial class ForecastCoupled
             var developmentId = pairKeys.Id(developmentRows);
             if (!plannedByDevelopment.TryGetValue(developmentId, out var planned))
                 plannedByDevelopment.Add(developmentId, planned = PlannedOf(plan));
-            foreach (var room in planned.Unassessed) Finding("planned_room_effect_unassessed", room, horizon);
+            // A room whose open ring is projected (#3744) is assessed by its projected closure.
+            foreach (var room in planned.Unassessed)
+                if (!closedRooms.Any(r => r.Projected && "planned/room" + r.Room == room)) Finding("planned_room_effect_unassessed", room, horizon);
             var servicesId = allocs.Id(serviceRows);
             if (pawns.Support is not { } support && !supportByServices.TryGetValue(servicesId, out support))
                 supportByServices.Add(servicesId, support = ForecastSupport.ForecastSupportConsequencesOf(context, plan, completed, horizon));

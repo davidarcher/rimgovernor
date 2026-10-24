@@ -285,15 +285,31 @@ room of the plan that the latest comparison did not assess (a running method hel
 the colonists, so it was no candidate) keeps its previous verdict and sites (#3676):
 read as never assessed, it would be placed whole in the default stuff.
 
-The selected sites are the planned sites whose finish the selected plan
-completes inside the horizon (`ForecastCoupledOutcome.PlannedRooms`), whichever
-roots carried them (`PlannedSelectionOf`). They are read from the completed
-sites, not the development count, so a priced room's sites are placed too
-(#3651). A shelter root therefore selects its room's wall,
+The selected sites are the planned sites the selected plan starts inside the
+horizon (#3744): any of a site's activities (`ForecastPlannedSite.Activities`
+and `Finishes`) allocated, whichever roots carried them (`PlannedSelectionOf`).
+They are read from the plan, not the development count, so a priced room's
+sites are placed too (#3651). A shelter root therefore selects its room's wall,
 door, roof and heater; a room alternative selects its scope's sites; and the
 equivalent root sets that share one schedule give one record, whichever the
-search reached first. A site the plan names but does not finish inside the
-horizon is not selected: it is placed once its room has started.
+search reached first. A site the plan does not start is not selected: it is
+placed once its room has started. A ring that outlasts the day is placed from
+the sites the day starts and valued by its projected closure (below).
+
+A ring's value accrues from its closure day, including days past the one-day
+horizon (#3744, epic #3738 D6; [roof and room consequences](colony-forecast.md#roof-and-room-consequences)).
+A ring the schedule leaves open, started or opened by a site the schedule
+finishes, closes at its projected day: the builders work the ring work the
+schedule finished, then the started rings, then the rings the schedule opens,
+each by its remaining ring work, and the k-th ring closes at the cumulative
+work over the builders. The bedroom credit runs from that day to tier 2's
+horizon. Opening ring B while ring A is open puts B's scheduled work ahead of
+A's remainder, so A's projected closure moves later by B's work over the
+builders and A's credit pays for it: with one builder a storage ring (no
+value until #3650) stays closed while a bedroom ring is open, and with three
+builders a second bedroom opens beside an open one when its own credit
+outweighs a third of its work. No tier table or cap decides how many rings are
+open; the priced delay does.
 
 `ReconcileRoomAsync` gates an unstarted planned room on that record
 (`PlannedRoomGateOf`):

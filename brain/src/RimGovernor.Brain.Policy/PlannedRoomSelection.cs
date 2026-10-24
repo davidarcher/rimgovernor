@@ -34,13 +34,14 @@ public static partial class PlannedRules
 {
     /// <summary>
     /// The planned-room selection of one comparison (#3278, #3342, #3651); null when the review compared nothing (no
-    /// candidates or no selection). The selected sites are the planned sites the selected portfolio's plan completes inside
-    /// the horizon (ForecastCoupledOutcome.PlannedRooms), whichever selected roots carried them: a site root, a room
-    /// alternative or a shelter. They are read from the outcome's completed sites, not the development count, so a site of
-    /// a priced room is placed though it counts no development. Root ids play no part (#3342), so equivalent root sets that
-    /// share one schedule give one record, and a site the plan schedules but does not finish inside the horizon is not
-    /// selected (it is placed once its room has started). The sites are joined to the round's planned-site facts for their operation, def, stuff and
-    /// anchors; one the facts no longer name is left out.
+    /// candidates or no selection). The selected sites are the planned sites the selected portfolio's plan starts inside
+    /// the horizon (#3744): any of a site's activities (ForecastPlannedSite.Activities and Finishes) allocated, whichever
+    /// selected roots carried them: a site root, a room alternative or a shelter. A ring that outlasts the horizon is
+    /// placed from the sites it starts, valued by its projected closure. They are read from the plan, not the development
+    /// count, so a site of a priced room is placed though it counts no development. Root ids play no part (#3342), so
+    /// equivalent root sets that share one schedule give one record, and a site the plan does not start is not selected
+    /// (it is placed once its room has started). The sites are joined to the round's planned-site facts for their
+    /// operation, def, stuff and anchors; one the facts no longer name is left out.
     /// </summary>
     public static PlannedSelection? PlannedSelectionOf(ForecastCoupledCandidates? candidates, ForecastCoupledSelection? selection,
         Fact<PlannedSiteFacts> planned)
@@ -49,7 +50,9 @@ public static partial class PlannedRules
         {
             return null;
         }
-        var chosen = new SortedSet<string>(selection.Selected.PlannedRooms.SelectMany(r => r.CompletedSites), StringComparer.Ordinal);
+        var allocated = selection.Selected.Plan.Allocations.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
+        var chosen = new SortedSet<string>(candidates.Context.PlannedSites
+            .Where(s => s.Activities.Concat(s.Finishes).Any(allocated.Contains)).Select(s => s.Site), StringComparer.Ordinal);
         var facts = planned.TryGetValue(out var known)
             ? known.Sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToDictionary(s => s.Id, StringComparer.Ordinal)
             : [];
