@@ -58,8 +58,9 @@ public sealed record PawnValueColony
 
     public PawnBedFacts? Bed { get; init; }
 
-    /// <summary>The planned layout's food walks (<see cref="FoodHaulRules.Legs"/>); null before a layout is planned.</summary>
-    public FoodHaulLegs? Haul { get; init; }
+    /// <summary>The planned layout's food walks (<see cref="FoodHaulRules.Legs"/>). A colony with no layout plan yet values no pawn
+    /// (<see cref="PawnValueRules.AwaitingLayoutPlan"/>, #3857), so a valued pawn always has its walks.</summary>
+    public required FoodHaulLegs Haul { get; init; }
 
     public double HorizonDays { get; init; }
 }
@@ -112,6 +113,10 @@ public static class PawnValueRules
         "skill_growth", // passion's learning over the horizon (#3809)
     ];
 
+    /// <summary>The plan a review's pawn values await before the colony has a layout plan (#3857): its food hauls walk the plan's
+    /// rooms, so no value is priced until it stands. The subject a building verdict awaiting the layout plan names.</summary>
+    public const string AwaitingLayoutPlan = "layout_plan";
+
     /// <summary>
     /// The pawn's value (#3825; one work tick is one capability-tick, a day is <see cref="GameTime.TicksPerDay"/>):
     /// <list type="bullet">
@@ -124,7 +129,7 @@ public static class PawnValueRules
     /// <item>bed (V6): nothing while a colonist bed stands vacant, else the bed's build over the horizon.</item>
     /// </list>
     /// A stat the shortfall needs that the pawn's speeds lack, an unpriced break curve, the colony's bed unread, a horizon of no days,
-    /// no planned layout, a meal with no planned bench to cook it, a planned walk no route joins, or the pawn's move or carry stat unread
+    /// a meal with no planned bench to cook it, a planned walk no route joins, or the pawn's move or carry stat unread
     /// throws <see cref="RequiredFactException"/>. A crop with no planned field names <c>food_field_unplanned</c>: its harvest is not hauled.
     /// </summary>
     public static PawnValue Of(PawnValueFacts pawn, PawnValueColony colony)
@@ -150,7 +155,7 @@ public static class PawnValueRules
         var perNutrition = food.Meal.Length != 0
             ? food.CookTicksPerNutrition + (food.IngredientPerNutrition * food.GrowTicksPerNutrition)
             : food.GrowTicksPerNutrition;
-        var legs = colony.Haul ?? throw new RequiredFactException("planned layout of the food's hauls");
+        var legs = colony.Haul;
         DomainException.Require(food.MoveStat.Length > 0 && food.CarryStat.Length > 0, "food haul stats");
         if (food.Dish is not null && !legs.Bench) throw new RequiredFactException("planned bench of " + food.Meal);
         if (!double.IsFinite(legs.FieldToStore) || !double.IsFinite(legs.SourceToBench) || !double.IsFinite(legs.BenchToDish))
@@ -187,20 +192,25 @@ public static class PawnValueRules
     /// candidates at the colonists' read speeds, each colonist's facts from its needs read (NeedsForecastPawn.Upkeep) and its free hours
     /// from tier 2's input over the investment horizon (<see cref="PawnCycle.FreeHoursByPawn"/>), the colony's from the catalog, the break curve and the bed the
     /// review priced. A colonist tier 2 gives no free hours throws <see cref="RequiredFactException"/>.
+    /// A colony with no layout plan yet (the review before its first plan derives, or one whose derive has not recorded a plan;
+    /// <see cref="ForecastCoupledContext.FoodHaul"/> null) has walks for no food haul to price: its shortfall stands, it values no
+    /// colonist and names the plan the values await, <see cref="AwaitingLayoutPlan"/> (#3857, awaiting_plan as a building verdict
+    /// before the plan names it). Otherwise the plan awaited is empty.
     /// </summary>
-    public static (WorkShortfall Shortfall, EquatableArray<PawnValue> Values) Review(ForecastCoupledCandidates candidates, ForecastCoupledSelection selection,
+    public static (WorkShortfall Shortfall, EquatableArray<PawnValue> Values, string AwaitingPlan) Review(ForecastCoupledCandidates candidates, ForecastCoupledSelection selection,
         NeedsForecastRead needs, WorkSpeedFacts work, FoodWorkFacts food, ForecastModelBasis basis)
     {
         var context = candidates.Context;
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         var shortfall = WorkShortfallRules.Of(candidates, selection, work, speeds);
+        if (context.FoodHaul is not { } haul) return (shortfall, [], AwaitingLayoutPlan);
         var hours = PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays);
-        var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = context.FoodHaul, HorizonDays = context.InvestmentHorizonDays };
+        var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays };
         var values = needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
         {
             Speeds = speeds[p.Pawn], Incapable = p.Upkeep.IncapableWork, FoodPerDay = p.Upkeep.FoodPerDay, Mood = p.Upkeep.Mood,
             FreeTicksPerDay = (hours.TryGetValue(p.Pawn, out var free) ? free : throw new RequiredFactException("free hours of " + p.Pawn)) * GameTime.TicksPerHour,
         }, colony));
-        return (shortfall, EquatableArray.From(values));
+        return (shortfall, EquatableArray.From(values), "");
     }
 }

@@ -683,9 +683,16 @@ public sealed record RoundsFindings
     [System.Text.Json.Serialization.JsonIgnore]
     public WorkShortfall? WorkShortfall { get; set; }
 
-    /// <summary>Every colonist's value in capability-days a day (#3825), in pawn order; empty when tier 2 did not run; derived, not saved.</summary>
+    /// <summary>Every colonist's value in capability-days a day (#3825), in pawn order; empty when tier 2 did not run or the values
+    /// await a plan (<see cref="PawnValuesAwaitingPlan"/>); derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public EquatableArray<PawnValue> PawnValues { get; set; }
+
+    /// <summary>The plan the pawn values await though tier 2 ran (#3857, awaiting_plan): <see cref="PawnValueRules.AwaitingLayoutPlan"/>
+    /// before the colony has a layout plan, when <see cref="PawnValues"/> is empty and <see cref="WorkShortfall"/> stands; empty
+    /// otherwise; derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string PawnValuesAwaitingPlan { get; set; } = "";
     public DisasterHistory? Disaster { get; set; }
 
     public RoundsLatches Latches { get; set; } = new();
@@ -922,7 +929,7 @@ public static partial class RoundsRules
                 ForecastCoupled.TierOneHorizonDays, f, demand, [], new()), coupled, warmStart: warm, clockMs: clockMs);
         // Each colonist's value against the work the selection left short (#3825), once tier 2 has given the pawns' free hours.
         if (r.CoupledSelection is { } selected && f.CoupledAlternatives is { Context.ModelBasis: { } basis } candidates)
-            (r.WorkShortfall, r.PawnValues) = PawnValueRules.Review(candidates, selected, f.ForecastObserved.Needs ?? throw new RequiredFactException("needs read"),
+            (r.WorkShortfall, r.PawnValues, r.PawnValuesAwaitingPlan) = PawnValueRules.Review(candidates, selected, f.ForecastObserved.Needs ?? throw new RequiredFactException("needs read"),
                 f.WorkSpeeds, f.FoodWork, basis);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);

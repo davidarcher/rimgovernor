@@ -83,7 +83,8 @@ public sealed record ForecastCoupledContext
     /// null before the review priced it.</summary>
     public PawnBedFacts? Bed { get; init; }
     /// <summary>The planned layout's food walks a pawn's food upkeep hauls over (#3849, <see cref="FoodHaulRules.Legs"/>), set by the
-    /// review beside <see cref="Bed"/>; null before a layout is planned.</summary>
+    /// review beside <see cref="Bed"/>; null before a layout is planned, when the review values no pawn and names the plan the values
+    /// await (<see cref="PawnValueRules.AwaitingLayoutPlan"/>, #3857).</summary>
     public FoodHaulLegs? FoodHaul { get; init; }
     /// <summary>The placed sites and standing removals the planned rooms hold (#3796, epic #3650 P4), by the rooms whose
     /// interior or ring cells hold them: part of those rooms' owed work.</summary>

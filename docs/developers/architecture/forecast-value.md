@@ -228,7 +228,8 @@ sacrifice and a Low one does not.
 ### Pawn value
 
 A colonist's value (#3825, `PawnValueRules`) is in capability-days per day: the work it adds less its upkeep. It
-can be negative. The review computes it for every colonist once tier 2 has run (`RoundsFindings.PawnValues`, the
+can be negative. The review computes it for every colonist once tier 2 has run and the colony has a layout plan
+(`RoundsFindings.PawnValues`, the
 `pawn_values` attr of `rounds_review`).
 
 **Work shortfall.** The work the tier-1 selection could not schedule is a shared model (`WorkShortfallRules`,
@@ -281,8 +282,15 @@ break threshold. A stat the game has not loaded makes the read throw.
 
 A fact the value needs and lacks throws `RequiredFactException`. That covers a stat the shortfall needs but the pawn's
 read lacks, a giver, job or recipe the defs do not map, a colonist tier 2 gives no free hours, an unpriced break curve
-or an unread bed. It also covers no planned layout, a meal with no planned stove, a planned walk no route joins, and a
-move speed or carrying capacity the read lacks. The value never falls back to nothing.
+or an unread bed. It also covers a meal with no planned stove, a planned walk no route joins, and a move speed or
+carrying capacity the read lacks. The value never falls back to nothing.
+
+**Awaiting the layout plan** (#3857). A colony with no layout plan yet is a real state: every colony's first reviews
+run before its first plan derives (`ColonyPlan.ReviewFirstPlanAsync` runs after the review), and a derive that waits
+on an unread fact or fails records none. Its food has no planned walks to haul over, so the review values no colonist:
+the shortfall stands, `RoundsFindings.PawnValues` is empty and `PawnValuesAwaitingPlan` names `layout_plan`
+(`PawnValueRules.AwaitingLayoutPlan`, the subject a building verdict awaiting the plan names). On the `rounds_review`
+row `pawn_values` is null and `pawn_values_awaiting_plan` is `layout_plan`. No distance stands in for the plan.
 
 **Not modelled**, named on every value: `comparative_advantage` (a newcomer freeing an existing pawn for other work),
 `effects_on_others` (Abrasive and other traits'

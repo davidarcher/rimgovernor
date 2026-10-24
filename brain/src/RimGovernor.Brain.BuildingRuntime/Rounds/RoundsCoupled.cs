@@ -109,11 +109,14 @@ public sealed partial class Rounder
     }
 
     /// <summary>The rounds_review row's work shortfall and pawn values (#3825): per "work type/stat" its ticks a day, per colonist its
-    /// value and parts in capability-days a day; both null when tier 2 did not run.</summary>
+    /// value and parts in capability-days a day; both null when tier 2 did not run. Values awaiting a plan (#3857) are null, the plan
+    /// named beside them.</summary>
     internal static IEnumerable<(string Key, object? Value)> PawnValueAttrs(RoundsFindings findings)
     {
+        var awaiting = findings.PawnValuesAwaitingPlan.Length > 0;
         yield return (RoundsReviewTelemetry.WorkShortfallKey, findings.WorkShortfall?.Rows.ToDictionary(r => r.WorkType + "/" + r.Stat, r => (object?)r.TicksPerDay));
-        yield return (RoundsReviewTelemetry.PawnValuesKey, findings.WorkShortfall is null ? null : findings.PawnValues.ToDictionary(v => v.Pawn, v => (object?)new Dictionary<string, object?>
+        yield return (RoundsReviewTelemetry.PawnValuesAwaitingPlanKey, awaiting ? findings.PawnValuesAwaitingPlan : null);
+        yield return (RoundsReviewTelemetry.PawnValuesKey, findings.WorkShortfall is null || awaiting ? null : findings.PawnValues.ToDictionary(v => v.Pawn, v => (object?)new Dictionary<string, object?>
         {
             ["per_day"] = v.PerDay, ["work"] = v.WorkAdded, ["food"] = v.FoodUpkeep, ["food_haul"] = v.FoodHaul, ["breaks"] = v.BreakUpkeep, ["bed"] = v.BedUpkeep,
             ["shares"] = v.Work.ToDictionary(s => s.WorkType + "/" + s.Stat, s => (object?)s.TicksPerDay), ["not_modelled"] = v.NotModelled.ToArray(),

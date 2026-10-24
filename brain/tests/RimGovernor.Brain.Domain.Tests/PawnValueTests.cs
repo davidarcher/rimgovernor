@@ -123,7 +123,7 @@ public sealed class PawnValueTests
         Assert.Equal(1, FoodHaulRules.TicksPerCell(1000));
     }
 
-    // #3849: a plan with no field hauls no harvest and names it; a meal with no planned bench, no plan, or a leg no route joins throws.
+    // #3849: a plan with no field hauls no harvest and names it; a meal with no planned bench, or a leg no route joins, throws.
     [Fact]
     public void AnUnplannedFieldIsNamedAndAnUnplannedBenchThrows()
     {
@@ -131,7 +131,6 @@ public sealed class PawnValueTests
         Assert.Contains("food_field_unplanned", fieldless.NotModelled);
         Assert.True(fieldless.FoodHaul > 0);
         Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = Legs with { Bench = false } }));
-        Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = null }));
         Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = Legs with { FieldToStore = double.PositiveInfinity } }));
         Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1) with { Speeds = new Dictionary<string, double> { ["ConstructionSpeed"] = 1 } }, Colony(0)));
     }
@@ -249,7 +248,32 @@ public sealed class PawnValueTests
         Assert.True(value.FoodUpkeep > 0);
     }
 
-    private static RoundsFindings Inspected(int sites, int stock, double finishTicks, ColonyModelInput? model = null)
+    /// <summary>
+    /// The production path before the first layout plan (#3822, #3857): the Rounder reviews a colony with no saved plan, the first
+    /// plan deriving only after the review (ColonyPlan.ReviewFirstPlanAsync), and sets the context's food walks to none. The review
+    /// does not throw: the shortfall stands, no colonist is valued and the values name the plan they await, on the rounds_review row too.
+    /// </summary>
+    [Fact]
+    public void AReviewBeforeTheFirstLayoutPlanValuesNoColonistAndNamesThePlanItAwaits()
+    {
+        var findings = Inspected(sites: 1, stock: 100, finishTicks: 3 * Day, haul: null);
+        Assert.True(Assert.Single(Assert.IsType<WorkShortfall>(findings.WorkShortfall).Rows).TicksPerDay > 0);
+        Assert.Empty(findings.PawnValues);
+        Assert.Equal(PawnValueRules.AwaitingLayoutPlan, findings.PawnValuesAwaitingPlan);
+        var attrs = RimGovernor.Brain.BuildingRuntime.Rounder.PawnValueAttrs(findings).ToDictionary(a => a.Key, a => a.Value);
+        Assert.Equal("layout_plan", attrs[RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.PawnValuesAwaitingPlanKey]);
+        Assert.Null(attrs[RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.PawnValuesKey]);
+        Assert.NotNull(attrs[RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.WorkShortfallKey]);
+
+        var planned = Inspected(sites: 1, stock: 100, finishTicks: 3 * Day);
+        Assert.Equal("", planned.PawnValuesAwaitingPlan);
+        Assert.Null(RimGovernor.Brain.BuildingRuntime.Rounder.PawnValueAttrs(planned).Single(a => a.Key == RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.PawnValuesAwaitingPlanKey).Value);
+    }
+
+    private static RoundsFindings Inspected(int sites, int stock, double finishTicks, ColonyModelInput? model = null) =>
+        Inspected(sites, stock, finishTicks, FreshLegs(), model);
+
+    private static RoundsFindings Inspected(int sites, int stock, double finishTicks, FoodHaulLegs? haul, ColonyModelInput? model = null)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(sites, stock);
@@ -274,14 +298,14 @@ public sealed class PawnValueTests
             },
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
-        var input = ColonyModelFixtures.Devilstrand();
+        var input = model ?? ColonyModelFixtures.Devilstrand();
         input = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select(p => p with { Pawn = "pawn" }))) };
         var coupled = facts.CoupledAlternatives!;
         facts = facts with
         {
             CoupledAlternatives = coupled with
             {
-                Context = coupled.Context with { ModelBasis = new(input, new()), Bed = new(true, 0), FoodHaul = FreshLegs(), InvestmentHorizonDays = 30 },
+                Context = coupled.Context with { ModelBasis = new(input, new()), Bed = new(true, 0), FoodHaul = haul, InvestmentHorizonDays = 30 },
             },
         };
         return RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());

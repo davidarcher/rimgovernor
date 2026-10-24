@@ -26,6 +26,10 @@ public static class RoundsReviewTelemetry
     /// <summary>Per colonist its value in capability-days a day (#3825) and the parts: work added, food, break and bed upkeep; null when tier 2 did not run.</summary>
     public const string PawnValuesKey = "pawn_values";
 
+    /// <summary>The plan the pawn values await though tier 2 ran (#3857, awaiting_plan): <c>layout_plan</c> before the colony has a
+    /// layout plan, when <see cref="PawnValuesKey"/> is null; null otherwise.</summary>
+    public const string PawnValuesAwaitingPlanKey = "pawn_values_awaiting_plan";
+
     /// <summary>The coupled search's outcome evaluations (#3722), the baseline's included, against <see cref="CoupledEvaluationBudgetKey"/>; -1 when nothing was compared.</summary>
     public const string CoupledSearchEvaluationsKey = "coupled_search_evaluations";
 
