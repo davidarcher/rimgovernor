@@ -91,6 +91,8 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     available (the research ladder places `GeothermalPower` after `Batteries`).
 - **`store`:** one `Battery` on a roofed cell within six cells of the draining consumer (an unroofed
   battery short-circuits in rain or snow). `PlannedPowerSites(Battery)` lists the battery room's slots.
+  Since every battery is roofed with or without that room, the room's planned-room credit is zero
+  (`ForecastBattery.BatteryCredit`, #3814): its fire containment is fire harm, not modelled yet.
 - **`shelter_power`:** a bounded enclosure around exposed vulnerable equipment; recovery requires the
   observed roof. See [electrical safety](../architecture/facilities.md#electrical-safety).
 

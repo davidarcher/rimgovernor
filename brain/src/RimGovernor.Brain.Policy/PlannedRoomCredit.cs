@@ -37,7 +37,8 @@ public static class PlannedRoomCredits
     /// the research speed its room gives the bench (#3800), Throne and Suite by the title room thoughts their colonist loses once
     /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
     /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
-    /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808).</summary>
+    /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Battery at zero, since no modelled consequence
+    /// changes with it (#3814).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -54,6 +55,7 @@ public static class PlannedRoomCredits
         [PlannedRole.Morgue] = ForecastCorpses.MorgueCredit,
         [PlannedRole.Tomb] = ForecastCorpses.TombCredit,
         [PlannedRole.Worship] = ForecastWorship.WorshipCredit,
+        [PlannedRole.Battery] = ForecastBattery.BatteryCredit,
     };
 
     /// <summary>
