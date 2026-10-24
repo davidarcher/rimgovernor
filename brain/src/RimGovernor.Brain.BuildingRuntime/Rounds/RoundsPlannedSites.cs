@@ -81,7 +81,8 @@ public sealed partial class Rounder
 
     /// <summary>
     /// The stuffs a planned room's ring is read in (PlannedRingStuffs): the wall def's ordinary stuffs the door can be made
-    /// from too, priced by the wall's cost list, stocked when the colony holds any of the stuff.
+    /// from too, priced by the wall's cost list, stocked when the colony holds any of the stuff, else the wood or rock
+    /// blocks the map offers (ColonyProjection.RingSources, #3747).
     /// </summary>
     private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, PlannedRoom room)
     {
@@ -89,7 +90,11 @@ public sealed partial class Rounder
         return PlannedRingStuffsOf(colony, wallDef, doorDef);
     }
 
-    /// <summary>The stuffs a ring of <paramref name="wallDef"/> and <paramref name="doorDef"/> is read in (PlannedRingStuffs); the first is its base sites' stuff.</summary>
+    /// <summary>
+    /// The stuffs a ring of <paramref name="wallDef"/> and <paramref name="doorDef"/> is read in (PlannedRingStuffs); the
+    /// first is its base sites' stuff. The one chooser of the ring's stuff: the planned sites, the reconcile's placement
+    /// (ShellMaterials) and the bed merge's shell price (BedMergeShell) all read it, so the plan and the placements agree.
+    /// </summary>
     internal static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, string wallDef, string doorDef)
     {
         if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, wallDef) is not { } wall)
@@ -107,7 +112,7 @@ public sealed partial class Rounder
         {
             return [];
         }
-        return PlannedRules.PlannedRingStuffs(options);
+        return PlannedRules.PlannedRingStuffs(options, colony.RingSources.ValueOrDefault ?? new RingStuffSources());
     }
 
     /// <summary>The stuff def is built from for a wanted stuff ("" for a def made from no stuff) and its cost list; null where the def is unavailable or cannot be made from it.</summary>

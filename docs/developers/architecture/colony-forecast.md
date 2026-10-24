@@ -571,7 +571,9 @@ Every round, `Rounder.PlannedSitesAsync` turns the same owed diff into `RoundsFa
 and stuff:
 
 - walls, doors and vents: one site per ring stuff, for up to `PlannedRingStuffCount` (2) stuffs per room. These
-  are the stocked stuffs the wall and door can both be made from, cheapest first, or else the cheapest stuff.
+  are the stocked stuffs the wall and door can both be made from, cheapest first; with none stocked, the wood the
+  window's standing trees give, else the blocks of its natural rock's stone (`ColonyProjection.RingSources`, #3747),
+  else none.
   With every scope of the first stuff, that covers the 4 alternatives per room.
 - floors: one site per floor def.
 - pieces: one site per piece, in the bulk chooser's stuff.

@@ -58,10 +58,29 @@ public sealed class FirstPlanHeldTests
     }
 
     [Fact]
+    public void AFirstPlanWaitsForTheBedMergesPriceAndRecordsOnceItIsRead()
+    {
+        // The bed merge's heat and sleeper prices are required (#3747): unread, the derive fails naming them and the
+        // clock stays held; once read, the first plan is derived.
+        var s = FirstLayoutPlanTests.Survey("cold");
+        var priced = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "cold");
+
+        var mood = Assert.Throws<StationFactsException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { BedMerge = priced.BedMerge with { Losses = default } }, []));
+        Assert.Equal("sleeper_mood", mood.Fact);
+        var curve = Assert.Throws<StationFactsException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { OutdoorCurve = default }, []));
+        Assert.Equal("outdoor_curve", curve.Fact);
+        Assert.False(Decide(curve.Fact).Run);
+
+        var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, priced, []);
+        Assert.True(plan.IsKnown);
+        Assert.NotEmpty(plan.Value.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan.Value.RoomsOf(PlannedRole.Barracks)));
+    }
+
+    [Fact]
     public void AFirstPlanWithEveryFactReadIsDerivedFromTheFullGraph()
     {
         var s = FirstLayoutPlanTests.Survey("mild");
-        var f = FirstLayoutPlanTests.Facts(s, 3);
+        var f = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "mild");
         var full = StationGraph.BuildStationGraph(f.GraphInput());
 
         var advice = LayoutStationPlanRules.AdviseStations(f);

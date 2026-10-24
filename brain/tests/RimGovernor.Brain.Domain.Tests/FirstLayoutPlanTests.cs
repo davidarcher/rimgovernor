@@ -125,10 +125,22 @@ public sealed class FirstLayoutPlanTests
         Derive = true,
     };
 
+    /// <summary>
+    /// The facts with the bed merge's required inputs read (#3747): the climate's outdoor curve, the climate model's living
+    /// band, the rice that prices a work-day, and calm sleepers in a wooded ring.
+    /// </summary>
+    internal static StationFacts Priced(StationFacts f, string climate) => f with
+    {
+        Catalog = f.Catalog with { Climate = BedMergePriceTests.Catalog.Climate },
+        OutdoorCurve = Fact.Known(EquatableArray.From(Curve(climate))),
+        Crops = [BedMergePriceTests.Rice],
+        BedMerge = BedMergePriceTests.Wood(BedMergePriceTests.Calm),
+    };
+
     internal static LayoutPlan FirstPlan(string climate, long colonists)
     {
         var s = Survey(climate);
-        var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, Facts(s, colonists), []);
+        var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, Priced(Facts(s, colonists), climate), []);
         Assert.True(plan.IsKnown, "no first plan on an open " + climate + " map");
         return plan.Value;
     }

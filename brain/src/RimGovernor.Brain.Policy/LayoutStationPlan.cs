@@ -107,27 +107,27 @@ public sealed record StationFacts
     /// <summary>The colonists' mean mood level, 0 to 1, the mood price's baseline (#2975, #2878); unknown leaves the comfort tiers and the lost role effects unpriced.</summary>
     public Fact<double> ExpectedMood { get; init; }
 
-    /// <summary>What the colony reads for the bed merge's price (#3658); its default prices no sleeper and no wall, which keeps every bed single.</summary>
+    /// <summary>What the colony reads for the bed merge's price (#3658); its default reads nothing, which fails a chain with a free-bed pool naming the unread fact (#3747).</summary>
     public BedMergeFacts BedMerge { get; init; } = new();
 
     /// <summary>The capability-days of building each work station the catalog offers (labor plus material, LayoutClusterRules.ShellPiecePrice), by def; a station absent is unread (#3659, GraphBuilder.HostOf).</summary>
     public IReadOnlyDictionary<string, double> HostBuild { get; init; } = new Dictionary<string, double>();
 
     /// <summary>
-    /// The bed merge's price (#3658): the colony's facts, the outdoor curve and the map's cold or heat, the work-day's
-    /// watts, the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
+    /// The bed merge's price (#3658): the colony's facts, the outdoor curve, the work-day's watts (unknown while
+    /// StationWorkPrice gives none), the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
     /// bedrooms with what of each shell stands (#3661, #3675): a room standing or under construction (StandingIds), a
     /// superseded one counted once, as its successor. A room on paper alone is not committed.
     /// </summary>
     public BedMergePrice BedMergePriceOf()
     {
         var standing = StandingIds() ?? new HashSet<int>();
+        var workDay = LayoutRegroupRules.StationWorkPrice(this).WorkDayW;
         return new()
         {
             Facts = BedMerge,
             OutdoorCurve = OutdoorCurve,
-            Harsh = Survey is { } s && (s.Cold || s.Hot),
-            WorkDayW = LayoutRegroupRules.StationWorkPrice(this).WorkDayW,
+            WorkDayW = QuestCapacityForecast.FinitePositive(workDay) ? Known(workDay) : default,
             Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
             Committed = EquatableArray.From(Plan.RoomsOf(PlannedRole.Barracks).Concat(Plan.RoomsOf(PlannedRole.Bedroom))
                 .Where(r => standing.Contains(r.Id) && !Plan.Rooms.Any(o => o.Replaces == r.Id && standing.Contains(o.Id)))
@@ -310,13 +310,13 @@ public sealed record StationFacts
     /// <summary>
     /// The barracks size the chain's clustering gives the free-bed pool (#3658, LayoutClusterRules.BarracksSizeOf over the
     /// graph's bed nodes alone), so the replan key changes when the priced choice does and not with every drift of a loss;
-    /// null when no pool is priced or the beds cannot be clustered.
+    /// null when no pool is priced, a required price fact is unread (#3747) or the beds cannot be clustered.
     /// </summary>
     private int? BarracksSize(StationGraphInput input)
     {
         try
         {
-            return LayoutClusterRules.BarracksSizeOf(new ClusterInput { Graph = StationGraph.SleepGraph(input), Catalog = Catalog, RoofDistance = RoofDistance, BedMerge = BedMergePriceOf() })?.Size;
+            return LayoutClusterRules.BarracksSizeOf(new ClusterInput { Graph = StationGraph.SleepGraph(input), Catalog = Catalog, RoofDistance = RoofDistance, BedMerge = BedMergePriceOf() });
         }
         catch (DomainException)
         {

@@ -49,6 +49,17 @@ public sealed record PlannedSiteFacts
 /// <summary>A stuff a planned ring may be built from: its price (the cost list's market value) and whether the colony holds any.</summary>
 public sealed record PlannedRingStuff(string Stuff, double Value, bool Stocked);
 
+/// <summary>
+/// The stuffs the map offers a ring with nothing stocked (#3747): Wood the items its standing trees are cut into (the
+/// survey's Tree cells), Blocks the stone blocks its natural rock's stone is cut into (the rock's mined chunk's products).
+/// </summary>
+public sealed record RingStuffSources
+{
+    public EquatableArray<string> Wood { get; init; }
+
+    public EquatableArray<string> Blocks { get; init; }
+}
+
 public static partial class PlannedRules
 {
     /// <summary>The alternatives a planned room is compared on: every scope of the first stuff, then further stuffs.</summary>
@@ -58,11 +69,12 @@ public static partial class PlannedRules
     public const int PlannedRingStuffCount = PlannedAlternativesPerRoom - 3 + 1;
 
     /// <summary>
-    /// The stuffs a planned ring is read in, cheapest available first (PlannedRingStuffCount of them): the stocked
-    /// stuffs by price, then name. With none stocked, the cheapest stuff the ring waits for. A ring def made from no
-    /// stuff (options empty) is read once, with the empty stuff.
+    /// The stuffs a planned ring is read in, cheapest available first (PlannedRingStuffCount of them), the first its
+    /// sites' stuff (#3747): the stocked stuffs by price, then name; with none stocked, the cheapest wood the map's
+    /// standing trees give; else the cheapest blocks of the map's rock; else none, which the ring's price and placement
+    /// wait on. A ring def made from no stuff (options empty) is read once, with the empty stuff.
     /// </summary>
-    public static IReadOnlyList<string> PlannedRingStuffs(IReadOnlyList<PlannedRingStuff> options)
+    public static IReadOnlyList<string> PlannedRingStuffs(IReadOnlyList<PlannedRingStuff> options, RingStuffSources sources)
     {
         if (options.Count == 0)
         {
@@ -70,7 +82,18 @@ public static partial class PlannedRules
         }
         var ranked = options.OrderBy(o => o.Value).ThenBy(o => o.Stuff, StringComparer.Ordinal).ToList();
         var stocked = ranked.Where(o => o.Stocked).Select(o => o.Stuff).Take(PlannedRingStuffCount).ToList();
-        return stocked.Count > 0 ? stocked : [ranked[0].Stuff];
+        if (stocked.Count > 0)
+        {
+            return stocked;
+        }
+        foreach (var source in new[] { sources.Wood, sources.Blocks })
+        {
+            if (ranked.FirstOrDefault(o => source.Contains(o.Stuff)) is { } offered)
+            {
+                return [offered.Stuff];
+            }
+        }
+        return [];
     }
 
     /// <summary>

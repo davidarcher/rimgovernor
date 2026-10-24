@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -39,7 +40,7 @@ public sealed class BarracksSwitchTests
         return f with { Built = built, ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
     }
 
-    private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = f.BedMerge with { Losses = [Calm[0], Calm[1], c] } };
+    private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = f.BedMerge with { Losses = Known(EquatableArray.From([Calm[0], Calm[1], c])) } };
 
     private static LayoutPlan Replan(LayoutPlan prev, StationFacts f) =>
         LayoutPlan.ReplanLayout(prev, f with { Plan = prev }, f.Survey, [], new RoomGrowth { Fixed = [] }).Plan;

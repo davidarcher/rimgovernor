@@ -294,6 +294,12 @@ public sealed partial record ColonyProjection
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
+    /// <summary>
+    /// The stuffs the window's cells offer a ring with nothing stocked (#3747, DefinitionCatalog.RingStuffSourcesOf): the
+    /// wood of its standing trees and the blocks of its natural rock. Unknown without a planning window or the catalog.
+    /// </summary>
+    public Fact<RingStuffSources> RingSources { get; init; }
+
     /// <summary>The hostile lords the map has seen since load (the native RaidArrivalState tracks), the defense layout's arrivals.</summary>
     public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
 

@@ -106,7 +106,7 @@ public sealed partial class DefinitionCatalog
             }
             else if (thing.Category == P.ThingCategory.Plant)
             {
-                tree = tree || def?.plant is { } plant && (plant.forceIsTree || plant.treeCategory != TreeCategory.None);
+                tree = tree || SurveyTree(def);
             }
         }
         return new P.SurveyCell
@@ -127,5 +127,42 @@ public sealed partial class DefinitionCatalog
             Prop = cell.Occupied() && !rock && edifice.Length == 0 && !ruin,
             Ruin = ruin,
         };
+    }
+
+    // A plant the survey marks a Tree cell for.
+    private static bool SurveyTree(ThingDef? def) => def?.plant is { } plant && (plant.forceIsTree || plant.treeCategory != TreeCategory.None);
+
+    /// <summary>
+    /// The stuffs the cells offer a ring with nothing stocked (#3747): the items the survey's trees are cut into (their
+    /// harvestedThingDef) and the blocks the natural rock's stone is cut into (its building.mineableThing's
+    /// butcherProducts: a chunk's stonecutting yield), each by def name in order.
+    /// </summary>
+    public P.RingStuffSources RingStuffSourcesOf(IReadOnlyList<P.SiteCell> cells)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var wood = new SortedSet<string>(StringComparer.Ordinal);
+        var blocks = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var cell in cells)
+        {
+            foreach (var thing in cell.Things)
+            {
+                if (!seen.Add(thing.Def) || FindThing(thing.Def) is not { } def)
+                {
+                    continue;
+                }
+                if (thing.Category == P.ThingCategory.Plant && SurveyTree(def) && def.plant.harvestedThingDef is { } cut)
+                {
+                    wood.Add(cut.defName);
+                }
+                else if (thing.Has(P.ThingMarks.NaturalRock) && def.building?.mineableThing is { } chunk)
+                {
+                    foreach (var product in chunk.butcherProducts.Seq())
+                    {
+                        blocks.Add(product.thingDef.defName);
+                    }
+                }
+            }
+        }
+        return new P.RingStuffSources { Wood = Domain.EquatableArray.From(wood.ToList()), Blocks = Domain.EquatableArray.From(blocks.ToList()) };
     }
 }

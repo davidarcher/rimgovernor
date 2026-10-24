@@ -2,15 +2,14 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the colony reads for the bed merge's price (#3658): each pool sleeper's capability-days lost a day sleeping in a
-/// barracks over a bedroom (BedroomGain at the planned stage minus the barracks gain there), the sleepers whose loss is
-/// unread, and the capability-days one wall cell and one door of a planned bedroom's base ring cost to build (labor plus
-/// material). An unknown wall or door leaves the merge unpriced.
+/// barracks over a bedroom (BedroomGain at the planned stage minus the barracks gain there), unknown while any sleeper's
+/// loss is unread, and the capability-days one wall cell and one door of a planned bedroom's base ring cost to build
+/// (labor plus material) in the stuff the ring's sites are placed in. Each is a required planner input (#3747): the
+/// chain fails naming the one unread.
 /// </summary>
 public sealed record BedMergeFacts
 {
-    public EquatableArray<double> Losses { get; init; }
-
-    public int Unpriced { get; init; }
+    public Fact<EquatableArray<double>> Losses { get; init; }
 
     public Fact<double> WallCell { get; init; }
 
@@ -24,11 +23,8 @@ public sealed record BedMergePrice
 
     public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
 
-    /// <summary>The map is cold or hot (MapSurvey.Cold, Hot): an unknown heat there leaves the merge unpriced, where on a mild map it counts as zero.</summary>
-    public bool Harsh { get; init; }
-
-    /// <summary>The watts a colonist's work-day is worth (WorkPrice.WorkDayW); 0 while unknown.</summary>
-    public double WorkDayW { get; init; }
+    /// <summary>The watts a colonist's work-day is worth (WorkPrice.WorkDayW); unknown while the work price is (its zero).</summary>
+    public Fact<double> WorkDayW { get; init; }
 
     /// <summary>The bed slots of the barracks the plan holds (BedSlotsOf), 0 for none: the incumbent a new size must beat by more than the tie resolution.</summary>
     public int Incumbent { get; init; }
@@ -41,22 +37,16 @@ public sealed record BedMergePrice
     public EquatableArray<ShellPieces> Committed { get; init; }
 }
 
-/// <summary>The barracks size a free-bed pool takes; Finding names why the merge is unpriced.</summary>
-public readonly record struct BarracksChoice(int Size, string Finding);
-
 public static partial class LayoutClusterRules
 {
     /// <summary>The free-bed pool's size was priced (#3658): the decision's verdict is merge for a barracks of more than one bed, split otherwise.</summary>
     public const string ReasonClusterBedMerge = "cluster_bed_merge_priced";
 
-    /// <summary>The free-bed pool's merge is not priced (#3658): the beds stay apart. The reason carries the unknown part after a colon.</summary>
-    public const string ReasonClusterBedMergeUnpriced = "cluster_bed_merge_unpriced";
-
     /// <summary>
     /// The barracks size the input's free-bed pool takes (#3658, Clusterer.BarracksSize): null when the graph has no free
-    /// pool or the input prices no merge.
+    /// pool or the input prices no merge. A required fact unread fails it with a StationFactsException (#3747).
     /// </summary>
-    public static BarracksChoice? BarracksSizeOf(ClusterInput input)
+    public static int? BarracksSizeOf(ClusterInput input)
     {
         var c = new Clusterer(input, MaxRoomArea(input.RoofDistance));
         for (var i = 0; i < input.Graph.Nodes.Count; i++)
@@ -91,15 +81,15 @@ internal sealed partial class Clusterer
         {
             return null;
         }
-        var choice = BarracksSize(n, count, price);
+        var size = BarracksSize(n, count, price);
         decisions.Add(new ClusterDecision
         {
             A = node.Id,
-            Verdict = choice.Size > 1 ? LayoutClusterRules.ClusterMerge : LayoutClusterRules.ClusterSplit,
-            Reason = choice.Finding.Length > 0 ? choice.Finding : LayoutClusterRules.ReasonClusterBedMerge,
+            Verdict = size > 1 ? LayoutClusterRules.ClusterMerge : LayoutClusterRules.ClusterSplit,
+            Reason = LayoutClusterRules.ReasonClusterBedMerge,
         });
-        var output = new List<ClusterUnit> { new(n, choice.Size) };
-        for (var i = choice.Size; i < count; i++)
+        var output = new List<ClusterUnit> { new(n, size) };
+        for (var i = size; i < count; i++)
         {
             output.Add(new ClusterUnit(n, 1));
         }
@@ -109,9 +99,10 @@ internal sealed partial class Clusterer
     /// <summary>
     /// The barracks size of a pool of count free beds of node n (#3658): the k that maximises (k-1) times the price of one
     /// bedroom saved less the k cheapest sleepers' losses over the horizon (ColonyModelPolicy.HorizonDays), its spare beds
-    /// losing nothing and a sleeper whose loss is unread never joining. A size whose room breaks the area limit is not
-    /// taken. The incumbent (the plan's barracks, else every bed single) holds unless the best beats it by more than
-    /// ForecastValuePolicy.TieResolution. An unpriced saving keeps every bed single.
+    /// losing nothing. A size whose room breaks the area limit is not taken. The incumbent (the plan's barracks, else every
+    /// bed single) holds unless the best beats it by more than ForecastValuePolicy.TieResolution. The sleepers' losses,
+    /// the shell's price and the room's heat are required (#3747): one unread throws a StationFactsException naming it, so
+    /// the chain's run waits for it.
     /// </summary>
     /// <remarks>
     /// Switching (#3661). A split of a standing barracks keeps the barracks for the beds that stay (the embedding holds it
@@ -122,21 +113,19 @@ internal sealed partial class Clusterer
     /// saves only its heat, so a mood swinging about the switch line switches once; a bedroom on paper is free to drop,
     /// its flapping held by the tie resolution and the replan key's mood band.
     /// </remarks>
-    internal BarracksChoice BarracksSize(int n, int count, BedMergePrice price)
+    internal int BarracksSize(int n, int count, BedMergePrice price)
     {
-        var single = Eval([new ClusterUnit(n, 1)]);
-        var (saved, finding) = SavedPerRoom(single.Area, price);
-        if (saved is not { } room)
-        {
-            return new BarracksChoice(1, finding);
-        }
         var f = price.Facts;
-        var wall = f.WallCell.Value;
-        var door = f.Door.Value;
+        if (!f.Losses.TryGetValue(out var read))
+        {
+            throw LayoutStationPlanRules.UnknownStationFact("sleeper_mood");
+        }
+        var single = Eval([new ClusterUnit(n, 1)]);
+        var (wall, door, room) = SavedPerRoom(single.Area, price);
         var spent = price.Committed.Select(p => (p.Walls * wall) + (p.Doors * door)).Order().ToList();
         var horizon = new ColonyModelPolicy().HorizonDays;
-        var losses = f.Losses.Where(double.IsFinite).ToList();
-        var spare = Math.Max(0, count - f.Losses.Count - f.Unpriced);
+        var losses = read.Where(double.IsFinite).ToList();
+        var spare = Math.Max(0, count - read.Count);
         List<double> costs = [.. Enumerable.Repeat(0.0, spare), .. losses];
         costs.Sort();
         var top = Math.Min(count, costs.Count);
@@ -164,39 +153,51 @@ internal sealed partial class Clusterer
         {
             best = incumbent;
         }
-        return new BarracksChoice(best, "");
+        return best;
     }
 
     /// <summary>
-    /// The capability-days one bedroom of area cells costs that a barracks bed saves (#3658): the ring of the squarest
-    /// rectangle holding it less its door cell in the wall's price, the door, and the room's climate load with a closed
-    /// door to the outdoors (the living band) over the horizon at the work-day's watts. Null, with the finding, when the
-    /// wall or door price is unknown, or the heat is unknown on a cold or hot map; an unknown heat on a mild map is zero.
+    /// The wall cell's and door's prices and the capability-days one bedroom of area cells costs that a barracks bed saves
+    /// (#3658): the ring of the squarest rectangle holding it less its door cell in the wall's price, the door, and the
+    /// room's climate load with a closed door to the outdoors (the living band) over the horizon at the work-day's watts.
+    /// An unread wall or door price throws a StationFactsException naming it.
     /// </summary>
-    private (double? Saved, string Finding) SavedPerRoom(int area, BedMergePrice price)
+    private (double Wall, double Door, double Saved) SavedPerRoom(int area, BedMergePrice price)
     {
-        if (!price.Facts.WallCell.TryGetValue(out var wall) || !price.Facts.Door.TryGetValue(out var door))
+        if (!price.Facts.WallCell.TryGetValue(out var wall))
         {
-            return (null, LayoutClusterRules.ReasonClusterBedMergeUnpriced + ":walls");
+            throw LayoutStationPlanRules.UnknownStationFact("wall_price");
+        }
+        if (!price.Facts.Door.TryGetValue(out var door))
+        {
+            throw LayoutStationPlanRules.UnknownStationFact("door_price");
         }
         var w = (int)Math.Ceiling(Math.Sqrt(area));
         var h = (int)Math.Ceiling(area / (double)w);
         var ring = (2 * (w + h)) + 4;
         var shell = ((ring - 1) * wall) + door;
-        if (HeatPerDay(area, price) is { } heat)
-        {
-            return (shell + (heat * new ColonyModelPolicy().HorizonDays), "");
-        }
-        return price.Harsh ? (null, LayoutClusterRules.ReasonClusterBedMergeUnpriced + ":thermal") : (shell, "");
+        return (wall, door, shell + (HeatPerDay(area, price) * new ColonyModelPolicy().HorizonDays));
     }
 
-    /// <summary>The capability-days a day of holding one bedroom of area cells in the living band behind a closed door to the outdoors; null while the curve, the climate model or the work-day is unknown.</summary>
-    private double? HeatPerDay(int area, BedMergePrice price)
+    /// <summary>
+    /// The capability-days a day of holding one bedroom of area cells in the living band behind a closed door to the
+    /// outdoors. Every input is required on every map (#3747): an unread outdoor curve, work-day or living band, or a load
+    /// the climate model cannot give, throws a StationFactsException naming it.
+    /// </summary>
+    private double HeatPerDay(int area, BedMergePrice price)
     {
         var m = _in.Catalog.Climate;
-        if (!price.OutdoorCurve.TryGetValue(out var curve) || !m.HasLiving() || !QuestCapacityForecast.FinitePositive(price.WorkDayW))
+        if (!price.OutdoorCurve.TryGetValue(out var curve))
         {
-            return null;
+            throw LayoutStationPlanRules.UnknownStationFact("outdoor_curve");
+        }
+        if (!price.WorkDayW.TryGetValue(out var workDay))
+        {
+            throw LayoutStationPlanRules.UnknownStationFact("work_day");
+        }
+        if (!m.HasLiving())
+        {
+            throw LayoutStationPlanRules.UnknownStationFact("living_band");
         }
         try
         {
@@ -206,11 +207,11 @@ internal sealed partial class Clusterer
                 Band = m.Living,
                 Links = EquatableArray.From(new[] { new ClimateLink { Opening = Opening.DoorClosed, Side = new ClimateSide { Outdoors = true } } }),
             };
-            return ClimateRules.ClimateLoad(m, curve, room, 0).MeanW / price.WorkDayW;
+            return ClimateRules.ClimateLoad(m, curve, room, 0).MeanW / workDay;
         }
-        catch (DomainException)
+        catch (DomainException e)
         {
-            return null;
+            throw LayoutStationPlanRules.UnknownStationFact("bedroom_heat: " + e.Message);
         }
     }
 }

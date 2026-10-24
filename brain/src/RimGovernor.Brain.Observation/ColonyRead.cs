@@ -75,6 +75,10 @@ public static class ColonyReads
         if (planning)
         {
             projection = await PlanningWindowReads.FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
+            if (catalog is not null && projection.Region != default)
+            {
+                projection = projection with { RingSources = Known(catalog.RingStuffSourcesOf(projection.Cells)) };
+            }
             var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Observed, cancellationToken).ConfigureAwait(false);
             if (facts is not null)
             {

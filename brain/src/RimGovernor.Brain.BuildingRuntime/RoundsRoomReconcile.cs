@@ -348,7 +348,7 @@ partial class RoundsBuildingPlanner
     /// <summary>
     /// Chooses the wall's and the door's stuff; refusal names what is unavailable. A ring no selection chose stuff for
     /// is placed in its base ring stuff (the first of PlannedRingStuffsOf: the cheapest stocked stuff the door can also
-    /// be made from), the stuff its planned sites are priced in (#3677).
+    /// be made from, else the map's wood or rock blocks, #3747), the stuff its planned sites are priced in (#3677).
     /// </summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(Observation.ColonyProjection facts, string wall, string door, ShellStuff? choose)
     {

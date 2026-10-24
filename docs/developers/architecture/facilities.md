@@ -794,19 +794,23 @@ joins two rooms of free beds (`cluster_beds_priced_apart`); the split
 (`Clusterer.BarracksSize`) sorts the free-bed pool's sleepers by the capability-days
 a day each loses in a barracks (`BedroomGainFacts.BedMerge`: its bedroom gain less
 its barracks gain, `slept_in_barracks` at the planned stage, an ascetic gaining
-nothing), the spare beds losing nothing and an unread sleeper never joining, and
+nothing), the spare beds losing nothing, and
 takes the k beds that maximise (k − 1) × one bedroom saved less the k cheapest
 losses over `ColonyModelPolicy.HorizonDays`. One bedroom saved is its ring of the
 squarest rectangle (less the door cell) and its door in the stuff a planned
 room's base ring sites are read in (`BedMergeShell`: the first of
-`PlannedRingStuffs`, the cheapest stocked; work plus `MaterialValueOf`, which
-charges logs at chop labor only where a tree is in reach and at market value
-otherwise), and its heat over the horizon: the `ClimateLoad`
-of the room in the living band behind a closed door to the outdoors, at the
-work-day's watts (`StationWorkPrice`). An unknown wall or door price, or an
-unknown heat on a cold or hot map, keeps every bed single with
-`cluster_bed_merge_unpriced:walls` or `:thermal`; an unknown heat on a mild map is
-zero. The plan's largest barracks (its bed slots) is the incumbent and holds
+`PlannedRingStuffs`: the cheapest stocked, else the wood the window's standing
+trees give, else the blocks of its natural rock's stone, `RingStuffSourcesOf`,
+#3747; work plus `MaterialValueOf`, which charges logs at chop labor only where
+a tree is in reach and at market value otherwise), and its heat over the
+horizon: the `ClimateLoad` of the room in the living band behind a closed door
+to the outdoors, at the work-day's watts (`StationWorkPrice`). Every one of
+these is a required planner input on every map (#3747): an unread sleeper's
+loss, wall or door price, outdoor curve, work-day (`StationWorkDayW`'s zero) or
+living band fails the chain with `StationFactsException` naming it
+(`sleeper_mood`, `wall_price`, `door_price`, `outdoor_curve`, `work_day`,
+`living_band`, `bedroom_heat`), so the replan is skipped as `facts_unknown` and
+the next hourly check tries again; no plan is made on a guessed price. The plan's largest barracks (its bed slots) is the incumbent and holds
 unless beaten by more than `TieResolution`, and the replan key carries the chosen
 size (`barracks`), so a drifting loss does not replan. A standing barracks splits
 by replan (#3661) and by the same price: the barracks keeps the beds that stay

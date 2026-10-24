@@ -47,25 +47,21 @@ public sealed record BedroomGainFacts
     /// <summary>
     /// The bed merge's facts of the sleepers (#3658): per pawn in id order, the capability-days a day it loses sleeping in
     /// a barracks over a bedroom, both at the stage an unfurnished planned room is priced at (MoodJudgment.PlannedStage);
-    /// a pawn either gain of is unread is counted unpriced.
+    /// the losses are unknown while either gain of any pawn is unread (#3747), so the chain waits for it.
     /// </summary>
     public BedMergeFacts BedMerge()
     {
         var stage = Known(LayoutMoodRules.MoodJudgment.PlannedStage);
         var losses = new List<double>();
-        var unpriced = 0;
         foreach (var pawn in Pawns.Keys.Order(StringComparer.Ordinal))
         {
-            if (Gain(pawn, stage) is { } bedroom && Gain(pawn, stage, barracks: true) is { } barracks)
+            if (Gain(pawn, stage) is not { } bedroom || Gain(pawn, stage, barracks: true) is not { } barracks)
             {
-                losses.Add(bedroom - barracks);
+                return new BedMergeFacts();
             }
-            else
-            {
-                unpriced++;
-            }
+            losses.Add(bedroom - barracks);
         }
-        return new BedMergeFacts { Losses = EquatableArray.From(losses), Unpriced = unpriced };
+        return new BedMergeFacts { Losses = Known(EquatableArray.From(losses)) };
     }
 
     /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unknown without one.</summary>

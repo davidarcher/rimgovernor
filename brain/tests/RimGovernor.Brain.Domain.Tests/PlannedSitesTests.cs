@@ -192,15 +192,24 @@ public sealed class PlannedSitesTests
         Assert.All(asked, s => Assert.Equal(200, s.Positions.Count));
     }
     [Fact]
-    public void RingStuffsAreTheCheapestStockedFirstElseTheCheapest()
+    public void RingStuffsAreTheCheapestStockedFirstElseTheMapsWoodElseItsRockBlocks()
     {
+        var map = new RingStuffSources { Wood = EquatableArray.From(["WoodLog"]), Blocks = EquatableArray.From(["BlocksGranite", "BlocksMarble"]) };
         Assert.Equal(["Steel", "WoodLog"], PlannedRules.PlannedRingStuffs(
         [
             new PlannedRingStuff("Plasteel", 1, false), new PlannedRingStuff("WoodLog", 5, true),
             new PlannedRingStuff("Steel", 3, true), new PlannedRingStuff("BlocksGranite", 9, true),
-        ]));
-        Assert.Equal(["Plasteel"], PlannedRules.PlannedRingStuffs([new PlannedRingStuff("Steel", 3, false), new PlannedRingStuff("Plasteel", 1, false)]));
-        Assert.Equal([""], PlannedRules.PlannedRingStuffs([]));
+        ], map));
+        PlannedRingStuff[] unstocked =
+        [
+            new("Steel", 3, false), new("Plasteel", 1, false), new("WoodLog", 5, false),
+            new("BlocksGranite", 9, false), new("BlocksMarble", 7, false), new("BlocksSlate", 2, false),
+        ];
+        // Nothing stocked (#3747): wood where trees stand, else the map's cheapest rock blocks, else none.
+        Assert.Equal(["WoodLog"], PlannedRules.PlannedRingStuffs(unstocked, map));
+        Assert.Equal(["BlocksMarble"], PlannedRules.PlannedRingStuffs(unstocked, map with { Wood = default }));
+        Assert.Empty(PlannedRules.PlannedRingStuffs(unstocked, new RingStuffSources()));
+        Assert.Equal([""], PlannedRules.PlannedRingStuffs([], map));
     }
 
     [Fact]

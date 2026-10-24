@@ -37,7 +37,7 @@ public sealed partial class Rounder
     /// The bed merge's facts over the live colony (#3658): the sleepers' losses (BedroomGainFacts.BedMerge) and the
     /// capability-days of one wall cell and one door of a bedroom's ring (BedMergeShell), each priced by
     /// LayoutClusterRules.ShellPiecePrice from its WorkToBuild for its stuff and cost list. A piece the catalog shows no work
-    /// or cost list for is unknown.
+    /// or cost list for is unknown, which the chain waits on (#3747).
     /// </summary>
     internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
@@ -50,8 +50,9 @@ public sealed partial class Rounder
 
     /// <summary>
     /// One wall cell and one door of a bedroom's ring (#3674): the Wall and the Door in the stuff a planned room's base ring
-    /// sites are read in (the first of PlannedRingStuffsOf, the cheapest stocked), the door in the wall's stuff as the
-    /// planned sites build it. Either is null where the catalog shows no work or cost list for it.
+    /// sites are read in (the first of PlannedRingStuffsOf: the cheapest stocked, else the map's wood where trees stand,
+    /// else its rock's blocks, #3747), the door in the wall's stuff as the planned sites build it. Either is null where the
+    /// catalog shows no work or cost list for it.
     /// </summary>
     internal static ((double Work, IReadOnlyList<Amount> Costs)? Wall, (double Work, IReadOnlyList<Amount> Costs)? Door) BedMergeShell(ColonyProjection projection)
     {
