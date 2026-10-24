@@ -132,7 +132,7 @@ public sealed record FieldRequest
 
     public Fact<Calendar> Calendar { get; init; }
 
-    public Fact<EquatableArray<DisasterCondition>> Conditions { get; init; }
+    public EquatableArray<DisasterCondition> Conditions { get; init; }
 
     /// <summary>The stored-food buffer FieldTarget budgets beyond one cycle, spread over the harvests left in the season.</summary>
     public double ReserveDays { get; init; }

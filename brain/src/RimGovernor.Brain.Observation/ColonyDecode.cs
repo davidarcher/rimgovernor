@@ -170,7 +170,7 @@ public static class ColonyDecodeReads
             BiotechSection = v.Biotech,
         };
         r = r with { FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races) };
-        var (conditions, conditionsKnown) = ColonyFramesReads.ColonyConditions(v, catalog);
+        var conditions = ColonyFramesReads.ColonyConditions(v, catalog);
         if (catalog is not null)
         {
             r = r with
@@ -200,9 +200,8 @@ public static class ColonyDecodeReads
                 r = r with { PowerBattery = catalog.PowerBattery(PowerRules.BatteryDefinition) };
             }
         }
-        // The biome's permanent darkness is its map conditions', read only where something decides on it
-        // (sowing climate, a lighting census): there a frame without a biome read or a catalog fails, never counts as lit.
-        var outdoorsDark = default(Fact<bool>);
+        // The biome's permanent darkness is its map conditions': a frame without a biome row or a catalog fails, never counts as lit.
+        var outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
         // No eligible indoor bed (SleepingTemperature.NoIndoorBed) leaves the rounds' indoor sleeping range unknown.
         var (indoor, sleepingMin, sleepingMax) = v.SleepingTemperature is O.SleepingTemperature.Indoor(var min, var max) ? (true, min, max) : (false, 0d, 0d);
         var f = new RoundsFacts
@@ -219,12 +218,12 @@ public static class ColonyDecodeReads
         f = f with
         {
             MapBounds = Known(r.Bounds),
-            ShelterArea = Known(AllowedAreaID(r.Policies, ShelterRules.SafeAreaLabel)),
-            NoDangerArea = Known(AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel)),
+            ShelterArea = AllowedAreaID(r.Policies, ShelterRules.SafeAreaLabel),
+            NoDangerArea = AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
             AnimalWard = f.AnimalWard with { Area = AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
-            IsolationArea = Known(AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel)),
-            RaidPoints = Known(r.Threat.RaidPoints),
-            HostileFactions = Known(r.Threat.HostileFactions),
+            IsolationArea = AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
+            RaidPoints = r.Threat.RaidPoints,
+            HostileFactions = r.Threat.HostileFactions,
             Storyteller = Known(r.Threat.Storyteller),
             DaysPassed = Known(r.Threat.DaysPassed),
             Wealth = Known(new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal)),
@@ -239,15 +238,12 @@ public static class ColonyDecodeReads
             var geometryKnown = true;
             var turrets = new List<DefenseTurretFacts>();
             var fuel = new List<FuelConsumer>();
-            // The topology is planned on only with the map conditions read: a solar flare holds every network off.
-            if (conditionsKnown)
+            // A solar flare holds every network off.
+            topology = topology with
             {
-                topology = topology with
-                {
-                    Blackout = conditions.Any(condition => condition.DisablesPower),
-                    Eclipse = conditions.Any(condition => condition.Definition == DisasterRules.ConditionEclipse),
-                };
-            }
+                Blackout = conditions.Any(condition => condition.DisablesPower),
+                Eclipse = conditions.Any(condition => condition.Definition == DisasterRules.ConditionEclipse),
+            };
             var sites = new List<PowerSite>();
             var defs = RequireCatalog(catalog);
             foreach (var row in development.Power)
@@ -348,7 +344,7 @@ public static class ColonyDecodeReads
                 geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(at.Cell), Occupied = row.Occupied, Cells = geyserCells });
             }
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = networks, Geysers = geysers };
-            if (geometryKnown && conditionsKnown)
+            if (geometryKnown)
             {
                 r = r with { PowerPlanning = Known(topology) };
             }
@@ -362,23 +358,19 @@ public static class ColonyDecodeReads
                 DisabledConsumers = Known(coverage.Disabled),
                 PowerWeatherSafe = Known(unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power)),
             };
-            if (development.ShortCircuitTick is not null)
-            {
-                f = f with { ShortCircuitTick = Known(new Tick((long)development.ShortCircuitTick)) };
-            }
+            f = f with { ShortCircuit = development.ShortCircuitTick is { } shorted ? new DisasterShortCircuit.Seen(new Tick(shorted)) : new DisasterShortCircuit.NoneSeen() };
         }
         // The biome is read on every frame; the season facts only with a clean food climate read.
         r = r with { CropClimate = new CropClimate { Biome = v.Biome } };
         if (v.FoodClimate is { } climate && !HasIssue(v.Issues, "food_climate"))
         {
-            outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
             r = r with
             {
                 CropClimate = r.CropClimate with
                 {
                     Sowing = Optional(climate.SowingNow is not null, climate.SowingNow.GetValueOrDefault()),
                     DaysRemaining = Optional(climate.GrowingDaysRemaining is not null, climate.GrowingDaysRemaining.GetValueOrDefault()),
-                    OutdoorsDark = outdoorsDark,
+                    OutdoorsDark = Known(outdoorsDark),
                 },
             };
             f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
@@ -424,7 +416,7 @@ public static class ColonyDecodeReads
             f = f with { ButcherBenches = Known(EquatableArray.From(standing)) };
             r = r with { ButcheringBenches = Known(EquatableArray.From(benches)) };
         }
-        f = ColonyFramesReads.ColonyDisaster(v, f, buildings, conditions, conditionsKnown);
+        f = ColonyFramesReads.ColonyDisaster(v, f, buildings, conditions);
         var comfort = ColonyFramesReads.ColonyComfort(v, catalog);
         f = f with { Comfort = comfort, BasicComfort = comfort, HomeCoverage = v.Upkeep.HomeCoverage };
         f = f with { Sleeping = SleepingUpkeepReads.ColonySleeping(v, buildings, catalog) };
@@ -440,10 +432,6 @@ public static class ColonyDecodeReads
         };
         f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Biotech = v.Biotech };
         f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
-        if (f.Upkeep.Lighting.IsKnown && !outdoorsDark.IsKnown)
-        {
-            outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
-        }
         f = f with { OutdoorsDark = outdoorsDark };
         f = f with { MedicalReserve = ColonyFramesReads.ColonyMedicalReserve(v, tables, catalog) };
         f = f with { JoinerLetters = Known(v.JoinerLetters) };

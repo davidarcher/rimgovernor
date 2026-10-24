@@ -8,7 +8,7 @@ public sealed record CropSeason
 {
     public Fact<Calendar> Calendar { get; init; }
 
-    public Fact<EquatableArray<DisasterCondition>> Conditions { get; init; }
+    public EquatableArray<DisasterCondition> Conditions { get; init; }
 }
 
 /// <summary>
@@ -33,24 +33,15 @@ public static class CropRiskRules
     /// volcanic winter or a cold snap with a native remaining-duration read. Zero when none is active or the
     /// census is unknown. A crop's harvest lead extends by it.
     /// </summary>
-    public static double CropPauseDays(Fact<EquatableArray<DisasterCondition>> conditions)
+    public static double CropPauseDays(EquatableArray<DisasterCondition> conditions)
     {
-        if (!DisasterRules.ConditionRemainingTicks(conditions, DisasterRules.ConditionEclipse, DisasterRules.ConditionVolcanicWinter, DisasterRules.ConditionColdSnap).TryGetValue(out var ticks) || ticks <= 0)
-        {
-            return 0;
-        }
-        return (double)ticks / GameTime.TicksPerDay;
+        var ticks = DisasterRules.ConditionRemainingTicks(conditions, DisasterRules.ConditionEclipse, DisasterRules.ConditionVolcanicWinter, DisasterRules.ConditionColdSnap);
+        return ticks <= 0 ? 0 : (double)ticks / GameTime.TicksPerDay;
     }
 
-    /// <summary>Whether the toxic-fallout condition is on the map; unknown while the condition census is.</summary>
-    internal static Fact<bool> ToxicFalloutActive(Fact<EquatableArray<DisasterCondition>> conditions)
-    {
-        if (!conditions.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        return Known(rows.Any(c => c.Definition == DisasterRules.ConditionToxicFallout));
-    }
+    /// <summary>Whether the toxic-fallout condition is on the map.</summary>
+    internal static bool ToxicFalloutActive(EquatableArray<DisasterCondition> conditions) =>
+        conditions.Any(c => c.Definition == DisasterRules.ConditionToxicFallout);
 
     /// <summary>Part/whole as a fact in [0, 1]; unknown while either count is, the whole is not positive or the part exceeds it.</summary>
     internal static Fact<double> Share(Fact<long> part, Fact<long> whole)
@@ -69,14 +60,8 @@ public static class CropRiskRules
     /// under open sky die, so the weight is the unroofed share of the field's cells; zero without the
     /// condition. Unknown while the census or the roof data is.
     /// </summary>
-    public static Fact<double> FalloutRisk(Fact<EquatableArray<DisasterCondition>> conditions, FieldExposure e)
-    {
-        if (!ToxicFalloutActive(conditions).TryGetValue(out var active))
-        {
-            return Unknown<double>();
-        }
-        return active ? Share(e.UnroofedCells, e.ZoneCells) : Known(0.0);
-    }
+    public static Fact<double> FalloutRisk(EquatableArray<DisasterCondition> conditions, FieldExposure e) =>
+        ToxicFalloutActive(conditions) ? Share(e.UnroofedCells, e.ZoneCells) : Known(0.0);
 
     /// <summary>The expected fraction of a field's delivery blight takes: the blighted share of its planted cells. Unknown with nothing planted.</summary>
     public static Fact<double> BlightRisk(FieldExposure e) => Share(Known(e.Blighted), Known(e.Planted));
@@ -127,7 +112,7 @@ public static class CropRiskRules
     }
 
     /// <summary>A harvest lead pushed back by the crop pause, capped at a year; an unknown lead stays unknown.</summary>
-    internal static Fact<double> WithCropPause(Fact<double> lead, Fact<EquatableArray<DisasterCondition>> conditions)
+    internal static Fact<double> WithCropPause(Fact<double> lead, EquatableArray<DisasterCondition> conditions)
     {
         if (!lead.TryGetValue(out var days) || !FoodForecastRules.FoodNumber(days))
         {

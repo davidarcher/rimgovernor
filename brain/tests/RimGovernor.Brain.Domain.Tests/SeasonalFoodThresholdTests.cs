@@ -12,7 +12,6 @@ public sealed class SeasonalFoodThresholdTests
 {
     private const double NonGrowing = 20;
 
-    private static readonly Fact<EquatableArray<DisasterCondition>> NoConditions = Unknown<EquatableArray<DisasterCondition>>();
 
     private static readonly Calendar LastGrowingDay = new()
     {
@@ -24,7 +23,7 @@ public sealed class SeasonalFoodThresholdTests
         NonGrowingDays = NonGrowing,
     };
 
-    private static RoundsPolicy Seasonal(Calendar calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(Known(calendar), NoConditions);
+    private static RoundsPolicy Seasonal(Calendar calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(Known(calendar), default(EquatableArray<DisasterCondition>));
 
     [Fact]
     public void ThresholdsDoNotJumpAtTheFrost()

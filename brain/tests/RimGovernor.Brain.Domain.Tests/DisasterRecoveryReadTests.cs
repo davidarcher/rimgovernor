@@ -68,17 +68,17 @@ public sealed class DisasterRecoveryReadTests
     }
 
     [Fact]
-    public void UnreadConditionsLeaveAnOpenDisasterInTheUnreadPhase()
+    public void UnreadServiceFindingsLeaveAnOpenDisasterInTheUnreadPhase()
     {
-        var conditions = Known<EquatableArray<DisasterCondition>>([Flare(new ConditionDuration.Timed { Ticks = 2500 })]);
-        var buildings = Known<EquatableArray<RecoveryBuilding>>([Building("battery")]);
+        var conditions = EquatableArray.From([Flare(new ConditionDuration.Timed { Ticks = 2500 })]);
+        var buildings = EquatableArray.From([Building("battery")]);
         var services = new Dictionary<DisasterService, Fact<bool>>();
 
-        var open = DisasterRules.ReviewDisaster(conditions, buildings, services, null, new(100), Known(new Tick(90)));
+        var open = DisasterRules.ReviewDisaster(conditions, buildings, services, null, new(100), new DisasterShortCircuit.Seen(new Tick(90)));
         Assert.NotNull(open);
         Assert.Equal(new DisasterShortCircuit.Seen(new(90)), open.ShortCircuit);
 
-        var unread = DisasterRules.ReviewDisaster(default, buildings, services, open, new(110));
+        var unread = DisasterRules.ReviewDisaster(default, buildings, services, open, new(110), new DisasterShortCircuit.NoneSeen());
         Assert.Equal(DisasterPhase.Unread, unread?.Phase);
         Assert.Equal(open.ShortCircuit, unread?.ShortCircuit);
     }

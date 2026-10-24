@@ -31,32 +31,26 @@ public sealed record RecoveryWorker
 
 public sealed record RecoveryPlanning
 {
-    public Fact<RecoverySafety> Safety { get; init; }
+    public RecoverySafety Safety { get; init; } = new();
 
     public Fact<EquatableArray<RecoveryWorker>> Workers { get; init; }
 
-    public Fact<EquatableArray<RecoveryBuilding>> Buildings { get; init; }
+    public EquatableArray<RecoveryBuilding> Buildings { get; init; }
 
     /// <summary>Throws when the planning facts are inconsistent.</summary>
     public void Validate()
     {
-        if (Buildings.TryGetValue(out var buildings))
+        DisasterRules.RecoveryPending(Buildings);
+        var pawns = new HashSet<PawnId>();
+        foreach (var r in Safety.Restrictions)
         {
-            DisasterRules.RecoveryPending(buildings);
-        }
-        if (Safety.TryGetValue(out var s))
-        {
-            var pawns = new HashSet<PawnId>();
-            foreach (var r in s.Restrictions)
+            if (!FoodForecastRules.FoodId(r.Pawn.Value) || !pawns.Add(r.Pawn))
             {
-                if (!FoodForecastRules.FoodId(r.Pawn.Value) || !pawns.Add(r.Pawn))
-                {
-                    throw new DomainException("invalid recovery restriction pawn");
-                }
-                if (r.Area.Length != 0 && !FoodForecastRules.FoodId(r.Area))
-                {
-                    throw new DomainException("invalid current restriction");
-                }
+                throw new DomainException("invalid recovery restriction pawn");
+            }
+            if (r.Area.Length != 0 && !FoodForecastRules.FoodId(r.Area))
+            {
+                throw new DomainException("invalid current restriction");
             }
         }
         if (Workers.TryGetValue(out var workers))
@@ -250,13 +244,9 @@ public static partial class RecoveryRules
     /// create a replacement while that work is still running. This is derived from the census, not a second
     /// commitment ledger. Unknown jobs/targets cannot establish that work stopped.
     /// </summary>
-    public static Fact<bool> RecoveryWorkContinuing(RecoveryService service, Fact<EquatableArray<RecoveryBuilding>> buildings, Fact<EquatableArray<WorkPawn>> pawns)
+    public static Fact<bool> RecoveryWorkContinuing(RecoveryService service, EquatableArray<RecoveryBuilding> buildings, Fact<EquatableArray<WorkPawn>> pawns)
     {
-        if (!buildings.TryGetValue(out var observed))
-        {
-            return Unknown<bool>();
-        }
-        var work = DisasterRules.RecoveryPending([.. observed.Where(b => b.Id == service.Thing)]);
+        var work = DisasterRules.RecoveryPending([.. buildings.Where(b => b.Id == service.Thing)]);
         var needed = false;
         foreach (var need in work)
         {
@@ -322,16 +312,15 @@ public static partial class RecoveryRules
         {
             return output with { Reason = RecoverySelectionReason.NoWork };
         }
-        var wk = p.Buildings.TryGetValue(out var buildings);
-        var sk = p.Safety.TryGetValue(out var safety);
-        var pk = p.Workers.TryGetValue(out var workers);
-        if (!sk || !pk || h.Phase == DisasterPhase.Unread)
+        var buildings = p.Buildings;
+        var safety = p.Safety;
+        if (!p.Workers.TryGetValue(out var workers) || h.Phase == DisasterPhase.Unread)
         {
             return output;
         }
         // The independent exact-pawn and restriction censuses must agree. Missing identities cannot silently
         // remove a pawn's exposure or player restriction.
-        if (workers.Count != safety!.Restrictions.Count)
+        if (workers.Count != safety.Restrictions.Count)
         {
             return output;
         }
@@ -380,10 +369,6 @@ public static partial class RecoveryRules
             restrictions[r.Pawn] = r.Area;
         }
         var eligible = available;
-        if (!wk)
-        {
-            return output;
-        }
         var work = DisasterRules.RecoveryPending(buildings);
         var byBuilding = buildings.ToDictionary(b => b.Id, StringComparer.Ordinal);
         foreach (var w in eligible)

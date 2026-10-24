@@ -128,7 +128,7 @@ public sealed class PartLossCatalogTests
         var catalog = Catalog();
         var inputs = HarmInputs.Of(new RoundsFacts
         {
-            RaidPoints = Known(200d), HostileFactions = Known<EquatableArray<string>>(["Pirate"]),
+            RaidPoints = 200d, HostileFactions = ["Pirate"],
             HarmCatalog = new() { Raid = catalog.RaidFactions(), Parts = new() { Rules = catalog.PartHitRules(), Recipes = catalog.PartReplacementRecipes() } },
         });
         var bin = Assert.Single(Assert.IsType<RaidComposition.Expected>(inputs.Composition).Bins);

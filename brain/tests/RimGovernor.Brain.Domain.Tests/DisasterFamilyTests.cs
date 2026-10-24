@@ -30,7 +30,7 @@ public sealed class DisasterFamilyTests
 
     // Each Need's own predicate: the family raises on the first Need whose fact is unread.
     private static Need Derive(DisasterFacts facts, NeedId id) =>
-        id == DisasterFamily.Sheltering ? DisasterFamily.ShelteringNeed(facts.Changes) : DisasterFamily.ServicesNeed(facts.Disaster, facts.ConditionsKnown);
+        id == DisasterFamily.Sheltering ? DisasterFamily.ShelteringNeed(facts.Changes) : DisasterFamily.ServicesNeed(facts.Disaster);
 
     private static DisasterHistory Disrupted() => new()
     {
@@ -57,9 +57,8 @@ public sealed class DisasterFamilyTests
     [Fact]
     public void ServicesFollowTheDisasterHistoryAndWaitOnSheltering()
     {
-        Assert.Equal("disaster conditions", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts(), DisasterFamily.Services)).Fact);
-        Assert.Equal([Satisfaction.Met, Satisfaction.Met], new DisasterFamily().Derive(new DisasterFacts { ConditionsKnown = true }).Select(n => n.Satisfaction));
-        Assert.Equal(Satisfaction.Met, Derive(new DisasterFacts { ConditionsKnown = true }, DisasterFamily.Services).Satisfaction);
+        Assert.Equal([Satisfaction.Met, Satisfaction.Met], new DisasterFamily().Derive(new DisasterFacts()).Select(n => n.Satisfaction));
+        Assert.Equal(Satisfaction.Met, Derive(new DisasterFacts(), DisasterFamily.Services).Satisfaction);
         var unmet = Derive(new DisasterFacts { Disaster = Disrupted() }, DisasterFamily.Services);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Tier));
         Assert.Equal([DisasterFamily.Sheltering], unmet.Preconditions);
@@ -121,7 +120,7 @@ public sealed class DisasterFamilyTests
         var path = Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db");
         var facts = WorkResourceTestFacts.Create("a") with
         {
-            DisasterConditions = Known<EquatableArray<DisasterCondition>>([new DisasterCondition { Id = "condition-1", Definition = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } }]),
+            DisasterConditions = EquatableArray.From([new DisasterCondition { Id = "condition-1", Definition = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } }]),
         };
         RoundsResult Review(Journal journal, long tick) => journal.ReviewRounds(new RoundsRequest
         {

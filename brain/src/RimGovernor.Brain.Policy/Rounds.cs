@@ -176,16 +176,16 @@ public sealed record RoundsFacts
     /// <summary>What a cell of each terrain grows for grazing in the worst quadrum, the per-cell term of the game's pen food sum (PastureTable).</summary>
     public Fact<PastureTable> Pasture { get; init; }
 
-    public Fact<RecoverySafety> RecoverySafety { get; init; }
+    public RecoverySafety RecoverySafety { get; init; } = new();
 
     public Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers { get; init; }
 
-    public Fact<EquatableArray<DisasterCondition>> DisasterConditions { get; init; }
+    public EquatableArray<DisasterCondition> DisasterConditions { get; init; }
 
     /// <summary>The colony biome's permanent darkness: its map conditions include a no-sunlight class.</summary>
-    public Fact<bool> OutdoorsDark { get; init; }
+    public bool OutdoorsDark { get; init; }
 
-    public Fact<EquatableArray<RecoveryBuilding>> RecoveryBuildings { get; init; }
+    public EquatableArray<RecoveryBuilding> RecoveryBuildings { get; init; }
 
     public DisasterHistory? Disaster { get; init; }
 
@@ -284,13 +284,13 @@ public sealed record RoundsFacts
     public Fact<EquatableArray<RitualSite>> RitualSites { get; init; }
 
     /// <summary>The Safe allowed area's native load id, "" when the map has none (PlanSheltering).</summary>
-    public Fact<string> ShelterArea { get; init; }
+    public string ShelterArea { get; init; } = "";
 
     /// <summary>The squad's draft set during a threat: the colonists a raid or manhunter pack does not shelter. Unknown shelters no colonist for a threat.</summary>
     public Fact<EquatableArray<PawnId>> ShelterCombatants { get; init; }
 
     /// <summary>The NoDanger allowed area's native load id, "" when the map has none.</summary>
-    public Fact<string> NoDangerArea { get; init; }
+    public string NoDangerArea { get; init; } = "";
 
     /// <summary>The threat census's danger seeds (DangerSeeds), unknown with the hostile count.</summary>
     public Fact<EquatableArray<Cell>> DangerSeeds { get; init; }
@@ -302,7 +302,7 @@ public sealed record RoundsFacts
     public Fact<EquatableArray<PawnId>> DangerHaulers { get; init; }
 
     /// <summary>The Isolation allowed area's native load id, "" when the map has none (the admin/creep-joiners Need).</summary>
-    public Fact<string> IsolationArea { get; init; }
+    public string IsolationArea { get; init; } = "";
 
     /// <summary>Counts the packed art no owed room reserves (SaleSculptures); read only while the wealth headroom is negative, it opens a trade as the shed_art need.</summary>
     public Fact<long> SaleArt { get; init; }
@@ -375,10 +375,10 @@ public sealed record RoundsFacts
 
     public Fact<EquatableArray<JoinerLetter>> JoinerLetters { get; init; }
 
-    public Fact<double> RaidPoints { get; init; }
+    public double RaidPoints { get; init; }
 
     /// <summary>The def names of the hostile factions that can raid; the harm model's raid composition reads them.</summary>
-    public Fact<EquatableArray<string>> HostileFactions { get; init; }
+    public EquatableArray<string> HostileFactions { get; init; }
 
     /// <summary>The running storyteller def name (Find.Storyteller.def); the threat schedule (#3539) looks its comps up by it.</summary>
     public Fact<string> Storyteller { get; init; }
@@ -655,7 +655,7 @@ public sealed record RoundsFacts
 
     public Fact<bool> PowerWeatherSafe { get; init; }
 
-    public Fact<Tick> ShortCircuitTick { get; init; }
+    public DisasterShortCircuit ShortCircuit { get; init; } = new DisasterShortCircuit.NoneSeen();
 }
 
 public sealed record RoundsLatches
@@ -933,7 +933,7 @@ public static partial class RoundsRules
             (r.WorkShortfall, r.PawnValues, r.PawnValuesAwaitingPlan) = PawnValueRules.Review(candidates, selected, f.ForecastObserved.Needs ?? throw new RequiredFactException("needs read"),
                 f.WorkSpeeds, f.FoodWork, basis);
         // The disaster history the disaster family's Needs read (#3304).
-        r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
+        r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuit);
         r.Trade = TradeReviewOf(f, p, medicine, demand);
         r.WorkAssignments = WorkAssignmentsOwed(f, r.CoupledSelection);
         r.EssentialServices = EssentialServicesRules.ReviewEssentialServices(f, p, demand, medicineActive: latches.MedicalReserve);

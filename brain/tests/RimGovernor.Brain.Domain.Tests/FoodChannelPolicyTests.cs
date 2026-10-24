@@ -9,7 +9,6 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class FoodChannelPolicyTests
 {
-    private static readonly Fact<EquatableArray<DisasterCondition>> NoConditions = Fact.Unknown<EquatableArray<DisasterCondition>>();
 
     private static FishingRegion Lake(double capacity) => new()
     {
@@ -63,8 +62,8 @@ public sealed class FoodChannelPolicyTests
         var lastGrowing = new Calendar { GrowingDays = 30, GrowingDaysRemaining = 1, GrowingDaysUntil = 0, NonGrowingDays = stretch };
         var firstFrost = lastGrowing with { GrowingDaysRemaining = 0, GrowingDaysUntil = stretch };
 
-        var before = CalendarRules.HarvestGapDays(Fact.Known(lastGrowing), NoConditions).ValueOrDefault;
-        var after = CalendarRules.HarvestGapDays(Fact.Known(firstFrost), NoConditions).ValueOrDefault;
+        var before = CalendarRules.HarvestGapDays(Fact.Known(lastGrowing), default(EquatableArray<DisasterCondition>)).ValueOrDefault;
+        var after = CalendarRules.HarvestGapDays(Fact.Known(firstFrost), default(EquatableArray<DisasterCondition>)).ValueOrDefault;
 
         Assert.True(before > 0);
         Assert.Equal(before, after, 9);

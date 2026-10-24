@@ -122,7 +122,7 @@ public sealed record AwakenGate
     public Fact<double> Capacity { get; init; }
 
     /// <summary>The points a default threat draws, in raid-point units.</summary>
-    public Fact<double> RaidPoints { get; init; }
+    public double RaidPoints { get; init; }
 
     public Fact<long> Hostiles { get; init; }
     public ContainmentPlanning Containment { get; init; } = new();
@@ -211,14 +211,10 @@ public static partial class MonolithRules
         }
 
         var ck = g.Capacity.TryGetValue(out var capacity);
-        var pk = g.RaidPoints.TryGetValue(out var points);
+        var points = g.RaidPoints;
         if (!ck)
         {
             issues.Add("the defense capacity is unread");
-        }
-        else if (!pk)
-        {
-            issues.Add("the raid points are unread");
         }
         else if (capacity < AwakenStrengthFactor * points)
         {

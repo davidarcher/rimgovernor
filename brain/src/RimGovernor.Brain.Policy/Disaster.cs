@@ -15,8 +15,7 @@ public enum DisasterPhase
     Restored,
 
     /// <summary>
-    /// The review could not judge the episode: the condition census was unread, or a survival service's finding was
-    /// unread with no deficit standing. The disaster/services Need raises <see cref="RequiredFactException"/> on it and
+    /// The review could not judge the episode: a survival service's finding was unread with no deficit standing. The disaster/services Need raises <see cref="RequiredFactException"/> on it and
     /// the service selection plans nothing.
     /// </summary>
     [WireName("unread")]
@@ -112,8 +111,6 @@ public sealed record DisasterHistory
 {
     public DisasterShortCircuit ShortCircuit { get; init; } = new DisasterShortCircuit.NoneSeen();
 
-    public bool WorkKnown { get; init; }
-
     public EquatableArray<RecoveryWork> Work { get; init; }
 
     public Tick Started { get; init; }
@@ -185,10 +182,6 @@ public sealed record DisasterHistory
                 throw new DomainException("untracked disaster deficit");
             }
         }
-        if (!WorkKnown && Work.Count > 0)
-        {
-            throw new DomainException("invalid recovery work evidence");
-        }
         var workSeen = new HashSet<RecoveryWork>();
         foreach (var w in Work)
         {
@@ -225,29 +218,24 @@ public static class DisasterRules
     public const string ConditionToxicFallout = "ToxicFallout";
 
     /// <summary>
-    /// The longest remaining duration of any listed condition definition that is active and timed: zero when the
-    /// census is known and no listed condition is timed, unknown while the condition census itself is unknown. A
-    /// permanent listed condition contributes nothing: the reviews that consult this plan against a duration,
-    /// never against the bare presence of a condition.
+    /// The longest remaining duration of any listed condition definition that is active and timed: zero when no
+    /// listed condition is timed. A permanent listed condition contributes nothing: the reviews that consult this
+    /// plan against a duration, never against the bare presence of a condition.
     /// </summary>
-    public static Fact<long> ConditionRemainingTicks(Fact<EquatableArray<DisasterCondition>> conditions, params string[] definitions) =>
+    public static long ConditionRemainingTicks(EquatableArray<DisasterCondition> conditions, params string[] definitions) =>
         ConditionRemaining(conditions, c => definitions.Contains(c.Definition));
 
-    private static Fact<long> ConditionRemaining(Fact<EquatableArray<DisasterCondition>> conditions, Func<DisasterCondition, bool> match)
+    private static long ConditionRemaining(EquatableArray<DisasterCondition> conditions, Func<DisasterCondition, bool> match)
     {
-        if (!conditions.TryGetValue(out var rows))
-        {
-            return Unknown<long>();
-        }
         long longest = 0;
-        foreach (var c in rows)
+        foreach (var c in conditions)
         {
             if (match(c) && c.Duration is ConditionDuration.Timed { Ticks: var ticks })
             {
                 longest = Math.Max(longest, ticks);
             }
         }
-        return Known(longest);
+        return longest;
     }
 
     /// <summary>
@@ -255,28 +243,22 @@ public static class DisasterRules
     /// until it ends, so power and refrigeration development is suspended (the goals stay open with no method)
     /// rather than answered with generators or coolers for an outage measured in hours.
     /// </summary>
-    public static bool PowerOutageHold(Fact<EquatableArray<DisasterCondition>> conditions) =>
-        ConditionRemaining(conditions, c => c.DisablesPower).TryGetValue(out var ticks) && ticks > 0;
+    public static bool PowerOutageHold(EquatableArray<DisasterCondition> conditions) =>
+        ConditionRemaining(conditions, c => c.DisablesPower) > 0;
 
     /// <summary>
     /// Reports an active timed eclipse: the sky gives no light by day for as long as it lasts, so an unroofed work
     /// cell measured dark is a lighting deficit a torch answers rather than the nightly flap the roofed-only census avoids.
     /// </summary>
-    public static bool EclipseHold(Fact<EquatableArray<DisasterCondition>> conditions) =>
-        ConditionRemainingTicks(conditions, ConditionEclipse).TryGetValue(out var ticks) && ticks > 0;
+    public static bool EclipseHold(EquatableArray<DisasterCondition> conditions) =>
+        ConditionRemainingTicks(conditions, ConditionEclipse) > 0;
 
     /// <summary>
     /// Reports that the sky gives no light by day: an eclipse (see EclipseHold) or a biome whose map conditions
-    /// black the sky out for good (outdoorsDark). It is unknown while outdoorsDark is: an unread biome is never assumed lit.
+    /// black the sky out for good (outdoorsDark).
     /// </summary>
-    public static Fact<bool> SkyDarkHold(Fact<EquatableArray<DisasterCondition>> conditions, Fact<bool> outdoorsDark)
-    {
-        if (!outdoorsDark.TryGetValue(out var dark))
-        {
-            return Unknown<bool>();
-        }
-        return Known(dark || EclipseHold(conditions));
-    }
+    public static bool SkyDarkHold(EquatableArray<DisasterCondition> conditions, bool outdoorsDark) =>
+        outdoorsDark || EclipseHold(conditions);
 
     /// <summary>
     /// Lists measured ordinary work: a broken-down building, a building below its maximum hit points and a
@@ -334,37 +316,30 @@ public static class DisasterRules
     /// and retains it through Manual. Throws on an invalid observation.
     /// </summary>
     public static DisasterHistory? ReviewDisaster(
-        Fact<EquatableArray<DisasterCondition>> conditions,
-        Fact<EquatableArray<RecoveryBuilding>> buildings,
+        EquatableArray<DisasterCondition> currentRows,
+        EquatableArray<RecoveryBuilding> rows,
         IReadOnlyDictionary<DisasterService, Fact<bool>> services,
         DisasterHistory? previous,
         Tick tick,
-        params Fact<Tick>[] shortCircuit)
+        DisasterShortCircuit shortCircuit)
     {
         previous?.Validate();
         if (tick.Value < 0 || (previous is not null && tick < previous.Observed))
         {
             throw new DomainException("stale disaster observation");
         }
-        if (shortCircuit.Length > 1)
-        {
-            throw new DomainException("too many short circuit observations");
-        }
-        var incident = new Tick(0);
         var newIncident = false;
-        if (shortCircuit.Length == 1)
+        var incident = new Tick(0);
+        if (shortCircuit is DisasterShortCircuit.Seen { Tick: var seenTick })
         {
-            var knownIncident = shortCircuit[0].TryGetValue(out incident);
-            if (knownIncident && (incident.Value < 0 || incident > tick))
+            incident = seenTick;
+            if (incident.Value < 0 || incident > tick)
             {
                 throw new DomainException("invalid short circuit observation");
             }
-            newIncident = knownIncident && (previous?.ShortCircuit is not DisasterShortCircuit.Seen { Tick: var last } || incident > last);
+            newIncident = previous?.ShortCircuit is not DisasterShortCircuit.Seen { Tick: var last } || incident > last;
         }
-        var census = buildings.TryGetValue(out var rows);
-        var pendingList = census ? RecoveryPending(rows).ToList() : [];
-        var known = conditions.TryGetValue(out var current);
-        var currentRows = known ? current : EquatableArray.From(new List<DisasterCondition>());
+        var pendingList = RecoveryPending(rows).ToList();
         var seenConditions = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in currentRows)
         {
@@ -378,14 +353,6 @@ public static class DisasterRules
             }
         }
         var h = previous;
-        if (!known)
-        {
-            if (h is not null && h.Phase != DisasterPhase.Restored)
-            {
-                h = h with { Phase = DisasterPhase.Unread, Observed = tick };
-            }
-            return h;
-        }
         if (h is not null && h.Phase == DisasterPhase.Restored)
         {
             if (currentRows.Count == 0 && !newIncident)
@@ -412,7 +379,7 @@ public static class DisasterRules
             shortCircuitSeen = previous.ShortCircuit;
         }
         var tracked = new HashSet<string>(h.Damaged, StringComparer.Ordinal);
-        if (newIncident && census)
+        if (newIncident)
         {
             foreach (var b in rows)
             {
@@ -429,13 +396,9 @@ public static class DisasterRules
                 tracked.Add(w.Building);
             }
         }
-        var infrastructure = Finding.Unclear;
-        if (census)
-        {
-            var whole = rows.ToDictionary(b => b.Id, Whole, StringComparer.Ordinal);
-            var recovered = pendingList.Count == 0 && tracked.All(id => whole.GetValueOrDefault(id));
-            infrastructure = recovered ? Finding.Met : Finding.Unmet;
-        }
+        var whole = rows.ToDictionary(b => b.Id, Whole, StringComparer.Ordinal);
+        var recovered = pendingList.Count == 0 && tracked.All(id => whole.GetValueOrDefault(id));
+        var infrastructure = recovered ? Finding.Met : Finding.Unmet;
         var evidence = new List<DisasterEvidence>();
         var affected = new HashSet<DisasterService>(h.Affected);
         bool deficit = false, unread = false;
@@ -474,7 +437,6 @@ public static class DisasterRules
             ShortCircuit = shortCircuitSeen,
             Observed = tick,
             Conditions = EquatableArray.From(currentRows.OrderBy(c => c.Id, StringComparer.Ordinal)),
-            WorkKnown = census,
             Work = EquatableArray.From(pendingList),
             Damaged = EquatableArray.From(tracked.OrderBy(id => id, StringComparer.Ordinal)),
             Services = EquatableArray.From(evidence),

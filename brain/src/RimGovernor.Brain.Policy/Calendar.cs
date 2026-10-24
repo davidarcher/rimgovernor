@@ -147,7 +147,7 @@ public static class CalendarRules
     /// waits for the pause to lift; while they do not, the pause plus the first harvest cycle stands in for a
     /// shorter seasonal wait. A pause on an unknown calendar is the whole gap.
     /// </summary>
-    public static Fact<double> HarvestGapDays(Fact<Calendar> calendar, Fact<EquatableArray<DisasterCondition>> conditions)
+    public static Fact<double> HarvestGapDays(Fact<Calendar> calendar, EquatableArray<DisasterCondition> conditions)
     {
         var pause = CropRiskRules.CropPauseDays(conditions);
         if (!calendar.TryGetValue(out var c) || !c.Valid())
@@ -183,7 +183,7 @@ public static class CalendarRules
     /// field are unchanged, an unknown calendar with no observed growth pause leaves the policy as
     /// configured, and the result still satisfies Validate.
     /// </summary>
-    public static RoundsPolicy Seasonal(this RoundsPolicy p, Fact<Calendar> calendar, Fact<EquatableArray<DisasterCondition>> conditions)
+    public static RoundsPolicy Seasonal(this RoundsPolicy p, Fact<Calendar> calendar, EquatableArray<DisasterCondition> conditions)
     {
         if (!HarvestGapDays(calendar, conditions).TryGetValue(out var gap) || gap <= 0 || p.FoodTargetDays <= 0)
         {

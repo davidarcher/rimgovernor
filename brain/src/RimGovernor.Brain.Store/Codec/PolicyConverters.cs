@@ -756,7 +756,6 @@ internal sealed class DisasterHistoryConverter : ObjectCodec<DisasterHistory>
             ShortCircuit = e.Has("ShortCircuitTick")
                 ? new DisasterShortCircuit.Seen(e.Get<Tick>("ShortCircuitTick", o))
                 : new DisasterShortCircuit.NoneSeen(),
-            WorkKnown = e.Bool("WorkKnown"),
             Work = e.Get<EquatableArray<RecoveryWork>>("Work", o),
             Started = e.Get<Tick>("Started", o),
             Observed = e.Get<Tick>("Observed", o),
@@ -773,7 +772,6 @@ internal sealed class DisasterHistoryConverter : ObjectCodec<DisasterHistory>
         {
             w.Put("ShortCircuitTick", seen.Tick, o);
         }
-        w.WriteBoolean("WorkKnown", v.WorkKnown);
         w.Put("Work", v.Work, o);
         w.Put("Started", v.Started, o);
         w.Put("Observed", v.Observed, o);

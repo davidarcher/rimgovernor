@@ -102,8 +102,8 @@ public static class QuestPeaceTalksPolicy
         var sk = f.QuestSparePawns.TryGetValue(out var spare);
         var dk = f.QuestDeparturePawns.TryGetValue(out var departures);
         var ck = f.DefenseCapacity.TryGetValue(out var capacity);
-        var rk = f.RaidPoints.TryGetValue(out var raid);
-        if (!sk || !dk || !ck || !rk || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
+        var raid = f.RaidPoints;
+        if (!sk || !dk || !ck || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
         {
             return (default, "capacity_unknown");
         }

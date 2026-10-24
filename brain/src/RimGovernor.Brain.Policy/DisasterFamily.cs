@@ -12,9 +12,6 @@ public sealed record DisasterFacts
     /// <summary>The review's disaster history; null when none was observed, or none is open after a restore.</summary>
     public DisasterHistory? Disaster { get; init; }
 
-    /// <summary>Whether the environmental conditions were read: a missing history is met only then.</summary>
-    public bool ConditionsKnown { get; init; }
-
     /// <summary>The recovery census: area restrictions, workers and the buildings the services restore.</summary>
     public RecoveryPlanning Planning { get; init; } = new();
 
@@ -36,7 +33,6 @@ public sealed record DisasterFacts
         {
             Changes = EquatableArray.From(ShelterRules.PlanSheltering(f)),
             Disaster = history,
-            ConditionsKnown = f.DisasterConditions.IsKnown,
             Planning = new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.RecoveryWorkers, Buildings = f.RecoveryBuildings },
         };
     }
@@ -69,7 +65,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [FactFamily.Pawns, FactFamily.Emergency, FactFamily.Colony];
 
-    public IReadOnlyList<Need> Derive(DisasterFacts facts) => [.. DeriveSeriousHarm(facts), ServicesNeed(facts.Disaster, facts.ConditionsKnown)];
+    public IReadOnlyList<Need> Derive(DisasterFacts facts) => [.. DeriveSeriousHarm(facts), ServicesNeed(facts.Disaster)];
 
     /// <summary>Sheltering, the SeriousHarm Need.</summary>
     public IReadOnlyList<Need> DeriveSeriousHarm(DisasterFacts facts) => [ShelteringNeed(facts.Changes)];
@@ -90,16 +86,11 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     }
 
     /// <summary>
-    /// The disaster history's finding (<see cref="RecoveryRules.RecoveryNeed"/>): a missing history is met when the
-    /// conditions were read; unread conditions or an unclear finding raise <see cref="RequiredFactException"/>. It waits
-    /// on sheltering.
+    /// The disaster history's finding (<see cref="RecoveryRules.RecoveryNeed"/>): a missing history is met; an unclear
+    /// finding raises <see cref="RequiredFactException"/>. It waits on sheltering.
     /// </summary>
-    public static Need ServicesNeed(DisasterHistory? history, bool conditionsKnown)
+    public static Need ServicesNeed(DisasterHistory? history)
     {
-        if (history is null && !conditionsKnown)
-        {
-            throw new RequiredFactException("disaster conditions");
-        }
         var finding = RecoveryRules.RecoveryNeed(history);
         if (finding == Finding.Unclear)
         {

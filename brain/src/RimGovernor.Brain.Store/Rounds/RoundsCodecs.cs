@@ -79,19 +79,12 @@ public sealed class ResourceRunwayRecordConverter : ObjectCodec<ResourceRunwayRe
 public sealed class RoundsRecoveryRestrictionConverter : ObjectCodec<RoundsRecoveryRestriction>
 {
     protected override RoundsRecoveryRestriction Read(JsonElement e, Codecs o) =>
-        new(new PawnId(e.Str("Pawn")), e.Has("Area") ? e.Str("Area") : null);
+        new(new PawnId(e.Str("Pawn")), e.Str("Area"));
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsRecoveryRestriction v, Codecs o)
     {
         w.WriteString("Pawn", v.Pawn.Value);
-        if (v.Area is null)
-        {
-            w.WriteNull("Area");
-        }
-        else
-        {
-            w.WriteString("Area", v.Area);
-        }
+        w.WriteString("Area", v.Area);
     }
 }
 
@@ -228,9 +221,9 @@ public sealed class RoundsRecoveryConverter : ObjectCodec<RoundsRecovery>
             Need = new NeedId(e.Str("Need")),
             World = e.Get<World>("World", o),
             Used = e.GetOr("Used", default(EquatableArray<MethodId>), o),
-            Safety = e.GetNullableRef<RoundsRecoverySafety>("Safety", o),
+            Safety = e.Get<RoundsRecoverySafety>("Safety", o),
             Workers = e.GetNullable<EquatableArray<RoundsRecoveryWorker>>("Workers", o),
-            Buildings = e.GetNullable<EquatableArray<RoundsRecoveryBuilding>>("Buildings", o),
+            Buildings = e.Get<EquatableArray<RoundsRecoveryBuilding>>("Buildings", o),
             Selection = e.Get<RecoverySelection>("Selection", o),
         };
 
@@ -239,9 +232,9 @@ public sealed class RoundsRecoveryConverter : ObjectCodec<RoundsRecovery>
         w.WriteString("Need", v.Need.Value);
         w.Put("World", v.World, o);
         w.Put("Used", v.Used, o);
-        w.PutNullableRef("Safety", v.Safety, o);
+        w.Put("Safety", v.Safety, o);
         w.PutNullable("Workers", v.Workers, o);
-        w.PutNullable("Buildings", v.Buildings, o);
+        w.Put("Buildings", v.Buildings, o);
         w.Put("Selection", v.Selection, o);
     }
 }

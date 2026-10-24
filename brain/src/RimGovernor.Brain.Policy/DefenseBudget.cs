@@ -15,15 +15,11 @@ public readonly record struct RaidDefense(double RaidPoints, double Capacity)
     /// </summary>
     public static RaidDefense Of(RoundsFacts f)
     {
-        if (!f.RaidPoints.TryGetValue(out var raid))
-        {
-            throw new RequiredFactException("raid_points");
-        }
         if (!f.DefenseCapacity.TryGetValue(out var have))
         {
             throw new RequiredFactException("defense_capacity");
         }
-        return new RaidDefense(raid, have);
+        return new RaidDefense(f.RaidPoints, have);
     }
 }
 

@@ -155,14 +155,10 @@ public sealed class RoomsRounds
     internal static RoomsFacts Facts(ColonyProjection projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
     {
         var lighting = Unknown<LightingReview>();
-        var sky = DisasterRules.SkyDarkHold(projection.Facts.DisasterConditions, projection.Facts.OutdoorsDark);
-        if (!projection.Facts.Upkeep.Lighting.IsKnown || sky.IsKnown)
+        var review = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
+        if (review.Known)
         {
-            var review = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
-            if (review.Known)
-            {
-                lighting = Known(review);
-            }
+            lighting = Known(review);
         }
         var floors = Unknown<FlooringReview>();
         var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);

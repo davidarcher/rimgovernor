@@ -618,8 +618,8 @@ public sealed class ForecastValueTests
     [Fact]
     public void AnUnobservedInputNamesItsOwnFinding()
     {
-        Assert.Contains("raid_points_unobserved", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts()).Raid }).Findings);
-        Assert.Contains("defense_capacity_unobserved", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { RaidPoints = Known(1000d) }).Raid }).Findings);
+        Assert.Contains("raid_points_unobserved", Harmed(Cloth, RaidDay() with { Raid = new HarmInputs().Raid }).Findings);
+        Assert.Contains("defense_capacity_unobserved", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { RaidPoints = 1000d }).Raid }).Findings);
         Assert.Contains("threat_schedule_unknown", Harmed(Cloth, RaidDay() with { Schedule = new() }).Findings);
         Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new RaidComposition.Uncomposed() }).Findings);
         var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));

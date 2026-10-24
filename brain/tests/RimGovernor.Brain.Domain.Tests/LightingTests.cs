@@ -47,7 +47,7 @@ public sealed class LightingTests
         };
         var observation = new LightingObservation { Census = census, DiesToLight = ["Plant_Agarilux"], Lamps = [] };
 
-        var review = LightingRules.ReviewLighting(Fact.Known(observation), LightingPolicy.Default(), Fact.Known(false));
+        var review = LightingRules.ReviewLighting(Fact.Known(observation), LightingPolicy.Default(), false);
 
         Assert.Equal(["bench-a"], review.Dark);
     }

@@ -62,17 +62,12 @@ public sealed record HarmInputs
     /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
     internal static HarmInputs Of(RoundsFacts facts)
     {
-        const string NoPoints = "raid_points_unobserved";
-        var observed = facts.RaidPoints.TryGetValue(out var points);
-        HarmRaid raid = !observed ? new HarmRaid.Unassessed(NoPoints)
-            : facts.DefenseCapacity.TryGetValue(out var capacity) ? new HarmRaid.Assessed(new RaidDefense(points, capacity))
+        var points = facts.RaidPoints;
+        HarmRaid raid = facts.DefenseCapacity.TryGetValue(out var capacity) ? new HarmRaid.Assessed(new RaidDefense(points, capacity))
             : new HarmRaid.Unassessed("defense_capacity_unobserved");
-        RaidComposition composition = !observed ? new RaidComposition.Uncomposed { Findings = [NoPoints] }
-            : facts.HostileFactions.TryGetValue(out var factions) ? RaidCompositionRules.Of(points, [.. factions], facts.HarmCatalog.Raid)
-            : new RaidComposition.Uncomposed { Findings = ["raid_hostile_factions_unobserved"] };
+        RaidComposition composition = RaidCompositionRules.Of(points, [.. facts.HostileFactions], facts.HarmCatalog.Raid);
         var schedule = !facts.Storyteller.TryGetValue(out var storyteller) ? ThreatSchedule.Unobserved("storyteller_unobserved")
             : !facts.DaysPassed.TryGetValue(out var days) ? ThreatSchedule.Unobserved("days_passed_unobserved")
-            : !observed ? ThreatSchedule.Unobserved(NoPoints)
             : ThreatSchedule.Of(facts.ThreatTable, storyteller, days, points);
         return new()
         {

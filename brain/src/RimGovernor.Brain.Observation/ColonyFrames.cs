@@ -6,14 +6,10 @@ public static class ColonyFramesReads
 {
     /// <summary>
     /// The frame's active game conditions, each with what its def row says (a condition the catalog has no row
-    /// for throws); known is false when the frame could not read the environment.
+    /// for throws).
     /// </summary>
-    internal static (EquatableArray<DisasterCondition> Conditions, bool Known) ColonyConditions(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
+    internal static EquatableArray<DisasterCondition> ColonyConditions(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        if (ColonyDecodeReads.HasIssue(v.Issues, "environment"))
-        {
-            return ([], false);
-        }
         var conditions = new List<DisasterCondition>(v.Environment.Count);
         foreach (var row in v.Environment)
         {
@@ -25,40 +21,26 @@ public static class ColonyFramesReads
                 DisablesPower = ColonyDecodeReads.RequireCatalog(catalog).DisablesElectricity(row.DefName),
             });
         }
-        return (EquatableArray.From(conditions), true);
+        return EquatableArray.From(conditions);
     }
 
     /// <summary>
     /// Whether the frame's biome keeps the sky dark for good (its map conditions' class family). No catalog to
     /// read its conditions from throws, as does a biome the catalog has no row for: lit is never assumed.
     /// </summary>
-    internal static Fact<bool> ColonyOutdoorsDark(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
-    {
-        if (catalog is null)
-        {
-            throw new OutdoorsDarkUnknownException();
-        }
-        return Known(catalog.OutdoorsPermanentlyDark(v.Biome));
-    }
+    internal static bool ColonyOutdoorsDark(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog) =>
+        (catalog ?? throw new OutdoorsDarkUnknownException()).OutdoorsPermanentlyDark(v.Biome);
 
-    internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, EquatableArray<DisasterCondition> conditions, bool conditionsKnown)
+    internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, EquatableArray<DisasterCondition> conditions)
     {
-        if (conditionsKnown)
-        {
-            facts = facts with { DisasterConditions = Known(conditions) };
-        }
-        facts = facts with { DisasterTick = new Tick((long)(v.Context?.Tick ?? 0)) };
+        facts = facts with { DisasterConditions = conditions, DisasterTick = new Tick((long)(v.Context?.Tick ?? 0)) };
         var recovery = v.Recovery;
-        if (!ColonyDecodeReads.Resolved(buildings, recovery.Buildings, r => r))
-        {
-            return facts;
-        }
         var restrictions = new List<RecoveryRestriction>();
         foreach (var restriction in recovery.Restrictions)
         {
             restrictions.Add(new RecoveryRestriction(new PawnId(restriction.Pawn.Id), restriction.AreaId ?? ""));
         }
-        facts = facts with { RecoverySafety = Known(new RecoverySafety { Restrictions = EquatableArray.From(restrictions) }) };
+        facts = facts with { RecoverySafety = new RecoverySafety { Restrictions = EquatableArray.From(restrictions) } };
         var rows = new List<RecoveryBuilding>(recovery.Buildings.Count);
         foreach (var reference in recovery.Buildings)
         {
@@ -79,7 +61,7 @@ public static class ColonyFramesReads
                     : new RecoveryFuel.NotRefuelable(),
             });
         }
-        return facts with { RecoveryBuildings = Known(EquatableArray.From(rows)) };
+        return facts with { RecoveryBuildings = EquatableArray.From(rows) };
     }
 
     internal static Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers(Fact<EquatableArray<MoodPawn>> pawns)

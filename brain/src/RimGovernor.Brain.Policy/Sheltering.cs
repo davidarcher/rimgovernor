@@ -139,20 +139,17 @@ public static partial class ShelterRules
     /// </summary>
     public static (ShelterTrigger Trigger, bool Known) ShelterTriggerOf(RoundsFacts f)
     {
-        var ck = f.DisasterConditions.TryGetValue(out var conditions);
+        var conditions = f.DisasterConditions;
         var weather = false;
-        if (ck)
+        foreach (var c in conditions)
         {
-            foreach (var c in conditions)
+            if (c.Definition == DisasterRules.ConditionToxicFallout)
             {
-                if (c.Definition == DisasterRules.ConditionToxicFallout)
-                {
-                    return (ShelterTrigger.Fallout, true);
-                }
-                if (c.Definition == DisasterRules.ConditionColdSnap || c.Definition == DisasterRules.ConditionHeatWave)
-                {
-                    weather = true;
-                }
+                return (ShelterTrigger.Fallout, true);
+            }
+            if (c.Definition == DisasterRules.ConditionColdSnap || c.Definition == DisasterRules.ConditionHeatWave)
+            {
+                weather = true;
             }
         }
         var tempKnown = true;
@@ -172,7 +169,7 @@ public static partial class ShelterRules
         {
             return (ShelterTrigger.Threat, true);
         }
-        return (ShelterTrigger.None, ck && tempKnown && hk);
+        return (ShelterTrigger.None, tempKnown && hk);
     }
 
     /// <summary>
@@ -187,15 +184,13 @@ public static partial class ShelterRules
     /// </summary>
     public static List<AllowedAreaChange> PlanSheltering(RoundsFacts f)
     {
-        f.ShelterArea.TryGetValue(out var safe);
-        safe ??= "";
+        var safe = f.ShelterArea;
         var (trigger, tk) = ShelterTriggerOf(f);
         if (!tk)
         {
             return [];
         }
-        f.NoDangerArea.TryGetValue(out var noKill);
-        noKill ??= "";
+        var noKill = f.NoDangerArea;
         var windowKnown = f.DangerWindow.TryGetValue(out var window);
         var hk = f.DangerHaulers.TryGetValue(out var haulerRows);
         var haulers = new HashSet<PawnId>();
@@ -254,9 +249,9 @@ public static partial class ShelterRules
             }
         }
 
-        var known = f.RecoverySafety.TryGetValue(out var safety);
+        var safety = f.RecoverySafety;
         var wk = f.RecoveryWorkers.TryGetValue(out var workers);
-        if (known && wk)
+        if (wk)
         {
             foreach (var worker in workers)
             {
@@ -266,7 +261,7 @@ public static partial class ShelterRules
                 }
                 // A threat shelters only pawns known outside the draft set.
                 var shelter = trigger != ShelterTrigger.None && (trigger != ShelterTrigger.Threat || (combatants is not null && !combatants.Contains(worker.Pawn)));
-                foreach (var restriction in safety!.Restrictions)
+                foreach (var restriction in safety.Restrictions)
                 {
                     if (restriction.Pawn == worker.Pawn)
                     {
@@ -299,10 +294,10 @@ public static partial class ShelterRules
     public static bool ShelterHeld(RoundsFacts f)
     {
         var (trigger, tk) = ShelterTriggerOf(f);
-        var sk = f.ShelterArea.TryGetValue(out var safe);
-        var known = f.RecoverySafety.TryGetValue(out var safety);
+        var safe = f.ShelterArea;
+        var safety = f.RecoverySafety;
         var wk = f.RecoveryWorkers.TryGetValue(out var workers);
-        if (!tk || trigger != ShelterTrigger.Threat || !sk || string.IsNullOrEmpty(safe) || !known || !wk)
+        if (!tk || trigger != ShelterTrigger.Threat || string.IsNullOrEmpty(safe) || !wk)
         {
             return false;
         }
@@ -314,7 +309,7 @@ public static partial class ShelterRules
                 continue;
             }
             var inside = false;
-            foreach (var restriction in safety!.Restrictions)
+            foreach (var restriction in safety.Restrictions)
             {
                 if (restriction.Pawn == worker.Pawn)
                 {

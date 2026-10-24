@@ -209,23 +209,17 @@ public static class LightingRules
     /// well above the threshold, and unroofed cells are skipped because sky glow would flap the latch with the day,
     /// except while the sky is dark (an eclipse, or a permanently dark biome), when the day is as dark as the night
     /// and every work cell is measured. A light-sensitive cell (its room grows cave fungus) is never dark: lighting
-    /// it would kill the crop. An unknown census measures nothing (Known false). An unknown sky (the biome was not
-    /// read) throws once a census is measured, never assumed lit.
+    /// it would kill the crop. An unknown census measures nothing (Known false).
     /// </summary>
-    public static LightingReview ReviewLighting(Fact<LightingObservation> fact, LightingPolicy p, Fact<bool> skyDarkFact)
+    public static LightingReview ReviewLighting(Fact<LightingObservation> fact, LightingPolicy p, bool skyDark)
     {
         if (!p.IsValid())
         {
             throw new DomainException("invalid lighting policy");
         }
-        var skyKnown = skyDarkFact.TryGetValue(out var skyDark);
         if (!fact.TryGetValue(out var v))
         {
             return new LightingReview { SkyDark = skyDark };
-        }
-        if (!skyKnown)
-        {
-            throw new DomainException("outdoors darkness is unknown");
         }
         var dark = new List<string>();
         foreach (var c in v.Census.WorkCells)

@@ -24,9 +24,8 @@ internal static class RoundsCreepJoiner
             {
                 due = true;
             }
-            facts.Facts.IsolationArea.TryGetValue(out var area);
             var projection = facts with { Isolation = CreepJoinerIsolation(facts, frame, catalog, record) };
-            var isolation = downsides.IsolationMoves(hands, inspections.Record, area ?? "", IsolationReady(projection));
+            var isolation = downsides.IsolationMoves(hands, inspections.Record, facts.Facts.IsolationArea, IsolationReady(projection));
             if (isolation.Count > 0)
             {
                 due = true;

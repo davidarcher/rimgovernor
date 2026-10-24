@@ -5,8 +5,8 @@ using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoi
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>A persisted pawn's area restriction; an unknown area persists as null.</summary>
-public sealed record RoundsRecoveryRestriction(PawnId Pawn, string? Area);
+/// <summary>A persisted pawn's area restriction: the area's load id, or empty when the pawn is unrestricted.</summary>
+public sealed record RoundsRecoveryRestriction(PawnId Pawn, string Area);
 
 /// <summary>The persisted recovery safety evidence.</summary>
 public sealed record RoundsRecoverySafety
@@ -83,7 +83,7 @@ public sealed record RoundsRecoveryBuilding
 
 /// <summary>
 /// Retains the exact inputs for reproducible proposal readback. Nullable values are storage boundaries, not known
-/// zero/false domain observations. It is keyed by the Need it serves and that Need's
+/// zero/false domain observations; a null worker census is unread. It is keyed by the Need it serves and that Need's
 /// world (#3304); a record an older journal keyed by its incident is dropped on load.
 /// </summary>
 public sealed record RoundsRecovery
@@ -97,30 +97,23 @@ public sealed record RoundsRecovery
     /// <summary>The Need's bound Methods whose plans are not retired, once each in id order: the MethodIds the selection skips.</summary>
     public EquatableArray<MethodId> Used { get; init; }
 
-    /// <summary>Null when the safety census was unknown.</summary>
-    public RoundsRecoverySafety? Safety { get; init; }
+    public RoundsRecoverySafety Safety { get; init; } = new();
 
     /// <summary>Null when the worker census was unknown.</summary>
     public EquatableArray<RoundsRecoveryWorker>? Workers { get; init; }
 
-    /// <summary>Null when the building census was unknown.</summary>
-    public EquatableArray<RoundsRecoveryBuilding>? Buildings { get; init; }
+    public EquatableArray<RoundsRecoveryBuilding> Buildings { get; init; }
 
     public RecoverySelection Selection { get; init; } = new();
 
     /// <summary>The planning facts this record retains, lifted back into policy terms.</summary>
     internal RecoveryPlanning Planning()
     {
-        var planning = new RecoveryPlanning();
-        if (Safety is { } safety)
+        var planning = new RecoveryPlanning
         {
-            planning = planning with
-            {
-                Safety = Fact.Known(
-                    new RecoverySafety { Restrictions = EquatableArray.From(safety.Restrictions.Select(v => new RecoveryRestriction(v.Pawn, v.Area ?? ""))) }
-                ),
-            };
-        }
+            Safety = new RecoverySafety { Restrictions = EquatableArray.From(Safety.Restrictions.Select(v => new RecoveryRestriction(v.Pawn, v.Area))) },
+            Buildings = EquatableArray.From(Buildings.Select(v => v.Building())),
+        };
         if (Workers is { } workers)
         {
             planning = planning with
@@ -140,13 +133,6 @@ public sealed record RoundsRecovery
                 ),
             };
         }
-        if (Buildings is { } buildings)
-        {
-            planning = planning with
-            {
-                Buildings = Fact.Known(EquatableArray.From(buildings.Select(v => v.Building()))),
-            };
-        }
         return planning;
     }
 }
@@ -156,17 +142,14 @@ public sealed partial class Store
     /// <summary>The retained planning inputs, with no Need, used methods or selection yet.</summary>
     internal static RoundsRecovery RecoveryRecord(RecoveryPlanning p)
     {
-        var r = new RoundsRecovery();
-        if (p.Safety.TryGetValue(out var safety))
+        var r = new RoundsRecovery
         {
-            r = r with
+            Safety = new RoundsRecoverySafety
             {
-                Safety = new RoundsRecoverySafety
-                {
-                    Restrictions = EquatableArray.From(safety.Restrictions.Select(v => new RoundsRecoveryRestriction(v.Pawn, v.Area))),
-                },
-            };
-        }
+                Restrictions = EquatableArray.From(p.Safety.Restrictions.Select(v => new RoundsRecoveryRestriction(v.Pawn, v.Area))),
+            },
+            Buildings = EquatableArray.From(p.Buildings.Select(RoundsRecoveryBuilding.Of)),
+        };
         if (p.Workers.TryGetValue(out var workers))
         {
             r = r with
@@ -182,13 +165,6 @@ public sealed partial class Store
                         PlayerForced = v.PlayerForced,
                     })
                 ),
-            };
-        }
-        if (p.Buildings.TryGetValue(out var buildings))
-        {
-            r = r with
-            {
-                Buildings = EquatableArray.From(buildings.Select(RoundsRecoveryBuilding.Of)),
             };
         }
         return r;

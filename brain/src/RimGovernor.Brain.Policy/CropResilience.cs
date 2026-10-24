@@ -96,11 +96,11 @@ public static class CropResilienceRules
     {
         var unit = SiteRules.CropRate(crop, 1) * cells;
         var terms = new List<FarmSiteTerm>();
-        if (CropRiskRules.ToxicFalloutActive(r.Conditions).TryGetValue(out var fallout) && fallout)
+        if (CropRiskRules.ToxicFalloutActive(r.Conditions))
         {
             terms.Add(new FarmSiteTerm("risk-fallout", 2 * unit));
         }
-        if (CalendarRules.HarvestGapDays(r.Calendar, Known(EquatableArray.From<DisasterCondition>([]))).TryGetValue(out var gap) && gap > 0)
+        if (CalendarRules.HarvestGapDays(r.Calendar, []).TryGetValue(out var gap) && gap > 0)
         {
             terms.Add(new FarmSiteTerm("risk-frost", 2 * unit * Math.Min(1, gap / Math.Max(1, r.ReserveDays))));
         }

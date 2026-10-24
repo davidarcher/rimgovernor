@@ -12,12 +12,11 @@ public static partial class WealthBudgetRules
     /// may grow by that much, negative means shed it. Raid points are floored at 35. Any unknown, non-finite or
     /// negative input leaves the budget unknown.
     /// </summary>
-    public static Fact<double> WealthBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<WealthFacts> wealth)
+    public static Fact<double> WealthBudget(double points, Fact<double> capacity, Fact<WealthFacts> wealth)
     {
-        var pk = raidPoints.TryGetValue(out var points);
         var ck = capacity.TryGetValue(out var strength);
         var wk = wealth.TryGetValue(out var w);
-        if (!pk || !ck || !wk || !TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
+        if (!ck || !wk || !TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
         {
             return Unknown<double>();
         }
