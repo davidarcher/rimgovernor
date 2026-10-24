@@ -188,14 +188,14 @@ public static class FoodReserveRules
     /// bill is selected while the runway is short (the food is to be eaten, not cooked ahead). Matching bills are
     /// corrected under Auto; unrelated recipes are retained.
     /// </summary>
-    public static (BillSelection Selection, bool Ok) SelectReserveBill(Fact<EquatableArray<ProductionBench>> benches, FoodReserveReview reserve)
+    public static (BillSelection Selection, bool Ok) SelectReserveBill(IReadOnlyList<ProductionBench> benches, FoodReserveReview reserve)
     {
-        if (!benches.TryGetValue(out var rows) || reserve.Emergency || reserve.IsShort || !FieldCapacityRules.FieldPositive(reserve.DeficitNutrition) || !FieldCapacityRules.FieldPositive(reserve.TargetNutrition))
+        if (reserve.Emergency || reserve.IsShort || !FieldCapacityRules.FieldPositive(reserve.DeficitNutrition) || !FieldCapacityRules.FieldPositive(reserve.TargetNutrition))
         {
             return (new BillSelection(), false);
         }
         return SelectTargetBill(
-            rows,
+            benches,
             new TargetBillSpec
             {
                 Family = p => ReserveFoodDefinition(new Resource(p.Name)),
@@ -235,22 +235,19 @@ public static class FoodReserveRules
             }
             foreach (var recipe in bench.Recipes)
             {
-                var ak = recipe.Available.TryGetValue(out var available);
-                if (!ak || !available || !FoodForecastRules.FoodId(recipe.Name) || recipe.Products.Count != 1)
+                if (!recipe.Available || !FoodForecastRules.FoodId(recipe.Name) || recipe.Products.Count != 1)
                 {
                     continue;
                 }
                 var product = recipe.Products[0];
                 var def = new Resource(product.Name);
-                var nk = product.Nutrition.TryGetValue(out var nutrition);
-                var ek = product.Edible.TryGetValue(out var edible);
-                if (!spec.Family(product) || !nk || !FieldCapacityRules.FieldPositive(nutrition) || !ek || !edible)
+                if (!spec.Family(product) || !product.EatenNutrition(out var nutrition) || !FieldCapacityRules.FieldPositive(nutrition))
                 {
                     continue;
                 }
                 var target = Math.Ceiling(spec.Target(def, nutrition));
                 // Native cannot finish a bill whose product has nowhere to go: cap the target at what storage accepting it can hold.
-                if (product.Storable.TryGetValue(out var storable) && target > storable)
+                if (product.Food is ProductFood.Food { Storable: var storable } && target > storable)
                 {
                     target = storable;
                 }

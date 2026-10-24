@@ -208,11 +208,7 @@ public static partial class MedicalRules
         var benches = benchRows.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         foreach (var b in benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (!GearRules.ContainsResource(bill.Products, r.Resource))
                 {
@@ -226,25 +222,11 @@ public static partial class MedicalRules
         }
         foreach (var b in benches)
         {
-            if (!b.Recipes.TryGetValue(out var recipeRows))
+            foreach (var recipe in b.Recipes.OrderBy(x => x.Definition, StringComparer.Ordinal))
             {
-                return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
-            }
-            foreach (var recipe in recipeRows.OrderBy(x => x.Definition, StringComparer.Ordinal))
-            {
-                if (!GearRules.ContainsResource(recipe.Products, r.Resource))
+                if (!GearRules.ContainsResource(recipe.Products, r.Resource) || !recipe.Available || !recipe.AvailableOn)
                 {
                     continue;
-                }
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                if ((ak && !available) || (ok && !on))
-                {
-                    continue;
-                }
-                if (!ak || !ok)
-                {
-                    return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
                 }
                 var id = MedicineMethodId(r.Resource, b.Id, recipe.Definition);
                 if (seen.Contains(id))

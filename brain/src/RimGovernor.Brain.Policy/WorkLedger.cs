@@ -299,19 +299,19 @@ public static partial class WorkRules
         && (wanted.Ingredients.Count == 0 || actual.Ingredients.All(wanted.Ingredients.Contains));
 
     /// <summary>
-    /// Reads the benches' bills in the ledger's terms. It is unknown (Ok false) when any bench's bills, or any
-    /// bill's spec, was unread: a diff against a partial readback would place duplicates and remove wanted bills.
+    /// Reads the benches' bills in the ledger's terms. Ok is false when a bench's definition or a bill's id is
+    /// empty: a diff against a partial readback would place duplicates and remove wanted bills.
     /// </summary>
     public static (IReadOnlyList<ActualBill> Bills, bool Ok) LedgerActuals(IReadOnlyList<GearBench> benches)
     {
         var output = new List<ActualBill>();
         foreach (var bench in benches)
         {
-            if (!bench.Bills.TryGetValue(out var bills) || bench.Def.Length == 0)
+            if (bench.Def.Length == 0)
             {
                 return ([], false);
             }
-            foreach (var bill in bills)
+            foreach (var bill in bench.Bills)
             {
                 if (bill.Id.Length == 0)
                 {
@@ -332,7 +332,7 @@ public static partial class WorkRules
 
     /// <summary>
     /// Assigns each order (one entry per wanted copy) to an eligible bench (EligibleBenches) that is not full and
-    /// does not already carry the order: the fastest bench by work speed, an unknown speed last, then the one
+    /// does not already carry the order: the fastest bench by work speed, then the one
     /// carrying the fewest bills, then by id. A bench is full when its readback bill count reaches LedgerBenchSlots.
     /// Placements earlier in the same plan count. Orders no bench can take are returned unplaced.
     /// </summary>
@@ -343,25 +343,15 @@ public static partial class WorkRules
         var speed = new Dictionary<string, double>();
         foreach (var b in benches)
         {
-            if (b.Bills.TryGetValue(out var bills))
+            load[b.Id] = b.Bills.Count;
+            foreach (var bill in b.Bills)
             {
-                load[b.Id] = bills.Count;
-                foreach (var bill in bills)
+                if (!bill.Spent)
                 {
-                    if (!bill.Spent)
-                    {
-                        carries.Add((b.Id, bill.Spec.Key()));
-                    }
+                    carries.Add((b.Id, bill.Spec.Key()));
                 }
             }
-            else
-            {
-                load[b.Id] = 0;
-            }
-            if (b.WorkSpeed.TryGetValue(out var s))
-            {
-                speed[b.Id] = s;
-            }
+            speed[b.Id] = b.WorkSpeed;
         }
         var sorted = benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
 
@@ -406,15 +396,11 @@ public static partial class WorkRules
         return (placed, unplaced);
     }
 
-    // Whether bench a beats b: higher known work speed, then fewer bills. Ids were visited in order, so a tie keeps the earlier bench.
+    // Whether bench a beats b: higher work speed, then fewer bills. Ids were visited in order, so a tie keeps the earlier bench.
     private static bool FasterBench(Dictionary<string, double> speed, Dictionary<string, int> load, string a, string b)
     {
-        var aKnown = speed.TryGetValue(a, out var sa);
-        var bKnown = speed.TryGetValue(b, out var sb);
-        if (aKnown != bKnown)
-        {
-            return aKnown;
-        }
+        var sa = speed[a];
+        var sb = speed[b];
         if (sa != sb)
         {
             return sa > sb;
@@ -424,19 +410,15 @@ public static partial class WorkRules
 
     internal static bool BenchOffers(GearBench b, string recipe)
     {
-        if (!b.Usable.TryGetValue(out var usable) || !usable)
+        if (!b.Usable)
         {
             return false;
         }
-        if (!b.Recipes.TryGetValue(out var recipes))
-        {
-            return false;
-        }
-        foreach (var r in recipes)
+        foreach (var r in b.Recipes)
         {
             if (r.Definition == recipe)
             {
-                return r.AvailableOn.TryGetValue(out var on) && on;
+                return r.AvailableOn;
             }
         }
         return false;

@@ -139,7 +139,7 @@ public sealed record ResourceMethodRequest
 
     public EquatableArray<MethodId> Seen { get; init; }
 
-    public Fact<EquatableArray<GearBench>> Benches { get; init; }
+    public EquatableArray<GearBench> Benches { get; init; }
 
     /// <summary>The catalog's craft recipes (RoundsFacts.Crafts): a resource no standing bench's recipe makes is produced by one with no bench (#3659).</summary>
     public EquatableArray<GearRecipe> Crafts { get; init; }
@@ -429,19 +429,11 @@ public static partial class ResourceRules
                 throw new DomainException("invalid resource method history");
             }
         }
-        if (!r.Benches.TryGetValue(out var knownBenches))
-        {
-            return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
-        }
-        GearRules.ValidateGearProduction(knownBenches);
-        var benches = knownBenches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
+        GearRules.ValidateGearProduction(r.Benches);
+        var benches = r.Benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         foreach (var b in benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (!GearRules.ContainsResource(bill.Products, r.Resource))
                 {
@@ -455,26 +447,11 @@ public static partial class ResourceRules
         }
         foreach (var b in benches)
         {
-            if (!b.Recipes.TryGetValue(out var knownRecipes))
+            foreach (var recipe in b.Recipes.OrderBy(x => x.Definition, StringComparer.Ordinal))
             {
-                return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
-            }
-            var recipes = knownRecipes.OrderBy(x => x.Definition, StringComparer.Ordinal).ToList();
-            foreach (var recipe in recipes)
-            {
-                if (!GearRules.ContainsResource(recipe.Products, r.Resource))
+                if (!GearRules.ContainsResource(recipe.Products, r.Resource) || !recipe.Available || !recipe.AvailableOn)
                 {
                     continue;
-                }
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                if ((ak && !available) || (ok && !on))
-                {
-                    continue;
-                }
-                if (!ak || !ok)
-                {
-                    return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
                 }
                 var id = ResourceMethodId(r.Resource, b.Id, recipe.Definition);
                 if (seen.Contains(id))
@@ -483,7 +460,7 @@ public static partial class ResourceRules
                 }
                 // A matching bill with an unreadable state or id leaves the method unknown; the first inactive
                 // one is the one the native replacement operation reuses.
-                foreach (var bill in b.Bills.Value)
+                foreach (var bill in b.Bills)
                 {
                     if (bill.Recipe != recipe.Definition)
                     {

@@ -44,7 +44,7 @@ public sealed record WorkshopRequest
 {
     public Resource Resource { get; init; }
 
-    public Fact<EquatableArray<GearBench>> Benches { get; init; }
+    public EquatableArray<GearBench> Benches { get; init; }
 
     public IReadOnlyList<RecipeHost> Hosts { get; init; } = [];
 
@@ -191,30 +191,16 @@ public static partial class WorkRules
         {
             throw new DomainException("invalid workshop resource");
         }
-        if (!r.Benches.TryGetValue(out var benches))
-        {
-            return new WorkshopChoice { Method = WorkshopMethod.Unknown };
-        }
         WorkshopChoice? reuse = null;
-        foreach (var b in benches)
+        foreach (var b in r.Benches)
         {
-            if (!b.Recipes.TryGetValue(out var recipes))
-            {
-                return new WorkshopChoice { Method = WorkshopMethod.Unknown };
-            }
-            foreach (var recipe in recipes)
+            foreach (var recipe in b.Recipes)
             {
                 if (!GearRules.ContainsResource(recipe.Products, r.Resource))
                 {
                     continue;
                 }
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                if (!ak || !ok)
-                {
-                    return new WorkshopChoice { Method = WorkshopMethod.Unknown };
-                }
-                if (available && on)
+                if (recipe.Available && recipe.AvailableOn)
                 {
                     var existing = new WorkshopChoice { Method = WorkshopMethod.Existing, Definition = "", Recipe = recipe.Definition };
                     if (!r.Further.Contains(b.Def))

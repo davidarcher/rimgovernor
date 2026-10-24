@@ -25,7 +25,7 @@ public sealed record ResourceOrderRequest
 
     public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
 
-    public Fact<EquatableArray<GearBench>> Benches { get; init; }
+    public EquatableArray<GearBench> Benches { get; init; }
 
     /// <summary>The catalog's craft recipes (RoundsFacts.Crafts), ordered with no bench kind when no standing bench makes a floor (#3659).</summary>
     public EquatableArray<GearRecipe> Crafts { get; init; }
@@ -39,20 +39,16 @@ public static partial class ResourceRules
     /// is declared as it stands, which keeps it, so a floor whose stock recovered does not churn its bill.
     /// Bench choice is the ledger's: the order names the bench kind only, none for a catalog recipe no bench
     /// stands for (#3659). A floor with no producing recipe declares nothing (the planner's mining and sourcing
-    /// methods take it). Abstain while the stock census,
-    /// the bench readback or a bill's identity is unread. Throws <see cref="DomainException"/> on an invalid floor.
+    /// methods take it). Abstain while the stock census
+    /// or a bill's identity is unread. Throws <see cref="DomainException"/> on an invalid floor.
     /// </summary>
     public static Declared DeclareResourceOrders(ResourceOrderRequest r)
     {
         var knownStock = r.Stock.TryGetValue(out var stock);
-        var benchesKnown = r.Benches.TryGetValue(out var benches);
+        var benches = r.Benches;
         if (!knownStock)
         {
             return WorkRules.Abstaining(Cause.UnreadStock);
-        }
-        if (!benchesKnown)
-        {
-            return WorkRules.Abstaining(Cause.UnreadBenches);
         }
         var floors = r.Floors.OrderBy(f => f.Resource).ToList();
         var output = new Declared();
@@ -63,12 +59,7 @@ public static partial class ResourceRules
             {
                 throw new DomainException($"invalid resource floor \"{f.Resource}\" x{f.Target}");
             }
-            var (standing, active, unknown) = StandingResourceBills(benches, f.Resource);
-            if (unknown)
-            {
-                output = output.Unread(Cause.UnreadBills);
-                continue;
-            }
+            var (standing, active) = StandingResourceBills(benches, f.Resource);
             if (active || (!f.Reserve && stock!.GetValueOrDefault(f.Resource) >= f.Target))
             {
                 orders.AddRange(standing);
@@ -118,19 +109,15 @@ public static partial class ResourceRules
 
     /// <summary>
     /// The specs of the unspent bills that make resource, and whether one of them is active (still counting
-    /// toward its target). unknown is set while a bench's bills or a bill's identity is unread.
+    /// toward its target).
     /// </summary>
-    internal static (List<OrderSpec> Specs, bool Active, bool Unknown) StandingResourceBills(IReadOnlyList<GearBench> benches, Resource resource)
+    internal static (List<OrderSpec> Specs, bool Active) StandingResourceBills(IReadOnlyList<GearBench> benches, Resource resource)
     {
         var specs = new List<OrderSpec>();
         var active = false;
         foreach (var b in benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                return ([], false, true);
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (bill.Spent || bill.Kind != LedgerBillKind.Production || !GearRules.ContainsResource(bill.Products, resource))
                 {
@@ -140,6 +127,6 @@ public static partial class ResourceRules
                 specs.Add(bill.Spec);
             }
         }
-        return (specs, active, false);
+        return (specs, active);
     }
 }

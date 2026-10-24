@@ -265,7 +265,7 @@ public static class ArmoryRules
         var bestScore = 0.0;
         foreach (var recipe in recipes)
         {
-            if (!WeaponAssignmentRules.WeaponRecipe(recipe) || recipe.Armory > reach || !RoundsRules.Positive(recipe.Available) || !RoundsRules.Positive(recipe.AvailableOn))
+            if (!WeaponAssignmentRules.WeaponRecipe(recipe) || recipe.Armory > reach || !recipe.Available || !recipe.AvailableOn)
             {
                 continue;
             }

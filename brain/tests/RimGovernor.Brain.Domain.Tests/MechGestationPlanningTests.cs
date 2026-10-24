@@ -50,7 +50,7 @@ public sealed class MechGestationPlanningTests
         Chargers = [new MechCharger { Powered = true, FullOfWaste = false, Charging = false }],
     };
 
-    private static ProductionRecipe Recipe(string kind) => new() { Name = "Gestate" + kind, MechKind = kind, Available = Known(true), Food = new RecipeFood.NotFood() };
+    private static ProductionRecipe Recipe(string kind) => new() { Name = "Gestate" + kind, MechKind = kind, Available = true, Food = new RecipeFood.NotFood() };
 
     private static ProductionBench Gestator(params ProductionRecipe[] recipes) => new()
     {

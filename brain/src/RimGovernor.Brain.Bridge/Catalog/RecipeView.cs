@@ -372,7 +372,7 @@ public sealed partial class DefinitionCatalog
                 output.Add(row.Recipe);
                 continue;
             }
-            output.Add(row.Recipe with { Available = Known(true), RequiredWork = host.Work, Armory = host.Armory });
+            output.Add(row.Recipe with { Available = true, RequiredWork = host.Work, Armory = host.Armory });
         }
         return Domain.EquatableArray.From(output);
     }
@@ -419,8 +419,8 @@ public sealed partial class DefinitionCatalog
                 Definition = row.defName,
                 Role = RecipeRoleOf(row.defName),
                 Products = Domain.EquatableArray.From(products),
-                Available = Known(false),
-                AvailableOn = Known(true),
+                Available = false,
+                AvailableOn = true,
                 Ingredients = RecipeIngredients(row.defName),
                 RequiredWork = hosts[0].Work,
                 WorkAmount = RecipeWorkAmount(row.defName),

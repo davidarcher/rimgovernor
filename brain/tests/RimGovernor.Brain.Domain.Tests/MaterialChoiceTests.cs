@@ -48,8 +48,8 @@ public sealed class MaterialChoiceTests
                 StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Metal] = ["Stuff"], [Timber] = ["Stuff"] },
                 AcceptedStuff = new Dictionary<Resource, IReadOnlyList<string>> { [new("Sculpture")] = ["Stuff"] } } };
         var bench = new ProductionBench { Id = "bench-a", Usable = true, Token = "token",
-            Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = Known(true), Food = new RecipeFood.NotFood() }] };
-        var bill = Assert.Single(ArtRules.SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), 1L, [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
+            Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = true, Food = new RecipeFood.NotFood() }] };
+        var bill = Assert.Single(ArtRules.SelectArtBills([bench], 1L, [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
         Assert.Equal(new[] { Metal.Value, Timber.Value }, bill.Ingredients);
         var declared = Flexible with { Spec = Flexible.Spec with { Ingredients = EquatableArray.From(bill.Ingredients), Worker = bill.Worker } };
         var selected = LedgerMaterialChoicesRules.SelectLedgerMaterials([declared, Machine], View());

@@ -197,8 +197,11 @@ public sealed class BabyFoodDeclarer : IOrderDeclarer
             return new Declared();
         }
         var babies = projection.Facts.BabyFeeding.Value;
-        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists,
-            default(Fact<double>), default(Fact<double>), 1, new ProductionBillContext { BabyFeeding = babies });
+        if (!projection.ProductionBenches.TryGetValue(out var census))
+        {
+            return new Declared();
+        }
+        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, census, projection.Facts.Colonists, 0, 1, new ProductionBillContext { BabyFeeding = babies });
         return CareOrdersRules.DeclareSelection(selected, ok, benches);
     }
 }

@@ -210,8 +210,7 @@ public static class EssentialServicesRules
                 if (!bench.Usable) continue;
                 foreach (var recipe in bench.Recipes.Where(r => r.Role == RecipeRole.OrdinaryMeal).OrderBy(r => r.Name, StringComparer.Ordinal))
                 {
-                    if (!recipe.Available.IsKnown) { unknown = true; continue; }
-                    if (!recipe.Available.Value || recipe.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { CookSkillFloor: var floor } }) continue;
+                    if (!recipe.Available || recipe.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { CookSkillFloor: var floor } }) continue;
                     var capable = false;
                     foreach (var worker in workers.Where(w => "pawn/" + w.Id.Value != excluded))
                     {

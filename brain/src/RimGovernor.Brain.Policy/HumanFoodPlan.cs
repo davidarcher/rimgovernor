@@ -110,7 +110,7 @@ public static class HumanFoodPlanRules
             }
             foreach (var r in b.Recipes)
             {
-                if (!r.Available.ValueOrDefault)
+                if (!r.Available)
                 {
                     continue;
                 }
@@ -300,7 +300,7 @@ public static class HumanFoodPlanRules
             }
             foreach (var r in b.Recipes)
             {
-                if (!r.Available.ValueOrDefault || r.Products.Count != 1 || !r.Products[0].SurvivalMeal())
+                if (!r.Available || r.Products.Count != 1 || !r.Products[0].SurvivalMeal())
                 {
                     continue;
                 }
@@ -313,8 +313,7 @@ public static class HumanFoodPlanRules
                 {
                     continue;
                 }
-                var pk = r.Products[0].Nutrition.TryGetValue(out var pn);
-                if (r.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { NutrientEfficiency: var eff } } || !pk || !FieldCapacityRules.FieldPositive(eff) || !FieldCapacityRules.FieldPositive(pn))
+                if (r.Food is not RecipeFood.Food { Cooking: RecipeCooking.FromRaw { NutrientEfficiency: var eff } } || r.Products[0].Food is not ProductFood.Food { Nutrition: var pn } || !FieldCapacityRules.FieldPositive(eff) || !FieldCapacityRules.FieldPositive(pn))
                 {
                     continue;
                 }

@@ -325,12 +325,12 @@ namespace HomeBridge.BridgeTools
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
                 foreach (var recipe in recipes) {
                     row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
-                    var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
+                    var products = new List<Obs.FoodProduct>();
                     foreach(var product in recipe.products){
-                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Edible=humanFood(product.thingDef)};
-                        food = food with { Storable = NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored };
-                        production = production with { Products = [.. production.Products, food] };
+                        var capacity = NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored);
+                        products.Add(new Obs.FoodProduct { DefName = product.thingDef.defName, Edible = humanFood(product.thingDef), Storable = capacity + stored });
                     }
+                    var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe), Products = [.. products] };
                     row = row with { Production = [.. row.Production, production] };
                 }
                 for(var index=0;index<bench.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(bench.BillStack.Bills[index],index)] };

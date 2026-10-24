@@ -99,10 +99,11 @@ partial record struct RoundsProjectBill
         foreach (var bill in bills)
         {
             var exists = benches.TryGetValue(bill.Bench, out var bench);
-            if (!exists || !bench!.Recipes.TryGetValue(out var recipes))
+            if (!exists)
             {
                 return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
             }
+            var recipes = bench!.Recipes;
             var found = false;
             foreach (var recipe in recipes)
             {
@@ -186,13 +187,9 @@ partial record struct RoundsProjectBill
         var output = new List<Pol.WorkRequirement>();
         foreach (var row in census)
         {
-            if (!row.Bench.Recipes.TryGetValue(out var recipes))
+            foreach (var recipe in row.Bench.Recipes)
             {
-                continue;
-            }
-            foreach (var recipe in recipes)
-            {
-                if (!recipe.AvailableOn.TryGetValue(out var available) || !available)
+                if (!recipe.AvailableOn)
                 {
                     continue;
                 }

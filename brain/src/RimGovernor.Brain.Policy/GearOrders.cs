@@ -24,8 +24,7 @@ public static class GearOrdersRules
         var orders = new List<OrderSpec>();
         foreach (var bench in r.Benches.Value)
         {
-            if (!bench.Bills.TryGetValue(out var bills)) return WorkRules.Abstaining(Cause.UnreadBills);
-            foreach (var bill in bills.Where(b => !b.Spent && b.Products.Any(clothing.Contains)))
+            foreach (var bill in bench.Bills.Where(b => !b.Spent && b.Products.Any(clothing.Contains)))
             {
                 if (bill.Active) orders.Add(bill.Spec);
             }
@@ -141,7 +140,6 @@ public static class GearOrdersRules
     private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) GearOrders(List<GearNeed> needs, GearObservation v, IReadOnlyList<ModeledGearPawn> modeled, GearReview review, GearPlanningRequest r)
     {
         var orders = new List<OrderSpec>();
-        Cause? unknown = null;
         if (needs.Count == 0)
         {
             return (orders, null);
@@ -166,16 +164,12 @@ public static class GearOrdersRules
             {
                 continue;
             }
-            var (method, resolved) = GearRules.ProduceNeed(n, count, benches, r);
-            if (!resolved)
+            if (GearRules.ProduceNeed(n, count, benches, r) is not { } method)
             {
                 continue;
             }
             switch (method.Kind)
             {
-                case GearMethodKind.Unknown:
-                    unknown = Cause.UnreadBills;
-                    break;
                 case GearMethodKind.WaitForExistingWork:
                     orders.Add(method.Bill!.Spec);
                     break;
@@ -197,7 +191,7 @@ public static class GearOrdersRules
                     break;
             }
         }
-        return (orders, unknown);
+        return (orders, null);
     }
 
     internal static string GearBenchDef(IReadOnlyList<GearBench> benches, string id)
@@ -220,13 +214,11 @@ public static class GearOrdersRules
     private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) ShellOrders(IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, IReadOnlyList<Amount> targets)
     {
         var orders = new List<OrderSpec>();
-        Cause? unknown = null;
         var sorted = benches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         var standing = new Dictionary<Resource, GearBill>();
         foreach (var b in sorted)
         {
-            b.Bills.TryGetValue(out var bills);
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (bill.Spent)
                 {
@@ -253,15 +245,9 @@ public static class GearOrdersRules
             var placed = false;
             foreach (var b in sorted)
             {
-                if (!b.Recipes.TryGetValue(out var recipes))
+                foreach (var recipe in b.Recipes)
                 {
-                    continue;
-                }
-                foreach (var recipe in recipes)
-                {
-                    var ak = recipe.Available.TryGetValue(out var available);
-                    var ok = recipe.AvailableOn.TryGetValue(out var on);
-                    if (ak && available && ok && on && recipe.Products.Contains(t.Resource))
+                    if (recipe.Available && recipe.AvailableOn && recipe.Products.Contains(t.Resource))
                     {
                         orders.Add(new OrderSpec { Recipe = recipe.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = b.Def });
                         placed = true;
@@ -278,6 +264,6 @@ public static class GearOrdersRules
                 orders.Add(new OrderSpec { Recipe = craft.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = GearRules.CraftBench });
             }
         }
-        return (orders, unknown);
+        return (orders, null);
     }
 }

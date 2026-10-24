@@ -251,13 +251,12 @@ public static partial class MealRules
     {
         var choice = new MealRecipeChoice { Bench = bench, Recipe = r.Name, Bulk = r.Bulk };
         if (r.Food is not RecipeFood.Food { Mood: var mood, WorkPerNutrition: var work, Cooking: RecipeCooking.FromRaw { NutrientEfficiency: var efficiency, IngredientClasses: var classes, CookSkillFloor: var floor } }
-            || !RoundsRules.Positive(r.Available) || floor > 20 || skill < floor || !FoodForecastRules.FoodNumber(mood) || !FieldCapacityRules.FieldPositive(efficiency) || !FoodForecastRules.FoodNumber(work) || !MealSlotsSupported(classes, sources) || r.Products.Count != 1)
+            || !r.Available || floor > 20 || skill < floor || !FoodForecastRules.FoodNumber(mood) || !FieldCapacityRules.FieldPositive(efficiency) || !FoodForecastRules.FoodNumber(work) || !MealSlotsSupported(classes, sources) || r.Products.Count != 1)
         {
             return (choice, MealTier.None, false);
         }
         var product = r.Products[0];
-        var nk = product.Nutrition.TryGetValue(out var nutrition);
-        if (!RoundsRules.Positive(product.Edible) || !nk || !FieldCapacityRules.FieldPositive(nutrition))
+        if (!product.EatenNutrition(out var nutrition) || !FieldCapacityRules.FieldPositive(nutrition))
         {
             return (choice, MealTier.None, false);
         }
@@ -350,7 +349,7 @@ public static partial class MealRules
     }
 
     internal static (BillSelection Selection, bool Ok) SelectMealBill(
-        Fact<EquatableArray<ProductionBench>> benches,
+        IReadOnlyList<ProductionBench> rows,
         long colonists,
         MealTierRequest request,
         IReadOnlyList<string> ingredients
@@ -359,7 +358,7 @@ public static partial class MealRules
         MealTierReview review;
         try
         {
-            review = ReviewMealTier(request, benches);
+            review = ReviewMealTier(request, Known(EquatableArray.From(rows)));
         }
         catch (MealTierFactsException)
         {
@@ -369,7 +368,6 @@ public static partial class MealRules
         {
             return (new BillSelection(), false);
         }
-        benches.TryGetValue(out var rows);
 
         var byBench = new Dictionary<string, ProductionBench>(StringComparer.Ordinal);
         var recipes = new Dictionary<(string Bench, string Recipe), ProductionRecipe>();
@@ -400,7 +398,7 @@ public static partial class MealRules
             // A choice on a bench the census lacks selects nothing.
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
             bench = bench with { Recipes = recipes.TryGetValue((choice.Bench, choice.Recipe), out var recipe) ? [recipe] : [] };
-            var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, [bench], colonists, 0, request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
             {
                 return (selected, true);
@@ -422,7 +420,7 @@ public static partial class MealRules
             // A choice on a bench the census lacks selects nothing.
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
             bench = bench with { Recipes = recipes.TryGetValue((choice.Bench, choice.Recipe), out var recipe) ? [recipe] : [] };
-            var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, [bench], colonists, 0, request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)
             {
                 if (existing.Contains((choice.Bench, choice.Recipe)))

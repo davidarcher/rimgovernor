@@ -122,8 +122,8 @@ public static class HumanFoodRules
         var animalBill = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var b in rows)
         {
-            var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
-            if (!b.Butcher || !b.Usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0 || !FoodForecastRules.FoodId(b.Token) || !FoodForecastRules.FoodId(b.Id) || b.Bills.Count >= 15)
+            var nutrition = b.HumanCorpseNutrition;
+            if (!b.Butcher || !b.Usable || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0 || !FoodForecastRules.FoodId(b.Token) || !FoodForecastRules.FoodId(b.Id) || b.Bills.Count >= 15)
             {
                 continue;
             }
@@ -136,7 +136,7 @@ public static class HumanFoodRules
             var butcher = "";
             foreach (var recipe in b.Recipes)
             {
-                if (recipe.Role == RecipeRole.ButcherFlesh && recipe.Available.TryGetValue(out var v) && v)
+                if (recipe.Role == RecipeRole.ButcherFlesh && recipe.Available)
                 {
                     butcher = recipe.Name;
                 }
@@ -228,15 +228,15 @@ public static class HumanFoodRules
         }
         foreach (var b in rows)
         {
-            var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
-            if (!b.Butcher || !b.Usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
+            var nutrition = b.HumanCorpseNutrition;
+            if (!b.Butcher || !b.Usable || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
             {
                 continue;
             }
             var available = false;
             foreach (var recipe in b.Recipes)
             {
-                available = available || (recipe.Role == RecipeRole.ButcherFlesh && recipe.Available.TryGetValue(out var v) && v);
+                available = available || (recipe.Role == RecipeRole.ButcherFlesh && recipe.Available);
             }
             var (_, ok) = QualifyingHumanButcher(b.HumanButchers, ideology);
             if (ok && available)

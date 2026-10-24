@@ -84,12 +84,8 @@ partial class JoinersRounds
         var output = new List<DecreeRecipe>();
         foreach (var bench in benches)
         {
-            if (!bench.Recipes.TryGetValue(out var recipes))
-            {
-                continue;
-            }
-            bench.Bills.TryGetValue(out var bills);
-            foreach (var recipe in recipes)
+            var bills = bench.Bills;
+            foreach (var recipe in bench.Recipes)
             {
                 var row = catalog.DefRow<RecipeDef>(recipe.Definition);
                 if (row is null)
@@ -108,8 +104,6 @@ partial class JoinersRounds
                 {
                     continue;
                 }
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
                 var candidate = new DecreeRecipe
                 {
                     Bench = bench.Id,
@@ -119,12 +113,9 @@ partial class JoinersRounds
                     Units = units,
                     Ingredients = recipe.Ingredients,
                 };
+                candidate = candidate with { Available = Known(recipe.Available && recipe.AvailableOn) };
                 var stuff = new Dictionary<Resource, bool>();
                 var standing = new List<OrderSpec>();
-                if (ak && ok)
-                {
-                    candidate = candidate with { Available = Known(available && on) };
-                }
                 foreach (var group in recipe.Ingredients)
                 {
                     foreach (var alternative in group)

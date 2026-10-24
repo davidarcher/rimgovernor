@@ -83,7 +83,7 @@ public static class ArtRules
 
     /// <summary>One pinned sculpture bill for every artist that lacks an active one, in artist order, each through SelectProductionBill.</summary>
     public static IReadOnlyList<BillSelection> SelectArtBills(
-        Fact<EquatableArray<ProductionBench>> benches,
+        IReadOnlyList<ProductionBench> benches,
         long colonists,
         IEnumerable<PawnId> artists,
         ArtDemand demand
@@ -96,8 +96,7 @@ public static class ArtRules
                 ArtBill,
                 benches,
                 colonists,
-                default,
-                default,
+                0,
                 1,
                 new ProductionBillContext { Artists = EquatableArray.From([artist]), Art = demand }
             );
@@ -134,11 +133,9 @@ public static class ArtRules
     /// One large sculpture bill pinned to every inspired artist lacking an active one. The caller orders these
     /// ahead of SelectArtBills so the inspiration is spent before it expires.
     /// </summary>
-    public static IReadOnlyList<BillSelection> SelectInspiredArtBills(Fact<EquatableArray<ProductionBench>> benches, IEnumerable<PawnId> inspired, ItemFacts items)
+    public static IReadOnlyList<BillSelection> SelectInspiredArtBills(IReadOnlyList<ProductionBench> rows, IEnumerable<PawnId> inspired, ItemFacts items)
     {
-        var known = benches.TryGetValue(out var rows);
-        var lk = InspiredSculpture(items, out var large);
-        if (!known || !lk)
+        if (!InspiredSculpture(items, out var large))
         {
             return [];
         }
@@ -252,7 +249,7 @@ public static class ArtRules
 
             foreach (var recipe in bench.Recipes)
             {
-                if (recipe.Available.TryGetValue(out var ok) && recipe.Role == RecipeRole.Sculpture && ok)
+                if (recipe.Available && recipe.Role == RecipeRole.Sculpture)
                 {
                     if (!available.TryGetValue(recipe.Name, out var list))
                     {

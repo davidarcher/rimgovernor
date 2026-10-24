@@ -75,7 +75,7 @@ public static partial class SurgeryRules
             }
             foreach (var recipe in bench.Recipes)
             {
-                if (recipe.Available.TryGetValue(out var available) && available)
+                if (recipe.Available)
                 {
                     foreach (var product in recipe.Products)
                     {
@@ -173,8 +173,7 @@ public static partial class SurgeryRules
                             continue;
                         }
                         inProduction = inProduction || billed.Contains(recipe.Name);
-                        var ak = recipe.Available.TryGetValue(out var available);
-                        var serves = bench.Usable && FoodForecastRules.FoodId(bench.Token) && ak && available;
+                        var serves = bench.Usable && FoodForecastRules.FoodId(bench.Token) && recipe.Available;
                         fabricable = fabricable || serves;
                         if (pick is null && serves && bench.Bills.Count < 15)
                         {

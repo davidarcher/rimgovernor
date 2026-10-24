@@ -98,7 +98,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause UnreadStock = new("stock");
     public static readonly Cause UnreadBenches = new("benches");
     public static readonly Cause UnreadBenchDef = new("bench_definition");
-    public static readonly Cause UnreadBills = new("bills");
     public static readonly Cause UnreadRecipes = new("recipes");
     public static readonly Cause UnreadDefinitions = new("definitions");
     public static readonly Cause UnreadNativeRead = new("native_source");
@@ -142,7 +141,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         CriticalMedical, MaterialRequired, DependencyBlocked, GeometryBlocked, InvalidHeld,
         ExcavationUnsupported, ExcavationGeometryChanged, UnsafeRoute, RoofSupportRisk, StorageMissing,
         UrgentCompetingWork,
-        UnreadReview, UnreadStock, UnreadBenches, UnreadBenchDef, UnreadBills, UnreadRecipes,
+        UnreadReview, UnreadStock, UnreadBenches, UnreadBenchDef, UnreadRecipes,
         UnreadDefinitions, UnreadNativeRead, UnreadMedicine, UnreadArtists, UnreadArtNeed,
         UnreadGearRecover, UnreadGearDemand, UnreadArmoryTier, UnreadWeapons,
         UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
@@ -283,7 +282,6 @@ public static class CauseRules
         [Cause.UnreadStock] = UnreadWording("the stock census"),
         [Cause.UnreadBenches] = UnreadWording("the bench readback"),
         [Cause.UnreadBenchDef] = UnreadWording("a bench's kind"),
-        [Cause.UnreadBills] = UnreadWording("a bench's bills or recipes"),
         [Cause.UnreadRecipes] = UnreadWording("a recipe's facts"),
         [Cause.UnreadDefinitions] = UnreadWording("the game's definitions"),
         [Cause.UnreadNativeRead] = UnreadWording("something the game could not serve"),

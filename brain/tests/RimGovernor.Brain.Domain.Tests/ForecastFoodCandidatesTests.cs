@@ -39,7 +39,7 @@ public sealed class ForecastFoodCandidatesTests
         Sources = Known(EquatableArray.From(new[] { new AcquisitionSource { Id = "plant", Definition = "TestPlant", Resource = Raw.Value, Food = true, Yield = 4, Growth = 1 } })),
         Crops = [new() { Name = "TestPlant", Harvests = Known(Raw), HarvestMinGrowth = Known(0.8), HarvestWork = Known(100.0) }],
         Benches = Known(EquatableArray.From(new[] { new ProductionBench { Id = "bench", Token = "bench-token", Usable = true,
-            Recipes = [new() { Name = "TestRecipe", Role = RecipeRole.OrdinaryMeal, Available = Known(true),
+            Recipes = [new() { Name = "TestRecipe", Role = RecipeRole.OrdinaryMeal, Available = true,
                 Food = new RecipeFood.Food(0, 0, new RecipeCooking.FromRaw(1, [], 2)) }] } })),
         Recipes = Known(EquatableArray.From(new[] { new ProductionRecipeInput("TestRecipe", EquatableArray.From(new[] {
             EquatableArray.From(new[] { new Amount(Raw, 2) }) }), false)

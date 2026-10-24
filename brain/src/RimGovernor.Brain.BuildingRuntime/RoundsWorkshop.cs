@@ -166,7 +166,7 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var product in products)
         {
             var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
-            var request = new Pol.WorkshopRequest { Resource = product, Benches = Known<EquatableArray<Pol.GearBench>>([.. benches]), Hosts = hosts, Further = selection.Further };
+            var request = new Pol.WorkshopRequest { Resource = product, Benches = [.. benches], Hosts = hosts, Further = selection.Further };
             SnapshotPlannerReplay.NoteWorkshop(request);
             var choice = WorkRules.SelectWorkshopBench(request);
             if (choice.Method == Pol.WorkshopMethod.Existing)
@@ -264,7 +264,7 @@ public sealed partial class RoundsBuildingPlanner
             var request = new Pol.WorkshopRequest
             {
                 Resource = product.Resource,
-                Benches = Known<EquatableArray<Pol.GearBench>>([.. Workshop.Benches]),
+                Benches = [.. Workshop.Benches],
                 Hosts = product.Hosts,
                 Definitions = definitions,
                 Power = GeneratorAvailable(available),

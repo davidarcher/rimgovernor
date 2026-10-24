@@ -131,11 +131,7 @@ public static partial class WorkRules
         var carrying = new List<string>();
         foreach (var b in input.Benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                continue;
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (!bill.Spent && bill.Spec.Key() == key)
                 {

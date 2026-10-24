@@ -108,18 +108,18 @@ public static class BabyFeedingRules
     /// Native counts the product's stock toward the target, and other baby foods reduce it. None is selected
     /// unless the review is short.
     /// </summary>
-    public static (BillSelection Selection, bool Ok) SelectBabyFoodBill(Fact<EquatableArray<ProductionBench>> benches, BabyFeeding review)
+    public static (BillSelection Selection, bool Ok) SelectBabyFoodBill(IReadOnlyList<ProductionBench> benches, BabyFeeding review)
     {
-        if (!benches.TryGetValue(out var rows) || !review.IsShort || !FieldCapacityRules.FieldPositive(review.TargetNutrition))
+        if (!review.IsShort || !FieldCapacityRules.FieldPositive(review.TargetNutrition))
         {
             return (new BillSelection(), false);
         }
 
         return FoodReserveRules.SelectTargetBill(
-            rows.Items,
+            benches,
             new TargetBillSpec
             {
-                Family = p => p.BabyEdible.TryGetValue(out var edible) && edible,
+                Family = p => p.Food is ProductFood.Food { BabyEdible: true },
                 Target = (def, nutrition) =>
                     (review.TargetNutrition - review.StockNutrition + review.ByDefinition.GetValueOrDefault(def)) / nutrition,
             }

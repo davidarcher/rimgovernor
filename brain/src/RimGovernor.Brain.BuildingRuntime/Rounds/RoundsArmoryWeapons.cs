@@ -61,11 +61,7 @@ public sealed partial class RoundsArmoryPlanner
         var products = new Dictionary<Resource, WeaponDef>();
         foreach (var b in benches)
         {
-            if (!b.Recipes.TryGetValue(out var rows))
-            {
-                throw new ControlException("weaponDemand: !known");
-            }
-            recipes.AddRange(rows);
+            recipes.AddRange(b.Recipes);
         }
         recipes.AddRange(GearRules.UnhostedCrafts(crafts, benches));
         foreach (var recipe in recipes)

@@ -302,40 +302,21 @@ public static class ExportOrdersRules
     private static bool IsSculptureProduct(ItemFacts i, Resource product) => i.Sculptures.Any(s => new Resource(s.Def) == product);
 
     /// <summary>
-    /// The rankable recipes on the usable benches. Unread is set when a recipe that would otherwise be ranked
-    /// has an unread fact.
+    /// The rankable recipes on the usable benches.
     /// </summary>
-    private static (List<ExportRecipe> Recipes, bool Unread) ExportRecipes(ExportRequest r)
+    private static List<ExportRecipe> ExportRecipes(ExportRequest r)
     {
         var result = new List<ExportRecipe>();
-        var unread = false;
         foreach (var bench in r.Benches)
         {
-            var uk = bench.Usable.TryGetValue(out var usable);
-            var rk = bench.Recipes.TryGetValue(out var recipes);
-            if (!uk || !rk)
-            {
-                unread = true;
-                continue;
-            }
-            if (!usable)
+            if (!bench.Usable)
             {
                 continue;
             }
-            foreach (var recipe in recipes!)
+            foreach (var recipe in bench.Recipes)
             {
-                if (recipe.Kind != LedgerBillKind.Production || recipe.Products.Count != 1 || !ExportProduct(r, recipe.Products[0]))
-                {
-                    continue;
-                }
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                if (!ak || !ok)
-                {
-                    unread = true;
-                    continue;
-                }
-                if (!available || !on)
+                if (recipe.Kind != LedgerBillKind.Production || recipe.Products.Count != 1 || !ExportProduct(r, recipe.Products[0])
+                    || !recipe.Available || !recipe.AvailableOn)
                 {
                     continue;
                 }
@@ -354,7 +335,7 @@ public static class ExportOrdersRules
                 );
             }
         }
-        return (result, unread);
+        return result;
     }
 
     /// <summary>The ingredient units of one piece under a filter: per slot the cheapest member the filter admits.</summary>
@@ -571,7 +552,7 @@ public static class ExportOrdersRules
         return null;
     }
 
-    private static double BenchSpeed(GearBench b) => b.WorkSpeed.TryGetValue(out var speed) && speed > 0 && TradePolicyRules.Finite(speed) ? speed : 1;
+    private static double BenchSpeed(GearBench b) => b.WorkSpeed > 0 && TradePolicyRules.Finite(b.WorkSpeed) ? b.WorkSpeed : 1;
 
     /// <summary>
     /// The active pinned finite batches on the benches that make an export product: placed and unfinished goods
@@ -583,7 +564,7 @@ public static class ExportOrdersRules
         var bills = new List<GearBill>();
         foreach (var b in benches)
         {
-            _ = b.Bills.TryGetValue(out var list);
+            var list = b.Bills;
             foreach (var bill in list)
             {
                 if (bill.Spent || bill.Products.Count != 1 || !products.Contains(bill.Products[0]))
@@ -611,7 +592,7 @@ public static class ExportOrdersRules
     public static ExportPlan DeclareExportOrders(ExportRequest r)
     {
         var declared = new Declared();
-        var (recipes, unread) = ExportRecipes(r);
+        var recipes = ExportRecipes(r);
         var productSet = new HashSet<Resource>();
         var products = new List<Resource>();
         foreach (var e in recipes)
@@ -630,10 +611,6 @@ public static class ExportOrdersRules
         }
         if (!(gap > 0))
         {
-            if (unread)
-            {
-                declared.Unread(Cause.UnreadRecipes);
-            }
             return Plan();
         }
         var pk = r.Profiles.TryGetValue(out var profiles);
@@ -652,10 +629,6 @@ public static class ExportOrdersRules
         }
         var (standing, bills) = StandingExports(r.Benches, productSet);
         declared.Orders.AddRange(standing);
-        if (unread)
-        {
-            declared.Unread(Cause.UnreadRecipes);
-        }
         var busy = new HashSet<string>(StringComparer.Ordinal);
         foreach (var o in standing)
         {
@@ -783,7 +756,7 @@ public static class ExportOrdersRules
     /// </summary>
     public static IReadOnlyList<Resource> ExportIngredients(ExportRequest r)
     {
-        var (recipes, _) = ExportRecipes(r);
+        var recipes = ExportRecipes(r);
         var seen = new HashSet<Resource>();
         foreach (var e in recipes)
         {
@@ -804,7 +777,7 @@ public static class ExportOrdersRules
     /// </summary>
     public static IReadOnlyList<ExportCandidate> RankExports(ExportRequest r)
     {
-        var (recipes, _) = ExportRecipes(r);
+        var recipes = ExportRecipes(r);
         _ = r.Profiles.TryGetValue(out var profiles);
         var result = new List<ExportCandidate>();
         foreach (var e in recipes)

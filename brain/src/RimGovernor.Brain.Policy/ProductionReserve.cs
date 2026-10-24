@@ -26,9 +26,7 @@ public static partial class ProductionRules
                     continue;
                 }
                 var product = recipe.Products[0];
-                var ek = product.Edible.TryGetValue(out var edible);
-                var nk = product.Nutrition.TryGetValue(out var value);
-                if (ek && edible && nk && FieldCapacityRules.FieldPositive(value))
+                if (product.EatenNutrition(out var value) && FieldCapacityRules.FieldPositive(value))
                 {
                     nutrition[recipe.Name] = value;
                 }

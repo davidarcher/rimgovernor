@@ -98,8 +98,7 @@ public static partial class MealRules
                         continue;
                     }
                     var product = recipe.Products[0];
-                    var nk = product.Nutrition.TryGetValue(out var n);
-                    if (!nk || !FieldCapacityRules.FieldPositive(n) || !RoundsRules.Positive(product.Edible))
+                    if (!product.EatenNutrition(out var n) || !FieldCapacityRules.FieldPositive(n))
                     {
                         continue;
                     }

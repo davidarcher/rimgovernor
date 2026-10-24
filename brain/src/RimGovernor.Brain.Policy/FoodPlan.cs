@@ -145,7 +145,7 @@ public sealed record CropKitchen
             usable++;
             foreach (var r in b.Recipes)
             {
-                if (r.Role != RecipeRole.OrdinaryMeal || !RoundsRules.Positive(r.Available))
+                if (r.Role != RecipeRole.OrdinaryMeal || !r.Available)
                 {
                     continue;
                 }

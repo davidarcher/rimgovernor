@@ -36,28 +36,16 @@ public static class ColonyProductionReads
         Humanlike = butcher && b.IngredientFilter.AllowedDefNames.Count > 0,
     };
 
-    /// <summary>The nutrition of the fresh humanlike corpses near a bench: each race's live MeatAmount sum times the Nutrition of that race's meat def; unknown when a race's meat shows no nutrition.</summary>
-    private static Fact<double> HumanCorpseNutrition(IEnumerable<O.HumanCorpseMeat> meat, DefinitionCatalog? catalog)
+    /// <summary>The nutrition of the fresh humanlike corpses near a bench: each race's live MeatAmount sum times the Nutrition of that race's meat def; a race whose meat shows no nutrition adds none.</summary>
+    private static double HumanCorpseNutrition(IEnumerable<O.HumanCorpseMeat> meat, DefinitionCatalog? catalog)
     {
+        var defs = ColonyDecodeReads.RequireCatalog(catalog);
         var total = 0.0;
         foreach (var m in meat)
         {
-            double? per;
-            try
-            {
-                per = ColonyDecodeReads.RequireCatalog(catalog).RaceMeatNutrition((m.Race ?? ""));
-            }
-            catch (DomainException)
-            {
-                return Unknown<double>();
-            }
-            if (per is not { } nutrition)
-            {
-                return Unknown<double>();
-            }
-            total += m.MeatAmount.GetValueOrDefault() * nutrition;
+            total += m.MeatAmount * (defs.RaceMeatNutrition(m.Race) ?? 0);
         }
-        return Known(total);
+        return total;
     }
 
     /// <summary>A growing zone's raw crop facts for policy: the planted plants' means are their totals over the planted count, and an unplanted zone has none.</summary>
@@ -240,36 +228,24 @@ public static class ColonyProductionReads
     }
 
     /// <summary>
-    /// A recipe product: the frame's varying facts (count, demand, storage room) joined to what its def row says
-    /// (nutrition from the stat table, rot days, baby edibility). Without a catalog the static facts stay
-    /// unknown. The game shows no Nutrition stat for a def that gives none: that nutrition stays unknown, it is
-    /// not zero.
+    /// A recipe product: the frame's varying facts (whether a human eats it, storage room) joined to what its def row
+    /// says (food kind, the Nutrition the game shows, rot, baby edibility). A def the catalog gives no food kind is
+    /// no food; the game shows no Nutrition stat for a def that gives none, so its nutrition is 0.
     /// </summary>
     private static ProductionProduct ProductionProductOf(O.FoodProduct product, DefinitionCatalog? catalog)
     {
-        var name = (product.DefName ?? "");
-        var row = new ProductionProduct
+        var name = product.DefName;
+        var defs = ColonyDecodeReads.RequireCatalog(catalog);
+        if (defs.FoodKindOf(name) is not { } kind)
+        {
+            return new ProductionProduct { Name = name, Food = new ProductFood.NotFood() };
+        }
+        var (nutrition, shown) = defs.ShownStatValue(name, "", CatalogStats.Nutrition);
+        return new ProductionProduct
         {
             Name = name,
-            Edible = ColonyDecodeReads.Optional(product.Edible is not null, product.Edible.GetValueOrDefault()),
-            Storable = ColonyDecodeReads.Optional(product.Storable is not null, product.Storable.GetValueOrDefault()),
+            Food = new ProductFood.Food(kind, shown ? nutrition : 0, product.Edible, defs.RotDays(name) is not null, defs.BabyEdible(name), product.Storable),
         };
-        if (catalog is null)
-        {
-            return row;
-        }
-        var rot = catalog.RotDays(name);
-        row = row with { Perishable = Known(rot is not null) };
-        row = row with { BabyEdible = Known(catalog.BabyEdible(name)), Kind = catalog.FoodKindOf(name) ?? FoodKind.None };
-        try
-        {
-            row = row with { Nutrition = Known((double)catalog.StatValue(name, "", CatalogStats.Nutrition)) };
-        }
-        catch (DomainException)
-        {
-            // The game shows no Nutrition stat for the def: the nutrition stays unknown.
-        }
-        return row;
     }
 
     /// <summary>The pawn's own ideoligion and precepts from its row's policy inputs; unknown while the table lacks the row or the inputs.</summary>
@@ -298,26 +274,22 @@ public static class ColonyProductionReads
                 Token = snapshot.Token ?? throw new RequiredFactException("bench_snapshot.token:" + bench.Id),
                 Usable = usable,
                 Butcher = butcher,
-                Room = ColonyDecodeReads.OptionalRef(room),
+                Room = room?.Id,
             };
             var recipeRows = new List<ProductionRecipe>();
             foreach (var r in recipes)
             {
                 var name = r.Recipe;
                 var recipeCatalog = ColonyDecodeReads.RequireCatalog(catalog);
-                var recipe = new ProductionRecipe { Name = name, Role = recipeCatalog.RecipeRoleOf(name), Bulk = recipeCatalog.RecipeBulk(name), Food = recipeCatalog.RecipeFood(name) };
-                recipe = recipe with { Available = Known(r.AvailableNow && r.AvailableOnBench) };
+                var recipe = new ProductionRecipe { Name = name, Role = recipeCatalog.RecipeRoleOf(name), Bulk = recipeCatalog.RecipeBulk(name), Food = recipeCatalog.RecipeFood(name), Available = r.AvailableNow && r.AvailableOnBench };
                 var products = new List<ProductionProduct>();
                 foreach (var p in production)
                 {
-                    if ((p.Recipe ?? "") != name)
+                    if (p.Recipe != name)
                     {
                         continue;
                     }
-                    if (p.Available is not null)
-                    {
-                        recipe = recipe with { Available = Known(p.Available.GetValueOrDefault() && r.AvailableNow && r.AvailableOnBench) };
-                    }
+                    recipe = recipe with { Available = p.Available && r.AvailableNow && r.AvailableOnBench };
                     foreach (var product in p.Products)
                     {
                         products.Add(ProductionProductOf(product, catalog));

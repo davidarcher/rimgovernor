@@ -39,10 +39,10 @@ public sealed partial class FacadeNativeClient
             {
                 Id = stack.Bench,
                 Def = def,
-                WorkSpeed = Fact.Known(stack.WorkSpeed),
-                Bills = Fact.Known(EquatableArray.From(bills)),
-                Recipes = Fact.Known(EquatableArray.From(recipes)),
-                Usable = Fact.Known(stack.Usable),
+                WorkSpeed = stack.WorkSpeed,
+                Bills = EquatableArray.From(bills),
+                Recipes = EquatableArray.From(recipes),
+                Usable = stack.Usable,
             };
             reads.Add(new GearBenchRead { Token = stack.Snapshot.Token ?? "", Bench = bench });
         }
@@ -139,8 +139,8 @@ public sealed partial class FacadeNativeClient
                 {
                     Definition = definition,
                     Role = role,
-                    Available = Fact.Known(row.AvailableNow),
-                    AvailableOn = Fact.Known(row.AvailableOnBench),
+                    Available = row.AvailableNow,
+                    AvailableOn = row.AvailableOnBench,
                     Products = EquatableArray.From(products),
                     Ingredients = ingredients,
                     RequiredWork = requiredWork,

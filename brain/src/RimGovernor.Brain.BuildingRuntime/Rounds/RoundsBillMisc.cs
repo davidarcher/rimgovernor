@@ -80,11 +80,7 @@ partial class Rounder
         var kinds = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var bench in gear)
         {
-            if (!bench.Recipes.TryGetValue(out var recipes))
-            {
-                continue;
-            }
-            kinds[bench.Id] = recipes.ToDictionary(r => r.Definition, r => r.MechKind, StringComparer.Ordinal);
+            kinds[bench.Id] = bench.Recipes.ToDictionary(r => r.Definition, r => r.MechKind, StringComparer.Ordinal);
         }
         var benches = new List<ProductionBench>(partBenches.Count);
         foreach (var bench in partBenches)
@@ -130,32 +126,26 @@ partial class Rounder
         return (parts, productions);
     }
 
-    /// <summary>The production benches the gear benches host, one row per bench whose recipes and bills are both read.</summary>
+    /// <summary>The production benches the gear benches host, one row per bench.</summary>
     internal static List<ProductionBench> PartBenches(IReadOnlyList<GearBench> benches)
     {
         var output = new List<ProductionBench>();
         foreach (var gear in benches)
         {
-            if (!gear.Recipes.TryGetValue(out var recipes) || !gear.Bills.TryGetValue(out var bills))
-            {
-                continue;
-            }
             var benchRecipes = new List<ProductionRecipe>();
             var benchBills = new List<ExistingProductionBill>();
-            foreach (var recipe in recipes)
+            foreach (var recipe in gear.Recipes)
             {
-                // These rows feed part fabrication only, which never reads a recipe as food.
-                var row = new ProductionRecipe { Name = recipe.Definition, Food = new RecipeFood.NotFood() };
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                if (ak && ok)
+                // These rows feed part fabrication only, which never reads a recipe or a product as food.
+                benchRecipes.Add(new ProductionRecipe
                 {
-                    row = row with { Available = Known(available && on) };
-                }
-                row = row with { Products = [.. recipe.Products.Select(product => new ProductionProduct { Name = product.Value })] };
-                benchRecipes.Add(row);
+                    Name = recipe.Definition,
+                    Food = new RecipeFood.NotFood(),
+                    Available = recipe.Available && recipe.AvailableOn,
+                    Products = [.. recipe.Products.Select(product => new ProductionProduct { Name = product.Value, Food = new ProductFood.NotFood() })],
+                });
             }
-            foreach (var bill in bills)
+            foreach (var bill in gear.Bills)
             {
                 benchBills.Add(bill.Existing);
             }

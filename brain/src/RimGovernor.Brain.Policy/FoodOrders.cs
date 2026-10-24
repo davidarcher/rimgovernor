@@ -120,6 +120,9 @@ public static class FoodOrdersRules
         var census = WithoutBills(r.Benches);
         var selections = new List<BillSelection>();
         FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject };
+        // An unread bench census selects no bill.
+        (BillSelection, bool) Bill(BillPurpose purpose, double atRisk, params ProductionBillContext[] context) =>
+            census.TryGetValue(out var rows) ? ProductionRules.SelectProductionBill(purpose, rows, f.Colonists, atRisk, r.TargetDays, context) : (new BillSelection(), false);
         switch (r.Purpose)
         {
             case var purpose when purpose == ProductionRules.CookFood:
@@ -133,7 +136,7 @@ public static class FoodOrdersRules
                 {
                     context = context with { Ingredients = HumanFoodPlanRules.HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
+                var (selected, known) = Bill(ProductionRules.CookFood, 0, context);
                 if (known)
                 {
                     selections.Add(selected);
@@ -150,7 +153,7 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.Field, "food_reserve");
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
+                var (selected, known) = Bill(ProductionRules.PreserveFood, 0, new ProductionBillContext { Reserve = reserve });
                 if (known)
                 {
                     selections.Add(selected);
@@ -173,7 +176,7 @@ public static class FoodOrdersRules
                 {
                     return dk ? Gap(FoodOrderGap.NoDeficit, "") : Gap(FoodOrderGap.Field, "food_days");
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
+                var (selected, known) = Bill(ProductionRules.ButcherFood, 0);
                 if (known)
                 {
                     selections.Add(selected);
@@ -197,7 +200,11 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.NoDeficit, "");
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
+                if (!r.Warm.TryGetValue(out var warm))
+                {
+                    break;
+                }
+                var (selected, known) = Bill(ProductionRules.CookAheadFood, warm);
                 if (known)
                 {
                     selections.Add(selected);
@@ -245,19 +252,13 @@ public static class FoodOrdersRules
             {
                 return WorkRules.Abstaining(Cause.UnreadBenchDef);
             }
-            var (spec, known) = AdequateOrder(selected.Order(kind), benches);
-            if (!known)
-            {
-                return WorkRules.Abstaining(Cause.UnreadBills);
-            }
-            orders.Add(spec);
+            orders.Add(AdequateOrder(selected.Order(kind), benches));
         }
         if (orders.Count > 0 || r.Purpose == ProductionRules.CookAheadFood)
         {
             return new Declared { Orders = orders };
         }
-        var (standing, standingKnown) = StandingOrders(benches, FoodFamily(r.Purpose));
-        return WorkRules.AbstainUnless(WorkRules.UnreadIf(!standingKnown, Cause.UnreadBills), standing);
+        return new Declared { Orders = StandingOrders(benches, FoodFamily(r.Purpose)) };
     }
 
     /// <summary>Whether a bill belongs to a purpose's family.</summary>
@@ -267,17 +268,13 @@ public static class FoodOrdersRules
         : purpose == ProductionRules.PreserveFood ? (b => b.Products.Any(FoodReserveRules.ReserveFoodDefinition))
         : (_ => false);
 
-    /// <summary>The specs of the unspent production bills of a family, as they stand; known is false while one's readback is unread.</summary>
-    private static (List<OrderSpec> Orders, bool Known) StandingOrders(IReadOnlyList<GearBench> benches, Func<GearBill, bool> family)
+    /// <summary>The specs of the unspent production bills of a family, as they stand.</summary>
+    private static List<OrderSpec> StandingOrders(IReadOnlyList<GearBench> benches, Func<GearBill, bool> family)
     {
         var orders = new List<OrderSpec>();
         foreach (var b in benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                return ([], false);
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (bill.Spent || bill.Kind != LedgerBillKind.Production || !family(bill))
                 {
@@ -286,30 +283,25 @@ public static class FoodOrdersRules
                 orders.Add(bill.Spec);
             }
         }
-        return (orders, true);
+        return orders;
     }
 
     /// <summary>
     /// A stock-target order's declaration: a bill that already stands on the order's bench kind and recipe, with
     /// its pin and ingredients and a target that covers the wanted one, is declared as it stands, so a target
     /// that moves with the colony does not replace the bill every Round. Any other order is declared as wanted.
-    /// Known is false while a bill's readback is unread.
     /// </summary>
-    internal static (OrderSpec Spec, bool Known) AdequateOrder(OrderSpec want, IReadOnlyList<GearBench> benches)
+    internal static OrderSpec AdequateOrder(OrderSpec want, IReadOnlyList<GearBench> benches)
     {
         if (WorkRules.WireClass(want.Mode) != BillMode.StockTarget)
         {
-            return (want, true);
+            return want;
         }
         OrderSpec? best = null;
         var bestId = "";
         foreach (var b in benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                return (new OrderSpec(), false);
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 var spec = bill.Spec;
                 if (bill.Spent || bill.Kind != LedgerBillKind.Production || spec.BenchKind != want.BenchKind || spec.Recipe != want.Recipe
@@ -325,7 +317,7 @@ public static class FoodOrdersRules
                 }
             }
         }
-        return (best ?? want, true);
+        return best ?? want;
     }
 
     private static bool SameSet(IEnumerable<string> a, IEnumerable<string> b) =>
@@ -338,7 +330,7 @@ public static class FoodOrdersRules
     /// </summary>
     public static (OrderSpec Spec, MedicineMethodKind Kind, bool Ok) FoodStorageMealOrder(FoodStorageMethod choice, IReadOnlyList<GearBench> benches)
     {
-        var bare = benches.Select(b => b with { Bills = Known<EquatableArray<GearBill>>([]) }).ToList();
+        var bare = benches.Select(b => b with { Bills = [] }).ToList();
         var picked = MedicalRules.SelectMedicineMethod(
             new MedicinePlanningRequest
             {
@@ -360,14 +352,11 @@ public static class FoodOrdersRules
             }
         }
         var spec = new OrderSpec { Recipe = picked.Recipe, Mode = BillMode.StockTarget, Target = (int)picked.Target, BenchKind = def };
-        spec = AdequateOrder(spec, benches).Spec;
+        spec = AdequateOrder(spec, benches);
         return (spec, picked.Kind, def.Length != 0);
     }
 
-    /// <summary>The unspent bills that make the resource, declared as they stand; Abstain while a bill readback is unread.</summary>
-    public static Declared StandingStockOrders(IReadOnlyList<GearBench> benches, Resource resource)
-    {
-        var (orders, known) = StandingOrders(benches, b => b.Products.Contains(resource));
-        return WorkRules.AbstainUnless(WorkRules.UnreadIf(!known, Cause.UnreadBills), orders);
-    }
+    /// <summary>The unspent bills that make the resource, declared as they stand.</summary>
+    public static Declared StandingStockOrders(IReadOnlyList<GearBench> benches, Resource resource) =>
+        new() { Orders = StandingOrders(benches, b => b.Products.Contains(resource)) };
 }

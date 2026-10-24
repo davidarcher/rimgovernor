@@ -26,6 +26,6 @@ public sealed partial class RoundsResourcePlanner
             floors.Add(new ResourceFloor { Resource = resource, Target = target });
         }
 
-        return ResourceRules.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = projection.Resources, Benches = Known<EquatableArray<GearBench>>([.. benches]), Crafts = projection.Facts.Crafts });
+        return ResourceRules.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = projection.Resources, Benches = [.. benches], Crafts = projection.Facts.Crafts });
     }
 }

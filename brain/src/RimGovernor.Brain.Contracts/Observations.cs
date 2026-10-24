@@ -5617,25 +5617,27 @@ public sealed record PlanningFacts
 /// </summary>
 public sealed record FoodProduct
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public bool? Edible { get; init; }
+    /// <summary>Whether a human eats the product.</summary>
+    public required bool Edible { get; init; }
 
     /// <summary>
     /// storable is the product count roofed, reachable storage accepting it can
     /// hold: stored stacks plus empty stack slots. Caps reserve bill targets.
     /// </summary>
-    public long? Storable { get; init; }
+    public required long Storable { get; init; }
 }
 
 public sealed record FoodProduction
 {
-    public string? Recipe { get; init; }
+    public required string Recipe { get; init; }
 
-    public bool? Available { get; init; }
+    /// <summary>Whether the bench offers the recipe now and every product is one the colony takes.</summary>
+    public required bool Available { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodProduct>))]
-    public EquatableArray<FoodProduct> Products { get; init; }
+    public required EquatableArray<FoodProduct> Products { get; init; }
 }
 
 public sealed record CookingFacts
@@ -5788,9 +5790,9 @@ public sealed record ButcheringFacts
 /// </summary>
 public sealed record HumanCorpseMeat
 {
-    public string? Race { get; init; }
+    public required string Race { get; init; }
 
-    public double? MeatAmount { get; init; }
+    public required double MeatAmount { get; init; }
 }
 
 public sealed record HumanButcherCandidate

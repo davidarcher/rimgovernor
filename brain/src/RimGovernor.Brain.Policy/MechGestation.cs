@@ -182,7 +182,7 @@ public static partial class MechRules
         {
             foreach (var recipe in bench.Recipes)
             {
-                if (recipe.Available.TryGetValue(out var ok) && ok && recipe.MechKind != "" && UsableBench(bench))
+                if (recipe.Available && recipe.MechKind != "" && UsableBench(bench))
                 {
                     available.Add(recipe.MechKind);
                 }
@@ -212,7 +212,7 @@ public static partial class MechRules
             }
             foreach (var recipe in bench.Recipes)
             {
-                if (recipe.Available.TryGetValue(out var ok) && ok && recipe.MechKind == choice.Kind)
+                if (recipe.Available && recipe.MechKind == choice.Kind)
                 {
                     options.Add(new BillSelection { Bench = bench.Id, Recipe = recipe.Name, Mode = BillMode.GearBatch, Target = 1 });
                     bulk[recipe.Name] = recipe.Bulk;

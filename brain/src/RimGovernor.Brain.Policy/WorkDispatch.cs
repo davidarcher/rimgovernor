@@ -209,31 +209,28 @@ public static partial class WorkRules
     // The bench's row of the recipe; null when the bench lists none.
     private static GearRecipe? RecipeOf(GearBench b, string recipe)
     {
-        if (b.Recipes.TryGetValue(out var recipes))
+        foreach (var r in b.Recipes)
         {
-            foreach (var r in recipes)
+            if (r.Definition == recipe)
             {
-                if (r.Definition == recipe)
-                {
-                    return r;
-                }
+                return r;
             }
         }
         return null;
     }
 
-    // The mean units per day one eligible bench makes with the worker; false while any bench's recipe work is unread.
+    // The mean units per day one eligible bench makes with the worker; false while a bench lists no row of the recipe.
     private static bool TryMeanCapacity(OrderSpec order, IReadOnlyList<GearBench> eligible, BenchWorker worker, out double capacity)
     {
         double sum = 0;
         capacity = 0;
         foreach (var b in eligible)
         {
-            if (RecipeOf(b, order.Recipe) is not { WorkAmount: var work } || !b.WorkSpeed.TryGetValue(out var speed))
+            if (RecipeOf(b, order.Recipe) is not { WorkAmount: var work })
             {
                 return false;
             }
-            sum += BenchRateRules.BenchCapacity(new BenchRecipe { WorkPerUnit = work, BenchWorkSpeed = speed }, [worker]);
+            sum += BenchRateRules.BenchCapacity(new BenchRecipe { WorkPerUnit = work, BenchWorkSpeed = b.WorkSpeed }, [worker]);
         }
         capacity = sum / eligible.Count;
         return true;

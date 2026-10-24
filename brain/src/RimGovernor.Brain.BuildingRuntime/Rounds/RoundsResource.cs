@@ -207,7 +207,7 @@ public sealed partial class RoundsResourcePlanner
             supply = await native.ReadSupplyStockAsync(identity, names, call).ConfigureAwait(false);
         }
 
-        var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]) };
+        var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = [.. benches] };
         SnapshotPlannerReplay.NoteResourceMethod(request);
         return (ResourceRules.SelectResourceMethod(request), supply);
     }
@@ -503,12 +503,7 @@ public sealed partial class RoundsResourcePlanner
         var ingredients = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var row in census)
         {
-            if (!row.Bench.Recipes.TryGetValue(out var recipes))
-            {
-                continue;
-            }
-
-            foreach (var recipe in recipes)
+            foreach (var recipe in row.Bench.Recipes)
             {
                 if (product.Value != "" && !recipe.Products.Contains(product))
                 {

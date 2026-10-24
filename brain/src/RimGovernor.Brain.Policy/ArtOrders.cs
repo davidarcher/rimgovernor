@@ -56,7 +56,7 @@ public static class ArtOrdersRules
             output.Unread(Cause.UnreadArtNeed);
         }
 
-        var benches = Known(EquatableArray.From(ArtProductionBenches(r.Benches)));
+        var benches = ArtProductionBenches(r.Benches);
         var selected = new List<BillSelection>(ArtRules.SelectInspiredArtBills(benches, inspired, r.Items));
         if (sculpt)
         {
@@ -88,10 +88,9 @@ public static class ArtOrdersRules
         var current = new HashSet<string>(artists.Select(a => a.Value), StringComparer.Ordinal);
         foreach (var b in benches)
         {
-            b.Bills.TryGetValue(out var bills);
-            foreach (var bill in bills!)
+            foreach (var bill in b.Bills)
             {
-                if (bill.Role != RecipeRole.Sculpture || !current.Contains(bill.Worker) || !bill.Active)
+                if (bill.Role != RecipeRole.Sculpture ||!current.Contains(bill.Worker) || !bill.Active)
                 {
                     continue;
                 }
@@ -104,39 +103,23 @@ public static class ArtOrdersRules
     }
 
     /// <summary>
-    /// The benches offering a sculpture recipe as the art selectors read them; a bench whose recipes or bills
-    /// are unknown is left out. The ledger chooses the bench when it places a declared order, so the bench id
-    /// stands in for the write token no declaration needs.
+    /// The benches offering a sculpture recipe as the art selectors read them. The ledger chooses the bench when it
+    /// places a declared order, so the bench id stands in for the write token no declaration needs.
     /// </summary>
     public static IReadOnlyList<ProductionBench> ArtProductionBenches(IEnumerable<GearBench> benches)
     {
         var output = new List<ProductionBench>();
         foreach (var read in benches)
         {
-            var rk = read.Recipes.TryGetValue(out var recipes);
-            var bk = read.Bills.TryGetValue(out var bills);
-            if (!rk || !bk)
-            {
-                continue;
-            }
-
             var rows = new List<ProductionRecipe>();
-            foreach (var recipe in recipes!)
+            foreach (var recipe in read.Recipes)
             {
                 if (recipe.Role != RecipeRole.Sculpture)
                 {
                     continue;
                 }
 
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                var row = new ProductionRecipe { Name = recipe.Definition, Role = recipe.Role, Food = new RecipeFood.NotFood() };
-                if (ak && ok)
-                {
-                    row = row with { Available = Known(available && on) };
-                }
-
-                rows.Add(row);
+                rows.Add(new ProductionRecipe { Name = recipe.Definition, Role = recipe.Role, Food = new RecipeFood.NotFood(), Available = recipe.Available && recipe.AvailableOn });
             }
 
             if (rows.Count == 0)
@@ -144,7 +127,7 @@ public static class ArtOrdersRules
                 continue;
             }
 
-            var existing = bills!.Select(bill => bill.Existing);
+            var existing = read.Bills.Select(bill => bill.Existing);
             output.Add(
                 new ProductionBench
                 {
@@ -168,10 +151,9 @@ public static class ArtOrdersRules
     {
         foreach (var b in benches)
         {
-            b.Bills.TryGetValue(out var bills);
-            foreach (var bill in bills!)
+            foreach (var bill in b.Bills)
             {
-                if (bill.Active && bill.Role == RecipeRole.Sculpture)
+                if (bill.Active &&bill.Role == RecipeRole.Sculpture)
                 {
                     return true;
                 }

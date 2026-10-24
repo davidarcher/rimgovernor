@@ -193,9 +193,6 @@ public sealed record GearReview
 /// <summary>Observed or proposed production supply for a loadout requirement; not a pawn labor winner.</summary>
 public enum GearMethodKind
 {
-    [WireName("unknown")]
-    Unknown = 0,
-
     [WireName("produce")]
     Produce,
 
@@ -206,7 +203,7 @@ public enum GearMethodKind
 public sealed record GearMethod
 {
     public int Count { get; init; }
-    public GearMethodKind Kind { get; init; }
+    public required GearMethodKind Kind { get; init; }
     public string Bench { get; init; } = "";
     public string Recipe { get; init; } = "";
     public EquatableArray<Resource> Filter { get; init; }
@@ -252,8 +249,13 @@ public sealed record GearRecipe
     public RecipeRole Role { get; init; }
 
     public EquatableArray<Resource> Products { get; init; }
-    public Fact<bool> Available { get; init; }
-    public Fact<bool> AvailableOn { get; init; }
+
+    /// <summary>Whether the recipe's own gates (research) admit it now.</summary>
+    public required bool Available { get; init; }
+
+    /// <summary>Whether the bench offers the recipe now; true for a catalog recipe, which no bench stands to refuse.</summary>
+    public required bool AvailableOn { get; init; }
+
     /// <summary>The ingredient slots as alternatives, each allowed def with the count it takes (the catalog's RecipeIngredients).</summary>
     public required EquatableArray<EquatableArray<Amount>> Ingredients { get; init; }
 
@@ -281,13 +283,13 @@ public sealed record GearBench
     public string Def { get; init; } = "";
 
     /// <summary>Whether the bench takes a new bill.</summary>
-    public Fact<bool> Usable { get; init; }
+    public required bool Usable { get; init; }
 
-    /// <summary>The bench's WorkTableWorkSpeedFactor now; unknown when native sent none.</summary>
-    public Fact<double> WorkSpeed { get; init; }
+    /// <summary>The bench's WorkTableWorkSpeedFactor now.</summary>
+    public required double WorkSpeed { get; init; }
 
-    public Fact<EquatableArray<GearBill>> Bills { get; init; }
-    public Fact<EquatableArray<GearRecipe>> Recipes { get; init; }
+    public required EquatableArray<GearBill> Bills { get; init; }
+    public required EquatableArray<GearRecipe> Recipes { get; init; }
 }
 
 /// <summary>
@@ -554,20 +556,15 @@ public static class GearRules
 
     /// <summary>
     /// Resolves one need of count items against the benches: Wait with the standing bill (Bill) that already makes
-    /// it, Unknown while a bench's bills or a recipe's facts are unread, Produce with the first funded recipe, else
-    /// with the first funded catalog recipe no bench lists (CraftOf, #3659). Resolved is false when no recipe is
-    /// funded, so the next need is judged.
+    /// it, Produce with the first funded recipe, else with the first funded catalog recipe no bench lists (CraftOf,
+    /// #3659). Null when no recipe is funded, so the next need is judged.
     /// </summary>
-    internal static (GearMethod Method, bool Resolved) ProduceNeed(GearNeed n, int count, IReadOnlyList<GearBench> benches, GearPlanningRequest r)
+    internal static GearMethod? ProduceNeed(GearNeed n, int count, IReadOnlyList<GearBench> benches, GearPlanningRequest r)
     {
         // Check every bench before adding a bill, including later-sorted player benches.
         foreach (var b in benches)
         {
-            if (!b.Bills.TryGetValue(out var bills))
-            {
-                return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
-            }
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 if (bill.Spent || !ContainsResource(bill.Products, n.Need.Definition))
                 {
@@ -575,55 +572,34 @@ public static class GearRules
                 }
                 if (bill.Active)
                 {
-                    return (new GearMethod { Kind = GearMethodKind.WaitForExistingWork, Bill = bill }, true);
+                    return new GearMethod { Kind = GearMethodKind.WaitForExistingWork, Bill = bill };
                 }
             }
         }
         foreach (var b in benches)
         {
-            if (!b.Recipes.TryGetValue(out var all))
+            foreach (var recipe in b.Recipes.OrderBy(x => x.Definition, StringComparer.Ordinal))
             {
-                return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
-            }
-            foreach (var recipe in all.OrderBy(x => x.Definition, StringComparer.Ordinal))
-            {
-                if (!ContainsResource(recipe.Products, n.Need.Definition))
+                if (!ContainsResource(recipe.Products, n.Need.Definition) || !recipe.Available || !recipe.AvailableOn)
                 {
                     continue;
-                }
-                var ak = recipe.Available.TryGetValue(out var available);
-                var ok = recipe.AvailableOn.TryGetValue(out var on);
-                if ((ak && !available) || (ok && !on))
-                {
-                    continue;
-                }
-                if (!ak || !ok)
-                {
-                    return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
                 }
                 var batch = GearStockRules.GearBatchIngredients(recipe.Ingredients, count);
                 if (GearFilter(batch, default, r.Items) is { } filter)
                 {
-                    return (
-                        new GearMethod
-                        {
-                            Kind = GearMethodKind.Produce,
-                            Count = count,
-                            Bench = b.Id,
-                            Recipe = recipe.Definition,
-                            Filter = EquatableArray.From(filter),
-                        },
-                        true
-                    );
+                    return new GearMethod
+                    {
+                        Kind = GearMethodKind.Produce,
+                        Count = count,
+                        Bench = b.Id,
+                        Recipe = recipe.Definition,
+                        Filter = EquatableArray.From(filter),
+                    };
                 }
             }
         }
         // No standing bench works a recipe making the need: the catalog's recipe is ordered with no bench (#3659).
-        if (CraftOf(r.Crafts, benches, n.Need.Definition, count, r.Items) is { } craft)
-        {
-            return (craft, true);
-        }
-        return (new GearMethod(), false);
+        return CraftOf(r.Crafts, benches, n.Need.Definition, count, r.Items);
     }
 
     /// <summary>The bench id of a method a catalog recipe makes (CraftOf): no bench stands for it, so its order names no bench kind.</summary>
@@ -638,12 +614,12 @@ public static class GearRules
         var hosted = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in benches)
         {
-            foreach (var recipe in b.Recipes.ValueOrDefault)
+            foreach (var recipe in b.Recipes)
             {
                 hosted.Add(recipe.Definition);
             }
         }
-        return crafts.Where(c => !hosted.Contains(c.Definition) && c.Available.TryGetValue(out var available) && available).OrderBy(c => c.Definition, StringComparer.Ordinal);
+        return crafts.Where(c => !hosted.Contains(c.Definition) && c.Available).OrderBy(c => c.Definition, StringComparer.Ordinal);
     }
 
     /// <summary>The Produce of the first funded available catalog recipe making product that no standing bench lists; null when there is none.</summary>
@@ -681,14 +657,12 @@ public static class GearRules
         foreach (var b in benches)
         {
             DomainException.Require(FoodForecastRules.FoodId(b.Id) && ids.Add(b.Id), "invalid gear bench");
-            var bills = b.Bills.ValueOrDefault;
-            var recipes = b.Recipes.ValueOrDefault;
-            foreach (var bill in bills)
+            foreach (var bill in b.Bills)
             {
                 DomainException.Require(Products(bill.Products), "invalid bill products");
             }
             var names = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var recipe in recipes)
+            foreach (var recipe in b.Recipes)
             {
                 DomainException.Require(FoodForecastRules.FoodId(recipe.Definition) && names.Add(recipe.Definition) && Products(recipe.Products), "invalid gear recipe");
                 WorkRules.AssignWork([], recipe.RequiredWork);

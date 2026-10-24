@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -16,29 +15,46 @@ public sealed record ProductionProduct
 {
     public string Name { get; init; } = "";
 
-    public Fact<double> Nutrition { get; init; }
-
-    public Fact<bool> Edible { get; init; }
-
-    public Fact<bool> Perishable { get; init; }
-
-    /// <summary>Whether a baby can eat the product (Biotech).</summary>
-    public Fact<bool> BabyEdible { get; init; }
-
-    /// <summary>The food kind the game gives the product.</summary>
-    public FoodKind Kind { get; init; }
-
-    /// <summary>The count of the product protected, reachable storage accepting it can hold: stored stock plus empty stack slots.</summary>
-    public Fact<long> Storable { get; init; }
+    /// <summary>What the product is worth as food (ProductFood).</summary>
+    public required ProductFood Food { get; init; }
 
     /// <summary>Reports a product the game classes as a meal.</summary>
-    public bool Meal() => Kind is FoodKind.MealAwful or FoodKind.MealSimple or FoodKind.MealFine or FoodKind.MealLavish;
+    public bool Meal() => Food is ProductFood.Food { Kind: FoodKind.MealAwful or FoodKind.MealSimple or FoodKind.MealFine or FoodKind.MealLavish };
 
     /// <summary>A meal that never rots: the packaged survival meal, a reserve that is no part of the perishable meal tiers.</summary>
-    public bool SurvivalMeal() => Meal() && Perishable.TryGetValue(out var perishable) && !perishable;
+    public bool SurvivalMeal() => Meal() && Food is ProductFood.Food { Perishable: false };
 
     /// <summary>The perishable simple-tier meal, the cheapest the cooks make.</summary>
-    public bool SimpleMeal() => Kind == FoodKind.MealSimple && Perishable.TryGetValue(out var perishable) && perishable;
+    public bool SimpleMeal() => Food is ProductFood.Food { Kind: FoodKind.MealSimple, Perishable: true };
+
+    /// <summary>The nutrition of one unit of a product every colonist eats (Food with Edible), false for any other product.</summary>
+    public bool EatenNutrition(out double nutrition)
+    {
+        nutrition = Food is ProductFood.Food { Edible: true, Nutrition: var n } ? n : 0;
+        return Food is ProductFood.Food { Edible: true };
+    }
+}
+
+/// <summary>What a recipe product is worth as food, by its def (the catalog) and the colony (native).</summary>
+public abstract record ProductFood
+{
+    private ProductFood()
+    {
+    }
+
+    /// <summary>
+    /// The product is no food: the game shows it no nutrition, or it is not ingestible. Part-fabrication rows carry
+    /// it too, as the part and mech planners never read a product as food (as RecipeFood.NotFood).
+    /// </summary>
+    public sealed record NotFood : ProductFood;
+
+    /// <summary>
+    /// The product is food. Kind is the food kind the game gives it; Nutrition its positive per-unit nutrition;
+    /// Edible whether every colonist eats it; Perishable whether it rots; BabyEdible whether a baby can eat it
+    /// (Biotech); Storable the count protected, reachable storage accepting it can hold: stored stock plus empty
+    /// stack slots.
+    /// </summary>
+    public sealed record Food(FoodKind Kind, double Nutrition, bool Edible, bool Perishable, bool BabyEdible, long Storable) : ProductFood;
 }
 
 public sealed record ProductionRecipe
@@ -54,7 +70,8 @@ public sealed record ProductionRecipe
     /// <summary>The PawnKindDef a gestation recipe makes, "" otherwise.</summary>
     public string MechKind { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    /// <summary>Whether the bench offers the recipe now: its own gates and the bench's both admit it.</summary>
+    public required bool Available { get; init; }
 
     public IReadOnlyList<ProductionProduct> Products { get; init; } = [];
 
@@ -112,7 +129,8 @@ public sealed record ProductionBench
 {
     public IReadOnlyList<HumanButcherCandidate> HumanButchers { get; init; } = [];
 
-    public Fact<double> HumanCorpseNutrition { get; init; }
+    /// <summary>The nutrition of the fresh humanlike corpses near a butcher bench (0 for none, and for a cooking bench).</summary>
+    public double HumanCorpseNutrition { get; init; }
 
     public string Id { get; init; } = "";
 
@@ -125,8 +143,8 @@ public sealed record ProductionBench
 
     public bool Butcher { get; init; }
 
-    /// <summary>The native room census identity the bench stands in.</summary>
-    public Fact<string> Room { get; init; }
+    /// <summary>The native room census identity the bench stands in; null when it stands in no room.</summary>
+    public string? Room { get; init; }
 
     public IReadOnlyList<ProductionRecipe> Recipes { get; init; } = [];
 
@@ -238,16 +256,15 @@ public static partial class ProductionRules
     /// </summary>
     public static (BillSelection Selection, bool Ok) SelectProductionBill(
         BillPurpose purpose,
-        Fact<EquatableArray<ProductionBench>> benches,
+        IReadOnlyList<ProductionBench> benches,
         long colonists,
-        Fact<double> runway,
-        Fact<double> atRisk,
+        double atRisk,
         double targetDays,
         params ProductionBillContext[] context)
     {
         var none = (new BillSelection(), false);
-        var known = benches.TryGetValue(out var rows);
-        if (!known || colonists <= 0 || colonists > 256 || !FieldCapacityRules.FieldPositive(targetDays) || targetDays > 60)
+        var rows = benches;
+        if (colonists <= 0 || colonists > 256 || !FieldCapacityRules.FieldPositive(targetDays) || targetDays > 60)
         {
             return none;
         }
@@ -275,7 +292,7 @@ public static partial class ProductionRules
                 return none;
             }
             var demand = context[0].Art ?? new ArtDemand();
-            return ArtRules.SelectArtBill(rows!, context[0].Artists[0], demand, out var art) ? (art, true) : none;
+            return ArtRules.SelectArtBill(rows, context[0].Artists[0], demand, out var art) ? (art, true) : none;
         }
         if (context.Length == 1 && ((context[0].Meals is not null && purpose != ProductionRules.CookFood)
             || (context[0].Reserve is not null && purpose != ProductionRules.PreserveFood)))
@@ -298,7 +315,7 @@ public static partial class ProductionRules
             }
             return FoodReserveRules.SelectReserveBill(benches, context[0].Reserve!);
         }
-        var (reserved, ok) = ReservedFoodNutrition(rows!);
+        var (reserved, ok) = ReservedFoodNutrition(rows);
         if (!ok)
         {
             reserved = 0;
@@ -306,8 +323,8 @@ public static partial class ProductionRules
         var ahead = 0.0;
         if (purpose == ProductionRules.CookAheadFood)
         {
-            var rk = atRisk.TryGetValue(out var risk);
-            if (!rk || !FieldCapacityRules.FieldPositive(risk) || risk > 1e6)
+            var risk = atRisk;
+            if (!FieldCapacityRules.FieldPositive(risk) || risk > 1e6)
             {
                 return none;
             }
@@ -321,7 +338,7 @@ public static partial class ProductionRules
         var bulk = new Dictionary<string, bool>(StringComparer.Ordinal);
         var simple = new Dictionary<string, bool>(StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var bench in rows!)
+        foreach (var bench in rows)
         {
             if (!FoodForecastRules.FoodId(bench.Id) || !seen.Add(bench.Id) || bench.Bills.Count > 15)
             {
@@ -338,8 +355,7 @@ public static partial class ProductionRules
                 {
                     return none;
                 }
-                var ak = recipe.Available.TryGetValue(out var available);
-                if (!ak || !available)
+                if (!recipe.Available)
                 {
                     continue;
                 }
@@ -390,9 +406,7 @@ public static partial class ProductionRules
                         continue;
                     }
                     var product = recipe.Products[0];
-                    var ek = product.Edible.TryGetValue(out var edible);
-                    var nk = product.Nutrition.TryGetValue(out var nutrition);
-                    if (!ek || !edible || !nk || !FieldCapacityRules.FieldPositive(nutrition))
+                    if (!product.EatenNutrition(out var nutrition) || !FieldCapacityRules.FieldPositive(nutrition))
                     {
                         continue;
                     }
@@ -424,7 +438,7 @@ public static partial class ProductionRules
         IReadOnlyDictionary<string, bool> separated = new Dictionary<string, bool>();
         if (purpose == ProductionRules.ButcherFood)
         {
-            separated = SeparatedButcherBenches(rows!);
+            separated = SeparatedButcherBenches(rows);
         }
         var cooking = purpose == ProductionRules.CookFood || purpose == ProductionRules.CookAheadFood;
         options.Sort((a, b) =>
@@ -451,15 +465,15 @@ public static partial class ProductionRules
     }
 
     /// <summary>
-    /// Reports, by ID, every butcher bench whose room is known and holds no cooking bench. A bench with an
-    /// unknown room is never certified separated.
+    /// Reports, by ID, every butcher bench whose room holds no cooking bench. A bench that stands in no
+    /// room is never certified separated.
     /// </summary>
     public static IReadOnlyDictionary<string, bool> SeparatedButcherBenches(IReadOnlyList<ProductionBench> benches)
     {
         var cooking = new HashSet<string>(StringComparer.Ordinal);
         foreach (var bench in benches)
         {
-            if (bench.Room.TryGetValue(out var room) && !bench.Butcher)
+            if (bench.Room is { } room && !bench.Butcher)
             {
                 cooking.Add(room);
             }
@@ -467,7 +481,7 @@ public static partial class ProductionRules
         var result = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var bench in benches)
         {
-            if (bench.Room.TryGetValue(out var room) && bench.Butcher && !cooking.Contains(room))
+            if (bench.Room is { } room && bench.Butcher && !cooking.Contains(room))
             {
                 result[bench.Id] = true;
             }
@@ -476,7 +490,7 @@ public static partial class ProductionRules
     }
 
     /// <summary>
-    /// True when at least one butcher bench exists, every butcher bench's room is known, and none stands apart
+    /// True when at least one butcher bench exists, every butcher bench stands in a room, and none stands apart
     /// from cooking: the separated-spot build then owns the food-supply goal before any bill.
     /// </summary>
     public static bool AllButchersColocated(IReadOnlyList<ProductionBench> benches)
@@ -489,7 +503,7 @@ public static partial class ProductionRules
             {
                 continue;
             }
-            if (!bench.Room.TryGetValue(out _) || separated.GetValueOrDefault(bench.Id))
+            if (bench.Room is null || separated.GetValueOrDefault(bench.Id))
             {
                 return false;
             }
