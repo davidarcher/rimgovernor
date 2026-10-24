@@ -1,8 +1,9 @@
 # Colony review
 
-A nightly review run, not a gate: the governor plays a pinned-seed map for
+A nightly review run: the governor plays a pinned-seed map for
 an in-game season (a quadrum, 15 days) and the run publishes an hour-by-hour
-report to GitHub Pages for a person (or a model) to skim for bugs.
+report to GitHub Pages for a person (or a model) to skim for bugs. The score
+and flags are signal only; the layout thresholds (below) fail the run.
 
 - **Run** `acceptance colony-review -root <dir> [-output <dir> -seed <s> -days 15 -timeout <d>]`
   (`brain/src/RimGovernor.Brain.Acceptance/Colony/ColonyReviewCommand.cs`), its own driver outside the
@@ -66,6 +67,48 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   | `downed_time` | fraction of readings with a colonist downed | never | 1 |
   | `stage_days:<tier>` | days to the first reading of each tech tier reached | day 0 (0 at 15 days) | 3 shared evenly by the tiers reached |
   | `raid_damage` | unknown: the timeline records none yet | | 2 |
+- **Layout** (#3751) `run.json` carries `layout` and the run page a Layout card: a
+  thresholds table, the run totals and a per-game-day series
+  (`tools/rg/Commands/ColonyReview/LayoutReview.cs`, inputs gathered by
+  `LayoutReviewLoad.cs`). Sources:
+  - the journal's `colony_layout_plans` rows (`service.sqlite` beside
+    `result.json`, or `report -journal <file>`), read raw and read-only so a
+    journal of another schema version still reads; only the world of the
+    newest plan counts;
+  - the service's OTLP log ring (the `log_path` that `result.json`'s `service`
+    entry records, or `report -logs <file>`), cut to the run's wall-clock
+    window (`started_at` to `result.json`'s write);
+  - the timeline's `housing` census, `{colonists, housed}` each sample
+    (`ColonyHousing`, a watch probe): live colonists, and those whose owned
+    bed stands in an enclosed room the game scores Bedroom or Barracks.
+
+  Metrics, per day and over the run:
+
+  | metric | from |
+  | --- | --- |
+  | replans (per day) | `layout_replan_tiled` rows, skipped and failed verdicts left out |
+  | rooms re-sited per replan, started / unstarted | the row's rooms with reason `tile_sited_again`, split by their `started` attr (absent counts unstarted) |
+  | planned, built, open rings, builders | `layout_progress` events, one per review with a plan |
+  | links per walled room | each plan: distinct links between walled rooms (not outdoor, no parent) over walled rooms |
+  | mean bedroom/barracks interior | each plan's Bedroom and Barracks rooms' region area |
+  | colonists housed | the `housing` census; the housed day is the first day everyone is housed |
+  | bedroom step refusals by reason | `planner_step` refused rows of concern `shelter/sleeping`; `no_space`, `awaiting_plan` and `field_unavailable` always listed |
+
+  Thresholds (`score.thresholds`: `name`, `value`, `bound`, `status`
+  `pass`/`fail`/`unknown`, `reason` on a fail, `note`). A failed threshold
+  fails the run: `report` writes the page either way and exits 3, and the
+  workflow fails the job after deploying. A threshold whose source the run
+  did not leave is `unknown`, never a pass.
+
+  | name | holds when | fail reason |
+  | --- | --- | --- |
+  | `layout_started_resites` | no replan re-sited a started room | `started_room_resited` |
+  | `layout_open_rings` | at every review, open rings <= max(1, builders) | `open_rings_over_builders` |
+  | `layout_links_per_room` | every plan of two or more walled rooms has links >= rooms - 1 | `rooms_unlinked` |
+  | `layout_housed_by_day` | on a `TemperateForest` start, everyone housed by day 6 (unknown on other biomes, and when the run ended before day 7 with nobody housed yet) | `not_housed_by_day_6` |
+
+  The previous-night comparison carries `delta.thresholds`: each threshold's
+  status, the baseline's and the value change.
 - **Previous-night comparison** `report -baselines <dir of earlier run dirs>`
   adds `delta` to `run.json` and a section to the run page: this run's
   score minus the baseline's, per component (`delta` in score units, 0-1,

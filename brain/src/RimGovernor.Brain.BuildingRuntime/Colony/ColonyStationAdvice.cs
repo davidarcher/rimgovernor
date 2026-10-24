@@ -133,8 +133,12 @@ public sealed partial class Rounder
 
 internal static class StationAdviceLog
 {
-    /// <summary>The layout_replan_tiled row's attrs: the diff's counts per verdict and its rooms, the standing rooms with no node, and the standing and tiled room counts.</summary>
-    public static Dictionary<string, object?> TiledReplanAttrs(ReplanTileDiff diff, int built, int tiledRooms, EmbedReplan? replan)
+    /// <summary>
+    /// The layout_replan_tiled row's attrs: the diff's counts per verdict and its rooms, the standing rooms with no node, and
+    /// the standing and tiled room counts. Each room of the held plan carries <c>started</c>, whether it is in the run's
+    /// pinned set <paramref name="started"/> (anything of ours on it); absent while the census is unknown (#3751).
+    /// </summary>
+    public static Dictionary<string, object?> TiledReplanAttrs(ReplanTileDiff diff, int built, int tiledRooms, EmbedReplan? replan, IReadOnlySet<int>? started)
     {
         var rooms = new List<Dictionary<string, object?>>(diff.Rooms.Count);
         foreach (var d in diff.Rooms)
@@ -155,6 +159,10 @@ internal static class StationAdviceLog
             if (d.Identity != "")
             {
                 row["id"] = d.Identity;
+            }
+            if (started is not null && d.Room != 0)
+            {
+                row["started"] = started.Contains(d.Room);
             }
             rooms.Add(row);
         }

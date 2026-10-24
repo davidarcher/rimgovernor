@@ -744,8 +744,20 @@ public sealed partial class Rounder
             // The open planned rooms, whose rings close first in the ring-closure projection (#3744, #3754): started and not
             // done by their latest reconcile, of the plan the layout review read (a later retired-ground drop leaves its rooms as they are).
             var done = DoneRooms.Get(state.Snapshot);
-            var open = layoutPlan is null ? []
-                : layoutPlan.Rooms.Where(r => !done.Contains(r.Id) && RoundsBuildingPlanner.PlannedRoomStartedOf(reading.Projection, layoutPlan, r) == true).Select(r => r.Id).ToHashSet();
+            var started = layoutPlan is null ? []
+                : layoutPlan.Rooms.Where(r => RoundsBuildingPlanner.PlannedRoomStartedOf(reading.Projection, layoutPlan, r) == true).Select(r => r.Id).ToList();
+            var open = started.Where(id => !done.Contains(id)).ToHashSet();
+            if (layoutPlan is not null)
+            {
+                // The colony review's open-rings threshold reads this row (#3751).
+                ClockEvents.Event("routine", LayoutProgressTelemetry.Kind, "layout progress", [
+                    (LayoutProgressTelemetry.PlannedKey, layoutPlan.Rooms.Count),
+                    (LayoutProgressTelemetry.StartedKey, started.Count),
+                    (LayoutProgressTelemetry.BuiltKey, layoutPlan.Rooms.Count(r => done.Contains(r.Id))),
+                    (LayoutProgressTelemetry.OpenKey, open.Order().ToArray()),
+                    (LayoutProgressTelemetry.BuildersKey, coupled.Context.PlannedBuilders),
+                ]);
+            }
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {

@@ -127,6 +127,9 @@ public sealed record WatchSample
 
     public IReadOnlyList<(string Goal, NeedSample? Sample, string? Error)> Extras { get; init; } = [];
 
+    /// <summary>Each <see cref="WatchProbe"/>'s read, under its key.</summary>
+    public IReadOnlyList<(string Key, JsonObject Value)> Probes { get; init; } = [];
+
     public ulong? Tick { get; init; }
 
     public ColonyRead Colony { get; init; } = new();
@@ -142,7 +145,7 @@ public sealed record WatchSample
     public DateTimeOffset AtTime() =>
         DateTimeOffset.TryParse(At, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at) ? at : default;
 
-    /// <summary>The sample as its timeline row: the goal's sample and concern (or error and at), each extra goal, tick and colony.</summary>
+    /// <summary>The sample as its timeline row: the goal's sample and concern (or error and at), each extra goal, each probe, tick and colony.</summary>
     public JsonObject ToJson()
     {
         JsonObject row;
@@ -161,6 +164,12 @@ public sealed record WatchSample
             // A goal listed twice keeps its last read.
             _ = row.Remove(goal);
             row.Add(goal, sample is not null ? sample.ToJson() : new JsonObject { { "error", error } });
+        }
+
+        foreach (var (key, value) in Probes)
+        {
+            _ = row.Remove(key);
+            row.Add(key, value.DeepClone());
         }
 
         return row.AddIfPresent("tick", Tick).AddIfPresent("colony", Colony.ToJson());

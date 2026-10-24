@@ -173,7 +173,7 @@ public sealed partial class Rounder
         var advice = run.Tiled!;
         var changed = !LayoutPlan.SamePlan(plan, next);
         var replan = advice.Embedding.Replan;
-        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, run.Facts.Built ?? new HashSet<int>(), advice), run.Facts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count, replan);
+        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, run.Facts.Built ?? new HashSet<int>(), advice), run.Facts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count, replan, pending.Growth.Fixed);
         tiledAttrs["changed"] = changed;
         tiledAttrs["adopted"] = waited;
         if (pending.Drift.Count > 0)

@@ -12,9 +12,10 @@ internal static class ReviewReport
 
     /// <summary>
     /// Reads the case output <paramref name="input"/> and writes the run report to <paramref name="output"/>: the images,
-    /// index.html and run.json (the meta plus the summary).
+    /// index.html and run.json (the meta plus the summary and the layout section, whose thresholds fail the run). Returns the
+    /// summary. An empty <paramref name="journal"/> or <paramref name="logs"/> reads the run's own (<see cref="LayoutReviewLoad"/>).
     /// </summary>
-    public static void Write(string input, string output, IReadOnlyDictionary<string, string> meta, string baselines)
+    public static RunSummary Write(string input, string output, IReadOnlyDictionary<string, string> meta, string baselines, string journal = "", string logs = "")
     {
         List<Row> rows;
         CaseResult result;
@@ -44,6 +45,9 @@ internal static class ReviewReport
             merged[k] = v;
         }
         var summary = ReviewTimeline.Derive(rows, merged) with { Error = result.Error.Length > 0 ? result.Error : null };
+        var inputs = LayoutReviewLoad.Read(input, journal, logs);
+        var layout = LayoutReview.Compute(inputs);
+        summary = summary with { Layout = layout, Score = summary.Score with { Thresholds = LayoutReview.Thresholds(layout, inputs) } };
         summary = ColonyScoring.CompareToStore(summary, baselines, Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(output))));
         Directory.CreateDirectory(Path.Combine(output, "review"));
         foreach (var r in rows)
@@ -58,6 +62,7 @@ internal static class ReviewReport
         }
         File.WriteAllText(Path.Combine(output, "run.json"), JsonSerializer.Serialize(summary, WriteOptions), new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(output, "index.html"), ReviewPages.RunPage(rows, summary), new UTF8Encoding(false));
+        return summary;
     }
 
     /// <summary>

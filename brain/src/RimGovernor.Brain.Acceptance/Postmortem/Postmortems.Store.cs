@@ -34,7 +34,7 @@ public static class PostmortemStore
     /// Opens the store file at <paramref name="path"/> read-only without the store's schema checks; the note explains a
     /// null connection. The caller disposes the connection.
     /// </summary>
-    internal static (SqliteConnection? Db, string Note) OpenRaw(string path)
+    public static (SqliteConnection? Db, string Note) OpenRaw(string path)
     {
         if (!File.Exists(path))
         {

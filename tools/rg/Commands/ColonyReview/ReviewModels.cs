@@ -191,7 +191,38 @@ internal sealed record ScoreComponent
     public string? Note { get; init; }
 }
 
-/// <summary>The score vector and its weighted scalar (0-100, null when no component is known).</summary>
+/// <summary>
+/// One fail condition of the run (#3751): Value against Bound and the Status that reached. A failed one names its Reason;
+/// an unknown one (the run left no rows for it) is neither a pass nor a fail.
+/// </summary>
+internal sealed record ScoreThreshold
+{
+    public const string Pass = "pass";
+    public const string Fail = "fail";
+    public const string Unknown = "unknown";
+
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+
+    [JsonPropertyName("value")]
+    public double? Value { get; init; }
+
+    [JsonPropertyName("bound")]
+    public double Bound { get; init; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = "";
+
+    [JsonPropertyName("reason")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; init; }
+
+    [JsonPropertyName("note")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Note { get; init; }
+}
+
+/// <summary>The score vector and its weighted scalar (0-100, null when no component is known), and the run's thresholds.</summary>
 internal sealed record ColonyScore
 {
     [JsonPropertyName("components")]
@@ -199,6 +230,30 @@ internal sealed record ColonyScore
 
     [JsonPropertyName("scalar")]
     public double? Scalar { get; init; }
+
+    [JsonPropertyName("thresholds")]
+    public IReadOnlyList<ScoreThreshold> Thresholds { get; init; } = [];
+
+    /// <summary>Whether a threshold failed: the run fails.</summary>
+    [JsonPropertyName("failed")]
+    public bool Failed => Thresholds.Any(t => t.Status == ScoreThreshold.Fail);
+}
+
+/// <summary>One threshold's status against the baseline's; ValueDelta is null unless both values are known.</summary>
+internal sealed record ThresholdDelta
+{
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = "";
+
+    /// <summary>The baseline's status, "unknown" when the baseline did not hold the threshold.</summary>
+    [JsonPropertyName("baseline_status")]
+    public string BaselineStatus { get; init; } = "";
+
+    [JsonPropertyName("value_delta")]
+    public double? ValueDelta { get; init; }
 }
 
 /// <summary>One component's change from the baseline; both deltas are null unless Status is "ok".</summary>
@@ -240,6 +295,10 @@ internal sealed record ScoreDelta
     [JsonPropertyName("components")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ComponentDelta>? Components { get; init; }
+
+    [JsonPropertyName("thresholds")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ThresholdDelta>? Thresholds { get; init; }
 }
 
 /// <summary>The run at a glance, saved in run.json for the site index.</summary>
@@ -285,6 +344,11 @@ internal sealed record RunSummary
     [JsonPropertyName("delta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ScoreDelta? Delta { get; init; }
+
+    /// <summary>The layout section (#3751); null in a run.json written before it.</summary>
+    [JsonPropertyName("layout")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LayoutSection? Layout { get; init; }
 
     [JsonPropertyName("thumb")]
     public string Thumb { get; init; } = "";

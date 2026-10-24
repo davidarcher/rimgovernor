@@ -48,6 +48,9 @@ public sealed record WatchConfig
     /// <summary>Further goals each sample also reads, under the goal id.</summary>
     public IReadOnlyList<string> Extra { get; init; } = [];
 
+    /// <summary>Live reads each sample also records under their key, such as the colony review's housing census (#3751).</summary>
+    public IReadOnlyList<WatchProbe> Probes { get; init; } = [];
+
     /// <summary>
     /// Ends the window with the clock's hold reason once the live game tick advanced slower than this many ticks per
     /// second over a stall budget of watch time (<see cref="ClockRate"/>; checkpoint captures do not count). A held,
@@ -55,6 +58,12 @@ public sealed record WatchConfig
     /// </summary>
     public double MinTicksPerSecond { get; init; } = ClockRate.DefaultFloor;
 }
+
+/// <summary>
+/// One live read a watch sample records under <paramref name="Key"/>: Read's reply, or {error} when it throws an
+/// <see cref="AcceptanceException"/>.
+/// </summary>
+public sealed record WatchProbe(string Key, Func<CancellationToken, Task<JsonObject>> Read);
 
 /// <summary>
 /// One serve-driven case's shape over the watch: Prepare runs against the loaded game before the service starts (the
@@ -211,6 +220,19 @@ public static class SustainedFood
                     }
                 }
 
+                var probes = new List<(string Key, JsonObject Value)>();
+                foreach (var probe in cfg.Probes)
+                {
+                    try
+                    {
+                        probes.Add((probe.Key, await probe.Read(cancellationToken).ConfigureAwait(false)));
+                    }
+                    catch (AcceptanceException e)
+                    {
+                        probes.Add((probe.Key, new JsonObject { { "error", e.Message } }));
+                    }
+                }
+
                 var liveTick = await LiveTickAsync(apiCall, cancellationToken).ConfigureAwait(false);
                 if (liveTick is { } tick)
                 {
@@ -224,6 +246,7 @@ public static class SustainedFood
                     ErrorAt = errorAt,
                     Concern = concernId,
                     Extras = extras,
+                    Probes = probes,
                     Tick = liveTick,
                     Colony = await SustainedColonySample.SampleColonyAsync(apiCall, cancellationToken).ConfigureAwait(false),
                 };

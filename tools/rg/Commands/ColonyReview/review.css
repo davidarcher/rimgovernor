@@ -39,3 +39,5 @@ details.card>summary{cursor:pointer;font-weight:600}details.card[open]>summary{m
 table.runs{width:100%;border-collapse:collapse}table.runs td,table.runs th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
 table.runs img{width:72px;height:72px;object-fit:cover;border-radius:4px}
 @media (max-width:900px){.layout{grid-template-columns:1fr}.right{position:static;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}}
+.lay{overflow-x:auto}.lay table{border-collapse:collapse;font-size:13px}.lay td,.lay th{padding:2px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.lay td:first-child,.lay th:first-child{text-align:left}.lay th{font-weight:400;color:var(--muted)}
+.pass{color:var(--accent)}

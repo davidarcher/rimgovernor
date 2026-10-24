@@ -4,8 +4,9 @@ name: Colony review
 # with the governor in charge, recording an hourly screenshot and colony
 # facts) on the remote-acceptance runner setup, renders the recording with
 # the colonyreview tool and publishes the newest reports to GitHub Pages. A
-# review, not a gate: the report is built from whatever was recorded even
-# when the run fails. Gate and bootstrap are remote_workflow.ps1's, as in
+# review: the report is built from whatever was recorded even
+# when the run fails, and a failed layout threshold (#3751) fails the job
+# after the report is published. Gate and bootstrap are remote_workflow.ps1's, as in
 # fixture-factory.yml; no case is planned.
 
 on:
@@ -195,11 +196,16 @@ jobs:
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
           $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          # The layout section reads the journal beside result.json and the OTLP log ring result.json names (#3751).
+          # Exit 3 is a failed layout threshold: the report is written and published, and the last step fails the job.
           & C:\rg\rg.exe colonyreview report -in $in -out "C:\rg\review-report\$name" -baselines C:\rg\baselines `
             -meta "date=$date" -meta "commit=$($env:TESTED_COMMIT.Substring(0,9))" -meta "run=$url" -meta "outcome=$env:PLAYED"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $code = $LASTEXITCODE
+          if ($code -and $code -ne 3) { exit $code }
           "name=$name" >> $env:GITHUB_OUTPUT
-          "Colony review $name rendered (play step: $env:PLAYED)." >> $env:GITHUB_STEP_SUMMARY
+          "thresholds=$(if ($code -eq 3) { 'failed' } else { 'passed' })" >> $env:GITHUB_OUTPUT
+          "Colony review $name rendered (play step: $env:PLAYED; layout thresholds: $(if ($code -eq 3) { 'failed' } else { 'passed' }))." >> $env:GITHUB_STEP_SUMMARY
+          $global:LASTEXITCODE = 0
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: colony-review-report
@@ -212,6 +218,12 @@ jobs:
         if: always() && steps.play.outcome == 'failure'
         run: |
           Write-Host "The play step failed; the report records it."
+          exit 1
+      # A failed layout threshold (colony-review.md, #3751) fails the run; the report names it.
+      - name: Fail the job when a layout threshold failed
+        if: always() && steps.report.outputs.thresholds == 'failed'
+        run: |
+          Write-Host "A layout threshold failed; the report's layout section names it."
           exit 1
 
   # Builds the site with the trusted rg.exe the review job published. Windows

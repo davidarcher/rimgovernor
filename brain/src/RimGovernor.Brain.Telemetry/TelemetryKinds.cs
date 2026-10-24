@@ -62,6 +62,9 @@ public static class TelemetryKinds
     /// <summary>One layout plan decision (<see cref="LayoutPlanKind"/>).</summary>
     public static readonly TelemetryKind LayoutPlan = new(LayoutPlanKind);
 
+    /// <summary>One review's layout progress (<see cref="LayoutProgressTelemetry.Kind"/>): planned, started, built and open rooms and the builders.</summary>
+    public static readonly TelemetryKind LayoutProgress = new(LayoutProgressTelemetry.Kind);
+
     /// <summary>The kind the station chain's advice row is emitted under.</summary>
     public const string LayoutStationsKind = "layout_stations";
 

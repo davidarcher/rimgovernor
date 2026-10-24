@@ -5,9 +5,11 @@ namespace RimGovernor.Tools.Commands.ColonyReview;
 
 /// <summary>
 /// The colony score and the nightly comparison. The score is a vector of components read from the run timeline plus a weighted scalar for
-/// ranking. Signal only: it gates nothing. A component the timeline cannot supply is unknown (a null value) and is left out
-/// of the scalar, never counted as zero. A run's score is compared with the previous night's stored score for the same seed;
-/// one run per seed makes a delta noisy, so it gates nothing, and a missing baseline or a component either side could not
+/// ranking, and the run's thresholds (the layout section's, #3751). The components and scalar are signal only: they gate nothing.
+/// A threshold is a fail condition: one that fails fails the run (<see cref="ColonyScore.Failed"/>). A component the timeline
+/// cannot supply is unknown (a null value) and is left out of the scalar, never counted as zero; a threshold whose rows the run
+/// did not leave is unknown, never a pass. A run's score is compared with the previous night's stored score for the same seed;
+/// one run per seed makes a delta noisy, so the delta gates nothing, and a missing baseline or a component either side could not
 /// read is unknown, never a zero.
 /// </summary>
 internal static class ColonyScoring
@@ -33,8 +35,8 @@ internal static class ColonyScoring
 
     private static readonly JsonSerializerOptions ReadOptions = new() { PropertyNameCaseInsensitive = true };
 
-    /// <summary>Derives the score from the run's rows.</summary>
-    public static ColonyScore Compute(IReadOnlyList<Row> rows)
+    /// <summary>Derives the score from the run's rows, carrying <paramref name="thresholds"/> (none when null).</summary>
+    public static ColonyScore Compute(IReadOnlyList<Row> rows, IReadOnlyList<ScoreThreshold>? thresholds = null)
     {
         var read = rows.Where(r => r.Census.Error.Length == 0 && r.Census.Colonists is not null).ToList();
         double wFirst = 0;
@@ -116,7 +118,7 @@ internal static class ColonyScoring
             sum += c.Weight * c.Score!.Value;
             weight += c.Weight;
         }
-        return new ColonyScore { Components = components, Scalar = weight > 0 ? 100 * sum / weight : null };
+        return new ColonyScore { Components = components, Scalar = weight > 0 ? 100 * sum / weight : null, Thresholds = thresholds ?? [] };
     }
 
     /// <summary>
@@ -139,7 +141,14 @@ internal static class ColonyScoring
             components.Add(cd);
         }
         components.AddRange(baseline.Components.Where(c => !seen.Contains(c.Name)).Select(c => new ComponentDelta { Name = c.Name, Status = DeltaUnknown }));
-        return new ScoreDelta { Status = DeltaOk, Scalar = Sub(current.Scalar, baseline.Scalar), Components = components };
+        // Each threshold's status beside the baseline's (a threshold the baseline did not hold reads unknown there).
+        var held = baseline.Thresholds.ToDictionary(t => t.Name, StringComparer.Ordinal);
+        var thresholds = current.Thresholds
+            .Select(t => held.TryGetValue(t.Name, out var b)
+                ? new ThresholdDelta { Name = t.Name, Status = t.Status, BaselineStatus = b.Status, ValueDelta = Sub(t.Value, b.Value) }
+                : new ThresholdDelta { Name = t.Name, Status = t.Status, BaselineStatus = ScoreThreshold.Unknown })
+            .ToList();
+        return new ScoreDelta { Status = DeltaOk, Scalar = Sub(current.Scalar, baseline.Scalar), Components = components, Thresholds = thresholds };
     }
 
     /// <summary>

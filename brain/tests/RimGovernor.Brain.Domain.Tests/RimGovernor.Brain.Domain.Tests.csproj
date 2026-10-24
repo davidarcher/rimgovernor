@@ -70,6 +70,12 @@
     <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardTableCheck.cs" Link="ThoughtAudit/GuardTableCheck.cs" />
     <Compile Include="../../../tools/common/ToolException.cs" Link="ThoughtAudit/ToolException.cs" />
   </ItemGroup>
+  <!-- The colony review's layout section (#3751) and the score it adds thresholds to are pure; compiled in to pin each metric and verdict. -->
+  <ItemGroup>
+    <Compile Include="../../../tools/rg/Commands/ColonyReview/LayoutReview.cs" Link="ColonyReview/LayoutReview.cs" />
+    <Compile Include="../../../tools/rg/Commands/ColonyReview/ColonyScoring.cs" Link="ColonyReview/ColonyScoring.cs" />
+    <Compile Include="../../../tools/rg/Commands/ColonyReview/ReviewModels.cs" Link="ColonyReview/ReviewModels.cs" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Baselines/*.quality.json" LogicalName="RimGovernor.Brain.Domain.Tests.%(Filename)%(Extension)" />
   </ItemGroup>

@@ -72,6 +72,9 @@ public sealed partial class ServiceProcess
     /// <summary>The brain's OTLP log ring (logs.jsonl in its OTLP directory): the journal <see cref="LogTail"/> follows.</summary>
     public string LogPath { get; private set; } = "";
 
+    /// <summary>The report entry's key holding <see cref="LogPath"/> (colonyreview's layout section reads the ring through it, #3751).</summary>
+    public const string LogPathKey = "log_path";
+
     /// <summary>The report's record of this launch (report["service"], report["service_2"], ...): pid, url and what followed.</summary>
     public JsonObject Entry => _entry;
 
@@ -283,6 +286,7 @@ public sealed partial class ServiceProcess
         GameProcess.TryProcessStartTime(pid, out p._pidStartTime);
         entry.Set("pid", pid);
         entry.Set("url", url);
+        entry.Set(LogPathKey, p.LogPath);
         entry.Set("state", "running");
         Volatile.Write(ref s_latest, p);
         await p.SetClockSpeedAsync(spec.ClockSpeed, cancellationToken).ConfigureAwait(false);

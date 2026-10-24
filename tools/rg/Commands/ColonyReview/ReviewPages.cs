@@ -43,6 +43,7 @@ internal static class ReviewPages
         {
             AppendTiles(b, s);
         }
+        AppendLayout(b, s);
         b.Append("<div class=\"layout\"><div class=\"left\">\n");
         b.Append(CultureInfo.InvariantCulture, $"<p id=\"empty\" class=\"card muted\">{(string.IsNullOrEmpty(s.Error) ? "No screenshots were recorded for this run." : "Nothing was recorded.")}</p>\n");
         b.Append(PlayerSection);
@@ -97,6 +98,10 @@ internal static class ReviewPages
             }
             b.Append(CultureInfo.InvariantCulture, $"<td>{s.Flags}</td>\n<td>");
             b.Append(s.Score.Scalar is { } scalar ? F(scalar, 1) : "<span class=\"muted\">unknown</span>");
+            if (s.Score.Failed)
+            {
+                b.Append(" <span class=\"bad\">layout failed</span>");
+            }
             if (s.Delta is { Status: "ok", Scalar: not null } delta)
             {
                 b.Append(CultureInfo.InvariantCulture, $" <span class=\"muted\">({Signed(delta.Scalar, 1)})</span>");
@@ -138,6 +143,59 @@ internal static class ReviewPages
         b.Append("</div>\n");
     }
 
+    // The layout section (#3751): the thresholds that fail the run, the run's totals and the daily series.
+    private static void AppendLayout(StringBuilder b, RunSummary s)
+    {
+        var thresholds = s.Score.Thresholds;
+        if (s.Layout is null && thresholds.Count == 0)
+        {
+            return;
+        }
+        var verdict = s.Score.Failed ? "<span class=\"bad\">failed</span>" : thresholds.Any(t => t.Status == ScoreThreshold.Unknown) ? "<span class=\"muted\">passed where known</span>" : "<span class=\"pass\">passed</span>";
+        b.Append(CultureInfo.InvariantCulture, $"<section class=\"card lay\" id=\"layout\"><h2>Layout · {verdict}</h2>\n");
+        b.Append("<table><tr><th>Threshold</th><th>Value</th><th>Bound</th><th>Status</th><th></th></tr>");
+        foreach (var t in thresholds)
+        {
+            var cls = t.Status switch { ScoreThreshold.Fail => "bad", ScoreThreshold.Pass => "pass", _ => "muted" };
+            var status = t.Reason is { } reason ? $"{Enc(t.Status)}: {Enc(reason)}" : Enc(t.Status);
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>{Enc(t.Name)}</td><td>{N(t.Value, 2)}</td><td>{F(t.Bound, 2)}</td><td class=\"{cls}\">{status}</td><td class=\"muted\" style=\"text-align:left\">{Enc(t.Note ?? "")}</td></tr>");
+        }
+        b.Append("</table>\n");
+        if (s.Layout is { } layout)
+        {
+            var refusals = string.Join(", ", layout.Refusals.Select(r => $"{Enc(r.Key)} {r.Value}"));
+            b.Append("<table><tr><th>Over the run</th><th></th></tr>");
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>Replans · per day</td><td>{N(layout.Replans, 0)} · {N(layout.ReplansPerDay, 2)}</td></tr>");
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>Rooms re-sited: started · unstarted · per replan</td><td>{N(layout.ResitedStarted, 0)} · {N(layout.ResitedUnstarted, 0)} · {N(layout.ResitesPerReplan, 2)}</td></tr>");
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>Most open rings at a review</td><td>{N(layout.MaxOpen, 0)}</td></tr>");
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>Mean bedroom/barracks interior (last plan)</td><td>{N(layout.BedroomArea, 1)} cells</td></tr>");
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>Everyone housed by</td><td>{(layout.HousedDay is { } housedDay ? "day " + housedDay.ToString(CultureInfo.InvariantCulture) : "<span class=\"muted\">never / unknown</span>")}</td></tr>");
+            b.Append(CultureInfo.InvariantCulture, $"<tr><td>Bedroom step refusals</td><td>{refusals}</td></tr>");
+            b.Append("</table>\n");
+            if (layout.Days.Count > 0)
+            {
+                b.Append("<table><tr><th>Day</th><th>Replans</th><th>Re-sited started · unstarted</th><th>Planned · built · open (max)</th><th>Builders</th><th>Links/room</th><th>Bed area</th><th>Housed</th><th>Refusals</th></tr>");
+                foreach (var d in layout.Days)
+                {
+                    var dayRefusals = string.Join(" ", d.Refusals.Where(r => r.Value > 0).Select(r => $"{Enc(r.Key)} {r.Value}"));
+                    var housed = d.Colonists is { } c ? $"{N(d.Housed, 0)}/{c}" : "";
+                    b.Append(CultureInfo.InvariantCulture, $"<tr><td>{d.Day}</td><td>{N(d.Replans, 0)}</td><td>{N(d.ResitedStarted, 0)} · {N(d.ResitedUnstarted, 0)}</td><td>{N(d.Planned, 0)} · {N(d.Built, 0)} · {N(d.OpenMax, 0)}</td><td>{N(d.Builders, 0)}</td><td>{N(d.LinksPerRoom, 2)}</td><td>{N(d.BedroomArea, 1)}</td><td>{housed}</td><td>{dayRefusals}</td></tr>");
+                }
+                b.Append("</table>\n");
+            }
+            if (layout.Notes.Count > 0)
+            {
+                b.Append("<ul class=\"notes muted\">");
+                foreach (var note in layout.Notes)
+                {
+                    b.Append(CultureInfo.InvariantCulture, $"<li>{Enc(note)}</li>");
+                }
+                b.Append("</ul>\n");
+            }
+        }
+        b.Append("</section>\n");
+    }
+
     private static void AppendScore(StringBuilder b, RunSummary s)
     {
         b.Append("<details class=\"card\"><summary>Score and storage</summary>\n");
@@ -166,6 +224,11 @@ internal static class ReviewPages
                 {
                     var unit = c.ValueDelta is not null ? Signed(c.ValueDelta, 2) + " in its unit" : "";
                     b.Append(CultureInfo.InvariantCulture, $"<tr><td>{Enc(c.Name)}</td><td>{Signed(c.Delta, 2)}</td><td class=\"muted\">{unit}</td></tr>");
+                }
+                foreach (var t in delta.Thresholds ?? [])
+                {
+                    var unit = t.ValueDelta is not null ? Signed(t.ValueDelta, 2) + " in its value" : "";
+                    b.Append(CultureInfo.InvariantCulture, $"<tr><td>{Enc(t.Name)}</td><td>{Enc(t.BaselineStatus)} → {Enc(t.Status)}</td><td class=\"muted\">{unit}</td></tr>");
                 }
                 b.Append("</table>");
             }
@@ -224,6 +287,9 @@ internal static class ReviewPages
     private static string? NullIfEmpty(string s) => s.Length == 0 ? null : s;
 
     private static string Enc(string s) => WebUtility.HtmlEncode(s);
+
+    // A known value, or an empty cell.
+    private static string N(double? v, int digits) => v is { } x ? F(x, digits) : "";
 
     private static string F(double v, int digits) => v.ToString("F" + digits.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
 

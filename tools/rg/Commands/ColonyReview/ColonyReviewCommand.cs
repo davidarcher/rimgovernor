@@ -6,16 +6,19 @@ namespace RimGovernor.Tools.Commands.ColonyReview;
 /// Turns a colony review recording (acceptance colony-review's result.json and JPEGs) into a static HTML report a player can skim, and
 /// indexes reports into a site.
 /// <code>
-/// RimGovernor.cmd colonyreview report -in dir -out dir [-baselines dir] [-meta key=value ...]
+/// RimGovernor.cmd colonyreview report -in dir -out dir [-baselines dir] [-journal file] [-logs file] [-meta key=value ...]
 /// RimGovernor.cmd colonyreview site -runs dir -out dir
 /// </code>
-/// <c>report</c> copies the images, writes index.html and run.json (meta plus the summary); <c>site</c> writes index.html at
+/// <c>report</c> copies the images, writes index.html and run.json (meta plus the summary and the layout section, whose thresholds fail the run with exit 3); <c>site</c> writes index.html at
 /// -out listing every run dir under -runs that holds a run.json, newest first, and copies them beside it.
 /// </summary>
 internal static class ColonyReviewCommand
 {
+    /// <summary>The report exit code when a layout threshold failed (#3751): distinct from 1, a report that could not be written.</summary>
+    public const int ThresholdFailed = 3;
+
     private const string Usage =
-        "usage: colonyreview report -in <dir> -out <dir> [-baselines <dir>] [-meta k=v ...] | site -runs <dir> -out <dir>";
+        "usage: colonyreview report -in <dir> -out <dir> [-baselines <dir>] [-journal <file>] [-logs <file>] [-meta k=v ...] | site -runs <dir> -out <dir>";
 
     public static Task<int> RunAsync(string[] args, CancellationToken ct)
     {
@@ -31,13 +34,15 @@ internal static class ColonyReviewCommand
                 Log.Info(Usage);
                 Log.Info("  report  -in recorder directory (result.json and review/), -out run report directory to write,");
                 Log.Info("          -baselines directory of earlier run reports (the newest with the same seed is the score baseline),");
+                Log.Info("          -journal the run's service.sqlite (default <in>/service.sqlite), -logs its OTLP log ring (default the ring result.json names),");
+                Log.Info("          for the layout section; exits 3 when a layout threshold failed (the report is written either way)");
                 Log.Info("          -meta key=value shown in the report header and saved in run.json (repeatable)");
                 Log.Info("  site    -runs directory holding run report directories, -out site directory to write");
                 return Task.FromResult(0);
             case "report":
             {
                 var meta = new SortedDictionary<string, string>(StringComparer.Ordinal);
-                var flags = Flags.Parse(ExtractMeta(rest, meta), new HashSet<string>(), new HashSet<string> { "in", "out", "baselines" });
+                var flags = Flags.Parse(ExtractMeta(rest, meta), new HashSet<string>(), new HashSet<string> { "in", "out", "baselines", "journal", "logs" });
                 if (flags.HelpRequested)
                 {
                     Log.Info(Usage);
@@ -49,8 +54,14 @@ internal static class ColonyReviewCommand
                 {
                     throw new UsageException(Usage);
                 }
-                ReviewReport.Write(input, output, meta, flags.String("baselines"));
-                return Task.FromResult(0);
+                var summary = ReviewReport.Write(input, output, meta, flags.String("baselines"), flags.String("journal"), flags.String("logs"));
+                // A failed threshold fails the run (#3751); the report is written either way.
+                var failed = summary.Score.Thresholds.Where(t => t.Status == ScoreThreshold.Fail).ToList();
+                foreach (var t in failed)
+                {
+                    Log.Info($"FAIL {t.Name}: {t.Reason} ({t.Note})");
+                }
+                return Task.FromResult(failed.Count > 0 ? ThresholdFailed : 0);
             }
             case "site":
             {

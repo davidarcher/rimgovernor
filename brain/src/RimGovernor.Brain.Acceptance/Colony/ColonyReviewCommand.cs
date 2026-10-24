@@ -44,6 +44,9 @@ public static class ColonyReviewCommand
     /// <summary>One in-game quadrum, the default run length.</summary>
     public const int SeasonDays = 15;
 
+    /// <summary>The temperate start: colonyreview holds its housed-by day to day 6 on this biome only (#3751).</summary>
+    public const string TemperateBiome = "TemperateForest";
+
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
           acceptance colony-review -root <dir> [-output <dir> -seed review-pinned-1 -days 15 -timeout <d> -game <id>]
@@ -59,7 +62,7 @@ public static class ColonyReviewCommand
 
     // The starts a run picks from by seed: survivable without a specialised opening, different enough to show layout and
     // food problems.
-    private static readonly string[] Biomes = ["TemperateForest", "AridShrubland", "BorealForest", "TropicalRainforest"];
+    private static readonly string[] Biomes = [TemperateBiome, "AridShrubland", "BorealForest", "TropicalRainforest"];
 
     /// <summary>Runs the subcommand with the arguments after <c>colony-review</c>; returns the exit code (2 refused, 1 a run that did not play).</summary>
     public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, CancellationToken cancellationToken)
@@ -233,8 +236,9 @@ public static class ColonyReviewCommand
         report["crew"] = new JsonObject { { "declared", 3 }, { "colonists", colonists }, { "added", added } };
         var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromSeconds(90), Prefix = "colony-review" };
         var dir = Path.Combine(opts.Output, "review");
+        var observed = ObservedSession.Of(session, cfg, report, spec);
         await SustainedFood.ObserveAsync(
-            ObservedSession.Of(session, cfg, report, spec),
+            observed,
             new SustainedObservation
             {
                 Watch = new WatchConfig
@@ -245,9 +249,12 @@ public static class ColonyReviewCommand
                     PollTicks = 2500,
                     Concern = FoodRules.FoodSupplyNeed.Value,
                     Extra = ColonyAudits.ColonyConcerns,
+                    // The housed-by day of the layout section (#3751).
+                    Probes = [ColonyHousing.Probe(observed.Harness, observed.Identity)],
                 },
                 Prepare = async (h, r, ct) =>
                 {
+
                     var status = await h.CallAsync("review-start", RecorderTool, new JsonObject { { "action", "start" }, { "dir", dir } }, ct).ConfigureAwait(false);
                     r["recorder"] = status.DeepClone();
                 },
