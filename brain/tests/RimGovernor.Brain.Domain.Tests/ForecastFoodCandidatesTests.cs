@@ -17,7 +17,7 @@ public sealed class ForecastFoodCandidatesTests
     {
         Origin = new("test", 42), HorizonDays = 4000.0 / GameTime.TicksPerDay,
         Demand = new DerivedDemand { Work = new ForecastWorkInputs { Tick = new(42),
-            IngredientReservations = Known(default(EquatableArray<IngredientReservation>)),
+            IngredientReservations = [],
             Pawns = Known(EquatableArray.From(new[] { new WorkPawn { Id = Pawn, Available = Known(true),
                 Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Cooking", Level = skill } })) } })) } },
         Facts = new ColonyForecastFacts { Stock = Known(default(EquatableArray<Amount>)),

@@ -183,7 +183,7 @@ public sealed class ForecastSurvivalNeedsTests
     private static ColonyForecastRequest Materials(ColonyForecastRequest frame, long amount) => frame with
     {
         Facts = frame.Facts with { Stock = Known(EquatableArray.From(new[] { new Amount(new("TestFuel"), amount) })) },
-        Demand = frame.Demand with { Work = frame.Demand.Work with { IngredientReservations = Known(default(EquatableArray<IngredientReservation>)) } },
+        Demand = frame.Demand with { Work = frame.Demand.Work with { IngredientReservations = [] } },
     };
 
     [Fact]

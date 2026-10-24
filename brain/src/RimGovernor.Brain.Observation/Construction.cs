@@ -360,14 +360,14 @@ public static class ConstructionReads
         throw new DomainException("undefined unfinished work " + work.GetType().Name);
     }
 
-    /// <summary>Reads every bill row's live bill-job reservations. Unknown without the bill census or when any row is malformed.</summary>
-    public static Fact<EquatableArray<IngredientReservation>> BillReservations(O.BillsSnapshot? v)
+    /// <summary>
+    /// Reads every bill row's live bill-job reservations (#3881). Native reads the bench census every frame (a failed
+    /// section fails the frame), so a missing census, a row without its pawn or bill, or an item without its def or a
+    /// non-negative count is an unread fact.
+    /// </summary>
+    public static EquatableArray<IngredientReservation> BillReservations(O.BillsSnapshot? v)
     {
-        var unknown = Unknown<EquatableArray<IngredientReservation>>();
-        if (v is null)
-        {
-            return unknown;
-        }
+        if (v is null) throw new RequiredFactException("bill_reservations");
         var output = new List<IngredientReservation>();
         foreach (var bench in v.Benches)
         {
@@ -375,27 +375,19 @@ public static class ConstructionReads
             {
                 foreach (var r in bill.Reservations)
                 {
-                    if (r.PawnId == "")
-                    {
-                        return unknown;
-                    }
+                    if (string.IsNullOrWhiteSpace(r.PawnId) || string.IsNullOrWhiteSpace(bill.Id))
+                        throw new RequiredFactException("bill_reservations.identity:" + bill.Id);
                     var items = new List<Amount>();
                     foreach (var item in r.Items)
                     {
                         if (item.DefName == "" || item.Units < 0)
-                        {
-                            return unknown;
-                        }
+                            throw new RequiredFactException("bill_reservations.items:" + bill.Id);
                         items.Add(new Amount(new Resource(item.DefName), item.Units));
                     }
-                    output.Add(new IngredientReservation
-                    {
-                        Pawn = new PawnId(r.PawnId), Items = items,
-                        Bill = string.IsNullOrWhiteSpace(bill.Id) ? Unknown<string>() : Known(bill.Id),
-                    });
+                    output.Add(new IngredientReservation { Pawn = new PawnId(r.PawnId), Items = items, Bill = bill.Id });
                 }
             }
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 }

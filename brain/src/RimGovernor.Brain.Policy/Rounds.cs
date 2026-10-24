@@ -239,7 +239,7 @@ public sealed record RoundsFacts
     public EquatableArray<RimGovernor.Contracts.Wire.Observations.PlannedRoomPrediction> PlannedRoomPredictions { get; init; }
 
     /// <summary>Live bill jobs' promised ingredients, per working pawn (MaterialBudget).</summary>
-    public Fact<EquatableArray<IngredientReservation>> BillReservations { get; init; }
+    public EquatableArray<IngredientReservation> BillReservations { get; init; }
 
     /// <summary>Committed fixed batches reconciled with current native remaining counts.</summary>
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }

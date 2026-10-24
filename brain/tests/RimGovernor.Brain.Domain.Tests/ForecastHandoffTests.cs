@@ -20,7 +20,7 @@ public sealed class ForecastHandoffTests
         };
         var policy = new ColonyModelPolicy { Projects = new() { Nodes = [new() { Id = ProjectGraph.ResearchId(new("Research")), Kind = ProjectKind.Research, Work = 100 }] } };
         var evidence = new WorkAdmissionEvidence { Stock = Known(stock), Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
-            Reservations = Known<EquatableArray<IngredientReservation>>([]), Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
+            Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
         return new() { Origin = new("map", 0), HorizonDays = 1,
             Facts = new() { Stock = Known(stock), Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },

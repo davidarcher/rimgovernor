@@ -101,7 +101,7 @@ public sealed class ForecastRoofConsequencesTests
     {
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } };
         var candidates = facts.CoupledAlternatives!;
-        var full = candidates.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain.Value).First();
+        var full = candidates.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain).First();
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || sites.Any(site => c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
         Assert.Equal(sites.Length + 1, roots.Length);

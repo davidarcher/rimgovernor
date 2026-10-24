@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record IngredientReservation
 {
     /// <summary>Native bill identity for reconciling this hold with a forecast promise.</summary>
-    public Fact<string> Bill { get; init; }
+    public required string Bill { get; init; }
     public PawnId Pawn { get; init; }
     public IReadOnlyList<Amount> Items { get; init; } = [];
 }
@@ -16,7 +16,7 @@ public static partial class MaterialBudgetRules
     /// every other pawn's live bill-job ingredients (worker's own job excluded; the empty id excludes none). An
     /// unknown census contributes nothing.
     /// </summary>
-    public static List<Amount> MaterialHolds(Fact<IReadOnlyDictionary<Resource, long>> deficit, Fact<EquatableArray<IngredientReservation>> reservations, PawnId worker)
+    public static List<Amount> MaterialHolds(Fact<IReadOnlyDictionary<Resource, long>> deficit, EquatableArray<IngredientReservation> reservations, PawnId worker)
     {
         var total = new Dictionary<Resource, long>();
         if (deficit.TryGetValue(out var deficitRows))
@@ -26,18 +26,15 @@ public static partial class MaterialBudgetRules
                 total[resource] = total.GetValueOrDefault(resource) + n;
             }
         }
-        if (reservations.TryGetValue(out var held))
+        foreach (var r in reservations)
         {
-            foreach (var r in held)
+            if (!worker.IsEmpty && r.Pawn == worker)
             {
-                if (!worker.IsEmpty && r.Pawn == worker)
-                {
-                    continue;
-                }
-                foreach (var item in r.Items)
-                {
-                    total[item.Resource] = total.GetValueOrDefault(item.Resource) + item.Count;
-                }
+                continue;
+            }
+            foreach (var item in r.Items)
+            {
+                total[item.Resource] = total.GetValueOrDefault(item.Resource) + item.Count;
             }
         }
         return [.. total.Where(kv => kv.Value > 0).Select(kv => new Amount(kv.Key, kv.Value)).OrderBy(a => a.Resource)];
@@ -50,7 +47,7 @@ public static partial class MaterialBudgetRules
     public static Fact<IReadOnlyDictionary<Resource, long>> MaterialBudget(
         Fact<EquatableArray<Amount>> stock,
         Fact<IReadOnlyDictionary<Resource, long>> deficit,
-        Fact<EquatableArray<IngredientReservation>> reservations,
+        EquatableArray<IngredientReservation> reservations,
         PawnId worker
     )
     {

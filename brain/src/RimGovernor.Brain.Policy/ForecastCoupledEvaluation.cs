@@ -48,10 +48,10 @@ public static partial class ForecastCoupled
 
     private readonly record struct Claim(string Target, string Pawn, int Count, Fact<int> MaxPawns, Fact<double> AvailableCount, string Stack, string Task, TargetUse Use);
 
-    /// <summary>What a search's context fixes per pawn: the observed availability row, the pawn's need tasks, the journal
-    /// occupancy of a pawn with claims, and the exposure of a pawn whose comfort shifts are unassessed.</summary>
+    /// <summary>What a search's context fixes per pawn: the observed availability row, the pawn's need tasks and the journal
+    /// occupancy of a pawn with claims.</summary>
     internal sealed record PawnFacts(NeedsForecastPawn Pawn, ForecastCapacityInput Input, ForecastNeedTask[] NeedTasks,
-        ForecastOccupancy? Journal, Cached<ForecastThermalExposure> Unassessed);
+        ForecastOccupancy? Journal);
 
     private sealed record PlannedOutcome(ForecastPlannedRoomOutcome[] Rooms, string[] Development, string[] Sites, string[] Unassessed);
 
@@ -63,7 +63,7 @@ public static partial class ForecastCoupled
     private sealed record ContextIndex(PawnFacts[] Pawns, Dictionary<string, int> Index, HashSet<string> Nonproductive,
         HashSet<string> ShelterTasks, HashSet<string> DevelopmentTasks, ForecastSupportConsequences? Support,
         List<(NeedMemory Thought, double Start)>[] Granted, List<(string Thought, double OffsetDelta, double Start)>[] Situational,
-        List<(double MinDelta, double MaxDelta, double Start)>[] Comfort, bool[] ComfortUnknown,
+        List<(double MinDelta, double MaxDelta, double Start)>[] Comfort,
         List<ForecastActivityAllocation>[] Allocations, List<ForecastActivityAllocation>[] Use, Cached<ForecastThermalExposure>[] Exposure,
         HashSet<string> Unplaced);
 
@@ -197,8 +197,7 @@ public static partial class ForecastCoupled
                 var journal = false;
                 foreach (var claimant in context.Resources.Claims.Pawns) journal |= claimant == pawn.Pawn;
                 pawns[p] = new(pawn, CapacityInput(pawn.Pawn, observed, horizon, default), byPawn[pawn.Pawn].ToArray(),
-                    journal ? new("journal", pawn.Pawn, Known(0.0), default, ForecastOccupancyState.Active) : null,
-                    Exposure(new ForecastThermalExposure(pawn.Pawn, 0, horizon, 0, 0)));
+                    journal ? new("journal", pawn.Pawn, Known(0.0), default, ForecastOccupancyState.Active) : null);
                 byName[pawn.Pawn] = p;
             }
             var shelterTasks = new HashSet<string>(StringComparer.Ordinal);
@@ -218,7 +217,7 @@ public static partial class ForecastCoupled
             static T[] Lists<T>(int count) where T : new() { var lists = new T[count]; for (var i = 0; i < count; i++) lists[i] = new(); return lists; }
             index = new(pawns, byName, new HashSet<string>(context.NonproductiveOccupancy, StringComparer.Ordinal), shelterTasks, developmentTasks, support,
                 Lists<List<(NeedMemory, double)>>(pawns.Length), Lists<List<(string, double, double)>>(pawns.Length), Lists<List<(double, double, double)>>(pawns.Length),
-                new bool[pawns.Length], Lists<List<ForecastActivityAllocation>>(pawns.Length), Lists<List<ForecastActivityAllocation>>(pawns.Length),
+                Lists<List<ForecastActivityAllocation>>(pawns.Length), Lists<List<ForecastActivityAllocation>>(pawns.Length),
                 new Cached<ForecastThermalExposure>[pawns.Length], context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal));
             pawnsOf = (context, horizon);
             return index;
@@ -306,6 +305,24 @@ public static partial class ForecastCoupled
         { if (feasible != Known(false)) feasible = default; Finding(reason, id, time); }
         private void Refuse(string reason, string id, double time)
         { feasible = Known(false); Finding(reason, id, time); }
+
+        /// <summary>
+        /// The tick a commitment's effects start (#3881): when its last activity completes inside the horizon, the forecast start
+        /// when it has none, infinity when an activity fails or ends later. Every fact that settles a completion is read (bill
+        /// reservations, lots, expiry, material budget), so an unknown one is an unread fact.
+        /// </summary>
+        private double CompletedAt(ForecastCommitment commitment, double horizon)
+        {
+            var at = 0d;
+            foreach (var id in commitment.ActivityCompletions)
+            {
+                var done = completed.GetValueOrDefault(id);
+                if (!allocations.TryGetValue(id, out var allocation) || allocation.End > horizon || done == Known(false)) return double.PositiveInfinity;
+                if (!done.IsKnown) throw new RequiredFactException("commitment_completion:" + commitment.Id + ":" + id);
+                at = Math.Max(at, allocation.End);
+            }
+            return at;
+        }
 
         private void ApplyExternal(double time)
         {
@@ -733,46 +750,30 @@ public static partial class ForecastCoupled
             ApplyExternal(horizon);
             Expire(horizon);
             // A commitment's mood memories, situational changes, comfort shifts and outfit changes take effect when all its activities
-            // have completed inside the horizon, or at the forecast start when it has none. Failed or later work changes
-            // nothing here; unknown completion grants no mood row (a finding) and leaves thermal exposure unassessed.
+            // have completed inside the horizon, or at the forecast start when it has none. Failed or later work changes nothing here.
             var byName = pawns.Index;
             for (var p = 0; p < pawns.Pawns.Length; p++)
             {
                 pawns.Granted[p].Clear(); pawns.Situational[p].Clear(); pawns.Comfort[p].Clear(); pawns.Allocations[p].Clear(); pawns.Use[p].Clear();
-                pawns.ComfortUnknown[p] = false;
             }
             List<ForecastEffectiveTick>? outfitTicks = null;
             foreach (var commitment in Granting(commitments))
             {
-                Fact<double> at = Known(0.0);
-                foreach (var id in commitment.ActivityCompletions)
-                {
-                    var done = completed.GetValueOrDefault(id);
-                    if (!allocations.TryGetValue(id, out var allocation) || allocation.End > horizon || done == Known(false))
-                    { at = Known(double.PositiveInfinity); break; }
-                    if (!done.IsKnown) { at = default; break; }
-                    at = Known(Math.Max(at.Value, allocation.End));
-                }
-                // An unknown completion leaves the outcome uncertain; its mood rows are not granted (NaN is past every horizon)
-                // and the forecast names them (#3871), as an unknown need completion drops its task.
-                var grantedAt = at.IsKnown ? at.Value : double.NaN;
-                if (double.IsNaN(grantedAt) && (commitment.MoodMemories.Count > 0 || commitment.SituationalChanges.Count > 0))
-                    Finding("commitment_completion_unassessed", commitment.Id, horizon);
+                var at = CompletedAt(commitment, horizon);
                 foreach (var row in commitment.MoodMemories)
                 {
                     if (!byName.TryGetValue(row.Pawn, out var p)) continue;
-                    if (grantedAt <= horizon) pawns.Granted[p].Add((row.Memory, grantedAt));
+                    if (at <= horizon) pawns.Granted[p].Add((row.Memory, at));
                 }
                 foreach (var row in commitment.SituationalChanges)
                 {
                     if (!byName.TryGetValue(row.Pawn, out var p)) continue;
-                    if (grantedAt <= horizon) pawns.Situational[p].Add((row.Thought, row.OffsetDelta, grantedAt));
+                    if (at <= horizon) pawns.Situational[p].Add((row.Thought, row.OffsetDelta, at));
                 }
                 foreach (var row in commitment.ComfortShifts)
                 {
                     if (!byName.TryGetValue(row.Pawn, out var p)) continue;
-                    if (!at.IsKnown) pawns.ComfortUnknown[p] = true;
-                    else if (at.Value <= horizon) pawns.Comfort[p].Add((row.MinDelta, row.MaxDelta, at.Value));
+                    if (at <= horizon) pawns.Comfort[p].Add((row.MinDelta, row.MaxDelta, at));
                 }
                 // An outfit change with activities (a crafted garment, #3621) is priced by the harm term from this tick.
                 if (commitment.OutfitChanges.Count > 0 && commitment.ActivityCompletions.Count > 0)
@@ -813,8 +814,7 @@ public static partial class ForecastCoupled
             exposureRows.Clear();
             for (var p = 0; p < pawns.Pawns.Length; p++)
             {
-                pawns.Exposure[p] = pawns.ComfortUnknown[p] ? pawns.Pawns[p].Unassessed
-                    : ExposureAt(p, allocs.Id(pawns.Allocations[p]), sheltersId, pawns.Comfort[p].Count == 0 ? 0 : comfortKeys.Id(pawns.Comfort[p]), tasks, plan.Allocations, shelters, horizon);
+                pawns.Exposure[p] = ExposureAt(p, allocs.Id(pawns.Allocations[p]), sheltersId, pawns.Comfort[p].Count == 0 ? 0 : comfortKeys.Id(pawns.Comfort[p]), tasks, plan.Allocations, shelters, horizon);
                 exposureRows.Add(pawns.Exposure[p].Value);
             }
             var exposure = exposureKeys.Canonical(exposureKeys.Id(exposureRows));
@@ -834,10 +834,11 @@ public static partial class ForecastCoupled
                 choices.Clear(); productive.Clear(); protectedTime.Clear();
                 foreach (var task in facts.NeedTasks)
                 {
-                    if (!allocations.TryGetValue(task.Task, out var a)) continue;
-                    if (completed.GetValueOrDefault(task.Task) != Known(true) || !task.Gain.TryGetValue(out var gain))
-                    { Uncertain("unassessed_need_completion", task.Task, a.End); continue; }
-                    choices.Add(Choice(task, a, gain));
+                    // A task that starts past the horizon (named beyond_horizon) or fails (its refusal names why) recovers nothing
+                    // here (#3881); every fact that settles the rest is read, so an unknown completion is an unread fact.
+                    if (!allocations.TryGetValue(task.Task, out var a) || !completed.TryGetValue(task.Task, out var done) || done == Known(false)) continue;
+                    if (!done.IsKnown) throw new RequiredFactException("need_completion:" + task.Task);
+                    choices.Add(Choice(task, a, task.Gain));
                 }
                 if (!pawn.Awake && !choices.Any(c => c.Kind == "rest" && c.Start == 0)
                     && ObservedSleep(p, pawn, pawns.Allocations[p], plan.Allocations, tasks, pawns.Unplaced, horizon) is { } observedSleep)

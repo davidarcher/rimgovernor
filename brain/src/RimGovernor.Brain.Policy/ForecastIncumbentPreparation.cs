@@ -185,7 +185,7 @@ public static class ForecastIncumbentPreparation
             routes[(pawn, "start", "start")] = new(pawn, "start", "start", new RouteTicks.Reachable(0));
             routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, new RouteTicks.Reachable(0));
             routes[(pawn, "start", location)] = new(pawn, "start", location, new RouteTicks.Reachable(entry.Travel));
-            needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, Known(service.GainPerTick * duration), [])
+            needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, service.GainPerTick * duration, [])
                 { MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == service.Target)?.MaxPawns ?? default });
             retained.Add(new(id, []) { ActivityCompletions = [id] });
             incumbents.Add(new(entry.Row.Plan, entry.Row.Action.PawnActivities!, id, entry.Owner)

@@ -48,7 +48,7 @@ internal static class WorkResourceTestFacts
         Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 10)]),
         ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
         CurrentConstruction = Known(new CurrentConstruction { Colony = true }),
-        BillReservations = Known(default(EquatableArray<RimGovernor.Brain.Policy.IngredientReservation>)),
+        BillReservations = [],
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
         ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(pawns.Select(p => new WorkPawn
         { Id = new(p), Available = Known(true), Applies = Known(true), Job = Known(new PawnJob()),
@@ -271,8 +271,8 @@ public sealed class WorkResourcesTests
         var facts = WorkResourceTestFacts.Create("cook-builder") with
         { WorkResources = Known<EquatableArray<WorkResourcePawn>>([new("cook-builder", "food", 1, "running", "carry", "Rice", 4) { LocalHour = 12 }]) };
         Assert.Equal(8, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
-        facts = facts with { BillReservations = Known<EquatableArray<RimGovernor.Brain.Policy.IngredientReservation>>(
-            [new() { Pawn = new("cook-builder"), Bill = Known("native-bill"), Items = [new(new("Rice"), 3)] }]) };
+        facts = facts with { BillReservations = 
+            [new() { Pawn = new("cook-builder"), Bill = "native-bill", Items = [new(new("Rice"), 3)] }] };
         var cancelled = Pending(action) with { Progress = new() { Stage = Stage.Cancelled } };
         Assert.Equal(7, View(facts, cancelled).Materials.Value[new("Rice")].Value);
     }
@@ -331,8 +331,8 @@ public sealed class WorkResourcesTests
         var facts = WorkResourceTestFacts.Create("cook-builder") with
         {
             Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 10), new(new("Steel"), 10)]),
-            BillReservations = Known<EquatableArray<RimGovernor.Brain.Policy.IngredientReservation>>(
-                [new() { Pawn = new("player"), Items = [new(new("Rice"), 2)] }]),
+            BillReservations = 
+                [new() { Pawn = new("player"), Bill = "player-bill", Items = [new(new("Rice"), 2)] }],
             WorkAdmission = WorkResourceTestFacts.Create().WorkAdmission with
             { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Rice", Known<EquatableArray<Amount>>([new(new("Steel"), 6)]))]) },
         };
@@ -373,8 +373,8 @@ public sealed class WorkResourcesTests
         { MaterialClaims = [new(new("Rice"), Known(2.0), Known("bill"))] };
         var merged = WorkRules.MergeWorkMaterialPromises(adjusted.Concat([iteration]));
         var budget = ForecastClaims.ForecastMaterialBudgetOf(Known<EquatableArray<Amount>>([new(new("Rice"), 10)]),
-            Known<EquatableArray<RimGovernor.Brain.Policy.IngredientReservation>>([new()
-            { Pawn = new("cook"), Bill = Known("bill"), Items = [new(new("Rice"), 2)] }]), merged, 0).Value;
+            [new()
+            { Pawn = new("cook"), Bill = "bill", Items = [new(new("Rice"), 2)] }], merged, 0).Value;
         Assert.Equal(4, budget[new("Rice")].Value);
         Assert.False(WorkRules.CreditCarriedBillInputs(Known<EquatableArray<ForecastCommitment>>([promise]), default).Value[0].MaterialClaims[0].Units.IsKnown);
     }

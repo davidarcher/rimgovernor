@@ -392,7 +392,8 @@ public static partial class ForecastValue
         var known = true;
         foreach (var allocation in outcome.Plan.Allocations)
         {
-            if (!index.RawEats.TryGetValue((allocation.Activity, allocation.Pawn), out var eat) || !eat.Gain.TryGetValue(out var gain)) continue;
+            if (!index.RawEats.TryGetValue((allocation.Activity, allocation.Pawn), out var eat)) continue;
+            var gain = eat.Gain;
             NeedRate? food = null;
             if (index.Rows.TryGetValue(allocation.Pawn, out var row)) foreach (var need in row.Needs) if (need.Kind == "food") { food = need; break; }
             if (food is not { FallPerTick: var fall and > 0 })

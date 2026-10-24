@@ -402,31 +402,55 @@ public sealed class PlannedRoomCreditTests
     }
 
     /// <summary>
-    /// #3871 acceptance: a pending commitment, the production way (the fresh colony's construction where native could not read the
-    /// bill reservations, so the frame's material and its completion are unknown). A commitment granting a memory at that frame
-    /// leaves its outcome uncertain and grants nothing, named as commitment_completion_unassessed: the mood forecast stays whole
-    /// and every shipped credit runs.
+    /// #3871 and #3881 acceptance: a pending commitment, the production way (the fresh colony's construction, its bill reservations
+    /// read). Every fact that settles the site's completion is read, so the commitment granting a memory has a known completion:
+    /// a site done inside the day lifts the mood from its end, the mood forecast stays whole and every shipped credit runs.
     /// </summary>
     [Fact]
     public void APendingCommitmentKeepsItsMoodForecastAndRunsEveryShippedCredit()
     {
         var memory = NeedsFixtures.Memory("KnowBuriedInSarcophagus", 4, 8d * Day, false);
-        // Native could not read the colony's bill reservations, so what the frame's material may draw on is unknown.
-        var facts = WorkRules.ReviewWorkResources(WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview()) with { BillReservations = default },
+        // A fresh colony the production way: native reads the bench census every frame, so the bill reservations are known (here
+        // none) and every fact that settles the site's completion is read (#3881).
+        var facts = WorkRules.ReviewWorkResources(WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview()),
             Known<EquatableArray<ProductionBatch>>([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
-        var pending = generated.Alternatives.Where(c => c.Id.StartsWith("site-", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))
-            .Select(c => c with { MoodMemories = [new("pawn", memory)] }).ToArray();
+        var sites = generated.Alternatives.Where(c => c.Id.StartsWith("site-", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal)).ToArray();
+        var pending = sites.Select(c => c with { MoodMemories = [new("pawn", memory)] }).ToArray();
         Assert.NotEmpty(pending);
         var outcomes = Evaluated(facts with { CoupledAlternatives = generated with { Alternatives = EquatableArray.From(pending) } }, Day, pending);
-        var unassessed = outcomes.Where(o => o.Findings.Any(f => f.Reason == "commitment_completion_unassessed")).ToArray();
-        Assert.NotEmpty(unassessed);
-        foreach (var outcome in unassessed)
+        var plain = Evaluated(facts with { CoupledAlternatives = generated with { Alternatives = EquatableArray.From(sites) } }, Day, sites);
+        Assert.Equal(plain.Length, outcomes.Length);
+        var granted = 0;
+        foreach (var (outcome, without) in outcomes.Zip(plain))
         {
-            Assert.False(outcome.Feasible.IsKnown);
-            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+            Assert.Equal(without.Plan.Allocations, outcome.Plan.Allocations);
+            Assert.DoesNotContain(outcome.Findings, f => f.Reason == "commitment_completion_unassessed");
+            Assert.True(outcome.Feasible.IsKnown);
+            var mood = Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood);
+            Assert.True(mood.BreakRisk.IsKnown);
+            // The memory lifts the mood from the site's completion on; a site that does not complete inside the day grants nothing.
+            var lifted = mood.TerminalMood.Value - Assert.IsType<ForecastMoodResult>(without.Needs["pawn"].Mood).TerminalMood.Value;
+            Assert.True(lifted >= -1e-9, "memory lowered the mood by " + lifted);
+            if (lifted > 1e-9) granted++;
             RunsEveryShippedCredit(generated.Context, outcome, Day);
         }
+        Assert.True(granted > 0, "no outcome granted the site's memory");
+    }
+
+    /// <summary>A completion the evaluation cannot settle is an unread fact (#3881): the site's memories are not dropped quietly.</summary>
+    [Fact]
+    public void AnUnsettledCommitmentCompletionIsAnUnreadFact()
+    {
+        var facts = WorkRules.ReviewWorkResources(WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview()),
+            Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
+        var site = generated.Alternatives.First(c => c.Id.StartsWith("site-", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
+        // A lot whose count was never read leaves the site's delivery, and so its completion, unsettled.
+        var unread = generated with { Context = generated.Context with { InitialLots = EquatableArray.From(generated.Context.InitialLots.Select(l => l with { Count = default })) } };
+        var pending = new[] { site with { MoodMemories = [new("pawn", NeedsFixtures.Memory("KnowBuriedInSarcophagus", 4, 8d * Day, false))] } };
+        var thrown = Assert.Throws<RequiredFactException>(() => Evaluated(facts with { CoupledAlternatives = unread with { Alternatives = EquatableArray.From(pending) } }, Day, pending));
+        Assert.StartsWith("commitment_completion:", thrown.Fact, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -453,7 +477,7 @@ public sealed class PlannedRoomCreditTests
                     { Routes = EquatableArray.From(sites.Routes.Select(r => r.FromStart && r.To == new Cell(1, 1) ? r with { Ticks = new RouteTicks.Reachable(0d) } : r)) }) };
             });
         var generated = facts.CoupledAlternatives!;
-        var full = generated.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain.Value).First();
+        var full = generated.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain).First();
         var roots = generated.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || new[] { ForecastRoofConsequencesTests.Wall, ForecastRoofConsequencesTests.Door }.Any(site =>
                 c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();

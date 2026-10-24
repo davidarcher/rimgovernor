@@ -22,7 +22,7 @@ public sealed class UnfinishedMaterialTests
         ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch ?? Batch]), Known<EquatableArray<ProductionBatchState>>([state]));
     private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) => new()
     {
-        ProductionPromises = Promises(state), BillReservations = Known(default(EquatableArray<IngredientReservation>)),
+        ProductionPromises = Promises(state), BillReservations = [],
         ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Material] = 40 }),
         Resources = Known<EquatableArray<Amount>>([new(Material, loose)]), ResourceConsumption = Known(new ResourceConsumption()),
     };
@@ -83,8 +83,8 @@ public sealed class UnfinishedMaterialTests
     [Fact]
     public void NativeLooseHoldsOverlapFreshPromiseOnly()
     {
-        var facts = Facts(State(3)) with { BillReservations = Known<EquatableArray<IngredientReservation>>([
-            new() { Bill = Known("bill"), Pawn = new RimGovernor.Brain.Domain.PawnId("worker"), Items = [new(Material, 10)] }]) };
+        var facts = Facts(State(3)) with { BillReservations = [
+            new() { Bill = "bill", Pawn = new RimGovernor.Brain.Domain.PawnId("worker"), Items = [new(Material, 10)] }] };
         Assert.Equal(30, ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);
         var last = facts with { ProductionPromises = Promises(State(1)) };
         Assert.Equal(40, ResourceRules.ResourceDemandOf(last, RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);

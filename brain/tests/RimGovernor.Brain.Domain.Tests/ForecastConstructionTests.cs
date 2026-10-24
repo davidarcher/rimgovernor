@@ -35,7 +35,7 @@ public sealed class ForecastConstructionTests
         Construction = new()
         {
             Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(sites) }),
-            Workers = [Worker()], IngredientReservations = Known(default(EquatableArray<IngredientReservation>)),
+            Workers = [Worker()], IngredientReservations = [],
             Estimates = sites.Select(s => new ForecastConstructionEstimate(s.Id, "worker", "stock", Known(true), Known(true), Known(100.0), Known(0.0))).ToArray(),
             Routes = sites.Select(s => new ForecastActivityRoute("worker", "stock", s.Id, new RouteTicks.Reachable(50.0)))
                 .Concat(sites.SelectMany(s => sites.Where(t => t.Id != s.Id).Select(t => new ForecastActivityRoute("worker", s.Id, t.Id, new RouteTicks.Reachable(50.0)))))
@@ -129,15 +129,13 @@ public sealed class ForecastConstructionTests
     public void BillHoldsAndProtectedConsumptionCannotFundConstruction()
     {
         var request = Request(Site());
-        request = request with { Construction = request.Construction with { IngredientReservations = Known(EquatableArray.From(new[]
-        { new IngredientReservation { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Items = [new Amount(Material, 6)] } })) } };
+        request = request with { Construction = request.Construction with { IngredientReservations = EquatableArray.From(new[]
+        { new IngredientReservation { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = "cook-bill", Items = [new Amount(Material, 6)] } }) } };
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
         request = Request(Site());
         request = request with { Commitments = EquatableArray.From(request.Commitments.Append(new ForecastCommitment("other", EquatableArray.From(new[]
         { new ForecastStockChange(Material, Known(0.0), Known(-6.0)) })))) };
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
-        request = Request(Site()) with { Construction = Request(Site()).Construction with { IngredientReservations = default } };
-        Assert.Equal("unknown_available_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
     }
 
     [Fact]

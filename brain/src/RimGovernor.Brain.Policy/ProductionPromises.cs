@@ -101,7 +101,7 @@ public static partial class ProductionRules
 
     /// <summary>Shared outstanding material demand: native holds and batch promises overlap by exact bill identity.</summary>
     public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> ProductionMaterialHoldsOf(
-        Fact<EquatableArray<ForecastCommitment>> promises, Fact<EquatableArray<IngredientReservation>> reservations)
+        Fact<EquatableArray<ForecastCommitment>> promises, EquatableArray<IngredientReservation> reservations)
     {
         if (!promises.TryGetValue(out var rows)) return default;
         var budget = ForecastClaims.ForecastMaterialBudgetOf(Known(default(EquatableArray<Amount>)), reservations, rows, 0);

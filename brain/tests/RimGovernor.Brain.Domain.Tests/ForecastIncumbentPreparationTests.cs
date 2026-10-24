@@ -66,7 +66,7 @@ public sealed class ForecastIncumbentPreparationTests
         var task = Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment);
         Assert.Equal(0d, task.LatestStart);
         Assert.Equal(100d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == task.Id).WorkTicks.Value);
-        Assert.Equal(.1, Assert.Single(candidates.Context.NeedTasks, n => n.Task == task.Id).Gain.Value, 8);
+        Assert.Equal(.1, Assert.Single(candidates.Context.NeedTasks, n => n.Task == task.Id).Gain, 8);
         Assert.Empty(Assert.Single(candidates.Incumbents, a => a.Id == incumbent.Commitment).ExclusiveOutcome);
         Assert.DoesNotContain(candidates.Alternatives, a => a.Id == incumbent.Commitment);
     }

@@ -158,8 +158,8 @@ public sealed class ForecastCoupledTests
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), stock)]),
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Rice")] = sites * 100 }),
-            BillReservations = Known<EquatableArray<RimGovernor.Brain.Policy.IngredientReservation>>(reserved == 0 ? []
-                : [new() { Pawn = new("other-cook"), Bill = Known("other-bill"), Items = [new(new("Rice"), reserved)] }]),
+            BillReservations = reserved == 0 ? []
+                : [new() { Pawn = new("other-cook"), Bill = "other-bill", Items = [new(new("Rice"), reserved)] }],
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with

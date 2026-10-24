@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>Transient mechanics attached to tasks, never a second execution journal.</summary>
 public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, string Target,
-    Resource Resource, int Count, Fact<double> Gain, EquatableArray<NeedMemory> Thoughts)
+    Resource Resource, int Count, double Gain, EquatableArray<NeedMemory> Thoughts)
 {
     public string FoodReady { get; init; } = "";
     public double ServiceDelay { get; init; }

@@ -18,7 +18,7 @@ public sealed record ForecastConstructionContext
     public ForecastConstructionEstimate[] Estimates { get; init; } = [];
     public ForecastActivityRoute[] Routes { get; init; } = [];
     public ForecastEquipmentCapacity[] Equipment { get; init; } = [];
-    public Fact<EquatableArray<IngredientReservation>> IngredientReservations { get; init; }
+    public EquatableArray<IngredientReservation> IngredientReservations { get; init; }
     public int ExpansionBudget { get; init; } = 512;
 }
 

@@ -90,8 +90,11 @@ public sealed partial record ForecastCoupledCandidates
         .Select(m => Lot(m.Id, Location(m.Location), m.Resource, m.Available)))
     .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food")
         .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
-    .Concat(planned.Lots)
-    .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
+    .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToList();
+        // The frame is the forecast's start state (#3881): the planned-site read comes from a later native call, so a stack both
+        // name can have moved in between. The frame's count wins; planned lots add only the stacks the frame does not name.
+        var framed = lots.Select(l => (l.Lot, l.Location, l.Resource)).ToHashSet();
+        lots.AddRange(planned.Lots.Where(l => framed.Add((l.Lot, l.Location, l.Resource))));
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
         var findings = new SortedSet<string>(plannedFindings, StringComparer.Ordinal); findings.UnionWith(planned.Findings);
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
@@ -191,7 +194,7 @@ public sealed partial record ForecastCoupledCandidates
         // A spar is recreation: its joy at the native rate over the fight, and the memory a completed bout gives (#3858).
         foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick > 0))
             needTasks.Add(new(task.Task, task.Worker.Pawn, "joy", task.Worker.Target, new(""), 0,
-                Known(task.Worker.JoyGainPerTick * Math.Max(0, task.Worker.DurationTicks - task.Worker.PreparationTicks)), task.Worker.Thoughts)
+                task.Worker.JoyGainPerTick * Math.Max(0, task.Worker.DurationTicks - task.Worker.PreparationTicks), task.Worker.Thoughts)
                 { ServiceDelay = task.Worker.PreparationTicks,
                     MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == task.Worker.Target)?.MaxPawns ?? default });
         foreach (var pawn in needs.Pawns)
@@ -222,7 +225,7 @@ public sealed partial record ForecastCoupledCandidates
                         SelectedInputs = choice.Kind == "food"
                             ? [new(choice.Resource, target.Id, choice.Count, physical, "observed need target") { Observed = true }] : [] };
                 Option(id, pawn.Pawn, Known(choice.End - choice.Start));
-                needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, Known(choice.Gain), choice.Thoughts)
+                needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, choice.Gain, choice.Thoughts)
                 { AvailableCount = target.StockCount, FreshTicks = target.FreshTicks, MaxPawns = target.MaxPawns });
                 alternatives.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "need/" + pawn.Pawn + "/" + choice.Kind
                     + (choice.Kind == "food" ? "/use/" + Math.Round(choice.Start, 6).ToString("R", System.Globalization.CultureInfo.InvariantCulture) : "") });

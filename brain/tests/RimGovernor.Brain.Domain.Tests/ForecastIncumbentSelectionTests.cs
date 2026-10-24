@@ -35,8 +35,8 @@ public sealed class ForecastIncumbentSelectionTests
             },
             Needs = original.Context.Needs with { Pawns = [pawn] },
             InitialLots = [new("rice", "start", new("Rice"), Known(1d)) { Perishable = true, FreshTicks = Known(1000d) }],
-            NeedTasks = [new("ongoing-joy", "pawn", "joy", "horseshoes", new(""), 0, Known(.25), []),
-                new("meal", "pawn", "food", "rice", new("Rice"), 1, Known(.8), [])
+            NeedTasks = [new("ongoing-joy", "pawn", "joy", "horseshoes", new(""), 0, .25, []),
+                new("meal", "pawn", "food", "rice", new("Rice"), 1, .8, [])
                 { AvailableCount = Known(1d), FreshTicks = Known(1000d) }]
         };
         var candidates = new ForecastCoupledCandidates(context, meal ? [eat] : [], [], false) { Incumbents = [current] };
@@ -56,7 +56,7 @@ public sealed class ForecastIncumbentSelectionTests
         {
             Needs = context.Needs with { Pawns = [pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n =>
                 n.Kind == "joy" ? n with { Level = .1, FallPerTick = .001 } : n)) }] },
-            NeedTasks = [.. context.NeedTasks, new("future-joy", "pawn", "joy", "horseshoes", new(""), 0, Known(.25), [])],
+            NeedTasks = [.. context.NeedTasks, new("future-joy", "pawn", "joy", "horseshoes", new(""), 0, .25, [])],
             Activities = context.Activities with
             {
                 Activities = [.. context.Activities.Activities, new("future-joy", "start", "start", []) { NotBefore = 100 }],
@@ -84,7 +84,7 @@ public sealed class ForecastIncumbentSelectionTests
         {
             Resources = roster.WorkView!,
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0], context.Needs.Pawns[0] with { Pawn = "helper" }] },
-            NeedTasks = [.. context.NeedTasks, new("helper-joy", "helper", "joy", "horseshoes", new(""), 0, Known(.2), [])],
+            NeedTasks = [.. context.NeedTasks, new("helper-joy", "helper", "joy", "horseshoes", new(""), 0, .2, [])],
             Activities = context.Activities with
             {
                 Activities = [.. context.Activities.Activities, new("helper-joy", "start", "start", [])],
@@ -109,7 +109,7 @@ public sealed class ForecastIncumbentSelectionTests
         var names = Enumerable.Range(1, helpers).Select(i => "helper" + i).ToArray();
         var roster = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), Known<EquatableArray<ProductionBatch>>([]), new([]));
         var context = candidates.Context;
-        ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, Known(.2), [])
+        ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, .2, [])
             { MaxPawns = maxPawns, AvailableCount = stock };
         context = context with
         {
@@ -153,7 +153,7 @@ public sealed class ForecastIncumbentSelectionTests
             Needs = candidates.Context.Needs with { Pawns = [candidates.Context.Needs.Pawns[0] with { Targets = [rice] },
                 candidates.Context.Needs.Pawns[0] with { Pawn = "helper", Targets = [rice] }] },
             InitialLots = [new("rice", "start", new("Rice"), Known(20d)) { Perishable = true, FreshTicks = Known(1000d) }],
-            NeedTasks = [new("eat", "pawn", "food", "rice", new("Rice"), 2, Known(.1), []) { AvailableCount = Known(20d), MaxPawns = Known(10), FreshTicks = Known(1000d) }],
+            NeedTasks = [new("eat", "pawn", "food", "rice", new("Rice"), 2, .1, []) { AvailableCount = Known(20d), MaxPawns = Known(10), FreshTicks = Known(1000d) }],
             Activities = candidates.Context.Activities with
             {
                 Activities = [new("haul", "start", "start", []) { LatestStart = 0 }, new("work", "start", "start", []) { LatestStart = 0 },

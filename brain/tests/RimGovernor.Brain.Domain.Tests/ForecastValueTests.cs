@@ -219,7 +219,7 @@ public sealed class ForecastValueTests
         var context = Context(pawn) with
         {
             CookedNutritionRatio = ratios,
-            NeedTasks = [new("eat", "pawn", "food", "rice", new("RawRice"), 5, Known(0.25), []), new("meal", "pawn", "food", "cell/1/1", new("MealSimple"), 1, Known(0.9), [])],
+            NeedTasks = [new("eat", "pawn", "food", "rice", new("RawRice"), 5, 0.25, []), new("meal", "pawn", "food", "cell/1/1", new("MealSimple"), 1, 0.9, [])],
         };
         ForecastCoupledOutcome Eating(string task) => Outcome(Calm()) with { Plan = new([new(task, "pawn", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0) };
 
@@ -539,7 +539,7 @@ public sealed class ForecastValueTests
     }
 
     // A crafted devilstrand duster delivered at the given tick: an overlay of the worn outfit, timed by the outcome (#3621).
-    private static ForecastValueResult Crafted(Fact<double>? delivered)
+    private static ForecastValueResult Crafted(double? delivered)
     {
         var craft = new ForecastCommitment("craft", default)
         { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", Devilstrand) { Overlay = true }] };
@@ -553,14 +553,13 @@ public sealed class ForecastValueTests
         var cloth = Harmed(Cloth).Harm.Value;
         var devilstrand = Harmed(Devilstrand).Harm.Value;
 
-        Assert.Equal(devilstrand, Crafted(Known(0d)).Harm.Value, 9);
+        Assert.Equal(devilstrand, Crafted(0d).Harm.Value, 9);
         // Delivered at midday: the cloth duster meets the morning's raids, the devilstrand one the afternoon's.
-        Assert.Equal((cloth + devilstrand) / 2, Crafted(Known(Day / 2)).Harm.Value, 9);
-        Assert.Equal(cloth, Crafted(Known(double.PositiveInfinity)).Harm.Value, 9);
-        var unknown = Crafted(default(Fact<double>));
-        Assert.False(unknown.Harm.IsKnown);
-        Assert.Contains("outfit_change_timing_unknown:pawn", unknown.Findings);
-        Assert.False(Crafted(null).Harm.IsKnown);
+        Assert.Equal((cloth + devilstrand) / 2, Crafted(Day / 2).Harm.Value, 9);
+        Assert.Equal(cloth, Crafted(double.PositiveInfinity).Harm.Value, 9);
+        var untimed = Crafted(null);
+        Assert.False(untimed.Harm.IsKnown);
+        Assert.Contains("outfit_change_timing_unknown:pawn", untimed.Findings);
     }
 
     [Fact]
@@ -570,7 +569,7 @@ public sealed class ForecastValueTests
         // expected damage it saves from its delivery, and nothing else credits it.
         var vest = Duster(0.8) with { ID = "flakvest", Definition = new("Apparel_FlakVest"), Slot = GearSlot.MiddleTorso, Layers = ["Middle"] };
         var craft = new ForecastCommitment("craft", default) { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", [vest]) { Overlay = true }] };
-        var vested = ForecastValue.Of(Outcome(Calm()) with { OutfitTicks = [new("craft", Known(0d))] }, HarmContext(Cloth), Day, Outcome(Calm()), [craft]);
+        var vested = ForecastValue.Of(Outcome(Calm()) with { OutfitTicks = [new("craft", 0d)] }, HarmContext(Cloth), Day, Outcome(Calm()), [craft]);
         var cloth = Harmed(Cloth);
         var both = Harmed([.. Cloth, vest]);
 
@@ -590,7 +589,7 @@ public sealed class ForecastValueTests
         var swap = new ForecastCommitment("swap", default) { OutfitChanges = [new("pawn", [.. worn, pants])] };
         var craft = new ForecastCommitment("craft", default) { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", [duster]) { Overlay = true }] };
 
-        var outfits = HarmLedger.OutfitsOf("pawn", worn, [craft, swap], [new("craft", Known(Day / 4))], Day)!;
+        var outfits = HarmLedger.OutfitsOf("pawn", worn, [craft, swap], [new("craft", Day / 4)], Day)!;
 
         Assert.Equal([0.25, 0.75], outfits.Select(o => o.Share));
         Assert.Equal(["duster0.3", "pants"], outfits[0].Outfit.Select(o => o.ID));

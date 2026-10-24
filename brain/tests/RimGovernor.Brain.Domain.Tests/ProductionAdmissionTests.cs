@@ -24,7 +24,7 @@ public sealed class ProductionAdmissionTests
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),
         Resources = Known<EquatableArray<Amount>>([new(Wood, 60), new(Other, 100)]),
         ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Wood] = 40 }),
-        BillReservations = Known(default(EquatableArray<IngredientReservation>)),
+        BillReservations = [],
         WorkAdmission = new()
         {
             Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", [[new(Wood, 10)]], false) { Products = [], WorkAmount = 0 }]),
@@ -75,16 +75,15 @@ public sealed class ProductionAdmissionTests
     public void UnknownEvidenceRefusesAndNativeHoldsOverlapOnlyTheirExactBill()
     {
         Assert.False(Fits(Evidence(Facts with { Resources = default }), [], Batch("new")));
-        Assert.False(Fits(Evidence(Facts with { BillReservations = default }), [], Batch("new")));
         Assert.False(Fits(Evidence(Facts with { WorkAdmission = new() }), [], Batch("new")));
         var first = Batch("first") with { Progress = Batch("first").Progress with { Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") } };
         var f = Facts with
         {
             WorkAdmission = Facts.WorkAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", true, BillRepeat.Count, 1, false, false, new ProductionUnfinishedWork("", default))]) },
-            BillReservations = Known<EquatableArray<IngredientReservation>>([new() { Bill = Known("bill"), Pawn = new("pawn"), Items = [new(Wood, 10)] }]),
+            BillReservations = [new() { Bill = "bill", Pawn = new("pawn"), Items = [new(Wood, 10)] }],
         };
         Assert.True(Fits(Evidence(f, first), [first], Batch("new")));
-        Assert.False(Fits(Evidence(f with { BillReservations = Known<EquatableArray<IngredientReservation>>([new() { Bill = Known("other"), Pawn = new("pawn"), Items = [new(Wood, 10)] }]) }, first), [first], Batch("new")));
+        Assert.False(Fits(Evidence(f with { BillReservations = [new() { Bill = "other", Pawn = new("pawn"), Items = [new(Wood, 10)] }] }, first), [first], Batch("new")));
     }
 
     [Fact]

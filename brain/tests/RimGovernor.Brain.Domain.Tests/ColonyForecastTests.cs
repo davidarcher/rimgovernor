@@ -55,8 +55,13 @@ public sealed class ColonyForecastTests
         var b = Change("delivery", 2, 2);
         var first = ColonyForecastRules.ForecastColony(Request(a, b));
         var second = ColonyForecastRules.ForecastColony(Request(b, a));
-        Assert.Equal(first.Baseline, first.Proposed);
-        Assert.Equal(first.Baseline, second.Baseline);
+        // The free stock is a dictionary per scenario (no reservations here, so known): compare it by content (#3881).
+        static ColonyForecastScenario Plain(ColonyForecastScenario s) => s with { MaterialAvailability = default };
+        static KeyValuePair<Resource, Fact<double>>[] Free(ColonyForecastScenario s) => [.. s.MaterialAvailability.Value.OrderBy(p => p.Key.Value, StringComparer.Ordinal)];
+        Assert.Equal(Plain(first.Baseline), Plain(first.Proposed));
+        Assert.Equal(Plain(first.Baseline), Plain(second.Baseline));
+        Assert.Equal(Free(first.Baseline), Free(first.Proposed));
+        Assert.Equal(Free(first.Baseline), Free(second.Baseline));
         Assert.Empty(Findings(Stock, b, a));
     }
 

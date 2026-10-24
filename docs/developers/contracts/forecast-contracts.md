@@ -237,10 +237,14 @@ the pawn's choices instead of staying at their observed stage.
   completed session at a company target spans that end (`TrainingCompany.NearTrainer`).
   Company while walking to a target, or in the 2500 ticks after another's session, is
   `practice_company_outside_sessions_not_modelled`.
-- A commitment whose completion is unknown grants none of its mood memories or
-  situational changes; its outcome is already uncertain, and the forecast names it
-  `commitment_completion_unassessed` (#3871), as an unknown need completion drops its
-  task.
+- A commitment grants its mood memories, situational changes and comfort shifts at the
+  tick its last activity completes; one that starts past the horizon or fails grants
+  none. Every fact that settles a completion is read on the production path: native
+  reads the bench census, so the bill reservations are a plain list with each hold's
+  bill (`ConstructionReads.BillReservations`), and the frame's lot count is the start
+  state when the later planned-site read names the same stack. A completion the
+  evaluation still cannot settle, a commitment's or a need task's, is an unread fact
+  (`RequiredFactException` `commitment_completion:` / `need_completion:`, #3881).
 
 ### Temperature mood from banded cards
 

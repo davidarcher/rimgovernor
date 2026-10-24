@@ -516,8 +516,9 @@ Material feasibility reuses `MaterialBudget` with bill-job holds and explicit
 unknown checks. Standing construction deficits are not subtracted there: this
 slice allocates its own exact needs once, sequentially. Other supplied negative
 stock effects within the horizon are protected up front, and future positive
-effects do not finance delivery. An unknown native reservation census prevents
-material-dependent scheduling. An unknown declared consumption affects only its
+effects do not finance delivery. Native reads the bench census every frame, so the
+reservations are a plain list; an unread census is a `RequiredFactException`
+(`bill_reservations`, #3881). An unknown declared consumption affects only its
 resource; unrelated materials and already supplied frames can still run. Exact
 ingredient promises and equipment occupancy are accounted below.
 A higher-tier site conservatively waits while any lower-tier census site needs
@@ -846,16 +847,16 @@ are deducted once, then declared promises and in-horizon negative stock effects.
 Future outputs cannot finance these promises. `MaterialAvailability` exposes free
 units separately from inventory trajectories; negative availability means the
 declared promises exceed stock. Unknown quantities or consumption timing affect
-only that resource. A missing whole reservation census leaves the budget unknown.
+only that resource.
 
 The observation projection retains each native reservation's bill identity.
 `ReservationBill` is known empty for a promise not handed to a bill, the exact bill
 ID when it covers that bill's current promise, or unknown when the association is
 unverified. Claimed units include native-held units: a promise of 50 with 20 already
 held by the same bill protects 50 in total. Another bill's 20 remains additional.
-Only one commitment may link a given bill/resource; duplicate links fail. Missing
-native bill identity prevents reconciliation for the affected resource rather than
-granting credit. The caller must supply the current outstanding promise, not a
+Only one commitment may link a given bill/resource; duplicate links fail. Every native
+hold names its pawn and bill: one read without them is a `RequiredFactException`, and a
+row without them fails the budget (#3881). The caller must supply the current outstanding promise, not a
 historical full bill quantity or a demand target.
 
 Baseline and delta rebuild independently. Removing a promise releases its forecast

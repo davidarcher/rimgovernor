@@ -17,15 +17,15 @@ public sealed class ProductionPromisesTests
     private static ProductionBatch Batch => new(new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 5, Material.Value),
         new ProgressView { Action = new ActionId("batch"), Stage = Stage.Pending })
     { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)]]), UsesUnfinishedItem = Known(false) };
-    private static Fact<EquatableArray<IngredientReservation>> EmptyReservations => Known(default(EquatableArray<IngredientReservation>));
+    private static EquatableArray<IngredientReservation> EmptyReservations => [];
     private static Fact<EquatableArray<ProductionBatchState>> Census(int remaining = 5) => Known<EquatableArray<ProductionBatchState>>([
         new("bill", true, BillRepeat.Count, remaining, false, false, new ProductionUnfinishedWork("", default))]);
     private static ProductionBatch Placed => Batch with
     { Progress = Batch.Progress with { Attempt = new AttemptId(1), Stage = Stage.Completed, Bill = Known("bill") } };
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatch batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
         ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), census);
-    private static Fact<EquatableArray<IngredientReservation>> Reserved(string bill) => Known<EquatableArray<IngredientReservation>>([
-        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 10)] }]);
+    private static EquatableArray<IngredientReservation> Reserved(string bill) => [
+        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = bill, Items = [new(Material, 10)] }];
     private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) => new()
     {
         ProductionPromises = promises, BillReservations = EmptyReservations,

@@ -567,7 +567,7 @@ internal static class HarmLedger
         {
             if (tick.Commitment == commitment.Id)
             {
-                at = tick.Tick.IsKnown ? tick.Tick.Value : null;
+                at = tick.Tick;
             }
         }
 

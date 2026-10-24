@@ -171,7 +171,8 @@ internal static class ReferenceScheduleChecker
             var food = pawn.Needs.FirstOrDefault(n => n.Kind == "food");
             if (food is not { Level: var level, FallPerTick: var fall and > 0, Threshold: var threshold }) continue;
             var meals = context.NeedTasks.Where(n => n.Pawn == pawn.Pawn && n.Kind == "food").ToArray();
-            if (meals.Length == 0 || !meals[0].Gain.TryGetValue(out var nutrition)) continue;
+            if (meals.Length == 0) continue;
+            var nutrition = meals[0].Gain;
             var due = new List<double>();
             for (var t = (level - threshold) / fall; t <= horizon + Eps; t += nutrition / fall) due.Add(t);
             foreach (var step in steps.Where(s => s.Worker == pawn.Pawn && meals.Any(m => m.Task == s.Activity)))
@@ -196,8 +197,8 @@ internal static class ReferenceScheduleChecker
         {
             var food = pawn.Needs.FirstOrDefault(n => n.Kind == "food");
             var meal = context.NeedTasks.FirstOrDefault(n => n.Pawn == pawn.Pawn && n.Kind == "food");
-            if (food is not { Level: var level, FallPerTick: var fall and > 0, Threshold: var threshold } || meal is null
-                || !meal.Gain.TryGetValue(out var nutrition)) continue;
+            if (food is not { Level: var level, FallPerTick: var fall and > 0, Threshold: var threshold } || meal is null) continue;
+            var nutrition = meal.Gain;
             var index = 0;
             for (var t = (level - threshold) / fall; t <= horizon + Eps; t += nutrition / fall) events.Add((pawn.Pawn, index++, t));
         }

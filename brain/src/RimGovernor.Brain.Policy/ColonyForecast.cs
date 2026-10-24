@@ -47,8 +47,8 @@ public sealed record ForecastOutfitChange(string Pawn, EquatableArray<GearOption
 }
 
 /// <summary>The tick, from the forecast start, at which <paramref name="Commitment"/>'s activities all completed: positive
-/// infinity when one does not complete inside the horizon, unknown when a completion is.</summary>
-public sealed record ForecastEffectiveTick(string Commitment, Fact<double> Tick);
+/// infinity when one does not complete inside the horizon or fails (#3881).</summary>
+public sealed record ForecastEffectiveTick(string Commitment, double Tick);
 
 /// <summary>One pawn's memory granted by a commitment; it starts at the commitment's effective tick.</summary>
 public sealed record ForecastMoodMemory(string Pawn, NeedMemory Memory);

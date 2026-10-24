@@ -151,7 +151,7 @@ public sealed class MaterialChoiceTests
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             Resources = Known<EquatableArray<Amount>>([new(Metal, 10), new(Timber, 10)]),
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
-            BillReservations = Known(default(EquatableArray<IngredientReservation>)),
+            BillReservations = [],
             WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
         var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.True(review.Review.Enabled);

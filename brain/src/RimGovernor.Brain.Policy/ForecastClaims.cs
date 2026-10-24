@@ -11,7 +11,7 @@ public static class ForecastClaims
 {
     /// <summary>One scenario's free stock after native holds and declared promises; unknowns are resource-local.</summary>
     public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> ForecastMaterialBudgetOf(
-        Fact<EquatableArray<Amount>> stock, Fact<EquatableArray<IngredientReservation>> reservations,
+        Fact<EquatableArray<Amount>> stock, EquatableArray<IngredientReservation> reservations,
         IEnumerable<ForecastCommitment> commitments, double horizonDays)
     {
         if (!double.IsFinite(horizonDays) || horizonDays < 0) throw new DomainException("invalid material horizon");
@@ -31,9 +31,8 @@ public static class ForecastClaims
                     throw new DomainException("native reservation linked to multiple promises");
             }
         }
-        if (!reservations.TryGetValue(out var native)) return default;
+        var native = reservations;
         var nativeAmounts = new Dictionary<(string Bill, Resource Resource), double>();
-        var unknownBills = new HashSet<Resource>();
         static void ValidateAmounts(IEnumerable<Amount> amounts)
         {
             var totals = new Dictionary<Resource, long>();
@@ -49,16 +48,12 @@ public static class ForecastClaims
         ValidateAmounts(native.SelectMany(r => r.Items));
         foreach (var row in native)
         {
-            if (row.Pawn.IsEmpty) throw new DomainException("ingredient reservation requires a pawn");
+            if (row.Pawn.IsEmpty || string.IsNullOrWhiteSpace(row.Bill)) throw new DomainException("ingredient reservation requires a pawn and a bill");
             foreach (var amount in row.Items)
             {
                 if (!AdmissionRules.ValidResource(amount.Resource) || amount.Count < 0) throw new DomainException("invalid native ingredient hold");
-                if (!row.Bill.TryGetValue(out var bill) || string.IsNullOrWhiteSpace(bill)) unknownBills.Add(amount.Resource);
-                else
-                {
-                    var key = (bill, amount.Resource);
-                    nativeAmounts[key] = nativeAmounts.GetValueOrDefault(key) + amount.Count;
-                }
+                var key = (row.Bill, amount.Resource);
+                nativeAmounts[key] = nativeAmounts.GetValueOrDefault(key) + amount.Count;
             }
         }
         if (!MaterialBudgetRules.MaterialBudget(stock, Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), reservations, default)
@@ -83,9 +78,8 @@ public static class ForecastClaims
                 if (!claim.ReservationBill.TryGetValue(out var bill)) units = default;
                 else if (bill.Length != 0)
                 {
-                    // Only the same observed bill can cover part of this promise. Missing identity is not credit.
-                    if (unknownBills.Contains(claim.Resource)) units = default;
-                    else if (units.IsKnown) units = Known(Math.Max(0, units.Value - nativeAmounts.GetValueOrDefault((bill, claim.Resource))));
+                    // Only the same observed bill can cover part of this promise.
+                    if (units.IsKnown) units = Known(Math.Max(0, units.Value - nativeAmounts.GetValueOrDefault((bill, claim.Resource))));
                 }
                 Hold(claim.Resource, units);
             }

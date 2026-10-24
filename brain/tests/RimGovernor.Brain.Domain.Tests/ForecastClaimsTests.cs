@@ -12,11 +12,11 @@ public sealed class ForecastClaimsTests
     private static readonly Resource Material = new("TestMaterial");
     private static readonly Resource Food = new("TestFood");
     private static Fact<EquatableArray<Amount>> Stock => Known<EquatableArray<Amount>>([new(Material, 100), new(Food, 20)]);
-    private static Fact<EquatableArray<IngredientReservation>> NoReservations => Known(default(EquatableArray<IngredientReservation>));
+    private static EquatableArray<IngredientReservation> NoReservations => [];
     private static ForecastCommitment Promise(string id, Resource resource, double units, string bill = "") => new(id, default)
     { MaterialClaims = [new(resource, Known(units), Known(bill))] };
-    private static Fact<EquatableArray<IngredientReservation>> Native(string bill = "bill") => Known<EquatableArray<IngredientReservation>>([
-        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 20)] }]);
+    private static EquatableArray<IngredientReservation> Native(string bill = "bill") => [
+        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = bill, Items = [new(Material, 20)] }];
 
     [Fact]
     public void NativeHandoffCountsSameBillOnceAndOtherBillsStillCompete()
@@ -46,7 +46,7 @@ public sealed class ForecastClaimsTests
     }
 
     [Fact]
-    public void UnknownPromiseOrNativeLinkOnlyPoisonsItsOwnResource()
+    public void UnknownPromiseLinkOnlyPoisonsItsOwnResource()
     {
         var unknown = new ForecastCommitment("unknown", default) { MaterialClaims = [new(Food, Unknown<double>(), Known(""))] };
         var budget = ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [unknown], 1).Value;
@@ -54,9 +54,8 @@ public sealed class ForecastClaimsTests
         Assert.Equal(100, budget[Material].Value);
         unknown = unknown with { MaterialClaims = [new(Material, Known(50.0), Unknown<string>())] };
         Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [unknown], 1).Value[Material].IsKnown);
-        var missingId = Known<EquatableArray<IngredientReservation>>([Native().Value[0] with { Bill = default }]);
-        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, missingId, [Promise("linked", Material, 50, "bill")], 1).Value[Material].IsKnown);
-        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, default, [], 1).IsKnown);
+        // A native hold always names its bill (#3881): one without is a broken read.
+        Assert.Throws<DomainException>(() => ForecastClaims.ForecastMaterialBudgetOf(Stock, [Native()[0] with { Bill = "" }], [Promise("linked", Material, 50, "bill")], 1));
         Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
             [new("zero", default) { MaterialClaims = [new(Material, Known(0.0), default)] }], 1).Value[Material].Value);
     }
@@ -156,16 +155,16 @@ public sealed class ForecastClaimsTests
     }
 
     [Fact]
-    public void NativeDecoderRetainsBillIdentityWithoutInventingMissingIdentity()
+    public void NativeDecoderRetainsBillIdentityAndThrowsOnAnUnreadOne()
     {
         var bill = BillWire.Bill("native-bill") with { Reservations = [new() { PawnId = "cook", Items = [new() { DefName = Material.Value, Units = 20 }] }] };
         var snapshot = BillWire.Census(bill);
         var observed = ConstructionReads.BillReservations(snapshot);
-        Assert.Equal("native-bill", observed.Value[0].Bill.Value);
+        Assert.Equal("native-bill", observed[0].Bill);
         var promise = Promise("method", Material, 50, "native-bill");
         Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].Value);
-        observed = ConstructionReads.BillReservations(snapshot with { Benches = [snapshot.Benches[0] with { Bills = [bill with { Id = "" }] }] });
-        Assert.False(observed.Value[0].Bill.IsKnown);
-        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].IsKnown);
+        // Native reads the bench census every frame (#3881): a missing census or a reservation without its bill is unread.
+        Assert.Throws<RequiredFactException>(() => ConstructionReads.BillReservations(snapshot with { Benches = [snapshot.Benches[0] with { Bills = [bill with { Id = "" }] }] }));
+        Assert.Throws<RequiredFactException>(() => ConstructionReads.BillReservations(null));
     }
 }

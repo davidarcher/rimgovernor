@@ -131,7 +131,7 @@ public sealed class ForecastWorkInputsTests
             Tick = new Tick(100), CurrentConstruction = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { site }) }),
             ConstructionClaims = Known(EquatableArray.From(new[] { claim, claim })),
             ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(new[] { Pawn() })) },
-            BillReservations = Known(default(EquatableArray<IngredientReservation>)),
+            BillReservations = [],
             ProductionPromises = Known(default(EquatableArray<ForecastCommitment>)),
             Resources = Known(default(EquatableArray<Amount>)),
         };

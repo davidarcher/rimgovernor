@@ -1057,7 +1057,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal("Parka", Assert.Single(change.Items).ID);
         var outcome = Outcome(facts, parka);
         var delivery = outcome.Plan.Allocations.Single(a => a.Activity == parka.ActivityCompletions[0]);
-        Assert.Equal([new ForecastEffectiveTick(parka.Id, Known(delivery.End))], outcome.OutfitTicks);
+        Assert.Equal([new ForecastEffectiveTick(parka.Id, delivery.End)], outcome.OutfitTicks);
         Assert.True(delivery.End > 0);
     }
 

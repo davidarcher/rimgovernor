@@ -29,7 +29,7 @@ public sealed record WorkAdmissionEvidence
     public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> WorkResources { get; init; }
     public Fact<EquatableArray<Amount>> Stock { get; init; }
     public Fact<IReadOnlyDictionary<Resource, long>> Construction { get; init; }
-    public Fact<EquatableArray<IngredientReservation>> Reservations { get; init; }
+    public EquatableArray<IngredientReservation> Reservations { get; init; }
     public Fact<EquatableArray<ProductionRecipeInput>> Recipes { get; init; }
     public Fact<EquatableArray<ProductionMaterialPromise>> Promises { get; init; }
     public EquatableArray<ActionId> Reviewed { get; init; }

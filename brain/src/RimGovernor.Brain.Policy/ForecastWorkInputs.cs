@@ -7,7 +7,7 @@ public sealed partial record ForecastWorkInputs
     public Fact<EquatableArray<ForecastCommitment>> ConstructionCommitments { get; init; }
     public Fact<CurrentConstruction> Construction { get; init; }
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
-    public Fact<EquatableArray<IngredientReservation>> IngredientReservations { get; init; }
+    public EquatableArray<IngredientReservation> IngredientReservations { get; init; }
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
     public WorkResourceClaims? Claims { get; init; }
     public WorkResourceView? Resources { get; init; }

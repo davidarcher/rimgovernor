@@ -54,7 +54,7 @@ public sealed class ApparelCreditTests
                 },
             },
         }, [])
-        { OutfitTicks = [new("craft", Known(at))] };
+        { OutfitTicks = [new("craft", at)] };
 
     private static ForecastValueResult Value(ForecastCoupledContext context, GearOption garment, double at = Day / 2, double shift = 0.05)
         => ForecastValue.Of(Delivering(at, shift), context, Day, null, [Craft(garment)]);
@@ -125,7 +125,7 @@ public sealed class ApparelCreditTests
         var shirt = Craft(Shirt(1)) with { Id = "shirt" };
         var legs = Craft(pants) with { Id = "pants" };
         Assert.Equal([0.06], ForecastApparel.BreakShifts(context.Needs, context.Outfits, [shirt, legs])["pawn"]);
-        var outcome = Delivering(0, 0.06) with { OutfitTicks = [new("shirt", Known(Day)), new("pants", Known(2 * Day))] };
+        var outcome = Delivering(0, 0.06) with { OutfitTicks = [new("shirt", Day), new("pants", 2 * Day)] };
         var row = Assert.Single(ForecastValue.Of(outcome, context, Day, null, [shirt, legs]).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
         var perDay = context.Value.WellbeingWeight * 6 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value;
         Assert.Equal((ForecastApparel.CreditKey("pawn", "Apparel_Pants"), Horizon - 2), (row.Key, row.Units));
