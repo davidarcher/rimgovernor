@@ -16,7 +16,7 @@ public enum ReadyState
 {
     None = 0,
 
-    /// <summary>The goal has no plan or proposal to offer.</summary>
+    /// <summary>The goal has no plan to offer.</summary>
     [WireName("no_method")]
     NoMethod,
 
@@ -71,9 +71,6 @@ public sealed record ReadyWork
 
     public EquatableArray<ReadyClaim> Claims { get; init; }
 
-    /// <summary>Groups interchangeable methods: at most one per group is counted as demand. Sequential steps use Requires, never this.</summary>
-    public string Alternative { get; init; } = "";
-
     /// <summary>How many workers the stage usefully takes now; zero unless runnable.</summary>
     public int Parallelism { get; init; }
 }
@@ -103,36 +100,6 @@ public sealed record ReadyWorkReport
     /// <summary>Whether the report describes the world s names; a report from another colony, map or load describes nothing.</summary>
     public bool Current(GenerationSnapshot s) => Colony == s.Colony && Map == s.Map && Load == s.Load;
 
-    /// <summary>
-    /// The runnable worker demand per work type, counting one alternative per group (the largest) so
-    /// alternatives are never both reserved.
-    /// </summary>
-    public Dictionary<WorkType, int> Demand()
-    {
-        var demand = new Dictionary<WorkType, int>();
-        var groups = new Dictionary<string, ReadyWork>(StringComparer.Ordinal);
-        foreach (var c in Candidates)
-        {
-            if (c.State != ReadyState.Runnable || c.Parallelism == 0 || c.Work.Count == 0)
-            {
-                continue;
-            }
-            if (c.Alternative.Length == 0)
-            {
-                demand[c.Work[0]] = demand.GetValueOrDefault(c.Work[0]) + c.Parallelism;
-                continue;
-            }
-            if (!groups.TryGetValue(c.Alternative, out var prev) || c.Parallelism > prev.Parallelism)
-            {
-                groups[c.Alternative] = c;
-            }
-        }
-        foreach (var c in groups.Values)
-        {
-            demand[c.Work[0]] = demand.GetValueOrDefault(c.Work[0]) + c.Parallelism;
-        }
-        return demand;
-    }
 }
 
 /// <summary>One existing plan with its progress.</summary>
@@ -145,34 +112,6 @@ public sealed record ReadyPlan
     public required PlanSpec Spec { get; init; }
 
     public IReadOnlyList<Progress> Progress { get; init; } = [];
-
-    /// <summary>The observed next-stage prerequisite of an admitted action whose work comes in stages: a crop ready to sow or harvest. Missing means unknown.</summary>
-    public IReadOnlyDictionary<ActionId, Fact<bool>> Inputs { get; init; } = new Dictionary<ActionId, Fact<bool>>();
-}
-
-/// <summary>A not-yet-admitted stage from side-effect-free discovery (the adapters below).</summary>
-public sealed record ReadyProposal
-{
-    public ConcernId Concern { get; init; }
-
-    public MethodId Method { get; init; }
-
-    public string Stage { get; init; } = "";
-
-    public WorkType Work { get; init; }
-
-    public IReadOnlyList<ReadyClaim> Claims { get; init; } = [];
-
-    public IReadOnlyList<string> Requires { get; init; } = [];
-
-    public string Alternative { get; init; } = "";
-
-    /// <summary>The stage's current native eligibility; unknown awaits.</summary>
-    public Fact<bool> Eligible { get; init; }
-
-    public string Reason { get; init; } = "";
-
-    public int Parallelism { get; init; }
 }
 
 public sealed record ReadyRequest
@@ -183,9 +122,7 @@ public sealed record ReadyRequest
 
     public IReadOnlyList<ReadyPlan> Plans { get; init; } = [];
 
-    public IReadOnlyList<ReadyProposal> Proposals { get; init; } = [];
-
-    /// <summary>Goals that have neither; each reads no_method.</summary>
+    /// <summary>Goals that have no plan; each reads no_method.</summary>
     public IReadOnlyList<ConcernId> Unserved { get; init; } = [];
 
     public ReadyBounds Bounds { get; init; }
@@ -211,7 +148,7 @@ public static partial class ReadyWorkRules
     public static ReadyBounds DefaultReadyBounds() => new(64, 8, 1024);
 
     /// <summary>
-    /// Projects plans and proposals into bounded candidates. Every open action of a plan is examined, not
+    /// Projects plans into bounded candidates. Every open action of a plan is examined, not
     /// only the first, so an independent runnable action beside a blocked one is visible.
     /// </summary>
     public static ReadyWorkReport ProjectReadyWork(ReadyRequest r)
@@ -276,24 +213,9 @@ public static partial class ReadyWorkRules
                 Add(c);
             }
         }
-        var proposals = r.Proposals
-            .OrderBy(p => p.Concern)
-            .ThenBy(p => p.Method)
-            .ThenBy(p => p.Stage, StringComparer.Ordinal)
-            .ThenBy(p => ClaimsText(SortedClaims(p.Claims)), StringComparer.Ordinal)
-            .ToList();
-        foreach (var p in proposals)
-        {
-            if (!Budget(p.Concern.Value + "/" + p.Method.Value + "/" + p.Stage))
-            {
-                Defer(p.Concern.Value, ReadyDeferredDiscovery);
-                continue;
-            }
-            Add(ReadyProposalWork(p));
-        }
         foreach (var g in r.Unserved)
         {
-            Add(new ReadyWork { Concerns = EquatableArray.From([g]), Stage = "none", State = ReadyState.NoMethod, Reason = "no plan or proposal" });
+            Add(new ReadyWork { Concerns = EquatableArray.From([g]), Stage = "none", State = ReadyState.NoMethod, Reason = "no plan" });
         }
 
         var sorted = output.OrderBy(c => ReadyRank(c.State)).ThenBy(c => c.ID.Value, StringComparer.Ordinal).ToList();
@@ -341,7 +263,8 @@ public static partial class ReadyWorkRules
         ReadyState.Awaiting => 1,
         ReadyState.Blocked => 2,
         ReadyState.OpenEffect => 3,
-        _ => 4,
+        ReadyState.NoMethod or ReadyState.None => 4,
+        var other => throw new ArgumentOutOfRangeException(nameof(s), other, "undeclared ready state"),
     };
 
     /// <summary>An action kind's concrete stage.</summary>
@@ -489,60 +412,10 @@ public static partial class ReadyWorkRules
         }
         if (st.Staged)
         {
-            var inputs = p.Inputs.TryGetValue(a.Id, out var f) ? f : Unknown<bool>();
-            if (!inputs.TryGetValue(out var ready))
-            {
-                return (Set(ReadyState.Awaiting, "stage_inputs_unknown"), true);
-            }
-            if (!ready)
-            {
-                return (Set(ReadyState.OpenEffect, "stage_inputs_missing"), true);
-            }
-            return (Runnable("stage_inputs_ready"), true);
+            // No producer reads a staged action's inputs, so a staged action waits on them.
+            return (Set(ReadyState.Awaiting, "stage_inputs_unobserved"), true);
         }
         return (Runnable("designated"), true);
-    }
-
-    private static ReadyWork ReadyProposalWork(ReadyProposal p)
-    {
-        var c = new ReadyWork
-        {
-            Concerns = EquatableArray.From([p.Concern]),
-            Method = p.Method,
-            Stage = p.Stage,
-            Claims = EquatableArray.From(p.Claims),
-            Alternative = p.Alternative,
-            Reason = p.Reason,
-        };
-        if (p.Work != WorkType.None)
-        {
-            c = c with { Work = EquatableArray.From([p.Work]) };
-        }
-        c = c with { Requires = EquatableArray.From(p.Requires.OrderBy(x => x, StringComparer.Ordinal)) };
-        var known = p.Eligible.TryGetValue(out var eligible);
-        if (c.Requires.Count > 0)
-        {
-            return c with { State = ReadyState.Blocked, Reason = Wire.Name(HeldReason.DependencyBlocked) };
-        }
-        if (!known)
-        {
-            return c with { State = ReadyState.Awaiting, Reason = "eligibility_unknown" };
-        }
-        if (!eligible)
-        {
-            c = c with { State = ReadyState.Blocked };
-            if (c.Reason.Length == 0)
-            {
-                c = c with { Reason = Wire.Name(HeldReason.NativeIneligible) };
-            }
-            return c;
-        }
-        c = c with { State = ReadyState.Runnable };
-        if (c.Work.Count > 0)
-        {
-            c = c with { Parallelism = Math.Max(p.Parallelism, 1) };
-        }
-        return c;
     }
 
     private static List<ConcernId> SortedConcerns(IEnumerable<ConcernId> goals)
@@ -562,10 +435,6 @@ public static partial class ReadyWorkRules
 
     private static List<ReadyClaim> SortedClaims(IEnumerable<ReadyClaim> claims) =>
         claims.OrderBy(c => c.Kind, StringComparer.Ordinal).ThenBy(c => c.Key, StringComparer.Ordinal).ToList();
-
-    /// <summary>The text of a claim slice, the proposal sort's last key.</summary>
-    private static string ClaimsText(IEnumerable<ReadyClaim> claims) =>
-        "[" + string.Join(" ", claims.Select(c => "{" + c.Kind + " " + c.Key + "}")) + "]";
 
     private static ReadyWorkId ReadyId(GenerationSnapshot s, ReadyWork c)
     {

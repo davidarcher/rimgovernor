@@ -279,7 +279,7 @@ public static partial class ForecastValue
         var tables = context.CapacityPenalties;
 
         LedgerTerm hunger = new LedgerTerm.Unassessed();
-        if (!index.Malnutrition || tables.MovingMinForCapable is not { } movingMin)
+        if (!index.Malnutrition)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Malnutrition));
         else if (pawns.Length == 0) findings.Add("hunger_unassessed:no_pawns");
         else
@@ -288,7 +288,7 @@ public static partial class ForecastValue
             var known = true;
             foreach (var (pawn, result) in pawns)
             {
-                if (HungerLoss(pawn, result, observed.GetValueOrDefault(pawn), tables.Malnutrition, movingMin, horizon, findings) is { } lost) sum += lost;
+                if (HungerLoss(pawn, result, observed.GetValueOrDefault(pawn), tables.Malnutrition, tables.MovingMinForCapable, horizon, findings) is { } lost) sum += lost;
                 else known = false;
             }
             hunger = LedgerTerm.Of(sum, known);
@@ -311,13 +311,13 @@ public static partial class ForecastValue
         var rawIngredients = RawIngredientLoss(outcome, context, index, findings);
 
         LedgerTerm poisoning = new LedgerTerm.Unassessed();
-        if (!index.FoodPoisoning || tables.MovingMinForCapable is not { } poisonMoving)
+        if (!index.FoodPoisoning)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.FoodPoisoning));
-        else if (PoisoningCaseLoss(pawns, observed, tables.FoodPoisoning, poisonMoving, horizon, findings) is { } perCase)
+        else if (PoisoningCaseLoss(pawns, observed, tables.FoodPoisoning, tables.MovingMinForCapable, horizon, findings) is { } perCase)
             poisoning = new LedgerTerm.Priced(outcome.Support.FoodPoisonExposure * perCase);
 
         LedgerTerm thermal = new LedgerTerm.Unassessed();
-        if (!index.Thermal || tables.MovingMinForCapable is not { } thermalMoving)
+        if (!index.Thermal)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Hypothermia) + "/" + nameof(tables.Heatstroke));
         else if (pawns.Length == 0) findings.Add("thermal_unassessed:no_pawns");
         else
@@ -329,7 +329,7 @@ public static partial class ForecastValue
                 ForecastThermalExposure? exposure = null;
                 foreach (var t in outcome.ThermalExposure)
                     if (t.Pawn == pawn) { exposure = t; break; }
-                if (ThermalLoss(pawn, exposure, observed.GetValueOrDefault(pawn), tables, thermalMoving, horizon, context.Value, findings) is { } lost) sum += lost;
+                if (ThermalLoss(pawn, exposure, observed.GetValueOrDefault(pawn), tables, tables.MovingMinForCapable, horizon, context.Value, findings) is { } lost) sum += lost;
                 else known = false;
             }
             thermal = LedgerTerm.Of(sum, known);
@@ -720,7 +720,7 @@ public static partial class ForecastValue
     {
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
         if (!index.FoodPoisoning) throw new RequiredFactException("food poisoning penalty table");
-        if (context.CapacityPenalties.MovingMinForCapable is not { } moving) throw new RequiredFactException("moving capacity minimum");
+        var moving = context.CapacityPenalties.MovingMinForCapable;
         var pawns = outcome.Needs.ToArray();
         if (pawns.Length == 0) return 0;
         Array.Sort(pawns, static (a, b) => string.CompareOrdinal(a.Key, b.Key));
@@ -752,7 +752,7 @@ public static partial class ForecastValue
         Dictionary<string, ObservedPawn> observed, HediffPenaltyTable table, double movingMin, double horizon, SortedSet<string> findings)
     {
         if (pawns.Length == 0) { findings.Add("food_poisoning_unassessed:no_pawns"); return null; }
-        var length = table.DisappearsAfterTicks is { } gone ? Math.Min(horizon, (gone.Min + gone.Max) / 2) : horizon;
+        var length = table.Lifespan is Lifespan.EndsAfter gone ? Math.Min(horizon, (gone.MinTicks + gone.MaxTicks) / 2) : horizon;
         double sum = 0;
         foreach (var (pawn, _) in pawns)
         {
@@ -760,7 +760,7 @@ public static partial class ForecastValue
             { findings.Add("capacities_unobserved:" + pawn); return null; }
             // The pawn's own current poisoning, if any, is the stage its capacities already carry.
             var course = new Course(table, seen.Levels, movingMin, seen.Pawn.FoodPoisoningSeverity) { Severity = table.InitialSeverity };
-            course.Advance(length, table.SeverityPerDay ?? 0);
+            course.Advance(length, table.Drift is SeverityDrift.Drifting drifting ? drifting.PerDay : 0);
             course.Report(pawn, findings);
             sum += course.LostTicks / GameTime.TicksPerDay;
         }
@@ -826,7 +826,7 @@ public static partial class ForecastValue
             while (ticks > 0)
             {
                 if (rate < 0 && Severity <= 0) { Severity = 0; return; }
-                if (rate == 0 || table.LethalSeverity is { } top && rate > 0 && Severity >= top)
+                if (rate == 0 || table.Lethality is Lethality.Lethal { Severity: var top } && rate > 0 && Severity >= top)
                 {
                     Piece(ticks, Severity, Severity);
                     lethal |= rate != 0;
@@ -837,10 +837,10 @@ public static partial class ForecastValue
                 var cut = false;
                 // The boundaries: each stage's minimum, 0, then the lethal severity, in that order.
                 var stages = table.Stages;
-                var count = stages.Count + (table.LethalSeverity is null ? 1 : 2);
+                var count = stages.Count + (table.Lethality is Lethality.Lethal ? 2 : 1);
                 for (var i = 0; i < count; i++)
                 {
-                    var boundary = i < stages.Count ? stages[i].MinSeverity : i == stages.Count ? 0 : table.LethalSeverity!.Value;
+                    var boundary = i < stages.Count ? stages[i].MinSeverity : i == stages.Count || table.Lethality is not Lethality.Lethal lethalAt ? 0 : lethalAt.Severity;
                     if (rate > 0 ? boundary > Severity && boundary < stop : boundary < Severity && boundary > stop)
                     {
                         stop = boundary;
@@ -908,7 +908,7 @@ public static partial class ForecastValue
                 if (m.Capacity != capacity) continue;
                 offset += m.Offset;
                 post *= m.PostFactor;
-                max = Math.Min(max, m.SetMax ?? double.PositiveInfinity);
+                max = Math.Min(max, m.Ceiling is CapacityCeiling.Capped capped ? capped.Max : double.PositiveInfinity);
             }
             return (offset, post, max);
         }

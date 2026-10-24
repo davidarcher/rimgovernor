@@ -123,16 +123,16 @@ public sealed class ActivityContinuationTests
     [Fact]
     public void RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork()
     {
-        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(true), 110, [Row()]).Release);
-        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, default, 110, [Row()]).Release);
-        var release = Assert.Single(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(false), 110, [Row()]).Release!.Orders);
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Owed, 110, [Row()]).Release);
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Unlisted, 110, [Row()]).Release);
+        var release = Assert.Single(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Ended, 110, [Row()]).Release!.Orders);
         Assert.True(release.Release);
         Assert.Equal(1, release.ExpectedRevision);
         Assert.Equal(2, release.Revision);
         Assert.Empty(release.Steps);
-        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(false), 110, []).Release);
-        Assert.NotNull(ActivityContinuationRules.ReviewActivityOwnership(Batch, default, 110, [Row("failed")]).Release);
-        Assert.NotNull(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(true), 500, [Row("completed")]).Release);
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Ended, 110, []).Release);
+        Assert.NotNull(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Unlisted, 110, [Row("failed")]).Release);
+        Assert.NotNull(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Owed, 500, [Row("completed")]).Release);
     }
 
     [Fact]
@@ -140,9 +140,9 @@ public sealed class ActivityContinuationTests
     {
         var batch = Batch with { Orders = [Order, Order with { Pawn = "helper", Assignment = "helper-assignment" }] };
         var rows = new[] { Row(), new ActivityOwnership("helper", "player-or-other-method", "other", 9, "running") };
-        var result = ActivityContinuationRules.ReviewActivityOwnership(batch, Known(false), 110, rows);
+        var result = ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, 110, rows);
         Assert.Equal("pawn", Assert.Single(result.Release!.Orders).Pawn);
-        Assert.True(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(false), 110, [Row() with { Revision = 2 }]).OwnershipEnded);
+        Assert.True(ActivityContinuationRules.ReviewActivityOwnership(Batch, ActivityNeed.Ended, 110, [Row() with { Revision = 2 }]).OwnershipEnded);
     }
 
     [Fact]
@@ -188,8 +188,8 @@ public sealed class ActivityContinuationTests
         var dispatched = journal.Dispatch(initial.Id, initial.Actions[0].Id, scope, new(100), ct);
         journal.RecordReceipt(initial.Id, initial.Actions[0].Id, dispatched.View.Attempt, Receipt.Accepted, ct);
 
-        // No progress row yet: unknown, so the activity is neither released nor productively continued.
-        Assert.False(Assert.Single(journal.ActivityMethods(Root, ct)).Needed.IsKnown);
+        // No progress row yet: unlisted, so the activity is neither released nor productively continued.
+        Assert.Equal(ActivityNeed.Unlisted, Assert.Single(journal.ActivityMethods(Root, ct)).Needed);
         var next = Plan("need-next", Batch with { Orders = [Order with { ExpectedRevision = 1, Revision = 2,
             Steps = [new(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600) { Destination = new Cell(3, 4) }] }] });
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
@@ -197,7 +197,7 @@ public sealed class ActivityContinuationTests
         void File(bool met) => journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(),
             [new FamilyProgress(AdminFamily.FamilyId, true, met ? [] : [new NeedProgress(need, false, default, new("method"))])], ct);
         File(met: false);
-        Assert.True(Assert.Single(journal.ActivityMethods(Root, ct)).Needed.Value);
+        Assert.Equal(ActivityNeed.Owed, Assert.Single(journal.ActivityMethods(Root, ct)).Needed);
         Assert.Equal(ActivityContinuationAdmission.Admitted,
             journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
         var bound = Assert.Single(journal.LoadNeed(need, Root, ct).Methods);

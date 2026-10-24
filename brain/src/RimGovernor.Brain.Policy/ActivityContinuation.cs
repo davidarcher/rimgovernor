@@ -4,6 +4,19 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ActivityOwnership(string Pawn, string Assignment, string Method, long Revision, string State);
 public sealed record ActivityContinuationDecision(PawnActivities? Release, bool OwnershipEnded);
 
+/// <summary>Whether the Need an installed activity Method serves still owes its work.</summary>
+public enum ActivityNeed
+{
+    /// <summary>The current review lists the Need unmet or working a Method: the Method's work goes on.</summary>
+    Owed,
+
+    /// <summary>The Method's work is over (its Need's plan was superseded, or its service is complete): the batch is released.</summary>
+    Ended,
+
+    /// <summary>The current review lists no row for the Need: it keeps the batch it holds, starts no new work, and releases only a failed or expired batch.</summary>
+    Unlisted,
+}
+
 public static class ActivityContinuationRules
 {
     public static bool MatchesActivityOwner(PawnActivityOrder order, ActivityOwnership row) =>
@@ -11,7 +24,7 @@ public static class ActivityContinuationRules
 
     /// <summary>Lifecycle decisions only. An unmet Concern's useful work continues; failed or expired
     /// attempts release for reconsideration. A satisfied Concern cannot strand its participants.</summary>
-    public static ActivityContinuationDecision ReviewActivityOwnership(PawnActivities batch, Fact<bool> needed, long tick,
+    public static ActivityContinuationDecision ReviewActivityOwnership(PawnActivities batch, ActivityNeed needed, long tick,
         IReadOnlyList<ActivityOwnership> observed)
     {
         batch.Validate();
@@ -23,8 +36,7 @@ public static class ActivityContinuationRules
         if (owned.Length == 0) return new(null, true);
         var failed = owned.Any(o => rows[o.Pawn].State == "failed");
         var expired = owned.Any(o => o.Steps.Length > 0 && o.Steps.Max(s => s.Deadline) <= tick);
-        var knownNeed = needed.TryGetValue(out var useful);
-        if ((!knownNeed || useful) && !failed && !expired) return new(null, false);
+        if (needed != ActivityNeed.Ended && !failed && !expired) return new(null, false);
         if (owned.Any(o => o.Revision == long.MaxValue)) return new(null, false);
         var releases = owned.Select(o => o with { ExpectedRevision = o.Revision, Revision = o.Revision + 1, Release = true, Steps = [] }).ToArray();
         return new(new(batch.AuthorityGeneration, releases), false);

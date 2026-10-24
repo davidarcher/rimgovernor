@@ -701,7 +701,7 @@ public static partial class ReconcileRules
                     Floors.Add(it.Floor);
                     Cells.Add(it.Cell);
                     break;
-                default:
+                case OpKind.None or OpKind.RoofOff or OpKind.WallIn or OpKind.WallUp or OpKind.DoorIn or OpKind.VentIn or OpKind.RoofIn:
                     Cells.Add(it.Cell);
                     break;
             }
@@ -716,6 +716,7 @@ public static partial class ReconcileRules
         OpKind.DoorOut or OpKind.DoorIn => GroundPhase.Doors,
         OpKind.WallOut or OpKind.WallIn or OpKind.RoofOff or OpKind.Claim => GroundPhase.Walls,
         OpKind.FloorOut or OpKind.FloorIn => GroundPhase.Floors,
-        _ => GroundPhase.Furniture,
+        OpKind.None or OpKind.WallUp or OpKind.FurnitureOut or OpKind.Install or OpKind.Build or OpKind.Cut or OpKind.HaulOut or OpKind.VentIn or OpKind.RoofIn => GroundPhase.Furniture,
+        var other => throw new ArgumentOutOfRangeException(nameof(k), other, "undeclared op kind"),
     };
 }

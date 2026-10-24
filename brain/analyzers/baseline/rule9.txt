@@ -366,7 +366,6 @@ PlayerApi/ReadProjections.cs|Fact|17
 PlayerApi/ThemesView.cs|Discard|1
 Policy/Acquisition.cs|Fact|15
 Policy/AcquisitionCatalog.cs|Fact|2
-Policy/ActivityContinuation.cs|Fact|2
 Policy/Admission.cs|Fact|23
 Policy/AnimalAcquire.cs|Fact|16
 Policy/AnimalFeedRunway.cs|Fact|12
@@ -389,12 +388,10 @@ Policy/BillDemand.cs|Fact|1
 Policy/BillWanted.cs|Fact|2
 Policy/Blight.cs|Fact|4
 Policy/Blight.cs|Unknown|1
-Policy/BreakResponse.cs|Fact|5
 Policy/BuildingWork.cs|Fact|2
 Policy/Calendar.cs|Fact|39
 Policy/Calendar.cs|Unknown|5
 Policy/CapabilityMaintenance.cs|Fact|2
-Policy/CapacityPenaltyTables.cs|NullableValue|6
 Policy/ChildRooms.cs|Fact|2
 Policy/Climate.cs|Fact|1
 Policy/ClothingDemand.cs|Fact|9
@@ -429,7 +426,6 @@ Policy/ColonyModel/SkillStock.cs|Fact|1
 Policy/Comfort.cs|Fact|6
 Policy/Comfort.cs|Unknown|2
 Policy/Comfort.cs|UnknownMember|1
-Policy/ConcernProgress.cs|NullableValue|1
 Policy/ConstructionDemand.cs|Fact|17
 Policy/ConstructionDemand.cs|Unknown|2
 Policy/ConstructionHelpers.cs|Fact|3
@@ -439,7 +435,6 @@ Policy/ConstructionProjection.cs|Fact|4
 Policy/ConstructionProjection.cs|Unknown|3
 Policy/ContainmentCell.cs|Fact|4
 Policy/ControlledEnvironment.cs|Fact|1
-Policy/CoordinatedActivities.cs|Fact|5
 Policy/CorpseLarder.cs|Fact|1
 Policy/CoupleBed.cs|Fact|1
 Policy/CropChoice.cs|Fact|65
@@ -507,7 +502,6 @@ Policy/ForecastClaims.cs|Fact|27
 Policy/ForecastCoupled.cs|Fact|10
 Policy/ForecastCoupledCandidates.cs|Fact|16
 Policy/ForecastCoupledEvaluation.cs|Fact|121
-Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|20
 Policy/ForecastCoupledSelection.cs|Discard|1
 Policy/ForecastCoupledSelection.cs|Fact|52
@@ -522,7 +516,7 @@ Policy/ForecastMaintenance.cs|Fact|3
 Policy/ForecastMaterialChoices.cs|Fact|5
 Policy/ForecastMood.cs|Fact|21
 Policy/ForecastNeeds.cs|Fact|37
-Policy/ForecastServiceInvestments.cs|Fact|18
+Policy/ForecastServiceInvestments.cs|Fact|15
 Policy/ForecastShelter.cs|Fact|26
 Policy/ForecastSupport.cs|Fact|2
 Policy/ForecastSurvivalNeeds.cs|Fact|11
@@ -692,10 +686,7 @@ Policy/QuestRefugees.cs|Fact|1
 Policy/QuestRewards.cs|Fact|2
 Policy/QuestSelection.cs|Fact|10
 Policy/QuestSurvey.cs|Fact|20
-Policy/ReadyWork.cs|Discard|1
-Policy/ReadyWork.cs|Fact|7
-Policy/ReadyWork.cs|Unknown|1
-Policy/Reconcile.cs|Discard|2
+Policy/ReadyWork.cs|Fact|2
 Policy/RecoveryBatch.cs|Fact|2
 Policy/RecoveryMethod.cs|Discard|1
 Policy/RecoveryMethod.cs|Fact|10
@@ -705,7 +696,6 @@ Policy/RecoveryQueue.cs|Unknown|1
 Policy/Refrigeration.cs|Fact|10
 Policy/Refrigeration.cs|Unknown|1
 Policy/Refrigeration.cs|UnknownMember|1
-Policy/RefusalBudget.cs|Discard|1
 Policy/RegionPlacer.cs|NullableValue|1
 Policy/RemoteHold.cs|Discard|1
 Policy/RemoteHold.cs|Fact|11
@@ -823,7 +813,7 @@ Store/Codec/DomainActionConverter.cs|Fact|4
 Store/Codec/JsonKit.cs|Fact|7
 Store/Codec/PolicyConverters.cs|Fact|5
 Store/Codec/ProductionAdmissionCodecs.cs|Fact|19
-Store/Owners/ActivityContinuation.cs|Fact|6
+Store/Owners/ActivityContinuation.cs|Fact|2
 Store/Owners/Combat.cs|Fact|1
 Store/Owners/Control.cs|Discard|1
 Store/Owners/MethodAdmission.cs|Fact|1

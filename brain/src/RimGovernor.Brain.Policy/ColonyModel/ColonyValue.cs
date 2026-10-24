@@ -473,7 +473,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private double? HungerLoss(ColonyTrajectory trajectory, SortedSet<string> findings)
     {
         var tables = context.CapacityPenalties;
-        if (!tables.Malnutrition.Valid() || tables.MovingMinForCapable is not { } movingMin)
+        if (!tables.Malnutrition.Valid())
         {
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Malnutrition));
             return null;
@@ -486,7 +486,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         {
             var (severity, levels) = (row.MalnutritionSeverity, ForecastValue.Levels(row));
 
-            var course = new ForecastValue.Course(table, levels, movingMin, severity);
+            var course = new ForecastValue.Course(table, levels, tables.MovingMinForCapable, severity);
             var clock = 0.0;
             double? died = null;
 
@@ -498,7 +498,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
                     return;
                 }
 
-                if (perDayRate > 0 && table.LethalSeverity is { } top)
+                if (perDayRate > 0 && table.Lethality is Lethality.Lethal { Severity: var top })
                 {
                     var need = Math.Max(0, (top - course.Severity) / perDayRate);
                     if (need <= length)

@@ -20,15 +20,15 @@ public sealed class HarmConsequencesTests
 
     private static HediffPenaltyTable BloodLoss() => new()
     {
-        Known = true, Hediff = "BloodLoss", LethalSeverity = 1,
-        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.9)])],
+        Known = true, Hediff = "BloodLoss", Lethality = new Lethality.Lethal(1),
+        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.9)])],
     };
 
     private static HediffPenaltyTable WoundInfection() => new()
     {
-        Known = true, Hediff = "WoundInfection", LethalSeverity = 1, InitialSeverity = 0.2,
+        Known = true, Hediff = "WoundInfection", Lethality = new Lethality.Lethal(1), InitialSeverity = 0.2,
         Immunizable = new ImmunizableProps(1, 0.4, -0.5),
-        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.8)])],
+        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.8)])],
     };
 
     private static CapacityPenaltyTables Tables(bool infection = true) => new()

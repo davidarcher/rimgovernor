@@ -36,7 +36,7 @@ public sealed partial class Store
     /// <summary>
     /// The shadow ready-work projection of the review's plans: diagnostics only, read by no admission. Stage
     /// inputs (bill ingredients, crop readiness) are not observed here yet, so staged work reads
-    /// awaiting_observation rather than ready.
+    /// stage_inputs_unobserved (awaiting) rather than ready.
     /// </summary>
     internal static ReadyWorkReport ReadyWorkOf(RoundsRequest r, IReadOnlyList<RoundsPlan> plans, IReadOnlyList<ConcernId> unserved) =>
         ReadyWorkRules.ProjectReadyWork(

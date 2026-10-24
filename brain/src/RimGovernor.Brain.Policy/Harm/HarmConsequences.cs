@@ -211,11 +211,7 @@ public static class HarmConsequences
             return null;
         }
 
-        if (tables.MovingMinForCapable is not { } movingMin)
-        {
-            findings.Add("capacity_penalty_table_unknown:MovingMinForCapable");
-            return null;
-        }
+        var movingMin = tables.MovingMinForCapable;
 
         var mix = Mix.Of(bins, response);
         if (mix is null || !(horizon > 0))
@@ -594,7 +590,7 @@ public static class HarmConsequences
             var woundSeverity = mix.MeanDamage / mix.Wounds;
             var untended = StopBleedingBaseDays + StopBleedingExtraDays * Math.Clamp((woundSeverity - StopBleedingSeverityLo) / (StopBleedingSeverityHi - StopBleedingSeverityLo), 0, 1);
             var bleeding = Math.Min(Math.Min(untended, tended ? firstCareDays : untended), days);
-            if (table.LethalSeverity is { } lethal && rate * bleeding >= lethal)
+            if (table.Lethality is Lethality.Lethal { Severity: var lethal } && rate * bleeding >= lethal)
             {
                 diedAt = lethal / rate;
                 return 0;
@@ -664,11 +660,11 @@ public static class HarmConsequences
 
             // Severity rises at the not-immune rate until the pawn's immunity (gained at the sick rate) is full, then falls at
             // the immune rate; tending adds severityPerDayTended x tend quality throughout.
-            var tending = tended && table.SeverityPerDayTended is { } perDay ? perDay * tendQuality : 0;
+            var tending = tended && table.Tending is TendEffect.Tendable { SeverityPerDayTended: var perDay } ? perDay * tendQuality : 0;
             var immuneAt = Math.Min(days, 1 / immunizable.ImmunityPerDaySick);
             var rising = immunizable.SeverityPerDayNotImmune + tending;
             var course = new ForecastValue.Course(table, levels, movingMin, 0) { Severity = table.InitialSeverity };
-            if (table.LethalSeverity is { } lethal && table.InitialSeverity + rising * immuneAt >= lethal)
+            if (table.Lethality is Lethality.Lethal { Severity: var lethal } && table.InitialSeverity + rising * immuneAt >= lethal)
             {
                 diedAt = rising > 0 ? Math.Max(0, (lethal - table.InitialSeverity) / rising) : 0;
                 return infected;

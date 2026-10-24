@@ -69,7 +69,7 @@ public sealed record ForecastIncumbentHold(EquatableArray<string> Commitments, E
     /// (#3624). A review that releases an incumbent without a release dispatches nothing.</summary>
     internal static PawnActivities? Release(ForecastObservedIncumbent incumbent, long tick) => incumbent.Bills.Count > 0
         ? Methods.Binding.CoordinatedActivityBinding.Release(incumbent.Batch, incumbent.Reconsidered)
-        : ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, incumbent.Owned).Release;
+        : ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, ActivityNeed.Ended, tick, incumbent.Owned).Release;
 
     /// <summary>The incumbents a review of <paramref name="selected"/> on <paramref name="allocations"/> releases
     /// (<see cref="ForecastObservedIncumbent.ReleasedBy"/>) but cannot: the review then dispatches nothing.</summary>

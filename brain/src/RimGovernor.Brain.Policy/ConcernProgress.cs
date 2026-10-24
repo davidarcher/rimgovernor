@@ -28,9 +28,6 @@ public sealed record ConcernProgress
     /// <summary>The failed situations a rotation keyed, each bounded by its Until tick; none is a permanent ban.</summary>
     public EquatableArray<ProgressCooldown> Cooldowns { get; init; }
 
-    /// <summary>The deficit fraction the last review measured, the evidence a shrinking deficit is compared against.</summary>
-    public double? Observed { get; init; }
-
     /// <summary>
     /// The goal's planner's latest refusal or wait, empty while it last admitted, found work or has not run.
     /// A record with no method reads it as its Blocked, so "no_method" only means no planner has said why.
@@ -237,7 +234,6 @@ public static class ConcernProgressRules
         DomainException.Require(
             !(!AdmissionRules.ValidResource(new Resource(p.Concern.Value)) || p.Method.Length > 64 || p.LastProgress.Value < 0 || p.LastProgress > tick || p.NextReview.Value < 0 || !p.Blocked.IsValid() || !ValidPlannerNote(p.PlannerNote())),
             "invalid standard progress");
-        DomainException.Require(p.Observed is null || (p.Observed >= 0 && p.Observed <= 1), "invalid standard progress");
         foreach (var cd in p.Cooldowns)
         {
             DomainException.Require(!(cd.Key.Length == 0 || cd.Until.Value <= 0 || cd.Until.Value > tick.Value + ProgressCooldownMax.Value), "invalid standard progress cooldown");

@@ -41,8 +41,8 @@ public sealed class HospitalCreditTests
     {
         WoundInfection = new()
         {
-            Known = true, Hediff = "WoundInfection", LethalSeverity = 1, InitialSeverity = 0.2, Immunizable = new ImmunizableProps(1, 0.4, -0.5),
-            Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.8)])],
+            Known = true, Hediff = "WoundInfection", Lethality = new Lethality.Lethal(1), InitialSeverity = 0.2, Immunizable = new ImmunizableProps(1, 0.4, -0.5),
+            Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.8)])],
         },
     };
 
@@ -52,7 +52,7 @@ public sealed class HospitalCreditTests
         Assessed = true, Comps = [(0, perDay)],
         Incidents = perDay > 0 ? [new IllnessIncident("Disease_Flu", 1, 1, new DiseaseCourse
         {
-            Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, LethalSeverity = 1, Immunizable = new ImmunizableProps(0.25, 0.2, -0.5), Stages = [new PenaltyStage(0, 0, [])] },
+            Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, Lethality = new Lethality.Lethal(1), Immunizable = new ImmunizableProps(0.25, 0.2, -0.5), Stages = [new PenaltyStage(0, 0, [])] },
             Tendable = true, Tend = new TendCourse(0, 0.5, 0.75, -1),
         })] : [],
     };
@@ -223,7 +223,7 @@ public sealed class HospitalCreditTests
         const string decay = "Disease_OrganDecay";
         var course = new DiseaseCourse
         {
-            Table = new() { Known = true, Hediff = "OrganDecay", InitialSeverity = 0.001, LethalSeverity = 1, Stages = [new PenaltyStage(0, 0, [])] },
+            Table = new() { Known = true, Hediff = "OrganDecay", InitialSeverity = 0.001, Lethality = new Lethality.Lethal(1), Stages = [new PenaltyStage(0, 0, [])] },
             PerDayMin = 0.2, PerDayMax = 0.2, MaxSeverity = 1, DestroysOrgan = true,
             Parts = [new() { Part = "Lung", Tag = "BreathingSource", Capacity = "Breathing", Lethal = true, Recipes = new Dictionary<string, double> { ["InstallNaturalLung"] = 1 } }],
         };

@@ -77,7 +77,7 @@ public static partial class ForecastValue
     {
         var table = course.Table;
         double? diedAt = null;
-        if (table.LethalSeverity is { } top && course.Severity >= top)
+        if (table.Lethality is Lethality.Lethal { Severity: var top } && course.Severity >= top)
         {
             course.MarkLethal();
             diedAt = 0;
@@ -211,7 +211,7 @@ public static partial class ForecastValue
             course.Piece(reach, course.Severity, target);
             course.Severity = target;
             used += reach;
-            if (course.Table.LethalSeverity is { } lethal && target >= lethal)
+            if (course.Table.Lethality is Lethality.Lethal { Severity: var lethal } && target >= lethal)
             {
                 course.MarkLethal();
                 return used;
@@ -287,11 +287,11 @@ public static partial class ForecastValue
         // The levels in the order the list held them: the stages, then the lethal severity or 0, then the extra.
         var stages = course.Table.Stages;
         var count = stages.Count + 1 + (extra is null ? 0 : 1);
-        var lethal = course.Table.LethalSeverity;
+        var lethal = course.Table.Lethality as Lethality.Lethal;
         if (rising && lethal is null) count--;
         for (var i = 0; i < count; i++)
         {
-            var level = i < stages.Count ? stages[i].MinSeverity : i == stages.Count && (!rising || lethal is not null) ? (rising ? lethal!.Value : 0) : extra!.Value;
+            var level = i < stages.Count ? stages[i].MinSeverity : i == stages.Count && (!rising || lethal is not null) ? (rising ? lethal!.Severity : 0) : extra!.Value;
             if (rising ? level <= severity : level >= severity || level < 0) continue;
             var t = clock.TimeTo(level);
             if (t < reach) { reach = t; target = level; }

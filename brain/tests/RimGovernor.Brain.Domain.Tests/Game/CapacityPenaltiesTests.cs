@@ -29,8 +29,8 @@ public sealed class CapacityPenaltiesTests
         }
 
         Assert.Equal([0.0, 0.2, 0.4, 0.6, 0.8], tables.Malnutrition.Stages.Select(s => s.MinSeverity));
-        Assert.Equal(1, tables.Malnutrition.LethalSeverity);
-        Assert.Equal(new P.CapacityModifier(nameof(PawnCapacityDefOf.Consciousness), 0, 0.1, 1), Assert.Single(tables.Malnutrition.Stages[^1].Modifiers));
+        Assert.Equal(new P.Lethality.Lethal(1), tables.Malnutrition.Lethality);
+        Assert.Equal(new P.CapacityModifier(nameof(PawnCapacityDefOf.Consciousness), 0, new P.CapacityCeiling.Capped(0.1), 1), Assert.Single(tables.Malnutrition.Stages[^1].Modifiers));
         Assert.Equal(0.15, tables.MovingMinForCapable);
     }
 
@@ -40,14 +40,14 @@ public sealed class CapacityPenaltiesTests
         var table = Catalog(FoodPoisoning()).CapacityPenalties().FoodPoisoning;
 
         Assert.Equal(1, table.InitialSeverity);
-        Assert.Equal(-1, table.SeverityPerDay);
-        Assert.Null(table.LethalSeverity);
-        Assert.Null(table.DisappearsAfterTicks);
+        Assert.Equal(new P.SeverityDrift.Drifting(-1), table.Drift);
+        Assert.Equal(new P.Lethality.Harmless(), table.Lethality);
+        Assert.Equal(new P.Lifespan.Lasting(), table.Lifespan);
         Assert.Equal(
             [nameof(PawnCapacityDefOf.Consciousness), nameof(PawnCapacityDefOf.Moving)],
             table.Stages[0].Modifiers.Select(m => m.Capacity));
         Assert.Equal(0.6, table.Stages[0].Modifiers[0].PostFactor);
-        Assert.Null(table.Stages[0].Modifiers[0].SetMax);
+        Assert.Equal(new P.CapacityCeiling.Uncapped(), table.Stages[0].Modifiers[0].Ceiling);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class CapacityPenaltiesTests
         Assert.True(tables.Malnutrition.Valid());
         Assert.False(tables.FoodPoisoning.Known);
         Assert.False(tables.FoodPoisoning.Valid());
-        Assert.Null(tables.MovingMinForCapable);
+        Assert.Equal(0.15, tables.MovingMinForCapable);
         Assert.False(tables.Valid());
         Assert.False(new P.CapacityPenaltyTables().Malnutrition.Valid());
         Assert.False((new P.HediffPenaltyTable { Known = true, Hediff = "Malnutrition" }).Valid());
@@ -83,13 +83,13 @@ public sealed class CapacityPenaltiesTests
             }).CapacityPenalties();
 
         Assert.True(tables.BloodLoss.Valid());
-        Assert.Equal(1, tables.BloodLoss.LethalSeverity);
+        Assert.Equal(new P.Lethality.Lethal(1), tables.BloodLoss.Lethality);
         Assert.Equal([0.0, 0.6], tables.BloodLoss.Stages.Select(s => s.MinSeverity));
         Assert.Null(tables.BloodLoss.Immunizable);
-        Assert.Null(tables.BloodLoss.SeverityPerDayTended);
+        Assert.Equal(new P.TendEffect.Untendable(), tables.BloodLoss.Tending);
         Assert.True(tables.WoundInfection.Valid());
         Assert.Equal(new P.ImmunizableProps(0.5, 0.25, -0.5), tables.WoundInfection.Immunizable);
-        Assert.Equal(-0.75, tables.WoundInfection.SeverityPerDayTended);
+        Assert.Equal(new P.TendEffect.Tendable(-0.75), tables.WoundInfection.Tending);
         Assert.Equal(0.2, tables.WoundInfection.InitialSeverity);
         Assert.False(Catalog(Malnutrition()).CapacityPenalties().BloodLoss.Known);
     }
@@ -103,9 +103,32 @@ public sealed class CapacityPenaltiesTests
         Assert.Equal([0.0, 0.2, 0.4, 0.6, 0.8], Catalog(def).CapacityPenalties().Malnutrition.Stages.Select(s => s.MinSeverity));
     }
 
+    [Fact]
+    public void WithoutTheMovingCapacityEveryTableIsUnknown()
+    {
+        var catalog = new DefinitionCatalog(
+            [new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }, Malnutrition()],
+            DefStatTable.Empty,
+            new CatalogDerived("Silver", "Wort", 10f));
+
+        Assert.False(catalog.CapacityPenalties().Malnutrition.Known);
+        Assert.False(catalog.CapacityPenalties().Valid());
+    }
+
+    [Fact]
+    public void TheDefsWithoutCompsReadAsSteadyHarmlessLastingAndUntendable()
+    {
+        var table = Catalog(Malnutrition()).CapacityPenalties().Malnutrition;
+
+        Assert.Equal(new P.SeverityDrift.Steady(), table.Drift);
+        Assert.Equal(new P.Lifespan.Lasting(), table.Lifespan);
+        Assert.Equal(new P.TendEffect.Untendable(), table.Tending);
+        Assert.Equal(new P.CapacityCeiling.Uncapped(), table.Stages[0].Modifiers[0].Ceiling);
+    }
+
     private static DefinitionCatalog Catalog(params Def[] defs) =>
         new(
-            [new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }, .. defs],
+            [new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }, .. defs, .. defs.Any(d => d is PawnCapacityDef) ? Array.Empty<Def>() : new Def[] { Moving() }],
             DefStatTable.Empty,
             new CatalogDerived("Silver", "Wort", 10f));
 

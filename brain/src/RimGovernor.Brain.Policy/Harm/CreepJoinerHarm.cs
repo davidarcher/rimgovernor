@@ -195,7 +195,7 @@ public static class CreepJoinerHarm
     private static PawnCost CostOf(CreepJoinerHarmInputs inputs, UnshownCreepJoiner u, NeedsForecastPawn row, HarmConsequences.Care care,
         ForecastCoupledContext context, double days)
     {
-        var movingMin = context.CapacityPenalties.MovingMinForCapable ?? throw new RequiredFactException("capacity_penalty_table_unknown:MovingMinForCapable");
+        var movingMin = context.CapacityPenalties.MovingMinForCapable;
         var key = (care, context.Value, movingMin, days, context.Stock);
         var byRow = Cache.GetValue(inputs, _ => new()).GetValue(row, _ => new());
         // A creepjoiner's census row and its pawn row are one pawn; the census's days joined are in the census key.
@@ -315,7 +315,7 @@ public static class CreepJoinerHarm
             return (Chain(hediff, Severities(hediff), levels, movingMin, days, row.Pawn, findings), 0, []);
         }
 
-        var lethal = course.Table.LethalSeverity is not null;
+        var lethal = course.Table.Lethality is Lethality.Lethal;
         var replacements = new List<OrganReplacement>();
         double loss = 0, died = 0;
         void Price(IReadOnlyList<IllnessForecast.Branch> branches, double chance)

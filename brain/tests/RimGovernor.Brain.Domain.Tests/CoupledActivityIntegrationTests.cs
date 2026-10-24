@@ -119,13 +119,13 @@ public sealed class CoupledActivityIntegrationTests
         var batch = new PawnActivities(1, [order]) { Tasks = [task] };
         var malformed = kind == PawnActivityKind.Eat ? step with { Target = "actual-meal", Count = 1 }
             : step with { Target = "different-service-target" };
-        var refused = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "holding", 120,
+        var refused = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "holding", 120,
             new ActivityTaskBinding.Bound(task.Id, malformed)))!;
         Assert.True(Assert.Single(refused.Orders).Release);
         Assert.Empty(refused.Orders[0].Steps);
         // A future food output can rebind to its observed stack, but must retain the selected quantity.
         var valid = kind == PawnActivityKind.Eat ? step with { Target = "actual-meal" } : step;
-        var accepted = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "holding", 120,
+        var accepted = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "holding", 120,
             new ActivityTaskBinding.Bound(task.Id, valid)))!;
         Assert.False(Assert.Single(accepted.Orders).Release);
         Assert.Equal(valid, Assert.Single(accepted.Orders[0].Steps));
@@ -147,10 +147,10 @@ public sealed class CoupledActivityIntegrationTests
         TestNeed.File(journal, met: false, new("coupled-observed"), ct);
         Assert.Equal(batch.Tasks.ToArray(), Send(journal, plan, 100, ct).Tasks.ToArray());
         // Acceptance is not completion. Without observed progress the selected graph is unchanged.
-        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "started", 101)));
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "started", 101)));
         var delivery = Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver);
         var completedAt = Math.Max(120, delivery.DepartTick);
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "completed", completedAt,
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "completed", completedAt,
             new ActivityTaskBinding.Bound(delivery.Id, delivery.Step with { Target = "merged-real-stack", Count = 2 })))!;
         Assert.NotNull(next);
         var unavailable = new PlanSpec(new("delivery"), new(1),
@@ -176,7 +176,7 @@ public sealed class CoupledActivityIntegrationTests
         Assert.True(journal.LoadPlan(plan.Id, ct).Retired);
         Assert.Equal("coupled-observed", order.Method);
         // A changed physical stack needs a fresh observed binding; no harvested ID is treated as inventory.
-        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(sent, Known(!withdrawn), Observe(sent, "failed", completedAt + 10,
+        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(sent, withdrawn ? ActivityNeed.Ended : ActivityNeed.Owed, Observe(sent, "failed", completedAt + 10,
             new ActivityTaskBinding.Bound(delivery.Id, delivery.Step with { Target = "split-real-stack", Count = 1 })))!;
         Assert.NotNull(retry);
         var recovered = Continue(journal, continuation, sent, retry, completedAt + 10, "recovery", ct, "failed");

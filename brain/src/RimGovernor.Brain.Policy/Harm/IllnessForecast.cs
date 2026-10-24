@@ -125,11 +125,7 @@ public static class IllnessForecast
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var (disease, levels) = (pawn.Disease, ForecastValue.Levels(pawn));
 
-        if (tables.MovingMinForCapable is not { } movingMin)
-        {
-            findings.Add("capacity_penalty_table_unknown:MovingMinForCapable");
-            return new HarmDistribution { Findings = [.. findings] };
-        }
+        var movingMin = tables.MovingMinForCapable;
 
         if (!care.Tended)
         {
@@ -229,7 +225,7 @@ public static class IllnessForecast
         SortedSet<string> findings)
     {
         var course = incident.Course;
-        var lethal = course.Table.LethalSeverity is not null;
+        var lethal = course.Table.Lethality is Lethality.Lethal;
         if (course.Parts.Count == 0)
         {
             return [new Branch(1, lethal, null)];
@@ -321,7 +317,7 @@ public static class IllnessForecast
         findings.UnionWith(course.Unpriced);
         var immunizable = course.Table.Immunizable;
         var immunityRate = immunizable is null ? 0 : Math.Max(0, immunizable.ImmunityPerDaySick * gain);
-        var gone = course.Table.DisappearsAfterTicks is { } ticks ? (ticks.Min / GameTime.TicksPerDay, ticks.Max / GameTime.TicksPerDay) : (double.PositiveInfinity, double.PositiveInfinity);
+        var gone = course.Table.Lifespan is Lifespan.EndsAfter ticks ? (ticks.MinTicks / GameTime.TicksPerDay, ticks.MaxTicks / GameTime.TicksPerDay) : (double.PositiveInfinity, double.PositiveInfinity);
         var total = branches.Sum(b => b.Share);
         foreach (var branch in branches)
         {
@@ -464,7 +460,7 @@ public static class IllnessForecast
             var tend = care.Tended && course.Tendable ? course.Tend : null;
             var careAt = tend is null ? double.PositiveInfinity : Math.Max(0, care.FirstCareDays);
             var tended = tend is null ? 0 : tend.SeverityPerDayTended * care.Quality;
-            var lethalAt = lethal && table.LethalSeverity is { } l ? l : double.PositiveInfinity;
+            var lethalAt = lethal && table.Lethality is Lethality.Lethal { Severity: var l } ? l : double.PositiveInfinity;
             var top = Math.Min(lethalAt, course.MaxSeverity);
             var bottom = Math.Max(0, course.MinSeverity);
             var walked = new Walked { Severity = new ForecastValue.Course(table, levels, movingMin, 0) { StageFactors = organ?.Stages } };

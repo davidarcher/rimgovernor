@@ -91,7 +91,7 @@ public sealed class CapabilityMaintenanceTests
         var postponed = ForecastCoupledCandidates.GenerateCoupledActivities(emergency, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = postponed.Context }, postponed).Selection.Selected);
         var absent = ConstructionFixtures.NoTasks();
-        Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), absent));
+        Assert.Equal(ActivityNeed.Owed, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
         { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] }))) } };
         var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;

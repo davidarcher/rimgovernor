@@ -1,7 +1,9 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
+using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,7 +18,7 @@ public sealed class BreakResponseTests
         Ranged,
     }
 
-    private static readonly Fact<Cell> At = Known(new Cell(10, 10));
+    private static readonly EntityPlace At = new EntityPlace.OnMap(0, new Common.Cell { X = 10, Z = 10 });
 
     private static EmergencyPawn Breaker() => EmergencyFixtures.Colonist("brookie") with
     {
@@ -25,7 +27,7 @@ public sealed class BreakResponseTests
 
     private static BreakResponder Pawn(string id, Arms arms, int distance, bool breaking = false) => new()
     {
-        Cell = Known(new Cell(10 + distance, 10)),
+        Place = new EntityPlace.OnMap(0, new Common.Cell { X = 10 + distance, Z = 10 }),
         SquadDefenderFacts = new SquadDefenderFacts
         {
             Id = new PawnId(id),
@@ -76,5 +78,21 @@ public sealed class BreakResponseTests
         var squad = Squad(Pawn("brookie", Arms.Unarmed, 0, breaking: true), Pawn("ada", Arms.Ranged, 1), Pawn("bo", Arms.Ranged, 2), Pawn("cy", Arms.Unarmed, 6));
 
         Assert.Equal(["cy"], squad);
+    }
+
+    [Fact]
+    public void ARespondersOnNoMapIsNeverChosen()
+    {
+        var away = Pawn("ada", Arms.Unarmed, 1) with { Place = new EntityPlace.Unplaced() };
+
+        Assert.Equal(["bo", "cy"], Squad(Pawn("brookie", Arms.Unarmed, 0, breaking: true), away, Pawn("bo", Arms.Unarmed, 3), Pawn("cy", Arms.Unarmed, 4)));
+    }
+
+    [Fact]
+    public void ABreakerOnNoMapHasNoSquad()
+    {
+        var squad = BreakResponseRules.SelectBreakSquad(Breaker(), new EntityPlace.Unplaced(), [Pawn("ada", Arms.Unarmed, 1)]);
+
+        Assert.Empty(squad);
     }
 }

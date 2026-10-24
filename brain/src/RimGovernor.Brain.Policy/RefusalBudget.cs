@@ -90,7 +90,7 @@ public sealed record RefusalBudget
                         waiting = new BudgetVerdict { Code = RefusalBudgetRules.BudgetWaiting, Reason = e.Reason };
                     }
                     break;
-                default:
+                case RefusalClass.Unknown:
                     unknown = new BudgetVerdict { Code = RefusalBudgetRules.BudgetUnknown, Reason = e.Reason };
                     break;
             }

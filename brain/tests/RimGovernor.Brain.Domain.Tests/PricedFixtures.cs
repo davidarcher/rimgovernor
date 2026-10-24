@@ -32,13 +32,13 @@ internal static class PricedFixtures
     // Any starving or poisoned or frozen stretch halves consciousness: the tests need a price, not the game's stage table.
     public static CapacityPenaltyTables Tables() => new()
     {
-        Malnutrition = Table("Malnutrition", null), FoodPoisoning = Table("FoodPoisoning", -1), Hypothermia = Table("Hypothermia", null), Heatstroke = Table("Heatstroke", null),
+        Malnutrition = Table("Malnutrition", new SeverityDrift.Steady()), FoodPoisoning = Table("FoodPoisoning", new SeverityDrift.Drifting(-1)), Hypothermia = Table("Hypothermia", new SeverityDrift.Steady()), Heatstroke = Table("Heatstroke", new SeverityDrift.Steady()),
         MovingMinForCapable = 0.15,
     };
 
-    private static HediffPenaltyTable Table(string name, double? perDay) => new()
+    private static HediffPenaltyTable Table(string name, SeverityDrift drift) => new()
     {
-        Known = true, Hediff = name, LethalSeverity = 1, InitialSeverity = name == "FoodPoisoning" ? 1 : 0.001, SeverityPerDay = perDay,
-        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.5)])],
+        Known = true, Hediff = name, Lethality = new Lethality.Lethal(1), InitialSeverity = name == "FoodPoisoning" ? 1 : 0.001, Drift = drift,
+        Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.5)])],
     };
 }

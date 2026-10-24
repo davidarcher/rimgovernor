@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 
@@ -5,7 +7,8 @@ public sealed record BreakResponder
 {
     public required SquadDefenderFacts SquadDefenderFacts { get; init; }
 
-    public Fact<Cell> Cell { get; init; }
+    /// <summary>Where the responder stands; a responder on no map is never chosen.</summary>
+    public required EntityPlace Place { get; init; }
 
     public PawnId ID => SquadDefenderFacts.Id;
 }
@@ -32,9 +35,9 @@ public static class BreakResponseRules
     /// is not a subdue). A squad of fists alone is refused against a breaker wielding a melee weapon, or one not among
     /// the candidates: a squad there leads with the nearest melee-armed responder.
     /// </summary>
-    public static List<PawnId> SelectBreakSquad(EmergencyPawn target, Fact<Cell> cell, IEnumerable<BreakResponder> candidates)
+    public static List<PawnId> SelectBreakSquad(EmergencyPawn target, EntityPlace targetPlace, IEnumerable<BreakResponder> candidates)
     {
-        if (!cell.TryGetValue(out var at) || !AggressiveBreak(target))
+        if (targetPlace is not EntityPlace.OnMap { Cell: var breakAt } || !AggressiveBreak(target))
         {
             return [];
         }
@@ -52,7 +55,7 @@ public static class BreakResponseRules
                 breakerUnarmedOrRanged = !f.MeleeEquipped;
                 continue;
             }
-            if (SquadDefenseRules.SquadDefenderEligible(f) && !f.RangedEquipped && (MeleeArmed(f) || !f.Armed) && c.Cell.IsKnown)
+            if (SquadDefenseRules.SquadDefenderEligible(f) && !f.RangedEquipped && (MeleeArmed(f) || !f.Armed) && c.Place is EntityPlace.OnMap)
             {
                 pool.Add(c);
             }
@@ -60,9 +63,9 @@ public static class BreakResponseRules
 
         long Distance(BreakResponder c)
         {
-            c.Cell.TryGetValue(out var p);
-            long dx = (long)p.X - at.X;
-            long dz = (long)p.Z - at.Z;
+            var p = ((EntityPlace.OnMap)c.Place).Cell;
+            long dx = (long)p.X - breakAt.X;
+            long dz = (long)p.Z - breakAt.Z;
             return (dx * dx) + (dz * dz);
         }
 

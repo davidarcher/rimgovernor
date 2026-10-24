@@ -31,7 +31,7 @@ public sealed class IllnessForecastTests
     private static HediffPenaltyTable Table(string hediff, double initial, double? lethal = null, ImmunizableProps? immunizable = null,
         (double, double)? gone = null) => new()
     {
-        Known = true, Hediff = hediff, InitialSeverity = initial, LethalSeverity = lethal, Immunizable = immunizable, DisappearsAfterTicks = gone,
+        Known = true, Hediff = hediff, InitialSeverity = initial, Lethality = lethal is { } top ? new Lethality.Lethal(top) : new Lethality.Harmless(), Immunizable = immunizable, Lifespan = gone is { } span ? new Lifespan.EndsAfter(span.Item1, span.Item2) : new Lifespan.Lasting(),
         Stages = [new PenaltyStage(0, 0, [])],
     };
 

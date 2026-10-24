@@ -202,7 +202,7 @@ public sealed partial class RoundsDefensePlanner
         {
             var row = rows[p0.Id.Value];
             var d = Armament.SquadDefenderFacts(row, needed.Select(n => n).ToHashSet(), arms, new DefenderArmor.Unmirrored());
-            responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakDispatch.BreakCell(row) });
+            responders.Add(new BreakResponder { SquadDefenderFacts = d, Place = row.Pawn.Place });
         }
         var preferences = _reviewer.PreferencesOf(state.Snapshot, call);
         var heldBack = PreferenceRules.HeldBackFromDraft(preferences, responders.Select(r => r.SquadDefenderFacts));
@@ -211,7 +211,7 @@ public sealed partial class RoundsDefensePlanner
         PawnId victim = default;
         foreach (var target in targets)
         {
-            chosen = BreakResponseRules.SelectBreakSquad(target, BreakDispatch.BreakCell(rows[target.Id.Value]), responders);
+            chosen = BreakResponseRules.SelectBreakSquad(target, rows[target.Id.Value].Pawn.Place, responders);
             if (chosen.Count > 0)
             {
                 victim = target.Id;

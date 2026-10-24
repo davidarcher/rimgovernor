@@ -50,8 +50,8 @@ public sealed class MedicineValueTests
     {
         Table = new()
         {
-            Known = true, Hediff = "Flu", InitialSeverity = 0.2, LethalSeverity = 1, Immunizable = new ImmunizableProps(0.25, 0.2, -0.5),
-            Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, null, 0.5)])],
+            Known = true, Hediff = "Flu", InitialSeverity = 0.2, Lethality = new Lethality.Lethal(1), Immunizable = new ImmunizableProps(0.25, 0.2, -0.5),
+            Stages = [new PenaltyStage(0, 0, [new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.5)])],
         },
         Tendable = true, Tend = new TendCourse(-0.15, 0.5, 0.75, -1),
     };

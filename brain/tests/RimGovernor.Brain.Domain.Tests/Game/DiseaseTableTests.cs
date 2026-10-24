@@ -84,7 +84,7 @@ public sealed class DiseaseTableTests
         Assert.Equal(0.5, flu.FractionMax, 6);
         Assert.Equal(99999, flu.MaxVictims);
         Assert.Empty(flu.Course.Unmodelled);
-        Assert.Equal(1, flu.Course.Table.LethalSeverity);
+        Assert.Equal(new P.Lethality.Lethal(1), flu.Course.Table.Lethality);
         Assert.Equal(0.2238, flu.Course.Table.Immunizable!.SeverityPerDayNotImmune, 6);
         Assert.Empty(flu.Course.Parts);
         Assert.NotNull(flu.Course.Tend);

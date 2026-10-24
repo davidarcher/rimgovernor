@@ -95,7 +95,7 @@ public sealed class SharedStackRemainderTests
         Send(journal, first, 100, ct);
         // The owed count is the two tasks' units, counted once across the task row and its order.
         Assert.Equal(16, Owed(journal.WorkResources(Root, ct)));
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "completed", 200))!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "completed", 200))!;
         var order = Assert.Single(next.Orders);
         Assert.True(order.Preparing);
         Assert.Equal("eat-later", Assert.Single(next.Tasks).Id);
@@ -179,14 +179,14 @@ public sealed class SharedStackRemainderTests
         using var journal = Journal.Open(Open(), ct);
         var (_, _, _, next, _) = Install(journal, ct);
         var later = Assert.Single(next.Tasks);
-        var bound = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(15))))!;
+        var bound = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(15))))!;
         var order = Assert.Single(bound.Orders);
         Assert.False(order.Release);
         Assert.Equal(Eat(15), Assert.Single(order.Steps));
         // Native binds an Eat only to the observed lot holding at least the owed count: a stack that shrank below it, or
         // that was split, merged or moved into another thing, yields no binding; a short binding is malformed. Both release.
-        Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Observe(next, "holding", later.DepartTick))!.Orders).Release);
-        Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true),
+        Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Observe(next, "holding", later.DepartTick))!.Orders).Release);
+        Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed,
             Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(14))))!.Orders).Release);
     }
 

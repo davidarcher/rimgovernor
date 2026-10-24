@@ -46,17 +46,17 @@ public sealed class ForecastValueTests
 
     private static HediffPenaltyTable Malnutrition(params PenaltyStage[] stages) => new()
     {
-        Known = true, Hediff = "Malnutrition", LethalSeverity = 1, InitialSeverity = 0.5, Stages = stages,
+        Known = true, Hediff = "Malnutrition", Lethality = new Lethality.Lethal(1), InitialSeverity = 0.5, Stages = stages,
     };
 
     private static PenaltyStage Stage(double min, params CapacityModifier[] mods) => new(min, 0, mods);
 
-    private static CapacityModifier Half(string capacity) => new(capacity, 0, null, 0.5);
+    private static CapacityModifier Half(string capacity) => new(capacity, 0, new CapacityCeiling.Uncapped(), 0.5);
 
     internal static CapacityPenaltyTables Tables(HediffPenaltyTable? malnutrition = null, HediffPenaltyTable? poisoning = null) => new()
     {
         Malnutrition = malnutrition ?? Malnutrition(Stage(0, Half("Consciousness"))),
-        FoodPoisoning = poisoning ?? new() { Known = true, Hediff = "FoodPoisoning", InitialSeverity = 1, SeverityPerDay = -1, Stages = [Stage(0, Half("Consciousness"))] },
+        FoodPoisoning = poisoning ?? new() { Known = true, Hediff = "FoodPoisoning", InitialSeverity = 1, Drift = new SeverityDrift.Drifting(-1), Stages = [Stage(0, Half("Consciousness"))] },
         Hypothermia = Thermal("Hypothermia"), Heatstroke = Thermal("Heatstroke"),
         MovingMinForCapable = 0.15,
     };
@@ -112,7 +112,7 @@ public sealed class ForecastValueTests
 
     internal static CapacityPenaltyTables HarmTables() => Tables() with
     {
-        BloodLoss = new() { Known = true, Hediff = "BloodLoss", LethalSeverity = 1, Stages = [Stage(0, new CapacityModifier("Consciousness", 0, null, 0.9))] },
+        BloodLoss = new() { Known = true, Hediff = "BloodLoss", Lethality = new Lethality.Lethal(1), Stages = [Stage(0, new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.9))] },
     };
 
     private static ForecastCoupledContext HarmContext(EquatableArray<GearOption> worn, HarmInputs? harm = null, ForecastValuePolicy? policy = null) =>
@@ -155,7 +155,7 @@ public sealed class ForecastValueTests
     [Fact]
     public void AStarvingPawnTheStageDownsLosesItsWholeSpan()
     {
-        var table = Malnutrition(Stage(0, new CapacityModifier("Consciousness", 0, 0.1, 1)));
+        var table = Malnutrition(Stage(0, new CapacityModifier("Consciousness", 0, new CapacityCeiling.Capped(0.1), 1)));
         var pawn = Pawn(foodLevel: 0.5, fall: 0.5 / (Day / 2));
         var starving = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
 
@@ -353,12 +353,12 @@ public sealed class ForecastValueTests
         // Severity 1 falls a day: 0.2 day in the top stage (0.6 consciousness), 0.6 in the middle (0.5), 0.2 in the last (0.6 again).
         var poisoning = new HediffPenaltyTable
         {
-            Known = true, Hediff = "FoodPoisoning", InitialSeverity = 1, SeverityPerDay = -1,
+            Known = true, Hediff = "FoodPoisoning", InitialSeverity = 1, Drift = new SeverityDrift.Drifting(-1),
             Stages =
             [
-                Stage(0, new CapacityModifier("Consciousness", 0, null, 0.6)),
-                Stage(0.2, new CapacityModifier("Consciousness", 0, null, 0.5)),
-                Stage(0.8, new CapacityModifier("Consciousness", 0, null, 0.6)),
+                Stage(0, new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.6)),
+                Stage(0.2, new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.5)),
+                Stage(0.8, new CapacityModifier("Consciousness", 0, new CapacityCeiling.Uncapped(), 0.6)),
             ],
         };
         var needs = Calm();
@@ -388,10 +388,10 @@ public sealed class ForecastValueTests
 
     private static HediffPenaltyTable Thermal(string name, params PenaltyStage[] stages) => new()
     {
-        Known = true, Hediff = name, LethalSeverity = 1, InitialSeverity = 0.001, Stages = stages.Length > 0 ? stages : [Stage(0, Half("Consciousness"))],
+        Known = true, Hediff = name, Lethality = new Lethality.Lethal(1), InitialSeverity = 0.001, Stages = stages.Length > 0 ? stages : [Stage(0, Half("Consciousness"))],
     };
 
-    private static CapacityModifier Post(double factor) => new("Consciousness", 0, null, factor);
+    private static CapacityModifier Post(double factor) => new("Consciousness", 0, new CapacityCeiling.Uncapped(), factor);
 
     private static CapacityPenaltyTables ThermalTables(HediffPenaltyTable cold, HediffPenaltyTable? hot = null) =>
         Tables() with { Hypothermia = cold, Heatstroke = hot ?? Thermal("Heatstroke") };
@@ -657,7 +657,7 @@ public sealed class ForecastValueTests
         // #3824: a disease a day at 0.1 that halves consciousness from the day it strikes; the raid day is the same in both.
         var course = new DiseaseCourse
         {
-            Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, LethalSeverity = 1, Immunizable = new(0.25, 0.2, -0.5), Stages = [Stage(0, Half("Consciousness"))] },
+            Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, Lethality = new Lethality.Lethal(1), Immunizable = new(0.25, 0.2, -0.5), Stages = [Stage(0, Half("Consciousness"))] },
         };
         var illness = new IllnessSchedule { Assessed = true, Comps = [(0, 0.1)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, course)] };
         var pawn = HarmPawn() with { Disease = NeedsFixtures.Disease with { Contracts = [new("Disease_Flu", 1)] } };

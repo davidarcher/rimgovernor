@@ -52,8 +52,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 47 reads a colonist's mood whole (#3897): a mood persists as has (level and the forecast's target) or lacks, its thoughts as a plain list, and a mood method's need benefit as a plain number without the never-set mood benefit.
     /// Version 48 reads plan geometry whole (#3914): a planned room's door side is doored or doorless, a training range's facing and a planned site's rotation are toward a side or unturned, each absent from the record for the doorless or unturned state.
     /// Version 49 reads threat, disaster and recovery containers whole (#3931): a disaster history no longer persists WorkKnown, and a recovery record persists its safety (restrictions with a plain area id, empty for none) and buildings always, never null for an unread census.
+    /// Version 50 drops the never-read <c>Observed</c> deficit fraction from a concern's progress and the <c>Alternative</c> text from a ready work (#3962).
     /// </summary>
-    public const int SchemaVersion = 49;
+    public const int SchemaVersion = 50;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

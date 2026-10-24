@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Store;
 
 /// <summary>An existing Method's current assignment, not a second ownership store.</summary>
 public sealed record ActivityMethod(PlanId Plan, MethodId Method, GenerationSnapshot Snapshot,
-    Fact<bool> Needed, PawnActivities Batch);
+    ActivityNeed Needed, PawnActivities Batch);
 
 /// <summary>Expected shared-resource contention preserves the installed Method for a later observed review.</summary>
 public enum ActivityContinuationAdmission { Admitted, ResourcesUnavailable }
@@ -18,7 +18,7 @@ public sealed partial class Store
     /// <summary>
     /// The installed activity Methods in <paramref name="current"/>'s world, Need-owned (#3304, decision 13). A Method is
     /// needed while its Need's progress row in the current review says it is unmet or working a Method (decision 18),
-    /// and unknown without a row.
+    /// and unlisted without a row.
     /// </summary>
     public IReadOnlyList<ActivityMethod> ActivityMethods(GenerationSnapshot current, CancellationToken ct) => Run(tx =>
     {
@@ -34,8 +34,8 @@ public sealed partial class Store
             if (progress.Action.PawnActivities is not { } batch || batch.Orders.All(o => o.Release)
                 || !InstalledActivity(progress.View)
                 || !progress.View.Snapshot.SameWorld(current) || progress.View.Snapshot.Native != current.Native) continue;
-            var needed = installed.Spec.Id != id ? Fact.Known(false)
-                : NeedOwedIn(tx, new NeedId(ownerId), current) ? Fact.Known(true) : default;
+            var needed = installed.Spec.Id != id ? ActivityNeed.Ended
+                : NeedOwedIn(tx, new NeedId(ownerId), current) ? ActivityNeed.Owed : ActivityNeed.Unlisted;
             result.Add(new(id, plan.Method, progress.View.Snapshot, needed, batch));
         }
         return (IReadOnlyList<ActivityMethod>)result;
@@ -137,7 +137,7 @@ public sealed partial class Store
         if (prior.Retired || installed?.Progress[0].Action.PawnActivities is not { } batch
             || !installed.Progress[0].View.Snapshot.SameWorld(current)
             || installed.Progress[0].View.Snapshot.Native != current.Native || observedTick < installed.Progress[0].View.Tick
-            || !ActivityContinuationRules.ReviewActivityOwnership(batch, Fact.Known(false), observedTick.Value, observed).OwnershipEnded)
+            || !ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, observedTick.Value, observed).OwnershipEnded)
             throw new ConflictException("activity ownership is not known ended");
         tx.Floors.Guard(current, observedTick);
         _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", previous));

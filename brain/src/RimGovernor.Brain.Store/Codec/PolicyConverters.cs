@@ -517,7 +517,6 @@ internal sealed class ConcernProgressConverter : ObjectCodec<ConcernProgress>
             NextReview = e.Get<Tick>("NextReview", o),
             Blocked = e.Get<BlockedReason>("Blocked", o),
             Cooldowns = e.Get<EquatableArray<ProgressCooldown>>("Cooldowns", o),
-            Observed = e.GetOr<double?>("Observed", null, o),
             Planner = e.Get<Cause>("Planner", o),
             PlannerSubject = e.Str("PlannerSubject"),
             Open = e.Bool("Open"),
@@ -532,10 +531,6 @@ internal sealed class ConcernProgressConverter : ObjectCodec<ConcernProgress>
         w.Put("NextReview", v.NextReview, o);
         w.Put("Blocked", v.Blocked, o);
         w.Put("Cooldowns", v.Cooldowns, o);
-        if (v.Observed is { } vObserved)
-        {
-            w.WriteNum("Observed", vObserved);
-        }
         w.Put("Planner", v.Planner, o);
         w.WriteString("PlannerSubject", v.PlannerSubject);
         w.WriteBoolean("Open", v.Open);
@@ -1893,7 +1888,6 @@ internal sealed class ReadyWorkConverter : ObjectCodec<ReadyWork>
             Reason = e.Str("Reason"),
             Requires = e.Get<EquatableArray<string>>("Requires", o),
             Claims = e.Get<EquatableArray<ReadyClaim>>("Claims", o),
-            Alternative = e.Str("Alternative"),
             Parallelism = e.I32("Parallelism"),
         };
 
@@ -1910,7 +1904,6 @@ internal sealed class ReadyWorkConverter : ObjectCodec<ReadyWork>
         w.WriteString("Reason", v.Reason);
         w.Put("Requires", v.Requires, o);
         w.Put("Claims", v.Claims, o);
-        w.WriteString("Alternative", v.Alternative);
         w.WriteNum("Parallelism", v.Parallelism);
     }
 }

@@ -246,7 +246,7 @@ public sealed class CoordinatedConstructionTests
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var remaining = task.Step with { Targets = EquatableArray.From(trees.Skip(1)), Count = 2 };
-        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
+        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
             new ActivityTaskBinding.Bound(task.Id, remaining)))!;
         var retried = Assert.Single(retry.Orders);
         Assert.False(retried.Release);
@@ -255,12 +255,12 @@ public sealed class CoordinatedConstructionTests
         Assert.Equal(2, retry.Tasks.Single().Step.Count);
         Assert.Equal(2, retry.Tasks.Single().AttemptsLeft);
         // A binding naming a member outside the set is not this task's.
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
             new ActivityTaskBinding.Bound(task.Id, remaining with { Targets = ["Thing_Plant_TreeOak9", trees[2]] })))!.Orders.Single().Release);
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed"))!;
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, ActivityNeed.Owed, Read(retry, "completed"))!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
-        var cleared = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed") with { SatisfiedTasks = [task.Id] })!;
+        var cleared = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed") with { SatisfiedTasks = [task.Id] })!;
         Assert.Empty(cleared.Tasks);
         Assert.True(cleared.Orders.Single().Release);
     }
@@ -332,12 +332,12 @@ public sealed class CoordinatedConstructionTests
             Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed",
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed",
             new ActivityTaskBinding.Bound(task.Id, task.Step with { Count = 25 })))!;
         Assert.Equal(25, Assert.Single(next.Tasks).Step.Count);
         var second = Assert.Single(Assert.Single(next.Orders, o => !o.Release).Steps);
         Assert.Equal((PawnActivityKind.Deliver, item, 25, (Cell?)store), (second.Kind, second.Target, second.Count, second.Destination));
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed"))!;
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Read(next, "completed"))!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
     }
@@ -443,15 +443,15 @@ public sealed class CoordinatedConstructionTests
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
-        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
+        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
             new ActivityTaskBinding.Supply(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }, 7)))!;
         Assert.Equal(7, retry.Tasks.Single(t => t.Id == supply.Id).Step.Count);
         var finish = retry.Tasks.Single(t => t.Step.Job == "FinishFrame");
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed",
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, ActivityNeed.Owed, Read(retry, "completed",
             new ActivityTaskBinding.Bound(finish.Id, finish.Step with { Target = "frame" })) with { SatisfiedTasks = [supply.Id] })!;
         Assert.Equal("frame", next.Orders.Single().Steps[0].Target);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed"))!.Orders.Single().Release);
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Read(next, "completed"))!.Orders.Single().Release);
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
     }

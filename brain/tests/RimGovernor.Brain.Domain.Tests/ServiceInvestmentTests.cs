@@ -73,7 +73,7 @@ public sealed class ServiceInvestmentTests
         var read = ConstructionFixtures.NoTasks() with { Context = new() { Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 110)))) };
-        Assert.Equal(Known(needed), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), read));
+        Assert.Equal(needed ? ActivityNeed.Owed : ActivityNeed.Ended, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, read));
         Assert.Contains(batch.Tasks, t => t.SiteDefinition.Length != 0 || t.Step.Job == "BuildRoof");
         Assert.Empty(read.SatisfiedTasks);
     }

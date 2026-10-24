@@ -399,16 +399,16 @@ The brain mirrors the game literals these mechanics use; each constant cites its
 The capability-days ledger ([forecast value](../architecture/forecast-value.md#capability-days),
 `ForecastValue.Of`) prices what malnutrition, food poisoning, hypothermia and heatstroke take from a pawn
 with the game's own tables (#3519, #3520, #3521). Hypothermia and heatstroke are priced from the
-pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the givers' severity (quadratic gain under a linear temperature, exponential recovery), the stage path priced as the other terms are, and a severity reaching `LethalSeverity` charging the remaining horizon plus `DeathTerminalValue`. A pawn with unknown occupancy has the term unassessed, with `unassessed_thermal_exposure`. Exhaustion collapse (#3598) reads the rest zero spans of the pawn's timeline and its observed `WakeThreshold` and rest `NeedRate.UnservedGainPerTick` (the ground sleep a collapse takes).
+pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the givers' severity (quadratic gain under a linear temperature, exponential recovery), the stage path priced as the other terms are, and a severity reaching the table's lethal severity charging the remaining horizon plus `DeathTerminalValue`. A pawn with unknown occupancy has the term unassessed, with `unassessed_thermal_exposure`. Exhaustion collapse (#3598) reads the rest zero spans of the pawn's timeline and its observed `WakeThreshold` and rest `NeedRate.UnservedGainPerTick` (the ground sleep a collapse takes).
 
 - `RoundsFacts.CapacityPenalties` (`CapacityPenaltyTables`): one
   `HediffPenaltyTable` each for `Malnutrition` and `FoodPoisoning`, decoded by
   `Catalog/CapacityPenalties.cs` from the `HediffDef` rows, and
-  `MovingMinForCapable` (the Moving `PawnCapacityDef`'s `minForCapable`). A table
+  `MovingMinForCapable` (the Moving `PawnCapacityDef`'s `minForCapable`; a catalog without that def has every table unknown). A table
   has its stages ordered by `minSeverity`, each with the capacity modifiers
-  (`Offset`, `SetMax` or null, `PostFactor`) and `PainOffset`, plus
-  `LethalSeverity` (null when the def has none), `InitialSeverity`, and the def's
-  `SeverityPerDay` and `Disappears` comps (null without them). A hediff the
+  (`Offset`, a `Capped` or `Uncapped` ceiling, `PostFactor`) and `PainOffset`, plus
+  its `Lethality` (`Lethal` at a severity, or `Harmless`), `InitialSeverity`, and the def's
+  `SeverityPerDay` comp (`Drifting` or `Steady`), `Disappears` comp (`EndsAfter` or `Lasting`) and `TendDuration` comp (`Tendable` or `Untendable`). A hediff the
   catalog lacks is an unknown table (`Known` false), never an empty one;
   `Valid()` is true for a known, ordered, finite table. Modifiers on a capacity
   outside the five a pawn-day is counted in (food poisoning's Eating) are left
@@ -659,8 +659,8 @@ costs each pawn.
   wait for that stock, E[min(W, days left)]; otherwise
   it is a named `SurgeryWantReason` (`PartShort`, `NoDoctor`, `BedShort`) and the loss lasts to the horizon. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
   Deaths cost the horizon's rest plus `DeathTerminalValue`; survivors their capability-days. `PatientDays` (days from first care to
-  the end) and `Treatments` (tends) are its expectations. Unknown with `capacities_unobserved:<pawn>` (a pawn without a needs row),
-  `capacity_penalty_table_unknown:MovingMinForCapable` or `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
+  the end) and `Treatments` (tends) are its expectations. Unknown with `capacities_unobserved:<pawn>` (a pawn without a needs row) or
+  `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
   out: `illness_untended`, `illness_prior_immunity_unassessed` (an earlier immunity record),
   `disease_severity_factors_unpriced:<hediff>`, `disease_part_stage_death_unmodelled:<hediff>` (a stage offset that kills is priced
   downed), and the stock model's findings when a replacement waits on stock or is short of its part

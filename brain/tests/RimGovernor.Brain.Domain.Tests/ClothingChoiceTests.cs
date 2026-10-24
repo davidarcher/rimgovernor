@@ -331,12 +331,12 @@ public sealed class ClothingChoiceTests
                 new(o.Assignment, o.Method, o.Revision, 0, "completed", "", 100)))),
             Bindings = [new ActivityTaskBinding.Bound(output.Id, output.Step with { Target = "actual-cloth-product" })]
         };
-        var delivery = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), execution)!;
+        var delivery = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, execution)!;
         Assert.Equal("actual-cloth-product", delivery.Orders.Single().Steps[0].Target);
         Assert.Null(delivery.Orders.Single().Steps[0].Recipe);
         var failed = execution with { Pawns = EquatableArray.From(execution.Pawns.Select(p => p with { Execution = p.Execution! with { State = "failed" } })) };
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), failed)!.Orders.Single().Release);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(false), execution)!.Orders.Single().Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, failed)!.Orders.Single().Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Ended, execution)!.Orders.Single().Release);
     }
     [Fact]
     public void SelectedGeneratedTailoringLearnsDuringWorkButNotIngredientCarrying()

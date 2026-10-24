@@ -146,7 +146,7 @@ remain unfinished. There is no new demand calculation or order writer.
 
 ## Ready work
 
-`ProjectReadyWork` (`ReadyWork.cs`) projects plans and proposals into diagnostic
+`ProjectReadyWork` (`ReadyWork.cs`) projects plans into diagnostic
 candidates (`Rounds.ReadyWork`); admission does not read it. Parallelism is the
 observed count of eligible workers or claims, with no constant cap. An action
 kind without a stage adapter (everything but Building, Haul, CutPlant,
