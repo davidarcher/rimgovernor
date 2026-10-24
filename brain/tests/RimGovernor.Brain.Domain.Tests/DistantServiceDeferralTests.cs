@@ -1,74 +1,94 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods;
 using RimGovernor.Brain.Policy.Methods.Binding;
 using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
+/// <summary>Whom a schedule orders at once (CoordinatedActivityBinding.OrderedAtStart, #3884): StartSelected installs exactly
+/// those pawns' orders.</summary>
 public sealed class DistantServiceDeferralTests
 {
     private const long Tick = 100;
-    private static SelectedActivityTask Service(string pawn, long depart, params string[] prerequisites) =>
-        new("service/" + pawn, pawn, EquatableArray.From(prerequisites), new(PawnActivityKind.Sleep, "bed", "", "", 0, depart + 2000), new(3, 4), depart);
-    private static SelectedActivityTask Work(string pawn, long depart = Tick) =>
-        new("work/" + pawn, pawn, [], new(PawnActivityKind.Work, "site", "", "FinishFrame", 0, depart + 500), new(1, 1), depart);
-    private static PawnActivityOrder Preparing(SelectedActivityTask task) =>
-        new(task.Pawn, "m/" + task.Pawn, "m", 0, 1, false,
-            [new(PawnActivityKind.Approach, "", "", "", 0, task.Step.Deadline) { Destination = task.Location, NotBefore = task.DepartTick },
-             new(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline)]) { Task = task.Id, Preparing = true };
-    private static PawnActivityOrder Active(SelectedActivityTask task) =>
-        new(task.Pawn, "m/" + task.Pawn, "m", 0, 1, false, [task.Step]) { Task = task.Id };
-    private static PawnActivities Batch(PawnActivityOrder[] orders, params SelectedActivityTask[] tasks) =>
-        new(1, orders) { Tasks = EquatableArray.From(tasks) };
+    private static ActivityTaskCandidate Service(string pawn, PawnActivityKind kind = PawnActivityKind.Sleep, params string[] prerequisites) =>
+        new("service/" + pawn, pawn, EquatableArray.From(prerequisites), kind, "bed", "", "", kind == PawnActivityKind.Eat ? 1 : 0, 90000, new(3, 4));
+    private static ActivityTaskCandidate Work(string pawn, params string[] prerequisites) =>
+        new("work/" + pawn, pawn, EquatableArray.From(prerequisites), PawnActivityKind.Work, "site", "", "FinishFrame", 0, 90000, new(1, 1));
+    /// <summary>The task's schedule row: departing at <paramref name="depart"/> with no travel, starting at <paramref name="start"/>.</summary>
+    private static ForecastActivityAllocation Row(ActivityTaskCandidate task, double depart, double? start = null) =>
+        new(task.Id, task.Pawn, depart, depart, start ?? depart, (start ?? depart) + 2000, 0, (start ?? depart) - depart, 2000, 0, 0);
+    private static PawnActivities? Started(ActivityTaskCandidate[] tasks, params ForecastActivityAllocation[] rows) =>
+        CoordinatedActivityBinding.StartSelected(new(["selected"], new(rows, 0, 0), Known(0d), [], 0, false),
+            tasks.ToDictionary(t => (t.Id, t.Pawn)), 1, "m", Tick);
+    private static IReadOnlySet<string> Ordered(ActivityTaskCandidate[] tasks, params ForecastActivityAllocation[] rows) =>
+        CoordinatedActivityBinding.OrderedAtStart(rows, tasks.ToDictionary(t => (t.Id, t.Pawn)), new HashSet<string>());
 
     [Fact]
     public void ADistantServiceReleasesItsPawnInsteadOfHoldingTheColonyForIt()
     {
-        var sleep = Service("sleeper", 30000); var work = Work("worker");
-        var batch = Batch([Preparing(sleep), Active(work)], sleep, work);
-        var active = CoordinatedActivityBinding.DeferDistantServices(batch, Tick)!;
+        var (sleep, work) = (Service("sleeper"), Work("worker"));
+        var active = Started([sleep, work], Row(sleep, 30000), Row(work, 0))!;
         Assert.Equal("worker", Assert.Single(active.Orders).Pawn);
-        Assert.Equal(work, Assert.Single(active.Tasks));
+        Assert.Equal(work.Id, Assert.Single(active.Tasks).Id);
+        Assert.Equal("worker", Assert.Single(Ordered([sleep, work], Row(sleep, 30000), Row(work, 0))));
     }
 
     [Fact]
     public void ADistantMealReleasesItsPawnInsteadOfHoldingItUntilMealtime()
     {
         // Live playtest: a coupled food Method held four colonists on "Waiting for the colony plan" for ~20k ticks until their meals.
-        var meal = Service("eater", 30000) with { Step = new(PawnActivityKind.Eat, "meal", "", "", 1, 32000) };
-        Assert.Null(CoordinatedActivityBinding.DeferDistantServices(Batch([Preparing(meal)], meal), Tick));
+        var meal = Service("eater", PawnActivityKind.Eat);
+        Assert.Null(Started([meal], Row(meal, 30000)));
     }
 
     [Fact]
     public void ADistantMealWaitingOnAnotherPawnsCookingReleasesTheEaterAndKeepsTheCook()
     {
         // #3167: development-reassignment held both eaters ~9000 ticks for the cook's meals, so no colonist was ever free.
-        var cook = Work("cook") with { Step = new(PawnActivityKind.Recipe, "stove", "", "", 0, Tick + 500) };
+        var cook = Work("cook");
         // The scheduler departed the eater at once to wait at the table: the distance is its planned start, not its departure.
-        var meal = Service("eater", Tick, cook.Id) with { Step = new(PawnActivityKind.Eat, "meal", "", "", 1, 11000) };
-        var batch = Batch([Active(cook), Preparing(meal)], cook, meal);
-        Assert.Same(batch, CoordinatedActivityBinding.DeferDistantServices(batch, Tick));
-        var active = CoordinatedActivityBinding.DeferDistantServices(batch, Tick, new Dictionary<string, long> { [meal.Id] = 9000 })!;
+        var meal = Service("eater", PawnActivityKind.Eat, cook.Id);
+        Assert.Equal(2, Started([cook, meal], Row(cook, 0), Row(meal, 0, 300))!.Orders.Length);
+        var active = Started([cook, meal], Row(cook, 0), Row(meal, 0, 9000))!;
         Assert.Equal("cook", Assert.Single(active.Orders).Pawn);
-        Assert.Equal(cook, Assert.Single(active.Tasks));
+        Assert.Equal(cook.Id, Assert.Single(active.Tasks).Id);
     }
 
     [Fact]
     public void ADistantServiceAloneLeavesNothing()
     {
-        var sleep = Service("sleeper", 30000);
-        Assert.Null(CoordinatedActivityBinding.DeferDistantServices(Batch([Preparing(sleep)], sleep), Tick));
+        var sleep = Service("sleeper");
+        Assert.Null(Started([sleep], Row(sleep, 30000)));
+        Assert.Empty(Ordered([sleep], Row(sleep, 30000)));
     }
 
     [Fact]
     public void ADueServiceKeepsItsPreparationAndSoDoesOneOthersWaitOn()
     {
-        var due = Service("sleeper", Tick + 600);
-        var batch = Batch([Preparing(due)], due);
-        Assert.Same(batch, CoordinatedActivityBinding.DeferDistantServices(batch, Tick));
-        var sleep = Service("sleeper", 30000);
-        var dependent = Work("worker", 30000) with { Prerequisites = [sleep.Id] };
-        batch = Batch([Preparing(sleep), Preparing(dependent)], sleep, dependent);
-        Assert.Same(batch, CoordinatedActivityBinding.DeferDistantServices(batch, Tick));
+        var sleep = Service("sleeper");
+        Assert.True(Assert.Single(Started([sleep], Row(sleep, 600))!.Orders).Preparing);
+        var dependent = Work("worker", sleep.Id);
+        Assert.Equal(2, Started([sleep, dependent], Row(sleep, 30000), Row(dependent, 30000))!.Orders.Length);
+    }
+
+    /// <summary>A service the pawn departs for now with no prerequisite is its order now, however late it starts: nothing is
+    /// prepared, so nothing is deferred.</summary>
+    [Fact]
+    public void AServiceStartedNowIsOrderedHoweverLateItsStart()
+    {
+        var sleep = Service("sleeper");
+        Assert.False(Assert.Single(Started([sleep], Row(sleep, 0, 9000))!.Orders).Preparing);
+        Assert.Equal("sleeper", Assert.Single(Ordered([sleep], Row(sleep, 0, 9000))));
+    }
+
+    /// <summary>Start orders no one when a placed allocation has no binding (#3884), so neither does the rule.</summary>
+    [Fact]
+    public void AnUnboundAllocationOrdersNoOne()
+    {
+        var (work, other) = (Work("worker"), Work("other"));
+        Assert.Null(Started([work], Row(work, 0), Row(other, 0)));
+        Assert.Empty(Ordered([work], Row(work, 0), Row(other, 0)));
     }
 }

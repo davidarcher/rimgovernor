@@ -330,10 +330,14 @@ observed state holds.
   from 10000. A sleep observed now continues the lie-down whose onset native reads
   (`NeedsForecastPawn.BedThoughts`: given already, due in some ticks, or none drawn).
   A pawn asleep now keeps that sleep only while the outcome sends it no order (#3882):
-  the binding orders it at once unless it has no placed task or its first is a distant
-  service left to vanilla, and an order interrupts the lie-down. Left alone it sleeps
-  on (a rest from tick 0 at its `LyingIn` rate) until its rest reaches the wake
-  threshold or its first planned departure; a hediff that blocks sleeping wakes it at
+  an order interrupts the lie-down, and the forecast reads the binding's own rule for
+  whom it orders at once (`CoordinatedActivityBinding.OrderedAtStart`, #3884): no one
+  when a placed allocation has no binding, else every pawn with a placed task but one
+  whose first is a distant service left to vanilla. Left alone it sleeps on (a rest
+  from tick 0 at its `LyingIn` rate) until its rest reaches the wake threshold or the
+  schedule has it leave for its first task: other work at its departure, a service at
+  its planned start less travel, since no order holds it waiting there (its service
+  then departs when the sleep ends); a hediff that blocks sleeping wakes it at
   once, and a deathrest is `deathrest_continuation_unassessed` (#3883). Woken at tick 0, its
   `FinalizeLayingJob` gives the bed thoughts again when they were given (from the
   lie-down's `LyingIn` place and the owned bed's room), and the mood timeline has it

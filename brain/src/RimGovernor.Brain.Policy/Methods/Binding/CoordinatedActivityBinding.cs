@@ -23,34 +23,59 @@ internal static class CoordinatedActivityBinding
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
-        var active = Start(selection, bindings, authority, method, tick, unplaced);
-        // The scheduler departs a waiting pawn at once and holds it at the site: its service is as far as its planned start.
-        var leave = selection.Plan?.Allocations.GroupBy(a => a.Activity, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => checked(tick + (long)Math.Floor(g.Min(a => a.Start - a.TravelTicks))), StringComparer.Ordinal);
-        return DeferDistantServices(active, tick, leave);
+        if (Start(selection, bindings, authority, method, tick, unplaced) is not { } active) return null;
+        var ordered = OrderedAtStart(selection.Plan!.Allocations, bindings, unplaced);
+        if (active.Orders.All(o => ordered.Contains(o.Pawn))) return active;
+        var orders = active.Orders.Where(o => ordered.Contains(o.Pawn)).ToArray();
+        return orders.Length == 0 ? null : new(active.AuthorityGeneration, orders)
+            { Tasks = EquatableArray.From(active.Tasks.Where(t => ordered.Contains(t.Pawn))) };
     }
 
-    /// <summary>An installed Method is protected from reselection, so holding a pawn for a service that departs far ahead would
-    /// freeze the colony until the hold ends (#3047). A pawn whose first task is such a service, with nothing waiting on it,
-    /// is left out like any unselected pawn: it runs vanilla work (#3669) and a later review starts the service once it is due. So
-    /// is a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of
-    /// a day; left out, it eats from what the work has stocked by then.</summary>
-    internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, IReadOnlyDictionary<string, long>? leave = null)
+    /// <summary>
+    /// The pawns a schedule orders at once (#3884): the one rule <see cref="StartSelected"/> installs and the forecast reads for a
+    /// pawn asleep now, whose lie-down an order interrupts. <see cref="Start"/> orders each pawn with a placed task (a planned
+    /// site's work has no action template, #3278) its first, by departure then id, and orders no one when a placed allocation
+    /// has no binding. A pawn is left out, like any unselected pawn, when that first task is a distant service: an installed
+    /// Method is protected from reselection, so holding a pawn for a service far ahead would freeze the colony until the hold ends
+    /// (#3047). It runs vanilla work (#3669) and a later review starts the service once it is due. Such a service is one the pawn
+    /// prepares for (a prerequisite, or a later departure) that it leaves for (<see cref="Leave"/>) more than
+    /// DistantServiceTicks ahead, every prerequisite another pawn's task, with no other pawn's task waiting on one of its own. So
+    /// is a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of a
+    /// day; left out, it eats from what the work has stocked by then.
+    /// </summary>
+    internal static IReadOnlySet<string> OrderedAtStart(IReadOnlyList<ForecastActivityAllocation> allocations,
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, IReadOnlySet<string> unplaced)
     {
-        if (active is null) return null;
-        var far = active.Orders.Where(o => !o.Release && o.Preparing && active.Tasks.SingleOrDefault(t => t.Id == o.Task) is { } task
-            && task.Prerequisites.All(p => active.Tasks.Any(t => t.Id == p && t.Pawn != o.Pawn))
-            && task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat
-            && Math.Max(task.DepartTick, leave?.GetValueOrDefault(task.Id) ?? 0) - tick > DistantServiceTicks
-            && !active.Tasks.Any(t => t.Pawn != o.Pawn && t.Prerequisites.Any(p => active.Tasks.Any(r => r.Pawn == o.Pawn && r.Id == p))))
-            .ToArray();
-        if (far.Length == 0) return active;
-        var pawns = far.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
-        var orders = active.Orders.Where(o => !pawns.Contains(o.Pawn)).ToArray();
-        return orders.Length == 0 ? null : new(active.AuthorityGeneration, orders)
-            { Tasks = EquatableArray.From(active.Tasks.Where(t => !pawns.Contains(t.Pawn))) };
+        var placed = new List<(ForecastActivityAllocation Allocation, ActivityTaskCandidate Task)>();
+        foreach (var a in allocations)
+        {
+            if (unplaced.Contains(a.Activity)) continue;
+            if (!bindings.TryGetValue((a.Activity, a.Pawn), out var task)) return new HashSet<string>();
+            placed.Add((a, task));
+        }
+        var ordered = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var own in placed.GroupBy(t => t.Task.Pawn, StringComparer.Ordinal))
+        {
+            var (first, task) = own.OrderBy(t => Math.Ceiling(t.Allocation.Depart)).ThenBy(t => t.Task.Id, StringComparer.Ordinal).First();
+            var distant = (task.Prerequisites.Count != 0 || Math.Ceiling(first.Depart) > 0)
+                && task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat
+                && Leave(first, allocations) > DistantServiceTicks
+                && task.Prerequisites.All(p => placed.Any(t => t.Task.Id == p && t.Task.Pawn != own.Key))
+                && !placed.Any(t => t.Task.Pawn != own.Key && t.Task.Prerequisites.Any(p => own.Any(r => r.Task.Id == p)));
+            if (!distant) ordered.Add(own.Key);
+        }
+        return ordered;
     }
-    internal const long DistantServiceTicks = 600;
+
+    /// <summary>The tick, from now, a schedule has a pawn leave for <paramref name="a"/>: its departure, or later when the
+    /// scheduler departs it at once to wait at the site, the activity's planned start less its travel.</summary>
+    private static double Leave(ForecastActivityAllocation a, IReadOnlyList<ForecastActivityAllocation> allocations)
+    {
+        var start = double.PositiveInfinity;
+        foreach (var row in allocations) if (row.Activity == a.Activity) start = Math.Min(start, row.Start - row.TravelTicks);
+        return Math.Max(Math.Ceiling(a.Depart), Math.Floor(start));
+    }
+    private const long DistantServiceTicks = 600;
 
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
@@ -154,7 +179,7 @@ internal static class CoordinatedActivityBinding
             // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
             // itself a service is what that review selected: releasing it would only reselect it, every review (#3167).
             // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
-            // As at the start (DeferDistantServices, #3047), a participant at a boundary is not held for a next service departing
+            // As at the start (OrderedAtStart, #3047), a participant at a boundary is not held for a next service departing
             // far ahead, owned and unreviewable: a pawn that woke early (#3598), finished its work or waits on other pawns' work,
             // such as an eater held for the cook's last meal for most of a day (#3167), is released to vanilla work (#3669), and a later review
             // starts the service once it is due (#3649).

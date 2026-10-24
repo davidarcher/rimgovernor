@@ -531,13 +531,29 @@ public sealed class PlannedRoomCreditTests
     }
 
     /// <summary>
-    /// #3882: whether the outcome wakes a pawn asleep now is the binding's (CoordinatedActivityBinding.Start and
-    /// DeferDistantServices). A sleep it departs for at once is an order now, which wakes the pawn at tick 0 (its mood, which
-    /// freezes while asleep, moves from there); one departing more than DistantServiceTicks ahead is left to vanilla, so the
-    /// observed lie-down goes on (0.2 rest gaining 0.00002 a tick, below the wake threshold) and the mood holds until it leaves.
+    /// #3882: whether the outcome wakes a pawn asleep now is the binding's (CoordinatedActivityBinding.OrderedAtStart, #3884). A
+    /// sleep it departs for at once is an order now, which wakes the pawn at tick 0 (its mood, which freezes while asleep, moves
+    /// from there); one departing more than DistantServiceTicks ahead is left to vanilla, so the observed lie-down goes on (0.2
+    /// rest gaining 0.00002 a tick, below the wake threshold) and the mood holds until it leaves.
     /// </summary>
     [Fact]
     public void AnOrderWakesASleeperAndADistantSleepLeavesItAsleep()
+    {
+        var (facts, outcomes) = SleeperRests();
+        var context = facts.CoupledAlternatives!.Context;
+        bool Ordered(ForecastCoupledOutcome o) => RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(
+            o.Plan.Allocations, context.Bindings, context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal)).Contains("pawn");
+        var woken = outcomes.First(Ordered).Needs["pawn"].Mood!;
+        Assert.NotEqual(woken.Trajectory[0].Actual, woken.Trajectory.First(p => p.Tick > 0).Actual);
+        var distant = outcomes.First(o => !Ordered(o));
+        var asleep = distant.Needs["pawn"].Mood!;
+        Assert.True(asleep.BreakRisk.IsKnown);
+        Assert.Equal(asleep.Trajectory[0].Actual, asleep.Trajectory.First(p => p.Tick >= distant.Plan.Allocations[0].Depart).Actual);
+    }
+
+    /// <summary>The builder asleep in its bed gaining 0.00002 rest a tick, its bed thoughts given, and the forecast outcomes of each
+    /// rest alone, as its own exclusive alternative.</summary>
+    private static (RoundsFacts Facts, ForecastCoupledOutcome[] Outcomes) SleeperRests()
     {
         var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => pawn with
         {
@@ -547,17 +563,65 @@ public sealed class PlannedRoomCreditTests
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } };
         var generated = facts.CoupledAlternatives!;
         var rests = generated.Context.NeedTasks.Where(n => n.Kind == "rest").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
-        // Each rest is its own exclusive alternative.
         var outcomes = generated.Alternatives.Where(c => c.ActivityCompletions.Count == 1 && rests.Contains(c.ActivityCompletions[0]))
-            .SelectMany(r => ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
-                facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [r] })).Proposed.Coupled!.Alternatives)
+            .SelectMany(r => ColonyForecastRules.ForecastColony(SleeperRequest(facts, r)).Proposed.Coupled!.Alternatives)
             .Where(o => o.Plan.Allocations.Length == 1).ToArray();
-        var woken = outcomes.First(o => o.Plan.Allocations[0].Start <= RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.DistantServiceTicks).Needs["pawn"].Mood!;
-        Assert.NotEqual(woken.Trajectory[0].Actual, woken.Trajectory.First(p => p.Tick > 0).Actual);
-        var distant = outcomes.First(o => o.Plan.Allocations[0].Depart > RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.DistantServiceTicks);
-        var asleep = distant.Needs["pawn"].Mood!;
-        Assert.True(asleep.BreakRisk.IsKnown);
-        Assert.Equal(asleep.Trajectory[0].Actual, asleep.Trajectory.First(p => p.Tick >= distant.Plan.Allocations[0].Depart).Actual);
+        return (facts, outcomes);
+    }
+
+    private static ColonyForecastRequest SleeperRequest(RoundsFacts facts, ForecastCommitment rest) =>
+        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [rest] });
+
+    /// <summary>
+    /// #3884: the forecast wakes a pawn asleep now exactly when the binding orders it at tick 0, in the two cases the copy of the
+    /// rule got wrong. A helper's cooking stands beside the sleeper's rest; the sleeper's mood, which freezes while asleep, moves
+    /// from tick 0 only when StartSelected sends it an order.
+    /// - The schedule departs the sleeper at once to wait for a rest that waits on the cooking and starts far ahead: the binding
+    ///   leaves it out, so its lie-down goes on until it must leave.
+    /// - The cooking has no binding: Start orders no one, so a rest due soon (which, the cooking bound, is an order now) leaves the
+    ///   sleeper asleep.
+    /// </summary>
+    [Fact]
+    public void TheForecastWakesASleeperExactlyWhenTheBindingOrdersIt()
+    {
+        var (facts, outcomes) = SleeperRests();
+        var outcome = outcomes.First(o => o.Plan.Allocations[0].Start > 0);
+        var rest = outcome.Plan.Allocations[0];
+        var commitment = facts.CoupledAlternatives!.Alternatives.Single(c => c.ActivityCompletions.SequenceEqual([rest.Activity]));
+        var request = SleeperRequest(facts, commitment);
+        var context = request.Coupled!;
+        var cook = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("cook", "helper", [], PawnActivityKind.Work, "stove", "", "FinishFrame", 0, 90000, new(0, 0));
+        var sleep = context.Bindings[(rest.Activity, "pawn")];
+        context = context with { Activities = context.Activities with { Activities = [.. context.Activities.Activities, new("cook", "start", "start", [])] } };
+        ForecastActivityAllocation Rest(double depart, double start) => rest with
+        {
+            Depart = depart, Arrive = depart + rest.TravelTicks, Start = start, End = start + (rest.End - rest.Start), WaitTicks = start - depart - rest.TravelTicks,
+        };
+        var cooking = new ForecastActivityAllocation("cook", "helper", 0, 0, 0, 100, 0, 0, 100, 0, 0);
+        void Agree(bool ordered, ForecastCoupledContext bound, ForecastActivityAllocation sleeping)
+        {
+            var plan = new ForecastActivityPlan([sleeping, cooking], sleeping.End, 0);
+            var started = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(new(["selected"], plan, Known(0d), [], 0, false),
+                bound.Bindings, 1, "m", 100, bound.PlannedSites);
+            Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
+            var mood = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = bound },
+                new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment }, bound.Activities, plan).Needs["pawn"].Mood!;
+            Assert.True(mood.BreakRisk.IsKnown);
+            Assert.Equal(ordered, mood.Trajectory[0].Actual != mood.Trajectory.First(p => p.Tick > 0).Actual);
+        }
+        Dictionary<(string Task, string Pawn), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> Bindings(bool cookBound, bool waits)
+        {
+            var bindings = context.Bindings.ToDictionary(b => b.Key, b => b.Value);
+            if (cookBound) bindings[("cook", "helper")] = cook;
+            if (waits) bindings[(rest.Activity, "pawn")] = sleep with { Prerequisites = ["cook"] };
+            return bindings;
+        }
+        // Departed at once to wait 5000 ticks for its rest, which waits on the cooking: left to vanilla, asleep.
+        Agree(false, context with { Bindings = Bindings(cookBound: true, waits: true) }, Rest(0, 5000));
+        // A rest due in 300 ticks is an order now, with the cooking bound; unbound, no one is ordered.
+        Agree(true, context with { Bindings = Bindings(cookBound: true, waits: false) }, Rest(300, 300));
+        Agree(false, context with { Bindings = Bindings(cookBound: false, waits: false) }, Rest(300, 300));
     }
 
     /// <summary>
