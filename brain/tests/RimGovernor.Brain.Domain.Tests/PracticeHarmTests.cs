@@ -141,8 +141,8 @@ public sealed class PracticeHarmTests
         // A fresh colony's tier 2 prices no fighter's stock (no raid yet): the bout earns nothing and is not scheduled.
         var investment = priced ? roster.ToDictionary(p => ProjectGraph.SkillKey(p.Id.Value, "Melee"), _ => 1d, StringComparer.Ordinal) : new Dictionary<string, double>();
         generated = generated with { Context = (generated.Context with { Investment = investment }).Priced() };
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Equal(priced, selected.Selection.Selected.Length > 0);
     }

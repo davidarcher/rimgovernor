@@ -65,8 +65,8 @@ public sealed class CoupledSelectionReaderTests
     public void SearchAccountingIsWrittenAndReadUnderItsOwnNames()
     {
         var facts = ForecastCoupledSelectionTests.Review();
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, new(1, Traversal: 500));
         Assert.Equal(1, selection.OutcomeEvaluations - selection.BaselineEvaluations);
 

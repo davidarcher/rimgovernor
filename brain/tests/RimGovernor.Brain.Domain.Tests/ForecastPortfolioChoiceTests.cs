@@ -17,8 +17,8 @@ public sealed class ForecastPortfolioChoiceTests
     {
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 150)?.Priced() };
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 150d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 150d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Equal(Known(true), selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
@@ -120,8 +120,8 @@ public sealed class ForecastPortfolioChoiceTests
             .Select(g => g.OrderBy(c => c.Id, StringComparer.Ordinal).First()).Take(2).ToArray();
         Assert.Equal(2, roots.Length);
         generated = generated with { Alternatives = EquatableArray.From(roots) };
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()) with { Coupled = generated.Context };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []) with { Coupled = generated.Context };
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         // The oracle ranks every subset's schedules by the comparator's two leading levels: the zero-time floor, then capability-days.
         ForecastValueExplanation? best = null;
@@ -129,7 +129,7 @@ public sealed class ForecastPortfolioChoiceTests
         for (var mask = 0; mask < 1 << roots.Length; mask++)
         {
             var subset = roots.Where((_, i) => (mask & (1 << i)) != 0).ToArray();
-            var result = ColonyForecastRules.ForecastColony(request with { Proposed = new() { Add = EquatableArray.From(subset) } });
+            var result = CoupledForecastKit.Forecast(request, subset);
             foreach (var outcome in result.Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)))
             {
                 var vector = ForecastCoupledSelection.CoupledConsequences(outcome, subset);

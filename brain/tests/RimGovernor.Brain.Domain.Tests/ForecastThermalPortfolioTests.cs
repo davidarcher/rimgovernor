@@ -54,8 +54,8 @@ public sealed class ForecastThermalPortfolioTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     internal static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
-        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+        ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
 
     [Fact]
     public void SharedSelectorCombinesRealShellRoofAndInsideOccupancyForConditionalThermalRelief()

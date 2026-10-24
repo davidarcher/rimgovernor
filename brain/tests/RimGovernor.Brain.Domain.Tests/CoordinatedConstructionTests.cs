@@ -30,8 +30,8 @@ public sealed class CoordinatedConstructionTests
             Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         // This fixture tests assignment and execution of an already requested physical job.
         // A bare wall has no automatic colony value after service-based admission (#3166).
@@ -97,8 +97,8 @@ public sealed class CoordinatedConstructionTests
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + building);
         Assert.Equal("removal/" + building, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         Assert.True(selected.SelectedVector.Development > selected.BaselineVector.Development, string.Join(";", selected.Selection.Findings));
@@ -131,8 +131,8 @@ public sealed class CoordinatedConstructionTests
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + wall);
         Assert.Equal("removal/" + wall, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
@@ -167,8 +167,8 @@ public sealed class CoordinatedConstructionTests
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + trees[0]);
         Assert.Equal("removal/" + trees[0], Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
@@ -204,8 +204,8 @@ public sealed class CoordinatedConstructionTests
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + id);
         Assert.Equal("removal/" + id, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
@@ -236,8 +236,8 @@ public sealed class CoordinatedConstructionTests
             default, default, Known(150d)) { SiteApproachTicks = Known(10d) };
         var facts = RemovalFacts(ConstructionFixtures.Clearing(trees[0], PlannedClearingKind.Cut) with { Options = [row], Targets = EquatableArray.From(trees) });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
@@ -288,8 +288,8 @@ public sealed class CoordinatedConstructionTests
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + item);
         Assert.Equal("removal/" + item, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
@@ -319,8 +319,8 @@ public sealed class CoordinatedConstructionTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver);
         Assert.Equal((item, 100, 75), (binding.Target, binding.Count, binding.Capacity));
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
         Assert.Equal(100, task.Step.Count);

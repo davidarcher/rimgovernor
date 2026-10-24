@@ -76,8 +76,8 @@ public sealed class ClothingChoiceTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         // The colony model's horizon, as the review stamps it before the comparison (Rounder).
         generated = generated with { Context = generated.Context with { InvestmentHorizonDays = 10d } };
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         comparison = selected.Selection;
         return ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100);

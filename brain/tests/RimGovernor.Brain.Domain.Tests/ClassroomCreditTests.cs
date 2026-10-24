@@ -78,8 +78,8 @@ public sealed class ClassroomCreditTests
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var coupled = facts.CoupledAlternatives!;
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", 100),
-            ForecastCoupled.TierOneHorizonDays, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), coupled);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
+            ForecastCoupled.TierOneHorizonDays, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), coupled);
         var chosen = selected.Selection.Selected.ToHashSet(StringComparer.Ordinal);
         var context = coupled.Context with
         {

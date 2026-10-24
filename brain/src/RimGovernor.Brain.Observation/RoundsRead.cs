@@ -162,10 +162,6 @@ public static class RoundsReads
         var census = frame.Buildings ?? throw new ObservationContractException("a routine frame carries no building census");
         p = p with { Facts = p.Facts with { CurrentConstruction = ConstructionReads.ConstructionFromCensus(census) } };
         p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
-        if (p.PowerPlanning.TryGetValue(out var topology))
-        {
-            p = p with { Facts = p.Facts with { ForecastObserved = p.Facts.ForecastObserved with { Power = topology.Networks } } };
-        }
         var pawns = RoundsPawnsOf(frame, id);
         p = p with
         {

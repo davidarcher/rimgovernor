@@ -108,7 +108,7 @@ slot order (end table, dresser, lamp), only below the room's target, one piece a
 in sight. That is a hard-coded build order. The proposal form replaces it: the weakest-stat reasoning (space
 weakest means a suite, not a table) becomes the benefit estimate, not a filter.
 
-Open: how a proposal's benefit is judged. No common unit: the forecast (`ColonyForecast` Baseline against Proposed) judges outcomes, and mood and infrastructure effects are still unsupported domains there. Slot
+Open: how a proposal's benefit is judged. No common unit: the forecast (the coupled scenario with and without the proposal) judges outcomes, and mood and infrastructure effects are still unsupported domains there. Slot
 identity stable across a re-tile (the overlay is keyed by room id and slot).
 
 #### Judging a proposal: the forecast's interface, not a mood model

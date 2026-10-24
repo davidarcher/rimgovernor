@@ -28,9 +28,9 @@ public sealed class ProductiveDemandTests
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
         var eating = generated.Context.NeedTasks.First(n => n.FoodReady == batch.ActivityCompletions[0]);
         var eat = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(eating.Task));
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [batch, eat] });
-        var alternatives = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!.Alternatives;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 700d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var alternatives = CoupledForecastKit.Forecast(request, [batch, eat]).Proposed.Coupled!.Alternatives;
         Assert.Equal(feasible, alternatives.Any(a => a.Feasible == Known(true)));
         if (feasible)
             Assert.Contains(alternatives.Where(a => a.Feasible == Known(true)), a => ForecastActivities.StockChangesOf(generated.Context.Activities, a.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units) == 3);
@@ -38,7 +38,7 @@ public sealed class ProductiveDemandTests
             Assert.Contains(alternatives.SelectMany(a => a.Findings), f => f.Reason == "productive_output_without_useful_demand");
         if (saturated)
         {
-            var choice = ForecastCoupledSelection.CompareActivityOutcomes(request with { Proposed = new() }, generated);
+            var choice = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
             Assert.Empty(choice.Selected.Plan.Allocations);
         }
     }

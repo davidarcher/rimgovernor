@@ -136,14 +136,14 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(["cell/3/1"], targets["pawn"]);
 
         // The per-portfolio bound is 4096 and cannot be raised: a larger bound is rejected, not searched.
-        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Replay(s, s.ReferenceRoots, 4097)));
-        var production = ColonyForecastRules.ForecastColony(Replay(s, s.ReferenceRoots, 4096)).Baseline.Coupled!;
+        Assert.Throws<DomainException>(() => CoupledForecastKit.Forecast(Replay(s, s.ReferenceRoots, 4097)).Baseline);
+        var production = CoupledForecastKit.Forecast(Replay(s, s.ReferenceRoots, 4096)).Baseline.Coupled!;
         Assert.True(production.Truncated);
         // Pinning every activity to its reference worker leaves nothing to assign differently.
         var pairs = PortfolioReferenceScheduleTests.Reference().Select(r => (r.Activity, r.Worker)).ToHashSet();
-        var pinned = ColonyForecastRules.ForecastColony(Replay(s, s.ReferenceRoots, 4096, o => pairs.Contains((o.Activity, o.Pawn)))).Baseline.Coupled!;
-        var mixed = ColonyForecastRules.ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[1]], 4096)).Baseline.Coupled!;
-        var diner = ColonyForecastRules.ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[2]], 4096)).Baseline.Coupled!;
+        var pinned = CoupledForecastKit.Forecast(Replay(s, s.ReferenceRoots, 4096, o => pairs.Contains((o.Activity, o.Pawn)))).Baseline.Coupled!;
+        var mixed = CoupledForecastKit.Forecast(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[1]], 4096)).Baseline.Coupled!;
+        var diner = CoupledForecastKit.Forecast(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[2]], 4096)).Baseline.Coupled!;
         MaybeWrite("replay", new
         {
             Reference = Describe(production, s.ReferenceRoots), Pinned = Describe(pinned, s.ReferenceRoots),
@@ -314,7 +314,7 @@ public sealed class PortfolioSearchDiagnosisTests
     {
         var problem = s.Generated.Context.Activities with { ExpansionBudget = bound };
         if (keep is not null) problem = problem with { Options = [.. problem.Options.Where(keep)] };
-        return s.Request with { Coupled = s.Generated.Context with { Activities = problem }, Commitments = EquatableArray.From(roots), Proposed = new() };
+        return s.Request with { Coupled = s.Generated.Context with { Activities = problem }, Commitments = EquatableArray.From(roots) };
     }
 
     private static object Describe(ForecastCoupledScenario scenario, ForecastCommitment[] roots) => new

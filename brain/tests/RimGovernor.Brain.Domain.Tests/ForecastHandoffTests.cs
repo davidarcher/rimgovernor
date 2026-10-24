@@ -21,7 +21,7 @@ public sealed class ForecastHandoffTests
         var policy = new ColonyModelPolicy { Projects = new() { Nodes = [new() { Id = ProjectGraph.ResearchId(new("Research")), Kind = ProjectKind.Research, Work = 100 }] } };
         var evidence = new WorkAdmissionEvidence { Stock = Known(stock), Standing = new([], new Dictionary<Resource, long>()),
             Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
-        return new() { Origin = new("map", 0), HorizonDays = 1,
+        return new() { Origin = new(0), HorizonDays = 1,
             Facts = new() { Stock = Known(stock), Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), default),

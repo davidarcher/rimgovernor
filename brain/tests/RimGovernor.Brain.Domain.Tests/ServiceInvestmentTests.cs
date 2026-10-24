@@ -45,8 +45,8 @@ public sealed class ServiceInvestmentTests
     public void UnrelatedAdoptedSiteHasNoValueAndNoOriginRequirement()
     {
         var facts = ForecastCoupledTests.ConstructionReview();
-        var selection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 1000d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), 1000d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
         Assert.Contains(facts.CoupledAlternatives!.Alternatives, a => a.ExclusiveOutcome == "construction/frame0");
         Assert.Empty(selection.Selected.CompletedDevelopmentSites);
     }
@@ -81,8 +81,8 @@ public sealed class ServiceInvestmentTests
     public void FoodProposalUsesSameBeneficiariesAndRetiresWhenTheirDemandIsMet()
     {
         var facts = ForecastCoupledSelectionTests.Review();
-        ForecastCoupledSelection Select(RoundsFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100),
-            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
+        ForecastCoupledSelection Select(RoundsFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
+            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, []), f.CoupledAlternatives!);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
         Assert.Equal(FoodRules.FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));

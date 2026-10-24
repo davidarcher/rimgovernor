@@ -29,7 +29,7 @@ public sealed class ForecastStockHandoffTests
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
         var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(Known(facts.Food), []), Stocks = new() { Materials = Known(physical), Nutrition = ForecastStockScope.Nutrition(facts.Food), Medicine = Known<EquatableArray<Amount>>([new(Medicine, 5)]) }, Pawns = Known<EquatableArray<ModelPawn>>([]) };
-        return new() { Origin = new("map", 0), HorizonDays = 1, Facts = facts, Coupled = new()
+        return new() { Origin = new(0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
             Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
             FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],

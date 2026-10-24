@@ -12,14 +12,6 @@ public sealed class ColonyForecastTests
     private static ForecastCommitment Change(string id, double day, double units) =>
         new(id, EquatableArray.From(new[] { new ForecastStockChange(Material, day, units) }));
 
-    private static ColonyForecastRequest Request(params ForecastCommitment[] commitments) => new()
-    {
-        Origin = new("save/map/load", 123),
-        HorizonDays = 3,
-        Facts = new ColonyForecastFacts { Stock = Stock },
-        Commitments = EquatableArray.From(commitments),
-    };
-
     /// <summary>The stock findings of a three-day projection: what a coupled outcome carries of the inventory walk.</summary>
     private static List<ForecastFinding> Findings(Fact<EquatableArray<Amount>> stock, params ForecastCommitment[] commitments)
     {
@@ -58,9 +50,7 @@ public sealed class ColonyForecastTests
     {
         var late = Change("late", 4, 20);
         Assert.Equal("beyond_horizon", Assert.Single(Findings(Stock, late)).Reason);
-        Assert.Equal(["beyond_horizon", "stock_shortfall"], Findings(Stock, late, Change("use", 3, -15)).Select(f => f.Reason));
-        Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays, ColonyDiagnosticsRules.DiagnoseColony(Request(late).Facts).HorizonDays);
-    }
+        Assert.Equal(["beyond_horizon", "stock_shortfall"], Findings(Stock, late, Change("use", 3, -15)).Select(f => f.Reason));    }
 
     [Fact]
     public void SameTimeOutputDoesNotFinanceItsOwnInput()
@@ -73,31 +63,8 @@ public sealed class ColonyForecastTests
     [Fact]
     public void InvalidChangesAndDuplicateCommitmentsAreRejected()
     {
-        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request(Change("a", 0, 1), Change("a", 1, 1))));
-        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request(Change("bad", -1, 1))));
-        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request() with { HorizonDays = double.NaN }));
-        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request() with
-        {
-            Proposed = new ColonyForecastDelta { Remove = EquatableArray.From(new List<string> { "missing" }) },
-        }));
-    }
-
-    [Fact]
-    public void ConstructionDiagnosticsKeepExactResourcesAndUnits()
-    {
-        var other = new Resource("OtherMaterial");
-        var result = ColonyDiagnosticsRules.DiagnoseColony(new ColonyForecastFacts
-        {
-            Stock = Known(EquatableArray.From(new[] { new Amount(other, 100) })),
-            Construction = new ConstructionInputs
-            {
-                Deficit = new Dictionary<Resource, long> { [Material] = 15 },
-            },
-        });
-        var row = Assert.Single(result.Construction.Value.Materials);
-        Assert.Equal(Material, row.Resource);
-        Assert.Equal(15, row.ShortfallUnits);
-        Assert.Equal(0, row.Stock);
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastCommitmentsById([Change("a", 0, 1), Change("a", 1, 1)]));
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastCommitmentsById([Change("bad", -1, 1)]));
     }
 
     [Fact]
@@ -120,32 +87,5 @@ public sealed class ColonyForecastTests
         Assert.Contains(before, f => f.Reason == "unsupported:work_completion");
         Assert.Contains(before, f => f.Reason == "unknown_stock_effect");
         Assert.DoesNotContain(Walk(Change("use", 3, -12), commitment), f => f.Reason == "stock_shortfall");
-    }
-
-    [Fact]
-    public void DiagnosticRatesAreNotInventoryEventsAndFloorsOverlapByMaximum()
-    {
-        var result = ColonyDiagnosticsRules.DiagnoseColony(Request().Facts with
-        {
-            Power = new[]
-            {
-                new PowerNetworkFact
-                {
-                    Id = "net", GenerationW = 0.0,
-                    ConsumptionW = 10.0, StoredWD = 30.0,
-                },
-            },
-            Construction = new ConstructionInputs
-            {
-                Deficit = new Dictionary<Resource, long> { [Material] = 15 },
-                Admitted = EquatableArray.From(new[]
-                {
-                    new AdmittedCost { Resource = Material, Action = new ActionId("build"), Count = 20 },
-                }),
-            },
-        });
-        Assert.Equal(3, Assert.Single(result.Power.Value.Nets).ReserveDays);
-        Assert.Equal(20, Assert.Single(result.Construction.Value.Materials).Need);
-        Assert.Equal(10, Assert.Single(result.Construction.Value.Materials).ShortfallUnits);
     }
 }

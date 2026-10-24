@@ -524,8 +524,8 @@ public sealed class PlannedRoomCreditTests
             RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
         }
         // Sent no order, the pawn sleeps on in its lie-down until its rest reaches the wake threshold (0.8 at 0.00005 a tick).
-        var baseline = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new())).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
+        var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
         Assert.Equal(1, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
         Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
     }
@@ -553,8 +553,8 @@ public sealed class PlannedRoomCreditTests
             Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(),
             LyingIn = LyingInBed with { Place = LyingInBed.Place with { GainPerTick = .00002 }, Deathrest = deathrest },
         }, WithEveryShippedRoom);
-        var baseline = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new())).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
+        var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
         Assert.Equal(rest, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
         Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
         Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_continuation_unassessed");
@@ -596,14 +596,14 @@ public sealed class PlannedRoomCreditTests
         var generated = facts.CoupledAlternatives!;
         var rests = generated.Context.NeedTasks.Where(n => n.Kind == "rest").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         var outcomes = generated.Alternatives.Where(c => c.ActivityCompletions.Count == 1 && rests.Contains(c.ActivityCompletions[0]))
-            .SelectMany(r => ColonyForecastRules.ForecastColony(SleeperRequest(facts, r)).Proposed.Coupled!.Alternatives)
+            .SelectMany(r => CoupledForecastKit.Forecast(SleeperRequest(facts), [r]).Proposed.Coupled!.Alternatives)
             .Where(o => o.Plan.Allocations.Length == 1).ToArray();
         return (facts, outcomes);
     }
 
-    private static ColonyForecastRequest SleeperRequest(RoundsFacts facts, ForecastCommitment rest) =>
-        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [rest] });
+    private static ColonyForecastRequest SleeperRequest(RoundsFacts facts) =>
+        ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
 
     /// <summary>
     /// #3884: the forecast wakes a pawn asleep now exactly when the binding orders it at tick 0, in the two cases the copy of the
@@ -621,7 +621,7 @@ public sealed class PlannedRoomCreditTests
         var outcome = outcomes.First(o => o.Plan.Allocations[0].Start > 0);
         var rest = outcome.Plan.Allocations[0];
         var commitment = facts.CoupledAlternatives!.Alternatives.Single(c => c.ActivityCompletions.SequenceEqual([rest.Activity]));
-        var request = SleeperRequest(facts, commitment);
+        var request = SleeperRequest(facts);
         var context = request.Coupled!;
         var cook = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("cook", "helper", [], PawnActivityKind.Work, "stove", "", "FinishFrame", 0, 90000, new(0, 0));
         var sleep = context.Bindings[(rest.Activity, "pawn")];
@@ -682,7 +682,7 @@ public sealed class PlannedRoomCreditTests
         // A rest due in 300 ticks: an order now, when the review dispatches it (TheForecastWakesASleeperExactlyWhenTheBindingOrdersIt).
         var rest = source with { Depart = 300, Arrive = 300 + source.TravelTicks, Start = 300, End = 300 + (source.End - source.Start), WaitTicks = -source.TravelTicks };
         var commitment = facts.CoupledAlternatives!.Alternatives.Single(c => c.ActivityCompletions.SequenceEqual([rest.Activity]));
-        var request = SleeperRequest(facts, commitment);
+        var request = SleeperRequest(facts);
         var context = request.Coupled!;
         var cook = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("cook", "helper", [], PawnActivityKind.Work, "stove", "", "FinishFrame", 0, 90000, new(0, 0));
         var bindings = context.Bindings.ToDictionary(b => b.Key, b => b.Value);
@@ -778,8 +778,8 @@ public sealed class PlannedRoomCreditTests
     /// <summary>Every outcome the production forecast evaluates over <paramref name="facts"/>, with <paramref name="add"/> proposed.</summary>
     private static ForecastCoupledOutcome[] Evaluated(RoundsFacts facts, double horizon, ForecastCommitment[] add)
     {
-        var forecast = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), horizon / GameTime.TicksPerDay, facts,
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }));
+        var forecast = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), add);
         Assert.True(forecast.Proposed.Coupled is { Alternatives.Count: > 0 }, "proposed: " + string.Join(",", forecast.Proposed.Coupled?.Findings ?? []) + " baseline: " + string.Join(",", forecast.Baseline.Coupled?.Findings ?? []));
         return [.. forecast.Proposed.Coupled!.Alternatives];
     }
@@ -828,8 +828,8 @@ public sealed class PlannedRoomCreditTests
     {
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced());
         if (investment is not null) generated = generated with { Context = (generated.Context with { Investment = investment }).Priced() };
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.NotEmpty(selected.Selection.Selected);
         return (generated.Context, selected.Selected);

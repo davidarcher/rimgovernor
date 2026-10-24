@@ -274,8 +274,8 @@ public sealed class ForecastConditionalMoodTests
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced(horizon);
         facts = facts with { CoupledAlternatives = candidates };
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         return (candidates, ForecastCoupledSelection.CompareActivityOutcomes(request, candidates));
     }
 

@@ -150,8 +150,8 @@ public sealed class PlannedRoomActivitiesTests
 
     private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null)
     {
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
 

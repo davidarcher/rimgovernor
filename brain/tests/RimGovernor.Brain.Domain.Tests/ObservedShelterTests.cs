@@ -78,8 +78,8 @@ public sealed class ObservedShelterTests
         ForecastCoupledSelection Select(RoundsFacts facts)
         {
             facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300) };
-            return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300d / GameTime.TicksPerDay, facts,
-                new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+            return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay, facts,
+                new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
         }
 
         var planned = Warm(Facts() with { PlannedShelters = [new() { Id = 7, Region = RegionRules.RectRegion(new(1, 1, 2, 3)) }] });

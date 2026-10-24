@@ -69,8 +69,8 @@ public sealed class CapabilityMaintenanceTests
             Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!;
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         Assert.NotEmpty(selected.Selection.Selected);
         Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(selected.Selected.Maintenance[0].MissingXp).Xp < Assert.IsType<ForecastMaintenanceGap.Projected>(selected.Baseline.Maintenance[0].MissingXp).Xp);

@@ -13,35 +13,7 @@ public sealed record ColonyForecastFacts
     public bool FoodUnread { get; init; }
     public MedicalReserveObservation Medicine { get; init; } = new();
 
-    public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
-
-    public ConstructionInputs Construction { get; init; } = new();
-
     public ItemFacts Items { get; init; } = new();
-}
-
-/// <summary>
-/// Describes current conditions against the maintenance horizon. These are not plan trajectories. An unread input is an unknown
-/// fact, never a default.
-/// </summary>
-public sealed record ColonyDiagnostics
-{
-    public double HorizonDays { get; init; }
-
-    public Fact<PowerProjection> Power { get; init; }
-
-    public Fact<ConstructionProjection> Construction { get; init; }
-}
-
-/// <summary>One net's stored energy over its current net drain.</summary>
-public sealed record PowerNetProjection(string Id, double ReserveDays, double ShortfallDays);
-
-public sealed record PowerProjection
-{
-    public IReadOnlyList<PowerNetProjection> Nets { get; init; } = [];
-
-    /// <summary>The largest per-net shortfall.</summary>
-    public double ShortfallDays { get; init; }
 }
 
 public static class ColonyDiagnosticsRules
@@ -49,33 +21,6 @@ public static class ColonyDiagnosticsRules
     /// <summary>Existing maintenance target window; independent of the requested plan horizon.</summary>
     public const double MaintenanceHorizonDays = 5.0;
 
-    /// <summary>Retains current-condition diagnostics without treating planned effects as observations.</summary>
-    internal static ColonyDiagnostics DiagnoseColony(ColonyForecastFacts input) =>
-        new()
-        {
-            HorizonDays = MaintenanceHorizonDays,
-            Power = ProjectPower(input.Power),
-            Construction = ConstructionProjectionRules.ProjectConstruction(input.Construction, input.Stock),
-        };
-
-    /// <summary>The days a runway falls short of target: the one formula the power projection and NutritionDemand share.</summary>
+    /// <summary>The days a runway falls short of target, as NutritionDemand reads it.</summary>
     public static double RunwayShortfall(double runway, double target) => Math.Max(0, target - runway);
-
-    private static Fact<PowerProjection> ProjectPower(IReadOnlyList<PowerNetworkFact> nets)
-    {
-        if (nets.Count == 0)
-        {
-            return Unknown<PowerProjection>();
-        }
-        var rows = new List<PowerNetProjection>();
-        var shortfall = 0.0;
-        foreach (var n in nets)
-        {
-            var days = n.ReserveDays();
-            var row = new PowerNetProjection(n.Id, days, RunwayShortfall(days, MaintenanceHorizonDays));
-            shortfall = Math.Max(shortfall, row.ShortfallDays);
-            rows.Add(row);
-        }
-        return Known(new PowerProjection { Nets = [.. rows.OrderBy(n => n.Id, StringComparer.Ordinal)], ShortfallDays = shortfall });
-    }
 }

@@ -285,7 +285,7 @@ public sealed partial record ForecastCoupledSelection
         span?.SetTag("rimgovernor.roots", candidates.Alternatives.Count + candidates.Incumbents.Count);
         span?.SetTag("rimgovernor.budget.evaluations", ledger.Budget.Evaluations);
         span?.SetTag("rimgovernor.budget.traversal", ledger.Budget.Traversal);
-        request = request with { Coupled = candidates.Context, Proposed = new() };
+        request = request with { Coupled = candidates.Context };
         var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
         var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         // One cache for the whole search (#3468): the context's indexes and every pawn's timelines are shared across portfolios.

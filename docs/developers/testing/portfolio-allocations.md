@@ -331,7 +331,7 @@ for the normal gate. **Hypotheses** are labeled as such.
    four in the test, the last two in opt-in runs by last root and pair position); the
    production comparison was removed with the traversal change.
 3. **Scheduler on the reference set (production bound).** Replaying the four roots
-   through `ForecastColony` (the public route to `ForecastCoupledScenarioOf`) with the
+   through `ForecastCoupledScenarioOf` with the
    production per-portfolio bound: 4,096 expansions, truncated, 1,023 alternatives,
    **1,023 feasible**, none carrying an owner or stack-quantity refusal (#3210; before
    it, 0 feasible, every alternative refused with `conflicting_selected_target_owners`

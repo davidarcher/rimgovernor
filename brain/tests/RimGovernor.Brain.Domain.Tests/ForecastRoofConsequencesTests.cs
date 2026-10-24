@@ -105,8 +105,8 @@ public sealed class ForecastRoofConsequencesTests
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || sites.Any(site => c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
         Assert.Equal(sites.Length + 1, roots.Length);
-        var forecast = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
+        var forecast = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), roots);
         var moods = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true))
             .Select(a => a.Needs["pawn"].Mood).Where(m => m is { Trajectory.Count: > 0 }).Select(m => m!.Trajectory[^1].Target.Value).ToArray();
         Assert.NotEmpty(moods);

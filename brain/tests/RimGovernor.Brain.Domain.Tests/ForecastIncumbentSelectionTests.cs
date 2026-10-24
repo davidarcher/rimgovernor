@@ -44,8 +44,8 @@ public sealed class ForecastIncumbentSelectionTests
         };
         var candidates = new ForecastCoupledCandidates(context, meal ? [eat] : [], [], false) { Incumbents = [current] };
         facts = facts with { CoupledAlternatives = candidates };
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         return (request, candidates);
     }
 
@@ -98,8 +98,8 @@ public sealed class ForecastIncumbentSelectionTests
         var helper = new ForecastCommitment("helper-joy", []) { ActivityCompletions = ["helper-joy"] };
         // No native dispatch bindings exist for the synthetic incumbent. The exact need target
         // must still prevent a second owner, even when native participant capacity allows it.
-        var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context,
-            Commitments = candidates.Incumbents, Proposed = new() { Add = [helper] } });
+        var forecast = CoupledForecastKit.Forecast(request with { Coupled = context,
+            Commitments = candidates.Incumbents }, [helper]);
         Assert.DoesNotContain(forecast.Proposed.Coupled!.Alternatives, a => a.Feasible == Known(true));
         Assert.Contains(forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings),
             f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "horseshoes");
@@ -130,8 +130,8 @@ public sealed class ForecastIncumbentSelectionTests
                 Pawns = [.. context.Activities.Pawns, .. names.Select(n => new ForecastPawnCapacity(n, "start", new ForecastCapacityWindows.Read([new(0, 300)]), 1d))]
             }
         };
-        var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context, Commitments = candidates.Incumbents,
-            Proposed = new() { Add = [.. names.Select(n => new ForecastCommitment(n + "-joy", []) { ActivityCompletions = [n + "-joy"] })] } });
+        var forecast = CoupledForecastKit.Forecast(request with { Coupled = context, Commitments = candidates.Incumbents },
+            [.. names.Select(n => new ForecastCommitment(n + "-joy", []) { ActivityCompletions = [n + "-joy"] })]);
         anyFeasible = forecast.Proposed.Coupled!.Alternatives.Any(a => a.Feasible == Known(true));
         return [.. forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings)];
     }
@@ -170,7 +170,7 @@ public sealed class ForecastIncumbentSelectionTests
             },
         };
         var both = new ForecastCommitment("both", []) { ActivityCompletions = eatStart > 0 ? ["haul", "work", "eat"] : ["haul", "eat"] };
-        var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context, Commitments = [], Proposed = new() { Add = [both] } });
+        var forecast = CoupledForecastKit.Forecast(request with { Coupled = context, Commitments = [] }, [both]);
         var outcomes = forecast.Proposed.Coupled!.Alternatives;
         var findings = string.Join(",", outcomes.SelectMany(a => a.Findings).Select(f => f.Reason + ":" + f.Commitment));
         Assert.True(fits == outcomes.Any(a => a.Feasible == Known(true)), findings);

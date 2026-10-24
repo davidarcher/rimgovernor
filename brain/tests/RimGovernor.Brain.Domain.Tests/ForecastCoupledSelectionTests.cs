@@ -92,15 +92,15 @@ public sealed class ForecastCoupledSelectionTests
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null, params ForecastCommitment[] incumbent)
     {
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
-            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent));
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
     private static readonly string[] NoSuchRoot = ["no/such/root"];
     private static ForecastCoupledSelection SelectWarm(RoundsFacts facts, IReadOnlyList<string> warmStart, ForecastSearchBudget? budget = null)
     {
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, warmStart);
     }
 
@@ -129,8 +129,8 @@ public sealed class ForecastCoupledSelectionTests
         LazyEvaluationTests.AssertPaired(ForecastCoupledSelection.CompareActivityOutcomesEagerly(RequestOf(Review()), Review().CoupledAlternatives!), result);
     }
 
-    private static ColonyForecastRequest RequestOf(RoundsFacts facts, double horizon = Horizon) => ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-        facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+    private static ColonyForecastRequest RequestOf(RoundsFacts facts, double horizon = Horizon) => ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
+        facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
 
     /// <summary>Two pawns with their own food needs and, each, a harvest-and-eat root per plant (#3724): "pawn" starves at
     /// <paramref name="pawnLevel"/> and "worker" at <paramref name="workerLevel"/>, both falling .003 a tick against the .3 threshold,
@@ -770,8 +770,8 @@ public sealed class ForecastCoupledSelectionTests
         // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
         Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
-        double Cold(params ForecastCommitment[] add) => ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
-                facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
+        double Cold(params ForecastCommitment[] add) => CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
+                facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), add)
             .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
         Assert.True(Cold([.. work, root]) > Cold(work));
     }
@@ -863,9 +863,9 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
-        ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
+        CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
-            [], new() { Add = EquatableArray.From(add) })).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+            []), add).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
 
     [Fact]
     public void AComfortShiftRaisesTemperatureMoodAlongTheOutdoorWork()

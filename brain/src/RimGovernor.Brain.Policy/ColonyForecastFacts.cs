@@ -8,7 +8,6 @@ public sealed record ColonyForecastObserved
     public RimGovernor.Contracts.Wire.Observations.NeedsForecastRead? Needs { get; init; }
     public RimGovernor.Contracts.Wire.Observations.CoupledForecastRead? Coupled { get; init; }
     public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
-    public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
 }
 
 public static class ColonyForecastFactsRules
@@ -20,8 +19,6 @@ public static class ColonyForecastFactsRules
         {
             Stock = f.Resources,
             ResourceThings = f.ResourceThings,
-            Power = f.ForecastObserved.Power,
-            Construction = new ConstructionInputs { Deficit = f.CurrentConstruction?.Deficit, Admitted = f.Admitted },
             Items = f.Items,
             Medicine = f.MedicalReserve,
         };

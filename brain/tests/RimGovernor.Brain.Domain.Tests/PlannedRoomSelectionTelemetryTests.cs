@@ -20,8 +20,8 @@ public sealed class PlannedRoomSelectionTelemetryTests
     {
         var facts = PlannedShelterTests.UnplacedHeatedRoom();
         var candidates = facts.CoupledAlternatives!;
-        var real = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100),
-            PlannedShelterTests.Horizon / GameTime.TicksPerDay, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), candidates);
+        var real = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
+            PlannedShelterTests.Horizon / GameTime.TicksPerDay, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), candidates);
         Assert.NotEmpty(real.Selected.PlannedRooms);
         var roomRejected = real.Rejected.Where(r => r.Commitments.Any(id => id.StartsWith("planned/room1/", StringComparison.Ordinal))).ToArray();
         Assert.NotEmpty(roomRejected);

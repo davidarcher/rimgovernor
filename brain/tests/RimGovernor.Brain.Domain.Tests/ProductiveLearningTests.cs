@@ -97,8 +97,8 @@ public sealed class ProductiveLearningTests
     {
         var facts = NormalFoodFacts(learning, speed);
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 700d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
         var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, generated, 1, "cooking", 100));
         var recipes = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Recipe).ToArray();

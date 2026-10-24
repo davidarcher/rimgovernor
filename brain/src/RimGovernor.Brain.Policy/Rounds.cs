@@ -926,8 +926,8 @@ public static partial class RoundsRules
         var warm = WarmStartOf(f.PreviousCoupledSelection, f.PreviousPlannedShelters, f.PlannedShelters);
         r.CoupledWarmStartTranslated = warm.Zip(f.PreviousCoupledSelection).Count(pair => pair.First != pair.Second);
         if (f.CoupledAlternatives is { } coupled)
-            r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
-                ForecastCoupled.TierOneHorizonDays, f, demand, [], new()), coupled, warmStart: warm, clockMs: clockMs);
+            r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(f.Tick.Value),
+                ForecastCoupled.TierOneHorizonDays, f, demand, []), coupled, warmStart: warm, clockMs: clockMs);
         // Each colonist's value against the work the selection left short (#3825), once tier 2 has given the pawns' free hours.
         if (r.CoupledSelection is { } selected && f.CoupledAlternatives is { Context.ModelBasis: { } basis } candidates)
             (r.WorkShortfall, r.PawnValues, r.PawnValuesAwaitingPlan) = PawnValueRules.Review(candidates, selected, f.ForecastObserved.Needs ?? throw new RequiredFactException("needs read"),

@@ -162,8 +162,8 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Equal(150d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == waiting).WorkTicks);
         Assert.Equal(40d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == incumbent.Commitment).WorkTicks);
         Assert.Equal(160d, Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment).LatestStart);
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            prepared,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            prepared,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Equal(Known(true), selected.Baseline.Feasible);
         Assert.DoesNotContain(incumbent.Commitment, selected.Selection.Selected);
@@ -249,8 +249,8 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.DoesNotContain("unknown_needs_capacity", candidates.Findings);
         Assert.Empty(candidates.Incumbents); // No retain commitment: the comparison sees both cooks free.
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns); // Admission claims stay until the release is observed.
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper" && candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Recipe);
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
@@ -310,8 +310,8 @@ public sealed class ForecastIncumbentPreparationTests
         var (facts, actions) = BoundaryCooking(10, "completed", finished: true, busy: "independent");
         var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var candidates = prepared.CoupledAlternatives!.Priced();
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper" && candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Recipe);
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);

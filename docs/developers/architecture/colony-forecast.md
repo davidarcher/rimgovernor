@@ -7,10 +7,10 @@ limits, exact execution ownership and the replacement acceptance cases.
 
 [Architecture](overview.md) · [Forecast facts](../contracts/forecast-contracts.md)
 
-`ColonyForecastRules.ForecastColony` is the pure owner of a baseline and a proposed
-commitment delta evaluated against the same observed facts. It returns
-`ColonyForecast`; it does not issue orders or certify native legality. The
-inventory component accounts for supplied timed changes. The coupled component below composes food, needs, construction and
+`ForecastCoupled.ForecastCoupledScenarioOf` is the pure owner of a commitment set's
+forecast over the observed facts. It returns a `ColonyForecastScenario`; it does not issue
+orders or certify native legality. The inventory walk accounts for supplied timed changes.
+The coupled component below composes food, needs, construction and
 clothing consequences on one timeline. [Normal portfolio selection](portfolio-selection.md)
 uses these consequences before binding through the existing journal and Hands.
 
@@ -24,14 +24,12 @@ and its compiler-enforced boundaries.
 
 ## Input and accounting
 
-This section describes the inventory-only conditional accounting component.
+This section describes the conditional inventory accounting each coupled schedule is walked against.
 The coupled trajectory below additionally validates task feasibility and yields.
 
-`ColonyForecastRequest` identifies the observed world/load scope and tick, an
-explicit horizon in game days, current facts, existing commitments, a delta,
-and the caller's assumptions. The world string must identify the loaded
-timeline; it is provenance, not a replacement for native dispatch validation.
-`ColonyForecastFactsOf` assembles the available diagnostic facts from
+`ColonyForecastRequest` identifies the observed tick, an
+explicit horizon in game days, current facts and existing commitments.
+`ColonyForecastFactsOf` assembles the observed stock, food, medicine and item facts from
 `RoundsFacts`. Coupled review inputs feed normal portfolio selection, the only
 selector of a controlled pawn's ordinary work: the voluntary-control cutover
 (#3135) retired the competing routine writers, so no timetable or adviser
@@ -44,11 +42,9 @@ are a consumption. This is a conditional accounting model: delivery timing is
 supplied, not a prediction of native worker completion. Unsupported effects
 travel with the commitment as findings.
 
-The delta removes IDs and adds commitments; replace by removing and adding the
-same ID. An empty delta means continue. Duplicate IDs, missing removals,
-negative times and nonfinite known quantities are rejected.
+Duplicate IDs, negative times and nonfinite known quantities are rejected.
 
-Both alternatives begin at the observed resource census. Known empty means
+Every alternative begins at the observed resource census. Known empty means
 zero inventory; unknown does not. Pending delivery is never added to observed
 stock. Rows are deterministic by resource, time and commitment ID. At equal
 times consumption precedes delivery so output cannot pay for its own inputs.
@@ -73,32 +69,30 @@ maximum overlapping stock floors are not additive physical consumption.
 For example, start with 10 units and a build consuming 15 on day 1. A delivery
 of 10 on day 2 produces a day-1 deficit of 5. Replacing only that delivery with
 one on day 0.5 removes the inventory deficit while leaving observed stock at
-10 in both alternatives. It says nothing yet about which pawn can deliver it.
+10 in both. It says nothing yet about which pawn can deliver it.
 `ColonyForecastTests` exercises the inventory walk and the uncertainty boundaries.
 
-## Diagnostics and model coverage
+## Model coverage
 
-`ColonyForecast.Observed` retains current-condition diagnostics. Its five-day
-`MaintenanceHorizonDays` is independent of the requested plan horizon. The
-constant still serves existing supply targets; renaming it does not change
-their behavior. Proposed inventory changes do not rewrite these observations.
+The five-day `MaintenanceHorizonDays` is independent of the requested plan horizon. The
+constant serves the existing supply targets. Proposed inventory changes do not rewrite observations.
 
-| Domain | Observed diagnostic and meaning | Coupled coverage or remaining boundary |
+| Domain | Existing runway or demand and meaning | Coupled coverage or remaining boundary |
 | --- | --- | --- |
 | Inventory | Timed conditional balances, reported as shortfall findings | Timed task inputs/yields in the coupled trajectory |
 | Food | Existing eligibility/rot-aware stock runway; no future delivery credit | Bounded acquisition, batches, delivery and recurring human ingestion |
-| Power | Current network reserves at observed drain | Current-network heater supply; future generation changes unassessed |
+| Power | Current network reserves at observed drain (`PowerMethod`) | Current-network heater supply; future generation changes unassessed |
 | Temperature | Current sleeping extremes; current breach held over maintenance horizon | Conditional planned-room heat balance; future weather unassessed |
 | Defense | Current usable turret DPS and explicit gaps | Hunt rosters priced from the qualified [encounter estimates](../contracts/encounter-prediction.md); raid outcomes unassessed |
-| Construction | Exact-resource stock/need/shortfall in units; no fabricated ETA or interchangeable stone pools | Shared construction/material/needs timeline |
+| Construction | Exact-resource owed and admitted needs in units; no fabricated ETA or interchangeable stone pools | Shared construction/material/needs timeline |
 | Fuel | Existing consumer burn and refill-demand diagnostic | Future scheduled supply/consumption |
 | Drugs/materials/medicine | Existing realized-use runway diagnostics | Future timed activity effects |
 | Animal feed | Existing herd/pasture/feed runway diagnostic | Future animal feeding behavior remains outside the coupled human-needs model |
 | Pawn time, mood and needs | Explicitly unsupported by this component | Current-rate needs and future capacity; calibration through #3125 |
 | Infrastructure and dependencies | Explicitly unsupported; supplied effects are conditional | Supported planned-room prerequisites; general infrastructure unassessed |
 
-No diagnostic is a calibrated whole-colony trajectory. The returned unsupported
-list makes the omitted effects visible even when all inventory balances are
+No row is a calibrated whole-colony trajectory. A schedule's findings
+make the omitted effects visible even when all inventory balances are
 positive. Preferences and safeguards stay separate from physical forecasts;
 there is no learned weight or common scalar utility in this owner.
 
@@ -122,8 +116,7 @@ private winner, and nothing shadows the comparison.
 
 ## Coupled food, needs and production trajectory
 
-The coupled component of `ForecastColony` evaluates baseline and proposed
-commitments against one world, observation tick and horizon. Normal Rounds
+`ForecastCoupledScenarioOf` evaluates a commitment set against one world, observation tick and horizon. Normal Rounds
 assembles `CoupledAlternatives` from the native forecast census, existing shared
 work-resource view, needs and saved planned-room intent. `CoupledForecastRequestOf`
 requires these ticks to agree; a mixed frame cannot certify a consequence.
@@ -503,7 +496,7 @@ zero-cost defaults. Standing journal claims protect current work, and selected a
 Method/Hands continuation path. See [normal portfolio selection](portfolio-selection.md) for supported scope and the
 distinction between registered native cases and observed gameplay evidence.
 
-`ForecastColony` no longer schedules a construction slice of its own (#3894): `ForecastConstructionContext`, its
+The forecast no longer schedules a construction slice of its own (#3894): `ForecastConstructionContext`, its
 per-commitment estimates and `Construction` results had no reader once the coupled trajectory took construction over,
 so they were deleted with their tests rather than hardened.
 

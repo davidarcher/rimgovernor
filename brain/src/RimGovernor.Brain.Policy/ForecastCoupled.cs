@@ -254,8 +254,7 @@ public static partial class ForecastCoupled
     /// <summary>Composition boundary used by normal Rounds facts: one observed frame, stock owner and horizon.</summary>
     public static ColonyForecastRequest CoupledForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
         RoundsFacts facts, DerivedDemand demand, ForecastActivityProblem activities,
-        EquatableArray<ForecastNeedTask> needTasks, EquatableArray<ForecastCommitment> commitments,
-        ColonyForecastDelta proposed)
+        EquatableArray<ForecastNeedTask> needTasks, EquatableArray<ForecastCommitment> commitments)
     {
         if (facts.Tick.Value != origin.ObservedTick || demand.Work.Tick != facts.Tick
             || facts.ForecastObserved.Needs is not { } needs || needs.Tick != facts.Tick
@@ -268,18 +267,16 @@ public static partial class ForecastCoupled
             Demand = demand,
             Facts = ColonyForecastFactsRules.ColonyForecastFactsOf(facts),
             Commitments = commitments,
-            Proposed = proposed,
             Coupled = new() { Activities = activities, Needs = needs, Resources = resources, NeedTasks = needTasks }
         };
     }
 
     public static ColonyForecastRequest CoupledForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
-        RoundsFacts facts, DerivedDemand demand, EquatableArray<ForecastCommitment> commitments,
-        ColonyForecastDelta proposed)
+        RoundsFacts facts, DerivedDemand demand, EquatableArray<ForecastCommitment> commitments)
     {
         var generated = facts.CoupledAlternatives ?? throw new DomainException("coupled observed review unavailable");
         return CoupledForecastRequestOf(origin, horizonDays, facts, demand, generated.Context.Activities,
-            generated.Context.NeedTasks, commitments, proposed) with
+            generated.Context.NeedTasks, commitments) with
         { Coupled = generated.Context };
     }
 

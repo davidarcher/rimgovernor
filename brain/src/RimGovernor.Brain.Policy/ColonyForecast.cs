@@ -2,8 +2,8 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Caller-supplied snapshot identity; evaluating never reads live world state.</summary>
-public sealed record ColonyForecastOrigin(string World, long ObservedTick);
+/// <summary>Caller-supplied snapshot tick; evaluating never reads live world state.</summary>
+public sealed record ColonyForecastOrigin(long ObservedTick);
 
 /// <summary>Positive units enter inventory; negative units consume it. Day is relative to the observed tick.</summary>
 public sealed record ForecastStockChange(Resource Resource, double Day, double Units);
@@ -57,12 +57,6 @@ public sealed record ForecastSituationalChange(string Pawn, string Thought, doub
 /// Observed stats include the current outfit, so the deltas are relative to it. Shifts for one pawn add.</summary>
 public sealed record ForecastComfortShift(string Pawn, double MinDelta, double MaxDelta);
 
-/// <summary>Replace by removing an ID and adding its new version. Empty means continue.</summary>
-public sealed record ColonyForecastDelta
-{
-    public EquatableArray<string> Remove { get; init; }
-    public EquatableArray<ForecastCommitment> Add { get; init; }
-}
 
 public sealed record ColonyForecastRequest
 {
@@ -71,7 +65,6 @@ public sealed record ColonyForecastRequest
     public required double HorizonDays { get; init; }
     public ColonyForecastFacts Facts { get; init; } = new();
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
-    public ColonyForecastDelta Proposed { get; init; } = new();
     public ForecastCoupledContext? Coupled { get; init; }
 }
 
@@ -80,66 +73,11 @@ public sealed record ForecastFinding(string Reason, string Commitment);
 public sealed record ColonyForecastScenario
 {
     public ForecastCoupledScenario? Coupled { get; init; }
-    public EquatableArray<ForecastEquipmentCapacity> EquipmentAvailability { get; init; }
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
-}
-
-/// <summary>Baseline/delta consequences and observed diagnostics, not native feasibility or a utility score.</summary>
-public sealed record ColonyForecast
-{
-    public required ColonyForecastOrigin Origin { get; init; }
-    public double HorizonDays { get; init; }
-    public required ColonyDiagnostics Observed { get; init; }
-    public required ColonyForecastScenario Baseline { get; init; }
-    public required ColonyForecastScenario Proposed { get; init; }
-    internal static readonly EquatableArray<string> UnsupportedDomains = EquatableArray.From(new[]
-    {
-        "pawn_capacity", "needs_and_mood", "activity_dependencies", "infrastructure_effects", "combat_outcomes",
-    });
-    public EquatableArray<string> Unsupported { get; init; } = UnsupportedDomains;
 }
 
 public static class ColonyForecastRules
 {
-    /// <summary>Evaluate both alternatives from the same inventory. Target floors are not consumption events.</summary>
-    public static ColonyForecast ForecastColony(ColonyForecastRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Origin.World) || request.Origin.ObservedTick < 0
-            || !double.IsFinite(request.HorizonDays) || request.HorizonDays <= 0)
-        {
-            throw new DomainException("invalid colony forecast origin or horizon");
-        }
-        var baseline = ForecastCommitmentsById(request.Commitments);
-        var proposed = new Dictionary<string, ForecastCommitment>(baseline, StringComparer.Ordinal);
-        foreach (var id in request.Proposed.Remove)
-        {
-            if (!proposed.Remove(id))
-            {
-                throw new DomainException("forecast removes an absent or repeated commitment: " + id);
-            }
-        }
-        foreach (var (id, commitment) in ForecastCommitmentsById(request.Proposed.Add))
-        {
-            if (!proposed.TryAdd(id, commitment))
-            {
-                throw new DomainException("forecast addition duplicates existing commitment: " + id);
-            }
-        }
-        return new ColonyForecast
-        {
-            Origin = request.Origin,
-            HorizonDays = request.HorizonDays,
-            Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry"],
-            Observed = ColonyDiagnosticsRules.DiagnoseColony(request.Facts),
-            Baseline = request.Coupled is null ? InventoryScenario(request, baseline) : ForecastCoupled.ForecastCoupledScenarioOf(request, baseline),
-            Proposed = request.Coupled is null ? InventoryScenario(request, proposed) : ForecastCoupled.ForecastCoupledScenarioOf(request, proposed),
-        };
-    }
-
-    /// <summary>Without a coupled schedule, the observed stock and the commitments' own effects.</summary>
-    private static ColonyForecastScenario InventoryScenario(ColonyForecastRequest request, Dictionary<string, ForecastCommitment> commitments)
-        => ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays);
-
     internal static Dictionary<string, ForecastCommitment> ForecastCommitmentsById(IEnumerable<ForecastCommitment> commitments)
     {
         var result = new Dictionary<string, ForecastCommitment>(StringComparer.Ordinal);

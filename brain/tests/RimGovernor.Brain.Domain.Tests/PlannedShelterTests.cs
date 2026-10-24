@@ -107,8 +107,8 @@ public sealed class PlannedShelterTests
     internal static RoundsFacts UnplacedHeatedRoom() => Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true);
 
     private static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
-        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+        ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
 
     // #3724: the shelter's room-closure bundles sleep the pawn, so the urgent-zero bound is unavailable for them (a plan's sleep can leave
     // rest unassessed), the reason reported, and the pruned search returns the unpruned selection.
@@ -116,8 +116,8 @@ public sealed class PlannedShelterTests
     public void APlannedRoomsSearchReportsTheBoundUnavailableAndPrunesNothing()
     {
         var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof()]);
-        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var pruned = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!);
         var unpruned = ForecastCoupledSelection.CompareActivityOutcomesUnpruned(request, facts.CoupledAlternatives!);
         ForecastCoupledSelectionTests.AssertPrunedEquivalent(unpruned, pruned);

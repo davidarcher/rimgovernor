@@ -38,8 +38,8 @@ public sealed class SupportMethodTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null) => ForecastCoupledSelection.CompareActivityOutcomes(
-        ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!, budget);
+        ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!, budget);
     private static SelectedActivityTask[] Tasks(RoundsFacts facts, ForecastCoupledSelection selection) =>
         ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
 

@@ -11,7 +11,7 @@ public sealed class ForecastSurvivalNeedsTests
     private static readonly RimGovernor.Brain.Domain.PawnId Helper = new("helper");
     private static ColonyForecastRequest Frame(double foodTicks = 1500, double temperature = -20, double comfort = 0) => new()
     {
-        Origin = new("test", 42), HorizonDays = 2000.0 / GameTime.TicksPerDay,
+        Origin = new(42), HorizonDays = 2000.0 / GameTime.TicksPerDay,
         Demand = new DerivedDemand { Work = new ForecastWorkInputs { Tick = new(42),
             Pawns = Known(EquatableArray.From(new[] {
                 PawnFixtures.Worker(Builder) with { Body = PawnFixtures.Body with { CellTemperatureC = temperature,
@@ -67,5 +67,5 @@ public sealed class ForecastSurvivalNeedsTests
 
     [Fact]
     public void FrameMismatchIsRejected() =>
-        Assert.Throws<DomainException>(() => ForecastSurvivalNeeds.SurvivalNeedsOf(Frame() with { Origin = new("test", 43) }));
+        Assert.Throws<DomainException>(() => ForecastSurvivalNeeds.SurvivalNeedsOf(Frame() with { Origin = new(43) }));
 }

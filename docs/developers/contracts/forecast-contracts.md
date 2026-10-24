@@ -22,11 +22,11 @@ explicit qualification/coverage, never orders or available colony stock. Shared
 forecasting owns downstream hauling, butchery, treatment and displaced work once.
 
 The pure C# [ColonyForecast](../architecture/colony-forecast.md) evaluates
-supplied commitment deltas separately from these observed diagnostics.
+supplied commitments against the observed facts.
 Its requested plan horizon does not change the existing maintenance window.
-Construction shortfalls are exact-resource units, not completion days.
+Construction needs are exact-resource units, not completion days.
 Timed inventory effects are conditional estimates, never observed stock
-or proof of native work completion. [Construction work](../architecture/colony-forecast.md#construction-commitments-and-shared-capacity) is compared in the coupled trajectory; `ForecastColony` has no construction slice of its own (#3894).
+or proof of native work completion. [Construction work](../architecture/colony-forecast.md#construction-commitments-and-shared-capacity) is compared in the coupled trajectory; the forecast has no construction slice of its own (#3894).
 
 [Declared material promises and exclusive equipment](../architecture/colony-forecast.md#material-promises-and-exclusive-equipment)
 share that forecast. Native ingredient observations retain bill IDs for reconciling
@@ -919,7 +919,7 @@ unpowered heaters.
 The [coupled trajectory](../architecture/colony-forecast.md#coupled-food-needs-and-production-trajectory)
 consumes this frame with shared resource ownership. It distinguishes loose stock,
 reserved inputs, carried/delivered lots and future yields; accepted orders are
-never observed production. Existing inventory-only diagnostics remain conditional
+never observed production. The inventory walk remains conditional
 accounting. Coupled consumers must inspect each schedule's feasibility, timings
 and uncertainty rather than treating a final balance as proof of execution.
 

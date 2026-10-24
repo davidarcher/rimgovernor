@@ -347,7 +347,7 @@ Observation/RoundsContainment.cs|Fact|3
 Observation/RoundsContainment.cs|Unknown|1
 Observation/RoundsMood.cs|Fact|19
 Observation/RoundsMood.cs|Unknown|4
-Observation/RoundsRead.cs|Fact|35
+Observation/RoundsRead.cs|Fact|34
 Observation/RoundsRead.cs|Unknown|11
 Observation/RoundsWork.cs|Fact|4
 Observation/RoundsWork.cs|Unknown|2
@@ -399,8 +399,7 @@ Policy/ClothingDemand.cs|Unknown|1
 Policy/ColonyAdmin.cs|Fact|23
 Policy/ColonyAdmin.cs|NullableValue|5
 Policy/ColonyAdmin.cs|Unknown|5
-Policy/ColonyDiagnostics.cs|Fact|6
-Policy/ColonyDiagnostics.cs|Unknown|1
+Policy/ColonyDiagnostics.cs|Fact|2
 Policy/ColonyExtent.cs|Fact|7
 Policy/ColonyExtent.cs|Unknown|1
 Policy/ColonyForecast.cs|Fact|14
@@ -431,8 +430,6 @@ Policy/ConstructionDemand.cs|Unknown|2
 Policy/ConstructionHelpers.cs|Fact|3
 Policy/ConstructionOwnership.cs|Fact|4
 Policy/ConstructionOwnership.cs|Unknown|1
-Policy/ConstructionProjection.cs|Fact|4
-Policy/ConstructionProjection.cs|Unknown|3
 Policy/ContainmentCell.cs|Fact|4
 Policy/ControlledEnvironment.cs|Fact|1
 Policy/CorpseLarder.cs|Fact|1

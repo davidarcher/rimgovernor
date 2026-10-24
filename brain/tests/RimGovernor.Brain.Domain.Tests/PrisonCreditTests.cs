@@ -77,8 +77,8 @@ public sealed class PrisonCreditTests
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var coupled = facts.CoupledAlternatives!;
         // The production review's selection (RoundsRules.InspectRounds): its outcome and chosen roots leave the construction short.
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", 100),
-            ForecastCoupled.TierOneHorizonDays, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), coupled);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
+            ForecastCoupled.TierOneHorizonDays, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), coupled);
         var chosen = selected.Selection.Selected.ToHashSet(StringComparer.Ordinal);
         var input = ColonyModelFixtures.Devilstrand();
         input = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select(p => p with { Pawn = "pawn" }))) };
