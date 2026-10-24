@@ -32,7 +32,7 @@ public static class ColonyHousing
         ArgumentNullException.ThrowIfNull(h);
         var scope = TypedReads.Scope(identity);
         var pawnsReply = await h.CallAsync("housing-pawns", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = true } }, cancellationToken).ConfigureAwait(false);
-        var pawns = TypedReads.Observed("housing-pawns", NativeOps.ListPawns, pawnsReply, pawnsReply.Outcome?.Observed).Pawns;
+        var pawns = pawnsReply.Pawns;
         var roomsReply = await h.CallAsync("housing-rooms", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
         var rooms = roomsReply.Rooms;
         var (colonists, housed) = Count(pawns, rooms);

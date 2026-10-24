@@ -14,7 +14,7 @@ internal static class TypedPawns
         TypedSession s, string label, Observations.PawnFilter? filter, Observations.PawnDetails? details, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = filter, Details = details }, cancellationToken).ConfigureAwait(false);
-        return [.. TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns];
+        return [.. reply.Pawns];
     }
 
     /// <summary>The one row of pawn <paramref name="id"/>; a missing row fails <paramref name="label"/>.</summary>

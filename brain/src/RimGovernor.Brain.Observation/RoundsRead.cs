@@ -197,7 +197,6 @@ public static class RoundsReads
                 MechCatalog = catalog.Biotech?.MechCatalog() ?? new(),
                 WorkPawns = RoundsWorkReads.RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
                 Rest = RoundsWorkReads.RoundsRest(pawns),
-                MeditateAvailable = ColonyDecodeReads.Optional(pawns.MeditateAssignmentAvailable is not null, pawns.MeditateAssignmentAvailable.GetValueOrDefault()),
             };
             p = p with { Facts = p.Facts with { MedicalPawns = RoundsContainmentReads.RoundsMedical(colony, emergency, pawns, catalog) } };
             p = p with { Facts = p.Facts with { MoodPawns = RoundsMoodReads.RoundsMood(colony, emergency, pawns) } };

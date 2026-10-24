@@ -66,7 +66,7 @@ internal static class TypedPawnOps
             Filter = new Observations.PawnFilter { Ids = [pawnId], IncludeDead = true },
             Details = new Observations.PawnDetails { Health = true },
         }, cancellationToken).ConfigureAwait(false);
-        var rows = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns.ToList();
+        var rows = reply.Pawns.ToList();
         return rows switch
         {
             [] => null,

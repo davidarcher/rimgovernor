@@ -48,7 +48,7 @@ internal static class HusbandryDispatch
         {
             var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] }, Details = new Observations.PawnDetails { Animals = true } };
             var reply = await s.CallAsync(label, NativeOps.ListPawns, request, cancellationToken).ConfigureAwait(false);
-            return TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns.FirstOrDefault(p => p.Pawn?.Id == id)?.AnimalState
+            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id)?.AnimalState
                 ?? throw new AcceptanceException($"{label}: animal {id} has no animal details");
         }
 

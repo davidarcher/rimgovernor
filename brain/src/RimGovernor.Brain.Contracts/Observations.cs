@@ -664,38 +664,54 @@ public sealed record JobEvidence
 }
 
 /// <summary>
-/// The pawn's need levels (0-1). Each level is absent when the pawn lacks that need (an animal has no joy, a
-/// mechanoid no food); hunger_category is the food need's category, absent with it.
+/// The pawn's need levels (0-1). A need the pawn lacks (an animal has no joy, a mechanoid no food) is
+/// <see cref="NeedLevel.Lacks"/>; the food need carries its hunger category.
 /// </summary>
 public sealed record PawnNeeds
 {
-    public double? Food { get; init; }
+    public required FoodNeed Food { get; init; }
 
-    public double? Rest { get; init; }
+    public required NeedLevel Rest { get; init; }
 
-    public double? Mood { get; init; }
+    public required NeedLevel Mood { get; init; }
 
-    public double? Joy { get; init; }
-
-    public Defs.HungerCategory? HungerCategory { get; init; }
+    public required NeedLevel Joy { get; init; }
 
     /// <summary>
     /// MentalBreaker.BreakThresholdMinor: the mood below which minor breaks can start.
     /// </summary>
-    public double BreakThresholdMinor { get; init; }
+    public required double BreakThresholdMinor { get; init; }
 
     /// <summary>
-    /// The pawn's psyfocus; absent when Royalty is inactive or the pawn has no psylink.
+    /// Pawn.GetPsylinkLevel(): 0 without a psylink, and always 0 when Royalty is inactive.
     /// </summary>
-    public PawnPsyfocus? Psyfocus { get; init; }
+    public required int PsylinkLevel { get; init; }
 }
 
-/// <summary>
-/// Pawn_PsychicEntropyTracker CurrentPsyfocus and TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel().
-/// </summary>
-public sealed record PawnPsyfocus
+/// <summary>One need's level (0-1), or Lacks when the pawn has no such need.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(NeedLevel.Has), "has")]
+[JsonDerivedType(typeof(NeedLevel.Lacks), "lacks")]
+public abstract record NeedLevel
 {
-    public int PsylinkLevel { get; init; }
+    private protected NeedLevel() { }
+
+    public sealed record Has(double Level) : NeedLevel;
+
+    public sealed record Lacks : NeedLevel;
+}
+
+/// <summary>The food need's level (0-1) and hunger category, or Lacks when the pawn has no food need.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(FoodNeed.Has), "has")]
+[JsonDerivedType(typeof(FoodNeed.Lacks), "lacks")]
+public abstract record FoodNeed
+{
+    private protected FoodNeed() { }
+
+    public sealed record Has(double Level, Defs.HungerCategory Hunger) : FoodNeed;
+
+    public sealed record Lacks : FoodNeed;
 }
 
 public sealed record Hediff
@@ -1033,31 +1049,33 @@ public sealed record PawnBiography
 /// </summary>
 public sealed record Thought
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public double MoodOffsetTotal { get; init; }
+    public required double MoodOffsetTotal { get; init; }
 }
 
 /// <summary>
 /// The pawn's expectation and thoughts, read without recalculating the situational cache. A pawn without a
-/// mood need has no expectation and no thoughts.
+/// mood need has no thoughts.
 /// </summary>
 public sealed record PawnSocial
 {
-    public bool? HighExpectations { get; init; }
+    /// <summary>The current expectation is at least ExpectationDefOf.High.</summary>
+    public required bool HighExpectations { get; init; }
 
-    public string? ExpectationDefName { get; init; }
+    /// <summary>ExpectationsUtility.CurrentExpectationFor(pawn): the current expectation's defName.</summary>
+    public required string ExpectationDefName { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Thought>))]
-    public EquatableArray<Thought> Memories { get; init; }
+    public required EquatableArray<Thought> Memories { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Thought>))]
-    public EquatableArray<Thought> Situational { get; init; }
+    public required EquatableArray<Thought> Situational { get; init; }
 
     /// <summary>
     /// The situational handler's own dirty flag: the cached situational thoughts are due a recalculation.
     /// </summary>
-    public bool SituationalCacheStale { get; init; }
+    public required bool SituationalCacheStale { get; init; }
 }
 
 /// <summary>
@@ -1705,16 +1723,10 @@ public sealed record PawnDetails
 
 public sealed record PawnSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
     public EquatableArray<PawnState> Pawns { get; init; }
-
-    /// <summary>
-    /// Colony fact: the Meditate TimeAssignmentDef exists
-    /// (DefDatabase&lt;TimeAssignmentDef&gt;.GetNamedSilentFail("Meditate")); false on Core only.
-    /// </summary>
-    public bool? MeditateAssignmentAvailable { get; init; }
 }
 
 public sealed record ListPawnsRequest
@@ -1724,45 +1736,6 @@ public sealed record ListPawnsRequest
     public PawnFilter? Filter { get; init; }
 
     public PawnDetails? Details { get; init; }
-}
-
-public sealed record ListPawnsReply
-{
-    public ListPawnsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ListPawnsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ListPawnsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ListPawnsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ListPawnsReplyOutcome.FailureCase), "failure")]
-public abstract record ListPawnsReplyOutcome
-{
-    private protected ListPawnsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public PawnSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(PawnSnapshot Value) : ListPawnsReplyOutcome;
-
-    public static implicit operator ListPawnsReplyOutcome(PawnSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ListPawnsReplyOutcome;
-
-    public static implicit operator ListPawnsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ListPawnsReplyOutcome;
-
-    public static implicit operator ListPawnsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

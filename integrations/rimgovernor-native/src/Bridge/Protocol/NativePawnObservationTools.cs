@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -16,15 +17,20 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePawnObservationTools
     {
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.ListPawnsReply HandleListPawns(Obs.ListPawnsRequest parsed)
+        // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
+        // or pawn facts that cannot be read completely throw.
+        internal static Obs.PawnSnapshot HandleListPawns(Obs.ListPawnsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListPawnsReply { Outcome = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
-                return new Obs.ListPawnsReply { Outcome = invalid };
-            try { return new Obs.ListPawnsReply { Outcome = Read(map, parsed, context) }; }
-            catch (Exception error) { ModLog.Error("observe", "Pawn facts read failed: " + error); return new Obs.ListPawnsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed,
-                PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
+                throw NativeFaults.Refused(invalid);
+            try { return Read(map, parsed, context); }
+            catch (Exception error)
+            {
+                ModLog.Error("observe", "Pawn facts read failed: " + error);
+                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
+                    PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: " + error.GetType().Name + ": " + error.Message)));
+            }
         }
 
         // On the main thread.
@@ -47,7 +53,7 @@ namespace HomeBridge.BridgeTools
             }
             var ordered = selected.OrderBy(p => (p.Value.Pawn.Id ?? ""), StringComparer.Ordinal).ToList();
             var page = ordered;
-            var result = new Obs.PawnSnapshot { Context = context, MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
+            var result = new Obs.PawnSnapshot { Context = context };
             var details = NativePawnDetails.Defaults(parsed.Details);
             var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
             // The tend detail is pairwise across the page, so it runs once over
@@ -65,7 +71,7 @@ namespace HomeBridge.BridgeTools
             var source = map.mapPawns.AllPawnsSpawned.ToList();
             if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
             var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
-            var result = new Obs.PawnSnapshot { Context = context, MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
+            var result = new Obs.PawnSnapshot { Context = context };
             var dependentPatients = NativeDependentPatients.Read(map).Select(p => p.Pawn).ToHashSet();
             double? raidArmor = null; var armorRead = false;
             using var surgery = new NativePawnDetails.SurgeryScope();

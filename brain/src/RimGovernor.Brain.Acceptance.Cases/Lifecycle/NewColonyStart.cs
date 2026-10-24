@@ -117,7 +117,7 @@ internal static class NewColonyStart
                 Details = new Observations.PawnDetails { Biography = true },
             },
             cancellationToken).ConfigureAwait(false);
-        return [.. TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns];
+        return [.. reply.Pawns];
     }
 
     /// <summary>Requires the colony's one colonist to carry <paramref name="trait"/>; records and returns its traits.</summary>

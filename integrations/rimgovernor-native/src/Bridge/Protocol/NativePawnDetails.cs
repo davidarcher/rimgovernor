@@ -121,18 +121,23 @@ namespace HomeBridge.BridgeTools
                 return item;
             }
 
-        // The need levels; a need the pawn lacks is absent.
+        // The need levels; a need the pawn lacks is Lacks.
         private static Obs.PawnNeeds Needs(Pawn pawn)
         {
-            var needs=new Obs.PawnNeeds { BreakThresholdMinor = Number(pawn.mindState.mentalBreaker.BreakThresholdMinor) };
-            if(pawn.needs?.mood!=null) needs = needs with { Mood = Number(pawn.needs.mood.CurLevelPercentage) };
-            if(pawn.needs?.food!=null) needs = needs with { Food = Number(pawn.needs.food.CurLevelPercentage), HungerCategory = (Defs.HungerCategory)(int)pawn.needs.food.CurCategory };
-            if(pawn.needs?.rest!=null) needs = needs with { Rest = Number(pawn.needs.rest.CurLevelPercentage) };
-            if(pawn.needs?.joy!=null) needs = needs with { Joy = Number(pawn.needs.joy.CurLevelPercentage) };
-            if(ModsConfig.RoyaltyActive && pawn.psychicEntropy!=null && pawn.GetPsylinkLevel() is var psylink && psylink>0)
-                needs = needs with { Psyfocus = new Obs.PawnPsyfocus { PsylinkLevel = psylink } };
-            return needs;
+            var food = pawn.needs?.food;
+            return new Obs.PawnNeeds
+            {
+                Food = food != null ? new Obs.FoodNeed.Has(Number(food.CurLevelPercentage), (Defs.HungerCategory)(int)food.CurCategory) : new Obs.FoodNeed.Lacks(),
+                Rest = Level(pawn.needs?.rest),
+                Mood = Level(pawn.needs?.mood),
+                Joy = Level(pawn.needs?.joy),
+                BreakThresholdMinor = Number(pawn.mindState.mentalBreaker.BreakThresholdMinor),
+                PsylinkLevel = ModsConfig.RoyaltyActive ? pawn.GetPsylinkLevel() : 0,
+            };
         }
+
+        private static Obs.NeedLevel Level(Need? need) =>
+            need != null ? new Obs.NeedLevel.Has(Number(need.CurLevelPercentage)) : new Obs.NeedLevel.Lacks();
 
         // Medical care cap inputs: the life threat and every hediff, none filtered.
         internal static Obs.PawnConditions Conditions(Pawn pawn)
@@ -541,17 +546,16 @@ namespace HomeBridge.BridgeTools
         // of the def it produces). Ported from PawnSettingsRead.RelationsBlock/OpinionRow.
         private static Obs.PawnSocial Social(Pawn pawn)
         {
-            var row=new Obs.PawnSocial();
-            var current=ExpectationsUtility.CurrentExpectationFor(pawn);
-            if(current!=null)row = row with { ExpectationDefName = current.defName };
-            var high=DefDatabase<ExpectationDef>.GetNamedSilentFail("High");
-            if(high!=null&&current!=null)row = row with { HighExpectations = current.order>=high.order };
-            foreach(var t in PawnSettingsRead.GroupThoughtRows(PawnSettingsRead.LiveMemories(pawn)))
-                row = row with { Memories = [.. row.Memories, ThoughtRow(t.DefName,t.Count,t.Total)] };
+            var current=ExpectationsUtility.CurrentExpectationFor(pawn) ?? throw new InvalidOperationException("The pawn has no current expectation.");
             var (situational,stale)=PawnSettingsRead.LiveSituational(pawn);
-            foreach(var t in PawnSettingsRead.GroupThoughtRows(situational))
-                row = row with { Situational = [.. row.Situational, ThoughtRow(t.DefName,t.Count,t.Total)] };
-            return row with { SituationalCacheStale = stale };
+            return new Obs.PawnSocial
+            {
+                HighExpectations = current.order>=ExpectationDefOf.High.order,
+                ExpectationDefName = Id(current.defName),
+                Memories = [.. PawnSettingsRead.GroupThoughtRows(PawnSettingsRead.LiveMemories(pawn)).Select(t => ThoughtRow(t.DefName,t.Count,t.Total))],
+                Situational = [.. PawnSettingsRead.GroupThoughtRows(situational).Select(t => ThoughtRow(t.DefName,t.Count,t.Total))],
+                SituationalCacheStale = stale,
+            };
         }
 
         private static Obs.Thought ThoughtRow(string? defName,int count,double total)=>

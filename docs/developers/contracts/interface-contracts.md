@@ -108,7 +108,11 @@ the option.
   workers, pending values, delivery ledger) as `required` members. A state that may legitimately be missing is a
   named case: `Planning` is `Requested` or `NotRequested`, and a planner that needs planning facts from a read
   that did not request them raises `RequiredFactException("planning")`; the sleeping range is `Indoor` or
-  `NoIndoorBed` ([rule 9](../architecture/rules.md#review-items)).
+  `NoIndoorBed`; a pawn's need is `NeedLevel.Has(level)` or `Lacks` (an animal has no joy), and its food need
+  `FoodNeed.Has(level, hunger)` or `Lacks` ([rule 9](../architecture/rules.md#review-items)).
+- **A typed read returns its payload.** `INativeFacade` returns the record (`ListPawnsAsync` returns
+  `PawnSnapshot`) and the native side throws `NativeFaults.Refused` or `NativeFaults.Unavailable`; there is no
+  reply-outcome union.
 
 ## Prepared profiles
 

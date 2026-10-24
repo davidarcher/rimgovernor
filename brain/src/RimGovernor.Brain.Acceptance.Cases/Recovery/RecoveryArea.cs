@@ -69,7 +69,7 @@ internal static class RecoveryArea
                     Details = new Observations.PawnDetails { Work = true },
                 },
                 cancellationToken).ConfigureAwait(false);
-            var rows = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns.ToList();
+            var rows = reply.Pawns.ToList();
             return rows is [{ } row] && row.Pawn.Id == prepared.Pawn
                 ? row.Settings?.AllowedAreaId
                 : throw new AcceptanceException($"{label}: want one row for {prepared.Pawn}, got {rows.Count}");

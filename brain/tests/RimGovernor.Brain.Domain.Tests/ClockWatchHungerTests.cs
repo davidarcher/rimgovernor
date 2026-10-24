@@ -23,7 +23,7 @@ public sealed class ClockWatchHungerTests
     {
         Pawn = new() { Id = id }, Dead = false, Downed = false, InBed = false,
         Health = new() { Bleeding = false, NeedsTend = false },
-        Needs = hunger is { } h ? new O.PawnNeeds { Food = 0.1, HungerCategory = h } : null,
+        Needs = hunger is { } h ? PawnNeedsTests.NoNeeds with { Food = new O.FoodNeed.Has(0.1, h) } : null,
     };
 
     private static EmergencySnapshot Census(params O.PawnState[] rows)

@@ -27,11 +27,7 @@ public sealed partial class RoundsArmoryPlanner
         var weaponsRead = SharedReads.Attempt(source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell(bounds.Width - 1, bounds.Height - 1), ct));
         var things = SharedReads.Reply(await thingsRead.ConfigureAwait(false));
         var reply = SharedReads.Reply(await pawnsRead.ConfigureAwait(false));
-        var observed = reply.Outcome?.Observed;
-        if (observed is null)
-        {
-            throw new ControlException("weaponDemand: observed == nil");
-        }
+        var observed = reply;
         if (!ContextMatches(observed.Context, snapshot) || observed.Context.Tick < minTick)
         {
             throw new ControlException("weaponDemand: err != nil || observed.Context.GetTick() < minTick");

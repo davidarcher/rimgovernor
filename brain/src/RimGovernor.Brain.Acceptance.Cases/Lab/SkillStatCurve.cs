@@ -47,7 +47,7 @@ internal static class LabSkillStatCurve
                 Filter = new() { Ids = [prepared.Qualified, prepared.Disqualified] },
                 Details = new PawnDetails { Biography = true },
             }, ct).ConfigureAwait(false);
-            var pawns = TypedReads.Observed("curve-pawns", NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns;
+            var pawns = reply.Pawns;
             PawnBiography Bio(string id) => pawns.SingleOrDefault(p => p.Pawn.Id == id)?.Biography
                 ?? throw new AcceptanceException($"curve-pawns: no biography for {id}");
             var healthy = Bio(prepared.Qualified);

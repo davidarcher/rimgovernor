@@ -110,7 +110,7 @@ internal static class CombatLabKit
             Filter = new Observations.PawnFilter { Ids = [.. ids], IncludeDead = true },
             Details = new Observations.PawnDetails { Health = true, Equipment = true, Settings = true },
         }, cancellationToken).ConfigureAwait(false);
-        var snapshot = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed);
+        var snapshot = reply;
         return snapshot.Pawns.ToDictionary(p => p.Pawn.Id, StringComparer.Ordinal);
     }
 

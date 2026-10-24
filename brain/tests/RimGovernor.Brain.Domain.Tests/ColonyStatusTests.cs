@@ -52,8 +52,8 @@ public sealed class ColonyStatusTests
         public Task<ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct) =>
             Task.FromResult(ColonyFactsCoreTests.Snapshot() with { Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) });
 
-        public Task<ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct) =>
-            Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = Context, Pawns = [.. roster] } });
+        public Task<PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct) =>
+            Task.FromResult(new PawnSnapshot { Context = Context, Pawns = [.. roster] });
     }
 
     private static async Task<ColonyStatusReport> ReadAsync(params PawnState[] roster)

@@ -231,9 +231,6 @@ public sealed partial record ColonyProjection
     /// <summary>The colony's mechanitors and mechs from the pawn table; unknown without a table.</summary>
     public Fact<MechFleet> Mechs { get; init; }
 
-    /// <summary>Meditate TimeAssignmentDef exists.</summary>
-    public Fact<bool> MeditateAvailable { get; init; }
-
     public Fact<EquatableArray<FieldCrop>> FieldCrops { get; init; }
 
     public Fact<EquatableArray<FieldCrop>> FieldCapacityCrops { get; init; }

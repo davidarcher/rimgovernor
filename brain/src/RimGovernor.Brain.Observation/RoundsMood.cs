@@ -196,22 +196,22 @@ public static class RoundsMoodReads
             {
                 p = p with
                 {
-                    Mood = ColonyDecodeReads.Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
+                    Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
                     Threshold = Known(n.BreakThresholdMinor),
-                    Food = ColonyDecodeReads.Optional(n.Food is not null, n.Food.GetValueOrDefault()),
-                    Rest = ColonyDecodeReads.Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
-                    Joy = ColonyDecodeReads.Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
+                    Food = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Level : 0),
+                    Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
+                    Joy = ColonyDecodeReads.Optional(n.Joy is O.NeedLevel.Has, n.Joy is O.NeedLevel.Has joy ? joy.Level : 0),
                 };
             }
             if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !ColonyDecodeReads.HasIssue(f.Issues, "mood_target"))
             {
                 p = p with { Target = ColonyDecodeReads.Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
             }
-            p = p with { Thoughts = MoodThoughts(r) };
-            if (r.Social is { } social)
+            p = p with
             {
-                p = p with { HighExpectations = ColonyDecodeReads.Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
-            }
+                Thoughts = MoodThoughts(r),
+                HighExpectations = ColonyDecodeReads.Optional(r.Social is not null, r.Social is { HighExpectations: true }),
+            };
             rows.Add(p);
         }
         return Known(EquatableArray.From(rows));
@@ -288,9 +288,9 @@ public static class RoundsMoodReads
                 {
                     pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => (t.DefName))]) };
                 }
-                if (r.Social is { } s && s.ExpectationDefName is not null)
+                if (r.Social is { } s)
                 {
-                    pawn = pawn with { Expectation = Known((s.ExpectationDefName ?? "")) };
+                    pawn = pawn with { Expectation = Known(s.ExpectationDefName) };
                 }
                 if (r.Settings is { } settings && PolicyInputs.PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
                 {

@@ -128,7 +128,7 @@ public sealed partial class AnomalyRounds
         }
 
         var reply = await _native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed ?? throw new ControlException("anomaly lance: observed == nil");
+        var observed = reply;
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);

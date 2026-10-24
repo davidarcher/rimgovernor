@@ -548,7 +548,7 @@ public sealed class GameReuse : IAsyncDisposable
             NativeOps.ListPawns,
             new Wo.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = true } },
             cancellationToken).ConfigureAwait(false);
-        var pawns = TypedReads.Observed(label + "-pawns", NativeOps.ListPawns, pawnsReply, pawnsReply.Outcome?.Observed);
+        var pawns = pawnsReply;
 
         // Stock: the colony-facts resource census (units per definition) is the bounded, save-independent sample; an
         // unfiltered supplies listing exceeds the native 256-row item limit on an ordinary colony. Forbidden counts come

@@ -14,24 +14,24 @@ public sealed partial class FacadeNativeClient
     /// Observes exact ids including dead pawns. Missing rows, CAS tokens and drafted state never
     /// imply death, write permission or controller ownership.
     /// </summary>
-    internal Task<PbObservations.ListPawnsReply> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.PawnSnapshot> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(), cancellationToken);
 
     /// <summary>
     /// Retains optional detailed facts and issues for exact ids. A complete query is not
     /// proof that absent health, gear or capability is known.
     /// </summary>
-    internal Task<PbObservations.ListPawnsReply> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.PawnSnapshot> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true), cancellationToken);
 
     /// <summary>
     /// Combat facts, work settings and care policy for exact doctor and patient ids, plus the
     /// tend detail: the doctor-side native gates and reachability between the requested pawns.
     /// </summary>
-    internal Task<PbObservations.ListPawnsReply> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.PawnSnapshot> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true, Work: true, Care: true, Tend: true), cancellationToken);
 
-    internal async Task<PbObservations.ListPawnsReply> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
+    internal async Task<PbObservations.PawnSnapshot> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
     {
         if (ids.Count < 1 || ids.Count > 256)
         {
@@ -40,16 +40,7 @@ public sealed partial class FacadeNativeClient
         var copied = ids.ToArray();
 
         var request = PawnDetailsRequest(identity, copied, want);
-        var reply = await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        return reply;
+        return await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -89,7 +80,7 @@ public sealed partial class FacadeNativeClient
     /// enablement: who is home. Unlike the id-scoped reads this one is not: the family must first learn who stays home
     /// before it can ask about their facts.
     /// </summary>
-    internal async Task<PbObservations.ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<PbObservations.PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
 
         // Native defaults every unset detail family to requested, and the home-colonist check refuses any family
@@ -111,16 +102,7 @@ public sealed partial class FacadeNativeClient
                 Schedule = false,
             },
         };
-        var reply = await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        return reply;
+        return await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -135,7 +117,7 @@ public sealed partial class FacadeNativeClient
             return [];
         }
         var reply = await ReadPawnsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
-        return MechInputs(reply.Outcome.Observed);
+        return MechInputs(reply);
     }
 
     /// <summary>Lifts mech pawn rows into planner input.</summary>

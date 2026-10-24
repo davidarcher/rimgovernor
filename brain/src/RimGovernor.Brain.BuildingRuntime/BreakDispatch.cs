@@ -113,7 +113,7 @@ public sealed partial class Worker
         if (aggressive.Count > 0)
         {
             var reply = await _config.BreakSource.ReadCombatPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
-            var observed = reply.Outcome?.Observed ?? throw new ControlException("breakDispatchHolds: observed == nil");
+            var observed = reply;
             if (observed.Pawns.Count != ids.Count)
             {
                 throw new ControlException("breakDispatchHolds: len(observed.Pawns) != len(ids)");

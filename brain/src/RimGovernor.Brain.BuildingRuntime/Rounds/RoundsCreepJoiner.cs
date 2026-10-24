@@ -93,9 +93,9 @@ internal static class RoundsCreepJoiner
         {
             hand = hand with { Area = Known((settings.AllowedAreaId ?? "")) };
         }
-        if (row.Needs is { HungerCategory: not null } needs)
+        if (row.Needs?.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food)
         {
-            hand = hand with { Hungry = Known(needs.HungerCategory.GetValueOrDefault() != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
+            hand = hand with { Hungry = Known(food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }
         hand = hand with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (row.Equipment is { } equipment)

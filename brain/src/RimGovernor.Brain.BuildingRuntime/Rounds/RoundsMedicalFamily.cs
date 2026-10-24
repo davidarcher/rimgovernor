@@ -184,7 +184,7 @@ public sealed class MedicalRounds
             var eligible = EmergencyPatientsRules.EmergencyTendPatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
             var reply = await _tend.ReadTendPawnsAsync(identity, ids, ct).ConfigureAwait(false);
-            var observed = PawnRows(reply.Outcome?.Observed, world, ids, "tend");
+            var observed = PawnRows(reply, world, ids, "tend");
             var threatened = TendRules.ThreatenedPatients(emergency);
             var doctors = new List<TendDoctorFacts>();
             var tendPatients = new List<TendPatientFacts>();
@@ -207,7 +207,7 @@ public sealed class MedicalRounds
             var eligible = EmergencyPatientsRules.EmergencyRescuePatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
             var reply = await _rescue.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false);
-            var observed = PawnRows(reply.Outcome?.Observed, world, ids, "rescue");
+            var observed = PawnRows(reply, world, ids, "rescue");
             var rescuers = new List<RescuerFacts>();
             var rescuePatients = new List<RescuePatientFacts>();
             foreach (var row in observed.Pawns)
@@ -228,12 +228,8 @@ public sealed class MedicalRounds
     }
 
     /// <summary>The pawn rows of a care read, checked: in the world, one row per requested pawn and no other.</summary>
-    private static O.PawnSnapshot PawnRows(O.PawnSnapshot? observed, GenerationSnapshot world, List<string> ids, string read)
+    private static O.PawnSnapshot PawnRows(O.PawnSnapshot observed, GenerationSnapshot world, List<string> ids, string read)
     {
-        if (observed is null)
-        {
-            throw new ControlException($"medical read: no {read} pawns observed");
-        }
         try
         {
             Boundary.Context(observed.Context, world);

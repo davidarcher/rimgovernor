@@ -124,11 +124,11 @@ public sealed partial class FacadeNativeClient
     internal static PbObservations.PawnSnapshot? RoundsPawnRows(PbObservations.PawnSnapshot table, Pawns rows, EmergencyObservation emergency)
     {
         var ids = RoundsPawnIds(emergency);
-        if (ids.Count == 0 || rows.Snapshot(table.Context!, ids) is not { } output)
+        if (ids.Count == 0 || rows.Snapshot(table.Context, ids) is not { } output)
         {
             return null;
         }
-        return output with { MeditateAssignmentAvailable = table.MeditateAssignmentAvailable };
+        return output;
     }
 
     /// <summary>
@@ -270,7 +270,6 @@ public sealed partial class FacadeNativeClient
         var rows = new PbObservations.PawnSnapshot
         {
             Context = v.Pawns.Context,
-            MeditateAssignmentAvailable = v.Pawns.MeditateAssignmentAvailable,
             Pawns = [.. output],
         };
         return (rows, new Pawns(table));

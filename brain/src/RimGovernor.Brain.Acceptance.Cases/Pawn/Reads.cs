@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
@@ -47,16 +48,12 @@ internal static class PawnReads
         var problems = new List<string>();
         Common.ObservationContext? context = null;
 
-        async Task<Observations.ListPawnsReplyOutcome?> CallAsync(string label, Observations.PawnFilter? filter, Observations.PawnDetails? details, Observations.ReadScope? scope = null)
-        {
-            var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = scope ?? s.Scope, Filter = filter, Details = details }, cancellationToken).ConfigureAwait(false);
-            return reply.Outcome;
-        }
+        Task<Observations.PawnSnapshot> CallAsync(string label, Observations.PawnFilter? filter, Observations.PawnDetails? details, Observations.ReadScope? scope = null) =>
+            s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = scope ?? s.Scope, Filter = filter, Details = details }, cancellationToken);
 
         async Task<List<Observations.PawnState>> ReadAsync(string label, Observations.PawnFilter? filter, Observations.PawnDetails? details)
         {
-            var observed = (await CallAsync(label, filter, details).ConfigureAwait(false))?.Observed
-                ?? throw new AcceptanceException($"{label}: not observed");
+            var observed = await CallAsync(label, filter, details).ConfigureAwait(false);
             context ??= observed.Context;
             if (observed.Context != context)
             {
@@ -81,10 +78,14 @@ internal static class PawnReads
 
         async Task ExpectFailureAsync(string label, Common.FailureCode code, Observations.PawnFilter? filter, Observations.ReadScope? scope = null)
         {
-            var outcome = await CallAsync(label, filter, NoDetails, scope).ConfigureAwait(false);
-            if (outcome?.Failure?.Code != code)
+            try
             {
-                problems.Add($"{label}: want {code}, got {outcome}");
+                var observed = await CallAsync(label, filter, NoDetails, scope).ConfigureAwait(false);
+                problems.Add($"{label}: want {code}, got {observed.Pawns.Count} pawns");
+            }
+            catch (NativeFailureException refused) when (refused.Value.Code == code)
+            {
+                s.Record(label, refused.Message);
             }
         }
 

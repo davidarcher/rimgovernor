@@ -122,12 +122,12 @@ public sealed partial class FacadeNativeClient :
     Task<O.ColonyFactsSnapshot> IColonyStatusNative.ReadColonyFactsAsync(C.Identity identity, bool full, CancellationToken ct) =>
         ReadColonyFactsAsync(identity, full, ct);
 
-    Task<O.ListPawnsReply> IColonyStatusNative.ReadHomeColonistsAsync(C.Identity identity, CancellationToken ct) =>
+    Task<O.PawnSnapshot> IColonyStatusNative.ReadHomeColonistsAsync(C.Identity identity, CancellationToken ct) =>
         ReadHomeColonistsAsync(identity, ct);
 
     // ---- Pawn reads of the boundary, haul and break paths ---------------------------------------------------
 
-    Task<O.ListPawnsReply> IArrivalPawns.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
+    Task<O.PawnSnapshot> IArrivalPawns.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
         ReadCombatPawnsAsync(identity, pawnIds, ct);
 
 

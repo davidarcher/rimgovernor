@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ListBuildingsReply> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListBuildings, request, () => NativeBuildingObservationTools.HandleListBuildings(request), cancellationToken);
 
-        public Task<Obs.ListPawnsReply> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.PawnSnapshot> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListPawns, request, () => NativePawnObservationTools.HandleListPawns(request), cancellationToken);
 
         public Task<Obs.ListSuppliesReply> ListSuppliesAsync(Obs.ListSuppliesRequest request, CancellationToken cancellationToken)

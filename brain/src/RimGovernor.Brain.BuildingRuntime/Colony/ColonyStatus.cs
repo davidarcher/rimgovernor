@@ -11,7 +11,7 @@ public interface IColonyStatusNative
 
     Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
 
-    Task<PbObservations.ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct);
+    Task<PbObservations.PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct);
 }
 
 /// <summary>One living home colonist's state.</summary>
@@ -127,7 +127,7 @@ public sealed class ColonyStatus
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
         var observed = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var roster = await Native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
-        var pawns = roster.Outcome?.Observed ?? throw new ControlException("Read: pawns == nil");
+        var pawns = roster;
         var report = new ColonyStatusReport
         {
             Tick = new Tick((long)observed.Context.Tick),
@@ -184,7 +184,11 @@ public sealed class ColonyStatus
             var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = Known(row.Downed) };
             if (row.Needs is { } needs)
             {
-                pawn = pawn with { Mood = OptionalFact(needs.Mood is not null, needs.Mood.GetValueOrDefault()), Food = OptionalFact(needs.Food is not null, needs.Food.GetValueOrDefault()) };
+                pawn = pawn with
+                {
+                    Mood = OptionalFact(needs.Mood is PbObservations.NeedLevel.Has, needs.Mood is PbObservations.NeedLevel.Has mood ? mood.Level : 0),
+                    Food = OptionalFact(needs.Food is PbObservations.FoodNeed.Has, needs.Food is PbObservations.FoodNeed.Has food ? food.Level : 0),
+                };
             }
             rows.Add(pawn);
         }

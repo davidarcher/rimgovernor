@@ -70,7 +70,7 @@ public static class ColonyAudits
             cancellationToken).ConfigureAwait(false);
         var rows = new JsonArray();
         var over = new List<string>();
-        foreach (var pawn in TypedReads.Observed("audit-nutrition", NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns)
+        foreach (var pawn in reply.Pawns)
         {
             var worst = 0.0;
             foreach (var hediff in pawn.Health?.Hediffs ?? [])

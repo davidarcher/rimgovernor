@@ -141,7 +141,7 @@ internal static class MapscopeIsolation
             NativeOps.ListPawns,
             new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Ids = [colonist], Colonist = true } },
             cancellationToken).ConfigureAwait(false);
-        var rows = TypedReads.Observed("pawn-after", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed).Pawns.ToList();
+        var rows = pawns.Pawns.ToList();
         if (rows is not [{ Drafted: true } after] || after.Pawn.MapId != home.MapId || after.PawnSnapshot?.Token != job.ResultingSnapshotToken)
         {
             throw new AcceptanceException($"pawn-after: want {colonist} drafted on map {home.MapId} with the receipt's snapshot token {job.ResultingSnapshotToken}, got {string.Join("; ", rows)}");

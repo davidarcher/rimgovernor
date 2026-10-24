@@ -86,9 +86,9 @@ public sealed partial class FacadeNativeClient
             {
                 result = result with { Bleeding = Known(h.Bleeding), NeedsTend = Known(h.NeedsTend) };
             }
-            if (row.Needs?.HungerCategory is { } hunger)
+            if (row.Needs?.Food is O.FoodNeed.Has food)
             {
-                result = result with { Hunger = Known(hunger) };
+                result = result with { Hunger = Known(food.Hunger) };
             }
             return result;
         }

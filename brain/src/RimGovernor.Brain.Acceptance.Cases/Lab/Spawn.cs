@@ -52,7 +52,7 @@ internal static class LabSpawn
             NativeOps.ListPawns,
             new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [animal] } },
             cancellationToken).ConfigureAwait(false);
-        var observed = TypedReads.Observed("animal", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed);
+        var observed = pawns;
         var rows = observed.Pawns.ToList();
         if (rows is not [{ KindDefName: "Muffalo" } pawn] || pawn.Pawn.Id != animal)
         {

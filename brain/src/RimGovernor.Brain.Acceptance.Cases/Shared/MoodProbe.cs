@@ -28,7 +28,7 @@ internal static class MoodProbe
             advanced += Settle;
             var read = $"read-{label}-{CaseSupport.Tag(advanced)}";
             var reply = await s.CallAsync(read, NativeOps.ListPawns, new ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [pawn] }, Details = details }, cancellationToken).ConfigureAwait(false);
-            var observed = TypedReads.Observed(read, NativeOps.ListPawns, reply, reply.Outcome?.Observed);
+            var observed = reply;
             var state = observed.Pawns.SingleOrDefault(p => p.Pawn.Id == pawn) ?? throw new AcceptanceException($"{read}: pawn {pawn} missing from the pawn read");
             var social = state.Social ?? throw new AcceptanceException($"{read}: the pawn read carried no social detail");
             if (social.SituationalCacheStale)

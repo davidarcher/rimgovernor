@@ -21,7 +21,7 @@ public static class ClockFixture
             NativeOps.ListPawns,
             new Observations.ListPawnsRequest { Scope = TypedReads.Scope(Harness.IdentityOf(identity)), Filter = new() { Colonist = true } },
             cancellationToken).ConfigureAwait(false);
-        var pawns = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns;
+        var pawns = reply.Pawns;
         if (pawns.Count == 0)
         {
             throw new AcceptanceException("no colonists returned");

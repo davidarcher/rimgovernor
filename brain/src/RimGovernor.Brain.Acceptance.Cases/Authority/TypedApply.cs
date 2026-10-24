@@ -44,7 +44,7 @@ internal static class TypedApply
             Scope = s.Scope,
             Filter = new Observations.PawnFilter { Ids = [id] },
         }, cancellationToken).ConfigureAwait(false);
-        var pawns = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns.ToList();
+        var pawns = reply.Pawns.ToList();
         return pawns is [var pawn] ? pawn : throw new AcceptanceException($"{label}: want pawn {id}, got {pawns.Count} rows");
     }
 

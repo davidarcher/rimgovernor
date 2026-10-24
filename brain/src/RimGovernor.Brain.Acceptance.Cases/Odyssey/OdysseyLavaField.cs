@@ -80,7 +80,7 @@ internal static class OdysseyLavaField
         }
 
         var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Colonist = true } }, cancellationToken).ConfigureAwait(false);
-        var rows = TypedReads.Observed("colonists", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed).Pawns;
+        var rows = pawns.Pawns;
         bool OnLava(Common.Cell? at) => at is { X: { } x, Z: { } z } && x >= site.X && x < site.X + site.Width && z >= site.Z && z < site.Z + site.Height;
         var standing = rows.Where(p => OnLava(p.Pawn.Position)).Select(p => p.Pawn.Id).ToList();
         if (rows.Count == 0 || standing.Count > 0)

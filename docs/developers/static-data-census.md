@@ -107,7 +107,7 @@ Kept, each with its reason:
 
 Deleted (Go reads the mirror row, or the field was dead):
 - `DefinitionRef.label` (so `ResourceStock.definition.label`, the recipe, project, part and trade-line labels), and `EnvironmentCondition.implementation`/`label` (the `GameConditionDef` row has both).
-- The `Quality`, `HungerCategory`, `PriceType` and `TradeCurrencyKind` enums: `GearItem.quality`, `PawnNeeds.hunger_category`, `TradeLine.*_price_type` and `TradeSheet.currency_kind` carry the `defs.proto` `QualityCategory`, `HungerCategory`, `PriceType` and `TradeCurrency` values (presence replaces the `UNSPECIFIED` zero). `TechLevel` went with #2654.
+- The `Quality`, `HungerCategory`, `PriceType` and `TradeCurrencyKind` enums: `GearItem.quality`, `FoodNeed.Has.hunger`, `TradeLine.*_price_type` and `TradeSheet.currency_kind` carry the `defs.proto` `QualityCategory`, `HungerCategory`, `PriceType` and `TradeCurrency` values (presence replaces the `UNSPECIFIED` zero). `TechLevel` went with #2654.
 - `ExtractionWorkType`, `ExtractionSite`, `OwnedDrill`, `ExtractionDevelopment`, `ResourceSourcesSnapshot.development` and `ResourceSourcesRequest.include_development`: no native code wrote them and no Go code read them.
 - `ArchitectCategory`, `ArchitectDesignator`, their snapshot, request and reply messages and the `ListArchitectCategories`/`ListArchitectDesignators` reads: native never implemented the tools and nothing called them.
 - `DevelopmentFurniture` and `DevelopmentFacts.furniture`, the native `PowerConduit`/`HiddenConduit`/`WaterproofConduit` list: the conduit census is `DefinitionCatalog.PlainConduit` (a built plain `Building` whose `CompProperties_Power` is a bare `CompPowerTransmitter`) over the building table.
@@ -406,7 +406,6 @@ Kept, reason recorded:
 | PawnDetails | message | 578 | 11 | state | Pawn list detail projection flags |  |  |
 | PawnSnapshot | message | 588 | 5 | state | Pawn list snapshot with completeness |  |  |
 | ListPawnsRequest | message | 594 | 3 | state | List pawns request |  |  |
-| ListPawnsReply | message | 595 | 3 | state | List pawns reply envelope |  |  |
 | HolderKind | enum | 603 | 5 | state | What holds a stack |  |  |
 | BenchUnusableReason | enum | 607 | 6 | state | Why a bench takes no bills |  |  |
 | StockItem | message | 614 | 7 | mixed | One stack in a stock row | market_value (of packed item) | ThingDef.statBases MarketValue with quality factor via Go rule over rows |

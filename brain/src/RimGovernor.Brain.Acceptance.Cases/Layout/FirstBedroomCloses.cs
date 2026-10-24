@@ -142,7 +142,7 @@ internal static class LayoutFirstBedroomCloses
                 Filter = new Observations.PawnFilter { Colonist = true },
                 Details = new Observations.PawnDetails { Health = true },
             }, ct).ConfigureAwait(false);
-            owned = TypedReads.Observed("colonists", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed).Pawns
+            owned = pawns.Pawns
                 .ToDictionary(p => p.Pawn.Id, p => p.OwnedBed?.Id ?? "", StringComparer.Ordinal);
             var beds = census?.Beds.Select(b => b.Id).ToHashSet(StringComparer.Ordinal) ?? [];
             var housed = owned.Count >= Colonists && owned.Values.All(beds.Contains);

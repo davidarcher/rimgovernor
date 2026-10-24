@@ -12,7 +12,7 @@ internal sealed partial class DefenseRecorder : IRoundsDefenseSource
 
     public EmergencyObservation? Emergency { get; private set; }
 
-    public O.ListPawnsReply? Pawns { get; private set; }
+    public O.PawnSnapshot? Pawns { get; private set; }
 
     public BridgeLinesOfFire? Lines { get; private set; }
 
@@ -32,7 +32,7 @@ internal sealed partial class DefenseRecorder : IRoundsDefenseSource
         Emergency = v.Emergency;
         if (v.Frame?.Pawns is { } detail)
         {
-            Pawns = new O.ListPawnsReply { Outcome = detail };
+            Pawns = detail;
         }
         if (v.Frame?.CombatLinesOfFire is { } lines)
         {

@@ -262,7 +262,7 @@ internal static class LifecycleReuse
             NativeOps.ListPawns,
             new Observations.ListPawnsRequest { Scope = TypedReads.Scope(identity), Filter = new Observations.PawnFilter { Colonist = true, Downed = false, Ids = [.. ids] } },
             cancellationToken).ConfigureAwait(false);
-        var rows = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed).Pawns;
+        var rows = reply.Pawns;
         return rows.Count > 0 ? rows[0] : throw new AcceptanceException($"{label}: no standing colonist");
     }
 

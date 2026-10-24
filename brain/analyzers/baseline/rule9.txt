@@ -377,7 +377,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|722
+Contracts/Observations.cs|NullableValue|715
 Contracts/Observations.cs|UnknownMember|17
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
@@ -450,7 +450,7 @@ Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Discard|1
 Observation/Clearance.cs|Fact|6
 Observation/Clearance.cs|Unknown|1
-Observation/Colony.cs|Fact|91
+Observation/Colony.cs|Fact|90
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|56
 Observation/ColonyDecode.cs|Unknown|5

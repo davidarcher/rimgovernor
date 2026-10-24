@@ -264,20 +264,17 @@ public static class RoundsWorkReads
         }
         if (row.Needs is { } n)
         {
-            // A psylink level is known only for a psycaster: an absent psyfocus is no psylink (Psylink.cs).
+            // A psylink level is known only for a psycaster: level 0 is no psylink (Psylink.cs).
             w = w with
             {
-                Rest = ColonyDecodeReads.Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
-                Mood = ColonyDecodeReads.Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
-                Hunger = ColonyDecodeReads.Optional(n.HungerCategory is not null, n.HungerCategory.GetValueOrDefault()),
+                Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
+                Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
+                Hunger = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Hunger : default),
                 BreakThreshold = Known(n.BreakThresholdMinor),
-                PsylinkLevel = ColonyDecodeReads.Optional(n.Psyfocus is not null, n.Psyfocus?.PsylinkLevel ?? 0),
+                PsylinkLevel = ColonyDecodeReads.Optional(n.PsylinkLevel > 0, n.PsylinkLevel),
             };
         }
-        if (row.Social is { } social)
-        {
-            w = w with { HighExpectations = ColonyDecodeReads.Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
-        }
+        w = w with { HighExpectations = ColonyDecodeReads.Optional(row.Social is not null, row.Social is { HighExpectations: true }) };
         return w;
     }
 

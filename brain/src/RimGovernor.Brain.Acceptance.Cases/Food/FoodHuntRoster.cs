@@ -396,7 +396,7 @@ internal static class FoodHuntRoster
                 Scope = s.Scope,
                 Filter = new Observations.PawnFilter { Colonist = true, Drafted = true },
             }, ct).ConfigureAwait(false);
-            var snapshot = TypedReads.Observed("drafted", NativeOps.ListPawns, reply, reply.Outcome?.Observed);
+            var snapshot = reply;
             return snapshot.Pawns.Select(p => p.Pawn.Id).ToHashSet(StringComparer.Ordinal);
         }
 

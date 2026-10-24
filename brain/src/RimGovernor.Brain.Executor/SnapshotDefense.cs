@@ -32,7 +32,7 @@ public sealed class SnapshotDefense
     public EmergencyFacts Emergency { get; set; } = new();
 
     /// <summary>
-    /// ProtoJSON of the emergency read's ObservationContext, the ListPawnsReply of the combat read and the
+    /// ProtoJSON of the emergency read's ObservationContext, the PawnSnapshot of the combat read and the
     /// lines-of-fire read's context. CombatPawns is null when the step stopped before the combat read.
     /// </summary>
     public string? EmergencyContext { get; set; }
