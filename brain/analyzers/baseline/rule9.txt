@@ -129,8 +129,7 @@ BuildingRuntime/Rounds/RoundsFoodReserve.cs|Fact|6
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsFoodStores.cs|Fact|5
 BuildingRuntime/Rounds/RoundsFoodStores.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsGathering.cs|Fact|2
-BuildingRuntime/Rounds/RoundsGathering.cs|Unknown|1
+BuildingRuntime/Rounds/RoundsGathering.cs|Fact|1
 BuildingRuntime/Rounds/RoundsGearOrders.cs|Fact|3
 BuildingRuntime/Rounds/RoundsGoals.cs|Fact|1
 BuildingRuntime/Rounds/RoundsGoals.cs|Unknown|1
@@ -514,7 +513,7 @@ Policy/ForecastValue.cs|Fact|15
 Policy/ForecastWorkInputs.cs|Fact|1
 Policy/FuelRunway.cs|Fact|19
 Policy/FuelRunway.cs|Unknown|3
-Policy/Gathering.cs|Fact|15
+Policy/Gathering.cs|Fact|13
 Policy/Gathering.cs|Unknown|2
 Policy/Gear.cs|Fact|6
 Policy/GearClimate.cs|Fact|2

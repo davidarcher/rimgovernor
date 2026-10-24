@@ -8,8 +8,8 @@ public sealed record GatheringInput
     /// <summary>The mood census: the guests' state and the AttendedParty memory.</summary>
     public Fact<EquatableArray<MoodPawn>> Pawns { get; init; }
 
-    /// <summary>The AttendedParty mood effect from the catalog.</summary>
-    public Fact<double> Benefit { get; init; }
+    /// <summary>The AttendedParty mood effect from the catalog; a party whose memory is not positive repays nothing and is never held.</summary>
+    public required double Benefit { get; init; }
 
     /// <summary>RitualCalm: no hostile threat and no critical patient.</summary>
     public Fact<bool> Calm { get; init; }
@@ -63,11 +63,11 @@ public static class GatheringRules
         var none = Known(new GatheringPlan());
         var pk = input.Pawns.TryGetValue(out var pawns);
         var lk = input.Ledger.TryGetValue(out var ledger);
-        var bk = input.Benefit.TryGetValue(out var benefit);
+        var benefit = input.Benefit;
         var ck = input.Calm.TryGetValue(out var calm);
         var census = input.Census;
         // Known gates that refuse, whatever else is unread.
-        if (ck && !calm)
+        if (benefit <= 0 || (ck && !calm))
         {
             return none;
         }
@@ -99,7 +99,7 @@ public static class GatheringRules
         {
             return none;
         }
-        if (!pk || !lk || !bk || !ck || census is null)
+        if (!pk || !lk || !ck || census is null)
         {
             return Unknown<GatheringPlan>();
         }

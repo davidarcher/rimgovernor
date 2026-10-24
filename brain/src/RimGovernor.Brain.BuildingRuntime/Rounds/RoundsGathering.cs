@@ -10,18 +10,14 @@ public sealed partial class Rounder
     internal static Fact<GatheringPlan> GatheringPlanOf(RoundsReading reading, GenerationSnapshot snapshot)
     {
         var facts = reading.Projection.Facts;
-        var benefit = Unknown<double>();
-        var catalog = reading.Catalog;
-        if (catalog is not null && catalog.ThoughtFacts(GatheringRules.PartyThought) is { } thought && thought.WorstOffset > 0)
-        {
-            benefit = Known(thought.WorstOffset);
-        }
+        var thought = reading.Catalog?.ThoughtFacts(GatheringRules.PartyThought)
+            ?? throw new RequiredFactException(GatheringRules.PartyThought + " thought facts");
 
         return GatheringRules.PlanGathering(new GatheringInput
         {
             Ledger = facts.MoodLedger,
             Pawns = facts.MoodPawns,
-            Benefit = benefit,
+            Benefit = thought.WorstOffset,
             Calm = RoundsCalm(reading, snapshot),
             Census = facts.CurrentConstruction,
         });
