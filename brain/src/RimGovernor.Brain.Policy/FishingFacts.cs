@@ -16,19 +16,47 @@ public sealed record FishingZoneState(bool Allowed, bool DoForever, bool HasFish
 /// <summary>The raw native facts of the Fishing project.</summary>
 public sealed record FishingResearchInputs
 {
-    public Fact<bool> Researched { get; init; }
+    public bool Researched { get; init; }
 
-    public Fact<double> BaseCost { get; init; }
+    public double BaseCost { get; init; }
 
-    public Fact<double> Progress { get; init; }
+    public double Progress { get; init; }
 
-    public Fact<double> CostFactor { get; init; }
+    public double CostFactor { get; init; }
 
     public IReadOnlyList<double> ResearcherSpeeds { get; init; } = [];
 
-    public Fact<double> PointsPerWorkTick { get; init; }
+    public double PointsPerWorkTick { get; init; }
 
-    public Fact<double> Difficulty { get; init; }
+    public double Difficulty { get; init; }
+}
+
+/// <summary>
+/// The Fishing project: researched, pending with the days the fastest researcher needs to finish it, or without
+/// progress (no researcher, or the pace is not a finite positive rate).
+/// </summary>
+public abstract record FishingResearch
+{
+    private protected FishingResearch() { }
+
+    public sealed record Researched : FishingResearch;
+
+    public sealed record Pending(double LeadDays) : FishingResearch;
+
+    public sealed record NoProgress : FishingResearch;
+}
+
+/// <summary>
+/// The colony's fishers at one water body: none able to work (no fisher, or every FishingSpeed is zero), or the
+/// slowest working fisher's batch (fish per batch and work ticks per batch) and the crew's raw nutrition per day.
+/// </summary>
+public abstract record FishingCrew
+{
+    private protected FishingCrew() { }
+
+    public sealed record NoFisher : FishingCrew;
+
+    public sealed record Fishers(double FishPerBatch, double WorkTicksPerBatch, double CapacityPerDay) : FishingCrew;
 }
 
 /// <summary>One available fisher's native rates.</summary>
@@ -78,63 +106,49 @@ public static class FishingFactsRules
     /// The region verdict: some fisher reaches the water, and an unzoned body also
     /// offers a footprint of one cell per fisher.
     /// </summary>
-    public static Fact<bool> FishingReachable(Fact<bool> reaches, Fact<bool> zoned, int footprint, int fishers) =>
-        zoned.TryGetValue(out var z) && !z && footprint < fishers ? Known(false) : reaches;
+    public static bool FishingReachable(bool reaches, bool zoned, int footprint, int fishers) =>
+        reaches && (zoned || footprint >= fishers);
 
     /// <summary>The observed zone state: some zone is allowed, fishes forever and has fishable cells.</summary>
     public static bool FishingDelivering(IReadOnlyList<FishingZoneState> zones) => zones.Any(z => z.Allowed && z.DoForever && z.HasFishableCells);
 
     /// <summary>
-    /// Zero once researched; otherwise the remaining project cost over the
-    /// fastest researcher's daily points. It is unknown without a researcher or an unread input.
+    /// Researched, or pending with the remaining project cost over the fastest researcher's daily points; no
+    /// progress without a researcher or when that pace is not a finite positive rate.
     /// </summary>
-    public static Fact<double> FishingResearchLeadDays(FishingResearchInputs input)
+    public static FishingResearch FishingResearchState(FishingResearchInputs input)
     {
-        if (!input.Researched.TryGetValue(out var researched))
+        if (input.Researched)
         {
-            return Unknown<double>();
-        }
-        if (researched)
-        {
-            return Known(0.0);
+            return new FishingResearch.Researched();
         }
         var speed = 0.0;
         foreach (var s in input.ResearcherSpeeds)
         {
             speed = Math.Max(speed, s);
         }
-        var bk = input.BaseCost.TryGetValue(out var baseCost);
-        var pk = input.Progress.TryGetValue(out var progress);
-        var fk = input.CostFactor.TryGetValue(out var factor);
-        var tk = input.PointsPerWorkTick.TryGetValue(out var points);
-        var sk = input.Difficulty.TryGetValue(out var scale);
-        if (!bk || !pk || !fk || !tk || !sk || speed <= 0)
-        {
-            return Unknown<double>();
-        }
-        var lead = Math.Max(0, baseCost - progress) * factor / (speed * points * FishingWorkTicksPerDay * scale);
-        return double.IsNaN(lead) || double.IsInfinity(lead) ? Unknown<double>() : Known(lead);
+        var lead = Math.Max(0, input.BaseCost - input.Progress) * input.CostFactor / (speed * input.PointsPerWorkTick * FishingWorkTicksPerDay * input.Difficulty);
+        return speed > 0 && FoodForecastRules.FoodNumber(lead) ? new FishingResearch.Pending(lead) : new FishingResearch.NoProgress();
     }
 
     /// <summary>
-    /// The raw nutrition per day the fishers can draw from a body: per fisher, a
-    /// day of batches at the population's yield. It is unknown without a known nutrition per fish, yield curve
-    /// value or batch duration.
+    /// The fishers working one body: the slowest working fisher's batch (the population's yield at the lowest
+    /// FishingYield, at least one fish; the base duration over the lowest FishingSpeed), and per fisher a day of
+    /// batches at the population's yield as raw nutrition. A fisher with zero speed does not work.
     /// </summary>
-    public static Fact<double> FishingWorkCapacity(IReadOnlyList<Fisher> fishers, Fact<double> yieldCurve, Fact<double> nutritionPerFish, Fact<double> baseTicks)
+    public static FishingCrew FishingCrewAt(IReadOnlyList<Fisher> fishers, double yieldCurve, double nutritionPerFish, double baseTicks)
     {
-        var ck = yieldCurve.TryGetValue(out var curve);
-        var nk = nutritionPerFish.TryGetValue(out var nutrition);
-        var bk = baseTicks.TryGetValue(out var baseValue);
-        if (!ck || !nk || !bk || baseValue <= 0)
+        var working = fishers.Where(f => f.Speed > 0).ToList();
+        if (working.Count == 0 || !(baseTicks > 0))
         {
-            return Unknown<double>();
+            return new FishingCrew.NoFisher();
         }
         var sum = 0.0;
-        foreach (var f in fishers)
+        foreach (var f in working)
         {
-            sum += FishingWorkTicksPerDay * Math.Max(1, Math.Round(curve * f.Yield, MidpointRounding.ToEven)) * nutrition * f.Speed / baseValue;
+            sum += FishingWorkTicksPerDay * Math.Max(1, Math.Round(yieldCurve * f.Yield, MidpointRounding.ToEven)) * nutritionPerFish * f.Speed / baseTicks;
         }
-        return double.IsNaN(sum) || double.IsInfinity(sum) ? Unknown<double>() : Known(sum);
+        var batch = Math.Max(1, Math.Round(yieldCurve * working.Min(f => f.Yield), MidpointRounding.ToEven));
+        return new FishingCrew.Fishers(batch, baseTicks / working.Min(f => f.Speed), sum);
     }
 }

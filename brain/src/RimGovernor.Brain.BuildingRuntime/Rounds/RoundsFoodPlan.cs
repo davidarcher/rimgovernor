@@ -205,16 +205,14 @@ partial class Rounder
                 Population = region.Population,
                 MaxPopulation = region.MaxPopulation,
                 NutritionPerFish = region.NutritionPerFish,
-                FishPerBatch = region.FishPerBatch,
-                WorkTicksPerBatch = region.WorkTicksPerBatch,
-                PawnFishWorkCapacity = region.PawnFishWorkCapacity,
+                Crew = region.Crew,
                 Reachable = region.Reachable,
                 Frozen = region.Frozen,
                 Designated = region.Delivering,
                 Source = $"fish:{region.Root.X},{region.Root.Z}",
                 DistanceSquared = region.DistanceSquared,
             }).ToList();
-            var request = new FishingRequest { Researched = water.FishingResearched, ResearchLeadDays = water.ResearchLeadDays, Regions = regions };
+            var request = new FishingRequest { Research = water.Research, Regions = regions };
             try
             {
                 channels.AddRange(FishingRules.FishingChannels(request));

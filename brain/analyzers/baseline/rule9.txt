@@ -180,7 +180,7 @@ BuildingRuntime/Rounds/RoundsField.cs|Discard|1
 BuildingRuntime/Rounds/RoundsField.cs|Fact|19
 BuildingRuntime/Rounds/RoundsFirebreak.cs|Fact|14
 BuildingRuntime/Rounds/RoundsFirebreak.cs|Unknown|3
-BuildingRuntime/Rounds/RoundsFishing.cs|Fact|18
+BuildingRuntime/Rounds/RoundsFishing.cs|Fact|15
 BuildingRuntime/Rounds/RoundsFlooring.cs|Discard|1
 BuildingRuntime/Rounds/RoundsFlooring.cs|Fact|12
 BuildingRuntime/Rounds/RoundsFood.cs|Fact|3
@@ -340,7 +340,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|216
+Contracts/Observations.cs|NullableValue|198
 Contracts/Observations.cs|UnknownMember|3
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -428,7 +428,7 @@ Observation/Construction.cs|Unknown|4
 Observation/Decode.cs|Fact|3
 Observation/Definitions.cs|Fact|8
 Observation/Facts/Store.cs|Discard|2
-Observation/FoodChannels.cs|Fact|23
+Observation/FoodChannels.cs|Fact|6
 Observation/FoodSupply.cs|Fact|7
 Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
@@ -692,10 +692,8 @@ Policy/Firebreak.cs|Fact|21
 Policy/Firebreak.cs|Unknown|1
 Policy/FirebreakRing.cs|Fact|5
 Policy/FirebreakRing.cs|Unknown|1
-Policy/Fishing.cs|Fact|43
+Policy/Fishing.cs|Fact|16
 Policy/Fishing.cs|Unknown|1
-Policy/FishingFacts.cs|Fact|28
-Policy/FishingFacts.cs|Unknown|5
 Policy/Flooring.cs|Discard|4
 Policy/Flooring.cs|Fact|31
 Policy/Flooring.cs|UnknownMember|1

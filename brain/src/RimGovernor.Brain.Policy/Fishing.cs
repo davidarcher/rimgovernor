@@ -10,40 +10,34 @@ public sealed record FishingRegion
 {
     public string Id { get; init; } = "";
 
-    public Fact<double> Population { get; init; }
+    public double Population { get; init; }
 
-    public Fact<double> MaxPopulation { get; init; }
+    public double MaxPopulation { get; init; }
 
-    public Fact<double> NutritionPerFish { get; init; }
+    public double NutritionPerFish { get; init; }
 
-    public Fact<double> FishPerBatch { get; init; }
+    /// <summary>The fishers' batch and raw nutrition/day capacity at this body.</summary>
+    public FishingCrew Crew { get; init; } = new FishingCrew.NoFisher();
 
-    public Fact<double> WorkTicksPerBatch { get; init; }
+    public bool Reachable { get; init; }
 
-    /// <summary>Raw nutrition/day.</summary>
-    public Fact<double> PawnFishWorkCapacity { get; init; }
-
-    public Fact<bool> Reachable { get; init; }
-
-    public Fact<bool> Frozen { get; init; }
+    public bool Frozen { get; init; }
 
     /// <summary>A zone is set to fish it.</summary>
-    public Fact<bool> Designated { get; init; }
+    public bool Designated { get; init; }
 
     /// <summary>Ledger counter group of its deliveries.</summary>
     public string Source { get; init; } = "";
 
     /// <summary>Nearest cell to the colony centre.</summary>
-    public Fact<double> DistanceSquared { get; init; }
+    public double DistanceSquared { get; init; }
 }
 
 public sealed record FishingRequest
 {
     public IReadOnlyList<FishingRegion> Regions { get; init; } = [];
 
-    public Fact<bool> Researched { get; init; }
-
-    public Fact<double> ResearchLeadDays { get; init; }
+    public FishingResearch Research { get; init; } = new FishingResearch.Researched();
 }
 
 public static class FishingRules
@@ -53,16 +47,12 @@ public static class FishingRules
 
     /// <summary>
     /// Estimates sustainable raw nutrition. Cooking conversion is a separate ledger
-    /// contribution. Unknown facts never certify a delivery rate; malformed known facts throw the same
+    /// contribution. A body without a working fisher never certifies a delivery rate; malformed facts throw the same
     /// <see cref="FoodPlanFactsException"/> as SupplyFoodPlan. An empty region set (including Core without
     /// Odyssey) produces no fishing channel.
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> FishingChannels(FishingRequest r)
     {
-        if (r.ResearchLeadDays.TryGetValue(out var leadDays) && !FoodForecastRules.FoodNumber(leadDays))
-        {
-            throw new FoodPlanFactsException();
-        }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var channels = new List<SupplyCandidate>();
         foreach (var region in r.Regions)
@@ -71,66 +61,59 @@ public static class FishingRules
             {
                 throw new FoodPlanFactsException();
             }
-            foreach (var f in (ReadOnlySpan<Fact<double>>)[region.Population, region.MaxPopulation, region.NutritionPerFish, region.FishPerBatch, region.WorkTicksPerBatch, region.PawnFishWorkCapacity])
-            {
-                if (f.TryGetValue(out var v) && !FoodForecastRules.FoodNumber(v))
-                {
-                    throw new FoodPlanFactsException();
-                }
-            }
-            var pk = region.Population.TryGetValue(out var population);
-            var mk = region.MaxPopulation.TryGetValue(out var maximum);
-            var nk = region.NutritionPerFish.TryGetValue(out var nutrition);
-            var bk = region.FishPerBatch.TryGetValue(out var batch);
-            var wk = region.WorkTicksPerBatch.TryGetValue(out var work);
-            var capKnown = region.PawnFishWorkCapacity.TryGetValue(out var capacity);
-            if ((pk && mk && population > maximum) || (nk && nutrition == 0) || (bk && batch == 0) || (wk && work == 0))
+            var population = region.Population;
+            var maximum = region.MaxPopulation;
+            var nutrition = region.NutritionPerFish;
+            if (!FoodForecastRules.FoodNumber(population) || !FoodForecastRules.FoodNumber(maximum) || !FoodForecastRules.FoodNumber(nutrition) || population > maximum || nutrition == 0)
             {
                 throw new FoodPlanFactsException();
             }
-            var open = NotDelivering(region.Designated);
-            var designated = region.Designated;
+            if (region.Crew is FishingCrew.Fishers crew
+                && (!FoodForecastRules.FoodNumber(crew.FishPerBatch) || !FoodForecastRules.FoodNumber(crew.WorkTicksPerBatch) || !FoodForecastRules.FoodNumber(crew.CapacityPerDay) || crew.FishPerBatch == 0 || crew.WorkTicksPerBatch == 0))
+            {
+                throw new FoodPlanFactsException();
+            }
+            var open = Known(false);
+            var designated = Known(region.Designated);
             var channel = CandidateRules.FoodCandidate(CandidateKind.Fishing, region.Id, Unknown<double>());
             var terms = new List<CandidateTerm> { new("fish_regeneration_fraction", FishingRegenerationPerDay) };
-            channel = channel with { Source = region.Source, DistanceSquared = region.DistanceSquared };
-            if (r.Researched.TryGetValue(out var researched))
+            channel = channel with { Source = region.Source, DistanceSquared = Known(region.DistanceSquared) };
+            switch (r.Research)
             {
-                channel = channel with { LeadDays = r.ResearchLeadDays };
-                if (researched)
-                {
+                case FishingResearch.Researched:
                     channel = channel with { LeadDays = Known(0.0) };
-                }
-                else
-                {
-                    open = Known(false);
+                    break;
+                case FishingResearch.Pending pending:
+                    channel = channel with { LeadDays = Known(pending.LeadDays) };
                     designated = Known(false);
                     terms.Add(new CandidateTerm("fishing_research_required", 1));
-                }
+                    break;
+                case FishingResearch.NoProgress:
+                    designated = Known(false);
+                    terms.Add(new CandidateTerm("fishing_research_required", 1));
+                    break;
             }
-            var rk = region.Reachable.TryGetValue(out var reachable);
-            var fk = region.Frozen.TryGetValue(out var frozen);
-            if ((rk && !reachable) || (fk && frozen) || (pk && population == 0) || (mk && maximum == 0))
+            if (!region.Reachable || region.Frozen || population == 0 || maximum == 0)
             {
                 // Preserve an explicit explanation without presenting an unusable region as an observed-open source of food.
-                open = Known(false);
                 designated = Known(false);
                 channel = WithFirstYield(channel, Known(0.0), Known(0.0));
-                if (rk && !reachable)
+                if (!region.Reachable)
                 {
                     terms.Add(new CandidateTerm("fishing_unreachable", 1));
                 }
-                if (fk && frozen)
+                if (region.Frozen)
                 {
                     terms.Add(new CandidateTerm("fishing_frozen", 1));
                 }
             }
-            else if (pk && mk && population <= maximum * ZoneCreateConstants.FishingPopulationFloor)
+            else if (population <= maximum * ZoneCreateConstants.FishingPopulationFloor)
             {
                 // Native pauses fishing at or below the floor until the lake regrows: no catch, so the zone is not delivering meanwhile.
                 channel = WithFirstYield(channel, Known(0.0), Known(0.0));
                 terms.Add(new CandidateTerm("fishing_below_floor", population / maximum));
             }
-            else if (pk && mk && nk && bk && wk && rk && fk && capKnown)
+            else if (region.Crew is FishingCrew.Fishers fishers)
             {
                 // The sustainable average, not today's catch quota. Native population-floor control permits bursts and subsequent recovery.
                 var regen = maximum * FishingRegenerationPerDay * nutrition;
@@ -138,36 +121,33 @@ public static class FishingRules
                 {
                     throw new FoodPlanFactsException();
                 }
-                var dailyNutrition = Math.Min(regen, capacity);
+                var dailyNutrition = Math.Min(regen, fishers.CapacityPerDay);
                 var draw = dailyNutrition / nutrition;
-                var dailyWork = draw / batch * work;
+                var dailyWork = draw / fishers.FishPerBatch * fishers.WorkTicksPerBatch;
                 if (!FoodForecastRules.FoodNumber(dailyNutrition) || !FoodForecastRules.FoodNumber(dailyWork))
                 {
                     throw new FoodPlanFactsException();
                 }
                 channel = WithFirstYield(channel, Known(dailyNutrition), Known(dailyWork));
                 terms.Add(new CandidateTerm("fish_draw_per_day", draw));
-                terms.Add(new CandidateTerm("fish_per_batch", batch));
+                terms.Add(new CandidateTerm("fish_per_batch", fishers.FishPerBatch));
             }
             channels.Add(channel with { Terms = [.. terms], State = CandidateRules.FoodState(open, designated) });
         }
         return channels;
     }
-
     /// <summary>Sets the first yield's per-day rate and the channel's daily labor.</summary>
     private static SupplyCandidate WithFirstYield(SupplyCandidate channel, Fact<double> perDay, Fact<double> laborPerDay) =>
         channel with { Yields = [channel.Yields[0] with { PerDay = perDay }, .. channel.Yields.Skip(1)], LaborPerDay = laborPerDay };
 
-    /// <summary>A channel's Open before the ledger: not delivering, unknown when its designation is.</summary>
-    private static Fact<bool> NotDelivering(Fact<bool> designated) => designated.IsKnown ? Known(false) : designated;
 
     /// <summary>
     /// Asks the existing research goal to open a selected source. A deferred,
     /// closed or unknown channel cannot change research intent. Empty when nothing is asked.
     /// </summary>
-    public static string FishingResearchRequest(FoodPlan plan, Fact<bool> researched)
+    public static string FishingResearchRequest(FoodPlan plan, FishingResearch research)
     {
-        if (!researched.TryGetValue(out var known) || known)
+        if (research is FishingResearch.Researched)
         {
             return "";
         }

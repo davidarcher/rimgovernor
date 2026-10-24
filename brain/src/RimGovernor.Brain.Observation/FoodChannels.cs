@@ -25,42 +25,34 @@ public sealed record FishableWater
 {
     public IReadOnlyList<FishableRegion> Regions { get; init; } = [];
 
-    public Fact<bool> FishingResearched { get; init; }
-
-    public Fact<double> ResearchLeadDays { get; init; }
+    public FishingResearch Research { get; init; } = new FishingResearch.NoProgress();
 }
 
+/// <summary>A water body whose fish the colony eats, with the policy verdicts: reachability, delivery, footprint and crew.</summary>
 public sealed record FishableRegion
 {
     public Cell Root { get; init; }
 
-    public Fact<double> Population { get; init; }
+    public double Population { get; init; }
 
-    public Fact<double> MaxPopulation { get; init; }
+    public double MaxPopulation { get; init; }
 
-    public Fact<bool> Zoned { get; init; }
+    public bool Zoned { get; init; }
 
-    public Fact<bool> Reachable { get; init; }
+    /// <summary>Some fisher reaches the water, and an unzoned body also offers a footprint of one cell per fisher.</summary>
+    public bool Reachable { get; init; }
 
-    public Fact<uint> CellCount { get; init; }
+    public bool Frozen { get; init; }
 
-    public Fact<bool> Frozen { get; init; }
+    public bool Delivering { get; init; }
 
-    public Fact<bool> Delivering { get; init; }
-
-    public Fact<double> NutritionPerFish { get; init; }
-
-    public Fact<double> FishPerBatch { get; init; }
-
-    public Fact<double> WorkTicksPerBatch { get; init; }
+    public double NutritionPerFish { get; init; }
 
     public IReadOnlyList<Cell> ProposedCells { get; init; } = [];
 
-    public Fact<double> PawnFishWorkCapacity { get; init; }
+    public FishingCrew Crew { get; init; } = new FishingCrew.NoFisher();
 
-    public Fact<uint> ConcurrentFishers { get; init; }
-
-    public Fact<double> DistanceSquared { get; init; }
+    public double DistanceSquared { get; init; }
 }
 
 public static class FoodChannelsReads
@@ -163,24 +155,19 @@ public static class FoodChannelsReads
         return true;
     }
 
-    /// <summary>Applies the policy decisions to native's raw fishing facts: research lead, footprint, reachability verdict, delivery and capacity.</summary>
+    /// <summary>Applies the policy decisions to native's raw fishing facts: research state, footprint, reachability verdict, delivery and crew.</summary>
     private static FishableWater ColonyFishableWater(O.FishableWater water)
     {
-        var researched = ColonyDecodeReads.Optional(water.FishingResearched is not null, water.FishingResearched.GetValueOrDefault());
-        var w = new FishableWater
+        var research = FishingFactsRules.FishingResearchState(new FishingResearchInputs
         {
-            FishingResearched = researched,
-            ResearchLeadDays = FishingFactsRules.FishingResearchLeadDays(new FishingResearchInputs
-            {
-                Researched = researched,
-                BaseCost = ColonyDecodeReads.Optional(water.ResearchBaseCost is not null, water.ResearchBaseCost.GetValueOrDefault()),
-                Progress = ColonyDecodeReads.Optional(water.ResearchProgress is not null, water.ResearchProgress.GetValueOrDefault()),
-                CostFactor = ColonyDecodeReads.Optional(water.ResearchCostFactor is not null, water.ResearchCostFactor.GetValueOrDefault()),
-                ResearcherSpeeds = [.. water.ResearcherSpeeds],
-                PointsPerWorkTick = ColonyDecodeReads.Optional(water.ResearchPointsPerWorkTick is not null, water.ResearchPointsPerWorkTick.GetValueOrDefault()),
-                Difficulty = ColonyDecodeReads.Optional(water.ResearchDifficultySpeedFactor is not null, water.ResearchDifficultySpeedFactor.GetValueOrDefault()),
-            }),
-        };
+            Researched = water.FishingResearched,
+            BaseCost = water.ResearchBaseCost,
+            Progress = water.ResearchProgress,
+            CostFactor = water.ResearchCostFactor,
+            ResearcherSpeeds = [.. water.ResearcherSpeeds],
+            PointsPerWorkTick = water.ResearchPointsPerWorkTick,
+            Difficulty = water.ResearchDifficultySpeedFactor,
+        });
         var fishers = new List<Fisher>(water.Fishers.Count);
         foreach (var f in water.Fishers)
         {
@@ -189,43 +176,32 @@ public static class FoodChannelsReads
         var regions = new List<FishableRegion>();
         foreach (var row in water.Regions)
         {
-            var region = new FishableRegion
-            {
-                Root = row.Root,
-                Population = ColonyDecodeReads.Optional(row.Population is not null, row.Population.GetValueOrDefault()),
-                MaxPopulation = ColonyDecodeReads.Optional(row.MaxPopulation is not null, row.MaxPopulation.GetValueOrDefault()),
-                Zoned = ColonyDecodeReads.Optional(row.Zoned is not null, row.Zoned.GetValueOrDefault()),
-                CellCount = ColonyDecodeReads.Optional(row.CellCount is not null, row.CellCount.GetValueOrDefault()),
-                Frozen = ColonyDecodeReads.Optional(row.Frozen is not null, row.Frozen.GetValueOrDefault()),
-                NutritionPerFish = ColonyDecodeReads.Optional(row.NutritionPerFish is not null, row.NutritionPerFish.GetValueOrDefault()),
-                FishPerBatch = ColonyDecodeReads.Optional(row.FishPerBatch is not null, row.FishPerBatch.GetValueOrDefault()),
-                WorkTicksPerBatch = ColonyDecodeReads.Optional(row.WorkTicksPerBatch is not null, row.WorkTicksPerBatch.GetValueOrDefault()),
-                DistanceSquared = ColonyDecodeReads.Optional(row.NearestDistanceSquared is not null, row.NearestDistanceSquared.GetValueOrDefault()),
-                ConcurrentFishers = Known((uint)fishers.Count),
-            };
             var cells = new List<FishingCell>(row.Cells.Count);
             foreach (var c in row.Cells)
             {
                 cells.Add(new FishingCell { Cell = c.Cell, Reachable = c.Reachable, DistanceSquared = c.DistanceSquared });
             }
             var proposed = FishingFactsRules.FishingFootprint(cells, fishers.Count);
-            region = region with
-            {
-                ProposedCells = proposed,
-                Reachable = FishingFactsRules.FishingReachable(ColonyDecodeReads.Optional(row.Reachable is not null, row.Reachable.GetValueOrDefault()), region.Zoned, proposed.Count, fishers.Count),
-            };
             var zones = new List<FishingZoneState>(row.Zones.Count);
             foreach (var z in row.Zones)
             {
                 zones.Add(new FishingZoneState(z.Allowed, z.DoForever, z.HasFishableCells));
             }
-            region = region with
+            regions.Add(new FishableRegion
             {
-                Delivering = Known(FishingFactsRules.FishingDelivering(zones)),
-                PawnFishWorkCapacity = FishingFactsRules.FishingWorkCapacity(fishers, ColonyDecodeReads.Optional(row.YieldCurveValue is not null, row.YieldCurveValue.GetValueOrDefault()), region.NutritionPerFish, ColonyDecodeReads.Optional(water.BaseFishingDurationTicks is not null, water.BaseFishingDurationTicks.GetValueOrDefault())),
-            };
-            regions.Add(region);
+                Root = row.Root,
+                Population = row.Population,
+                MaxPopulation = row.MaxPopulation,
+                Zoned = row.Zoned,
+                Frozen = row.Frozen,
+                NutritionPerFish = row.NutritionPerFish,
+                DistanceSquared = row.NearestDistanceSquared,
+                ProposedCells = proposed,
+                Reachable = FishingFactsRules.FishingReachable(row.Reachable, row.Zoned, proposed.Count, fishers.Count),
+                Delivering = FishingFactsRules.FishingDelivering(zones),
+                Crew = FishingFactsRules.FishingCrewAt(fishers, row.YieldCurveValue, row.NutritionPerFish, water.BaseFishingDurationTicks),
+            });
         }
-        return w with { Regions = regions };
+        return new FishableWater { Research = research, Regions = regions };
     }
 }

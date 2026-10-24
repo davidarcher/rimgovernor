@@ -101,7 +101,7 @@ public sealed partial class Rounder
             var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
             if (p.FoodChannels.FishableWater is { } w && pk)
             {
-                var target = FishingRules.FishingResearchRequest(plan!, w.FishingResearched);
+                var target = FishingRules.FishingResearchRequest(plan!, w.Research);
                 if (target.Length != 0)
                 {
                     needs = [.. needs, target];
@@ -130,8 +130,7 @@ public sealed partial class RoundsFieldPlanner
     {
         var p = read.Projection;
         var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
-        if (!pk || p.FoodChannels.FishableWater is not { } water
-            || !water.FishingResearched.TryGetValue(out var researched) || !researched)
+        if (!pk || p.FoodChannels.FishableWater is not { } water || water.Research is not FishingResearch.Researched)
         {
             return (new RoundsFieldResult(), false);
         }
@@ -152,13 +151,12 @@ public sealed partial class RoundsFieldPlanner
 
                 // An open zone is fished by the game; it must not hold the rest of the field planner, or crops
                 // are never planned while the fish run down to their population floor.
-                if (region.Delivering.TryGetValue(out var open) && open)
+                if (region.Delivering)
                 {
                     continue;
                 }
 
-                var zk = region.Zoned.TryGetValue(out var zoned);
-                if (entry.Decision != FoodPlanDecision.Open || !zk || zoned || region.ProposedCells.Count == 0)
+                if (entry.Decision != FoodPlanDecision.Open || region.Zoned || region.ProposedCells.Count == 0)
                 {
                     continue;
                 }

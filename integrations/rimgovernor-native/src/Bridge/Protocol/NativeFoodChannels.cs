@@ -129,7 +129,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // Odyssey's fishable water: one row per fish-bearing body with visible
-        // passable cells, the colony's fishers and the Fishing research.
+        // passable cells whose fish the colony eats, the colony's fishers and the
+        // Fishing research.
         private static Obs.FishableWater Water(Map map, IntVec3 center, List<Pawn> workers, Func<ThingDef, bool> humanFood)
         {
             var fishers = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Fishing) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
@@ -138,9 +139,12 @@ namespace HomeBridge.BridgeTools
             {
                 var cells = body.cells.Where(c => !c.Fogged(map) && c.GetTerrain(map).passability != Traversability.Impassable).ToList();
                 if (cells.Count == 0) continue;
+                var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
+                if (fish.Count == 0 || !fish.All(humanFood)) continue;
                 var zones = map.zoneManager.AllZones.OfType<Zone_Fishing>().Where(z => z.Cells.Any(c => body.cells.Contains(c))).ToList();
                 var row = new Obs.FishableRegion { Root = new RimGovernor.Brain.Domain.Cell(body.rootCell.x, body.rootCell.z),
-                    Population = Finite(body.Population), MaxPopulation = Finite(body.MaxPopulation), CellCount = (uint)cells.Count,
+                    Population = Finite(body.Population), MaxPopulation = Finite(body.MaxPopulation),
+                    NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition))),
                     Zoned = zones.Count > 0, Frozen = cells.All(c => c.GetTerrain(map) == TerrainDefOf.ThinIce),
                     Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))),
                     YieldCurveValue = Finite(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)),
@@ -151,31 +155,19 @@ namespace HomeBridge.BridgeTools
                     Cells = [.. cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)).OrderBy(c => c.x).ThenBy(c => c.z)
                         .Select(c => new Obs.FishableCell { Cell = new RimGovernor.Brain.Domain.Cell(c.x, c.z), DistanceSquared = c.DistanceToSquared(center),
                             Reachable = fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)) })] };
-                var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
-                if (fish.Count > 0 && fish.All(humanFood)) row = row with { NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition))) };
-                if (fishers.Count > 0)
-                {
-                    row = row with { FishPerBatch = Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population) * fishers.Min(p => p.GetStatValue(StatDefOf.FishingYield)))) };
-                    var speed = fishers.Min(p => p.GetStatValue(StatDefOf.FishingSpeed));
-                    if (speed > 0) row = row with { WorkTicksPerBatch = Finite(FishingUtility.BaseFishingDurationTicks / speed) };
-                }
                 regions.Add(row);
             }
-            var research = ResearchProjectDefOf.Fishing;
-            var water = new Obs.FishableWater
+            var research = ResearchProjectDefOf.Fishing ?? throw new InvalidOperationException("Odyssey is active but the Fishing research project is missing");
+            return new Obs.FishableWater
             {
                 Regions = [.. regions],
                 Fishers = [.. fishers.Select(p => new Obs.FisherFacts { FishingYield = Finite(p.GetStatValue(StatDefOf.FishingYield)), FishingSpeed = Finite(p.GetStatValue(StatDefOf.FishingSpeed)) })],
-                ResearcherSpeeds = research != null ? [.. workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research)).Select(p => Finite(p.GetStatValue(StatDefOf.ResearchSpeed)))] : [],
+                ResearcherSpeeds = [.. workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research)).Select(p => Finite(p.GetStatValue(StatDefOf.ResearchSpeed)))],
                 BaseFishingDurationTicks = Finite(FishingUtility.BaseFishingDurationTicks),
+                FishingResearched = research.IsFinished, ResearchBaseCost = Finite(research.baseCost),
+                ResearchProgress = Finite(Find.ResearchManager.GetProgress(research)), ResearchCostFactor = Finite(research.CostFactor(Faction.OfPlayer.def.techLevel)),
+                ResearchPointsPerWorkTick = Finite(ResearchManager.ResearchPointsPerWorkTick), ResearchDifficultySpeedFactor = Finite(Find.Storyteller.difficulty.researchSpeedFactor),
             };
-            if (research != null)
-            {
-                water = water with { FishingResearched = research.IsFinished, ResearchBaseCost = Finite(research.baseCost),
-                    ResearchProgress = Finite(Find.ResearchManager.GetProgress(research)), ResearchCostFactor = Finite(research.CostFactor(Faction.OfPlayer.def.techLevel)),
-                    ResearchPointsPerWorkTick = Finite(ResearchManager.ResearchPointsPerWorkTick), ResearchDifficultySpeedFactor = Finite(Find.Storyteller.difficulty.researchSpeedFactor) };
-            }
-            return water;
         }
 
         // A private member the census reads; a renamed or retyped member throws and fails the colony read.

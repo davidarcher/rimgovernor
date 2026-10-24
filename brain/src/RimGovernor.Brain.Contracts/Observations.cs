@@ -6057,29 +6057,24 @@ public sealed record FishingZoneFacts
     public required bool HasFishableCells { get; init; }
 }
 
+/// <summary>A fish-bearing water body whose fish the colony eats; nutrition_per_fish is its least nutritious fish.</summary>
 public sealed record FishableRegion
 {
     public required Cell Root { get; init; }
 
-    public double? Population { get; init; }
+    public required double Population { get; init; }
 
-    public double? MaxPopulation { get; init; }
+    public required double MaxPopulation { get; init; }
 
-    public bool? Zoned { get; init; }
+    public required bool Zoned { get; init; }
 
-    public uint? CellCount { get; init; }
+    public required bool Reachable { get; init; }
 
-    public bool? Reachable { get; init; }
+    public required bool Frozen { get; init; }
 
-    public bool? Frozen { get; init; }
+    public required double NutritionPerFish { get; init; }
 
-    public double? NutritionPerFish { get; init; }
-
-    public double? FishPerBatch { get; init; }
-
-    public double? WorkTicksPerBatch { get; init; }
-
-    public double? NearestDistanceSquared { get; init; }
+    public required double NearestDistanceSquared { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FishableCell>))]
     public required EquatableArray<FishableCell> Cells { get; init; }
@@ -6087,7 +6082,7 @@ public sealed record FishableRegion
     [JsonConverter(typeof(EquatableArrayJsonConverter<FishingZoneFacts>))]
     public required EquatableArray<FishingZoneFacts> Zones { get; init; }
 
-    public double? YieldCurveValue { get; init; }
+    public required double YieldCurveValue { get; init; }
 }
 
 /// <summary>
@@ -6108,25 +6103,25 @@ public sealed record FishableWater
     [JsonConverter(typeof(EquatableArrayJsonConverter<FishableRegion>))]
     public required EquatableArray<FishableRegion> Regions { get; init; }
 
-    public bool? FishingResearched { get; init; }
+    public required bool FishingResearched { get; init; }
 
-    public double? ResearchBaseCost { get; init; }
+    public required double ResearchBaseCost { get; init; }
 
-    public double? ResearchProgress { get; init; }
+    public required double ResearchProgress { get; init; }
 
-    public double? ResearchCostFactor { get; init; }
+    public required double ResearchCostFactor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
     public required EquatableArray<double> ResearcherSpeeds { get; init; }
 
-    public double? ResearchPointsPerWorkTick { get; init; }
+    public required double ResearchPointsPerWorkTick { get; init; }
 
-    public double? ResearchDifficultySpeedFactor { get; init; }
+    public required double ResearchDifficultySpeedFactor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FisherFacts>))]
     public required EquatableArray<FisherFacts> Fishers { get; init; }
 
-    public double? BaseFishingDurationTicks { get; init; }
+    public required double BaseFishingDurationTicks { get; init; }
 }
 
 /// <summary>
