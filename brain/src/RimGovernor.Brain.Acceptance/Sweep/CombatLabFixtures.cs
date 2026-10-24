@@ -259,12 +259,15 @@ public static class CombatFixtures
     public const string Gunner = "Mercenary_Gunner";
     public const string Slasher = "Mercenary_Slasher";
 
+    /// <summary>The pirate drifter, a melee raider kind of combatPower 35.</summary>
+    public const string Drifter = "Drifter";
+
     /// <summary>Fixtures with committed metrics baselines. lab-infestation can be built but has no metrics baseline.</summary>
     public static readonly IReadOnlyList<string> Names =
     [
         "lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech",
         "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged", "lab-ranged-light", "lab-ranged-lone",
-        "lab-ranged-overrun",
+        "lab-ranged-overrun", "lab-ranged-few", "lab-melee-lone",
     ];
 
     public const int MechStunTicks = 600;
@@ -293,6 +296,8 @@ public static class CombatFixtures
         "lab-ranged-light" => RangedLine("lab-ranged-light", cx, cz, [-3, -1, 1, 3], [-2, 0, 2]),
         "lab-ranged-lone" => RangedLine("lab-ranged-lone", cx, cz, [-3, -1, 1, 3], [0]),
         "lab-ranged-overrun" => RangedLine("lab-ranged-overrun", cx, cz, [-1, 1], [-6, -4, -2, 0, 2, 4, 6]),
+        "lab-ranged-few" => RangedLine("lab-ranged-few", cx, cz, [-2, 0, 2], [0]),
+        "lab-melee-lone" => MeleeLone(cx, cz),
         "lab-pods" => Pods(cx, cz),
         "lab-siege" => Siege(cx, cz),
         "lab-manhunter" => ManhunterFixture(cx, cz),
@@ -444,6 +449,28 @@ public static class CombatFixtures
             i++;
         }
 
+        return f;
+    }
+
+    // meleeLone: four steel longsword fighters holding a line on an open field and one club drifter 20 cells north, the exposure
+    // calibration's 0-0.5 melee fixture (#3880): a lone attacker against a melee line, as a creepjoiner turning or a
+    // held entity escaping is.
+    private static LabFixture MeleeLone(int cx, int cz)
+    {
+        var f = new LabFixture { Name = "lab-melee-lone", Colonists = 4 };
+        // The fighters' cells as the held line, as lab-ranged's riflemen: a stored layout plan is the colony's first plan,
+        // which a lab with no building cannot reach on its own (#3963).
+        f.Layout = new LabLayout { Toward = "south" };
+        var i = 0;
+        foreach (var dx in new[] { -3, -1, 1, 3 })
+        {
+            f.Pawns.Add(P(Colonist, cx + dx, cz - 10, index: i, weapon: Longsword, weaponStuff: "Steel"));
+            f.Layout.Firing.Add(new LabCell(cx + dx, cz - 10));
+            f.Layout.Retreat.Add(new LabCell(cx + dx, cz - 15));
+            i++;
+        }
+
+        f.Pawns.Add(P(Hostile, cx, cz + 10, kind: Drifter, weapon: Club, weaponStuff: "WoodLog"));
         return f;
     }
 
@@ -609,7 +636,8 @@ public static class CombatFixtures
 
     // rangedLine: lab-ranged's sandbag line and held layout with a rifleman at each defender offset and a rifle raider 25
     // cells north at each raider offset. The exposure calibration's fixtures (#3561) vary the counts to move the raid
-    // points over defense capacity ratio: light (4 on 3) 0.90, lone (4 on 1) 0.30, overrun (2 on 7) 4.21.
+    // points over defense capacity ratio: light (4 on 3) 0.90, lone (4 on 1) 0.30, overrun (2 on 7) 4.21;
+    // few (3 on 1, #3880) is the 0-0.5 bin's second gunner fixture.
     private static LabFixture RangedLine(string name, int cx, int cz, int[] defenders, int[] raiders)
     {
         var f = new LabFixture { Name = name, Colonists = defenders.Length, Layout = new LabLayout { Toward = "south" } };

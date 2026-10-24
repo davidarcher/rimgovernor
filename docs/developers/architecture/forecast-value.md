@@ -6,7 +6,7 @@
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (three cells are calibrated today); investment is the tier-2 credit of research and sowing blocks and of the skill XP work applies, less the medicine it consumes ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (seven cells are calibrated today); investment is the tier-2 credit of research and sowing blocks and of the skill XP work applies, less the medicine it consumes ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry. The model runs once per review, before the comparison (`RoundsColonyModel.Review`): the engine, the project graph and the
 valuation are in `Policy/ColonyModel`, and the `colony_model` event reports each run.
@@ -1013,11 +1013,12 @@ raid harm per day. The output feeds the currency and the death floor.
    stays explicit. The harm model reads the committed table (`RaidExposure`)
    and duplicates no constants; see
    [raid exposure calibration](../testing/harm-exposure-calibration.md).
-   **Calibrated today:** five cells, gunners at every ratio from 0.5 up (0.5 to
-   1, 1 to 2, 2 to 4 and over 4) and melee fighters at 2 to 4, from 20-seed
-   sweeps whose means held in a second sweep. Every other cell (ratio under
-   0.5, whose gunner cell failed that check; noncombatants; melee outside 2 to
-   4) is uncalibrated: the harm term is unknown with
+   **Calibrated today:** seven cells, gunners at every ratio (under 0.5, 0.5 to
+   1, 1 to 2, 2 to 4 and over 4) and melee fighters under 0.5 and at 2 to 4,
+   from 20-seed sweeps whose means held in a second sweep. The under-0.5 cells
+   price the small fights: a creepjoiner turning aggressive and a held entity
+   escaping (#3880). Every other cell (noncombatants, #3969; melee from 0.5 to 2
+   and over 4) is uncalibrated: the harm term is unknown with
    `exposure_cell_uncalibrated:<bin>/<role>` and the death floor is unassessed,
    so a colony outside those cells compares on the other terms only.
 4. **Armor response, per pawn and weapon bin.** For each layer covering the
@@ -1189,7 +1190,7 @@ Each milestone has a GitHub issue.
    lexicographic ranking; the vector stays as explanation.
 4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `RoundsColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value waits on the calibrated exposure table, #3543) and proven in play by `production/devilstrand-investment` ([#3560](https://github.com/davidarcher/rimgovernor/issues/3560)); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
-   consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; three exposure cells are calibrated).
+   consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; seven exposure cells are calibrated, #3561 and #3880).
 6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3: the outcome-evaluation budget (#3722, shipped), lazy evaluation, proven pruning and the tuned default.
 
 The food-runway diagnostic uses the native annual daily growing pattern at the

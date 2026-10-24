@@ -53,7 +53,11 @@ public sealed class CreepJoinerHarmTests
         Unshown = [new UnshownCreepJoiner("cj", Joined, Points)], Table = table ?? Table(), Values = valued ? [Value] : [],
     };
 
-    private static NeedsForecastPawn Cj => ForecastValueTests.HarmPawn() with { Pawn = "cj" };
+    internal static readonly GearOption Rifle = new() { ID = "rifle", Slot = GearSlot.Primary, Ranged = true };
+
+    internal static readonly GearOption Longsword = new() { ID = "longsword", Slot = GearSlot.Primary };
+
+    private static NeedsForecastPawn Cj =>ForecastValueTests.HarmPawn() with { Pawn = "cj" };
 
     private static ForecastCoupledContext Context(CreepJoinerHarmInputs inputs, NeedsForecastPawn? cj = null)
     {
@@ -293,8 +297,17 @@ public sealed class CreepJoinerHarmTests
         var findings = ForecastValue.Of(Outcome(cj), Context(inputs with { Values = [Value] }, cj), Horizon * Day).HarmFindings;
         Assert.Contains("creepjoiner_hediff_unmodelled:CrumbledMind:disabledWorkTags", findings);
 
-        // A game creepjoiner's 55 points against 1000 defense is a fight the exposure table does not calibrate: a required fact (#3835).
-        Assert.Throws<RequiredFactException>(() => Term(Context(inputs with { Values = [Value], Unshown = [new UnshownCreepJoiner("cj", 2.5, 55)] }, cj), cj));
+        // A game creepjoiner's 55 points against 1000 defense is a small fight: the committed table's 0-0.5 cells price it
+        // against an armed defender (#3880), and an unarmed one is a noncombatant the table does not calibrate (#3835).
+        var small = Context(inputs with { Values = [Value], Unshown = [new UnshownCreepJoiner("cj", 2.5, 55)] }, cj);
+        small = small with { Harm = small.Harm with { Exposure = RaidExposure.Load() } };
+        foreach (var weapon in new[] { Rifle, Longsword })
+        {
+            var armed = small with { Outfits = new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = [.. ForecastValueTests.Cloth, weapon], ["cj"] = ForecastValueTests.Cloth } };
+            Assert.True(Assert.Single(Term(armed, cj).Pawns).Aggressive > 0);
+        }
+
+        Assert.Throws<RequiredFactException>(() => Term(small, cj));
 
         // The creepjoiner's read without its organs is a required fact.
         Assert.Throws<RequiredFactException>(() => Term(Context(inputs, Cj)));

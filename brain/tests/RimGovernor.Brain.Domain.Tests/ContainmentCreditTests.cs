@@ -69,6 +69,22 @@ public sealed class ContainmentCreditTests
     }
 
     [Fact]
+    public void ASmallEntitysEscapeIsPricedFromTheCommittedTablesLowCellsAgainstAnArmedDefender()
+    {
+        // #3880: a 100-point entity against 1000 defense is a fight under a 0.5 ratio; the committed table prices it for a
+        // gunner and a melee fighter, and the harm term carries the escapes.
+        var small = Context([Entity() with { Escape = Entity().Escape with { CombatPower = 100 } }]);
+        small = small with { Harm = small.Harm with { Exposure = RaidExposure.Load() } };
+        foreach (var weapon in new[] { CreepJoinerHarmTests.Rifle, CreepJoinerHarmTests.Longsword })
+        {
+            var armed = small with { Outfits = new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = [.. ForecastValueTests.Cloth, weapon] } };
+            var fight = ForecastValue.EscapeLoss(Outcome(), armed, Day, 100);
+            Assert.True(fight > 0);
+            Assert.Equal(1 / (MtbDays * 0.05) * fight, ForecastValue.Of(Outcome(), armed, Day).HarmDetail!.Escape.Loss, 9);
+        }
+    }
+
+    [Fact]
     public void AnEscapeFightWithAnUnreadDefenderThrowsARequiredFact()
     {
         // #3835 (#3811's escape_unassessed): a defender whose outfit is unread leaves the fight unpriced, so it throws.

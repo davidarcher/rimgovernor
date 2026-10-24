@@ -212,18 +212,20 @@ public sealed class RaidExposureTests
         Assert.Equal(RaidExposure.Schema, table.Schema);
         Assert.All(table.Cells, c => Assert.True(c.Trials >= RaidExposure.MinTrials));
 
-        foreach (var ratio in new[] { 0.7, 1.5 })
+        // A small fight is calibrated too (#3880): lab-ranged-lone with lab-ranged-few for gunners, lab-melee-lone for melee.
+        foreach (var (ratio, role) in new[] { (0.7, ExposureRoles.Gunner), (1.5, ExposureRoles.Gunner), (0.05, ExposureRoles.Gunner), (0.05, ExposureRoles.Melee) })
         {
-            var gunner = RaidExposure.HitsPerColonist(ratio, ExposureRoles.Gunner);
-            var range = Assert.IsType<ExposureReading.Calibrated>(gunner).Range;
+            var reading = RaidExposure.HitsPerColonist(ratio, role);
+            var range = Assert.IsType<ExposureReading.Calibrated>(reading).Range;
             Assert.True(range.Lo <= range.Mean && range.Mean <= range.Hi);
-            Assert.Equal([RaidExposure.LayoutUnassessed], gunner.Findings);
+            Assert.Equal([RaidExposure.LayoutUnassessed], reading.Findings);
         }
 
-        // lab-ranged-lone reaches the 0-0.5 bin, but its sweep-2 mean fell outside sweep 1's range: it stays uncalibrated.
-        var below = RaidExposure.HitsPerColonist(0.3, ExposureRoles.Gunner);
-        Assert.IsType<ExposureReading.Uncalibrated>(below);
-        Assert.Equal("exposure_cell_uncalibrated:0-0.5/gunner", below.Findings[0]);
+        // A small fight hits a colonist less than a raid matched to the defense does.
+        Assert.True(RaidExposure.HitsPerColonist(0.3, ExposureRoles.Gunner) is ExposureReading.Calibrated { Range.Hi: var hi } && hi < 0.5);
+
+        // No sweep stages a noncombatant who fights: that cell stays uncalibrated (#3969).
+        Assert.Equal("exposure_cell_uncalibrated:0-0.5/noncombatant", RaidExposure.HitsPerColonist(0.3, ExposureRoles.Noncombatant).Findings[0]);
     }
 
     [Fact]

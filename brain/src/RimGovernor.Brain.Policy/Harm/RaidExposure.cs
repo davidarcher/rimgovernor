@@ -50,7 +50,7 @@ public abstract record ExposureReading
 /// <summary>
 /// Raid exposure: hits a colonist takes per raid, calibrated by real-game combat sweeps (harm model, step 3) and keyed by
 /// raid points divided by defense capacity (the ratio bin) and the colonist's role. The defense layout is not an axis: every
-/// reading reports <see cref="LayoutUnassessed"/>.
+/// reading reports <see cref="LayoutUnassessed"/>. The table's cells are calibrated constants (kept-constants.md, Exposure table cells).
 /// </summary>
 public static class RaidExposure
 {

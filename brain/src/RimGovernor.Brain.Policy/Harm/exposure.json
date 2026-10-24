@@ -2,6 +2,28 @@
   "schema": 1,
   "cells": [
     {
+      "bin": "0-0.5",
+      "role": "gunner",
+      "trials": 140,
+      "meanHits": 0.1857,
+      "hitsLo": 0.1214,
+      "hitsHi": 0.25,
+      "downRate": 0,
+      "downLo": 0,
+      "downHi": 0.0267
+    },
+    {
+      "bin": "0-0.5",
+      "role": "melee",
+      "trials": 80,
+      "meanHits": 0.3375,
+      "hitsLo": 0.225,
+      "hitsHi": 0.4625,
+      "downRate": 0,
+      "downLo": 0,
+      "downHi": 0.0458
+    },
+    {
       "bin": "0.5-1",
       "role": "gunner",
       "trials": 80,
