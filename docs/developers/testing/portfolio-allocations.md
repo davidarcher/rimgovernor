@@ -1499,13 +1499,49 @@ first review. The #3724 bound was available in no review (`bounds_unavailable`:
 `urgent_zero_unserved:rest_service_in_closure`, since every pawn's rest is in the closure
 here) and pruned 82 subsets in two reviews.
 
-Baseline side: no same-case rows for `739274879` or earlier exist in the repository or under
-any `.rimgovernor/` on this machine (the only retained `production/coupled-needs` outputs,
-in another worktree's `coupled-after-*` directories, failed at `test/portfolio_needs_prepare`
-with no `otlp/` directory), the brain-host.md colony-review rows are another case and build,
-and the baseline was not rebuilt natively here (a fixture rebuild and a game run on the shared
-machine for a comparison the nightly makes). The in-game comparison is therefore candidate
-only; #3472 stays open for the nightly's baseline-side rows.
+When this was recorded no baseline rows existed; the comparison below supplies them.
+
+### In game: baseline against candidate (#3472)
+
+Recorded 2026-10-24 on DAVID-PC for #3472's completion. Each build ran from its own private root
+(`acceptance setup -rebuild`): the baseline `739274879` (pre-stage-3, a 65,536-expansion budget
+and no evaluation counter) and the candidate `fb2425956` (this change). Both used the same cases
+and seeds, one after another, with no other game on the machine.
+
+`production/coupled-needs`, two runs per build, all PASS (baseline 58.1 and 56.3 s, candidate
+46.3 and 33.9 s of case time). Each run has 10 or 11 reviews. The first review is the same in all four
+(tick 0, 148 roots): the baseline spends 17,407 expansions in 791 and 616 ms of `inspect_ms`,
+the candidate 3,341 evaluations / 20,385 expansions in 627 and 127 ms. Over a run the
+expansions are about equal (baseline 60,830 and 74,174; candidate 74,884 and 76,293).
+`inspect_ms` sums to 1,653 and 1,911 ms on the baseline and 1,405 and 968 ms on the candidate.
+Neither build reaches its ceiling here. The candidate's two runs pruned 82 and 93 subsets, with
+the bound unavailable (`rest_service_in_closure`) in every review that had roots.
+
+`acceptance colony-review -days 1`, seed `review-pinned-1`, storyteller on, 28 reviews per build,
+both PASS (about four minutes of wall each; no colonist lost; final mood mean 0.25 baseline,
+0.19 candidate; one day, one run each, so the outcome difference is not attributed). Brain
+sessions: baseline `0d1a5291a24d44b88d8d79f749f49336`, candidate
+`b40e10f3ec284151ae9e11c89e9a3253`.
+
+| Build | At a ceiling | Evaluations p50 / max / day | Expansions p50 / max / day | `inspect_ms` p50 / p95 / max / day |
+| --- | --- | --- | --- | --- |
+| `739274879` | 5 at 65,536 expansions (reviews 4, 5, 6, 11, 12) | not counted | 32,521 / 65,536 / 777,224 | 863 / 6,110 / 7,074 / 47.7 s |
+| `fb2425956` | 4 `outcome_evaluations_exhausted` (4, 11, 12, 23), 2 `traversal_bound_exhausted` (5, 6) | 2,710 / 8,193 / 82,511 | 26,860 / 65,536 / 633,935 | 992 / 5,301 / 5,905 / 33.5 s |
+
+The two colonies keep the same review ticks through review 12 (they diverge after it).
+The reviews that hit a ceiling are the same five on both builds, so stage 3 did not cause the
+exhaustion. Of those five, the candidate ends four sooner (`inspect_ms` 5,905 against 6,110,
+1,991 against 2,284, 1,961 against 2,314 and 3,853 against 7,074) and review 12 later (5,301
+against 4,682). Over the day it spends 18% fewer expansions and 30% less search time. The
+answer to #3725's open question is therefore no: colony reviews do not fit the
+allowance. Six of 28 end at one of the two allowances, and selection quality at the ceiling is
+unmeasured. Whether the default should afford them is
+[#3737](https://github.com/davidarcher/rimgovernor/issues/3737); colony search cost per
+evaluation stays with [#3684](https://github.com/davidarcher/rimgovernor/issues/3684). The
+#3724 bound applies nowhere on the colony day. Of the 24 `coupled_selection` decisions, 15
+report it unavailable (`urgent_zero_unserved:relief_gate_order`, plus
+`rest_service_in_closure` in 14) and 9 report no reason. `search_pruned` is 0 in all 24, and
+the search profile prunes nothing in any of the 28 reviews.
 
 ### Decision: keep 8,192 evaluations and 65,536 expansions
 
@@ -1542,9 +1578,8 @@ naming the default remains correct.
   make subsets cheap (the shelter rows above); it is unchanged here.
 - The baseline was measured only where its probe ran (the two food fixtures); the shelter
   workload has no baseline row.
-- The native evidence is one case, one run, 11 reviews of 0 to 148 roots on a three-colonist
-  lab start, candidate only; no colony-review case ran. The nightly must supply the
-  colony-review's `coupled_search_evaluations` against `coupled_evaluation_budget`, the
-  exhaustion findings and the `inspect_ms` distribution on the candidate and, for the
-  comparison, the baseline side.
+- The native evidence is two `production/coupled-needs` runs and one colony-review day per
+  build ([above](#in-game-baseline-against-candidate-3472)). On the colony day 6 of 28 reviews
+  end at an allowance; the decision recorded here predates that evidence, and whether to
+  change it is [#3737](https://github.com/davidarcher/rimgovernor/issues/3737).
 - Timings are descriptive: three samples per .NET row on one machine, one game run.
