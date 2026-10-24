@@ -388,6 +388,30 @@ public sealed class IllnessForecastTests
     }
 
     [Fact]
+    public void AModdedStorytellersUnknownCompIsNamedAndItsDiseaseCompIsStillTheRate()
+    {
+        // #3859 the production way (#3822): a storyteller of Cassandra's disease comp and a mod's comp class, decoded by the
+        // catalog and read through the review inputs. The unknown comp is named and sends nothing; the review does not throw.
+        var modded = new RimWorld.StorytellerDef
+        {
+            defName = "Modded",
+            comps = [new RimWorld.StorytellerCompProperties_Disease { category = DiseaseTableTests.DiseaseHuman, minDaysPassed = 9 }, new ThreatScheduleTests.StorytellerCompProperties_Test()],
+        };
+        var catalog = DiseaseTableTests.Catalog([.. DiseaseTableTests.CoreDefs(), modded]);
+
+        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = Facts(20) with { Storyteller = "Modded" } }).Illness;
+
+        Assert.True(illness.Assessed);
+        Assert.Equal(["disease_comp_unmodelled:" + nameof(ThreatScheduleTests.StorytellerCompProperties_Test)], illness.Findings);
+        Assert.Equal(1 / 60.0, illness.IncidentsPerDay(30), 12);
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var term = IllnessForecast.Term(illness, ["pawn"], new Dictionary<string, NeedsForecastPawn> { ["pawn"] = Pawn(1, new DiseaseContract("Disease_Flu", 1),
+            new DiseaseContract("Disease_GutWorms", 1), new DiseaseContract("Disease_OrganDecay", 1)) }, Tables, Care(), new ForecastValuePolicy(), Horizon, null, findings);
+        Assert.NotNull(term);
+        Assert.Contains(illness.Findings[0], findings);
+    }
+
+    [Fact]
     public void AFreshColonyInABiomeThatSendsOrganDecayPricesItsOrgansWithoutThrowing()
     {
         // #3830 the production way (#3822): the catalog's organ decay with its heart, lungs and kidneys, a colony settled today, and a

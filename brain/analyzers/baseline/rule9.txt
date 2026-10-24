@@ -812,14 +812,14 @@ Policy/GrowerCrop.cs|Fact|9
 Policy/GrowerCrop.cs|ValueOrDefault|2
 Policy/Harm/ArmorResponse.cs|Discard|2
 Policy/Harm/HarmConsequences.cs|Fact|5
-Policy/Harm/HarmLedger.cs|Fact|24
+Policy/Harm/HarmLedger.cs|Fact|22
 Policy/Harm/RaidComposition.cs|Fact|2
 Policy/Harm/RaidComposition.cs|NullableValue|1
 Policy/Harm/RaidExposure.cs|Fact|3
 Policy/Harm/RaidExposure.cs|Unknown|2
 Policy/Harm/RaidThreat.cs|Fact|2
 Policy/Harm/RaidThreat.cs|ValueOrDefault|1
-Policy/Harm/ThreatSchedule.cs|Fact|8
+Policy/Harm/ThreatSchedule.cs|Fact|6
 Policy/HerdMaster.cs|Fact|7
 Policy/HerdPen.cs|Fact|2
 Policy/HerdPlan.cs|Discard|1

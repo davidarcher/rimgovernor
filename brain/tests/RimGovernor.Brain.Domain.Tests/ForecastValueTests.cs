@@ -72,7 +72,7 @@ public sealed class ForecastValueTests
     {
         Activities = new(), Needs = NeedsFixtures.Empty with { Pawns = [pawn] }, Resources = Resources(),
         CapacityPenalties = tables ?? Tables(), MoodBreaks = Breaks(),
-        Harm = harm ?? new() { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } },
+        Harm = harm ?? new() { Schedule = new() { Assessed = true, MajorThreatsPerDay = 0d, RaidFraction = 1 } },
         Outfits = outfits ?? new Dictionary<string, EquatableArray<GearOption>>(),
         Value = policy ?? new(),
     };
@@ -96,7 +96,7 @@ public sealed class ForecastValueTests
 
     internal static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
     {
-        Schedule = new() { MajorThreatsPerDay = Known(raidsPerDay), RaidFraction = Known(1d) },
+        Schedule = new() { Assessed = true, MajorThreatsPerDay = raidsPerDay, RaidFraction = 1 },
         Composition = new() { Pawns = Known(5d), Bins = [new() { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }] },
         RaidPoints = Known(1000d), DefenseCapacity = Known(1000d),
         Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(),
@@ -645,7 +645,7 @@ public sealed class ForecastValueTests
     [Fact]
     public void NoExpectedRaidsIsAKnownZeroHarmWhateverElseIsUnobserved()
     {
-        var value = Harmed(Cloth, new HarmInputs { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } });
+        var value = Harmed(Cloth, new HarmInputs { Schedule = new() { Assessed = true, MajorThreatsPerDay = 0d, RaidFraction = 1 } });
 
         Assert.Equal(0, value.Harm.Value);
         Assert.True(value.Total.IsKnown);

@@ -76,6 +76,7 @@ public static class IllnessForecast
             return null;
         }
 
+        findings.UnionWith(schedule.Findings);
         var days = horizon / GameTime.TicksPerDay;
         var perDay = schedule.IncidentsPerDay(days);
         var rows = new List<IllnessPawn>();

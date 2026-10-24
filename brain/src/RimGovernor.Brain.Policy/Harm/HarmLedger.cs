@@ -42,7 +42,7 @@ public sealed record HarmInputs
     /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
     internal static HarmInputs Of(RoundsFacts facts) => new()
     {
-        Schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed),
+        Schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed, facts.RaidPoints),
         Composition = facts.RaidPoints.TryGetValue(out var points) && facts.HostileFactions.TryGetValue(out var factions)
             ? RaidCompositionRules.Of(points, [.. factions], facts.HarmCatalog.Raid)
             : new RaidComposition { Findings = [facts.RaidPoints.IsKnown ? "raid_hostile_factions_unobserved" : "raid_points_unobserved"] },
@@ -118,6 +118,8 @@ internal static class HarmLedger
         var raidsPerDay = 0.0;
         var ordered = outcome.Needs.Keys.ToArray();
         Array.Sort(ordered, StringComparer.Ordinal);
+        // The schedule's findings: the comps it does not model when assessed (#3859), the unread fact otherwise.
+        findings.UnionWith(inputs.Schedule.Findings);
         if (RaidsPerDay(inputs) is { } expected)
         {
             raidsPerDay = expected;
@@ -131,7 +133,6 @@ internal static class HarmLedger
         {
             complete = false;
             findings.Add(ThreatScheduleUnknown);
-            findings.UnionWith(inputs.Schedule.Findings);
         }
 
         var bins = BinsOf(inputs) ?? [];
@@ -394,9 +395,9 @@ internal static class HarmLedger
         return Known(raidsPerDay * treatments);
     }
 
-    /// <summary>The raids a day the schedule expects: its major threats a day × the raid share; null when either is unread.</summary>
+    /// <summary>The raids a day the schedule expects: its major threats a day × the raid share; null when the schedule is unread.</summary>
     internal static double? RaidsPerDay(HarmInputs inputs) =>
-        inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && inputs.Schedule.RaidFraction.TryGetValue(out var share) ? threats * share : null;
+        inputs.Schedule.Assessed ? inputs.Schedule.MajorThreatsPerDay * inputs.Schedule.RaidFraction : null;
 
     /// <summary>The raid's points ÷ the colony's defense capacity plus <paramref name="shift"/> points (the sparring ring's trained
     /// Melee, #3813), the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>

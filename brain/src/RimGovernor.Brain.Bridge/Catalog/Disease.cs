@@ -6,8 +6,9 @@ namespace RimGovernor.Brain.Bridge;
 
 // The disease tables of the harm model's illness forecast (#3824 of #3650), read by P.IllnessSchedule and P.IllnessForecast:
 //   - each StorytellerDef's StorytellerCompProperties_Disease comps of the DiseaseHuman category that run on the home map (their
-//     minDaysPassed). A home-map comp that can send DiseaseHuman otherwise (an OnOffCycle, a RandomMain weight, a CategoryMTB or
-//     CategoryIndividualMTBByBiome of the category, or a comp class the threat decoder does not know) is unmodelled;
+//     minDaysPassed), matched by exact class as the threat decoder does (Catalog/Storyteller.cs). A home-map comp that can send
+//     DiseaseHuman otherwise (an OnOffCycle, a RandomMain weight, a CategoryMTB, CategoryIndividualMTBByBiome or SingleMTB of the
+//     category, or a comp class the decoder does not know) is named unmodelled and sends no incidents (#3859);
 //   - each BiomeDef's diseaseMtbDays and BiomeDef.CommonalityOfDisease's table: the biome's diseases records, then the
 //     incidents' diseaseBiomeRecords naming the biome (the first record of an incident wins, as the game's Dictionary.Add would
 //     refuse a second). The game's lazy cache is never filled: the records are read directly;
@@ -44,14 +45,8 @@ public sealed partial class DefinitionCatalog
         const string human = nameof(IncidentCategoryDefOf.DiseaseHuman);
         List<double> comps = [];
         SortedSet<string> unmodelled = new(StringComparer.Ordinal);
-        foreach (var comp in def.comps.Seq())
+        foreach (var (comp, kind) in HomeMapComps(def))
         {
-            if (comp is null || !OnHomeMap(comp))
-            {
-                continue;
-            }
-
-            var kind = comp.GetType().Name;
             switch (comp)
             {
                 case StorytellerCompProperties_Disease disease when kind == nameof(StorytellerCompProperties_Disease):
@@ -75,19 +70,29 @@ public sealed partial class DefinitionCatalog
                     }
 
                     break;
-                case StorytellerCompProperties_CategoryMTB mtb:
+                case StorytellerCompProperties_CategoryMTB mtb when kind == nameof(StorytellerCompProperties_CategoryMTB):
                     if (mtb.category?.defName == human)
                     {
                         unmodelled.Add(kind);
                     }
 
                     break;
-                case StorytellerCompProperties_CategoryIndividualMTBByBiome biome:
+                case StorytellerCompProperties_CategoryIndividualMTBByBiome biome when kind == nameof(StorytellerCompProperties_CategoryIndividualMTBByBiome):
                     if (biome.category?.defName == human)
                     {
                         unmodelled.Add(kind);
                     }
 
+                    break;
+                case StorytellerCompProperties_SingleMTB single when kind == nameof(StorytellerCompProperties_SingleMTB):
+                    if (single.incident?.category?.defName == human)
+                    {
+                        unmodelled.Add(kind);
+                    }
+
+                    break;
+                case StorytellerCompProperties_ThreatsGenerator when kind == nameof(StorytellerCompProperties_ThreatsGenerator):
+                    // ThreatsGenerator.GetPossibleIncidents sends RaidEnemy and MechCluster only.
                     break;
                 default:
                     if (!SendsNoScheduledMajorThreat.Contains(kind))

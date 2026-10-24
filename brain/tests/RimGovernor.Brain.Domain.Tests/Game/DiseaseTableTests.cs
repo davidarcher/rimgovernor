@@ -47,6 +47,23 @@ public sealed class DiseaseTableTests
     }
 
     [Fact]
+    public void AnUnknownCompClassIsNamedAndVanillaCompsThatSendNoDiseaseAreNot()
+    {
+        // #3859: a home-map ThreatsGenerator and a SingleMTB of a threat send no DiseaseHuman; a mod's comp class is named.
+        var raid = new StorytellerCompProperties_SingleMTB { mtbDays = 20, incident = new IncidentDef { defName = "RaidEnemy", category = ThreatBig, targetTags = [Home] } };
+        var teller = new StorytellerDef
+        {
+            defName = "Modded",
+            comps = [Disease(DiseaseHuman, 3), new StorytellerCompProperties_ThreatsGenerator(), raid, new ThreatScheduleTests.StorytellerCompProperties_Test()],
+        };
+
+        var decoded = Catalog(teller).DiseaseTable().Storytellers["Modded"];
+
+        Assert.Equal([3.0], decoded.MinDaysPassed);
+        Assert.Equal([nameof(ThreatScheduleTests.StorytellerCompProperties_Test)], decoded.Unmodelled);
+    }
+
+    [Fact]
     public void ABiomeGivesItsMtbAndTheCommonalityOfItsOwnAndTheIncidentsRecords()
     {
         var biome = Table().Biomes["TemperateForest"];

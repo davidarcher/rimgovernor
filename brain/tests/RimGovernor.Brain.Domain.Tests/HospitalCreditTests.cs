@@ -132,6 +132,30 @@ public sealed class HospitalCreditTests
     }
 
     [Fact]
+    public void AModdedStorytellersUnknownCompIsNamedAndTheHospitalIsCreditedTheRaidsItsVanillaCompsSend()
+    {
+        // #3859 the production way (#3822): a storyteller of a ThreatBig on-off cycle (1 threat per 10 days) and a mod's comp
+        // class, decoded by the catalog and read through the review inputs. The schedule is the cycle's alone, the mod's comp
+        // named, and the hospital is credited without throwing.
+        var catalog = Game.ThreatScheduleTests.Catalog(Game.ThreatScheduleTests.Teller("Modded", Game.ThreatScheduleTests.Cycle(0, 5, 5, 1, 1),
+            new Game.ThreatScheduleTests.StorytellerCompProperties_Test()));
+        var schedule = HarmInputs.Of(new RoundsFacts
+        {
+            ThreatTable = catalog.ThreatSchedule(), Storyteller = Known("Modded"), DaysPassed = Known(30.0), RaidPoints = Known(500.0),
+        }).Schedule;
+        var finding = "threat_comp_unmodelled:" + nameof(Game.ThreatScheduleTests.StorytellerCompProperties_Test);
+        Assert.True(schedule.Assessed);
+        Assert.Equal([finding], schedule.Findings);
+        var context = Context(0) with { Harm = Context(0).Harm with { Schedule = schedule } };
+        Assert.Equal(0.1 * ThreatSchedule.RaidFractionAfterForced, HarmLedger.RaidsPerDay(context.Harm)!.Value, 12);
+
+        var ledger = ForecastValue.Of(Served(0.05), context, Day);
+
+        Assert.True(Assert.Single(Credits(ledger)).Value < 0);
+        Assert.Contains(finding, ledger.Findings);
+    }
+
+    [Fact]
     public void AnUnreadTendingOrOwnedRoomThrows()
     {
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Served(0.05), Context(1) with { Tending = null }, Day));

@@ -161,9 +161,12 @@ doc's three rates are the test oracle, not an input.
 | After it, raids are about half of the major threats: `RaidEnemy` against the other `ThreatBig` incidents by base weight | 0.5 | `IncidentDef.baseChance` (`RaidEnemy` 7.4 in Core), `StorytellerComp.IncidentChanceFinal` |
 
 A comp counts when it can fire on the home map (its allowed target tags are empty or name `Map_PlayerHome`; raid-beacon and caravan comps do
-not). A home-map comp whose class the decoder does not list as sending no scheduled major threat, an on-off cycle that scales its accept
-fraction by threat points or progress score, and a `CategoryMTB` that sends `ThreatBig` make that storyteller's rate unknown
-(`threat_comp_unmodelled:<class>`). 1.7 has no `StorytellerCompProperties_ThreatCycle`.
+not), matched by its exact props class (#3859). A `ThreatBig` `CategoryMTB` fires at 1 / (`mtbDays` × `mtbDaysFactorByDaysPassedCurve`)
+and a `SingleMTB` of a home-map `ThreatBig` incident at 1 / `mtbDays` (`StorytellerComp_CategoryMTB`, `StorytellerComp_SingleMTB`); an
+on-off cycle's `acceptPercentFactorPerThreatPointsCurve` is evaluated at the observed raid points (`StorytellerUtility.DefaultThreatPointsNow`).
+A home-map comp whose class the decoder does not know or list as sending no scheduled major threat, an on-off cycle scaled by progress
+score or with `onDaysNoTreeConnectors`/`offDaysNoTreeConnectors`, a `ThreatsGenerator` and a `ThreatBig` `CategoryIndividualMTBByBiome`
+add no threats and are named (`threat_comp_unmodelled:<comps>`). 1.7 has no `StorytellerCompProperties_ThreatCycle`.
 
 ## Mirrored game literals: illness (#3824)
 

@@ -8,7 +8,10 @@ namespace RimGovernor.Brain.Policy;
 // native read (DiseaseFacts). This mirrors StorytellerComp_Disease.MakeIntervalIncidents, StorytellerComp.UsableIncidentsInCategory
 // with IncidentWorker.CanFireNow, and IncidentWorker_DiseaseHuman.ActualVictims (kept constants: "Mirrored game literals: illness").
 
-/// <summary>One storyteller's DiseaseHuman comps: each comp's minDaysPassed. Unmodelled names a comp that may send DiseaseHuman the decoder does not model.</summary>
+/// <summary>
+/// One storyteller's DiseaseHuman comps: each comp's minDaysPassed. Unmodelled names a comp that may send DiseaseHuman the decoder
+/// does not model; it is a named finding of the schedule and sends no incidents (#3859).
+/// </summary>
 public sealed record StorytellerDiseases
 {
     public IReadOnlyList<double> MinDaysPassed { get; init; } = [];
@@ -146,7 +149,8 @@ public sealed record IllnessIncident(string Incident, double Share, double Victi
 /// The colony's disease incidents: each DiseaseHuman comp's rate (1 ÷ (biome MTB × the difficulty's interval factor) a day) from
 /// the day it starts (its minDaysPassed less the days since settling), and the usable incidents. Unassessed (with
 /// <see cref="Findings"/> naming why) when a fact it rests on is unread (<see cref="Unread"/>) or the table does not model the
-/// colony's storyteller, biome, incident or course.
+/// colony's storyteller, biome, incident or course. An assessed schedule's Findings name the storyteller comps it does not model
+/// (<c>disease_comp_unmodelled:&lt;comps&gt;</c>), which send no incidents.
 /// </summary>
 public sealed record IllnessSchedule
 {
@@ -192,11 +196,8 @@ public sealed record IllnessSchedule
             return Unassessed("disease_storyteller_unknown:" + facts.Storyteller);
         }
 
-        if (teller.Unmodelled.Count > 0)
-        {
-            return Unassessed("disease_comp_unmodelled:" + string.Join(",", teller.Unmodelled));
-        }
-
+        // A comp the table does not model is named and sends no incidents (#3859); the modelled comps are still the rate.
+        string[] unmodelled = teller.Unmodelled.Count > 0 ? ["disease_comp_unmodelled:" + string.Join(",", teller.Unmodelled)] : [];
         if (!table.Biomes.TryGetValue(facts.Biome, out var biome))
         {
             return Unassessed("disease_biome_unknown:" + facts.Biome);
@@ -261,6 +262,7 @@ public sealed record IllnessSchedule
         return new IllnessSchedule
         {
             Assessed = true,
+            Findings = unmodelled,
             Comps = comps,
             Incidents = [.. usable.Select(u => new IllnessIncident(u.Rules.Incident, u.Weight / total,
                 VictimChance(facts.Candidates, u.Potential, u.Rules.FractionMin, u.Rules.FractionMax, u.Rules.MaxVictims), u.Rules.Course))],

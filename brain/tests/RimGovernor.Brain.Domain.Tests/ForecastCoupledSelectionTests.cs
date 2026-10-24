@@ -450,7 +450,7 @@ public sealed class ForecastCoupledSelectionTests
         {
             Context = facts.CoupledAlternatives!.Context with
             {
-                Harm = new() { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } },
+                Harm = new() { Schedule = new() { Assessed = true, MajorThreatsPerDay = 0d, RaidFraction = 1 } },
             },
         };
         var assessed = Select(facts with { CoupledAlternatives = quiet }).Selection.Findings;

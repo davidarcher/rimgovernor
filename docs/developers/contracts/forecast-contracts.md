@@ -386,7 +386,7 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
 The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm` (`HarmInputs`, assembled per review by
 `HarmInputs.Of(RoundsFacts)`) and `Outfits`:
 
-- `HarmInputs`: `Schedule` (`ThreatSchedule.Of` at the observed storyteller and days passed), `Composition`
+- `HarmInputs`: `Schedule` (`ThreatSchedule.Of` at the observed storyteller, days passed and raid points), `Composition`
   (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `RoundsFacts.HarmCatalog.Raid`), `RaidPoints`,
   `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage` and `Natural` (`HarmCatalog`, from the
   catalog), and `Illness` (`IllnessSchedule.Of` over `RoundsFacts.DiseaseTable` and `RoundsFacts.Disease`; see
@@ -468,8 +468,10 @@ costs each pawn.
   biome lists, `minPopulation`, not `Blocked`, a potential victim, commonality > 0), each with its share of the commonality and
   `VictimChance` (the drawn count uniform on `RoundToInt` of candidates × the fraction range, clamped to [1, `diseaseMaxVictims`],
   over the potential victims). Unassessed with `disease_facts_unobserved`, `disease_storyteller_unknown:<def>`,
-  `disease_comp_unmodelled:<classes>`, `disease_biome_unknown:<def>`, `disease_rate_invalid`, `disease_incident_unknown:<def>`,
-  `disease_victims_unobserved:<def>`, `disease_course_unmodelled:<hediff>:<what>` or `disease_course_unknown:<def>`.
+  `disease_biome_unknown:<def>`, `disease_rate_invalid`, `disease_incident_unknown:<def>`,
+  `disease_victims_unobserved:<def>`, `disease_course_unmodelled:<hediff>:<what>` or `disease_course_unknown:<def>`. A storyteller
+  comp the decoder does not model (a mod's comp class, or a vanilla comp that draws `DiseaseHuman` other than by the disease comp)
+  sends no incidents and is named on the assessed schedule, `disease_comp_unmodelled:<comps>` (#3859); the harm term carries it.
 - `IllnessForecast.Of(schedule, pawn, …)`: a `HarmDistribution` of one incident for the pawn, each disease weighted by share ×
   victim chance × contract chance and the rest a point at 0. Immunity gains at the pawn's `ImmunityGainSpeed` read without its bed
   (native divides `StatPart_BedStat`'s current-bed `ImmunityGainSpeedFactor` out) times the factor of the bed it is cared in: the
@@ -529,12 +531,18 @@ The harm model's first step ([harm model](../architecture/forecast-value.md#harm
 
 - `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller` and `DaysPassed`; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
-- `RoundsFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by `Catalog/Storyteller.cs`
-  (on-off cycles of `ThreatBig` and random mains with their `ThreatBig` weight share), and the comps it could not model. Empty without a catalog.
-- `ThreatSchedule.Of(table, storyteller, daysPassed)`: `MajorThreatsPerDay`, the sum of the comps' expected incidents a day at that day, and
-  `RaidFraction` (1 before day 20, 0.5 after). Both are unknown, with a finding (`storyteller_unobserved`, `days_passed_unobserved`,
-  `storyteller_unknown:<def>`, `threat_comp_unmodelled:<class>`), when an input or the def is missing. Non-raid threats are not modelled. The
-  mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).
+- `RoundsFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by comp class in
+  `Catalog/Storyteller.cs` (#3859): on-off cycles of `ThreatBig` with their accept curves by days passed and threat points, and MTB
+  comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs with their days-passed factor, single MTBs of a
+  `ThreatBig` incident), and the comps it does not model. Empty without a catalog.
+- `ThreatSchedule.Of(table, storyteller, daysPassed, threatPoints)`: `MajorThreatsPerDay`, the sum of the modelled comps' expected
+  incidents a day at that day (a threat-points curve at the observed `RaidPoints`), and `RaidFraction` (1 before day 20, 0.5 after).
+  A comp it does not model (a mod's comp class, an on-off cycle scaled by progress score or swapping its days without a
+  tree-connection meme, a home-map `ThreatsGenerator` or `ThreatBig` `CategoryIndividualMTBByBiome`) adds no threats and is named,
+  `threat_comp_unmodelled:<comps>`, on the assessed schedule; the harm term carries the finding. The schedule is not `Assessed`, with
+  a finding (`storyteller_unobserved`, `days_passed_unobserved`, `storyteller_unknown:<def>`, `raid_points_unobserved`,
+  `threat_comp_invalid:<shape>`), when a fact it reads is unread; the hospital credit then throws `RequiredFactException`. Non-raid
+  threats are not modelled. The mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).
 
 ## Coherent coupled observation frame
 
