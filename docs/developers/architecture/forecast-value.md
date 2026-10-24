@@ -484,7 +484,7 @@ pawn; each fuel is one of
 *Garment credit (#3816).* A selected commitment that overlays a garment on a colonist's worn outfit (a craft's delivery, a
 retained bill's completion) is credited, under `apparel/<pawn>/<garment>`, the apparel thoughts the outfit then gives less the
 worn outfit's (`ForecastApparel.MoodOf` over the pawn's native stage rows, a title's or role's required apparel by the
-unmet-requirement thought it lifts, #3836), priced as a bedroom's delta below from the change's
+unmet-requirement thought it lifts, #3836, and a garment at a title's minimum quality by that thought, #3841), priced as a bedroom's delta below from the change's
 tick to tier 2's horizon. A pawn's garments are taken in delivery order, each credited the gain its delivery adds; the break
 shifts of every outfit the alternatives can reach are integrated before the search (`ForecastApparel.BreakShifts`, at most 64
 outfits a pawn). A pawn whose apparel facts, outfit, mood, tick or shift is unread is `apparel_credit_unassessed:<pawn>`.

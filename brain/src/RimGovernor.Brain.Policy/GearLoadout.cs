@@ -102,8 +102,11 @@ public sealed record GearOption
     public Resource Definition { get; init; }
     public Resource Stuff { get; init; }
 
-    /// <summary>Awful=0 through Legendary=6.</summary>
+    /// <summary>Awful=0 through Legendary=6; Normal for a <see cref="Qualityless"/> item, whose stats StatPart_Quality leaves unscaled as Normal's factors do.</summary>
     public int Quality { get; init; }
+
+    /// <summary>The def has no quality (no CompQuality): the item counts toward no royal title's minimum apparel quality (#3841).</summary>
+    public bool Qualityless { get; init; }
 
     public GearSlot Slot { get; init; }
     public EquatableArray<string> Layers { get; init; }

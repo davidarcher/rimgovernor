@@ -175,6 +175,39 @@ public sealed class ApparelCreditTests
         Assert.DoesNotContain(ForecastApparel.CreditUnassessed + "pawn", Value(context, Crown()).Findings);
     }
 
+    // #3841: a title's minimum apparel quality thought, active while a worn garment with a quality is below the minimum of a
+    // title in effect (ThoughtWorker_RoyalTitleApparelMinQualityNotMet).
+    private static readonly NeedThoughtStage[] QualityThought = [Stage("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4)];
+
+    private static readonly NeedApparel Knight = Warm with { MinimumQuality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Normal };
+
+    [Fact]
+    public void ATitledPawnInBelowMinimumApparelGainsTheMinimumQualityThoughtsMoodWhenAGarmentAtTheMinimumIsDelivered()
+    {
+        var context = Context(Pawn(Knight, QualityThought), Shirt(1) with { Quality = 1 });
+        Assert.Equal(4, ForecastApparel.MoodDelta(context.Needs.Pawns[0], context.Outfits["pawn"], [Shirt(1)]));
+        Assert.True(ForecastApparel.ChangesThoughts(context.Outfits["pawn"], [Shirt(1)]));
+        Assert.Equal([0.04], ForecastApparel.BreakShifts(context.Needs, context.Outfits, [Craft(Shirt(1))])["pawn"]);
+        var row = Assert.Single(Value(context, Shirt(1), shift: 0.04).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
+        var perDay = context.Value.WellbeingWeight * 4 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value;
+        Assert.Equal((ForecastApparel.CreditKey("pawn", "Apparel_BasicShirt"), Horizon - 0.5), (row.Key, row.Units));
+        Assert.Equal(-perDay * (Horizon - 0.5), row.Value, 12);
+        // Without a title in effect the minimum is Awful, which no garment is below.
+        Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm, QualityThought), [Shirt(1) with { Quality = 0 }], [Shirt(1)]));
+    }
+
+    [Fact]
+    public void AQualitylessGarmentChangesNothing()
+    {
+        // TryGetQuality fails for a def without CompQuality: the worker skips it, so it neither raises nor lifts the thought.
+        var crown = Crown() with { Quality = 2, Qualityless = true };
+        var pawn = Pawn(Knight, QualityThought);
+        Assert.Equal(0, ForecastApparel.MoodOf(pawn, [crown with { Quality = 0 }]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1)], [crown with { Quality = 0 }]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1) with { Quality = 1 }, Crown() with { ID = "old", Quality = 0, Qualityless = true }], [crown]));
+        Assert.Equal(-4, ForecastApparel.MoodOf(pawn, [Shirt(1) with { Quality = 1 }, crown]));
+    }
+
     [Fact]
     public void AWearerWithUnreadApparelFactsIsNamedAndNotCredited()
     {

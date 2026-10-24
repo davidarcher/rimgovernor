@@ -4330,6 +4330,10 @@ public sealed record GearLoadoutOption
 
     public string? Stuff { get; init; }
 
+    /// <summary>
+    /// The item's QualityCategory (TryGetQuality), a bill's Normal; absent for apparel without quality (the def has no
+    /// CompQuality), which counts toward no royal title's minimum apparel quality (#3841).
+    /// </summary>
     public int? Quality { get; init; }
 
     public string? Source { get; init; }

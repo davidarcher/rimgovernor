@@ -106,7 +106,8 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// ThoughtWorker_Precept's ideoligion gate lets the pawn have it. Then the required-apparel thoughts (#3836):
 /// title_apparel_unmet (ThoughtWorker_RoyalTitleApparelRequirementNotMet) and role_apparel_unmet
 /// (ThoughtDefOf.IdeoRoleApparelRequirementNotMet), each active while one of the pawn's <see cref="NeedApparel.Requirements"/>
-/// of its role is unmet. A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
+/// of its role is unmet; and title_apparel_quality_unmet (ThoughtWorker_RoyalTitleApparelMinQualityNotMet, #3841), active while
+/// a worn garment that has a quality is below <see cref="NeedApparel.MinimumQuality"/>. A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
 /// </summary>
 public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);
@@ -128,6 +129,12 @@ public sealed record NeedApparel(Defs.Gender Gender, bool Legs, bool SafeAmbient
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedApparelRequirement>))]
     public EquatableArray<NeedApparelRequirement> Requirements { get; init; }
+    /// <summary>
+    /// The highest RoyalTitleDef.requiredMinimumApparelQuality of the pawn's titles in effect (#3841), the quality
+    /// ThoughtWorker_RoyalTitleApparelMinQualityNotMet holds every worn garment that has one to; Awful, which no garment is
+    /// below, with no title in effect or without Royalty.
+    /// </summary>
+    public Defs.QualityCategory MinimumQuality { get; init; }
 }
 /// <summary>
 /// One active apparel requirement (#3836): the stage-row role of the thought it raises while unmet (title_apparel_unmet or

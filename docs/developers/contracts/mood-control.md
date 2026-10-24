@@ -90,7 +90,7 @@ garment by the apparel thoughts it changes (#3816, [equipment upkeep](equipment-
 needs read carries the stage rows of `ApparelDamaged`, `DeadMansApparel`, `Naked` (without Ideology) and the
 ideoligion's covering precepts (`groin_uncovered` through `any_body_part_but_hair_or_face_covered`, by worker
 class, only for a precept the pawn's ideoligion holds), the title's and role's unmet apparel requirement
-thoughts (`title_apparel_unmet`, `role_apparel_unmet`, #3836), and `NeedsForecastPawn.Apparel` the facts their
+thoughts (`title_apparel_unmet`, `role_apparel_unmet`, #3836), the title's minimum apparel quality thought (`title_apparel_quality_unmet`, #3841), and `NeedsForecastPawn.Apparel` the facts their
 workers read beyond the outfit, the pawn's active apparel requirements among them. Cosmetic preferences stay unowned. The pain and
 sickness thoughts `Pain`, `Sick` and `BabySick` are owned by the `medical/care` Need:
 tending, disease rest, the hospital bed and the medicine stock it holds already treat

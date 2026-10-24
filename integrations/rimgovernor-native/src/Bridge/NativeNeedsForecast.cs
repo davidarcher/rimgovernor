@@ -347,6 +347,9 @@ internal static class NativeNeedsForecast
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_RoyalTitleApparelRequirementNotMet)))
             Rows(def, TitleApparelRole);
         Rows(ThoughtDefOf.IdeoRoleApparelRequirementNotMet, RoleApparelRole);
+        // The title's minimum-quality thought a garment at the minimum lifts (#3841); its worker class is the typed route.
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_RoyalTitleApparelMinQualityNotMet)))
+            Rows(def, TitleApparelQualityRole);
         // The title room thoughts a planned throne room or suite relieves (#3807); no ThoughtDefOf field names them, their
         // worker classes are the typed route. Without Royalty no def has these workers and no row is read.
         foreach (var (worker, role) in TitleRoomThoughts)
@@ -400,17 +403,24 @@ internal static class NativeNeedsForecast
         var safe = GenTemperature.SafeTemperatureRange(pawn.def).Includes(pawn.AmbientTemperature);
         return new((RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender, legs, safe)
             { KindRequired = EquatableArray.From((pawn.kindDef?.apparelRequired ?? new List<ThingDef>()).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)),
-              Requirements = ApparelRequirementsOf(pawn) };
+              Requirements = ApparelRequirementsOf(pawn, out var minimum), MinimumQuality = minimum };
     }
-    /// <summary>The stage-row roles of the required-apparel thoughts (ForecastApparel.TitleApparel and RoleApparel).</summary>
-    private const string TitleApparelRole = "title_apparel_unmet", RoleApparelRole = "role_apparel_unmet";
+    /// <summary>The stage-row roles of the required-apparel thoughts (ForecastApparel.TitleApparel, RoleApparel and TitleApparelQuality).</summary>
+    private const string TitleApparelRole = "title_apparel_unmet", RoleApparelRole = "role_apparel_unmet", TitleApparelQualityRole = "title_apparel_quality_unmet";
     /// <summary>
     /// The active apparel requirements whose unmet thought the pawn can have (#3836), each with every apparel def that meets it:
     /// ThoughtWorker_RoyalTitleApparelRequirementNotMet.Validate's titles in effect, and the role Precept_Role.SituationThoughtsToAdd
     /// gives Thought_IdeoRoleApparelRequirementNotMet for (an active role of a free non-slave colonist who is no quest lodger).
+    /// Also <paramref name="minimum"/>, the highest requiredMinimumApparelQuality of the titles in effect (#3841):
+    /// ThoughtWorker_RoyalTitleApparelMinQualityNotMet.Validate holds every worn garment to each title's, ungated by
+    /// allowApparelRequirements; Awful with no title.
     /// </summary>
-    private static EquatableArray<Obs.NeedApparelRequirement> ApparelRequirementsOf(Pawn pawn)
+    private static EquatableArray<Obs.NeedApparelRequirement> ApparelRequirementsOf(Pawn pawn, out RimGovernor.Contracts.Wire.Defs.QualityCategory minimum)
     {
+        var least = QualityCategory.Awful;
+        foreach (var title in pawn.royalty?.AllTitlesInEffectForReading ?? new List<RoyalTitle>())
+            if (title.def.requiredMinimumApparelQuality > least) least = title.def.requiredMinimumApparelQuality;
+        minimum = (RimGovernor.Contracts.Wire.Defs.QualityCategory)(int)least;
         var rows = new List<Obs.NeedApparelRequirement>();
         var active = pawn.apparel.ActiveRequirementsForReading;
         void Add(ApparelRequirement requirement, string thought)

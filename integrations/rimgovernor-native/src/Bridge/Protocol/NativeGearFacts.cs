@@ -169,12 +169,12 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // The instance facts of one option at Normal quality; layers, groups and the
-        // def x stuff stats are the catalog's.
+        // The instance facts of one option at Normal quality, or without one for a def with no CompQuality (#3841); layers,
+        // groups and the def x stuff stats are the catalog's.
         private static Obs.GearLoadoutOption Option(string id, ThingDef def, ThingDef? stuff, string source)
         {
-            var row = new Obs.GearLoadoutOption { Id = Id(id), DefName = Id(def.defName), Source = source, Quality = (int)QualityCategory.Normal,
-                Condition = 1 };
+            var row = new Obs.GearLoadoutOption { Id = Id(id), DefName = Id(def.defName), Source = source, Condition = 1 };
+            if (def.HasComp<CompQuality>()) row = row with { Quality = (int)QualityCategory.Normal };
             if (stuff != null) row = row with { Stuff = Id(stuff.defName) };
             return row;
         }

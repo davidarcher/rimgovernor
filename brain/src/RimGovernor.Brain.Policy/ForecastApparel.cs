@@ -23,6 +23,8 @@ public static class ForecastApparel
     /// <summary>A royal title's and an ideoligion role's unmet apparel requirement thoughts (#3836); see <see cref="NeedApparel.Requirements"/>.</summary>
     public const string TitleApparel = "title_apparel_unmet";
     public const string RoleApparel = "role_apparel_unmet";
+    /// <summary>A royal title's minimum apparel quality thought (#3841); see <see cref="NeedApparel.MinimumQuality"/>.</summary>
+    public const string TitleApparelQuality = "title_apparel_quality_unmet";
 
     /// <summary>The finding for a pawn whose garment credit an unread fact leaves unpriced.</summary>
     public const string CreditUnassessed = "apparel_credit_unassessed:";
@@ -30,7 +32,7 @@ public static class ForecastApparel
     private static readonly HashSet<string> Roles = new(StringComparer.Ordinal)
     {
         Damaged, Naked, DeadMans, GroinUncovered, GroinOrChestUncovered, GroinChestOrHairUncovered, GroinChestHairOrFaceUncovered,
-        AnyCovered, AnyButGroinCovered, AnyButHairOrFaceCovered, TitleApparel, RoleApparel,
+        AnyCovered, AnyButGroinCovered, AnyButHairOrFaceCovered, TitleApparel, RoleApparel, TitleApparelQuality,
     };
 
     // BodyPartGroupDefOf's defNames, as the catalog's apparel rows carry them (GearRules.GearCoreGroups reads the same strings).
@@ -71,9 +73,9 @@ public static class ForecastApparel
 
     /// <summary>
     /// Whether overlaying <paramref name="garments"/> on <paramref name="worn"/> changes anything the apparel workers read of the
-    /// outfit (the groups covered, the clothing and its groups, the damaged garments' condition, the tainted count): when it does
-    /// not, its <see cref="MoodDelta"/> is zero for every pawn it meets no apparel requirement of (a pawn's own fact; the policy's
-    /// required defs keep such a garment a candidate).
+    /// outfit (the groups covered, the clothing and its groups, the damaged garments' condition, the tainted count, the lowest
+    /// quality of the garments that have one): when it does not, its <see cref="MoodDelta"/> is zero for every pawn it meets no
+    /// apparel requirement of (a pawn's own fact; the policy's required defs keep such a garment a candidate).
     /// </summary>
     public static bool ChangesThoughts(IEnumerable<GearOption> worn, EquatableArray<GearOption> garments)
     {
@@ -92,6 +94,7 @@ public static class ForecastApparel
         return string.Join(",", worn.SelectMany(o => o.Groups).Distinct().Order(StringComparer.Ordinal)) + ";"
             + string.Join(",", worn.Where(o => o.CountsAsClothingForNudity).Select(o => o.Definition.Value + ":" + string.Join("+", o.Groups)).Order(StringComparer.Ordinal))
             + ";" + (least < 0.2 ? 1 : least < 0.5 ? 0 : -1) + ";" + worn.Count(o => o.Tainted) + ";" + (worn.Length > 0)
+            + ";" + worn.Where(o => !o.Qualityless).Select(o => o.Quality).DefaultIfEmpty(-1).Min()
             + ";" + string.Concat((facts?.Requirements ?? []).Select(r => Met(r, worn) ? '1' : '0'));
     }
 
@@ -139,6 +142,10 @@ public static class ForecastApparel
                 // ThoughtWorker_RoyalTitleApparelRequirementNotMet and Thought_IdeoRoleApparelRequirementNotMet: active while any of
                 // the pawn's active requirements of the source is unmet, IsMet by any worn garment.
                 return facts.Requirements.Any(r => r.Thought == role && !Met(r, worn)) ? 0 : -1;
+            case TitleApparelQuality:
+                // ThoughtWorker_RoyalTitleApparelMinQualityNotMet: active while a worn garment with a quality (TryGetQuality) is below
+                // a title in effect's minimum; a quality-less garment counts neither way.
+                return worn.Any(o => !o.Qualityless && o.Quality < (int)facts.MinimumQuality) ? 0 : -1;
             default:
                 return -1;
         }

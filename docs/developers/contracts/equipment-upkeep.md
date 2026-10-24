@@ -364,9 +364,13 @@ effect, and its role's when the role is active and the pawn a free non-slave
 colonist), each with every apparel def that meets it, and the thought is active
 while one of its source's requirements has no worn garment of those defs. A pawn
 with no title and no role has none, a requirement thought worth zero. The game
-gates no role ability or work on its apparel, so the thought is the whole value;
-the title's minimum-quality thought (`TitleApparelMinQualityNotMet`) is not
-modelled. A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
+gates no role ability or work on its apparel, so the thought is the whole value.
+A title also sets a minimum apparel quality (#3841): the native read carries the
+highest `requiredMinimumApparelQuality` of the titles in effect
+(`NeedApparel.MinimumQuality`, Awful with none), and `TitleApparelMinQualityNotMet`
+is active while a worn garment that has a quality is below it. A crafted garment
+is priced at Normal; apparel whose def has no `CompQuality` is `Qualityless`
+(the census row carries no quality) and counts neither way. A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
 ambient temperature, kind-required apparel), outfit, mood, tick or shift is
 unread is named `apparel_credit_unassessed:<pawn>` and credited nothing. The
 delivery is no unit of development.

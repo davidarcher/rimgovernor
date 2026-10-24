@@ -47,11 +47,11 @@ public sealed class ApparelCreditProductionTests
         return new([Cloth, shirt, new TerrainDef { defName = "Soil" }, recipe], table, new CatalogDerived("Cloth", "Wort", 10f));
     }
 
-    private static O.GearLoadoutOption Option(string id, string source, double condition) =>
-        new() { Id = id, DefName = ShirtDef, Stuff = "Cloth", Quality = 2, Source = source, Condition = condition };
+    private static O.GearLoadoutOption Option(string id, string source, double condition, int? quality = 2) =>
+        new() { Id = id, DefName = ShirtDef, Stuff = "Cloth", Quality = quality, Source = source, Condition = condition };
 
-    // The census of one colonist in a tattered shirt, decoded by the observation read.
-    private static GearObservation Census(bool dressed = true)
+    // The census of one colonist in a tattered shirt (or, with a worn row, that shirt), decoded by the observation read.
+    private static GearObservation Census(bool dressed = true, O.GearLoadoutOption? worn = null)
     {
         var row = new O.GearLoadout
         {
@@ -61,7 +61,7 @@ public sealed class ApparelCreditProductionTests
             Gender = D.Gender.Male,
             ComfortableMinC = 10,
             ComfortableMaxC = 30,
-            LoadoutModel = new O.GearLoadoutModel { Worn = dressed ? [Option("worn-shirt", "worn", 0.1)] : [], Options = [Option("bill-shirt", "bill", 1)] },
+            LoadoutModel = new O.GearLoadoutModel { Worn = dressed ? [worn ?? Option("worn-shirt", "worn", 0.1)] : [], Options = [Option("bill-shirt", "bill", 1)] },
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([])), 20, row,
@@ -77,7 +77,7 @@ public sealed class ApparelCreditProductionTests
 
     // The pawn's needs row as the native read writes it, with or without the apparel facts, and the shirt bill the clothing
     // read observes running.
-    private static ForecastCoupledContext Generate(O.NeedApparel? apparel, bool dressed = true)
+    private static ForecastCoupledContext Generate(O.NeedApparel? apparel, bool dressed = true, O.GearLoadoutOption? worn = null)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
@@ -88,10 +88,10 @@ public sealed class ApparelCreditProductionTests
         };
         facts = facts with
         {
-            Gear = Known(Census(dressed)),
+            Gear = Known(Census(dressed, worn)),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Apparel = apparel, ThoughtStages = [Stage(0, -3), Stage(1, -5), TitleStage] }] },
+                Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Apparel = apparel, ThoughtStages = [Stage(0, -3), Stage(1, -5), TitleStage, QualityStage] }] },
                 Coupled = facts.ForecastObserved.Coupled! with { Clothing = clothing },
             },
         };
@@ -141,5 +141,36 @@ public sealed class ApparelCreditProductionTests
     {
         var context = Generate(null);
         Assert.False(context.ApparelShifts.ContainsKey("pawn"));
+    }
+
+    // #3841: the title's minimum-quality thought, read for every pawn under Royalty (inactive with no title in effect).
+    private static readonly O.NeedThoughtStage QualityStage = new("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4, default, false);
+
+    private static readonly O.NeedApparel Knight = new(D.Gender.Male, true, true) { MinimumQuality = D.QualityCategory.Normal };
+
+    [Fact]
+    public void ATitledColonistsNormalShirtBillOverAPoorShirtShiftsTheirBreaksByTheMinimumQualityThought()
+    {
+        var poor = Option("worn-shirt", "worn", 1, quality: (int)D.QualityCategory.Poor);
+        // The same def and groups at a higher quality is a candidate: the worker reads the lowest worn quality.
+        Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census(worn: poor)));
+        Assert.Equal([0.04], Generate(Knight, worn: poor).ApparelShifts["pawn"]);
+    }
+
+    [Fact]
+    public void AFreshColonysUntitledColonistInAPoorShirtGetsNothingFromTheMinimumQualityThought()
+    {
+        // No title in effect: the native read writes the Awful minimum, which no garment is below.
+        var context = Generate(new(D.Gender.Male, true, true), worn: Option("worn-shirt", "worn", 1, quality: (int)D.QualityCategory.Poor));
+        Assert.False(context.ApparelShifts.ContainsKey("pawn"));
+    }
+
+    [Fact]
+    public void AQualitylessWornGarmentDecodesAsQualitylessAndCountsTowardNoMinimum()
+    {
+        var plain = Option("worn-shirt", "worn", 1, quality: null);
+        var worn = Assert.Single(Census(worn: plain).Pawns[0].LoadoutModel.Value.Worn);
+        Assert.True(worn.Qualityless);
+        Assert.False(Generate(Knight, worn: plain).ApparelShifts.ContainsKey("pawn"));
     }
 }
