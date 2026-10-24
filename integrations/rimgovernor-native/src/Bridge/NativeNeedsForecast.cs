@@ -125,7 +125,7 @@ internal static class NativeNeedsForecast
                 SleepBlockedUntilTicks = sleep.BlockedUntilTicks, SleepWhileStarving = sleep.WhileStarving, Mood = moodRead,
                 ComfortableMin = F(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin), "comfortable min"), ComfortableMax = F(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax), "comfortable max"),
                 SleepComfortableMin = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMin), SleepComfortableMax = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMax),
-                Sleep = SleepOf(pawn, map), Needs = EquatableArray.From(needs),
+                Sleep = SleepOf(pawn, map), LyingIn = LyingInOf(pawn, map), Needs = EquatableArray.From(needs),
                 Targets = EquatableArray.From(targets.OrderBy(t => t.Id, StringComparer.Ordinal).GroupBy(t => t.Kind).SelectMany(g => g)), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers,
                 Outdoors = pawn.needs?.outdoors is { } outdoors ? new Obs.NeedLevel.Has(F(outdoors.CurLevel, "outdoors level")) : new Obs.NeedLevel.Lacks(),
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
@@ -310,11 +310,19 @@ internal static class NativeNeedsForecast
     {
         if (pawn.needs?.rest == null || !pawn.Spawned || pawn.IsWildMan()) return null;
         var bed = RestUtility.FindBedFor(pawn);
-        var cell = bed?.Position ?? pawn.Position;
-        return new(bed?.GetUniqueLoadID() ?? "", cell.GetRoom(map)?.PsychologicallyOutdoors ?? true, bed == null || bed.CostListAdjusted().Count == 0,
+        return SleepAt(pawn, map, bed, bed?.Position ?? pawn.Position);
+    }
+    /// <summary>
+    /// The lie-down <paramref name="pawn"/> is in now (#3882, Obs.NeedLyingIn): its CurrentBed, else the ground, at its own cell,
+    /// and the two facts besides its rest level RestUtility.ShouldWakeUp reads. Null when it is not laying (GetPosture), has no
+    /// rest need or is not spawned.
+    /// </summary>
+    private static Obs.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
+        : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), pawn.Deathresting);
+    private static Obs.NeedSleep SleepAt(Pawn pawn, Map map, Building_Bed? bed, IntVec3 cell) =>
+        new(bed?.GetUniqueLoadID() ?? "", cell.GetRoom(map)?.PsychologicallyOutdoors ?? true, bed == null || bed.CostListAdjusted().Count == 0,
             Need_Rest.BaseRestGainPerTick * RestEffectiveness(bed) * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
             bed?.GetStatValue(StatDefOf.Comfort) ?? 0f, cell.GetTemperature(map));
-    }
     /// <summary>
     /// The rest effectiveness Toils_LayDown.LayDown's tick applies (#3840): the bed's BedRestEffectiveness when its def's
     /// statBases list the stat, else the stat's valueIfMissing (a sleeping spot, or no bed). GetStatValue alone would

@@ -25,7 +25,7 @@ internal static class NeedsFixtures
         Pawn = id, State = "eligible", Location = new(0, 0), CurrentService = null, VoluntaryControlBlockers = [],
         LocalHour = 12, Awake = true, BedThoughts = new BedThoughtOnset.None(), SleepThreshold = .75, WakeThreshold = 1, SleepBlocked = false, SleepBlockedUntilTicks = 0,
         SleepWhileStarving = false, Mood = null, ComfortableMin = 16, ComfortableMax = 26, SleepComfortableMin = 0, SleepComfortableMax = 0,
-        Sleep = null, Needs = [], Targets = [], Unsupported = [], Outdoors = new NeedLevel.Lacks(), OutdoorsDisabled = false,
+        Sleep = null, LyingIn = null, Needs = [], Targets = [], Unsupported = [], Outdoors = new NeedLevel.Lacks(), OutdoorsDisabled = false,
         OwnedBed = "", OwnedBedRoom = null, Ascetic = false, RivalRooms = [], ThoughtStages = [], Apparel = null,
         Consciousness = 1, Moving = 1, Manipulation = 1, Sight = 1, Talking = 1,
         MalnutritionSeverity = 0, FoodPoisoningSeverity = 0, HypothermiaSeverity = 0, HeatstrokeSeverity = 0,

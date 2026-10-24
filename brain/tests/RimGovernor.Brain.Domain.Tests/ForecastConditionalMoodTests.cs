@@ -240,7 +240,10 @@ public sealed class ForecastConditionalMoodTests
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [Sleep("unknown", 0, Hour)]);
         Assert.False(result.Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
         Assert.False(result.Mood!.PressureTicks.IsKnown);
-        Assert.False(ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, []).PressureTicks.IsKnown);
+        // Asleep now without a rest from tick 0, the outcome wakes the pawn there (#3882): its mood runs awake from it.
+        var woken = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, []);
+        Assert.True(woken.PressureTicks.IsKnown);
+        Assert.Equal(ForecastMood.ForecastMoodTimeline(Pawn(), Day, []).PressureTicks, woken.PressureTicks);
         var continuation = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, [Sleep("continue", 0, Hour)]);
         Assert.True(continuation.PressureTicks.IsKnown);
     }

@@ -64,7 +64,8 @@ public static partial class ForecastCoupled
         HashSet<string> ShelterTasks, HashSet<string> DevelopmentTasks, ForecastSupportConsequences? Support,
         List<(NeedMemory Thought, double Start)>[] Granted, List<(string Thought, double OffsetDelta, double Start)>[] Situational,
         List<(double MinDelta, double MaxDelta, double Start)>[] Comfort, bool[] ComfortUnknown,
-        List<ForecastActivityAllocation>[] Allocations, List<ForecastActivityAllocation>[] Use, Cached<ForecastThermalExposure>[] Exposure);
+        List<ForecastActivityAllocation>[] Allocations, List<ForecastActivityAllocation>[] Use, Cached<ForecastThermalExposure>[] Exposure,
+        HashSet<string> Unplaced);
 
     /// <summary>
     /// One search's evaluator and memory (#3467, #3468). Every portfolio's schedules are evaluated against one context, so
@@ -218,7 +219,7 @@ public static partial class ForecastCoupled
             index = new(pawns, byName, new HashSet<string>(context.NonproductiveOccupancy, StringComparer.Ordinal), shelterTasks, developmentTasks, support,
                 Lists<List<(NeedMemory, double)>>(pawns.Length), Lists<List<(string, double, double)>>(pawns.Length), Lists<List<(double, double, double)>>(pawns.Length),
                 new bool[pawns.Length], Lists<List<ForecastActivityAllocation>>(pawns.Length), Lists<List<ForecastActivityAllocation>>(pawns.Length),
-                new Cached<ForecastThermalExposure>[pawns.Length]);
+                new Cached<ForecastThermalExposure>[pawns.Length], context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal));
             pawnsOf = (context, horizon);
             return index;
         }
@@ -240,6 +241,7 @@ public static partial class ForecastCoupled
         private readonly SequenceKeys<(string Thought, double OffsetDelta, double Start)> situationalKeys = new();
         private readonly SequenceKeys<(double MinDelta, double MaxDelta, double Start)> comfortKeys = new();
         private readonly Dictionary<RefPair, ForecastNeedChoice> choiceRows = [];
+        private readonly Dictionary<(int Pawn, double End), ForecastNeedChoice> observedSleeps = [];
         // The search hands equal allocations to many plans as distinct objects (each branch places its own), so each is
         // first mapped to the one object of its value; every reference-keyed sequence above then compares by value.
         private readonly Dictionary<ForecastActivityAllocation, ForecastActivityAllocation> allocationsByValue = [];
@@ -374,6 +376,59 @@ public static partial class ForecastCoupled
                 choiceRows.Add(key, choice = new(task.Task, task.Pawn, task.Kind, task.Target, task.Resource.Value, task.Count,
                     a.Depart, Math.Min(a.End, a.Start + task.ServiceDelay), a.End, gain, task.Thoughts));
             return choice;
+        }
+
+        /// <summary>
+        /// The observed sleep a pawn asleep now keeps when the outcome leaves it to native (#3882), or null when the outcome wakes
+        /// it at tick 0. The binding orders the pawn at once (CoordinatedActivityBinding.Start: its first placed task, by departure
+        /// then id), and an order interrupts the lie-down, unless it has no placed task or that first task is a distant service
+        /// left to vanilla (DeferDistantServices); a planned site's work starts no order. Left alone, Toils_LayDown keeps it asleep
+        /// until RestUtility.ShouldWakeUp (its rest at the wake threshold, at once while a hediff blocks sleeping) or its first
+        /// planned departure, gaining its lie-down's rest. Deathrest, which ShouldWakeUp never ends, is a named finding (#3883).
+        /// </summary>
+        private ForecastNeedChoice? ObservedSleep(int p, NeedsForecastPawn pawn, List<ForecastActivityAllocation> own,
+            ForecastActivityAllocation[] all, Dictionary<string, ForecastActivity> tasks, HashSet<string> unplaced, double horizon)
+        {
+            ForecastActivityAllocation? first = null;
+            var until = horizon;
+            foreach (var a in own)
+            {
+                // The schedule's own departures bound the sleep, a deferred service's included: its time is the pawn's from there.
+                until = Math.Min(until, a.Depart);
+                if (unplaced.Contains(a.Activity)) continue;
+                var (at, firstAt) = (Math.Ceiling(a.Depart), first is null ? 0 : Math.Ceiling(first.Depart));
+                if (first is null || at < firstAt || at == firstAt && string.CompareOrdinal(a.Activity, first.Activity) < 0) first = a;
+            }
+            if (first is not null && !DeferredService(first, own, all, tasks, unplaced)) return null;
+            var lying = pawn.LyingIn ?? throw new RequiredFactException("lie-down:" + pawn.Pawn);
+            if (lying.Deathresting) { Finding("deathrest_continuation_unassessed", pawn.Pawn, 0); return null; }
+            if (lying.HediffBlocksSleeping) return null;
+            var rest = pawn.Needs.SingleOrDefault(n => n.Kind == "rest") ?? throw new RequiredFactException("rest need:" + pawn.Pawn);
+            var rate = lying.Place.GainPerTick;
+            if (!double.IsFinite(rate) || rate <= 0) throw new RequiredFactException("lie-down rest gain:" + pawn.Pawn);
+            var end = Math.Min(until, Math.Max(0, pawn.WakeThreshold - rest.Level) / rate);
+            if (end <= 0) return null;
+            if (!observedSleeps.TryGetValue((p, end), out var choice))
+                observedSleeps.Add((p, end), choice = new("need/" + pawn.Pawn + "/observed_sleep", pawn.Pawn, "rest", lying.Place.Bed, "", 0,
+                    0, 0, end, rate * end, []));
+            return choice;
+        }
+
+        /// <summary>DeferDistantServices' test on the plan: a service departing (or leaving, at its earliest start less travel) more
+        /// than DistantServiceTicks ahead, every prerequisite another pawn's placed task, with no other pawn's task waiting on this pawn's.</summary>
+        private bool DeferredService(ForecastActivityAllocation first, List<ForecastActivityAllocation> own, ForecastActivityAllocation[] all,
+            Dictionary<string, ForecastActivity> tasks, HashSet<string> unplaced)
+        {
+            if (!context.Bindings.TryGetValue((first.Activity, first.Pawn), out var binding)
+                || binding.Kind is not (PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat)) return false;
+            var leave = double.PositiveInfinity;
+            foreach (var a in all) if (a.Activity == first.Activity) leave = Math.Min(leave, a.Start - a.TravelTicks);
+            if (Math.Max(Math.Ceiling(first.Depart), Math.Floor(leave)) <= Methods.Binding.CoordinatedActivityBinding.DistantServiceTicks) return false;
+            bool Placed(ForecastActivityAllocation a) => !unplaced.Contains(a.Activity);
+            foreach (var prerequisite in tasks[first.Activity].Prerequisites)
+                if (!all.Any(a => a.Activity == prerequisite && a.Pawn != first.Pawn && Placed(a))) return false;
+            return !all.Any(a => a.Pawn != first.Pawn && Placed(a)
+                && tasks[a.Activity].Prerequisites.Any(pre => own.Any(o => o.Activity == pre && Placed(o))));
         }
 
         private ForecastOccupancy Occupancy(ForecastActivityAllocation a)
@@ -784,6 +839,9 @@ public static partial class ForecastCoupled
                     { Uncertain("unassessed_need_completion", task.Task, a.End); continue; }
                     choices.Add(Choice(task, a, gain));
                 }
+                if (!pawn.Awake && !choices.Any(c => c.Kind == "rest" && c.Start == 0)
+                    && ObservedSleep(p, pawn, pawns.Allocations[p], plan.Allocations, tasks, pawns.Unplaced, horizon) is { } observedSleep)
+                    choices.Add(observedSleep);
                 foreach (var a in pawns.Allocations[p])
                 {
                     if (needTasksByTask.Contains(a.Activity)) continue;

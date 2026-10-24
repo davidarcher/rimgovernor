@@ -329,6 +329,16 @@ observed state holds.
   gets the thoughts with chance (floor(s) - 2499) / 7500, none under 2500 and always
   from 10000. A sleep observed now continues the lie-down whose onset native reads
   (`NeedsForecastPawn.BedThoughts`: given already, due in some ticks, or none drawn).
+  A pawn asleep now keeps that sleep only while the outcome sends it no order (#3882):
+  the binding orders it at once unless it has no placed task or its first is a distant
+  service left to vanilla, and an order interrupts the lie-down. Left alone it sleeps
+  on (a rest from tick 0 at its `LyingIn` rate) until its rest reaches the wake
+  threshold or its first planned departure; a hediff that blocks sleeping wakes it at
+  once, and a deathrest is `deathrest_continuation_unassessed` (#3883). Woken at tick 0, its
+  `FinalizeLayingJob` gives the bed thoughts again when they were given (from the
+  lie-down's `LyingIn` place and the owned bed's room), and the mood timeline has it
+  awake from then. A continuing sleep off the rest targets (on the ground) keeps its
+  observed room (`sleep_room_held_at_observed_lie_down`).
   The timeline prices a renewal at chance p as its expected value: the memories it ends
   keep 1 - p of their weight and its gains carry p. SleptOnGround and the temperature
   sleep thoughts are held at their observed contribution

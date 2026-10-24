@@ -154,7 +154,8 @@ public static class ForecastRoofConsequences
     /// the bed thoughts ApplyBedThoughts renews at each completed sleep's wake (SleptOutside when the bed's room is
     /// psychologically outdoors; SleptInBedroom or SleptInBarracks at the room's Impressiveness stage for an owned,
     /// non-prisoner bed of a non-ascetic, from the closed-room prediction once the room is closed by then), at the chance
-    /// <see cref="BedThoughtsChance"/> gives, the weather thought renewed over each known-location span, and the outdoors
+    /// <see cref="BedThoughtsChance"/> gives, and at tick 0 for a pawn asleep now that the outcome wakes there (#3882, from its
+    /// <see cref="NeedsForecastPawn.LyingIn"/>), the weather thought renewed over each known-location span, and the outdoors
     /// need and undergrounder thoughts as banded spans. A pawn's location is known only at its selected joy and rest targets;
     /// elsewhere these hold their observed value. A stage row, room role or observed thought these need that the read lacks
     /// throws <see cref="RequiredFactException"/> (#3871): native reads every one.
@@ -176,30 +177,62 @@ public static class ForecastRoofConsequences
         // Bed thoughts at the wake (Toils_LayDown.ApplyBedThoughts).
         var bedDefs = stages.Where(r => r.Role is "slept_outside" or "slept_in_bedroom" or "slept_in_barracks").Select(r => r.Thought)
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        foreach (var rest in choices.Where(c => c.Kind == "rest").OrderBy(c => c.Start))
+        EquatableArray<NeedMemory> Gains(bool outside, string bed, bool forPrisoners, string role, int stage)
         {
-            if (wakes is null || !wakes.TryGetValue(rest.Id, out var wake)) break;
-            if (!targets.TryGetValue(rest.Target, out var bed) || bed.Bed is null || bedDefs.Length == 0)
-            { findings.Add("sleep_room_thoughts_unread:" + rest.Target); continue; }
-            var chance = BedThoughtsChance(pawn, rest, wake);
-            if (chance == 0) continue;
-            var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Prediction.Beds.Contains(bed.Id));
-            var (role, stage) = closed is null ? (bed.Bed.Role, bed.Bed.Stage) : (closed.Prediction.Role, closed.Prediction.Stage);
             var gains = new List<NeedMemory>();
-            if (CellStateAt(bed.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors)
+            if (outside)
                 gains.Add(stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is { } row && Memory(row) is { } memory ? memory
                     : throw Unread("slept_outside thought stage"));
-            if (bed.Id == pawn.OwnedBed && !pawn.Ascetic && !bed.Bed.ForPrisoners)
+            if (bed.Length != 0 && bed == pawn.OwnedBed && !pawn.Ascetic && !forPrisoners)
             {
                 // Room.Role is never null in game (None when no other role scores); an empty one is a read that failed.
-                if (role.Length == 0) throw Unread("bed room role:" + bed.Id);
+                if (role.Length == 0) throw Unread("bed room role:" + bed);
                 var thought = role == BedroomRole ? "slept_in_bedroom" : role == BarracksRole ? "slept_in_barracks" : "";
                 if (thought.Length != 0)
                     gains.Add(stages.FirstOrDefault(r => r.Role == thought && r.Stage == stage) is { } row && Memory(row) is { } memory ? memory
                         : throw Unread(thought + " thought stage " + stage));
             }
-            renewals.Add(new(wake, EquatableArray.From(bedDefs), EquatableArray.From(gains)) { Chance = chance });
+            return EquatableArray.From(gains);
+        }
+        // Where the pawn lies now (#3882): its observed room, the owned bed's for the room thought.
+        EquatableArray<NeedMemory> LyingGains()
+        {
+            var place = (pawn.LyingIn ?? throw Unread("lie-down")).Place;
+            var room = place.Bed.Length != 0 && place.Bed == pawn.OwnedBed ? pawn.OwnedBedRoom ?? throw Unread("owned bed room") : null;
+            return Gains(place.Outside, place.Bed, room?.ForPrisoners ?? false, room?.Role ?? "", room?.Stage ?? 0);
+        }
+        foreach (var rest in choices.Where(c => c.Kind == "rest").OrderBy(c => c.Start))
+        {
+            if (wakes is null || !wakes.TryGetValue(rest.Id, out var wake)) break;
+            var continuing = rest.Start == 0 && !pawn.Awake;
+            var atTarget = targets.TryGetValue(rest.Target, out var bed) && bed.Bed is not null;
+            // The observed lie-down continues off the rest targets (on the ground): its room is the one it lies in now.
+            var lying = !atTarget && continuing && pawn.LyingIn?.Place.Bed == rest.Target;
+            if (!atTarget && !lying || bedDefs.Length == 0) { findings.Add("sleep_room_thoughts_unread:" + rest.Target); continue; }
+            var chance = BedThoughtsChance(pawn, rest, wake);
+            if (chance == 0) continue;
+            EquatableArray<NeedMemory> gains;
+            if (lying) { gains = LyingGains(); findings.Add("sleep_room_held_at_observed_lie_down"); }
+            else
+            {
+                var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Prediction.Beds.Contains(bed!.Id));
+                var (role, stage) = closed is null ? (bed!.Bed!.Role, bed.Bed.Stage) : (closed.Prediction.Role, closed.Prediction.Stage);
+                gains = Gains(CellStateAt(bed!.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors, bed.Id, bed.Bed!.ForPrisoners, role, stage);
+            }
+            renewals.Add(new(wake, EquatableArray.From(bedDefs), gains) { Chance = chance });
             findings.Add("sleep_ground_and_temperature_memories_constant");
+        }
+        // A pawn asleep now that the outcome wakes at once (no rest from tick 0) ends its lie-down there (#3882): an order
+        // interrupts the job, whose FinalizeLayingJob gives the bed thoughts again once ApplyBedRelatedEffects gave them. A due or
+        // undrawn onset gives none: the tick resets once the pawn stands.
+        if (!pawn.Awake && pawn.BedThoughts is BedThoughtOnset.Given && !choices.Any(c => c.Kind == "rest" && c.Start == 0))
+        {
+            if (bedDefs.Length == 0) findings.Add("sleep_room_thoughts_unread:" + (pawn.LyingIn?.Place.Bed ?? ""));
+            else
+            {
+                renewals.Add(new(0, EquatableArray.From(bedDefs), LyingGains()));
+                findings.Add("sleep_ground_and_temperature_memories_constant");
+            }
         }
 
         // Spans at a known cell: joy at its target; rest at its bed, asleep until the wake and awake in bed after it.

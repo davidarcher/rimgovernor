@@ -50,7 +50,7 @@ internal static class CoordinatedActivityBinding
         return orders.Length == 0 ? null : new(active.AuthorityGeneration, orders)
             { Tasks = EquatableArray.From(active.Tasks.Where(t => !pawns.Contains(t.Pawn))) };
     }
-    private const long DistantServiceTicks = 600;
+    internal const long DistantServiceTicks = 600;
 
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,

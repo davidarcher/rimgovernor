@@ -441,7 +441,8 @@ public sealed class PlannedRoomCreditTests
     public void APlannedRoofKeepsItsMoodForecastAndRunsEveryShippedCredit(bool asleep)
     {
         var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => asleep
-            ? pawn with { Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Due(1000) }
+            ? pawn with { Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Due(1000),
+                LyingIn = LyingInBed }
             : pawn with { Targets = [.. pawn.Targets.Select(t => t with { Recovery = new NeedRecovery.Rate(.00016) })] }, review =>
             {
                 review = WithEveryShippedRoom(review);
@@ -468,6 +469,71 @@ public sealed class PlannedRoomCreditTests
             Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
             RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
         }
+    }
+
+    /// <summary>The builder's lie-down in its owned bed in the open (ForecastRoofConsequencesTests.Review), as native reads it.</summary>
+    private static readonly NeedLyingIn LyingInBed = new(new("bed", true, false, .00005, 0, 20), false, false);
+
+    /// <summary>
+    /// #3882 acceptance: a pawn asleep now on an outcome that does not continue its sleep, the production way
+    /// (ForecastRoofConsequencesTests' builder asleep in its owned bed, its bed thoughts given, on the schedules that build the
+    /// planned room without the rest). The outcome wakes it at its first order or leaves the lie-down to native until then: the
+    /// mood forecast stays whole and every shipped credit runs.
+    /// </summary>
+    [Fact]
+    public void APawnWokenFromItsSleepKeepsItsMoodForecastAndRunsEveryShippedCredit()
+    {
+        var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => pawn with
+        {
+            Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(), LyingIn = LyingInBed,
+        }, WithEveryShippedRoom);
+        var generated = facts.CoupledAlternatives!;
+        var roots = generated.Alternatives.Where(c => new[] { ForecastRoofConsequencesTests.Wall, ForecastRoofConsequencesTests.Door }.Any(site =>
+            c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
+        Assert.Equal(2, roots.Length);
+        var rests = generated.Context.NeedTasks.Where(n => n.Kind == "rest").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
+        var outcomes = Evaluated(facts, ForecastRoofConsequencesTests.Horizon, roots).Where(o => !o.Plan.Allocations.Any(a => rests.Contains(a.Activity))).ToArray();
+        Assert.Contains(outcomes, o => o.Plan.Allocations.Any(a => a.Activity.StartsWith(ForecastRoofConsequencesTests.Wall, StringComparison.Ordinal)));
+        foreach (var outcome in outcomes)
+        {
+            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+            RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
+        }
+        // Sent no order, the pawn sleeps on in its lie-down until its rest reaches the wake threshold (0.8 at 0.00005 a tick).
+        var baseline = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new())).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
+        Assert.Equal(1, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
+        Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
+    }
+
+    /// <summary>
+    /// #3882: whether the outcome wakes a pawn asleep now is the binding's (CoordinatedActivityBinding.Start and
+    /// DeferDistantServices). A sleep it departs for at once is an order now, which wakes the pawn at tick 0 (its mood, which
+    /// freezes while asleep, moves from there); one departing more than DistantServiceTicks ahead is left to vanilla, so the
+    /// observed lie-down goes on (0.2 rest gaining 0.00002 a tick, below the wake threshold) and the mood holds until it leaves.
+    /// </summary>
+    [Fact]
+    public void AnOrderWakesASleeperAndADistantSleepLeavesItAsleep()
+    {
+        var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => pawn with
+        {
+            Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(),
+            LyingIn = LyingInBed with { Place = LyingInBed.Place with { GainPerTick = .00002 } },
+        }, WithEveryShippedRoom);
+        facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } };
+        var generated = facts.CoupledAlternatives!;
+        var rests = generated.Context.NeedTasks.Where(n => n.Kind == "rest").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
+        // Each rest is its own exclusive alternative.
+        var outcomes = generated.Alternatives.Where(c => c.ActivityCompletions.Count == 1 && rests.Contains(c.ActivityCompletions[0]))
+            .SelectMany(r => ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+                facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [r] })).Proposed.Coupled!.Alternatives)
+            .Where(o => o.Plan.Allocations.Length == 1).ToArray();
+        var woken = outcomes.First(o => o.Plan.Allocations[0].Start <= RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.DistantServiceTicks).Needs["pawn"].Mood!;
+        Assert.NotEqual(woken.Trajectory[0].Actual, woken.Trajectory.First(p => p.Tick > 0).Actual);
+        var distant = outcomes.First(o => o.Plan.Allocations[0].Depart > RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.DistantServiceTicks);
+        var asleep = distant.Needs["pawn"].Mood!;
+        Assert.True(asleep.BreakRisk.IsKnown);
+        Assert.Equal(asleep.Trajectory[0].Actual, asleep.Trajectory.First(p => p.Tick >= distant.Plan.Allocations[0].Depart).Actual);
     }
 
     /// <summary>

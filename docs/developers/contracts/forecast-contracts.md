@@ -330,6 +330,11 @@ unknown. What the game does not have is a case, never an unknown:
   of a bed of rest effectiveness 1 (0 for other needs). `ThoughtStages` roles
   `slept_on_ground`, `slept_in_cold`, `slept_in_heat` and `need_comfort`
   (`ThoughtWorker_NeedComfort`, only for a pawn with the comfort need) price them.
+- `NeedsForecastPawn.LyingIn` (#3882, `NeedLyingIn`): the lie-down the pawn is in now,
+  null when it is not laying. `Place` is a `NeedSleep` read at the pawn's own cell and its
+  `CurrentBed` (its load id, "" on the ground); `HediffBlocksSleeping`
+  (`HasHediffBlocksSleeping`) and `Deathresting` are what `RestUtility.ShouldWakeUp`
+  reads besides the rest level.
 - `NeedsForecastPawn.RivalRooms`: the Impressiveness of each room another spawned
   player-faction pawn without a host faction owns (`OwnedRoom`), each once, ascending:
   what `ThoughtWorker_BedroomJealous` compares the pawn's own room against (#3826).

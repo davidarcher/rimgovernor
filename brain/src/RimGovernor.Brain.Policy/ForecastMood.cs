@@ -134,7 +134,8 @@ public static class ForecastMood
     /// change adds its offset delta from its tick. A banded thought (#3327) adds its delta inside each of its spans and
     /// stays at the observed constant outside them, naming itself in a finding when they do not cover the horizon.
     /// Every other situational thought stays inside the mood's UnclampedTarget. Without trajectory the per-point mood is left
-    /// empty: the search reads only the integrated results (#3467).</summary>
+    /// empty: the search reads only the integrated results (#3467). The pawn is asleep only inside its rest services: one asleep
+    /// now without a rest from tick 0 is woken at it (#3882), its observed sleep continuing only as such a rest.</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
@@ -157,8 +158,6 @@ public static class ForecastMood
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
             ? Math.Clamp(at, c.Depart, c.End) : c.End)).ToArray();
-        if (!pawn.Awake && !intervals.Any(r => r.Choice.Kind == "rest" && r.Choice.Start == 0))
-            return new([], default, default, default, default, default, ["observed_sleep_continuation_unassessed"]);
         var sleepEnds = ForecastNeeds.SleepServiceEnds(pawn, selected, interruptedAt, unknown);
         if (sleepEnds is null) return new([], default, default, default, default, default, EquatableArray.From(unknown));
         foreach (var end in sleepEnds.Values) events.Add(end);

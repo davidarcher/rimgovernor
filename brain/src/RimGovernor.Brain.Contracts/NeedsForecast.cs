@@ -99,6 +99,14 @@ public sealed record NeedCell(bool Roofed, bool ThickRoof, bool NaturalRoof, boo
 /// </summary>
 public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double GainPerTick, double Comfort, double Temperature);
 /// <summary>
+/// The lie-down a pawn is in now (#3882). <see cref="Place"/> is read as <see cref="NeedsForecastPawn.Sleep"/> is, but at the
+/// pawn's own cell and its CurrentBed (<see cref="NeedSleep.Bed"/> the bed's load id, "" on the ground): what Toils_LayDown's
+/// tick gains there and what ApplyBedThoughts gives when the lie-down ends. RestUtility.ShouldWakeUp, which LayDown checks,
+/// wakes the pawn once its rest reaches the wake threshold or at once while <see cref="HediffBlocksSleeping"/>
+/// (HasHediffBlocksSleeping), and never while <see cref="Deathresting"/>.
+/// </summary>
+public sealed record NeedLyingIn(NeedSleep Place, bool HediffBlocksSleeping, bool Deathresting);
+/// <summary>
 /// When the pawn's current lie-down gives its bed thoughts (#3871). Toils_LayDown's init draws mindState.applyBedThoughtsTick =
 /// now + Rand.Range(2500, 10000) when it is 0; ApplyBedRelatedEffects gives the thoughts once that tick passes and sets
 /// applyBedThoughtsOnLeave, so FinalizeLayingJob gives them again when the pawn gets up; Pawn_MindState resets the tick to 0
@@ -343,6 +351,8 @@ public sealed record NeedsForecastPawn
     public required double SleepComfortableMax { get; init; }
     /// <summary>Where the pawn sleeps now (#3840); null for a pawn without a rest need, a wild man or one not spawned.</summary>
     public required NeedSleep? Sleep { get; init; }
+    /// <summary>The lie-down the pawn is in now (#3882, <see cref="NeedLyingIn"/>); null when the pawn is not laying.</summary>
+    public required NeedLyingIn? LyingIn { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedRate>))]
     public required EquatableArray<NeedRate> Needs { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedTarget>))]

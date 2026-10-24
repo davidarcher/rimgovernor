@@ -66,7 +66,7 @@ public sealed class ForecastRoofConsequencesTests
             // 0.8 rest at 0.00005 a tick: a 16000-tick sleep, long enough that ApplyBedThoughts always runs at the wake.
             Targets = [NeedsFixtures.Service("bed", "rest", 0d, .00005) with
                 { Location = Inside, Cell = OpenCell, Bed = NeedsFixtures.BedRoom("None", 0, false) }],
-            OwnedBed = "bed",
+            OwnedBed = "bed", OwnedBedRoom = NeedsFixtures.BedRoom("None", 0, false),
             ThoughtStages = EquatableArray.From(BedStages),
         };
         facts = facts with
@@ -190,6 +190,31 @@ public sealed class ForecastRoofConsequencesTests
         Assert.Equal(1, ForecastRoofConsequences.BedThoughtsChance(asleep with { BedThoughts = new BedThoughtOnset.Due(50) }, Rest(0), 100));
         Assert.Equal(0, ForecastRoofConsequences.BedThoughtsChance(asleep with { BedThoughts = new BedThoughtOnset.Due(500) }, Rest(0), 100));
         Assert.Equal(0, ForecastRoofConsequences.BedThoughtsChance(asleep, Rest(0), 20000));
+    }
+
+    [Fact]
+    public void APawnWokenAtOnceGetsItsGivenBedThoughtsWhereItLies()
+    {
+        // Asleep now with no rest from tick 0, the outcome wakes the pawn there (#3882): FinalizeLayingJob gives the bed
+        // thoughts again once they were given, from the lie-down's room and the owned bed's; a due onset gives none.
+        var asleep = NeedsFixtures.Pawn() with
+        {
+            Awake = false, BedThoughts = new BedThoughtOnset.Given(), OwnedBed = "bed", OwnedBedRoom = NeedsFixtures.BedRoom("Bedroom", 2, false),
+            LyingIn = new(new("bed", true, false, .00005, 0, 20), false, false), ThoughtStages = EquatableArray.From(BedStages),
+        };
+        var renewal = Assert.Single(ForecastRoofConsequences.RoofMoodOf(asleep, NeedsFixtures.Empty, [], [], Known<EquatableArray<MoodThought>>([]), Horizon).Renewals);
+        Assert.Equal((0d, 1d), (renewal.At, renewal.Chance));
+        Assert.Equal(["SleptOutside", "SleptInBedroom"], renewal.Gains.Select(g => g.Id));
+        Assert.Equal([2d], renewal.Gains.Where(g => g.Id == "SleptInBedroom").Select(g => g.Offset));
+        // On the ground: SleptOutside alone. A due onset or an awake pawn: no renewal.
+        var ground = ForecastRoofConsequences.RoofMoodOf(asleep with { LyingIn = asleep.LyingIn! with { Place = asleep.LyingIn.Place with { Bed = "" } } },
+            NeedsFixtures.Empty, [], [], Known<EquatableArray<MoodThought>>([]), Horizon);
+        Assert.Equal(["SleptOutside"], Assert.Single(ground.Renewals).Gains.Select(g => g.Id));
+        Assert.Empty(ForecastRoofConsequences.RoofMoodOf(asleep with { BedThoughts = new BedThoughtOnset.Due(10) }, NeedsFixtures.Empty, [], [],
+            Known<EquatableArray<MoodThought>>([]), Horizon).Renewals);
+        // Without the lie-down read, the woken pawn's bed thoughts are a required fact.
+        Assert.Throws<RequiredFactException>(() => ForecastRoofConsequences.RoofMoodOf(asleep with { LyingIn = null }, NeedsFixtures.Empty, [], [],
+            Known<EquatableArray<MoodThought>>([]), Horizon));
     }
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
