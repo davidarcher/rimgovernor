@@ -13,7 +13,9 @@ Unfilled assignments are acquisition. No target is saved.
 
 Normal coupled generation proposes bounded range sessions for each admitted pawn and exact
 two-pawn sparring sessions for each admitted pair. A session competes with other work on value
-(the skill XP it applies, priced by tier 2) like any other activity. The sparring ring's and the training range's room
+(the skill XP its native callbacks apply, `ForecastMaintenancePolicy.SessionXp`, at the tier-2 price of the
+pawn's Melee or Shooting stock: the raid harm its next level saves, #3852) like any other activity. A stock tier 2 leaves
+at 0 (no raid to expect, as on a fresh colony) earns the session nothing, so it is not scheduled. The sparring ring's and the training range's room
 credits price the facility by the harm its trainees' Melee or Shooting saves (#3813, #3846) ([forecast value](../architecture/forecast-value.md)).
 The common schedule charges both participants' travel, waiting and work, holds exact
 stands/dummies/markers, and compares the same needs and mood trajectory as other work.

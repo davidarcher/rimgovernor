@@ -20,10 +20,9 @@ public static class ForecastMaintenancePolicy
             {
                 var skill = requirement.Skills.FirstOrDefault(s => s.Name == alternative.Skill);
                 if (skill?.Disabled == true) continue;
-                if (skill?.Learning is not { } learning || !learning.ValidForTicks.IsKnown)
+                if (skill?.Learning is not { } learning || Bound(learning, horizon) is not { } bound)
                 { unknown = true; findings.Add("maintenance_learning_unknown:" + alternative.Skill); continue; }
 
-                var bound = Math.Min((int)horizon, learning.ValidForTicks.Value - 1);
                 if (bound < 0) { unknown = true; findings.Add("maintenance_window_expired"); continue; }
                 var callbacks = plan.Allocations.Where(a => a.Pawn == requirement.Requirement.Pawn.Value
                     && completed.GetValueOrDefault(a.Activity) == Known(true) && a.End <= bound
@@ -34,8 +33,7 @@ public static class ForecastMaintenancePolicy
                     if (allocation is null || completed.GetValueOrDefault(task.Task) != Known(true)) continue;
                     findings.UnionWith(task.Worker.Findings);
                     findings.Add("practice_injury_recovery_unassessed");
-                    if (!task.Worker.CallbackIntervalTicks.TryGetValue(out var interval) || interval <= 0
-                        || !task.Worker.RawXpPerCallback.IsKnown)
+                    if (Interval(task.Worker) is null)
                     { unknown = true; findings.Add("practice_callback_cadence_unknown"); continue; }
                     callbacks.AddRange(PracticeCallbacks(task, allocation, bound));
                 }
@@ -54,11 +52,37 @@ public static class ForecastMaintenancePolicy
         }
         return EquatableArray.From(result);
     }
+    /// <summary>The last tick the learning's callbacks may fall at within <paramref name="horizon"/>: before its read stops
+    /// being valid. Null when that validity was not read.</summary>
+    private static int? Bound(SkillLearning learning, double horizon) =>
+        learning.ValidForTicks.TryGetValue(out var valid) ? Math.Min((int)horizon, valid - 1) : null;
+
+    /// <summary>The ticks between a practice session's callbacks; null when that cadence or the XP a callback pays was not read.</summary>
+    private static double? Interval(PracticeWorker worker) =>
+        worker.CallbackIntervalTicks.TryGetValue(out var interval) && interval > 0 && worker.RawXpPerCallback.IsKnown ? interval : null;
+
     /// <summary>The same bounded native practice callbacks used by maintenance and terminal skill stock.</summary>
     internal static IEnumerable<SkillXpEvent> PracticeCallbacks(ForecastPracticeTask task, ForecastActivityAllocation allocation, int bound)
     {
-        if (!task.Worker.CallbackIntervalTicks.TryGetValue(out var interval) || interval <= 0 || !task.Worker.RawXpPerCallback.IsKnown) yield break;
+        if (Interval(task.Worker) is not { } interval) yield break;
         for (var number = 1; number <= 128 && allocation.Start + task.Worker.PreparationTicks + interval * number <= Math.Min(bound, allocation.End); number++)
             yield return new(task.Task + "/callback/" + number, (int)Math.Ceiling(allocation.Start + task.Worker.PreparationTicks + interval * number),
                 task.Worker.RawXpPerCallback, task.Worker.Skill == "Shooting" ? SkillXpPath.Range : SkillXpPath.NormalTracker, true);
-    }}
+    }
+
+    /// <summary>
+    /// The XP a scheduled practice session applies to its pawn's skill (#3852): its native callbacks (<see cref="PracticeCallbacks"/>)
+    /// through the skill arithmetic (<see cref="ForecastSkillPolicy.ForecastSkill"/>: learn rate, saturation, the range budget and
+    /// the practice ceiling) within the day and the read's validity. Tier 1 prices it at the skill stock's value per XP, the raid
+    /// harm one level more saves (<see cref="ColonyValue"/>). Unread mechanics, cadence or budget raise
+    /// <see cref="RequiredFactException"/>.
+    /// </summary>
+    internal static double SessionXp(ForecastPracticeTask task, ForecastActivityAllocation allocation, double horizon)
+    {
+        var fact = task.Worker.Skill.ToLowerInvariant() + " practice " + task.Worker.Pawn;
+        if (Interval(task.Worker) is null) throw new RequiredFactException(fact + ": callback cadence");
+        if (Bound(task.Worker.Learning, Math.Min(horizon, GameTime.TicksPerDay)) is not { } bound) throw new RequiredFactException(fact + ": learning validity");
+        var projected = ForecastSkillPolicy.ForecastSkill(task.Worker.Learning, [.. PracticeCallbacks(task, allocation, bound)], Math.Max(0, bound));
+        return projected.AppliedGain.TryGetValue(out var xp) ? xp : throw new RequiredFactException(fact + ": " + string.Join(", ", projected.Findings));
+    }
+}

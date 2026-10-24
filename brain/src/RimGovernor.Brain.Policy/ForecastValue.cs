@@ -227,6 +227,11 @@ public static partial class ForecastValue
             .GroupBy(n => (n.Task, n.Pawn)).ToDictionary(g => g.Key, g => g.First());
         public readonly Dictionary<string, ForecastActivity> Activities = context.Activities.Activities.GroupBy(a => a.Id, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        /// <summary>The practice sessions (#3852), by task: their XP is credited at the skill stock's value per XP.</summary>
+        public readonly Dictionary<string, ForecastPracticeTask> Practice = context.PracticeTasks.GroupBy(p => p.Task, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        /// <summary>A session's XP by its task and placement: outcomes that place it alike share one projection.</summary>
+        public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, double, double, double), double> SessionXp = new();
         /// <summary>The activities whose consumed inputs are charged as construction material (#3653).</summary>
         public readonly HashSet<string> MaterialCharged = ChargedMaterialActivities(context);
         /// <summary>The fueled sources with a steady burn (#3673) of each shelter (#3679), by room.</summary>
@@ -466,6 +471,10 @@ public static partial class ForecastValue
             if (activity?.ProjectProgress is { } work) Add(allocation, work.Project, (allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick), -1);
             if (allocation.Learning is { } learning && learning.After.AppliedGain.TryGetValue(out var after) && learning.Before.AppliedGain.TryGetValue(out var before))
                 Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), after - before, -1);
+            // A practice session's XP (#3852), priced like any other at the stock's harm-priced value per XP.
+            if (index.Practice.TryGetValue(allocation.Activity, out var session) && context.Investment.ContainsKey(ProjectGraph.SkillKey(allocation.Pawn, session.Worker.Skill)))
+                Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, session.Worker.Skill), index.SessionXp.GetOrAdd((allocation.Activity, allocation.Start, allocation.End, horizon),
+                    _ => ForecastMaintenancePolicy.SessionXp(session, allocation, horizon)), -1);
             if (activity is null) continue;
             var charged = index.MaterialCharged.Contains(allocation.Activity);
             foreach (var input in activity.Inputs)

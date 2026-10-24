@@ -60,8 +60,11 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> tendedIllness = new();
     private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> dailyIllness = new();
 
-    // The colony's raid and illness harm over the horizon at a tend quality (-1: untended), with the harm model's findings.
-    private readonly Dictionary<double, HarmTerm> tendedHarm = [];
+    // The colony's raid and illness harm over the horizon at a tend quality (-1: untended) and a defense shift, with the harm model's findings.
+    private readonly Dictionary<(double Quality, double Shift), HarmTerm> tendedHarm = [];
+
+    // The skills whose stored level moves the defense capacity (#3852): the sparring ring's Melee and the training range's Shooting.
+    private const string MeleeSkill = "Melee", ShootingSkill = "Shooting";
 
     public ColonyValueResult Price(ColonyTrajectory trajectory)
     {
@@ -74,11 +77,75 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
-    /// The one skill price is the tending's (<see cref="TendedHarm"/>): it reads a doctor's stock of its tend quality curve's skill,
-    /// and none while neither a raid nor a disease is to be expected.
+    /// The skill prices are the tended harm's (<see cref="TendedHarm"/>): it reads a doctor's stock of its tend quality curve's skill
+    /// (none while neither a raid nor a disease is to be expected), and a fighter's Melee or Shooting stock (<see cref="Fighter"/>,
+    /// #3852; none while no raid is to be expected).
     /// </summary>
     public bool Reads(SkillTrack track) => HarmExpected && doctors.TryGetValue(out var pawns)
-        && pawns.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill);
+        && pawns.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill)
+        || HarmLedger.RaidsPerDay(context.Harm) is not 0 && Fighter(track) is not null;
+
+    /// <summary>
+    /// The defense power of <paramref name="track"/>'s pawn at each stored level when the stock is one the defense capacity counts
+    /// (#3852): a Melee stock of a sparring trainee (MeleeDPS x health) or a Shooting stock of a training range trainee (ranged DPS
+    /// at its hit factor), the pawns the one practice eligibility rule admits (<see cref="ForecastCoupledContext.Sparring"/>,
+    /// <see cref="ForecastCoupledContext.Range"/>). Null for any other stock: a pawn incapable of the skill, or without its curve
+    /// (a named not-modelled finding of the practice read), adds no defense by it. Unread trainees or a curve that does not cover
+    /// the levels raise <see cref="RequiredFactException"/>.
+    /// </summary>
+    private EquatableArray<double>? Fighter(SkillTrack track)
+    {
+        if (track.Skill is not (MeleeSkill or ShootingSkill))
+        {
+            return null;
+        }
+
+        var fact = track.Skill.ToLowerInvariant();
+        var trainees = (track.Skill == MeleeSkill ? context.Sparring : context.Range) ?? throw new RequiredFactException("work pawns");
+        if (trainees.Unread.Contains(track.Pawn))
+        {
+            throw new RequiredFactException(fact + " trainees: " + track.Pawn);
+        }
+
+        if (trainees.Trainees.FirstOrDefault(t => t.Pawn == track.Pawn) is not { } trainee)
+        {
+            return null;
+        }
+
+        return trainee.Power.Count == trainee.Learning.Levels.Count && track.StoredLevel < trainee.Power.Count ? trainee.Power
+            : throw new RequiredFactException(fact + " power curve " + track.Pawn);
+    }
+
+    /// <summary>
+    /// The fighters' stocks and power curves (<see cref="Fighter"/>) of the run while a raid is to be expected; none without one,
+    /// when no level of theirs changes the harm.
+    /// </summary>
+    private List<(SkillTrack Track, EquatableArray<double> Power)> Fighters(ColonyTrajectory trajectory)
+    {
+        var fighters = new List<(SkillTrack, EquatableArray<double>)>();
+        if (HarmLedger.RaidsPerDay(context.Harm) is 0)
+        {
+            return fighters;
+        }
+
+        foreach (var track in trajectory.Skills)
+        {
+            if (Fighter(track) is { } power)
+            {
+                fighters.Add((track, power));
+            }
+        }
+
+        return fighters;
+    }
+
+    /// <summary>
+    /// The raid points of defense the fighters' stocks add to the observed capacity on <paramref name="day"/> (#3852): each one's
+    /// power at its stored level then less at its observed level, <see cref="DefenseCapacityPolicy.DefensePointsPerDps"/> a DPS,
+    /// as the sparring ring and the training range shift it (<see cref="ForecastPractice"/>). Negative as a stock decays.
+    /// </summary>
+    private static double DefenseShift(List<(SkillTrack Track, EquatableArray<double> Power)> fighters, double day) =>
+        fighters.Sum(f => DefenseCapacityPolicy.DefensePointsPerDps * (f.Power[f.Track.StoredLevelOn(day)] - f.Power[f.Track.StoredLevel]));
 
     /// <summary>
     /// False when the schedule says no raid comes and the assessed disease schedule no incident over the horizon (the tended harm is
@@ -93,7 +160,9 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// infection over the horizon as the ledger counts a raid, plus the illness term's loss, <see cref="IllnessForecast"/>) at the
     /// span's tend quality. That quality is the best doctor's native MedicalTendQuality at the stored Medicine level its stock reaches
     /// (#3633, #3634) through the game's tend formula with the best medicine on hand then (<see cref="TendQuality"/>); TendUtility.DoTend
-    /// tends a disease by the same quality as a wound. With no doctor the wounds and illnesses go untended. Zero with neither to
+    /// tends a disease by the same quality as a wound. The raids meet the defense capacity the fighters' Melee and Shooting stocks
+    /// give then (<see cref="DefenseShift"/>, #3852), so a level they gain or lose moves the raid loss through the points ratio
+    /// the way the sparring ring's does. With no doctor the wounds and illnesses go untended. Zero with neither to
     /// expect. Null, with findings and every skill and medicine key unpriced, when the raid harm model, a doctor's curve or a
     /// medicine's potency cannot say; throws a RequiredFactException when the illness term is unassessed.
     /// </summary>
@@ -116,14 +185,16 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             return Unpriced();
         }
 
+        var fighters = Fighters(trajectory);
         var total = 0.0;
         foreach (var (from, to, kind) in MedicineSpans(trajectory))
         {
-            var cuts = doctors.SelectMany(d => d.Track.Dates).Select(d => d.Day).Where(d => d > from && d < to).Append(from).Append(to).Distinct().Order().ToArray();
+            var cuts = doctors.SelectMany(d => d.Track.Dates).Concat(fighters.SelectMany(f => f.Track.Dates)).Select(d => d.Day)
+                .Where(d => d > from && d < to).Append(from).Append(to).Distinct().Order().ToArray();
             for (var i = 0; i + 1 < cuts.Length; i++)
             {
                 if (TendQuality(doctors, cuts[i], kind < 0 ? null : trajectory.MedicineKinds[kind], findings) is not { } quality
-                    || HarmLossPerDay(quality, findings) is not { } perDay)
+                    || HarmLossPerDay(quality, DefenseShift(fighters, cuts[i]), findings) is not { } perDay)
                 {
                     return Unpriced();
                 }
@@ -286,9 +357,9 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// The colony's raid and illness harm a day with its wounds and illnesses tended at <paramref name="quality"/> (-1: untended), each
     /// raid and incident priced over the horizon (<see cref="HarmAt"/>); null when the raid part is unknown.
     /// </summary>
-    private double? HarmLossPerDay(double quality, SortedSet<string> findings)
+    private double? HarmLossPerDay(double quality, double shift, SortedSet<string> findings)
     {
-        var term = HarmAt(quality);
+        var term = HarmAt(quality, shift);
         findings.UnionWith(term.Findings);
         return term.Detail is { Illness: { } illness } detail ? (detail.RaidLoss + illness.Loss) / horizonDays : null;
     }
@@ -297,14 +368,14 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// The harm term over the horizon at <paramref name="quality"/> (-1: untended), first care at once. Its detail is null when the raid
     /// part is unknown; a known one carries the illness part, and a RequiredFactException is thrown when that is unassessed.
     /// </summary>
-    private HarmTerm HarmAt(double quality)
+    private HarmTerm HarmAt(double quality, double shift = 0)
     {
-        if (!tendedHarm.TryGetValue(quality, out var term))
+        if (!tendedHarm.TryGetValue((quality, shift), out var term))
         {
             var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = TendCare, TendQuality = Known(quality) };
             var needs = rows.Keys.ToDictionary(p => p, _ => NoNeeds, StringComparer.Ordinal);
             var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), needs, []) { Support = support };
-            tendedHarm[quality] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness);
+            tendedHarm[(quality, shift)] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness, shift);
         }
 
         if (term.Detail is { Illness: null })
