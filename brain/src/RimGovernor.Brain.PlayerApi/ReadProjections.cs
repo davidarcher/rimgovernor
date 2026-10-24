@@ -114,9 +114,9 @@ internal static class ReadProjections
 
     internal static RoundsStatusDto Rounds(RoundsStatus v)
     {
-        var extent = v.Extent.TryGetValue(out var known) ? known : null;
-        var extentDto = new RoundsExtentDto(extent is not null, extent?.Regions.Count ?? 0, extent?.Regions.Sum(r => r.Cells.Count) ?? 0);
-        var eligibility = ExtentEligibilityRules.ExtentEligibility(v.ExtentEligibility);
+        var extent = (v.Extent as ExtentDerivation.Derived)?.Extent;
+        var extentDto = new RoundsExtentDto(extent is not null, extent?.Regions.Count ?? 0, extent?.Regions.Sum(r => r.Cells.Count) ?? 0, (v.Extent as ExtentDerivation.Incomplete)?.Evidence);
+        var eligibility = v.ExtentEligibility;
         return new RoundsStatusDto(
             new ExtentEligibilityDto(
                 eligibility.Known,

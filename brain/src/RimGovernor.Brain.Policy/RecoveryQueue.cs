@@ -328,7 +328,7 @@ public static partial class RecoveryRules
             {
                 Candidate = RemoteRules.SalvagePriced(row.EntityId, row.Salvage).Candidate,
                 Evidenced = true,
-                Route = row.Salvage.Safe.TryGetValue(out var safe) ? (safe ? RouteSafety.Safe : RouteSafety.Unsafe) : RouteSafety.Unread,
+                Route = row.Salvage.Safe ? RouteSafety.Safe : RouteSafety.Unsafe,
             };
         }
         return (t, true);
@@ -436,7 +436,7 @@ public static partial class RecoveryRules
     /// </summary>
     public static RecoveryRequest ReviewRecoveryRequest(RoundsPolicy p, RoundsFacts f, IReadOnlyList<ClearanceTarget> rows, IReadOnlySet<string> roomObstructions)
     {
-        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
+        var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         var shortSet = RecoveryShortResources(p, f);
         var threat = Unknown<bool>();
         if (f.Hostiles.TryGetValue(out var hostiles))
@@ -445,7 +445,7 @@ public static partial class RecoveryRules
         }
         var origins = new List<Cell>();
         var center = new Cell();
-        if (extent.TryGetValue(out var e))
+        if (extent is ExtentDerivation.Derived { Extent: var e })
         {
             long sx = 0, sz = 0, n = 0;
             foreach (var region in e.Regions)

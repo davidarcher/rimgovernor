@@ -57,17 +57,31 @@ public sealed record ExtentRegion
 
 public sealed record ColonyExtentRequest
 {
-    public Fact<Bounds> Bounds { get; init; }
+    public required Bounds Bounds { get; init; }
 
-    public CurrentConstruction? Construction { get; init; }
+    public required CurrentConstruction Construction { get; init; }
 
-    public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
+    /// <summary>The journal's construction claims; provenance only, so a colony without claims still has its extent.</summary>
+    public required EquatableArray<ConstructionClaim> Claims { get; init; }
 
-    /// <summary>The Home census; null when no colony facts read built the projection.</summary>
-    public HomeCoverageFacts? Home { get; init; }
+    public required HomeCoverageFacts Home { get; init; }
 
     /// <summary>A Chebyshev radius, from zero through eight cells.</summary>
     public int Margin { get; init; }
+}
+
+/// <summary>
+/// What the colony's extent derivation found. Derived carries the extent; Incomplete names the evidence the
+/// derivation needs and does not have, so the extent is neither empty nor granted.
+/// </summary>
+public abstract record ExtentDerivation
+{
+    private protected ExtentDerivation() { }
+
+    public sealed record Derived(ColonyExtent Extent) : ExtentDerivation;
+
+    /// <summary>The named evidence is missing: a review input that was not read, or a building or zone without footprint or bounded geometry.</summary>
+    public sealed record Incomplete(string Evidence) : ExtentDerivation;
 }
 
 public static class ColonyExtentRules
@@ -75,25 +89,45 @@ public static class ColonyExtentRules
     private const int ExtentCellLimit = 65536;
 
     /// <summary>
-    /// Derives the colony's extent from the construction census, the claims and the home coverage. Unknown
-    /// when the evidence is incomplete; throws for contradictory geometry or bounds.
+    /// The review's extent from its Fact-typed members. An unread bounds, construction census or Home census is
+    /// Incomplete; unread claims leave the extent without provenance, which is all the claims carry.
     /// </summary>
-    public static Fact<ColonyExtent> DeriveColonyExtent(ColonyExtentRequest r)
+    public static ExtentDerivation DeriveColonyExtent(Fact<Bounds> bounds, CurrentConstruction? construction, Fact<EquatableArray<ConstructionClaim>> claims, HomeCoverageFacts? home, int margin = 0)
     {
-        var unknown = Unknown<ColonyExtent>();
+        return bounds.TryGetValue(out var read) ? DeriveColonyExtent(read, construction, claims, home, margin) : new ExtentDerivation.Incomplete("map bounds");
+    }
+
+    /// <summary>The same for a caller whose bounds are plain.</summary>
+    public static ExtentDerivation DeriveColonyExtent(Bounds bounds, CurrentConstruction? construction, Fact<EquatableArray<ConstructionClaim>> claims, HomeCoverageFacts? home, int margin = 0)
+    {
+        if (construction is null)
+        {
+            return new ExtentDerivation.Incomplete("construction census");
+        }
+
+        if (home is null)
+        {
+            return new ExtentDerivation.Incomplete("home coverage census");
+        }
+
+        claims.TryGetValue(out var history);
+        return DeriveColonyExtent(new ColonyExtentRequest { Bounds = bounds, Construction = construction, Claims = history, Home = home, Margin = margin });
+    }
+
+    /// <summary>
+    /// Derives the colony's extent from the construction census, the claims and the home coverage. Incomplete
+    /// when a building or stockpile has no footprint or bounded geometry; throws for contradictory geometry or bounds.
+    /// </summary>
+    public static ExtentDerivation DeriveColonyExtent(ColonyExtentRequest r)
+    {
         static DomainException Invalid() => new("invalid colony extent geometry or bounds");
 
-        var bk = r.Bounds.TryGetValue(out var bounds);
+        var bounds = r.Bounds;
         var census = r.Construction;
         var home = r.Home;
         if (r.Margin < 0 || r.Margin > 8)
         {
             throw Invalid();
-        }
-
-        if (!bk || census is null || home is null)
-        {
-            return unknown;
         }
 
         if (bounds.Width <= 0 || bounds.Height <= 0 || bounds.Width > 4096 || bounds.Height > 4096)
@@ -102,15 +136,14 @@ public static class ColonyExtentRules
         }
 
         // Missing footprints are incomplete evidence, not a known empty colony.
-        if (census.Buildings.Items.Any(b => b.Cells.Count == 0))
+        if (census.Buildings.Items.FirstOrDefault(b => b.Cells.Count == 0) is { } bare)
         {
-            return unknown;
+            return new ExtentDerivation.Incomplete($"footprint of {bare.Id}");
         }
 
         // Ambiguous optional history cannot select provenance by input order.
-        r.Claims.TryGetValue(out var history);
         var claimIds = new HashSet<ActionId>();
-        foreach (var claim in history.Items)
+        foreach (var claim in r.Claims.Items)
         {
             if (!claimIds.Add(claim.Action))
             {
@@ -118,8 +151,7 @@ public static class ColonyExtentRules
             }
         }
 
-        var owned = ConstructionOwnershipRules.OwnedConstructions(r.Claims, r.Construction);
-        owned.TryGetValue(out var buildings);
+        var buildings = ConstructionOwnershipRules.OwnedConstructions(r.Claims, census);
         if (home.Revision < 0)
         {
             throw Invalid();
@@ -160,7 +192,7 @@ public static class ColonyExtentRules
             // A building outside the census, or one without bounded visible geometry, cannot establish territory.
             if (!targets.TryGetValue(b.Identity.Current, out var target) || target is not HomeCoverageTarget.Scoped { Extent: var geometry })
             {
-                return unknown;
+                return new ExtentDerivation.Incomplete($"bounded geometry of {b.Identity.Current}");
             }
 
             var p = new ExtentProvenance
@@ -309,7 +341,7 @@ public static class ColonyExtentRules
             total += region.Count;
         }
 
-        return Known(new ColonyExtent { Regions = EquatableArray.From(regions) });
+        return new ExtentDerivation.Derived(new ColonyExtent { Regions = EquatableArray.From(regions) });
     }
 
     internal static bool ExtentCellLess(Cell a, Cell b) => a.X < b.X || (a.X == b.X && a.Z < b.Z);

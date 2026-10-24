@@ -1,26 +1,42 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>Whether the live census names the colony's buildings and stockpiles: the ids it holds, or no census read.</summary>
+public abstract record FacilityCensus
+{
+    private protected FacilityCensus() { }
+
+    /// <summary>The complete census of current building and zone ids.</summary>
+    public sealed record Counted(EquatableArray<string> Ids) : FacilityCensus;
+
+    /// <summary>No building or Home census was held.</summary>
+    public sealed record Unread : FacilityCensus;
+}
+
+/// <summary>The map-wide hostile count read as a presence: hostiles on the map, none, or no count read.</summary>
+public enum HostilePresence
+{
+    [WireName("present")]
+    Present,
+
+    [WireName("absent")]
+    Absent,
+
+    [WireName("unread")]
+    Unread,
+}
+
 /// <summary>
-/// Overlays current, same-world evidence on established history. Region observations use the input region
-/// index; absent entries are unknown. Facilities is a complete census of current building and zone IDs. A
-/// map-wide threat may conservatively hold every region.
+/// Overlays current, same-world evidence on established history. Facilities is a complete census of current
+/// building and zone IDs. A map-wide threat holds every region. No region route census exists, so every region
+/// holds route_unknown.
 /// </summary>
 public sealed record ExtentEligibilityRequest
 {
-    public Fact<ColonyExtent> Extent { get; init; }
+    public required ColonyExtent Extent { get; init; }
 
-    public Fact<EquatableArray<string>> Facilities { get; init; }
+    public required FacilityCensus Facilities { get; init; }
 
-    public Fact<bool> Threat { get; init; }
-
-    public IReadOnlyDictionary<int, ExtentRegionObservation> Regions { get; init; } = new Dictionary<int, ExtentRegionObservation>();
-}
-
-public sealed record ExtentRegionObservation
-{
-    public Fact<bool> Threat { get; init; }
-
-    public Fact<bool> RouteObservedPassable { get; init; }
+    public required HostilePresence Threat { get; init; }
 }
 
 /// <summary>
@@ -29,6 +45,9 @@ public sealed record ExtentRegionObservation
 /// </summary>
 public sealed record ExtentEligibilityView
 {
+    /// <summary>The view while no established history is held for the world.</summary>
+    public static readonly ExtentEligibilityView NoHistory = new() { Known = false, Reason = "extent_unknown" };
+
     public bool Known { get; init; }
 
     public string Reason { get; init; } = "";
@@ -59,13 +78,10 @@ public static class ExtentEligibilityRules
 {
     public static ExtentEligibilityView ExtentEligibility(ExtentEligibilityRequest r)
     {
-        if (!r.Extent.TryGetValue(out var e))
-        {
-            return new ExtentEligibilityView { Known = false, Reason = "extent_unknown" };
-        }
+        var e = r.Extent;
         var reason = e.Regions.Count == 0 ? "extent_empty" : "";
-        var fk = r.Facilities.TryGetValue(out var facilities);
-        var active = new HashSet<string>(facilities, StringComparer.Ordinal);
+        var census = r.Facilities as FacilityCensus.Counted;
+        var active = new HashSet<string>(census?.Ids ?? [], StringComparer.Ordinal);
         var rows = new List<ExtentRegionEligibility>();
         for (var i = 0; i < e.Regions.Count; i++)
         {
@@ -83,31 +99,20 @@ public static class ExtentEligibilityRules
                     }
                 }
             }
-            var activeFacilities = fk ? ids.Where(active.Contains).ToList() : [];
+            var activeFacilities = census is null ? [] : ids.Where(active.Contains).ToList();
             var holds = new List<string>();
-            r.Regions.TryGetValue(i, out var obs);
-            obs ??= new ExtentRegionObservation();
-            var tk = obs.Threat.TryGetValue(out var threat);
-            var gk = r.Threat.TryGetValue(out var global);
-            if (gk && global)
+            switch (r.Threat)
             {
-                threat = true;
-                tk = true;
+                case HostilePresence.Present:
+                    holds.Add("threat_present");
+                    break;
+                case HostilePresence.Unread:
+                    holds.Add("threat_unknown");
+                    break;
+                case HostilePresence.Absent:
+                    break;
             }
-            else if (!tk)
-            {
-                threat = global;
-                tk = gk;
-            }
-            if (!tk)
-            {
-                holds.Add("threat_unknown");
-            }
-            else if (threat)
-            {
-                holds.Add("threat_present");
-            }
-            if (!fk)
+            if (census is null)
             {
                 holds.Add("facilities_unknown");
             }
@@ -119,14 +124,7 @@ public static class ExtentEligibilityRules
             {
                 holds.Add("facility_lost");
             }
-            if (!obs.RouteObservedPassable.TryGetValue(out var route))
-            {
-                holds.Add("route_unknown");
-            }
-            else if (!route)
-            {
-                holds.Add("route_impassable");
-            }
+            holds.Add("route_unknown");
             if (region.Cells.Count == 0)
             {
                 holds.Add("extent_empty");

@@ -139,15 +139,19 @@ public static class ConstructionOwnershipRules
         {
             return Unknown<EquatableArray<ConstructionClaim>>();
         }
+        claims.TryGetValue(out var history);
+        return Known(OwnedConstructions(history, census));
+    }
+
+    /// <summary>The same view for a caller holding the claims and the census whole.</summary>
+    public static EquatableArray<ConstructionClaim> OwnedConstructions(EquatableArray<ConstructionClaim> history, CurrentConstruction census)
+    {
         var byBuilding = new Dictionary<Building, ConstructionClaim>();
-        if (claims.TryGetValue(out var history))
+        foreach (var claim in history)
         {
-            foreach (var claim in history)
+            if (FoodForecastRules.FoodId(claim.Plan.Value) && FoodForecastRules.FoodId(claim.Action.Value) && FoodForecastRules.FoodId(claim.Concern.Value) && claim.Building is not null)
             {
-                if (FoodForecastRules.FoodId(claim.Plan.Value) && FoodForecastRules.FoodId(claim.Action.Value) && FoodForecastRules.FoodId(claim.Concern.Value) && claim.Building is not null)
-                {
-                    byBuilding[claim.Building] = claim;
-                }
+                byBuilding[claim.Building] = claim;
             }
         }
         var result = new List<ConstructionClaim>(census.Buildings.Count);
@@ -161,6 +165,6 @@ public static class ConstructionOwnershipRules
             var owned = byBuilding.TryGetValue(b, out var claim) ? claim : new ConstructionClaim { Building = b };
             result.Add(owned with { Identity = new ConstructionIdentity("", row.Id), Cells = row.Cells });
         }
-        return Known(EquatableArray.From(result.OrderBy(c => c.Identity.Current, StringComparer.Ordinal)));
+        return EquatableArray.From(result.OrderBy(c => c.Identity.Current, StringComparer.Ordinal));
     }
 }

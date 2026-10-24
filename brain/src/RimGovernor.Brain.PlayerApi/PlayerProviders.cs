@@ -103,10 +103,10 @@ public interface IPlanReader
 /// </summary>
 public sealed record RoundsStatus
 {
-    public ExtentEligibilityRequest ExtentEligibility { get; init; } = new();
+    public ExtentEligibilityView ExtentEligibility { get; init; } = ExtentEligibilityView.NoHistory;
 
-    /// <summary>The derived colony extent; absent stays unknown.</summary>
-    public Fact<ColonyExtent> Extent { get; init; }
+    /// <summary>The derived colony extent, or the evidence it lacks (also while no colony census is held).</summary>
+    public ExtentDerivation Extent { get; init; } = new ExtentDerivation.Incomplete("colony census");
 
     public IReadOnlyList<ResourceRunway> ResourceRunways { get; init; } = [];
 

@@ -17,8 +17,8 @@ public sealed partial class ClockScheduler
             return;
         }
         var f = p.Facts;
-        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = Known(p.Bounds), Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
-        if (extent.TryGetValue(out var value))
+        var extent = ColonyExtentRules.DeriveColonyExtent(p.Bounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
+        if (extent is ExtentDerivation.Derived { Extent: var value })
         {
             // Cached evidence may predate a player's latest expansion. Record at this review's live tick so
             // caching cannot masquerade as a rewind.

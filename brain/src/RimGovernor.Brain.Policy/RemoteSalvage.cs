@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record SalvageEvidence
 {
-    public Fact<bool> Safe { get; init; }
+    public required bool Safe { get; init; }
 
     public required SupplyCandidate Candidate { get; init; }
 }

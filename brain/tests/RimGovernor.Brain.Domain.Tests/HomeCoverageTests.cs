@@ -51,9 +51,9 @@ public sealed class HomeCoverageTests
     {
         var request = new ColonyExtentRequest
         {
-            Bounds = Known(new Bounds(10, 10)),
+            Bounds = new Bounds(10, 10),
             Construction = CurrentConstruction.Empty,
-            Claims = Known<EquatableArray<ConstructionClaim>>([]),
+            Claims = [],
             Home = NoHomeCoverage with
             {
                 Targets =
@@ -64,9 +64,9 @@ public sealed class HomeCoverageTests
             },
         };
 
-        Assert.True(ColonyExtentRules.DeriveColonyExtent(request).TryGetValue(out var extent));
-        var region = Assert.Single(extent!.Regions);
+        var extent = Assert.IsType<ExtentDerivation.Derived>(ColonyExtentRules.DeriveColonyExtent(request)).Extent;
+        var region = Assert.Single(extent.Regions);
         Assert.Equal([new Cell(1, 1), new Cell(1, 2)], region.Cells.Select(c => c.Cell));
-        Assert.False(ColonyExtentRules.DeriveColonyExtent(request with { Home = null }).IsKnown);
+        Assert.Equal(new ExtentDerivation.Incomplete("home coverage census"), ColonyExtentRules.DeriveColonyExtent(request.Bounds, request.Construction, Known(request.Claims), null));
     }
 }

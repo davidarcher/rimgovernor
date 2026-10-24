@@ -64,17 +64,8 @@ public static class HomeAreaRules
         {
             throw new RequiredFactException("home coverage");
         }
-        var extent = ColonyExtentRules.DeriveColonyExtent(
-            new ColonyExtentRequest
-            {
-                Bounds = bounds,
-                Construction = construction,
-                Claims = claims,
-                Home = home,
-                Margin = HomeAreaMargin,
-            }
-        );
-        if (!extent.TryGetValue(out var value))
+        var extent = ColonyExtentRules.DeriveColonyExtent(bounds, construction, claims, home, HomeAreaMargin);
+        if (extent is not ExtentDerivation.Derived { Extent: var value })
         {
             throw new RequiredFactException("colony extent");
         }

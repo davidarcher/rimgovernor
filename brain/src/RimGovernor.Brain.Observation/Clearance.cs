@@ -54,6 +54,6 @@ public static class ClearanceReads
             yields.Add(CandidateRules.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, new YieldStorage.Accepts(y.StorageHeadroom)));
         }
         var candidate = CandidateRules.SourceCandidate(CandidateKind.Salvage, id, s.Labor, new CandidatePath.Walk(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
-        return new SalvageEvidence { Safe = Known(s.Safe), Candidate = candidate };
+        return new SalvageEvidence { Safe = s.Safe, Candidate = candidate };
     }
 }

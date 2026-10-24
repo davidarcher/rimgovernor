@@ -100,7 +100,7 @@ internal sealed record ExtentRegionEligibilityDto(
     bool Eligible,
     IReadOnlyList<string> HoldReasons);
 
-internal sealed record RoundsExtentDto(bool Known, int Regions, int Cells);
+internal sealed record RoundsExtentDto(bool Known, int Regions, int Cells, string? MissingEvidence);
 
 internal sealed record ResourceRunwayDto(
     string Resource,

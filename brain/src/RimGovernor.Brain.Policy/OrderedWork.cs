@@ -1,39 +1,10 @@
-using RimGovernor.Brain.Domain;
-
 namespace RimGovernor.Brain.Policy;
 
 public static partial class OrderedWorkRules
 {
     /// <summary>
-    /// Ranks interruption evidence without excluding a pawn from Auto planning. Unknown provenance is
-    /// costlier than a known idle/ordinary job. Active controller claims and native legality are checked
-    /// independently.
+    /// Ranks the interruption of a pawn's whole job read without excluding it from Auto planning: a forced job
+    /// costs one, a queued job one more. Active controller claims and native legality are checked independently.
     /// </summary>
-    /// <summary>Ranks interruption evidence of a whole read: a forced job costs one, a queued job one more.</summary>
     internal static int OrderedWorkCost(bool forced, uint queued) => (forced ? 1 : 0) + (queued > 0 ? 1 : 0);
-
-    internal static int OrderedWorkCost(Fact<bool> forced, params Fact<uint>[] queued)
-    {
-        var cost = 0;
-        if (!forced.TryGetValue(out var f))
-        {
-            cost = 2;
-        }
-        else if (f)
-        {
-            cost = 1;
-        }
-        foreach (var q in queued)
-        {
-            if (!q.TryGetValue(out var v))
-            {
-                cost += 2;
-            }
-            else if (v > 0)
-            {
-                cost++;
-            }
-        }
-        return cost;
-    }
 }

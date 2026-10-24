@@ -61,9 +61,9 @@ public static partial class RemoteRules
         return (Known(EquatableArray.From(kept)), holds.OrderBy(h => h.Thing, StringComparer.Ordinal).ToList());
     }
 
-    internal static bool LootInsideExtent(Fact<ColonyExtent> extent, Cell cell)
+    internal static bool LootInsideExtent(ExtentDerivation extent, Cell cell)
     {
-        if (!extent.TryGetValue(out var e))
+        if (extent is not ExtentDerivation.Derived { Extent: var e })
         {
             return false;
         }
@@ -93,7 +93,7 @@ public static partial class RemoteRules
     /// </summary>
     public static RemoteWorkRequest LootContext(RoundsFacts f)
     {
-        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
+        var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         return new RemoteWorkRequest { Safety = LootSafety(f), Extent = extent, Competition = RemoteCompetition(f) };
     }
 

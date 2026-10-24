@@ -167,7 +167,7 @@ public sealed record RemoteWorkRequest
 {
     public RemoteSafety Safety { get; init; } = new();
 
-    public Fact<ColonyExtent> Extent { get; init; }
+    public ExtentDerivation Extent { get; init; } = new ExtentDerivation.Incomplete("colony extent");
 
     public AcquisitionCompetition Competition { get; init; } = new();
 

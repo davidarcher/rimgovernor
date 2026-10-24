@@ -54,8 +54,8 @@ internal sealed class WorkLedger
 
     public LedgerPending? Pending { get; set; }
 
-    /// <summary>Whether the latest review's reconcile in <see cref="World"/> places or removes a bill; unknown while unread.</summary>
-    public Fact<bool> Owed { get; set; }
+    /// <summary>The latest review's reconcile in <see cref="World"/>: a bill to place or remove, none, or unread.</summary>
+    public LedgerDiff Owed { get; set; } = LedgerDiff.Unread;
 
     public List<LedgerPurpose> Reports { get; set; } = [];
 
@@ -125,12 +125,12 @@ public sealed partial class Rounder
         return (new LedgerPurpose(key, need, reporter.Report()), true);
     }
 
-    /// <summary>The latest review's ledger diff in <paramref name="world"/> (the admin/work-ledger Need's fact); unknown for another world or before a review read it.</summary>
-    internal Fact<bool> LedgerOwedIn(GenerationSnapshot world)
+    /// <summary>The latest review's ledger diff in <paramref name="world"/> (the admin/work-ledger Need's read); Unread for another world or before a review read it.</summary>
+    internal LedgerDiff LedgerOwedIn(GenerationSnapshot world)
     {
         lock (Ledger.Mu)
         {
-            return Ledger.World == world ? Ledger.Owed : Unknown<bool>();
+            return Ledger.World == world ? Ledger.Owed : LedgerDiff.Unread;
         }
     }
 
@@ -165,7 +165,7 @@ public sealed partial class Rounder
     // The review's parts are lapped onto fine under derive/ledger/ (#3566): benches (the mirrored bench read), declare
     // (the declarers, which run together: each declares from the same reading and writes only its own memory, so
     // their hops share frames; each one's own wall rides under its name), reconcile (the diff under the ledger lock).
-    internal async Task<Fact<bool>> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyProjection projection, CancellationToken call, StepStages? fine = null)
+    internal async Task<LedgerDiff> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyProjection projection, CancellationToken call, StepStages? fine = null)
     {
         var inner = new StepStages();
         var l = Ledger;
@@ -179,7 +179,7 @@ public sealed partial class Rounder
             }
 
             l.Pending = null;
-            l.Owed = Unknown<bool>();
+            l.Owed = LedgerDiff.Unread;
             l.Reports = [];
             l.ReportsWorld = snapshot;
             if (l.World != snapshot && (l.World.Colony != snapshot.Colony || l.World.Load != snapshot.Load || l.World.Map != snapshot.Map))
@@ -196,7 +196,7 @@ public sealed partial class Rounder
 
         if (declarers.Count == 0 || Native is not IRoundsWorkBenchSource native)
         {
-            return Unknown<bool>();
+            return LedgerDiff.Unread;
         }
 
         IReadOnlyList<GearBenchRead> reads;
@@ -220,7 +220,7 @@ public sealed partial class Rounder
                 }
             }
 
-            return Unknown<bool>();
+            return LedgerDiff.Unread;
         }
 
         inner.Lap("derive/ledger/benches");
@@ -248,7 +248,7 @@ public sealed partial class Rounder
 
         inner.Lap("derive/ledger/declare");
         var (actual, known) = WorkRules.LedgerActuals(benches);
-        Fact<bool> result;
+        LedgerDiff result;
         lock (l.Mu)
         {
             l.Reports = purposes;
@@ -256,7 +256,7 @@ public sealed partial class Rounder
             if (!known)
             {
                 l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewUnread);
-                result = Unknown<bool>();
+                result = LedgerDiff.Unread;
             }
             else
             {
@@ -275,7 +275,7 @@ public sealed partial class Rounder
                     l.Pending = new LedgerPending { Snapshot = snapshot, Remove = plan.Remove, Place = placed, Unplaced = unplaced };
                 }
 
-                result = Known(owed);
+                result = owed ? LedgerDiff.Owed : LedgerDiff.Settled;
             }
         }
 

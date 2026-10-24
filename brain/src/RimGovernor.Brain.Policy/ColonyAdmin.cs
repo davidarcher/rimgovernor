@@ -23,6 +23,19 @@ public sealed record CreepJoinerWork
     public int Count => Drops.Count + Inspections.Orders.Count + Isolation.Count + Disarm.Orders.Count;
 }
 
+/// <summary>The work ledger's reconcile diff in one world: a bill to place or remove, none, or not read this review.</summary>
+public enum LedgerDiff
+{
+    [WireName("owed")]
+    Owed,
+
+    [WireName("settled")]
+    Settled,
+
+    [WireName("unread")]
+    Unread,
+}
+
 /// <summary>What the colony admin family reads; a section is null when its Need is not composed.</summary>
 public sealed record AdminFacts
 {
@@ -37,8 +50,8 @@ public sealed record AdminFacts
     /// <summary>Whether a tomb, grave or morgue step is due; unknown while the rooms, plan or corpses cannot be read.</summary>
     public Fact<bool>? Burial { get; init; }
 
-    /// <summary>Whether the work ledger's reconcile diff places or removes a bill (LedgerDiffOwed); unknown unless the ledger has declarers and read every bench's bills.</summary>
-    public Fact<bool>? WorkLedger { get; init; }
+    /// <summary>The work ledger's reconcile diff (LedgerDiffOwed): Unread unless the ledger has declarers and read every bench's bills.</summary>
+    public LedgerDiff? WorkLedger { get; init; }
 
     /// <summary>Whether the stockpile review proposes a zone edit, a storage room or a shelf; unknown while the zone claims or the site cells are unread.</summary>
     public Fact<bool>? Stockpiles { get; init; }
@@ -140,7 +153,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         }
         if (composed.WorkLedger)
         {
-            needs.Add(WorkLedgerNeed(facts.WorkLedger ?? Fact.Unknown<bool>()));
+            needs.Add(WorkLedgerNeed(facts.WorkLedger ?? LedgerDiff.Unread));
         }
         if (composed.Stockpiles)
         {
@@ -219,18 +232,19 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     }
 
     /// <summary>Unmet while the ledger's reconcile places or removes a bill; raises <see cref="RequiredFactException"/> while the declarations or the bench readback are unread, met otherwise.</summary>
-    public static Need WorkLedgerNeed(Fact<bool> owed)
+    public static Need WorkLedgerNeed(LedgerDiff diff)
     {
-        if (!owed.TryGetValue(out var diff))
+        if (diff == LedgerDiff.Unread)
         {
             throw new RequiredFactException("work ledger diff");
         }
+        var owed = diff == LedgerDiff.Owed;
         return new Need
         {
             Id = WorkLedger,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = diff ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = diff ? 1.0 : 0.0,
+            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = owed ? 1.0 : 0.0,
         };
     }
 

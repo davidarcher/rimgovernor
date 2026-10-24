@@ -35,27 +35,18 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
             LootHolds = review.EventLoot.Held,
         };
 
-        // Read-only diagnostics: missing complete extent geometry stays unknown. This does not widen any planner or
+        // Read-only diagnostics: missing complete extent geometry stays Incomplete. This does not widen any planner or
         // dispatch surface.
         if (FactStore.TryGet<ColonyProjection>(sections, Section.Colony, out var held) && held.Complete)
         {
             var f = held.Value.Facts;
-            var threat = Unknown<bool>();
+            var threat = HostilePresence.Unread;
             if (f.Hostiles.TryGetValue(out var count))
             {
-                threat = Known(count > 0);
+                threat = count > 0 ? HostilePresence.Present : HostilePresence.Absent;
             }
 
-            status = status with
-            {
-                Extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest
-                {
-                    Bounds = Known(held.Value.Bounds),
-                    Construction = f.CurrentConstruction,
-                    Claims = f.ConstructionClaims,
-                    Home = f.HomeCoverage,
-                }),
-            };
+            status = status with { Extent = ColonyExtentRules.DeriveColonyExtent(held.Value.Bounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage) };
             var id = held.Value.Identity;
             if (IsValid(id))
             {
@@ -64,7 +55,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                     id.Tick,
                     cancellationToken).ConfigureAwait(false);
                 var extent = new ColonyExtent { Regions = EquatableArray.From(history.Select(row => row.Region)) };
-                var eligibility = new ExtentEligibilityRequest { Extent = Known(extent), Threat = threat };
+                FacilityCensus facilities = new FacilityCensus.Unread();
                 if (f.CurrentConstruction is { } buildings && f.HomeCoverage is { } home)
                 {
                     var ids = new List<string>(buildings.Buildings.Select(b => b.Id));
@@ -78,11 +69,11 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                         }
                     }
 
-                    eligibility = eligibility with { Facilities = Known(EquatableArray.From(ids)) };
+                    facilities = new FacilityCensus.Counted(EquatableArray.From(ids));
                 }
 
-                // No region route census is currently held: route_unknown is a hold.
-                status = status with { ExtentEligibility = eligibility };
+                // No region route census exists: every region holds route_unknown.
+                status = status with { ExtentEligibility = ExtentEligibilityRules.ExtentEligibility(new ExtentEligibilityRequest { Extent = extent, Facilities = facilities, Threat = threat }) };
             }
         }
 

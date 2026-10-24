@@ -86,7 +86,7 @@ exclusion beyond the margin, and restoration of a removed corridor cell.
 - `policy.ExtentEligibility` overlays current evidence on stored history without
   mutating it. Per-region diagnostics keep origins and facility IDs, list active
   facilities separately and report holds: `threat_present`, `threat_unknown`,
-  `facility_lost`, `facilities_unknown`, `route_unknown`, `route_impassable`. Losing any
+  `facility_lost`, `facilities_unknown`, `route_unknown`. Losing any
   supporting facility holds the region; a map-wide threat holds every region; missing
   evidence never grants permission; recovery clears holds, not history. The routines
   API `extentEligibility` reads the current

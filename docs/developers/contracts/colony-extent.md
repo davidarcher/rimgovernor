@@ -36,10 +36,13 @@ region; overlapping margins never merge regions. No bounding rectangle or
 inferred path fills the gap between facilities: a wall fragment or a distant
 Home island owns nothing between it and the base.
 
-Identical facts produce an identical extent. Missing bounds, census,
-target or complete geometry, a target with a blocker, or a building or zone
-without a footprint keep the extent **unknown**, never empty; unknown is not
-a permission and not a known-empty colony. Invalid geometry (out-of-bounds
+Identical facts produce an identical extent. The derivation returns either
+`Derived` (the extent) or `Incomplete`, which names the evidence it lacks: map
+bounds, the construction or Home census a caller has not read, a building
+without a footprint, or a building or stockpile with no complete target
+geometry. Incomplete is never an empty colony and never a permission. Unread
+construction claims carry only provenance, so they leave the extent derived.
+Invalid geometry (out-of-bounds
 cells, interior islands not connected to their footprint, ambiguous
 provenance) is an error. Details: [colony upkeep
 contracts](upkeep-contracts.md#maintained-jobs).
@@ -63,9 +66,12 @@ that autonomous play overwrites, not player vetoes.
 established history without mutating it. Each region reports its stage,
 origins, recorded and active facility identities and every hold:
 `threat_present`, `threat_unknown`, `facility_lost`, `facilities_unknown`,
-`provenance_unknown`, `route_unknown`, `route_impassable`, `extent_empty`.
-A map-wide threat holds every region; a replacement facility cannot inherit
-a lost one's provenance; missing evidence is a hold, never a grant. The
+`provenance_unknown`, `route_unknown`, `extent_empty`. The request names its
+evidence: a facility census that is `Counted` or `Unread`, and the map-wide
+hostile presence `present`, `absent` or `unread`. No region route census
+exists, so every region holds `route_unknown`. A map-wide threat holds every
+region; a replacement facility cannot inherit a lost one's provenance;
+missing evidence is a hold, never a grant. The
 routines API `extentEligibility`
 renders it; the acceptance harness records it for `acceptance why` and
 postmortems.

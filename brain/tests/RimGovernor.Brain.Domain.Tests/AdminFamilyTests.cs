@@ -121,11 +121,11 @@ public sealed class AdminFamilyTests
         var ledger = new AdminFamily(new AdminNeeds { WorkLedger = true });
         Need Ledger(AdminFacts facts) => Assert.Single(ledger.Derive(facts));
 
-        var met = Ledger(new AdminFacts { WorkLedger = Known(false) });
+        var met = Ledger(new AdminFacts { WorkLedger = LedgerDiff.Settled });
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/work-ledger"), (met.Satisfaction, met.Deficit, met.Tier, met.Id.Value));
-        Assert.Equal((Satisfaction.Unmet, 1.0), (Ledger(new AdminFacts { WorkLedger = Known(true) }).Satisfaction, Ledger(new AdminFacts { WorkLedger = Known(true) }).Deficit));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (Ledger(new AdminFacts { WorkLedger = LedgerDiff.Owed }).Satisfaction, Ledger(new AdminFacts { WorkLedger = LedgerDiff.Owed }).Deficit));
         // Unread declarations or bench bills are Unknown, never met.
-        Assert.Equal("work ledger diff", Assert.Throws<RequiredFactException>(() => Ledger(new AdminFacts { WorkLedger = Unknown<bool>() })).Fact);
+        Assert.Equal("work ledger diff", Assert.Throws<RequiredFactException>(() => Ledger(new AdminFacts { WorkLedger = LedgerDiff.Unread })).Fact);
         Assert.Equal("work ledger diff", Assert.Throws<RequiredFactException>(() => Ledger(new AdminFacts())).Fact);
     }
 

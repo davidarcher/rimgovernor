@@ -18,8 +18,8 @@ public static class FirebreakRingRules
         {
             return unknown;
         }
-        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = r.Bounds, Construction = r.Construction, Claims = r.Claims, Home = r.Home });
-        if (!extent.TryGetValue(out var value))
+        var extent = ColonyExtentRules.DeriveColonyExtent(r.Bounds, r.Construction, r.Claims, r.Home);
+        if (extent is not ExtentDerivation.Derived { Extent: var value })
         {
             return unknown;
         }
