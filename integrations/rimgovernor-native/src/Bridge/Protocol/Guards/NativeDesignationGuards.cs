@@ -171,15 +171,18 @@ namespace HomeBridge.BridgeTools
         // whenever its controlled pawn is offered the job (#3557).
         internal static bool Hold(GuardedDesignation r) => Verdict(r) != GuardVerdict.Proceed;
 
-        private static GuardVerdict Verdict(GuardedDesignation r)
+        // dryRun judges without cancelling: the work-giver scan runs inside
+        // the game's enumeration of the map's designations, so it must not
+        // remove one (Eligible defers the cancel to the tick's end).
+        private static GuardVerdict Verdict(GuardedDesignation r, bool dryRun = false)
         {
             if (!r.Open || (!r.Ordered && !Supervisor.IsActive)) return GuardVerdict.Wait;
             var subject = Subject(r);
             if (subject == null) { r.Cancelled = true; return GuardVerdict.Cancel; }
             if (r.Designation == DesignationDefOf.Deconstruct.defName && (subject.Target == null || subject.Target.Position != subject.Cell))
-            { Cancel(r, subject.Map, "Exact deconstruction occupant changed without an observed demolition."); return GuardVerdict.Cancel; }
+            { if (!dryRun) Cancel(r, subject.Map, "Exact deconstruction occupant changed without an observed demolition."); return GuardVerdict.Cancel; }
             var verdict = Registry.Recheck(r.Guard, subject, out var blocker);
-            if (verdict == GuardVerdict.Cancel) Cancel(r, subject.Map, blocker);
+            if (verdict == GuardVerdict.Cancel && !dryRun) Cancel(r, subject.Map, blocker);
             return verdict;
         }
 
@@ -235,6 +238,8 @@ namespace HomeBridge.BridgeTools
                 finalizer: new HarmonyMethod(typeof(NativeDesignationGuards), nameof(AfterRemoval)));
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_Deconstruct), nameof(WorkGiver_Deconstruct.HasJobOnThing)),
                 postfix: new HarmonyMethod(typeof(NativeDesignationGuards), nameof(Eligible)));
+            harmony.Patch(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)),
+                postfix: new HarmonyMethod(typeof(NativeDesignationGuards), nameof(AfterTick)));
             harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "MakeNewToils"),
                 postfix: new HarmonyMethod(typeof(NativeDesignationGuards), nameof(GuardJob)));
             var mine = AccessTools.Method(typeof(JobDriver_Mine), "DoDamage") ?? throw new InvalidOperationException("Native mining damage contract unavailable");
@@ -260,8 +265,27 @@ namespace HomeBridge.BridgeTools
                 : Open(__instance.map, des.def, des.target.Cell, null);
             if (r != null) r.Cancelled = true;
         }
+        // A cancel found by a work-giver scan: the record stays open (and the
+        // scan holds pawns off it) until the tick ends and re-judges it, so a
+        // save in between keeps the record with its designation.
+        private static readonly HashSet<GuardedDesignation> ScanCancels = new HashSet<GuardedDesignation>();
         private static void Eligible(Thing t, ref bool __result)
-        { var r = Deconstruction(t); if (r != null && Hold(r)) __result = false; }
+        {
+            var r = Deconstruction(t);
+            if (r == null) return;
+            var verdict = Verdict(r, dryRun: true);
+            if (verdict == GuardVerdict.Proceed) return;
+            __result = false;
+            if (verdict == GuardVerdict.Cancel) ScanCancels.Add(r);
+        }
+        private static void AfterTick()
+        {
+            if (ScanCancels.Count == 0) return;
+            var cancels = ScanCancels.ToList();
+            ScanCancels.Clear();
+            if (Current.Game == null) return;
+            foreach (var r in cancels.Where(r => r.Open)) Verdict(r);
+        }
         private static void GuardJob(JobDriver_Deconstruct __instance)
         {
             var r = Deconstruction(__instance.job.targetA.Thing);
