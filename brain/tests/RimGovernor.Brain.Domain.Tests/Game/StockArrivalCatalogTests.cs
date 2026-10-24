@@ -91,12 +91,15 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal(0.5, wait!.Expected(30), 12);
     }
 
-    // #3869: a vanilla-shaped storyteller's trader comps, an outlander caravan kind carrying bionics by tag and a market value.
+    // #3869, #3909: vanilla-shaped storytellers' trader comps, an outlander caravan kind carrying bionics by tag and a market value.
     private static readonly IncidentCategoryDef FactionArrival = new() { defName = "FactionArrival" };
     private static readonly IncidentCategoryDef OrbitalVisitor = new() { defName = "OrbitalVisitor" };
+    private static readonly IncidentCategoryDef Misc = new() { defName = "Misc" };
+    private static readonly IncidentCategoryDef ThreatBig = new() { defName = "ThreatBig" };
     private static readonly IncidentDef Caravan = new() { defName = "TraderCaravanArrival", category = FactionArrival, workerClass = typeof(IncidentWorker_TraderCaravanArrival) };
     private static readonly IncidentDef Orbital = new() { defName = "OrbitalTraderArrival", category = OrbitalVisitor, workerClass = typeof(IncidentWorker_OrbitalTraderArrival) };
     private static readonly IncidentDef Visitors = new() { defName = "VisitorGroup", category = FactionArrival, workerClass = typeof(IncidentWorker_VisitorGroup) };
+    private static readonly IncidentDef Travelers = new() { defName = "TravelerGroup", category = FactionArrival, workerClass = typeof(IncidentWorker_TravelerGroup) };
 
     private static StorytellerDef Cassandra() => new()
     {
@@ -105,7 +108,39 @@ public sealed class StockArrivalCatalogTests
         [
             new StorytellerCompProperties_FactionInteraction { incident = Caravan, minDaysPassed = 5, baseIncidentsPerYear = 5, minSpacingDays = 6 },
             new StorytellerCompProperties_FactionInteraction { incident = Visitors, minDaysPassed = 3, baseIncidentsPerYear = 4 },
+            new StorytellerCompProperties_FactionInteraction { incident = Travelers, minDaysPassed = 3, baseIncidentsPerYear = 4 },
             new StorytellerCompProperties_OnOffCycle { incident = Orbital, onDays = 7, offDays = 8, numIncidentsRange = new FloatRange(1, 1) },
+        ],
+    };
+
+    private static StorytellerDef Randy() => new()
+    {
+        defName = "Randy",
+        comps =
+        [
+            new StorytellerCompProperties_RandomMain
+            {
+                minDaysPassed = 1, mtbDays = 1.35f, maxThreatBigIntervalDays = 13, minIncChancePopulationIntentFactor = 0.2f,
+                categoryWeights =
+                [
+                    new() { category = Misc, weight = 3.5f }, new() { category = ThreatBig, weight = 1.4f }, new() { category = OrbitalVisitor, weight = 1.1f },
+                    new() { category = FactionArrival, weight = 2.4f },
+                ],
+            },
+        ],
+    };
+
+    // A tribal faction whose Peaceful groups may bring children.
+    private static FactionDef Tribe() => new()
+    {
+        defName = "TribeCivil",
+        pawnGroupMakers =
+        [
+            new PawnGroupMaker
+            {
+                kindDef = new PawnGroupKindDef { defName = "Peaceful" },
+                options = [new PawnGenOption { kind = new PawnKindDef { defName = "Tribal_Child", pawnGroupDevelopmentStage = DevelopmentalStage.Child }, selectionWeight = 1 }],
+            },
         ],
     };
 
@@ -135,7 +170,10 @@ public sealed class StockArrivalCatalogTests
             new Dictionary<BuildableDef, IReadOnlyList<string>>(),
             new HashSet<CatalogStat>(CatalogStats.All));
         return new DefinitionCatalog(
-            [silver, new TerrainDef { defName = "Soil" }, Potency, Arm, arm, leg, herbal, install, FactionArrival, OrbitalVisitor, Caravan, Orbital, Visitors, Cassandra(), Outlander()],
+            [
+                silver, new TerrainDef { defName = "Soil" }, Potency, Arm, arm, leg, herbal, install, FactionArrival, OrbitalVisitor, Misc, ThreatBig, Caravan, Orbital, Visitors,
+                Travelers, Cassandra(), Randy(), Tribe(), Outlander(),
+            ],
             stats, new CatalogDerived("Silver", "Wort", 10f));
     }
 
@@ -143,11 +181,28 @@ public sealed class StockArrivalCatalogTests
     public void TheCatalogDecodesTheTraderCompsAndTheKindsStockByClass()
     {
         var catalog = TradeCatalog();
-        var cassandra = catalog.TradeSchedule().Storytellers["Cassandra"];
-        Assert.Equal([new TradeVisitComp("TraderCaravanArrival", false, 5) { IncidentsPerDay = 5 / 60.0 }], cassandra.Comps.Where(c => !c.Orbital));
-        var orbital = Assert.Single(cassandra.Comps, c => c.Orbital);
+        var schedule = catalog.TradeSchedule();
+        var cassandra = schedule.Storytellers["Cassandra"];
+        // The caravans and visitors by faction interaction, the orbital traders by cycle; the travelers send no trader of their own.
+        Assert.Equal(
+            [
+                new TradeVisitComp(TradeCompRate.FactionInteraction, 5) { Incident = "TraderCaravanArrival", IncidentsPerDay = 5 / 60.0 },
+                new TradeVisitComp(TradeCompRate.FactionInteraction, 3) { Incident = "VisitorGroup", IncidentsPerDay = 4 / 60.0 },
+            ],
+            cassandra.Comps.Where(c => c.Rate == TradeCompRate.FactionInteraction));
+        var orbital = Assert.Single(cassandra.Comps, c => c.Rate == TradeCompRate.OnOffCycle);
         Assert.Equal(("OrbitalTraderArrival", 7.0, 8.0), (orbital.Incident, orbital.Cycle!.OnDays, orbital.Cycle.OffDays));
-        Assert.Equal(["StorytellerCompProperties_FactionInteraction:VisitorGroup"], cassandra.Unmodelled);
+        Assert.Empty(cassandra.Unmodelled);
+
+        // Randy's RandomMain draws both trader categories, ThreatBig apart.
+        var random = Assert.Single(schedule.Storytellers["Randy"].Comps);
+        Assert.Equal((TradeCompRate.Mtb, 1.0, 1 / 1.35), (random.Rate, random.MinDaysPassed, random.IncidentsPerDay));
+        var draw = random.Draw!;
+        Assert.Equal((TradeDrawRule.RandomMain, 1.4, 13.0, 0.2), (draw.Rule, draw.ThreatBigWeight, draw.MaxThreatBigIntervalDays, draw.MinPopulationIntentFactor));
+        Assert.Equal([new("Misc", 3.5, false), new("OrbitalVisitor", 1.1, true), new TradeCategoryWeight("FactionArrival", 2.4, true)], draw.Categories);
+        Assert.Equal(new TradeIncident("FactionArrival", TradeWorker.Travelers, 0), schedule.Incidents["TravelerGroup"]);
+        Assert.Equal(["TribeCivil"], schedule.ChildVisitorFactions);
+        Assert.Equal([(0, 0.05), (1, 0.3), (3, 0.45)], schedule.PopulationChanceByIntent);
 
         // The tag generator draws 3 of its 2 tagged defs: each is picked; one each at 1000 × 1.4 × Normal. The buy generator makes nothing.
         var kind = catalog.TraderStock().Kinds["Caravan_Outlander_Exotic"];
@@ -159,44 +214,71 @@ public sealed class StockArrivalCatalogTests
         Assert.False(kind.Offers.ContainsKey(new Resource("MedicineHerbal")));
     }
 
-    [Fact]
-    public void AFreshColonyWithoutAFabricationBenchHasAFiniteTradeWaitForABionicArm()
+    private static TradeVisitFacts Visits() => new()
     {
-        // The production way (#3822): the catalog's decoded comps and stock, the census as the read boundary fills it with the
-        // native TradeVisitFacts, to the replacement the autopilot would book for a lost arm with no arm on the map and no bench.
-        var catalog = TradeCatalog();
-        var visits = new TradeVisitFacts
-        {
-            AllyFraction = 1, FullAllyFraction = -1, DaysSinceSettle = 0, CommsConsole = false, TradeBeacon = false, Negotiator = true, NegotiatorPriceImprovement = 0, PriceFactorLoss = 0,
-            Incidents =
-            [
-                new TraderIncidentRead("OrbitalTraderArrival") { Sources = [new() { Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
-                new TraderIncidentRead("TraderCaravanArrival") { Sources = [new() { Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
-            ],
-        };
+        AllyFraction = 1, FullAllyFraction = -1, DaysSinceSettle = 0, CommsConsole = false, TradeBeacon = false, Negotiator = true, NegotiatorPriceImprovement = 0, PriceFactorLoss = 0,
+        PopulationIntent = 1,
+        Incidents =
+        [
+            new TraderIncidentRead("OrbitalTraderArrival") { Weight = 3, Sources = [new() { Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
+            new TraderIncidentRead("TraderCaravanArrival") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
+            new TraderIncidentRead("TravelerGroup") { Weight = 4 },
+            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight("Caravan_Outlander_Exotic", 1)] }] },
+        ],
+    };
+
+    private static (double Expected, StockArrival Stock) ArmWait(DefinitionCatalog catalog, string storyteller)
+    {
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Trade = visits } },
+            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = Visits() } },
             Resources = [new Quantity { DefName = "Silver", Units = 2000 }],
         };
         var bills = new BillsSnapshot { Context = census.Context, Benches = [] };
-
         var stock = RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, null, census, [new Resource("MedicineHerbal")]);
         var replacement = new OrganReplacementRead("Arm", "InstallBionicArm")
         {
             PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, SuccessChance = 0.95, DoctorSuccessChance = 0.95,
         };
         var (pick, _, wait) = SurgeryRules.RestorePick([(replacement, 1.0)], stock, 30);
-
-        // Caravans from day 5 at 5 a 60-day year, each carrying the arm, and 2000 silver pays its 1400: no orbital trader without comms.
         Assert.Equal("InstallBionicArm", pick!.Recipe);
-        var rate = 5 / 60.0;
-        Assert.Equal(5 + ((1 - Math.Exp(-rate * 25)) / rate), wait!.Expected(30), 9);
+        return (wait!.Expected(30), stock);
+    }
+
+    [Fact]
+    public void AFreshColonyWithoutAFabricationBenchHasAFiniteTradeWaitForABionicArm()
+    {
+        // The production way (#3822): the catalog's decoded comps and stock, the census as the read boundary fills it with the
+        // native TradeVisitFacts, to the replacement the autopilot would book for a lost arm with no arm on the map and no bench.
+        var catalog = TradeCatalog();
+        var (expected, stock) = ArmWait(catalog, "Cassandra");
+
+        // Visitors from day 3 at 4 a 60-day year, trading with 0.75; caravans from day 5 at 5 a year; each carries the arm, and 2000
+        // silver pays its 1400: no orbital trader without comms.
+        double visitor = 4 / 60.0 * 0.75, caravan = 5 / 60.0;
+        Assert.Equal(3 + ((1 - Math.Exp(-visitor * 2)) / visitor) + (Math.Exp(-visitor * 2) * (1 - Math.Exp(-(visitor + caravan) * 25)) / (visitor + caravan)), expected, 9);
         Assert.Contains(TradeArrivalRules.OrbitalNoComms, stock.Findings);
         Assert.Contains(TradeArrivalRules.SilverIncomeUnmodelled, stock.Findings);
 
         // Without the native read the stock is unread and a wait on it throws.
-        var unread = RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, null, ColonyFactsCoreTests.Snapshot(), [new Resource("MedicineHerbal")]);
+        var bare = ColonyFactsCoreTests.Snapshot();
+        var unread = RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), new BillsSnapshot { Context = bare.Context, Benches = [] }, null, bare, [new Resource("MedicineHerbal")]);
         Assert.Equal("stock_arrival_trade_facts", unread.Unread);
+    }
+
+    [Fact]
+    public void UnderRandyTheFactionArrivalDrawGivesAFiniteTradeWaitForABionicArm()
+    {
+        // #3909: Randy sends traders only through RandomMain's category draw; the production way gives a finite wait.
+        var (expected, stock) = ArmWait(TradeCatalog(), "Randy");
+
+        // From day 1 at 1 ÷ 1.35 a day: FactionArrival's 2.4 of the 3.5 + 1.1 + 2.4 not ThreatBig, a third caravans and a third
+        // visitors at 0.75.
+        var lambda = 1 / 1.35;
+        var notThreatBig = 1 - TradeArrivalRules.ThreatBigFraction(1.4 / (1.4 + 7.0), lambda, 13);
+        var rate = lambda * notThreatBig * (2.4 / 7.0) * (1 + 0.75) / 3;
+        Assert.Equal(1 + ((1 - Math.Exp(-rate * 29)) / rate), expected, 9);
+        Assert.True(expected < 30);
+        Assert.DoesNotContain(stock.Findings, f => f.StartsWith(TradeArrivalRules.CompUnmodelled, StringComparison.Ordinal));
     }
 }

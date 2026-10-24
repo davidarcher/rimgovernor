@@ -154,8 +154,8 @@ public sealed record ThreatSchedule
 
     private static double Intervals(double days) => Math.Round(days * IntervalsPerDay, MidpointRounding.ToEven);
 
-    // SimpleCurve.Evaluate: linear between points, the end values beyond them; no curve is 1.
-    private static double Curve(IReadOnlyList<(double X, double Y)> points, double x)
+    // SimpleCurve.Evaluate: linear between points, the end values beyond them; no curve is 1. The trader draws (#3909) read it too.
+    internal static double Curve(IReadOnlyList<(double X, double Y)> points, double x)
     {
         if (points.Count == 0)
         {

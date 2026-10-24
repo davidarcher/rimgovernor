@@ -79,12 +79,13 @@ public static class StockArrivalReads
             return ([], [], "stock_arrival_trade_facts");
         }
 
-        if (!catalog.TradeSchedule().Storytellers.TryGetValue(threat.Storyteller, out var storyteller))
+        var schedule = catalog.TradeSchedule();
+        if (!schedule.Storytellers.TryGetValue(threat.Storyteller, out var storyteller))
         {
             return ([], [], "storyteller_unknown:" + threat.Storyteller);
         }
 
         var silver = stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef));
-        return TradeArrivalRules.Sources(storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal, silver);
+        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal, silver);
     }
 }

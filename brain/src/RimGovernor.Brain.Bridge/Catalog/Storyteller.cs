@@ -1,5 +1,6 @@
 using RimWorld;
 using Verse;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
@@ -15,8 +16,8 @@ namespace RimGovernor.Brain.Bridge;
 //   - StorytellerCompProperties_CategoryMTB of ThreatBig: an MTB comp with its mtbDaysFactorByDaysPassedCurve;
 //   - StorytellerCompProperties_SingleMTB of a ThreatBig incident that targets the home map: an MTB comp;
 //   - StorytellerCompProperties_FactionInteraction: nothing (faction visits, traders, ally help), unmodelled of a ThreatBig incident.
-// A class listed as sending no scheduled major threat (quests, diseases, ...) adds nothing. The trader decoder (#3869) reads the
-// same comps for trader visits (TradeSchedule). Every other home-map
+// A class listed as sending no scheduled major threat (quests, diseases, ...) adds nothing. The trader decoder (#3869, #3909) reads
+// the same comps for trader visits (TradeSchedule). Every other home-map
 // comp is named unmodelled and adds no threats: a comp class the decoder does not know, a ThreatBig OnOffCycle that scales its
 // accept fraction by the progress score or swaps its days without a tree-connection meme, a ThreatsGenerator, and a
 // CategoryIndividualMTBByBiome of ThreatBig. 1.7 has no StorytellerCompProperties_ThreatCycle.
@@ -132,30 +133,78 @@ public sealed partial class DefinitionCatalog
         nameof(StorytellerCompProperties_CategoryIndividualMTBByBiome), nameof(StorytellerCompProperties_ThreatsGenerator),
     };
 
-    /// <summary>The trader comps of every storyteller def (#3869); empty (every storyteller unread) when the catalog has no StorytellerDef.</summary>
+    // StorytellerComp.IncidentChanceFactor_PopulationIntent's offsets to the population intent by IncidentPopulationEffect (inline
+    // literals of its switch).
+    private const double IncreaseHardIntentOffset = 0.4;
+
+    private const double IncreaseMediumIntentOffset = 0;
+
+    private const double IncreaseEasyIntentOffset = -0.4;
+
+    /// <summary>The trader comps of every storyteller def (#3869, #3909); empty (every storyteller unread) when the catalog has no StorytellerDef.</summary>
     public P.TradeScheduleTable TradeSchedule() => (_tradeSchedule ??= new(BuildTradeSchedule)).Value;
 
     private Lazy<P.TradeScheduleTable>? _tradeSchedule;
 
-    private P.TradeScheduleTable BuildTradeSchedule() => new()
+    private P.TradeScheduleTable BuildTradeSchedule()
     {
-        Storytellers = Rows<StorytellerDef>().ToDictionary(row => row.Key, row => StorytellerTrade(row.Value), StringComparer.Ordinal),
-    };
+        var incidents = Rows<IncidentDef>().Values.Where(d => d.category is not null).OrderBy(d => d.defName, StringComparer.Ordinal).ToList();
+        var modelled = new Dictionary<string, P.TradeIncident>(StringComparer.Ordinal);
+        foreach (var incident in incidents)
+        {
+            if (TradeWorkerOf(incident.workerClass) is { } worker)
+            {
+                modelled[incident.defName] = new P.TradeIncident(incident.category.defName, worker, incident.earliestDay)
+                {
+                    ChangesPopulation = incident.populationEffect != IncidentPopulationEffect.None,
+                    IntentOffset = incident.populationEffect switch
+                    {
+                        IncidentPopulationEffect.IncreaseHard => IncreaseHardIntentOffset,
+                        IncidentPopulationEffect.IncreaseMedium => IncreaseMediumIntentOffset,
+                        IncidentPopulationEffect.IncreaseEasy => IncreaseEasyIntentOffset,
+                        _ => 0,
+                    },
+                };
+            }
+        }
 
-    // The trader decoder models:
-    //   - StorytellerCompProperties_FactionInteraction of a trader incident (StorytellerComp_FactionInteraction): baseIncidentsPerYear
-    //     over the 60-day year (IncidentCycleUtility.IncidentCountThisInterval) from minDaysPassed, scaled by AllyIncidentFraction
-    //     (fullAlliesOnly), none below minWealth; a minDanger gate is not modelled;
-    //   - StorytellerCompProperties_OnOffCycle of a trader incident: its cycle (StorytellerComp_OnOffCycle; before
-    //     forceRaidEnemyBeforeDaysPassed its incidents are raids);
-    // each from the incident's earliestDay too. A trader incident's comp is a trader comp when the incident's worker class is exactly
-    // IncidentWorker_TraderCaravanArrival or IncidentWorker_OrbitalTraderArrival. Named unmodelled: a FactionInteraction or OnOffCycle
-    // of another trader-like worker (a visitor group, a subclass), an OnOffCycle trader comp with a progress-score curve or
-    // tree-connector days, an OnOffCycle by category, a RandomMain or CategoryMTB drawing from the OrbitalVisitor or FactionArrival
-    // categories, a SingleMTB of a trader incident, and a comp class the decoder does not know.
-    private static P.StorytellerTrade StorytellerTrade(StorytellerDef def)
+        // A trader category holds a trader-like incident (an exact trader worker or a subclass of one). It is drawn exactly when every
+        // incident in it is of a modelled worker, its threat points are unbounded (a category comp scales the points it passes) and
+        // the category does not split by the Anomaly chance; otherwise a comp drawing it is named unmodelled.
+        var traderCategories = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var group in incidents.GroupBy(d => d.category.defName, StringComparer.Ordinal).Where(g => g.Any(d => TraderLike(d.workerClass))))
+        {
+            traderCategories[group.Key] = !group.First().category.canUseAnomalyChance && group.All(d => modelled.ContainsKey(d.defName)
+                && d.minThreatPoints == float.MinValue && d.maxThreatPoints == float.MaxValue);
+        }
+
+        return new P.TradeScheduleTable
+        {
+            Storytellers = Rows<StorytellerDef>().ToDictionary(row => row.Key, row => StorytellerTrade(row.Value, modelled, traderCategories), StringComparer.Ordinal),
+            Incidents = modelled,
+            ChildVisitorFactions = Rows<FactionDef>().Values.Where(f => f.pawnGroupMakers.Seq()
+                    .Any(m => m.kindDef?.defName == nameof(PawnGroupKindDefOf.Peaceful) && m.options.Seq().Any(o => o.kind?.pawnGroupDevelopmentStage is { } stage && stage != DevelopmentalStage.Adult)))
+                .Select(f => f.defName).ToHashSet(StringComparer.Ordinal),
+            PopulationChanceByIntent = Domain.EquatableArray.From(CurvePoints(StorytellerComp.IncreasesPopChanceByPopIntentCurve)),
+        };
+    }
+
+    // The trader decoder models (#3869, #3909), each from minDaysPassed:
+    //   - StorytellerCompProperties_FactionInteraction of a modelled incident (StorytellerComp_FactionInteraction): baseIncidentsPerYear
+    //     over the 60-day year (IncidentCycleUtility.IncidentCountThisInterval), scaled by AllyIncidentFraction (fullAlliesOnly), none
+    //     below minWealth or minDanger;
+    //   - StorytellerCompProperties_OnOffCycle of a modelled incident, or of a trader category: its cycle (StorytellerComp_OnOffCycle;
+    //     before forceRaidEnemyBeforeDaysPassed its incidents are raids), a category's incident by IncidentChanceFinal weight;
+    //   - StorytellerCompProperties_RandomMain drawing a trader category: 1 ÷ mtbDays a day, its categoryWeights with ThreatBig apart
+    //     (maxThreatBigIntervalDays) and its minIncChancePopulationIntentFactor;
+    //   - StorytellerCompProperties_CategoryMTB of a trader category: 1 ÷ mtbDays over its mtbDaysFactorByDaysPassedCurve;
+    //   - StorytellerCompProperties_SingleMTB of a modelled incident: 1 ÷ mtbDays;
+    // a comp of one incident also from its earliestDay. A modelled incident's worker class is exactly IncidentWorker_TraderCaravanArrival,
+    // _OrbitalTraderArrival, _VisitorGroup, _CaravanArrivalTributeCollector or _TravelerGroup. Named unmodelled: a comp of a
+    // trader-like incident of another class (a subclass), a comp drawing a trader category the draw does not model, an OnOffCycle
+    // trader comp with a progress-score curve or tree-connector days, and a comp class the decoder does not know.
+    private static P.StorytellerTrade StorytellerTrade(StorytellerDef def, Dictionary<string, P.TradeIncident> incidents, Dictionary<string, bool> traderCategories)
     {
-        string[] traderCategories = ["OrbitalVisitor", "FactionArrival"];
         List<P.TradeVisitComp> comps = [];
         SortedSet<string> unmodelled = new(StringComparer.Ordinal);
         foreach (var (comp, kind) in HomeMapComps(def))
@@ -163,48 +212,52 @@ public sealed partial class DefinitionCatalog
             switch (comp)
             {
                 case StorytellerCompProperties_FactionInteraction interaction when kind == nameof(StorytellerCompProperties_FactionInteraction):
-                    if (TraderIncident(interaction.incident, kind, unmodelled) is not { } caravan)
+                    if (TraderIncident(interaction.incident, kind, incidents, unmodelled) is not { } caravan)
                     {
                         break;
                     }
 
-                    if (interaction.minDanger != StoryDanger.None)
+                    comps.Add(new P.TradeVisitComp(P.TradeCompRate.FactionInteraction, Math.Max(Decimal32(interaction.minDaysPassed), caravan.earliestDay))
                     {
-                        unmodelled.Add(kind + "." + nameof(interaction.minDanger));
-                        break;
-                    }
-
-                    comps.Add(new P.TradeVisitComp(caravan.defName, caravan.workerClass == typeof(IncidentWorker_OrbitalTraderArrival), Math.Max(Decimal32(interaction.minDaysPassed), Decimal32(caravan.earliestDay)))
-                    {
+                        Incident = caravan.defName,
                         IncidentsPerDay = Decimal32(interaction.baseIncidentsPerYear) / GenDate.DaysPerYear,
                         FullAlliesOnly = interaction.fullAlliesOnly,
                         MinWealth = Decimal32(interaction.minWealth),
+                        MinDanger = interaction.minDanger switch
+                        {
+                            StoryDanger.High => Obs.StoryDangerLevel.High,
+                            StoryDanger.Low => Obs.StoryDangerLevel.Low,
+                            _ => Obs.StoryDangerLevel.None,
+                        },
                     });
                     break;
                 case StorytellerCompProperties_OnOffCycle cycle when kind == nameof(StorytellerCompProperties_OnOffCycle):
+                    P.TradeVisitComp? cycled = null;
+                    var start = Math.Max(Decimal32(cycle.minDaysPassed), Decimal32(cycle.forceRaidEnemyBeforeDaysPassed));
                     if (cycle.incident is null)
                     {
-                        if (traderCategories.Contains(cycle.IncidentCategory?.defName))
+                        if (CategoryDraw(cycle.IncidentCategory?.defName, kind, P.TradeDrawRule.OnOffCycle, cycle, traderCategories, unmodelled) is { } draw)
                         {
-                            unmodelled.Add(kind + ":" + cycle.IncidentCategory!.defName);
+                            cycled = new P.TradeVisitComp(P.TradeCompRate.OnOffCycle, start) { Draw = draw };
                         }
-
-                        break;
+                    }
+                    else if (TraderIncident(cycle.incident, kind, incidents, unmodelled) is { } trader)
+                    {
+                        cycled = new P.TradeVisitComp(P.TradeCompRate.OnOffCycle, Math.Max(start, trader.earliestDay)) { Incident = trader.defName };
                     }
 
-                    if (TraderIncident(cycle.incident, kind, unmodelled) is not { } trader)
+                    if (cycled is null)
                     {
                         break;
                     }
 
                     if (cycle.acceptPercentFactorPerProgressScoreCurve is not null || cycle.onDaysNoTreeConnectors != 0 || cycle.offDaysNoTreeConnectors != 0)
                     {
-                        unmodelled.Add(kind + ":" + trader.defName);
+                        unmodelled.Add(kind + ":" + (cycle.incident?.defName ?? cycle.IncidentCategory!.defName));
                         break;
                     }
 
-                    var from = Math.Max(Math.Max(Decimal32(cycle.minDaysPassed), Decimal32(cycle.forceRaidEnemyBeforeDaysPassed)), Decimal32(trader.earliestDay));
-                    comps.Add(new P.TradeVisitComp(trader.defName, trader.workerClass == typeof(IncidentWorker_OrbitalTraderArrival), from)
+                    comps.Add(cycled with
                     {
                         Cycle = new P.ThreatCycleComp(Decimal32(cycle.minDaysPassed), Decimal32(cycle.onDays), Decimal32(cycle.offDays),
                             Decimal32(cycle.numIncidentsRange.min), Decimal32(cycle.numIncidentsRange.max), CurvePoints(cycle.acceptFractionByDaysPassedCurve))
@@ -214,23 +267,53 @@ public sealed partial class DefinitionCatalog
                     });
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
-                    foreach (var category in random.categoryWeights.Seq().Where(e => e.category is not null && e.weight > 0 && traderCategories.Contains(e.category.defName)))
+                    const string big = nameof(IncidentCategoryDefOf.ThreatBig);
+                    var entries = random.categoryWeights.Seq().Where(e => e.category is not null).ToList();
+                    var drawn = entries.Where(e => e.weight > 0 && traderCategories.ContainsKey(e.category.defName)).Select(e => e.category.defName).Distinct().ToList();
+                    if (drawn.Count == 0)
                     {
-                        unmodelled.Add(kind + ":" + category.category.defName);
+                        break;
                     }
 
+                    if (drawn.Any(c => !traderCategories[c]))
+                    {
+                        unmodelled.UnionWith(drawn.Where(c => !traderCategories[c]).Select(c => kind + ":" + c));
+                        break;
+                    }
+
+                    comps.Add(new P.TradeVisitComp(P.TradeCompRate.Mtb, Decimal32(random.minDaysPassed))
+                    {
+                        IncidentsPerDay = 1 / Decimal32(random.mtbDays),
+                        Draw = new P.TradeCategoryDraw(P.TradeDrawRule.RandomMain)
+                        {
+                            Categories = Domain.EquatableArray.From(entries.Where(e => e.category.defName != big)
+                                .Select(e => new P.TradeCategoryWeight(e.category.defName, Decimal32(e.weight), traderCategories.ContainsKey(e.category.defName)))),
+                            ThreatBigWeight = entries.Where(e => e.category.defName == big).Sum(e => Decimal32(e.weight)),
+                            MaxThreatBigIntervalDays = Decimal32(random.maxThreatBigIntervalDays),
+                            MinPopulationIntentFactor = Decimal32(random.minIncChancePopulationIntentFactor),
+                        },
+                    });
                     break;
                 case StorytellerCompProperties_CategoryMTB mtb when kind == nameof(StorytellerCompProperties_CategoryMTB):
-                    if (traderCategories.Contains(mtb.category?.defName))
+                    if (CategoryDraw(mtb.category?.defName, kind, P.TradeDrawRule.CategoryMtb, mtb, traderCategories, unmodelled) is { } mtbDraw)
                     {
-                        unmodelled.Add(kind + ":" + mtb.category!.defName);
+                        comps.Add(new P.TradeVisitComp(P.TradeCompRate.Mtb, Decimal32(mtb.minDaysPassed))
+                        {
+                            IncidentsPerDay = 1 / Decimal32(mtb.mtbDays),
+                            MtbFactorByDaysPassed = Domain.EquatableArray.From(CurvePoints(mtb.mtbDaysFactorByDaysPassedCurve)),
+                            Draw = mtbDraw,
+                        });
                     }
 
                     break;
                 case StorytellerCompProperties_SingleMTB single when kind == nameof(StorytellerCompProperties_SingleMTB):
-                    if (TraderIncident(single.incident, kind, unmodelled) is not null)
+                    if (TraderIncident(single.incident, kind, incidents, unmodelled) is { } once)
                     {
-                        unmodelled.Add(kind + ":" + single.incident.defName);
+                        comps.Add(new P.TradeVisitComp(P.TradeCompRate.Mtb, Math.Max(Decimal32(single.minDaysPassed), once.earliestDay))
+                        {
+                            Incident = once.defName,
+                            IncidentsPerDay = 1 / Decimal32(single.mtbDays),
+                        });
                     }
 
                     break;
@@ -247,29 +330,64 @@ public sealed partial class DefinitionCatalog
         return new P.StorytellerTrade { Comps = comps, Unmodelled = [.. unmodelled] };
     }
 
-    // The comp's incident when its worker class is exactly a trader worker; a trader-like worker of another class (a visitor
-    // group, a subclass of either) is named unmodelled; any other incident sends no trader.
-    private static IncidentDef? TraderIncident(IncidentDef? incident, string kind, SortedSet<string> unmodelled)
+    // A one-category comp's draw when its category is a trader category: null for any other category; named unmodelled when the
+    // trader category is not drawn exactly.
+    private static P.TradeCategoryDraw? CategoryDraw(string? category, string kind, P.TradeDrawRule rule, StorytellerCompProperties comp,
+        Dictionary<string, bool> traderCategories, SortedSet<string> unmodelled)
+    {
+        if (category is null || !traderCategories.TryGetValue(category, out var exact))
+        {
+            return null;
+        }
+
+        if (!exact)
+        {
+            unmodelled.Add(kind + ":" + category);
+            return null;
+        }
+
+        return new P.TradeCategoryDraw(rule)
+        {
+            Categories = [new P.TradeCategoryWeight(category, 1, true)],
+            MinPopulationIntentFactor = Decimal32(comp.minIncChancePopulationIntentFactor),
+        };
+    }
+
+    // The comp's incident when its worker class is a modelled one; a trader-like worker of another class (a subclass) is named
+    // unmodelled; any other incident sends no trader.
+    private static IncidentDef? TraderIncident(IncidentDef? incident, string kind, Dictionary<string, P.TradeIncident> incidents, SortedSet<string> unmodelled)
     {
         if (incident?.workerClass is not { } worker)
         {
             return null;
         }
 
-        // IncidentWorker_VisitorGroup sends a trader with its TraderChance, and a mod's subclass draws its own way.
-        if (worker == typeof(IncidentWorker_TraderCaravanArrival) || worker == typeof(IncidentWorker_OrbitalTraderArrival))
+        if (incidents.TryGetValue(incident.defName, out var modelled))
         {
-            return incident;
+            // A traveler group sends no trader of its own; it only shares a category draw.
+            return modelled.Worker == P.TradeWorker.Travelers ? null : incident;
         }
 
-        if (typeof(IncidentWorker_TraderCaravanArrival).IsAssignableFrom(worker) || typeof(IncidentWorker_OrbitalTraderArrival).IsAssignableFrom(worker)
-            || typeof(IncidentWorker_VisitorGroup).IsAssignableFrom(worker))
+        if (TraderLike(worker))
         {
             unmodelled.Add(kind + ":" + incident.defName);
         }
 
         return null;
     }
+
+    // The exact worker classes the trader decoder models.
+    private static P.TradeWorker? TradeWorkerOf(Type? worker) =>
+        worker == typeof(IncidentWorker_TraderCaravanArrival) ? P.TradeWorker.Caravan
+        : worker == typeof(IncidentWorker_OrbitalTraderArrival) ? P.TradeWorker.Orbital
+        : worker == typeof(IncidentWorker_VisitorGroup) ? P.TradeWorker.Visitors
+        : worker == typeof(IncidentWorker_CaravanArrivalTributeCollector) ? P.TradeWorker.TributeCollector
+        : worker == typeof(IncidentWorker_TravelerGroup) ? P.TradeWorker.Travelers
+        : null;
+
+    // A worker that may send a trader: a caravan, orbital or visitor worker or any subclass (a mod's draws its own way).
+    private static bool TraderLike(Type? worker) => worker is not null && (typeof(IncidentWorker_TraderCaravanArrival).IsAssignableFrom(worker)
+        || typeof(IncidentWorker_OrbitalTraderArrival).IsAssignableFrom(worker) || typeof(IncidentWorker_VisitorGroup).IsAssignableFrom(worker));
 
     /// <summary>The def's comps that run on the player's home map, each with its exact props class name.</summary>
     private static IEnumerable<(StorytellerCompProperties Comp, string Kind)> HomeMapComps(StorytellerDef def) =>

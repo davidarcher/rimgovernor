@@ -108,7 +108,8 @@ public sealed record StockArrival
     /// <summary>
     /// E[min(W, cap)] for W the day all of <paramref name="needs"/> have arrived: the integral of <see cref="NotReady"/> from 0 to
     /// <paramref name="cap"/>, exact: between the craft sources' steps and the trade sources' starts each need's not-arrived chance is
-    /// c·e^(−r·s), so 1 − Π(1 − cᵢe^(−rᵢs)) integrates by inclusion–exclusion over the needs. 0 for no need.
+    /// c·e^(−r·s), so Π(1 − cᵢe^(−rᵢs)) expands term by term into Σ a_R·e^(−R·s), terms of equal rate merged (#3909), and
+    /// 1 − Σ a_R·e^(−R·s) integrates exactly. 0 for no need.
     /// </summary>
     public double ExpectedWait(IReadOnlyList<StockNeed> needs, double cap)
     {
@@ -126,42 +127,36 @@ public sealed record StockArrival
             steps.UnionWith(days.Where(day => day > 0 && day < cap));
         }
 
-        if (needs.Count > 16)
-        {
-            throw new DomainException($"stock wait over {needs.Count} needs");
-        }
-
         var cuts = steps.ToArray();
         var total = 0.0;
-        var chances = new double[needs.Count];
-        var rates = new double[needs.Count];
         for (var i = 0; i + 1 < cuts.Length; i++)
         {
             var length = cuts[i + 1] - cuts[i];
-            for (var n = 0; n < needs.Count; n++)
+            // Π(1 − cₙe^(−rₙs)) as Σ a_R·e^(−R·s): each need multiplies every term by 1 and adds it at rate R + rₙ times −cₙ.
+            var terms = new Dictionary<double, double> { [0] = 1 };
+            foreach (var need in needs)
             {
-                chances[n] = NotArrived(needs[n], cuts[i]);
-                rates[n] = Trade.Where(s => needs[n].AnyOf.Contains(s.Resource) && s.From <= cuts[i]).Sum(s => s.Rate(needs[n].Count));
-            }
-
-            // ∫₀ᴸ 1 − Π(1 − cₙe^(−rₙs)) ds = Σ over non-empty subsets S of (−1)^(|S|+1) Π cₙ ∫₀ᴸ e^(−R_S s) ds.
-            for (var subset = 1; subset < 1 << needs.Count; subset++)
-            {
-                var product = 1.0;
-                var rate = 0.0;
-                var size = 0;
-                for (var n = 0; n < needs.Count; n++)
+                var chance = NotArrived(need, cuts[i]);
+                if (chance == 0)
                 {
-                    if ((subset & (1 << n)) != 0)
-                    {
-                        product *= chances[n];
-                        rate += rates[n];
-                        size++;
-                    }
+                    continue;
                 }
 
-                var integral = rate > 0 ? -double.ExpM1(-rate * length) / rate : length;
-                total += (size % 2 == 1 ? 1 : -1) * product * integral;
+                var rate = Trade.Where(s => need.AnyOf.Contains(s.Resource) && s.From <= cuts[i]).Sum(s => s.Rate(need.Count));
+                var next = new Dictionary<double, double>(terms);
+                foreach (var (r, a) in terms)
+                {
+                    next[r + rate] = next.GetValueOrDefault(r + rate) - (chance * a);
+                }
+
+                terms = next;
+            }
+
+            // ∫₀ᴸ 1 − Σ a_R·e^(−R·s) ds = L − Σ a_R·(1 − e^(−R·L)) ÷ R, a rate of 0 integrating to L.
+            total += length;
+            foreach (var (r, a) in terms)
+            {
+                total -= a * (r > 0 ? -double.ExpM1(-r * length) / r : length);
             }
         }
 

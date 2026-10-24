@@ -492,16 +492,29 @@ work hours × 2500 × the crafter's `workSpeedStat` × the bench's `WorkTableWor
 day (`Toils_Recipe.DoRecipeWork`), up to the iterations the stock of the scarcest ingredient slot pays for. A recipe whose bench
 stat is another (`workTableSpeedStat`) is named `stock_arrival_bench_speed_unmodelled:<recipe>`.
 
-Trader visits are the second source (#3869, `TradeArrivalRules.Sources` into `StockArrival.Trade`). The catalog decodes the
-storyteller's trader comps by exact class (`DefinitionCatalog.TradeSchedule`): a `StorytellerCompProperties_FactionInteraction`
-comp of an `IncidentWorker_TraderCaravanArrival` incident sends baseIncidentsPerYear ÷ 60 a day × the ally fraction
-(`StorytellerUtility.AllyIncidentFraction`, full allies when the comp says so; none at or below 0 or below its minWealth); an
-`OnOffCycle` comp of an `IncidentWorker_OrbitalTraderArrival` incident sends its cycle's rate (`ThreatSchedule.CyclePerDay`). Each
-starts at max(minDaysPassed, earliestDay) − the days since settling. Every other comp that may send a trader (a minDanger gate, a
-category comp, a RandomMain or CategoryMTB drawing OrbitalVisitor or FactionArrival, a visitor-group or modded trader worker) is
-named `stock_arrival_trade_comp_unmodelled:<comps>`. A visit's kind is drawn as the incident draws it: a source faction uniformly
-(`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality`, or for an orbital trader a kind by `CalculatedCommonality`
-over `CanSpawn` (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
+Trader visits are the second source (#3869, #3909, `TradeArrivalRules.Sources` into `StockArrival.Trade`). The catalog decodes the
+storyteller's trader comps by exact class (`DefinitionCatalog.TradeSchedule`), and the incidents they draw by exact worker class
+(`IncidentWorker_TraderCaravanArrival`, `_OrbitalTraderArrival`, `_VisitorGroup`, `_CaravanArrivalTributeCollector`,
+`_TravelerGroup`). A `StorytellerCompProperties_FactionInteraction` comp of one of them sends baseIncidentsPerYear ÷ 60 a day × the
+ally fraction (`StorytellerUtility.AllyIncidentFraction`, full allies when the comp says so; none at or below 0, below its minWealth
+or while the map's `DangerRating` is below its minDanger, taken at today's); an `OnOffCycle` comp sends its cycle's rate
+(`ThreatSchedule.CyclePerDay`, from forceRaidEnemyBeforeDaysPassed); a `SingleMTB` 1 ÷ mtbDays. A comp drawing a category that
+holds a trader incident (#3909) draws as its class does, at today's facts (#3909 Q3): `RandomMain` at 1 ÷ mtbDays sends ThreatBig
+with its long-run fraction (a renewal from each ThreatBig, forced after maxThreatBigIntervalDays: 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷
+p) for ThreatBig's weight share p over the drawable weight), each other category with its weight over the drawable weight
+(a trader category with no usable incident is redrawn; every other category counts as always drawable, #3909 Q2 B); `CategoryMTB`
+its category at 1 ÷ (mtbDays × its days-passed factor); an `OnOffCycle` by category its cycle. Within a trader category an
+incident is usable when no gate blocks it, its earliestDay has come by the comp's start or today, and its `IncidentChanceFinal`
+(the native weight × the population-intent factor) is above 0; `RandomMain` and `CategoryMTB` pick by `TrySelectRandomIncident`
+(with the `IncreasesPopChanceByPopIntentCurve` chance one that changes the population, else one that does not, each falling back
+to all), an `OnOffCycle` by weight. Each comp starts at max(minDaysPassed, a single incident's earliestDay) − the days since
+settling. A comp of a trader-like worker of another class, or drawing a trader category that holds one, an incident with a
+threat-points range or an Anomaly-chance split, an `OnOffCycle` with a progress-score curve or tree-connector days, and a comp
+class the decoder does not know, is named `stock_arrival_trade_comp_unmodelled:<comps>`. A visit's kind is drawn as the incident draws it: a source faction uniformly
+(`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality` (a visitor group: its visitorTraderKinds by
+`CalculatedCommonality`, with `TraderChance` 0.75; a faction whose Peaceful group makers hold a child kind supplies nothing,
+named `stock_arrival_visitor_child_group_unmodelled:<faction>`, #3909 Q1 B), a tribute collector the Empire's TributeCollector
+kinds by `CalculatedCommonality`, an orbital trader a kind by `CalculatedCommonality` over `CanSpawn`; travelers send none (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
 reads every trader kind's stock (`DefinitionCatalog.TraderStock`): SingleDef, MultiDef, Category and Tag generators by exact class,
 each picking the def with the chance its draw of distinct defs gives and making `StockGenerator.RandomCountOf` of it; the Buy
 generators make nothing, another class handling a stock resource is named `stock_arrival_trade_stock_unmodelled:<kind>:<class>`.
@@ -510,13 +523,14 @@ A visit supplies n units when its kind makes n and n × the buy price (the def's
 named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
 supply chance × (t − start)), multiplied with the craft steps, and the expected wait integrates the product exactly. True zeros are
 named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_console`, `stock_arrival_orbital_no_trade_beacon`,
-`stock_arrival_trade_blocked:<incident>:<gates>`; a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
+`stock_arrival_trade_blocked:<incident>:<gates>`, `stock_arrival_trade_no_trader_kind:<incident>` (it fires with no kind to
+send); a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
 [kept constants](kept-constants.md#mirrored-game-rules-trader-stock-3869).
 
 A census the frame did not carry, or a crafter's unread speed stat, leaves the model
 unread (`StockArrival.Unread`: `stock_arrival_bills`, `stock_arrival_pawns`, `stock_arrival_resources`,
 `stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`, `stock_arrival_trade_facts`, `storyteller_unknown:<def>`,
-`trade_incident_unread:<incident>`, `trader_kind_unknown:<kind>`), and a rule that then waits on stock throws
+`trade_incident_unread:<incident>`, `trade_incident_unknown:<incident>`, `trader_kind_unknown:<kind>`), and a rule that then waits on stock throws
 `RequiredFactException` (as does an offer whose market value is unread, `market_value:<def>`).
 `SurgeryRules.RestorePick` takes the best-tier candidate with its part and medicine on the map, else the best whose needs arrive
 within the horizon.

@@ -6388,10 +6388,17 @@ public sealed record ThreatFacts
 /// GenDate.DaysPassedSinceSettleFloat (IncidentCycleUtility counts from settling), whether a colonist comms console is powered
 /// (IncidentWorker_OrbitalTraderArrival announces, and so lets the colony trade with, a ship only then) and an orbital trade beacon
 /// is powered (a ship drops its goods and takes its silver there), the best eligible negotiator's TradePriceImprovement (<see cref="Negotiator"/> false: no free colonist can negotiate), the
-/// difficulty's tradePriceFactorLoss, and one row per trader incident (a TraderCaravanArrival or OrbitalTraderArrival worker).
+/// difficulty's tradePriceFactorLoss, the map's DangerWatcher.DangerRating (a FactionInteraction comp's minDanger gate, #3909),
+/// StorytellerUtilityPopulation.PopulationIntent (StorytellerComp.TrySelectRandomIncident and IncidentChanceFinal, #3909), and one
+/// row per incident a trader comp can draw (#3909: every incident of an exact TraderCaravanArrival, OrbitalTraderArrival,
+/// VisitorGroup, TravelerGroup or CaravanArrivalTributeCollector worker).
 /// </summary>
 public sealed record TradeVisitFacts
 {
+    public StoryDangerLevel Danger { get; init; }
+
+    public double PopulationIntent { get; init; }
+
     public double AllyFraction { get; init; }
 
     public double FullAllyFraction { get; init; }
@@ -6413,29 +6420,51 @@ public sealed record TradeVisitFacts
 }
 
 /// <summary>
-/// One trader incident on the map now (#3869): Blocked names the game-state gates of IncidentWorker.CanFireNow and its worker's
+/// One incident a trader comp can draw, on the map now (#3869, #3909): Blocked names the game-state gates of IncidentWorker.CanFireNow and its worker's
 /// CanFireNowSub that hold now (<c>scenario</c>, <c>difficulty</c>, <c>planet_layer</c> as a disease incident's;
-/// <c>biome</c>; <c>min_population</c>; <c>greatest_population</c>; <c>condition</c>: a condition preventing incidents or neutral
-/// visitors; <c>void_awakening</c>; <c>ships_full</c>: 5 passing ships; <c>no_faction</c>: no faction can be a caravan's source;
-/// <c>no_trader_kind</c>: no orbital kind can spawn). Sources are the draws a visit makes: a caravan's candidate
-/// factions (IncidentWorker_NeutralGroup.FactionCanBeGroupSource, drawn uniformly), each with its caravanTraderKinds by
-/// IncidentWorker_TraderCaravanArrival.TraderKindCommonality; an orbital trader's one source of the orbital kinds that CanSpawn,
-/// by CalculatedCommonality.
+/// <c>target</c>: the map is not among its target tags; <c>biome</c>; <c>min_population</c>; <c>greatest_population</c>;
+/// <c>refire</c>: IncidentWorker.FiredTooRecently; <c>condition</c>: a condition preventing incidents or neutral
+/// visitors; <c>void_awakening</c>; <c>ships_full</c>: 5 passing ships; <c>no_faction</c>: no faction can be a group's source
+/// (a tribute collector's: no Empire that can be)). Weight is StorytellerComp.IncidentChanceFinal's factors but the
+/// population-intent one: BaseChanceThisGame × chanceFactorByPopulationCurve at the colonists × ChanceFactorNow × the
+/// QuestTuning.RecentStoryWeightFactors of its places among the map's recent random incidents (none when it ignores them).
+/// Sources are the draws a visit makes: a caravan's or visitor group's candidate
+/// factions (FactionCanBeGroupSource, drawn uniformly), each with its caravanTraderKinds by
+/// IncidentWorker_TraderCaravanArrival.TraderKindCommonality (a visitor group: its visitorTraderKinds by CalculatedCommonality);
+/// a tribute collector's one source of the TributeCollector kinds by CalculatedCommonality; an orbital trader's one source of the
+/// orbital kinds that CanSpawn, by CalculatedCommonality (empty when none can: the ship fails in TryExecuteWorker, past the
+/// draw); none for a traveler group.
 /// </summary>
 public sealed record TraderIncidentRead(string Incident)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Blocked { get; init; }
 
+    public double Weight { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<TraderSourceRead>))]
     public EquatableArray<TraderSourceRead> Sources { get; init; }
 }
 
-/// <summary>One draw a trader visit can make (a caravan's candidate faction, an orbital trader's one draw): its trader kinds' weights.</summary>
+/// <summary>
+/// One draw a trader visit can make (a caravan's or visitor group's candidate faction by its FactionDef, an orbital trader's or
+/// tribute collector's one draw, of no faction): its trader kinds' weights.
+/// </summary>
 public sealed record TraderSourceRead
 {
+    public string Faction { get; init; } = "";
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<TraderKindWeight>))]
     public EquatableArray<TraderKindWeight> Kinds { get; init; }
+}
+
+/// <summary>RimWorld.StoryDanger: the map's danger rating (DangerWatcher.DangerRating), ordered as the game compares it.</summary>
+[JsonConverter(typeof(WireEnumConverter<StoryDangerLevel>))]
+public enum StoryDangerLevel
+{
+    None,
+    Low,
+    High,
 }
 
 /// <summary>A trader kind's draw weight: its TraderKindDef and the commonality the incident draws it by now.</summary>

@@ -6,31 +6,127 @@ namespace RimGovernor.Brain.Policy;
 // (Catalog/Storyteller.cs) and each trader kind's stock generators by generator class (Catalog/TraderStock.cs); the native read gives
 // what a visit reads of the colony now (TradeVisitFacts). A visit carries a stock with the chance its trader kind's generators make
 // enough of it and today's silver pays the buy price (#3855 Q2 A); visits come at a steady rate from the day the comp starts, so a
-// trade source's not-arrived chance is exponential: 1 until From, e^(−rate × carry chance × (t − From)) after (#3855 Q3).
+// trade source's not-arrived chance is exponential: 1 until From, e^(−rate × carry chance × (t − From)) after (#3855 Q3). A comp
+// that draws its incident from categories (#3909) sends each incident with the chance its draw gives at today's facts (#3909 Q3).
 
 /// <summary>
-/// A storyteller comp that sends trader visits (#3869) of <see cref="Incident"/> (an IncidentWorker_TraderCaravanArrival or, when
-/// <see cref="Orbital"/>, an IncidentWorker_OrbitalTraderArrival) from <see cref="MinDaysPassed"/> days after settling. A
-/// StorytellerCompProperties_FactionInteraction comp sends <see cref="IncidentsPerDay"/> (baseIncidentsPerYear over the year
-/// IncidentCycleUtility cycles), scaled by StorytellerUtility.AllyIncidentFraction (full allies only when <see cref="FullAlliesOnly"/>),
-/// none while the colony's wealth is below <see cref="MinWealth"/>; a StorytellerCompProperties_OnOffCycle comp sends its
-/// <see cref="Cycle"/>'s incidents.
+/// The exact worker class of an incident a trader comp can draw (#3909). A class the decoder does not know (a mod's, a subclass of
+/// any of these) is no worker: the comp drawing it is named <see cref="TradeArrivalRules.CompUnmodelled"/>.
 /// </summary>
-public sealed record TradeVisitComp(string Incident, bool Orbital, double MinDaysPassed)
+public enum TradeWorker
 {
+    /// <summary>IncidentWorker_TraderCaravanArrival: a candidate faction, then one of its caravan kinds.</summary>
+    Caravan,
+
+    /// <summary>IncidentWorker_OrbitalTraderArrival: an orbital kind that can spawn; traded with by comms console, paid at a beacon.</summary>
+    Orbital,
+
+    /// <summary>IncidentWorker_VisitorGroup: a candidate faction's visitors, one of whom trades with TraderChance.</summary>
+    Visitors,
+
+    /// <summary>IncidentWorker_CaravanArrivalTributeCollector: the Empire's caravan of a TributeCollector kind.</summary>
+    TributeCollector,
+
+    /// <summary>IncidentWorker_TravelerGroup: never a trader; drawn against the others of its category.</summary>
+    Travelers,
+}
+
+/// <summary>
+/// An incident a trader comp can draw (#3909): its IncidentCategoryDef, worker and earliestDay; when it
+/// <see cref="ChangesPopulation"/> (a populationEffect other than None) its <see cref="IntentOffset"/>, the offset
+/// StorytellerComp.IncidentChanceFactor_PopulationIntent adds to the population intent for its effect.
+/// </summary>
+public sealed record TradeIncident(string Category, TradeWorker Worker, double EarliestDay)
+{
+    public bool ChangesPopulation { get; init; }
+
+    public double IntentOffset { get; init; }
+}
+
+/// <summary>How a comp's rate is set (#3909): its class's interval rule.</summary>
+public enum TradeCompRate
+{
+    /// <summary>StorytellerComp_FactionInteraction: baseIncidentsPerYear over the 60-day year, the ally fraction, the minWealth and minDanger gates.</summary>
+    FactionInteraction,
+
+    /// <summary>StorytellerComp_OnOffCycle: its cycle (ThreatSchedule.CyclePerDay).</summary>
+    OnOffCycle,
+
+    /// <summary>StorytellerComp_RandomMain, CategoryMTB, SingleMTB: Rand.MTBEventOccurs, 1 ÷ (mtbDays × the days-passed factor) a day.</summary>
+    Mtb,
+}
+
+/// <summary>How a category comp draws (#3909), as its class does.</summary>
+public enum TradeDrawRule
+{
+    /// <summary>
+    /// StorytellerComp_RandomMain: a category by weight (ThreatBig forced past maxThreatBigIntervalDays), redrawn without it while
+    /// the category has no usable incident, then TrySelectRandomIncident.
+    /// </summary>
+    RandomMain,
+
+    /// <summary>StorytellerComp_CategoryMTB: its category, TrySelectRandomIncident; nothing when no incident is usable.</summary>
+    CategoryMtb,
+
+    /// <summary>StorytellerComp_OnOffCycle by category: UsableIncidentsInCategory by IncidentChanceFinal weight.</summary>
+    OnOffCycle,
+}
+
+/// <summary>
+/// One category a category comp draws, at its weight (RandomMain's categoryWeights; 1 for the one category of the others).
+/// <see cref="Trader"/>: it holds a trader incident, so the decoder reads its incidents' usability exactly (#3909 Q2 B); any other
+/// category counts as always drawable.
+/// </summary>
+public sealed record TradeCategoryWeight(string Category, double Weight, bool Trader);
+
+/// <summary>
+/// A comp's draw of an incident from categories (#3909): <see cref="Categories"/> other than ThreatBig, whose RandomMain weight is
+/// <see cref="ThreatBigWeight"/> (forced after <see cref="MaxThreatBigIntervalDays"/> since the last), and the comp's
+/// minIncChancePopulationIntentFactor (<see cref="MinPopulationIntentFactor"/>, IncidentChanceFactor_PopulationIntent's floor).
+/// </summary>
+public sealed record TradeCategoryDraw(TradeDrawRule Rule)
+{
+    public EquatableArray<TradeCategoryWeight> Categories { get; init; }
+
+    public double ThreatBigWeight { get; init; }
+
+    public double MaxThreatBigIntervalDays { get; init; }
+
+    public double MinPopulationIntentFactor { get; init; }
+}
+
+/// <summary>
+/// A storyteller comp that may send trader visits (#3869, #3909), from <see cref="MinDaysPassed"/> days after settling (with its
+/// incident's earliestDay, and before forceRaidEnemyBeforeDaysPassed an on-off cycle sends raids). Its <see cref="Rate"/>: a
+/// FactionInteraction comp sends <see cref="IncidentsPerDay"/> (baseIncidentsPerYear over the year IncidentCycleUtility cycles),
+/// scaled by StorytellerUtility.AllyIncidentFraction (full allies only when <see cref="FullAlliesOnly"/>), none while the colony's
+/// wealth is below <see cref="MinWealth"/> or the map's danger below <see cref="MinDanger"/>; an OnOffCycle comp its
+/// <see cref="Cycle"/>'s incidents; an MTB comp <see cref="IncidentsPerDay"/> (1 ÷ mtbDays) over its
+/// <see cref="MtbFactorByDaysPassed"/>. Each event is <see cref="Incident"/>, or drawn as <see cref="Draw"/> says (one of the two).
+/// </summary>
+public sealed record TradeVisitComp(TradeCompRate Rate, double MinDaysPassed)
+{
+    public string Incident { get; init; } = "";
+
+    public TradeCategoryDraw? Draw { get; init; }
+
     public double IncidentsPerDay { get; init; }
+
+    public EquatableArray<(double Days, double Factor)> MtbFactorByDaysPassed { get; init; }
 
     public bool FullAlliesOnly { get; init; }
 
     public double MinWealth { get; init; }
+
+    public StoryDangerLevel MinDanger { get; init; }
 
     public ThreatCycleComp? Cycle { get; init; }
 }
 
 /// <summary>
 /// One storyteller's decoded trader comps (#3869). <see cref="Unmodelled"/> names the comps that may send a trader the decoder does
-/// not model (a comp class it does not know, a category comp drawing trader incidents, a trader incident of another worker class);
-/// each is a named finding and adds no visits.
+/// not model (a comp class it does not know, a trader-like incident of another worker class, a trader category holding one, a cycle
+/// scaled by the progress score); each is a named finding and adds no visits.
 /// </summary>
 public sealed record StorytellerTrade
 {
@@ -39,10 +135,21 @@ public sealed record StorytellerTrade
     public IReadOnlyList<string> Unmodelled { get; init; } = [];
 }
 
-/// <summary>Every storyteller def's trader comps by defName (#3869).</summary>
+/// <summary>
+/// Every storyteller def's trader comps by defName (#3869), the incidents they draw by defName (#3909: each comp's incident and
+/// every incident of a trader category a comp draws), the FactionDefs whose Peaceful group makers hold a child kind
+/// (<see cref="ChildVisitorFactions"/>, #3909 Q1 B), and StorytellerComp.IncreasesPopChanceByPopIntentCurve
+/// (<see cref="PopulationChanceByIntent"/>).
+/// </summary>
 public sealed record TradeScheduleTable
 {
     public IReadOnlyDictionary<string, StorytellerTrade> Storytellers { get; init; } = new Dictionary<string, StorytellerTrade>();
+
+    public IReadOnlyDictionary<string, TradeIncident> Incidents { get; init; } = new Dictionary<string, TradeIncident>();
+
+    public IReadOnlySet<string> ChildVisitorFactions { get; init; } = new HashSet<string>();
+
+    public EquatableArray<(double Intent, double Chance)> PopulationChanceByIntent { get; init; }
 }
 
 /// <summary>
@@ -279,6 +386,12 @@ public static class TradeArrivalRules
     /// <summary>A trader kind that trades for royal favor, which the model does not price (<c>:&lt;kind&gt;</c>).</summary>
     public const string FavorUnmodelled = "stock_arrival_trade_favor_unmodelled";
 
+    /// <summary>
+    /// A visitor faction whose Peaceful group makers hold a child kind (<c>:&lt;faction&gt;</c>, #3909 Q1 B): whether its group
+    /// holds an adult to trade is not modelled, so its visitor groups supply nothing.
+    /// </summary>
+    public const string VisitorChildUnmodelled = "stock_arrival_visitor_child_group_unmodelled";
+
     /// <summary>States with no trade visits (true zeros, named): no negotiator, an orbital trader without a powered comms console or trade beacon, a blocked incident.</summary>
     public const string NoNegotiator = "stock_arrival_trade_no_negotiator";
 
@@ -288,17 +401,25 @@ public static class TradeArrivalRules
 
     public const string Blocked = "stock_arrival_trade_blocked";
 
+    /// <summary>An incident that fires with no trader kind to send (<c>:&lt;incident&gt;</c>): no orbital kind can spawn, no visitor faction trades.</summary>
+    public const string NoTraderKind = "stock_arrival_trade_no_trader_kind";
+
+    // IncidentWorker_VisitorGroup.TraderChance (private const): a visitor group converts one adult to a trader with this chance.
+    internal const double VisitorTraderChance = 0.75;
+
     /// <summary>
-    /// The trade sources (#3869) of <paramref name="storyteller"/>'s trader comps for the colony now: per comp the visits a day (a
-    /// FactionInteraction comp's incidents a day × the ally fraction, none below its min wealth; an OnOffCycle comp's cycle rate at
-    /// the days since settling and <paramref name="threatPoints"/>), from the days its minDaysPassed still lies ahead; none for an
-    /// incident blocked now, an orbital trader without a powered comms console and trade beacon, or a colony without a negotiator.
-    /// Each visit is of a kind drawn as the incident draws it (a source uniformly, then a kind by weight) and supplies a resource as
-    /// <see cref="TradeSource"/> prices it from <paramref name="silver"/>. An incident the read does not carry, or a kind the catalog
-    /// does not know, leaves the trade unread (the returned Unread).
+    /// The trade sources (#3869, #3909) of <paramref name="storyteller"/>'s trader comps for the colony now. Per comp the events a
+    /// day (a FactionInteraction comp's incidents a day × the ally fraction, none below its min wealth or min danger; an OnOffCycle
+    /// comp's cycle rate at the days since settling and <paramref name="threatPoints"/>; an MTB comp's 1 ÷ mtbDays over its
+    /// days-passed factor), from the days its start still lies ahead; each event is the comp's incident or one drawn from its
+    /// categories as <see cref="IncidentChances"/> gives. None for an incident blocked now, an orbital trader without a powered comms
+    /// console and trade beacon, travelers, or a colony without a negotiator. Each visit is of a kind drawn as the incident draws it
+    /// (a source uniformly, then a kind by weight; a visitor group's trader with <see cref="VisitorTraderChance"/>) and supplies a
+    /// resource as <see cref="TradeSource"/> prices it from <paramref name="silver"/>. An incident the read or the catalog does not
+    /// carry, or a kind the catalog does not know, leaves the trade unread (the returned Unread).
     /// </summary>
-    public static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Sources(StorytellerTrade storyteller, TraderStockTable stock,
-        TradeVisitFacts facts, double threatPoints, double wealth, long silver)
+    public static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Sources(TradeScheduleTable schedule, StorytellerTrade storyteller,
+        TraderStockTable stock, TradeVisitFacts facts, double threatPoints, double wealth, long silver)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal) { SilverIncomeUnmodelled };
         if (storyteller.Unmodelled.Count > 0)
@@ -312,99 +433,283 @@ public static class TradeArrivalRules
             return ([], [.. findings], "");
         }
 
+        var reads = new Dictionary<string, TraderIncidentRead>(StringComparer.Ordinal);
+        foreach (var read in facts.Incidents)
+        {
+            reads[read.Incident] = read;
+        }
+
         var priceFactor = (1 + facts.PriceFactorLoss) * (1 - facts.NegotiatorPriceImprovement);
         var sources = new List<TradeSource>();
         foreach (var comp in storyteller.Comps)
         {
-            if (facts.Incidents.FirstOrDefault(i => i.Incident == comp.Incident) is not { } incident)
+            var (chances, unread) = IncidentChances(schedule, comp, reads, facts);
+            if (unread.Length != 0)
             {
-                return ([], [], "trade_incident_unread:" + comp.Incident);
-            }
-
-            if (incident.Blocked.Count > 0)
-            {
-                findings.Add(Blocked + ":" + comp.Incident + ":" + string.Join(",", incident.Blocked));
-                continue;
-            }
-
-            if (comp.Orbital && (!facts.CommsConsole || !facts.TradeBeacon))
-            {
-                findings.Add(facts.CommsConsole ? OrbitalNoBeacon : OrbitalNoComms);
-                continue;
+                return ([], [], unread);
             }
 
             var perDay = VisitsPerDay(comp, facts, threatPoints, wealth);
-            if (!(perDay > 0))
+            var from = Math.Max(0, comp.MinDaysPassed - facts.DaysSinceSettle);
+            foreach (var (name, chance) in chances)
             {
-                continue;
-            }
-
-            var kinds = new Dictionary<string, double>(StringComparer.Ordinal);
-            foreach (var source in incident.Sources)
-            {
-                var total = source.Kinds.Sum(k => Math.Max(0, k.Weight));
-                foreach (var kind in source.Kinds.Where(k => k.Weight > 0 && total > 0))
+                var incident = schedule.Incidents[name];
+                var read = reads[name];
+                if (incident.Worker == TradeWorker.Travelers)
                 {
-                    kinds[kind.Kind] = kinds.GetValueOrDefault(kind.Kind) + (kind.Weight / total / incident.Sources.Count);
-                }
-            }
-
-            var offers = new Dictionary<Resource, List<TradeKindChance>>();
-            foreach (var (name, chance) in kinds.OrderBy(k => k.Key, StringComparer.Ordinal))
-            {
-                if (!stock.Kinds.TryGetValue(name, out var kind))
-                {
-                    return ([], [], "trader_kind_unknown:" + name);
-                }
-
-                findings.UnionWith(kind.Unmodelled.Select(c => StockUnmodelled + ":" + name + ":" + c));
-                if (kind.Favor)
-                {
-                    if (kind.Offers.Count > 0)
-                    {
-                        findings.Add(FavorUnmodelled + ":" + name);
-                    }
-
                     continue;
                 }
 
-                foreach (var (resource, offer) in kind.Offers)
+                if (read.Blocked.Count > 0)
                 {
-                    if (!offers.TryGetValue(resource, out var list))
+                    findings.Add(Blocked + ":" + name + ":" + string.Join(",", read.Blocked));
+                    continue;
+                }
+
+                if (!(chance > 0) || !(perDay > 0))
+                {
+                    continue;
+                }
+
+                if (incident.Worker == TradeWorker.Orbital && (!facts.CommsConsole || !facts.TradeBeacon))
+                {
+                    findings.Add(facts.CommsConsole ? OrbitalNoBeacon : OrbitalNoComms);
+                    continue;
+                }
+
+                var kinds = KindChances(schedule, incident, read, findings);
+                if (kinds.Count == 0)
+                {
+                    findings.Add(NoTraderKind + ":" + name);
+                }
+
+                var offers = new Dictionary<Resource, List<TradeKindChance>>();
+                foreach (var (kindName, kindChance) in kinds.OrderBy(k => k.Key, StringComparer.Ordinal))
+                {
+                    if (!stock.Kinds.TryGetValue(kindName, out var kind))
                     {
-                        offers[resource] = list = [];
+                        return ([], [], "trader_kind_unknown:" + kindName);
                     }
 
-                    list.Add(new TradeKindChance(chance, offer));
-                }
-            }
+                    findings.UnionWith(kind.Unmodelled.Select(c => StockUnmodelled + ":" + kindName + ":" + c));
+                    if (kind.Favor)
+                    {
+                        if (kind.Offers.Count > 0)
+                        {
+                            findings.Add(FavorUnmodelled + ":" + kindName);
+                        }
 
-            var from = Math.Max(0, comp.MinDaysPassed - facts.DaysSinceSettle);
-            foreach (var (resource, list) in offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal))
-            {
-                sources.Add(new TradeSource(resource, from, perDay) { Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = silver });
+                        continue;
+                    }
+
+                    foreach (var (resource, offer) in kind.Offers)
+                    {
+                        if (!offers.TryGetValue(resource, out var list))
+                        {
+                            offers[resource] = list = [];
+                        }
+
+                        list.Add(new TradeKindChance(kindChance, offer));
+                    }
+                }
+
+                foreach (var (resource, list) in offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal))
+                {
+                    sources.Add(new TradeSource(resource, from, perDay * chance) { Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = silver });
+                }
             }
         }
 
         return (sources, [.. findings], "");
     }
 
-    // StorytellerComp_FactionInteraction: no visits below minWealth or without an ally fraction; IncidentCycleUtility's count is
-    // RoundRandom(base) over a year, then RoundRandom(hits × fraction): unbiased, so the rates multiply. OnOffCycle: ThreatSchedule's
-    // cycle rate.
+    /// <summary>
+    /// The chance each event of <paramref name="comp"/> is each incident (#3909), at today's facts (#3909 Q3). A comp of one incident
+    /// sends it. A category comp draws as its class does: a trader category's incident is usable when it is not blocked, its
+    /// earliestDay has come by the comp's start or today, and its IncidentChanceFinal (the read weight × the population-intent factor)
+    /// is above 0; any other category counts as always drawable (#3909 Q2 B). RandomMain draws ThreatBig with its long-run fraction
+    /// (<see cref="ThreatBigFraction"/>) and each other category by its weight over the usable categories' weight, then
+    /// TrySelectRandomIncident; CategoryMTB TrySelectRandomIncident of its category; an OnOffCycle by category the usable incidents by
+    /// weight.
+    /// </summary>
+    internal static (IReadOnlyList<(string Incident, double Chance)> Chances, string Unread) IncidentChances(TradeScheduleTable schedule, TradeVisitComp comp,
+        IReadOnlyDictionary<string, TraderIncidentRead> reads, TradeVisitFacts facts)
+    {
+        if (comp.Draw is not { } draw)
+        {
+            if (!schedule.Incidents.ContainsKey(comp.Incident))
+            {
+                return ([], "trade_incident_unknown:" + comp.Incident);
+            }
+
+            return reads.ContainsKey(comp.Incident) ? ([(comp.Incident, 1.0)], "") : ([], "trade_incident_unread:" + comp.Incident);
+        }
+
+        // Each trader category's usable incidents with their IncidentChanceFinal weights.
+        var usable = new Dictionary<string, List<(string Incident, TradeIncident Def, double Weight)>>(StringComparer.Ordinal);
+        foreach (var category in draw.Categories.Where(c => c.Trader))
+        {
+            var list = new List<(string, TradeIncident, double)>();
+            foreach (var (name, incident) in schedule.Incidents.Where(i => i.Value.Category == category.Category).OrderBy(i => i.Key, StringComparer.Ordinal))
+            {
+                if (!reads.TryGetValue(name, out var read))
+                {
+                    return ([], "trade_incident_unread:" + name);
+                }
+
+                var weight = Math.Max(0, read.Weight * IntentFactor(incident, facts.PopulationIntent, draw.MinPopulationIntentFactor));
+                if (read.Blocked.Count == 0 && incident.EarliestDay <= Math.Max(facts.DaysSinceSettle, comp.MinDaysPassed) && weight > 0)
+                {
+                    list.Add((name, incident, weight));
+                }
+            }
+
+            usable[category.Category] = list;
+        }
+
+        var chances = new List<(string, double)>();
+        switch (draw.Rule)
+        {
+            case TradeDrawRule.RandomMain:
+            {
+                var drawable = draw.Categories.Where(c => !c.Trader || usable[c.Category].Count > 0).ToList();
+                var others = drawable.Sum(c => Math.Max(0, c.Weight));
+                var threatBig = Math.Max(0, draw.ThreatBigWeight);
+                if (!(others > 0))
+                {
+                    break;
+                }
+
+                var notThreatBig = 1 - ThreatBigFraction(threatBig / (threatBig + others), comp.IncidentsPerDay, draw.MaxThreatBigIntervalDays);
+                foreach (var category in drawable.Where(c => c.Trader && c.Weight > 0))
+                {
+                    chances.AddRange(SelectRandomIncident(usable[category.Category], facts.PopulationIntent, schedule.PopulationChanceByIntent)
+                        .Select(i => (i.Incident, notThreatBig * category.Weight / others * i.Chance)));
+                }
+
+                break;
+            }
+
+            case TradeDrawRule.CategoryMtb:
+                foreach (var category in draw.Categories.Where(c => c.Trader))
+                {
+                    chances.AddRange(SelectRandomIncident(usable[category.Category], facts.PopulationIntent, schedule.PopulationChanceByIntent));
+                }
+
+                break;
+            case TradeDrawRule.OnOffCycle:
+                foreach (var category in draw.Categories.Where(c => c.Trader))
+                {
+                    var total = usable[category.Category].Sum(i => i.Weight);
+                    chances.AddRange(usable[category.Category].Select(i => (i.Incident, i.Weight / total)));
+                }
+
+                break;
+        }
+
+        return (chances, "");
+    }
+
+    /// <summary>
+    /// The long-run fraction of a RandomMain comp's events that are ThreatBig: a renewal from each ThreatBig, whose events before
+    /// <paramref name="maxIntervalDays"/> are ThreatBig with <paramref name="share"/> (its weight over the usable weight) and whose
+    /// first event after is forced ThreatBig. At <paramref name="eventsPerDay"/> λ and share p the cycle holds
+    /// 1 + (1 − p)(1 − e^(−λpM)) ÷ p events (1 + λM at p = 0), one of them ThreatBig.
+    /// </summary>
+    internal static double ThreatBigFraction(double share, double eventsPerDay, double maxIntervalDays)
+    {
+        var events = share > 0
+            ? 1 + ((1 - share) * -double.ExpM1(-eventsPerDay * share * maxIntervalDays) / share)
+            : 1 + (eventsPerDay * maxIntervalDays);
+        return 1 / events;
+    }
+
+    /// <summary>
+    /// StorytellerComp.TrySelectRandomIncident's chance of each usable incident: with the IncreasesPopChanceByPopIntentCurve chance at
+    /// the population intent, one that changes the population by weight, else one that does not, either falling back to all of them
+    /// when its own weight is 0; nothing when all weigh 0.
+    /// </summary>
+    internal static IEnumerable<(string Incident, double Chance)> SelectRandomIncident(IReadOnlyList<(string Incident, TradeIncident Def, double Weight)> usable,
+        double populationIntent, IReadOnlyList<(double X, double Y)> chanceByIntent)
+    {
+        var all = usable.Sum(i => i.Weight);
+        if (!(all > 0))
+        {
+            yield break;
+        }
+
+        var increase = Math.Clamp(ThreatSchedule.Curve(chanceByIntent, populationIntent), 0, 1);
+        var changing = usable.Where(i => i.Def.ChangesPopulation).Sum(i => i.Weight);
+        var steady = all - changing;
+        foreach (var (incident, def, weight) in usable)
+        {
+            var changes = def.ChangesPopulation;
+            var whenIncrease = changing > 0 ? (changes ? weight / changing : 0) : weight / all;
+            var whenNot = steady > 0 ? (changes ? 0 : weight / steady) : weight / all;
+            yield return (incident, (increase * whenIncrease) + ((1 - increase) * whenNot));
+        }
+    }
+
+    // StorytellerComp.IncidentChanceFactor_PopulationIntent: 1 for no population effect, else max(intent + the effect's offset, the
+    // comp's floor).
+    private static double IntentFactor(TradeIncident incident, double intent, double floor) =>
+        incident.ChangesPopulation ? Math.Max(intent + incident.IntentOffset, floor) : 1;
+
+    // The kind a visit of the incident is of: a source (a candidate faction) uniformly, then a kind by weight; a visitor group's
+    // trader only with TraderChance, and none of a faction whose Peaceful groups may be children (named).
+    private static Dictionary<string, double> KindChances(TradeScheduleTable schedule, TradeIncident incident, TraderIncidentRead read, SortedSet<string> findings)
+    {
+        var kinds = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var source in read.Sources)
+        {
+            var share = 1.0 / read.Sources.Count;
+            if (incident.Worker == TradeWorker.Visitors)
+            {
+                if (schedule.ChildVisitorFactions.Contains(source.Faction))
+                {
+                    if (source.Kinds.Count > 0)
+                    {
+                        findings.Add(VisitorChildUnmodelled + ":" + source.Faction);
+                    }
+
+                    continue;
+                }
+
+                share *= VisitorTraderChance;
+            }
+
+            var total = source.Kinds.Sum(k => Math.Max(0, k.Weight));
+            foreach (var kind in source.Kinds.Where(k => k.Weight > 0 && total > 0))
+            {
+                kinds[kind.Kind] = kinds.GetValueOrDefault(kind.Kind) + (kind.Weight / total * share);
+            }
+        }
+
+        return kinds;
+    }
+
+    // StorytellerComp_FactionInteraction: no visits below minWealth or minDanger or without an ally fraction; IncidentCycleUtility's
+    // count is RoundRandom(base) over a year, then RoundRandom(hits × fraction): unbiased, so the rates multiply. OnOffCycle:
+    // ThreatSchedule's cycle rate. MTB: Rand.MTBEventOccurs at 1 ÷ (mtbDays × the days-passed factor) a day.
     private static double VisitsPerDay(TradeVisitComp comp, TradeVisitFacts facts, double threatPoints, double wealth)
     {
-        if (comp.Cycle is { } cycle)
+        switch (comp.Rate)
         {
-            return ThreatSchedule.CyclePerDay(cycle, facts.DaysSinceSettle, threatPoints);
+            case TradeCompRate.OnOffCycle:
+                return comp.Cycle is { } cycle ? ThreatSchedule.CyclePerDay(cycle, facts.DaysSinceSettle, threatPoints) : throw new DomainException("trade cycle comp without a cycle");
+            case TradeCompRate.Mtb:
+                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, facts.DaysSinceSettle);
+                return factor > 0 ? comp.IncidentsPerDay / factor : throw new DomainException("trade mtb comp factor " + factor);
+            case TradeCompRate.FactionInteraction:
+                if ((comp.MinWealth > 0 && wealth < comp.MinWealth) || facts.Danger < comp.MinDanger)
+                {
+                    return 0;
+                }
+
+                var fraction = comp.FullAlliesOnly ? facts.FullAllyFraction : facts.AllyFraction;
+                return fraction > 0 ? comp.IncidentsPerDay * fraction : 0;
         }
 
-        if (comp.MinWealth > 0 && wealth < comp.MinWealth)
-        {
-            return 0;
-        }
-
-        var fraction = comp.FullAlliesOnly ? facts.FullAllyFraction : facts.AllyFraction;
-        return fraction > 0 ? comp.IncidentsPerDay * fraction : 0;
+        throw new DomainException("trade comp rate " + comp.Rate);
     }
 }

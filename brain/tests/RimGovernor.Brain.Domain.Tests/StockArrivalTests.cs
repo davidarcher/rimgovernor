@@ -93,6 +93,22 @@ public sealed class StockArrivalTests
         // Two needs by trade at 0.1 and 0.2 a day: ∫ 1 − (1 − e^−0.1t)(1 − e^−0.2t) = 1/0.1 + 1/0.2 − 1/0.3 with no cap that binds.
         var two = new StockArrival { Trade = [Trade(Arm, 0.1), Trade(Herbal, 0.2)] };
         Assert.Equal(10 + 5 - (1 / 0.3), two.ExpectedWait([Need(Arm), Need(Herbal)], 1e6), 6);
+
+        // #3909: no cap on the needs. Twenty needs each met at 0.1 a day: ∫ 1 − (1 − e^−0.1t)²⁰ = 10 × H₂₀, the expansion's equal
+        // rates merged into 21 terms.
+        var harmonic = Enumerable.Range(1, 20).Sum(k => 1.0 / k);
+        var twenty = Enumerable.Range(0, 20).Select(_ => Need(Arm)).ToList();
+        Assert.Equal(10 * harmonic, trade.ExpectedWait(twenty, 1e6), 6);
+        // Mixed with a bench step and a later trade start, the expansion still matches the product it integrates.
+        var mixed = new StockArrival { Sources = [new StockSource(Herbal, 0.25, 10, 1)], Trade = [Trade(Arm, 0.1), Trade(Herbal, 0.2, from: 2)] };
+        var needs = Enumerable.Range(0, 18).Select(i => Need(i % 2 == 0 ? Arm : Herbal)).ToList();
+        var numeric = 0.0;
+        for (var t = 0.0005; t < 30; t += 0.001)
+        {
+            numeric += mixed.NotReady(needs, t) * 0.001;
+        }
+
+        Assert.Equal(numeric, mixed.ExpectedWait(needs, 30), 4);
     }
 
     [Fact]
