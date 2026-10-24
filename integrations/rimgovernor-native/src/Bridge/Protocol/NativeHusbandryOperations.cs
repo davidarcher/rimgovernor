@@ -6,6 +6,7 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
@@ -56,24 +57,26 @@ namespace HomeBridge.BridgeTools
             return ideo != null && ideo.IsVeneratedAnimal(animal);
         }
 
-        // The ticks until Pawn_AgeTracker reaches the next stage's minAge,
-        // absent in the last stage or while the animal does not age.
-        internal static long? TicksToNextLifeStage(Pawn animal)
+        // The ticks until Pawn_AgeTracker reaches the next stage's minAge;
+        // never in the last stage or while the animal does not age.
+        internal static Observations.AnimalNextLifeStage NextLifeStage(Pawn animal)
         {
             var tracker = animal.ageTracker;
             var stages = animal.RaceProps.lifeStageAges;
-            if (stages == null || tracker.CurLifeStageIndex + 1 >= stages.Count || tracker.BiologicalTicksPerTick <= 0f) return null;
-            return Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick));
+            if (stages == null || tracker.CurLifeStageIndex + 1 >= stages.Count) return new Observations.AnimalNextLifeStage.LastStage();
+            if (tracker.BiologicalTicksPerTick <= 0f) return new Observations.AnimalNextLifeStage.NotAging();
+            return new Observations.AnimalNextLifeStage.InTicks(Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick)));
         }
 
         // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
-        // gestationPeriodDays * 60000 per tick; absent without a pregnancy.
-        internal static long? TicksToBirth(Pawn animal)
+        // gestationPeriodDays * 60000 per tick; stalled at speed zero or for a dead animal.
+        internal static Observations.AnimalPregnancy Pregnancy(Pawn animal)
         {
             var pregnancy = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
-            var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
-            if (pregnancy == null || speed <= 0f) return null;
-            return Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed));
+            if (pregnancy == null) return new Observations.AnimalPregnancy.NotPregnant();
+            var speed = animal.Dead ? 0f : PawnUtility.BodyResourceGrowthSpeed(animal);
+            if (speed <= 0f) return new Observations.AnimalPregnancy.Stalled();
+            return new Observations.AnimalPregnancy.Gestating(Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed)));
         }
 
         // The release designator's own acceptance and nothing more; which

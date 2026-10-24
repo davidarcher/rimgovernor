@@ -84,25 +84,24 @@ public static class AnimalFeedRunwayRules
 
     /// <summary>
     /// The consumption steps a pregnancy and the next life stages of one animal eating <paramref name="need"/> a
-    /// day make. Not known when the race, a stage, the litter or the event ticks are not.
+    /// day make. Not known when the race, a stage or the litter is not; a stalled pregnancy, the last stage and an animal that does not age add no step.
     /// </summary>
     internal static bool GrowthSteps(UpkeepAnimal a, double need, AnimalRaceCatalog races, out List<FeedStep> steps)
     {
         steps = [];
         var inCatalog = races.Race(a.Definition, out var race);
         var stages = race.LifeStages;
-        var known = a.Herd.LifeStageIndex.TryGetValue(out var idx);
-        if (!inCatalog || !known || idx < 0 || idx >= stages.Count)
+        var idx = a.Herd.LifeStageIndex;
+        if (!inCatalog || idx < 0 || idx >= stages.Count)
         {
             return false;
         }
 
-        var next = (int)idx + 1;
-        if (next < stages.Count)
+        var next = idx + 1;
+        if (next < stages.Count && a.Herd.NextLifeStage is AnimalNextLifeStage.InTicks { Ticks: var ticks })
         {
-            var tk = a.Herd.TicksToNextLifeStage.TryGetValue(out var ticks);
-            var current = stages[(int)idx].HungerRateFactor;
-            if (!tk || !(current > 0))
+            var current = stages[idx].HungerRateFactor;
+            if (!(current > 0))
             {
                 return false;
             }
@@ -116,22 +115,15 @@ public static class AnimalFeedRunwayRules
             }
         }
 
-        var pk = a.SlaughterFacts.Pregnant.TryGetValue(out var pregnant);
-        if (!pk)
-        {
-            return false;
-        }
-
-        if (!pregnant)
+        if (a.Herd.Pregnancy is not AnimalPregnancy.Gestating { TicksToBirth: var birth })
         {
             return true;
         }
 
-        var bk = a.Herd.TicksToBirth.TryGetValue(out var birth);
         var lk = race.LitterSize.TryGetValue(out var litter);
         var ak = race.AdultFeedPerDay.TryGetValue(out var adult);
         var last = stages[^1].HungerRateFactor;
-        if (!bk || !lk || !ak || !(last > 0))
+        if (!lk || !ak || !(last > 0))
         {
             return false;
         }

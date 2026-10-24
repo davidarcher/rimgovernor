@@ -408,16 +408,17 @@ Missing animals, pens, stock or forecast leave the projection unknown, never def
 `HerdFeedShort`, which gates taming, is
 true while the projection is short. Explicit player herd targets are untouched.
 
-Herd growth from known events is in the same runway. Native sends per animal `ticks_to_birth`
-(pregnant only), `life_stage_index` and `ticks_to_next_life_stage` on `AnimalState`; the
+Herd growth from known events is in the same runway. Native sends per animal `pregnancy`
+(`not_pregnant`, `gestating` with `ticks_to_birth`, or `stalled` while the body's growth speed is
+zero), `life_stage_index` and `next_life_stage` (`in_ticks`, `last_stage` or `not_aging`) on `AnimalState`; the
 race catalog row carries `LifeStages` (each stage's start tick and `hungerRateFactor`) and
 `LitterSize`, the `Rand.ByCurveAverage` of `litterSizeCurve` (one child without a curve,
 never below one). A pregnancy adds that mean litter eating as newborns from the due tick
 (the race's `AdultFeedPerDay` scaled by the stage's hunger factor over the last stage's),
 stepping up at each later stage start; a young animal steps up at its next stage tick by
 the stage factors' ratio. The steps are `FeedStep`s on the group; the pasture credit
-stays the present herd's. An unread pregnancy, event tick, stage, litter or stage row
-leaves the projection unknown; a new conception stays reactive and the litter is an
+stays the present herd's. An unread stage, litter or stage row
+leaves the projection unknown (a stalled pregnancy, the last stage and an animal that does not age add no step); a new conception stays reactive and the litter is an
 estimate the census corrects once born.
 
 Animal feed is held by the warehouse or the freezer; no room of the herd holds a stockpile of its own.

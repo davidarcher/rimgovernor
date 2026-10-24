@@ -657,7 +657,7 @@ public static class HerdPlanRules
         var bestWild = 0.0;
         foreach (var a in wild)
         {
-            if (!a.Tameable.TryGetValue(out var tameable) || !tameable || HerdSurplusRules.HerdDangerous(a))
+            if (!a.Tameable || HerdSurplusRules.HerdDangerous(a))
             {
                 continue;
             }
@@ -735,7 +735,7 @@ public static class HerdPlanRules
         input.Wild.TryGetValue(out var wild);
         foreach (var a in wild)
         {
-            if (a.Tameable.TryGetValue(out var tameable) && tameable && !HerdSurplusRules.HerdDangerous(a))
+            if (a.Tameable && !HerdSurplusRules.HerdDangerous(a))
             {
                 @out.Add(a.Definition);
             }

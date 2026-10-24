@@ -473,16 +473,15 @@ namespace HomeBridge.BridgeTools
             var eligible=live && NativeHusbandryOperations.Eligible(pawn);
             var roped=live && AnimalPenUtility.NeedsToBeManagedByRope(pawn);
             var pen=roped ? AnimalPenUtility.GetCurrentPenOf(pawn,false) : null;
-            var herdPlayer=pawn.Faction==Faction.OfPlayer;
             return new Obs.AnimalState {
                 Gender=(RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender,
                 AgeYears=pawn.ageTracker.AgeBiologicalYearsFloat,
                 Adult=pawn.ageTracker.Adult,
-                Pregnant=pawn.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any(),
+                Pregnancy=NativeHusbandryOperations.Pregnancy(pawn),
                 Downed=pawn.Downed,
                 InMentalState=pawn.InMentalState,
                 LifeStageIndex=pawn.ageTracker.CurLifeStageIndex,
-                TicksToNextLifeStage=NativeHusbandryOperations.TicksToNextLifeStage(pawn),
+                NextLifeStage=NativeHusbandryOperations.NextLifeStage(pawn),
                 Training=[.. training],
                 Slaughter=designations.Any(d=>d.def==DesignationDefOf.Slaughter),
                 Release=designations.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild),
@@ -490,26 +489,19 @@ namespace HomeBridge.BridgeTools
                 Tameable=NativeHusbandryOperations.Tameable(pawn),
                 Bonded=pawn.relations?.DirectRelations.Any(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead)==true,
                 Sterilized=NativeHusbandryOperations.Sterilized(pawn),
-                Sick=herdPlayer ? pawn.health.hediffSet.AnyHediffMakesSickThought : null,
-                SterilizeQueued=herdPlayer ? NativeHusbandryOperations.SterilizeBill(pawn)!=null : null,
-                Venerated=herdPlayer ? NativeHusbandryOperations.Venerated(pawn) : null,
-                SafeToRelease=live ? eligible && NativeHusbandryOperations.SafeToRelease(pawn) : null,
-                TicksToBirth=eligible ? NativeHusbandryOperations.TicksToBirth(pawn) : null,
-                ColonistBonded=eligible ? TrainableUtility.GetAllColonistBondsFor(pawn).Any() : null,
-                SlaughterDesignatable=eligible ? new Designator_Slaughter().CanDesignateThing(pawn).Accepted : null,
-                FollowDrafted=eligible ? pawn.playerSettings?.followDrafted ?? false : null,
-                FollowFieldwork=eligible ? pawn.playerSettings?.followFieldwork ?? false : null,
-                Obedient=eligible ? NativeHusbandryOperations.Obedient(pawn) : null,
-                // Medical care cap inputs.
-                MedicalCare=live && pawn.playerSettings!=null ? NativeEnums.Care(pawn.playerSettings.medCare) : null,
+                Sick=pawn.health.hediffSet.AnyHediffMakesSickThought,
+                SterilizeQueued=NativeHusbandryOperations.SterilizeBill(pawn)!=null,
+                Venerated=NativeHusbandryOperations.Venerated(pawn),
+                SafeToRelease=eligible && NativeHusbandryOperations.SafeToRelease(pawn),
+                ColonistBonded=pawn.relations!=null && TrainableUtility.GetAllColonistBondsFor(pawn).Any(),
+                SlaughterDesignatable=eligible && new Designator_Slaughter().CanDesignateThing(pawn).Accepted,
+                FollowDrafted=pawn.playerSettings?.followDrafted ?? false,
+                FollowFieldwork=pawn.playerSettings?.followFieldwork ?? false,
+                Obedient=NativeHusbandryOperations.Obedient(pawn),
                 BondedPawnIds=live ? [.. pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal) ?? Enumerable.Empty<string>()] : [],
-                Conditions=live ? Conditions(pawn) : null,
-                Contained=roped ? pen!=null : null,
                 PenId=pen!=null ? Id(pen.parent.GetUniqueLoadID()) : null,
-                // Area reconciliation: the saved restriction.
-                MasterId=eligible ? NativeHusbandryOperations.MasterId(pawn) : null,
-                AllowedAreaId=eligible ? NativeHusbandryOperations.AreaId(pawn) : null,
-                SupportsAllowedAreas=eligible ? NativeHusbandryOperations.SupportsAllowedAreas(pawn) : null,
+                MasterId=NativeHusbandryOperations.MasterId(pawn),
+                SupportsAllowedAreas=NativeHusbandryOperations.SupportsAllowedAreas(pawn),
             };
         }
         // Non-mutating: never calls Pawn_RelationsTracker.OpinionOf or anything that

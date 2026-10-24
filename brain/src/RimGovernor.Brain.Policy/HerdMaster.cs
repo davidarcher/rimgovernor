@@ -32,9 +32,7 @@ public static class HerdMasterRules
                 continue;
             }
 
-            var ok = a.Obedient.TryGetValue(out var obedient);
-            var mk = a.Master.TryGetValue(out var master);
-            if (!ok || !obedient || a.Release || a.Slaughter || !mk)
+            if (!a.Obedient || a.Release || a.Slaughter)
             {
                 continue;
             }
@@ -59,7 +57,7 @@ public static class HerdMasterRules
                 }
             }
 
-            if (!fit.Contains(new PawnId(master ?? "")))
+            if (!fit.Contains(new PawnId(a.Master)))
             {
                 if (!found)
                 {
@@ -76,7 +74,7 @@ public static class HerdMasterRules
                 return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Master, Argument = best.Value };
             }
 
-            if (war && a.FollowDrafted.TryGetValue(out var drafted) && !drafted)
+            if (war && !a.FollowDrafted)
             {
                 return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.FollowDrafted, Argument = "true" };
             }

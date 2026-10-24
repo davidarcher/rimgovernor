@@ -8,9 +8,11 @@ public sealed record UpkeepAnimal
     /// <summary>The race row's flag (AnimalRace.Pest): a wild animal military/pests hunts for what it destroys.</summary>
     public bool Pest { get; init; }
 
-    public Fact<bool> SupportsAreas { get; init; }
+    /// <summary>Whether native lets this animal carry an allowed area at all.</summary>
+    public bool SupportsAreas { get; init; }
 
-    public Fact<string> AllowedArea { get; init; }
+    /// <summary>The allowed area the animal is restricted to; "" when unrestricted.</summary>
+    public string AllowedArea { get; init; } = "";
 
     public PawnId Id { get; init; }
 
@@ -24,7 +26,8 @@ public sealed record UpkeepAnimal
 
     public bool RequiresPen { get; init; }
 
-    public Fact<bool> Contained { get; init; }
+    /// <summary>A rope-managed animal standing in a pen; false for any other animal.</summary>
+    public bool Contained { get; init; }
 
     /// <summary>A standing release-to-wild designation.</summary>
     public bool Release { get; init; }
@@ -32,9 +35,11 @@ public sealed record UpkeepAnimal
     /// <summary>A standing slaughter designation.</summary>
     public bool Slaughter { get; init; }
 
-    public Fact<string> Pen { get; init; }
+    /// <summary>The pen holding a rope-managed animal; "" when it is in none.</summary>
+    public string Pen { get; init; } = "";
 
-    public Fact<string> SuitablePen { get; init; }
+    /// <summary>The pen native would rope a roped animal to; "" when there is none.</summary>
+    public string SuitablePen { get; init; } = "";
 
     /// <summary>
     /// the animals family's husbandry facts straight from the same generic census read that already decodes
@@ -43,15 +48,15 @@ public sealed record UpkeepAnimal
     public SlaughterFacts SlaughterFacts { get; init; } = new();
 
     /// <summary>Native's Designator_ReleaseAnimalToWild acceptance; ReleaseAllowed adds the exclusions policy owns.</summary>
-    public Fact<bool> SafeToRelease { get; init; }
+    public bool SafeToRelease { get; init; }
 
     public EquatableArray<HusbandryTrainable> Training { get; init; }
 
     /// <summary>Only populated for the wild census (AnimalUpkeepObservation.WildAnimals): native tame eligibility.</summary>
-    public Fact<bool> Tameable { get; init; }
+    public bool Tameable { get; init; }
 
     /// <summary>Only populated for the wild census: a standing tame designation.</summary>
-    public Fact<bool> Tame { get; init; }
+    public bool Tame { get; init; }
 
     /// <summary>The Animals level taming the wild animal needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor answers whether the roster has it.</summary>
     public Fact<int> MinimumHandlingSkill { get; init; }
@@ -69,20 +74,20 @@ public sealed record UpkeepAnimal
     public EquatableArray<string> BondedPawns { get; init; }
 
     /// <summary>The colonist id mastering the animal ("" unassigned).</summary>
-    public Fact<string> Master { get; init; }
+    public string Master { get; init; } = "";
 
     /// <summary>The Sterilized hediff.</summary>
     public bool Sterilized { get; init; }
 
     /// <summary>A sterilize surgery bill waiting on the animal.</summary>
-    public Fact<bool> SterilizeQueued { get; init; }
+    public bool SterilizeQueued { get; init; }
 
-    public Fact<bool> FollowDrafted { get; init; }
+    public bool FollowDrafted { get; init; }
 
-    public Fact<bool> FollowFieldwork { get; init; }
+    public bool FollowFieldwork { get; init; }
 
     /// <summary>Learned Obedience, which native requires to master or follow.</summary>
-    public Fact<bool> Obedient { get; init; }
+    public bool Obedient { get; init; }
 
     public Fact<EquatableArray<CareCondition>> Conditions { get; init; }
 
@@ -359,29 +364,17 @@ public static class AnimalUpkeepRules
 
         var seen = new HashSet<PawnId>();
         var containment = new List<PawnId>();
-        var containmentKnown = true;
         foreach (var animal in animals)
         {
             DomainException.Require(FoodForecastRules.FoodId(animal.Id.Value) && seen.Add(animal.Id) && AdmissionRules.ValidResource(animal.Definition), Invalid);
-            var pen = animal.RequiresPen;
-            var ck = animal.Contained.TryGetValue(out var contained);
-            if (pen && !ck)
-            {
-                containmentKnown = false;
-            }
-            else if (pen && !contained && !animal.Release && !animal.Slaughter)
+            if (animal.RequiresPen && !animal.Contained && !animal.Release && !animal.Slaughter)
             {
                 containment.Add(animal.Id);
             }
         }
 
-        if (containmentKnown)
-        {
-            containment.Sort();
-            r = r with { Containment = Known(EquatableArray.From(containment)) };
-        }
-
-        return r;
+        containment.Sort();
+        return r with { Containment = Known(EquatableArray.From(containment)) };
     }
 
     /// <summary>
@@ -404,15 +397,13 @@ public static class AnimalUpkeepRules
                 continue;
             }
 
-            var ck = a.Contained.TryGetValue(out var contained);
-            DomainException.Require(ck, "animal containment state unknown");
-            if (contained || a.Release || a.Slaughter)
+            if (a.Contained || a.Release || a.Slaughter)
             {
                 continue;
             }
 
             deficit++;
-            if (!a.SuitablePen.TryGetValue(out var suitable) || suitable.Length == 0)
+            if (a.SuitablePen.Length == 0)
             {
                 allSuitable = false;
             }

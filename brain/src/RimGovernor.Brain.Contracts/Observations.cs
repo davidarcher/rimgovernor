@@ -1267,11 +1267,11 @@ public sealed record TrainingEntry
 
 /// <summary>
 /// One animal's facts, from one native builder shared by the pawn detail read and
-/// the husbandry read: body, herd and training facts for every animal; the player-animal
-/// settings, guards and care only for a live player animal (absent otherwise).
-/// Training is empty for an animal without a training tracker; release and
-/// slaughter are the live designations (false off a map). Bonded (a Bond relation to a
-/// living pawn) and Sterilized (the Sterilized hediff) are read for every animal.
+/// the husbandry read, every member read for every animal. Training is empty for an animal without a
+/// training tracker; release and slaughter are the live designations (false off a map). Bonded (a Bond
+/// relation to a living pawn) and Sterilized (the Sterilized hediff) are read for every animal. The care
+/// setting, allowed area and conditions are the pawn row's own (<see cref="PawnState.Settings"/>,
+/// <see cref="PawnState.Health"/>).
 /// </summary>
 public sealed record AnimalState
 {
@@ -1279,11 +1279,14 @@ public sealed record AnimalState
 
     public required double AgeYears { get; init; }
 
-    public required bool Pregnant { get; init; }
+    /// <summary>
+    /// The pregnancy and the game ticks until the birth ((1 - gestation) * gestationPeriodDays * 60000 /
+    /// BodyResourceGrowthSpeed).
+    /// </summary>
+    public required AnimalPregnancy Pregnancy { get; init; }
 
+    /// <summary>The pen holding a rope-managed animal (AnimalPenUtility.GetCurrentPenOf); null when the animal is in none or is no roped live player animal.</summary>
     public required string? PenId { get; init; }
-
-    public required bool? Contained { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TrainingEntry>))]
     public required EquatableArray<TrainingEntry> Training { get; init; }
@@ -1296,25 +1299,23 @@ public sealed record AnimalState
 
     public required bool Tame { get; init; }
 
-    public required bool? SafeToRelease { get; init; }
+    /// <summary>Designator_ReleaseAnimalToWild's acceptance of a live player animal; false for any other animal.</summary>
+    public required bool SafeToRelease { get; init; }
 
     /// <summary>
-    /// Player-animal settings the SetAnimalArea/Master/Following writes target:
-    /// the current allowed area and master (empty when unassigned), the follow
-    /// flags, whether Obedience is learned (master/follow eligibility) and
-    /// whether native lets this animal carry an allowed area at all.
+    /// Player-animal settings the SetAnimalArea/Master/Following writes target: the master (empty when
+    /// unassigned), the follow flags (false without player settings), whether Obedience is learned
+    /// (master/follow eligibility) and whether native lets this animal carry an allowed area at all.
     /// </summary>
-    public required string? AllowedAreaId { get; init; }
+    public required string MasterId { get; init; }
 
-    public required string? MasterId { get; init; }
+    public required bool FollowDrafted { get; init; }
 
-    public required bool? FollowDrafted { get; init; }
+    public required bool FollowFieldwork { get; init; }
 
-    public required bool? FollowFieldwork { get; init; }
+    public required bool Obedient { get; init; }
 
-    public required bool? Obedient { get; init; }
-
-    public required bool? SupportsAllowedAreas { get; init; }
+    public required bool SupportsAllowedAreas { get; init; }
 
     /// <summary>
     /// Herd sizing facts: any hediff that makes colonists feel sick, the
@@ -1323,22 +1324,13 @@ public sealed record AnimalState
     /// numbers (body size, life expectancy, minimum handling skill, tame-failure
     /// manhunter chance) are the catalog's race rows.
     /// </summary>
-    public required bool? Sick { get; init; }
+    public required bool Sick { get; init; }
 
-    public required bool? Venerated { get; init; }
+    public required bool Venerated { get; init; }
 
     public required bool Adult { get; init; }
 
-    /// <summary>
-    /// Medical care cap inputs, for a player animal: its
-    /// MedicalCareCategory name, a Bond relation to any living pawn, and the
-    /// same conditions block the population read's PersonCustody carries.
-    /// </summary>
-    public required Operations.MedicalCare? MedicalCare { get; init; }
-
     public required bool Bonded { get; init; }
-
-    public required PawnConditions? Conditions { get; init; }
 
     /// <summary>
     /// Sterilized hediff present, and a queued sterilize surgery bill on the
@@ -1346,37 +1338,30 @@ public sealed record AnimalState
     /// </summary>
     public required bool Sterilized { get; init; }
 
-    public required bool? SterilizeQueued { get; init; }
+    public required bool SterilizeQueued { get; init; }
 
     /// <summary>
-    /// Raw slaughter facts of a player animal; policy decides who is protected
-    /// (FoodSlaughterChoice). downed and in_mental_state are every animal's live Pawn
-    /// flags, colonist_bonded is TrainableUtility.GetAllColonistBondsFor
-    /// non-empty, slaughter_designatable is Designator_Slaughter's own
-    /// acceptance (false while a slaughter designation stands).
+    /// Raw slaughter facts; policy decides who is protected (FoodSlaughterChoice). downed and
+    /// in_mental_state are the live Pawn flags, colonist_bonded is TrainableUtility.GetAllColonistBondsFor
+    /// non-empty, slaughter_designatable is Designator_Slaughter's own acceptance of a live player animal
+    /// (false while a slaughter designation stands, and for any other animal).
     /// </summary>
     public required bool Downed { get; init; }
 
     public required bool InMentalState { get; init; }
 
-    public required bool? ColonistBonded { get; init; }
+    public required bool ColonistBonded { get; init; }
 
-    public required bool? SlaughterDesignatable { get; init; }
+    public required bool SlaughterDesignatable { get; init; }
 
     /// <summary>
-    /// Herd growth events: game ticks until a pregnant animal gives birth
-    /// ((1 - gestation) * gestationPeriodDays * 60000 / BodyResourceGrowthSpeed),
-    /// absent without a pregnancy; the index of the current life stage in the
-    /// race's lifeStageAges (Pawn_AgeTracker.CurLifeStageIndex) and game ticks until
-    /// the next stage begins ((next minAge in ticks - AgeBiologicalTicks) /
-    /// BiologicalTicksPerTick), absent in the last stage. The litter size is rolled
-    /// at birth and the stage rows are the catalog's, so neither is sent.
+    /// The index of the current life stage in the race's lifeStageAges (Pawn_AgeTracker.CurLifeStageIndex) and
+    /// the next stage's start. The litter size is rolled at birth and the stage rows are the catalog's, so
+    /// neither is sent.
     /// </summary>
-    public required long? TicksToBirth { get; init; }
-
     public required int LifeStageIndex { get; init; }
 
-    public required long? TicksToNextLifeStage { get; init; }
+    public required AnimalNextLifeStage NextLifeStage { get; init; }
 
     /// <summary>
     /// Ids of the living humanlike pawns this animal has a Bond relation with
@@ -1384,6 +1369,44 @@ public sealed record AnimalState
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> BondedPawnIds { get; init; }
+}
+
+/// <summary>
+/// An animal's pregnancy: none, gestating with the game ticks until the birth, or stalled while the
+/// body's resource growth speed (PawnUtility.BodyResourceGrowthSpeed) is zero or the animal is dead.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AnimalPregnancy.NotPregnant), "not_pregnant")]
+[JsonDerivedType(typeof(AnimalPregnancy.Gestating), "gestating")]
+[JsonDerivedType(typeof(AnimalPregnancy.Stalled), "stalled")]
+public abstract record AnimalPregnancy
+{
+    private protected AnimalPregnancy() { }
+
+    public sealed record NotPregnant : AnimalPregnancy;
+
+    public sealed record Gestating(long TicksToBirth) : AnimalPregnancy;
+
+    public sealed record Stalled : AnimalPregnancy;
+}
+
+/// <summary>
+/// When the animal's next life stage begins: in game ticks ((next minAge in ticks - AgeBiologicalTicks) /
+/// BiologicalTicksPerTick), never in the race's last stage, or never while the animal does not age.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AnimalNextLifeStage.InTicks), "in_ticks")]
+[JsonDerivedType(typeof(AnimalNextLifeStage.LastStage), "last_stage")]
+[JsonDerivedType(typeof(AnimalNextLifeStage.NotAging), "not_aging")]
+public abstract record AnimalNextLifeStage
+{
+    private protected AnimalNextLifeStage() { }
+
+    public sealed record InTicks(long Ticks) : AnimalNextLifeStage;
+
+    public sealed record LastStage : AnimalNextLifeStage;
+
+    public sealed record NotAging : AnimalNextLifeStage;
 }
 
 /// <summary>

@@ -268,7 +268,7 @@ public static class AnimalsFamilyRules
         }
         var wanted = HerdSterilizeRules.SterilizeWanted(animals, f.Herd).Count;
         var areaKnown = f.WardRoom.Area.TryGetValue(out var area);
-        var inWard = areaKnown && area!.Length != 0 && animals.Any(a => a.AllowedArea.TryGetValue(out var held) && held == area);
+        var inWard = areaKnown && area!.Length != 0 && animals.Any(a => a.AllowedArea == area);
         var owed = wanted > 0 || inWard;
         if (!owed && !areaKnown)
         {

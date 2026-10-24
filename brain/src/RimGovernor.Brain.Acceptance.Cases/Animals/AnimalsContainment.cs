@@ -19,7 +19,7 @@ internal static class AnimalsContainment
     {
         Name = "animals/containment",
         Scope = "Over a staged finished 6x6 WoodLog Fence ring with a FenceGate and a PenMarker, a colonist on Handling ropes a "
-            + "staged uncontained player Cow into the pen: observations_list_pawns animal details read it Contained with a pen id and no "
+            + "staged uncontained player Cow into the pen: observations_list_pawns animal details read it in a pen by its id and no "
             + "release or slaughter designation, and observations_read_colony_facts' upkeep animals read the staged Husky "
             + "unroped, with no pen.",
         Ticks = 15000,
@@ -83,7 +83,7 @@ internal static class AnimalsContainment
             cow = reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == cowId)?.AnimalState is Observations.PawnAnimalState.Animal animal
                 ? animal.State
                 : throw new AcceptanceException($"cow-animal: the staged cow {cowId} is not read as an animal");
-            return (Wait.Signature(cow.Contained, cow.PenId), cow is { Contained: true, PenId.Length: > 0 });
+            return (Wait.Signature(cow.PenId), cow is { PenId.Length: > 0 });
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("cow", cow);
         if (cow!.Release || cow.Slaughter)

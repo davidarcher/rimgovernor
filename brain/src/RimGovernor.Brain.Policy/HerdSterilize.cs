@@ -17,8 +17,7 @@ public static class HerdSterilizeRules
         var fertile = new Dictionary<Resource, List<UpkeepAnimal>>();
         foreach (var a in rows)
         {
-            var qk = a.SterilizeQueued.TryGetValue(out var queued);
-            if (!qk || a.Release || a.Slaughter || a.Sterilized || queued)
+            if (a.Release || a.Slaughter || a.Sterilized || a.SterilizeQueued)
             {
                 continue;
             }
@@ -101,12 +100,11 @@ public static class HerdSterilizeRules
         var wanted = SterilizeWanted(rows, herd);
         foreach (var a in rows)
         {
-            if (!a.AllowedArea.TryGetValue(out var inArea) || inArea != area)
+            if (a.AllowedArea != area)
             {
                 continue;
             }
-            var qk = a.SterilizeQueued.TryGetValue(out var queued);
-            if (!qk || queued)
+            if (a.SterilizeQueued)
             {
                 return none;
             }
@@ -118,7 +116,7 @@ public static class HerdSterilizeRules
         }
         foreach (var a in rows)
         {
-            if (wanted.Contains(a.Id) && a.SupportsAreas.TryGetValue(out var supports) && supports)
+            if (wanted.Contains(a.Id) && a.SupportsAreas)
             {
                 return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.AllowedArea, Argument = area };
             }

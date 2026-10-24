@@ -49,6 +49,8 @@
     <!-- The gear census's climate and option source (#3777). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.AnimalPregnancy" Alias="AnimalPregnancy" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.AnimalNextLifeStage" Alias="AnimalNextLifeStage" />
     <!-- The population read's ideology mode and owned names (#3785). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.OwnedName" Alias="OwnedName" />

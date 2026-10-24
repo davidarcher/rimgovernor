@@ -53,14 +53,10 @@ public static class HerdPreceptsRules
         return Known(EquatableArray.From(@out));
     }
 
-    /// <summary>Whether the colony's precepts bar the action: base for any animal, plus venerated for a venerated race. Unknown when the ideoligion or the veneration is unread.</summary>
-    private static Fact<bool> PreceptBars(Fact<Ideoligion> ideology, Fact<bool> venerated, string baseEvent, string veneratedEvent)
+    /// <summary>Whether the colony's precepts bar the action: base for any animal, plus venerated for a venerated race. Unknown when the ideoligion is unread.</summary>
+    private static Fact<bool> PreceptBars(Fact<Ideoligion> ideology, bool venerated, string baseEvent, string veneratedEvent)
     {
-        if (!venerated.TryGetValue(out var v))
-        {
-            return Unknown<bool>();
-        }
-        var events = v ? new[] { baseEvent, veneratedEvent } : new[] { baseEvent };
+        var events = venerated ? new[] { baseEvent, veneratedEvent } : new[] { baseEvent };
         var barred = false;
         foreach (var ev in events)
         {

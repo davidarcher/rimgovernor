@@ -81,11 +81,11 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.Empty(Animal(settled, AnimalsFamily.Sterilize, containment: false).Preconditions);
         Assert.DoesNotContain(new AnimalsFamily(true, false).Derive(settled), n => n.Id == AnimalsFamily.Ward);
 
-        var cow = new UpkeepAnimal { Id = new("cow"), Definition = new("Cow"), AllowedArea = Known("pasture") };
+        var cow = new UpkeepAnimal { Id = new("cow"), Definition = new("Cow"), AllowedArea = "pasture" };
         var empty = new AnimalsFacts { Animals = Known<EquatableArray<UpkeepAnimal>>([cow]), WardRoom = new AnimalWard { Area = Known("ward") } };
         Assert.Equal(Satisfaction.Met, Animal(empty, AnimalsFamily.Sterilize).Satisfaction);
 
-        var held = empty with { Animals = Known<EquatableArray<UpkeepAnimal>>([cow with { AllowedArea = Known("ward") }]) };
+        var held = empty with { Animals = Known<EquatableArray<UpkeepAnimal>>([cow with { AllowedArea = "ward" }]) };
         Assert.Equal(Satisfaction.Unmet, Animal(held, AnimalsFamily.Sterilize).Satisfaction);
 
         Assert.Equal("hospital area", Assert.Throws<RequiredFactException>(() => Animal(empty with { WardRoom = new AnimalWard() }, AnimalsFamily.Sterilize)).Fact);

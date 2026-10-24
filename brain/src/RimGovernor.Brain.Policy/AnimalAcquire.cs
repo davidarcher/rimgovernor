@@ -229,21 +229,16 @@ public static class AnimalAcquireRules
         var output = new List<SupplyCandidate>();
         foreach (var a in wild)
         {
-            var tameableKnown = a.Tameable.TryGetValue(out var tameable);
-            var designatedKnown = a.Tame.TryGetValue(out var designated);
             var rk = input.Races.Race(a.Definition, out var race);
             var ck = race.TameChanceFactor.TryGetValue(out var factor);
-            var yk = a.Herd.AgeYears.TryGetValue(out var years);
+            var years = a.Herd.AgeYears;
             a.MinimumHandlingSkill.TryGetValue(out var minimum);
             if (
-                !tameableKnown
-                || !tameable
-                || !designatedKnown
-                || designated
+                !a.Tameable
+                || a.Tame
                 || !rk
                 || !ck
                 || !(factor > 0)
-                || !yk
                 || HerdSurplusRules.HerdDangerous(a)
                 || !input.Room(a.Definition)
             )
@@ -366,7 +361,7 @@ public static class AnimalAcquireRules
                 a.MinimumHandlingSkill.TryGetValue(out var minimum);
                 if (PawnRules.TamerFor(profiles, minimum) is not null && e.Channel.Id == "tame:" + a.Id)
                 {
-                    if (a.Tame.TryGetValue(out var designated) && !designated)
+                    if (!a.Tame)
                     {
                         return new HusbandryChoice { Animal = a.Id, Method = HusbandryMethod.Tame };
                     }

@@ -17,17 +17,17 @@ public sealed record PenGrazing
 /// <summary>Native's raw per-animal flags the slaughter exclusion reads; Designatable is Designator_Slaughter's own acceptance.</summary>
 public sealed record SlaughterFacts
 {
-    public Fact<bool> Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public Fact<bool> InMentalState { get; init; }
+    public bool InMentalState { get; init; }
 
-    public Fact<bool> Pregnant { get; init; }
+    public bool Pregnant { get; init; }
 
-    public Fact<bool> Mastered { get; init; }
+    public bool Mastered { get; init; }
 
-    public Fact<bool> ColonistBonded { get; init; }
+    public bool ColonistBonded { get; init; }
 
-    public Fact<bool> Designatable { get; init; }
+    public bool Designatable { get; init; }
 }
 
 public sealed record SlaughterFoodAnimal
@@ -47,80 +47,22 @@ public static class AnimalFoodExtensions
 {
     /// <summary>
     /// The slaughter exclusion: a downed, mentally broken, pregnant, mastered, colonist-bonded or
-    /// release-designated animal, or one the slaughter designator refuses, is protected. A known blocker decides
-    /// even when another fact is unknown; otherwise unknown facts leave it unknown.
+    /// release-designated animal, or one the slaughter designator refuses, is protected.
     /// </summary>
-    public static Fact<bool> SafeToSlaughter(this UpkeepAnimal a)
-    {
-        var f = a.SlaughterFacts;
-        if (a.Release)
-        {
-            return Known(false);
-        }
-
-        var unknown = false;
-        foreach (var blocker in new[] { f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded })
-        {
-            if (!blocker.TryGetValue(out var v))
-            {
-                unknown = true;
-            }
-            else if (v)
-            {
-                return Known(false);
-            }
-        }
-
-        if (!f.Designatable.TryGetValue(out var designatable))
-        {
-            unknown = true;
-        }
-        else if (!designatable)
-        {
-            return Known(false);
-        }
-
-        return unknown ? Unknown<bool>() : Known(true);
-    }
+    public static bool SafeToSlaughter(this UpkeepAnimal a) =>
+        !a.Release && !a.SlaughterFacts.Protected() && a.SlaughterFacts.Designatable;
 
     /// <summary>
     /// The release exclusion policy owns: the slaughter protections (downed, mentally broken, pregnant,
     /// mastered, colonist-bonded) or an existing release or slaughter designation protect an animal, and
-    /// SafeToRelease is Designator_ReleaseAnimalToWild's own acceptance. A known blocker decides even when
-    /// another fact is unknown.
+    /// SafeToRelease is Designator_ReleaseAnimalToWild's own acceptance.
     /// </summary>
-    public static Fact<bool> ReleaseAllowed(this UpkeepAnimal a)
-    {
-        var f = a.SlaughterFacts;
-        if (a.Release || a.Slaughter)
-        {
-            return Known(false);
-        }
+    public static bool ReleaseAllowed(this UpkeepAnimal a) =>
+        !a.Release && !a.Slaughter && !a.SlaughterFacts.Protected() && a.SafeToRelease;
 
-        var unknown = false;
-        foreach (var blocker in new[] { f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded })
-        {
-            if (!blocker.TryGetValue(out var v))
-            {
-                unknown = true;
-            }
-            else if (v)
-            {
-                return Known(false);
-            }
-        }
-
-        if (!a.SafeToRelease.TryGetValue(out var safe))
-        {
-            unknown = true;
-        }
-        else if (!safe)
-        {
-            return Known(false);
-        }
-
-        return unknown ? Unknown<bool>() : Known(true);
-    }
+    /// <summary>A downed, mentally broken, pregnant, mastered or colonist-bonded animal.</summary>
+    private static bool Protected(this SlaughterFacts f) =>
+        f.Downed || f.InMentalState || f.Pregnant || f.Mastered || f.ColonistBonded;
 }
 
 public static class AnimalFoodRules
@@ -219,7 +161,7 @@ public static class AnimalFoodRules
             if (a.Slaughter)
             {
                 pending.Add(a.Id);
-                a = a with { Slaughter = false, SlaughterFacts = a.SlaughterFacts with { Designatable = Known(true) } };
+                a = a with { Slaughter = false, SlaughterFacts = a.SlaughterFacts with { Designatable = true } };
             }
 
             observed.Add(a);

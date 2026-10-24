@@ -47,11 +47,11 @@ public sealed partial class RoundsDefensePlanner
             }
             else if (o.Kind == CombatOrderKind.AnimalArea && !keptAnimals.Any(a => a.Pawn == (Domain.PawnId)o.Pawn))
             {
-                if (!combat.Detail.TryGetValue(o.Pawn.Value, out var p) || p.AnimalState is not PbObservations.PawnAnimalState.Animal { State: { SupportsAllowedAreas: not null } animal })
+                if (!combat.Detail.TryGetValue(o.Pawn.Value, out var p) || p.AnimalState is not PbObservations.PawnAnimalState.Animal { State.SupportsAllowedAreas: true })
                 {
                     continue;
                 }
-                keptAnimals.Add(new CombatAnimalRestoration((Domain.PawnId)o.Pawn, (animal.AllowedAreaId ?? "")));
+                keptAnimals.Add(new CombatAnimalRestoration((Domain.PawnId)o.Pawn, p.Settings.AllowedAreaId ?? ""));
             }
             sendable.Add(o);
         }

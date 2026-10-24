@@ -284,11 +284,11 @@ public static partial class ShelterRules
         {
             foreach (var animal in animals)
             {
-                if (!RoundsRules.Positive(animal.SupportsAreas) || animal.RequiresPen || !animal.AllowedArea.TryGetValue(out var allowed))
+                if (!animal.SupportsAreas || animal.RequiresPen)
                 {
                     continue;
                 }
-                Add(animal.Id, true, trigger != ShelterTrigger.None, allowed);
+                Add(animal.Id, true, trigger != ShelterTrigger.None, animal.AllowedArea);
             }
         }
         // Stable by pawn id.

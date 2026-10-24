@@ -32,8 +32,7 @@ public static class HerdSaleRules
         foreach (var r in removals)
         {
             var a = r.Animal;
-            var mk = a.Master.TryGetValue(out var master);
-            if (a.Bonded || !mk || (!string.IsNullOrEmpty(master) && !herd.Retired.GetValueOrDefault(a.Definition)))
+            if (a.Bonded || (a.Master.Length != 0 && !herd.Retired.GetValueOrDefault(a.Definition)))
             {
                 continue;
             }

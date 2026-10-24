@@ -6,33 +6,32 @@ namespace RimGovernor.Brain.Policy;
 /// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
 /// adulthood, veneration and tame danger natively; MeatNutrition and FeedPerDay merge in from the colony
 /// food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
-/// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). Unknown age or sickness ranks an animal as ordinary (not old,
-/// not sick, adult); an unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
+/// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). An unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
 /// EatingBarred food slaughter.
 /// </summary>
 public sealed record HerdFacts
 {
-    public Fact<double> AgeYears { get; init; }
+    public double AgeYears { get; init; }
     public Fact<double> LifeExpectancy { get; init; }
     public double ManhunterOnTameFail { get; init; }
     public Fact<double> MeatNutrition { get; init; }
     public Fact<double> FeedPerDay { get; init; }
-    public Fact<bool> Sick { get; init; }
-    public Fact<bool> Adult { get; init; }
+    public bool Sick { get; init; }
+    public bool Adult { get; init; }
     public Fact<bool> SlaughterBarred { get; init; }
     public Fact<bool> EatingBarred { get; init; }
-    public Fact<bool> Venerated { get; init; }
+    public bool Venerated { get; init; }
 
     public bool Predator { get; init; }
 
-    /// <summary>The game ticks until a pregnant animal gives birth.</summary>
-    public Fact<long> TicksToBirth { get; init; }
+    /// <summary>The pregnancy and, while gestating, the game ticks until the birth.</summary>
+    public AnimalPregnancy Pregnancy { get; init; } = new AnimalPregnancy.NotPregnant();
 
-    /// <summary>The ticks until the next life stage begins, unknown in the last stage.</summary>
-    public Fact<long> TicksToNextLifeStage { get; init; }
+    /// <summary>When the next life stage begins: in ticks, never in the last stage or while the animal does not age.</summary>
+    public AnimalNextLifeStage NextLifeStage { get; init; } = new AnimalNextLifeStage.LastStage();
 
     /// <summary>The index of the animal's current life stage in the race's LifeStages.</summary>
-    public Fact<int> LifeStageIndex { get; init; }
+    public int LifeStageIndex { get; init; }
 
     /// <summary>Whether slaughter or eating the animal is barred by the player ideo or the precept read is missing.</summary>
     internal bool FoodBarredOrUnknown()
@@ -106,12 +105,11 @@ public static class HerdSurplusRules
 
     internal static bool HerdOld(UpkeepAnimal a)
     {
-        var ak = a.Herd.AgeYears.TryGetValue(out var age);
         var lk = a.Herd.LifeExpectancy.TryGetValue(out var life);
-        return ak && lk && life > 0 && age > HerdOldFraction * life;
+        return lk && life > 0 && a.Herd.AgeYears > HerdOldFraction * life;
     }
 
-    internal static bool HerdJuvenile(UpkeepAnimal a) => a.Herd.Adult.TryGetValue(out var adult) && !adult;
+    internal static bool HerdJuvenile(UpkeepAnimal a) => !a.Herd.Adult;
 
     /// <summary>A predator, or a race whose failed tame turns manhunter at least HerdTameDanger of the time. Such a race is never tamed.</summary>
     internal static bool HerdDangerous(UpkeepAnimal a) => a.Herd.Predator || a.Herd.ManhunterOnTameFail >= HerdTameDanger;
@@ -162,27 +160,19 @@ public static class HerdSurplusRules
     /// <summary>
     /// Slaughter whenever SafeToSlaughter allows it (it refuses a bonded animal) and the player ideo's precepts
     /// neither penalise nor forbid it (SlaughterBarred), else release when native allows that, else none. Not ok
-    /// when a needed native fact is unknown.
+    /// when the precept stance is unknown.
     /// </summary>
     internal static (HusbandryMethod? Method, bool Ok) HerdRemovalMethod(UpkeepAnimal a)
     {
-        if (!a.SafeToSlaughter().TryGetValue(out var slaughter))
-        {
-            return (null, false);
-        }
         if (!a.Herd.SlaughterBarred.TryGetValue(out var barred))
         {
             return (null, false);
         }
-        if (slaughter && !barred)
+        if (a.SafeToSlaughter() && !barred)
         {
             return (HusbandryMethod.Slaughter, true);
         }
-        if (!a.ReleaseAllowed().TryGetValue(out var release))
-        {
-            return (null, false);
-        }
-        if (release)
+        if (a.ReleaseAllowed())
         {
             return (HusbandryMethod.Release, true);
         }
@@ -203,7 +193,7 @@ public static class HerdSurplusRules
 
     private static int HerdTier(UpkeepAnimal a)
     {
-        var sick = a.Herd.Sick.ValueOrDefault;
+        var sick = a.Herd.Sick;
         if (HerdOld(a) || sick)
         {
             return 0;

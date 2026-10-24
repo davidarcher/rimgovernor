@@ -44,14 +44,19 @@ internal static class HusbandryDispatch
         s.Record("fixture", ServedOps.Json(herd));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<Observations.AnimalState> AnimalAsync(string label, string id)
+        async Task<Observations.PawnState> RowAsync(string label, string id)
         {
             var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] } };
             var reply = await s.CallAsync(label, NativeOps.ListPawns, request, cancellationToken).ConfigureAwait(false);
-            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id)?.AnimalState is Observations.PawnAnimalState.Animal animal
-                ? animal.State
+            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id) is { AnimalState: Observations.PawnAnimalState.Animal } row
+                ? row
                 : throw new AcceptanceException($"{label}: animal {id} is not read as an animal");
         }
+
+        async Task<Observations.AnimalState> AnimalAsync(string label, string id) =>
+            (await RowAsync(label, id).ConfigureAwait(false)).AnimalState is Observations.PawnAnimalState.Animal animal
+                ? animal.State
+                : throw new AcceptanceException($"{label}: animal {id} is not read as an animal");
 
         async Task<Operations.ActionResultOutcome?> ApplyAsync(string key, Operations.HusbandryIntent intent)
         {
@@ -94,11 +99,11 @@ internal static class HusbandryDispatch
         // Preconditions the fixture promises.
         var dog = await AnimalAsync("dog-before", herd.Dog).ConfigureAwait(false);
         var obedience = dog.Training.FirstOrDefault(t => t.DefName == "Obedience");
-        Want(obedience is { Available: true, Learned: false, Wanted: false } && dog.Obedient != true, "dog-before: want Obedience available, unlearned, unwanted and the dog not obedient", dog);
+        Want(obedience is { Available: true, Learned: false, Wanted: false } && !dog.Obedient, "dog-before: want Obedience available, unlearned, unwanted and the dog not obedient", dog);
         var cow = await AnimalAsync("cow-before", herd.Cow).ConfigureAwait(false);
-        Want(cow is { SlaughterDesignatable: true, Slaughter: false } && cow.Downed != true && cow.InMentalState != true && cow.Pregnant != true && cow.ColonistBonded != true, "cow-before: want a slaughterable, undesignated cow", cow);
+        Want(cow is { SlaughterDesignatable: true, Slaughter: false } && cow is { Downed: false, InMentalState: false, Pregnancy: Observations.AnimalPregnancy.NotPregnant, ColonistBonded: false }, "cow-before: want a slaughterable, undesignated cow", cow);
         var mother = await AnimalAsync("mother-before", herd.Mother).ConfigureAwait(false);
-        Want(mother.Pregnant == true, "mother-before: want the raw pregnant fact", mother);
+        Want(mother.Pregnancy is not Observations.AnimalPregnancy.NotPregnant, "mother-before: want the raw pregnancy", mother);
 
         // Train: SetWantedRecursive, read back at once; resending applies again.
         var train = Order(herd.Dog, Operations.HusbandryOrder.Train) with { TrainableDef = "Obedience" };
@@ -120,7 +125,7 @@ internal static class HusbandryDispatch
 
         // Tame: the factionless muffalo is only in the colony facts' wild census.
         var wild = await AnimalAsync("wild-before", herd.Wild).ConfigureAwait(false);
-        Want(wild is { Tameable: true } && wild.Tame != true, "wild-before: want a tameable, undesignated muffalo", wild);
+        Want(wild is { Tameable: true } && !wild.Tame, "wild-before: want a tameable, undesignated muffalo", wild);
         var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var upkeep = factsReply.Upkeep;
         Want(upkeep.WildAnimals.Any(a => a.Value == herd.Wild) && !upkeep.Animals.Any(a => a.Pawn.Value == herd.Wild), "colony-facts-wild: want the muffalo in the wild census only", herd.Wild);
@@ -133,31 +138,32 @@ internal static class HusbandryDispatch
         }
 
         wild = await AnimalAsync("wild-after-tame", herd.Wild).ConfigureAwait(false);
-        Want(wild is { Tame: true } && wild.Tameable != true, "wild-after-tame: want the designation observable and no longer a candidate", wild);
+        Want(wild is { Tame: true } && !wild.Tameable, "wild-after-tame: want the designation observable and no longer a candidate", wild);
 
         // Release on the unbonded, unmastered father.
         var father = await AnimalAsync("father-before", herd.Father).ConfigureAwait(false);
-        Want(father.SafeToRelease == true, "father-before: want safe to release", father);
+        Want(father.SafeToRelease, "father-before: want safe to release", father);
         var released = await AppliedAsync("apply-release", Order(herd.Father, Operations.HusbandryOrder.Release)).ConfigureAwait(false);
         Want(released.ReleaseDesignated == true, "apply-release: want a release designation", released);
         father = await AnimalAsync("father-after-release", herd.Father).ConfigureAwait(false);
         Want(father.Release, "father-after-release: want the designation observable", father);
 
         // Animals-tab settings on the obedient guard; the untrained dog refuses master and following, a missing area refuses.
-        var guard = await AnimalAsync("guard-before", herd.Guard).ConfigureAwait(false);
-        Want(guard is { Obedient: true, SupportsAllowedAreas: true } && string.IsNullOrEmpty(guard.AllowedAreaId) && string.IsNullOrEmpty(guard.MasterId), "guard-before: want an obedient guard with no area or master", guard);
+        var guardRow = await RowAsync("guard-before", herd.Guard).ConfigureAwait(false);
+        var guard = guardRow.AnimalState is Observations.PawnAnimalState.Animal { State: var guardState } ? guardState : throw new AcceptanceException("guard-before: not an animal");
+        Want(guard is { Obedient: true, SupportsAllowedAreas: true, MasterId: "" } && guardRow.Settings.AllowedAreaId is null, "guard-before: want an obedient guard with no area or master", guardRow);
         await RefusedAsync("master-untrained", Order(herd.Dog, Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
         await RefusedAsync("follow-untrained", Order(herd.Dog, Operations.HusbandryOrder.FollowDrafted) with { Follow = true }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
         await RefusedAsync("area-missing", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea) with { TargetId = "Area_Allowed_999999" }, Common.FailureCode.NotFound).ConfigureAwait(false);
 
         var area = await AppliedAsync("apply-area", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea) with { TargetId = herd.Area }).ConfigureAwait(false);
         Want(area.AllowedAreaId == herd.Area, "apply-area: want the area in the effect", area);
-        guard = await AnimalAsync("guard-after-area", herd.Guard).ConfigureAwait(false);
-        Want(guard.AllowedAreaId == herd.Area, "guard-after-area: want the area observable", guard);
+        guardRow = await RowAsync("guard-after-area", herd.Guard).ConfigureAwait(false);
+        Want(guardRow.Settings.AllowedAreaId == herd.Area, "guard-after-area: want the area observable", guardRow);
         var cleared = await AppliedAsync("apply-area-clear", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea)).ConfigureAwait(false);
         Want(cleared.AllowedAreaId is "", "apply-area-clear: want an empty area in the effect", cleared);
-        guard = await AnimalAsync("guard-after-area-clear", herd.Guard).ConfigureAwait(false);
-        Want(string.IsNullOrEmpty(guard.AllowedAreaId), "guard-after-area-clear: want no area", guard);
+        guardRow = await RowAsync("guard-after-area-clear", herd.Guard).ConfigureAwait(false);
+        Want(guardRow.Settings.AllowedAreaId is null, "guard-after-area-clear: want no area", guardRow);
 
         var master = await AppliedAsync("apply-master", Order(herd.Guard, Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }).ConfigureAwait(false);
         Want(master.MasterId == herd.Handler, "apply-master: want the handler in the effect", master);
@@ -168,7 +174,7 @@ internal static class HusbandryDispatch
         var drafted = await AppliedAsync("apply-follow-drafted", Order(herd.Guard, Operations.HusbandryOrder.FollowDrafted) with { Follow = true }).ConfigureAwait(false);
         Want(drafted.FollowDrafted == true, "apply-follow-drafted: want followDrafted in the effect", drafted);
         guard = await AnimalAsync("guard-after-follow-drafted", herd.Guard).ConfigureAwait(false);
-        Want(guard.FollowDrafted == true && guard.FollowFieldwork != true, "guard-after-follow-drafted: want followDrafted only", guard);
+        Want(guard is { FollowDrafted: true, FollowFieldwork: false }, "guard-after-follow-drafted: want followDrafted only", guard);
         var fieldwork = await AppliedAsync("apply-follow-fieldwork", Order(herd.Guard, Operations.HusbandryOrder.FollowFieldwork) with { Follow = true }).ConfigureAwait(false);
         Want(fieldwork.FollowFieldwork == true, "apply-follow-fieldwork: want followFieldwork in the effect", fieldwork);
         guard = await AnimalAsync("guard-after-follow-fieldwork", herd.Guard).ConfigureAwait(false);

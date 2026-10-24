@@ -204,18 +204,12 @@ public static class HusbandryUpkeepRules
             {
                 continue;
             }
-            var dk = a.Tame.TryGetValue(out var designated);
-            var tk = a.Tameable.TryGetValue(out var tameable);
-            if (!dk || !tk)
-            {
-                return ([], true);
-            }
-            if (designated)
+            if (a.Tame)
             {
                 counts[a.Definition] = counts.GetValueOrDefault(a.Definition) + 1;
                 continue;
             }
-            if (tameable && !HerdSurplusRules.HerdDangerous(a))
+            if (a.Tameable && !HerdSurplusRules.HerdDangerous(a))
             {
                 if (!eligible.TryGetValue(a.Definition, out var list))
                 {
@@ -416,7 +410,7 @@ public static class HusbandryUpkeepRules
         {
             foreach (var a in wildRows)
             {
-                if (a.Tame.TryGetValue(out var tame) && tame)
+                if (a.Tame)
                 {
                     return true;
                 }

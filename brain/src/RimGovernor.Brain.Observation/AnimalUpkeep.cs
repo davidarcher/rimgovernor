@@ -16,11 +16,6 @@ public static class AnimalUpkeepReads
             var a = u.Animals[i];
             var pawn = resolved[i];
             var state = AnimalOf(pawn);
-            var area = Unknown<string>();
-            if (state.SupportsAllowedAreas is not null)
-            {
-                area = Known((state.AllowedAreaId ?? ""));
-            }
             var training = new List<HusbandryTrainable>(state.Training.Count);
             foreach (var entry in state.Training)
             {
@@ -34,46 +29,42 @@ public static class AnimalUpkeepReads
             }
             var animal = new UpkeepAnimal
             {
-                SupportsAreas = ColonyDecodeReads.Optional(state.SupportsAllowedAreas is not null, state.SupportsAllowedAreas.GetValueOrDefault()),
-                AllowedArea = area,
+                SupportsAreas = state.SupportsAllowedAreas,
+                AllowedArea = pawn.Settings.AllowedAreaId ?? "",
                 Id = new PawnId(pawn.Pawn.Id ?? ""),
                 Label = pawn.Pawn.Label ?? "",
                 Gender = state.Gender,
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = a.Roping is O.AnimalRoping.Roped,
-                Contained = ColonyDecodeReads.Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
+                Contained = state.PenId is not null,
                 Release = state.Release,
                 Slaughter = state.Slaughter,
-                Pen = Known((state.PenId ?? "")),
-                SuitablePen = Known(a.Roping is O.AnimalRoping.Roped { SuitablePen: { } suitable } ? suitable : ""),
+                Pen = state.PenId ?? "",
+                SuitablePen = a.Roping is O.AnimalRoping.Roped { SuitablePen: { } suitable } ? suitable : "",
                 SlaughterFacts = new SlaughterFacts
                 {
-                    Downed = Known(state.Downed),
-                    InMentalState = Known(state.InMentalState),
-                    Pregnant = Known(state.Pregnant),
-                    Mastered = Mastered(state),
-                    ColonistBonded = ColonyDecodeReads.Optional(state.ColonistBonded is not null, state.ColonistBonded.GetValueOrDefault()),
-                    Designatable = ColonyDecodeReads.Optional(state.SlaughterDesignatable is not null, state.SlaughterDesignatable.GetValueOrDefault()),
+                    Downed = state.Downed,
+                    InMentalState = state.InMentalState,
+                    Pregnant = state.Pregnancy is not O.AnimalPregnancy.NotPregnant,
+                    Mastered = state.MasterId.Length != 0,
+                    ColonistBonded = state.ColonistBonded,
+                    Designatable = state.SlaughterDesignatable,
                 },
-                SafeToRelease = ColonyDecodeReads.Optional(state.SafeToRelease is not null, state.SafeToRelease.GetValueOrDefault()),
+                SafeToRelease = state.SafeToRelease,
                 Herd = HerdFactsOf(pawn, races),
                 Training = EquatableArray.From(training),
-                Care = RoundsWorkReads.CareName(state.MedicalCare is not null ? state.MedicalCare.GetValueOrDefault() : null),
+                Care = RoundsWorkReads.CareName(pawn.Settings.Care is O.PawnCare.Configured care ? care.MedicalCare : null),
                 Bonded = state.Bonded,
                 BondedPawns = EquatableArray.From(state.BondedPawnIds),
-                Master = ColonyDecodeReads.Optional(state.MasterId is not null, (state.MasterId ?? "")),
-                FollowDrafted = ColonyDecodeReads.Optional(state.FollowDrafted is not null, state.FollowDrafted.GetValueOrDefault()),
-                FollowFieldwork = ColonyDecodeReads.Optional(state.FollowFieldwork is not null, state.FollowFieldwork.GetValueOrDefault()),
-                Obedient = ColonyDecodeReads.Optional(state.Obedient is not null, state.Obedient.GetValueOrDefault()),
+                Master = state.MasterId,
+                FollowDrafted = state.FollowDrafted,
+                FollowFieldwork = state.FollowFieldwork,
+                Obedient = state.Obedient,
                 Sterilized = state.Sterilized,
-                SterilizeQueued = ColonyDecodeReads.Optional(state.SterilizeQueued is not null, state.SterilizeQueued.GetValueOrDefault()),
+                SterilizeQueued = state.SterilizeQueued,
             };
-            if (state.Conditions is not null)
-            {
-                var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(state.Conditions);
-                animal = animal with { Conditions = conditions, LifeThreatening = lifeThreatening };
-            }
-            rows.Add(animal);
+            var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(pawn.Health);
+            rows.Add(animal with { Conditions = conditions, LifeThreatening = lifeThreatening });
         }
         return Known(EquatableArray.From(rows));
     }
@@ -92,16 +83,14 @@ public static class AnimalUpkeepReads
                 Id = new PawnId(pawn.Pawn.Id ?? ""),
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = false,
-                Contained = Known(false),
+                Contained = false,
                 Release = state.Release,
                 Slaughter = state.Slaughter,
                 Bonded = state.Bonded,
                 Sterilized = state.Sterilized,
-                Pen = Known(""),
-                SuitablePen = Known(""),
                 Gender = state.Gender,
-                Tameable = Known(state.Tameable),
-                Tame = Known(state.Tame),
+                Tameable = state.Tameable,
+                Tame = state.Tame,
                 MinimumHandlingSkill = race.MinimumHandlingSkill,
                 Pest = race.Pest,
                 Herd = HerdFactsOf(pawn, races),
@@ -164,16 +153,16 @@ public static class AnimalUpkeepReads
         var race = RaceOf(pawn, races);
         return new HerdFacts
         {
-            AgeYears = Known(state.AgeYears),
+            AgeYears = state.AgeYears,
             LifeExpectancy = race.LifeExpectancy,
             ManhunterOnTameFail = race.ManhunterOnTameFail,
-            Sick = ColonyDecodeReads.Optional(state.Sick is not null, state.Sick.GetValueOrDefault()),
-            Adult = Known(state.Adult),
-            Venerated = ColonyDecodeReads.Optional(state.Venerated is not null, state.Venerated.GetValueOrDefault()),
+            Sick = state.Sick,
+            Adult = state.Adult,
+            Venerated = state.Venerated,
             Predator = race.Predator,
-            TicksToBirth = ColonyDecodeReads.Optional(state.TicksToBirth is not null, state.TicksToBirth.GetValueOrDefault()),
-            LifeStageIndex = Known(state.LifeStageIndex),
-            TicksToNextLifeStage = ColonyDecodeReads.Optional(state.TicksToNextLifeStage is not null, state.TicksToNextLifeStage.GetValueOrDefault()),
+            Pregnancy = state.Pregnancy,
+            LifeStageIndex = state.LifeStageIndex,
+            NextLifeStage = state.NextLifeStage,
         };
     }
 
@@ -202,7 +191,4 @@ public static class AnimalUpkeepReads
         return Known(EquatableArray.From(output));
     }
 
-    /// <summary>Whether the animal has a master; unknown until native sends the id.</summary>
-    private static Fact<bool> Mastered(O.AnimalState state) =>
-        state.MasterId is not null ? Known((state.MasterId ?? "") != "") : Unknown<bool>();
 }
