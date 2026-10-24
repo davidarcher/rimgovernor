@@ -115,6 +115,7 @@ public sealed partial class DefinitionCatalog
         _spawnForbidden = new(BuildSpawnForbiddenProducts);
         _research = new(BuildResearchFacts);
         _biotech = new(BuildBiotech);
+        _playBuildings = new(BuildPlayBuildings);
     }
 
     /// <summary>The load's def stat table every stat, stuff and cost read goes through.</summary>

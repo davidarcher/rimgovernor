@@ -222,8 +222,8 @@ public static class ChildRoomsRules
     public static bool HasRole(this FurnitureDefinition d, FurnitureRole role) => d.Roles.Contains(role.Value);
 
     /// <summary>
-    /// The child rooms the pawns owe, in role order: a nursery (beds for every newborn and baby, at least the
-    /// game's two) while one lives, a playroom while a baby or child does, a classroom (a desk per child and
+    /// The child rooms the pawns owe, in role order: a nursery (beds for every newborn and baby, at least the game's two, and a toy box
+    /// for their play) while one lives, a playroom while a baby or child does, a classroom (a desk per child and
     /// one blackboard) while a child does, and a deathrest chamber (a casket per deathrester, and the
     /// accelerators its deathrest capacity beyond the casket allows) while a deathrester does. Pawns whose
     /// developmental stage or deathrest is unknown owe nothing.
@@ -297,7 +297,15 @@ public static class ChildRoomsRules
         {
             Role = RoomRole.Nursery,
             Module = PlannedRole.Nursery,
-            Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.BabyBed, Count = Math.Max(babies, MinNurseryBeds) }]),
+            // The babies' play buildings stand where they sleep (#3837): a toy box is the building BabyPlayGiver_PlayToys plays
+            // at, looked for in the baby's room first. The layout plans one into the nursery (LayoutCluster's Play); it is
+            // placed once the catalog has one available, and the room is a nursery without it.
+            Furniture = EquatableArray.From(
+                [
+                    new ChildFurniture { Role = FurnitureRole.BabyBed, Count = Math.Max(babies, MinNurseryBeds) },
+                    new ChildFurniture { Role = FurnitureRole.Toy, Count = 1, Optional = true },
+                ]
+            ),
         };
 
     private static ChildRoomNeed PlayroomNeed() =>

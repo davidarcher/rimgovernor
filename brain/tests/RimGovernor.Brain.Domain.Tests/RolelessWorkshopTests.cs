@@ -15,6 +15,7 @@ public sealed class RolelessWorkshopTests
 
     private static readonly StationCatalog Catalog = new()
     {
+        PlayBuildings = [],
         Stations = new Dictionary<string, Station>
         {
             [Spot] = new Station { Shape = new InteriorPieceDef(Spot, new Cell(1, 1), RoomRole.None, null) },

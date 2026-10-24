@@ -49,6 +49,7 @@ public sealed class FirstLayoutPlanTests
     {
         Catalog = new StationCatalog
         {
+            PlayBuildings = [],
             Stations = new Dictionary<string, Station>
             {
                 ["Bed"] = new Station

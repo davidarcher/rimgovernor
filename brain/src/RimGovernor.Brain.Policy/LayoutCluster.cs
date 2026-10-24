@@ -27,6 +27,9 @@ namespace RimGovernor.Brain.Policy;
 //     interior cells and 255 wall cells.
 //   - Environment. Cold, clean, enclosed and open-sky requirements come from the catalog's needs of the
 //     stations in the group.
+//   - Play. A group that holds baby beds is the babies' room: it gets one of each building the babies' play uses
+//     (StationCatalog.PlayBuildings, the BabyPlayDef givers' buildings: the toy box), their footprints and one
+//     clearance cell each in the area, the way a cold group gets its cooler (#3837). Without Biotech there are none.
 //   - Cold is met by a cooling station: a group that needs cold gets the catalog's most efficient cooler
 //     (least power draw per heat moved) in its station list, its footprint and one clearance cell in the area,
 //     or a ClusterUnsatisfied decision when the catalog has none. Cooler power and wiring are the
@@ -326,6 +329,9 @@ internal sealed class GroupEval
 
     /// <summary>The group holds beds of the free-bed pool (the Sleep node that is no suite), whose merge the split prices (#3658).</summary>
     public bool FreeBeds { get; set; }
+
+    /// <summary>The group holds baby beds (a SleepBaby node): the babies' room, which carries the play buildings (#3837).</summary>
+    public bool Babies { get; set; }
 
     /// <summary>No station of the group adds to a native room role (Station.Contributions): a lone crafting spot (#3659).</summary>
     public bool Roleless { get; set; }
@@ -747,6 +753,7 @@ public static partial class LayoutClusterRules
                     decisions.Add(new ClusterDecision { A = g.Stations[0].Node, Verdict = ClusterUnsatisfied, Reason = ReasonClusterNoCooler });
                 }
             }
+            c.AddPlay(g, e);
             groups.Add(g);
         }
         var links = new Dictionary<(int, int), GroupLink>();
@@ -928,6 +935,9 @@ public static partial class LayoutClusterRules
     private static bool NewLoss(GroupEval merged, GroupEval a, GroupEval b) =>
         merged.Lost.Any(k => !a.Lost.Contains(k) && !b.Lost.Contains(k));
 
+    /// <summary>Whether clustering adds stations of the purpose to a group (the cooler, the play buildings): they are no node of the graph.</summary>
+    internal static bool ClusterAdded(this StationPurpose purpose) => purpose is StationPurpose.Cool or StationPurpose.Play;
+
     /// <summary>
     /// The instance state of a node's stations: the bed state the purpose gives a humanlike bed.
     /// </summary>
@@ -987,6 +997,30 @@ internal sealed partial class Clusterer
         {
             var size = input.Catalog.Stations[Cooler].Shape.Size;
             CoolerSize = size.X * size.Z;
+        }
+        foreach (var def in input.Catalog.PlayBuildings)
+        {
+            if (!input.Catalog.Stations.TryGetValue(def, out var st) || st.Shape.Size.X <= 0 || st.Shape.Size.Z <= 0)
+            {
+                throw new ClusterException($"play building {def} has no station shape in the catalog");
+            }
+            PlayFootprint += st.Shape.Size.X * st.Shape.Size.Z;
+        }
+    }
+
+    /// <summary>The cells the play buildings a babies' room carries stand on (StationCatalog.PlayBuildings, one of each).</summary>
+    public int PlayFootprint { get; }
+
+    /// <summary>Adds one of each play building to a group that holds baby beds (GroupEval.Babies), the way a cold group gets its cooler.</summary>
+    public void AddPlay(RoomGroup g, GroupEval e)
+    {
+        if (!e.Babies)
+        {
+            return;
+        }
+        foreach (var def in _in.Catalog.PlayBuildings)
+        {
+            g.Stations.Add(new GroupStation(LayoutGraphRules.NodeId(def, StationPurpose.Play), def, StationPurpose.Play, 1));
         }
     }
 
@@ -1083,6 +1117,7 @@ internal sealed partial class Clusterer
             e.Filth = e.Filth || n.Filth;
             e.Suite = e.Suite || n.Floor > 0;
             e.FreeBeds = e.FreeBeds || (n.Purpose == StationPurpose.Sleep && n.Floor == 0);
+            e.Babies = e.Babies || n.Purpose == StationPurpose.SleepBaby;
             e.Floor = Math.Max(e.Floor, n.Floor);
             e.Kept = Math.Max(e.Kept, n.Kept);
             e.Closet = e.Closet && n.Filth;
@@ -1133,6 +1168,11 @@ internal sealed partial class Clusterer
         {
             e.Footprint += CoolerSize;
             e.Clearance++;
+        }
+        if (e.Babies)
+        {
+            e.Footprint += PlayFootprint;
+            e.Clearance += _in.Catalog.PlayBuildings.Count;
         }
         e.Clearance++; // the door threshold
         if (e.Suite)

@@ -50,6 +50,10 @@ public enum StationPurpose
     /// <summary>The cooling station clustering adds to a group that needs cold (a catalog cooler; no graph node has it).</summary>
     [WireName("cool")]
     Cool,
+
+    /// <summary>A building the babies' play uses, which clustering adds to the room the babies sleep in (StationCatalog.PlayBuildings; no graph node has it).</summary>
+    [WireName("play")]
+    Play,
 }
 
 /// <summary>A need the catalog has no station for.</summary>
@@ -116,7 +120,7 @@ public sealed record RecipeFlow
 /// <summary>Every model the graph reads. Callers build the graph from known facts only: an unknown population or nutrition is not zero.</summary>
 public sealed record StationGraphInput
 {
-    public StationCatalog Catalog { get; init; } = new();
+    public required StationCatalog Catalog { get; init; }
 
     public RoomFurniture Furniture { get; init; } = new();
 

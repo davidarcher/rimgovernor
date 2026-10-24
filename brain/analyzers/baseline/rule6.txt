@@ -165,7 +165,6 @@ Policy/DeepDrill.cs|DeepDrillRules.DeepDrillingResearch|"GroundPenetratingScanne
 Policy/DefTables.cs|DefTablesRules.GameRoomRoleDefs|"BabyDecoration"
 Policy/DefTables.cs|DefTablesRules.GameRoomRoleDefs|"Blackboard"
 Policy/DefTables.cs|DefTablesRules.GameRoomRoleDefs|"SchoolDesk"
-Policy/DefTables.cs|DefTablesRules.GameRoomRoleDefs|"ToyBox"
 Policy/DefTables.cs|DefTablesRules.MortarProbeShells|"Shell_HighExplosive"
 Policy/DefTables.cs|DefTablesRules.QuestGiftDefs|"Beer"
 Policy/DefTables.cs|DefTablesRules.QuestGiftDefs|"MedicineHerbal"

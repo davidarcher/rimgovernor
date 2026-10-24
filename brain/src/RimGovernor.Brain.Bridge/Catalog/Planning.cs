@@ -26,9 +26,26 @@ public sealed partial class DefinitionCatalog
     /// <summary><c>BuildableDef.BuildableByPlayer</c> of a TerrainDef.</summary>
     public static bool TerrainBuildable(TerrainDef row) => row.BuildableByPlayer;
 
-    /// <summary>The furniture roles the game's room-role code scores the def for by name (Toy, Decoration, Board, Desk): at most one.</summary>
-    public static IReadOnlyList<string> GameRoomRoles(string name) =>
-        DefTablesRules.GameRoomRoleDefs.TryGetValue(name, out var role) ? [role.Value] : [];
+    /// <summary>
+    /// The furniture roles the game's code gives the def: Toy for a building the babies' play uses (PlayBuildings), and
+    /// the role the room-role workers score it for by name (Decoration, Board, Desk). Sorted.
+    /// </summary>
+    public IReadOnlyList<string> GameRoomRoles(string name)
+    {
+        var roles = new List<string>();
+        if (PlayBuildings().Contains(name))
+        {
+            roles.Add(FurnitureRole.Toy.Value);
+        }
+
+        if (DefTablesRules.GameRoomRoleDefs.TryGetValue(name, out var role))
+        {
+            roles.Add(role.Value);
+        }
+
+        roles.Sort(StringComparer.Ordinal);
+        return roles;
+    }
 
     /// <summary>Whether the def carries a comp of class <typeparamref name="T"/> or a subclass (the game's <c>GetCompProperties&lt;T&gt;()</c> is non-null).</summary>
     public static bool HasComp<T>(ThingDef row)

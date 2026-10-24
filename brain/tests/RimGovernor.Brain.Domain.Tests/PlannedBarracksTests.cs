@@ -23,6 +23,7 @@ public sealed class PlannedBarracksTests
     /// <summary>A humanlike bed as the catalog scores it: a lone free one a bedroom, several a barracks.</summary>
     internal static readonly StationCatalog Catalog = new()
     {
+        PlayBuildings = [],
         Stations = new Dictionary<string, Station>
         {
             [Bed] = new()

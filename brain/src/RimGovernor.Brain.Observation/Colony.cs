@@ -194,8 +194,8 @@ public sealed partial record ColonyProjection
     /// <summary>The catalog's piece shapes and the furniture its rules choose (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero value without one.</summary>
     public PieceShapes Shapes { get; init; } = new();
 
-    /// <summary>The catalog's station table (DefinitionCatalog.StationCatalog), set on a rounds reading; the zero value without one.</summary>
-    public StationCatalog Stations { get; init; } = new();
+    /// <summary>The catalog's station table (DefinitionCatalog.StationCatalog), set on a rounds reading; without one, the empty table: no station, so no play building either.</summary>
+    public StationCatalog Stations { get; init; } = new() { PlayBuildings = [] };
 
     public Fact<EquatableArray<FoodField>> FoodFields { get; init; }
 

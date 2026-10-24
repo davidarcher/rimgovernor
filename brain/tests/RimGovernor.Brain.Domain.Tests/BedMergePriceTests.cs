@@ -26,6 +26,7 @@ public sealed class BedMergePriceTests
     /// <summary>A free bed as the game scores it (a lone one a bedroom, several a barracks) and a climate model in the game's numbers.</summary>
     internal static readonly StationCatalog Catalog = new()
     {
+        PlayBuildings = [],
         Stations = new Dictionary<string, Station>
         {
             [Bed] = new()

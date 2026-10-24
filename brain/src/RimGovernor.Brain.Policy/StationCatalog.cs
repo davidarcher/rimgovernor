@@ -33,6 +33,12 @@ public sealed record StationCatalog
     /// <summary>The mined and chopped goods and what they cost in work (#2998); the default is unknown and leaves them unhauled.</summary>
     public HaulModel Haul { get; init; } = new();
 
+    /// <summary>
+    /// The buildings the babies' play activities use (#3837: the BabyPlayDef givers' buildings, the toy box), sorted; a
+    /// load without Biotech has none. Clustering plans one of each into the room the babies sleep in.
+    /// </summary>
+    public required IReadOnlyList<string> PlayBuildings { get; init; }
+
     /// <summary>Returns the station for a definition.</summary>
     public bool TryGetStation(string def, out Station station)
     {

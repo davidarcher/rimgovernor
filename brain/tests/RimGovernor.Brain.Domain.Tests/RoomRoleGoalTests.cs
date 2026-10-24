@@ -182,14 +182,14 @@ public sealed class RoomRoleGoalTests
             GoalBuild = build,
         };
 
-        var crib = new StationCatalog { Stations = new Dictionary<string, Station> { ["Crib"] = new Station { Contributions = [new() { Role = RoomRole.Nursery }] } } };
+        var crib = new StationCatalog { PlayBuildings = [], Stations = new Dictionary<string, Station> { ["Crib"] = new Station { Contributions = [new() { Role = RoomRole.Nursery }] } } };
         var asked = new GoalBuildDemand { Rooms = EquatableArray.From([RoomRole.Nursery]), HospitalBeds = 3 };
 
         var population = LayoutStationPlanRules.StationPopulationOf(Base(asked, crib));
         Assert.Equal((3, ChildRoomsRules.MinNurseryBeds, 4), (population.Injured, population.Babies, population.Colonists));
 
         // Without a crib to place (no Biotech) the nursery goal asks the graph for nothing.
-        Assert.Equal(0, LayoutStationPlanRules.StationPopulationOf(Base(asked, new StationCatalog())).Babies);
+        Assert.Equal(0, LayoutStationPlanRules.StationPopulationOf(Base(asked, new StationCatalog { PlayBuildings = [] })).Babies);
         Assert.Equal((0, 0), (LayoutStationPlanRules.StationPopulationOf(Base(GoalBuildDemand.None, crib)).Injured, LayoutStationPlanRules.StationPopulationOf(Base(GoalBuildDemand.None, crib)).Babies));
     }
 }

@@ -611,8 +611,21 @@ classroom while a child does. The roles are the game's own room scores
 under two baby beds or beside any other bed, a Playroom scores each toy box
 and baby decoration and a Classroom each blackboard and school desk, both
 only while the room holds no humanlike bed. Furniture counts follow the
-pawns: a bed per newborn or baby (at least the game's two), one toy box and
-one decoration, one blackboard and a desk per child.
+pawns: a bed per newborn or baby (at least the game's two) and a toy box, one
+toy box and one decoration, one blackboard and a desk per child.
+
+The babies' play buildings (#3837) are read, not listed: a baby's play need
+rises by the `BabyPlayDef` activities, and the building each one's giver class
+plays at is the game's code (`BabyPlayGiver_PlayToys` looks for a
+`ThingDefOf.ToyBox` in the baby's room first; `PlayStatic` and `PlayWalking`
+use none). The definition catalog reads them (`DefinitionCatalog.PlayBuildings`,
+throwing on a giver class it does not know), gives them the `Toy` role and
+carries them on `StationCatalog.PlayBuildings`. Clustering adds one of each to
+the group that holds the baby beds, footprint and clearance cell in its area,
+the way a cold group gets its cooler; the nursery furnishes the toy as an
+optional piece. A load without Biotech has no `BabyPlayDef` and plans none.
+`LearningDesireDef` has no building field: lesson taking uses the classroom's
+school desk and radio talking the comms console, neither a play building.
 
 Furniture is never a def-name list: the native definition catalog gives each
 `PlanningDefinition` view its `RoomRoles` (`BabyBed`, `Toy`, `Decoration`, `Board`,

@@ -19,7 +19,7 @@ public sealed class LayoutReplanOffPathTests
     {
         var catalog = new DefinitionCatalog([new Verse.ThingDef { defName = "Silver" }, new Verse.TerrainDef { defName = "Soil" }], DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
 
-        var run = Rounder.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog() }, new MapSurvey(), catalog, [], new RoomGrowth());
+        var run = Rounder.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog { PlayBuildings = [] } }, new MapSurvey(), catalog, [], new RoomGrowth());
 
         Assert.False(run.Advised);
         Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Kind, run.StationRow.Kind);

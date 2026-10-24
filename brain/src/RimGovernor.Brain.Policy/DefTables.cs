@@ -28,10 +28,9 @@ public static class DefTablesRules
     /// </summary>
     public static readonly IReadOnlyList<string> QuestGiftDefs = ["Beer", "MedicineHerbal", "MedicineIndustrial", "Penoxycyline", "Silver"];
 
-    /// <summary>The ThingDefOf names the game's room-role workers score a furniture role by: a def of the name has the role.</summary>
+    /// <summary>The ThingDefOf names the game's room-role workers score a furniture role by: a def of the name has the role. A toy is the play read's (DefinitionCatalog.PlayBuildings).</summary>
     public static readonly IReadOnlyDictionary<string, FurnitureRole> GameRoomRoleDefs = new Dictionary<string, FurnitureRole>(StringComparer.Ordinal)
     {
-        ["ToyBox"] = FurnitureRole.Toy,
         ["BabyDecoration"] = FurnitureRole.Decoration,
         ["Blackboard"] = FurnitureRole.Board,
         ["SchoolDesk"] = FurnitureRole.Desk,

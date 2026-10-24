@@ -198,7 +198,7 @@ internal sealed class Regrouper(RegroupInput input)
         var roles = new List<RoomRole>();
         foreach (var s in g.Stations)
         {
-            if (s.Purpose == StationPurpose.Cool)
+            if (s.Purpose.ClusterAdded())
             {
                 continue;
             }
@@ -573,10 +573,10 @@ public static partial class LayoutRegroupRules
         return PairRule.None;
     }
 
-    /// <summary>The graph nodes a room holds, sorted; the cooling station a cold room carries is no node of the graph.</summary>
+    /// <summary>The graph nodes a room holds, sorted; the stations clustering adds (a cold room's cooler, a babies' room's play buildings) are no node of the graph.</summary>
     internal static List<string> RoomNodes(RoomGroup g)
     {
-        var output = g.Stations.Where(s => s.Purpose != StationPurpose.Cool).Select(s => s.Node).ToList();
+        var output = g.Stations.Where(s => !s.Purpose.ClusterAdded()).Select(s => s.Node).ToList();
         output.Sort(StringComparer.Ordinal);
         return output;
     }

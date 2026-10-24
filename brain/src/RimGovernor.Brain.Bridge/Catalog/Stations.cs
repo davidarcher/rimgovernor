@@ -70,7 +70,7 @@ public sealed partial class DefinitionCatalog
             stations[name] = station;
         }
 
-        var built = new P.StationCatalog { Stations = stations, Filth = FilthModel() };
+        var built = new P.StationCatalog { Stations = stations, Filth = FilthModel(), PlayBuildings = PlayBuildings() };
         built = built with { Climate = ClimateModel(built), Light = LightModel(), Power = PowerModel(), Comfort = ComfortModel(shapes.Furniture), Mood = MoodModel(), Joy = JoyModel(), Haul = HaulModel() };
         return built;
     }

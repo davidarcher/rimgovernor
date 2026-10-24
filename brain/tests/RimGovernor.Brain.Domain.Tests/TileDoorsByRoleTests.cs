@@ -17,6 +17,7 @@ public sealed class TileDoorsByRoleTests
 
     private static readonly StationCatalog Catalog = new()
     {
+        PlayBuildings = [],
         Stations = new Dictionary<string, Station>
         {
             [Bed] = new()

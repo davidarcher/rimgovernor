@@ -96,7 +96,7 @@ public static class PlanningViewReads
                 v = v with { GrowerFertility = FiniteFact(row.fertility) };
             }
         }
-        v = v with { RoomRoles = RoomRoles(name, row) };
+        v = v with { RoomRoles = RoomRoles(catalog, name, row) };
         if (row.plant is { } plant)
         {
             PlantView(catalog, ref v, plant);
@@ -152,9 +152,9 @@ public static class PlanningViewReads
     /// The room-role furniture roles of a thing: the roles the game names for the def (carried per def by the
     /// catalog), a baby bed (a bed flagged bed_crib) and a deathrest-bindable building, a casket when it is a bed.
     /// </summary>
-    private static List<string> RoomRoles(string name, Verse.ThingDef row)
+    private static List<string> RoomRoles(DefinitionCatalog catalog, string name, Verse.ThingDef row)
     {
-        var roles = new List<string>(DefinitionCatalog.GameRoomRoles(name));
+        var roles = new List<string>(catalog.GameRoomRoles(name));
         if (row.building?.bed_crib ?? false)
         {
             roles.Add(FurnitureRole.BabyBed.Value);
