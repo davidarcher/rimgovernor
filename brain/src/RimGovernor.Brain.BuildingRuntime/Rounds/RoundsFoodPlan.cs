@@ -138,17 +138,7 @@ partial class Rounder
             return Unknown<FoodPlan>();
         }
 
-        var workers = p.Workers;
-        var wk = true;
-        if (p.WorkPawns.TryGetValue(out var workPawns))
-        {
-            wk = ResearchRules.RoundsWorkers(workPawns).TryGetValue(out workers);
-        }
-
-        if (!wk)
-        {
-            return Unknown<FoodPlan>();
-        }
+        var workers = p.WorkPawns.TryGetValue(out var workPawns) ? ResearchRules.RoundsWorkers(workPawns) : p.Workers;
 
         FoodForecast forecast;
         try

@@ -392,7 +392,7 @@ public sealed partial class RoundsResourcePlanner
     /// <summary>The labor the food plan leaves the resource supply; the planner needs it read (RequiredFactException).</summary>
     internal static double ResourceLabor(ColonyProjection p)
     {
-        var workers = p.WorkPawns.TryGetValue(out var pawns) ? ResearchRules.RoundsWorkers(pawns) : Known(p.Workers);
+        var workers = Known(p.WorkPawns.TryGetValue(out var pawns) ? ResearchRules.RoundsWorkers(pawns) : p.Workers);
         return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan).TryGetValue(out var labor) ? labor : throw new RequiredFactException("resource supply labor");
     }
 

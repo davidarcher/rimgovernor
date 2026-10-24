@@ -42,8 +42,8 @@ public sealed class TombTests
         Cells = [new Cell(x, z), new Cell(x, z + 1)],
     };
 
-    private static Fact<bool> Owed(params WasteItem[] waste) =>
-        TombRules.TombOwed(Shapes, Known(true), Known(Plan), Known(RoomObservation.NoRooms), Known<EquatableArray<WasteItem>>([.. waste]), CurrentConstruction.Empty);
+    private static bool Owed(params WasteItem[] waste) =>
+        TombRules.TombOwed(Shapes, Known(true), Known(Plan), Known<EquatableArray<WasteItem>>([.. waste]), CurrentConstruction.Empty);
 
     [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()
@@ -53,14 +53,14 @@ public sealed class TombTests
         Assert.Equal(TombRoom.Id, step.Room.Id);
         Assert.Equal(Sarcophagus, Assert.Single(step.Template).DefName);
         Assert.Equal(1, step.Dead);
-        Assert.True(Owed(Corpse(CorpseOf.Colonist)).TryGetValue(out var o) && o);
+        Assert.True(Owed(Corpse(CorpseOf.Colonist)));
     }
 
     [Fact]
     public void AStrangerCorpseIsOwedNoTomb()
     {
         Assert.Equal(TombStepKind.None, TombRules.NextTombStep(Plan, [Corpse(CorpseOf.Stranger)], [], Shapes, true).Kind);
-        Assert.True(Owed(Corpse(CorpseOf.Stranger)).TryGetValue(out var o) && !o);
+        Assert.False(Owed(Corpse(CorpseOf.Stranger)));
     }
 
     [Fact]
@@ -70,5 +70,15 @@ public sealed class TombTests
         var step = TombRules.NextTombStep(Plan, [Buried(CorpseOf.Stranger, "s1"), Corpse(CorpseOf.Colonist)], built, Shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(0, step.Empty);
+    }
+
+    [Fact]
+    public void AnUnreadInputRaisesARequiredFact()
+    {
+        var waste = Known<EquatableArray<WasteItem>>([Corpse(CorpseOf.Colonist)]);
+        Assert.Equal("waste census or current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Known(Plan), default, CurrentConstruction.Empty)).Fact);
+        Assert.Equal("waste census or current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Known(Plan), waste, null)).Fact);
+        Assert.Equal("layout plan", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), default, waste, CurrentConstruction.Empty)).Fact);
+        Assert.Equal("sarcophagus availability", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, default, Known(Plan), waste, CurrentConstruction.Empty)).Fact);
     }
 }

@@ -126,7 +126,7 @@ public sealed class TrainingRangeCreditTests
         // Ranged damage counts at full health in the defense capacity: the curve's 6 DPS at Shooting 2.
         Assert.Equal((2, 6d), (context.Range.Trainees[0].Ceiling, context.Range.Trainees[0].Power[2]));
         // The range is planned for every capable shooter below the ceiling.
-        Assert.Equal(1, TrainingRules.ReviewTraining(review).Value.ShootingTrainees);
+        Assert.Equal(1, TrainingRules.ReviewTraining(review).ShootingTrainees);
         // A capable pawn without the curve is a named not-modelled finding, not a trainee.
         var uncurved = review with { ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From([Capable(pawns[0], "a") with { SkillStatCurves = [] }])) } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(uncurved)!;

@@ -43,5 +43,5 @@ internal sealed class MilitaryOwner : IStoreOwner
 
     /// <summary>The department's only ask of layout is the training range and ring.</summary>
     public RoomDemand RoomDemand(StoreView view) =>
-        new() { Ranges = TrainingRules.RangesWanted(view.TrainingStands), Rings = TrainingRules.RangesWanted(view.TrainingRings) };
+        new() { Ranges = view.TrainingStands, Rings = view.TrainingRings };
 }

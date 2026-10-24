@@ -76,11 +76,8 @@ public sealed class RoyaltyRounds
         {
             return false;
         }
-        if (!PsylinkRules.PsylinkCandidates(royalty, projection.WorkPawns).TryGetValue(out var first)
-            || !PsylinkRules.PsylinkLevelUps(royalty, projection.WorkPawns).TryGetValue(out var up))
-        {
-            throw new RequiredFactException("royalty/psylink work pawns");
-        }
+        var first = PsylinkRules.PsylinkCandidates(royalty, projection.WorkPawns);
+        var up = PsylinkRules.PsylinkLevelUps(royalty, projection.WorkPawns);
         if (first.Count + up.Count == 0 || !royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) || stock.Held == 0)
         {
             return false;

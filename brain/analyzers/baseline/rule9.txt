@@ -87,8 +87,8 @@ BuildingRuntime/Rounds/RoundsBillMisc.cs|Fact|4
 BuildingRuntime/Rounds/RoundsBiotech.cs|Fact|14
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|Fact|15
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|Unknown|3
-BuildingRuntime/Rounds/RoundsBurialFacts.cs|Fact|24
-BuildingRuntime/Rounds/RoundsBurialFacts.cs|Unknown|3
+BuildingRuntime/Rounds/RoundsBurialFacts.cs|Fact|20
+BuildingRuntime/Rounds/RoundsBurialFacts.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsCensus.cs|Fact|21
 BuildingRuntime/Rounds/RoundsCensus.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|3
@@ -126,8 +126,8 @@ BuildingRuntime/Rounds/RoundsFirebreak.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsFishing.cs|Fact|13
 BuildingRuntime/Rounds/RoundsFlooring.cs|Fact|12
 BuildingRuntime/Rounds/RoundsFood.cs|Fact|2
-BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|34
-BuildingRuntime/Rounds/RoundsFoodPlan.cs|Unknown|7
+BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|33
+BuildingRuntime/Rounds/RoundsFoodPlan.cs|Unknown|6
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Fact|6
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsFoodStores.cs|Fact|5
@@ -161,8 +161,8 @@ BuildingRuntime/Rounds/RoundsMech.cs|Fact|2
 BuildingRuntime/Rounds/RoundsMedical.cs|Fact|7
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsMilitary.cs|Fact|10
-BuildingRuntime/Rounds/RoundsMilitary.cs|Unknown|5
+BuildingRuntime/Rounds/RoundsMilitary.cs|Fact|4
+BuildingRuntime/Rounds/RoundsMilitary.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsPartySpot.cs|Fact|6
 BuildingRuntime/Rounds/RoundsPartySpot.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsPaste.cs|Fact|5
@@ -202,7 +202,6 @@ BuildingRuntime/Rounds/RoundsRituals.cs|Fact|1
 BuildingRuntime/Rounds/RoundsRituals.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsRooms.cs|Fact|7
 BuildingRuntime/Rounds/RoundsRooms.cs|Unknown|5
-BuildingRuntime/Rounds/RoundsRoyalty.cs|Fact|2
 BuildingRuntime/Rounds/RoundsRoyalty.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Unknown|4
@@ -454,7 +453,7 @@ Policy/Disaster.cs|Fact|2
 Policy/DisasterFamily.cs|Fact|3
 Policy/DiseaseRest.cs|Fact|2
 Policy/DoorControl.cs|Fact|4
-Policy/Economy.cs|Fact|18
+Policy/Economy.cs|Fact|15
 Policy/Economy.cs|Unknown|3
 Policy/EconomyTrade.cs|Fact|6
 Policy/EffectSources.cs|Fact|7
@@ -621,7 +620,7 @@ Policy/Methods/Generation/EffectSourceCandidates.cs|Fact|5
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Discard|1
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Fact|1
 Policy/Methods/Generation/PracticeMethodCandidates.cs|Fact|3
-Policy/Military.cs|Fact|32
+Policy/Military.cs|Fact|29
 Policy/Military.cs|Unknown|2
 Policy/Military.cs|ValueOrDefault|1
 Policy/Monolith.cs|Fact|4
@@ -664,8 +663,7 @@ Policy/PrisonerMedicine.cs|Unknown|1
 Policy/Prisoners.cs|Fact|4
 Policy/ProductionAdmission.cs|Fact|45
 Policy/ProductionPromises.cs|Fact|56
-Policy/Psylink.cs|Fact|12
-Policy/Psylink.cs|Unknown|2
+Policy/Psylink.cs|Fact|4
 Policy/QuestCapacity.cs|Fact|20
 Policy/QuestCapacity.cs|Unknown|4
 Policy/QuestCapacityForecast.cs|Fact|6
@@ -699,8 +697,8 @@ Policy/RemoteHold.cs|Fact|11
 Policy/RemoteHold.cs|Unknown|1
 Policy/RemoteLoot.cs|Fact|8
 Policy/RemoteSalvage.cs|Fact|1
-Policy/ResearchFacts.cs|Fact|29
-Policy/ResearchFacts.cs|Unknown|8
+Policy/ResearchFacts.cs|Fact|17
+Policy/ResearchFacts.cs|Unknown|4
 Policy/ResourceConsumption.cs|Fact|2
 Policy/ResourceConsumption.cs|Unknown|1
 Policy/ResourceDemandOf.cs|Fact|7
@@ -762,7 +760,7 @@ Policy/StoreGeometry.cs|Fact|3
 Policy/StoreIndustry.cs|Fact|1
 Policy/StoreInflow.cs|Fact|6
 Policy/StoreInflow.cs|Unknown|5
-Policy/StoreView.cs|Fact|3
+Policy/StoreView.cs|Fact|1
 Policy/Surgery.cs|Fact|20
 Policy/Surgery.cs|Unknown|3
 Policy/SurgeryParts.cs|Fact|7
@@ -776,8 +774,7 @@ Policy/Throne.cs|Fact|4
 Policy/TitleClaim.cs|Fact|14
 Policy/TitleClaim.cs|Unknown|2
 Policy/TitleClaim.cs|UnknownMember|1
-Policy/Tomb.cs|Fact|11
-Policy/Tomb.cs|Unknown|3
+Policy/Tomb.cs|Fact|6
 Policy/TombCooling.cs|Fact|11
 Policy/TombCooling.cs|Unknown|1
 Policy/TradeFavor.cs|Fact|21
@@ -787,8 +784,7 @@ Policy/TradeMission.cs|Fact|5
 Policy/TradePawn.cs|Fact|6
 Policy/TradeRoutine.cs|Fact|31
 Policy/TradeRoutine.cs|Unknown|3
-Policy/Training.cs|Fact|5
-Policy/Training.cs|Unknown|2
+Policy/Training.cs|Fact|1
 Policy/TreePlantation.cs|Fact|22
 Policy/TreePlantation.cs|Unknown|1
 Policy/TunnelSite.cs|Fact|6

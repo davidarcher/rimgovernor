@@ -28,12 +28,12 @@ public static partial class TrainingRules
     /// The military/training predicate's review (#3259, #3813, #3846): every pawn the practice eligibility rule admits for
     /// Shooting or Melee whose level is under that skill's practice ceiling (colony defense is every capable pawn's). One
     /// Shooting trainee wants a training range; two or more Melee trainees want a sparring ring, one alone having nobody to
-    /// train with. Unlocked ceilings constrain feasibility.
+    /// train with. Unlocked ceilings constrain feasibility. Raises <see cref="RequiredFactException"/> while the work pawns are unread.
     /// </summary>
-    public static Fact<TrainingReview> ReviewTraining(RoundsFacts facts)
+    public static TrainingReview ReviewTraining(RoundsFacts facts)
     {
-        if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return Unknown<TrainingReview>();
-        var shooting = new HashSet<string>(StringComparer.Ordinal); var melee = new HashSet<string>(StringComparer.Ordinal); var unknown = false;
+        if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) throw new RequiredFactException("work pawns");
+        var shooting = new HashSet<string>(StringComparer.Ordinal); var melee = new HashSet<string>(StringComparer.Ordinal);
         foreach (var pawn in pawns)
         {
             var skills = pawn.Skills;
@@ -44,13 +44,6 @@ public static partial class TrainingRules
             }
         }
         var below = shooting.Union(melee.Count >= 2 ? melee : []).Count();
-        if (below == 0 && unknown) return Unknown<TrainingReview>();
-        return Known(new TrainingReview { Capable = pawns.Count, Below = below, ShootingTrainees = shooting.Count, MeleeTrainees = melee.Count });
+        return new TrainingReview { Capable = pawns.Count, Below = below, ShootingTrainees = shooting.Count, MeleeTrainees = melee.Count };
     }
-
-    /// <summary>
-    /// The count the plan's training range (stands) or ring (markers) should hold: the count while the gap is
-    /// open, else 0. A standing one stays and only grows; the plan never retires it.
-    /// </summary>
-    public static int RangesWanted(Fact<int> stands) => stands.TryGetValue(out var n) ? n : 0;
 }

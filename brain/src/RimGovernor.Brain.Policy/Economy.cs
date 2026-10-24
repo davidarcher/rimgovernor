@@ -160,24 +160,15 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
         var needs = f.ResearchNeeds;
         var census = f.Research.TryGetValue(out var read) ? Known(EconomyRules.ResearchSummary(read!)) : Unknown<ResearchFacts>();
         var (target, derived) = ResearchRules.ResearchConcern(needs, census);
-        var (recovered, deficit) = ResearchRules.ResearchTargetNeed(target, derived, census);
         var pick = census.TryGetValue(out var summary) ? summary!.KnowledgePick.Value : "";
-        if (pick.Length != 0 && needs.Count != 0)
-        {
-            // An empty Anomaly knowledge slot with a project to fund is a spending need of its own.
-            recovered = Known(false);
-            deficit = Known(Math.Max(deficit.TryGetValue(out var d) ? d : 0.0, 1.0));
-        }
-        if (!recovered.TryGetValue(out var met))
-        {
-            throw new RequiredFactException("research census");
-        }
+        // An empty Anomaly knowledge slot with a project to fund is a spending need of its own: a full deficit.
+        var (met, deficit) = pick.Length != 0 && needs.Count != 0 ? (false, 1.0) : ResearchRules.ResearchTargetNeed(target, derived, census);
         return new Need
         {
             Id = Research,
             Tier = NeedTier.Development,
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = deficit,
+            Deficit = Known(deficit),
         };
     }
 }

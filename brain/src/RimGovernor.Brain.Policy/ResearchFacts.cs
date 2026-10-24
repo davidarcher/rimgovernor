@@ -33,8 +33,8 @@ public sealed record ResearchFacts
 
 public static partial class ResearchRules
 {
-    /// <summary>Counts observed available workers, preserving incomplete facts.</summary>
-    public static Fact<int> RoundsWorkers(IReadOnlyList<WorkPawn> pawns)
+    /// <summary>Counts the available workers the colony's work applies to.</summary>
+    public static int RoundsWorkers(IReadOnlyList<WorkPawn> pawns)
     {
         var count = 0;
         foreach (var p in pawns)
@@ -44,7 +44,7 @@ public static partial class ResearchRules
                 count++;
             }
         }
-        return Known(count);
+        return count;
     }
 
     /// <summary>
@@ -127,17 +127,18 @@ public static partial class ResearchRules
     /// research tab with the target unfinished is a full deficit. A current native project also recovers a
     /// configured target (player-chosen research is respected, never replaced), but not a derived one:
     /// another goal's ladder waits on that project, so the deficit stands, and the research planner asks the
-    /// clock for ticks while any project is current, until it is finished. Missing facts stay unknown.
+    /// clock for ticks while any project is current, until it is finished. An unread census, or a target the census
+    /// does not list, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static (Fact<bool> Recovered, Fact<double> Deficit) ResearchTargetNeed(string target, bool derived, Fact<ResearchFacts> facts)
+    public static (bool Recovered, double Deficit) ResearchTargetNeed(string target, bool derived, Fact<ResearchFacts> facts)
     {
         if (target == "")
         {
-            return (Known(true), Known(0.0));
+            return (true, 0.0);
         }
         if (!facts.TryGetValue(out var f))
         {
-            return (Unknown<bool>(), Unknown<double>());
+            throw new RequiredFactException("research census");
         }
         var listed = false;
         foreach (var name in f.Projects)
@@ -146,20 +147,20 @@ public static partial class ResearchRules
         }
         if (!listed)
         {
-            return (Unknown<bool>(), Unknown<double>());
+            throw new RequiredFactException("research census");
         }
         foreach (var name in f.Finished)
         {
             if (name.Value == target)
             {
-                return (Known(true), Known(0.0));
+                return (true, 0.0);
             }
         }
         if (f.Current.Value is { Length: > 0 } && !derived && !f.CurrentBenchMissing)
         {
-            return (Known(true), Known(0.0));
+            return (true, 0.0);
         }
-        return (Known(false), Known(1.0));
+        return (false, 1.0);
     }
 
     /// <summary>

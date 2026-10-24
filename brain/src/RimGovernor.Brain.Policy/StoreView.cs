@@ -61,10 +61,10 @@ public sealed partial record StoreView
     public IReadOnlyList<StockpileZone> Zones { get; init; } = [];
 
     /// <summary>The stands the range should hold (see TrainingStands); the Military store asks for a training range while it is open.</summary>
-    public Fact<int> TrainingStands { get; init; }
+    public int TrainingStands { get; init; }
 
     /// <summary>The markers the sparring ring should hold (see TrainingRings); asked while two fighters are below the melee ceiling.</summary>
-    public Fact<int> TrainingRings { get; init; }
+    public int TrainingRings { get; init; }
 }
 
 /// <summary>

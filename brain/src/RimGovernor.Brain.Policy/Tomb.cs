@@ -183,36 +183,30 @@ public static partial class TombRules
         return n;
     }
 
-    /// <summary>The review's tomb deficit: known true while a tomb step is due, unknown while a fact the step reads is.</summary>
-    public static Fact<bool> TombOwed(
+    /// <summary>
+    /// The review's tomb deficit: true while a tomb step is due. Raises <see cref="RequiredFactException"/> while the
+    /// waste census, the current construction, the layout plan or the sarcophagus availability the step reads is unread.
+    /// </summary>
+    public static bool TombOwed(
         PieceShapes shapes,
         Fact<bool> available,
         Fact<LayoutPlan> plan,
-        Fact<RoomObservation> rooms,
         Fact<EquatableArray<WasteItem>> waste,
         CurrentConstruction? built
     )
     {
-        var ak = available.TryGetValue(out var a);
-        var pk = plan.TryGetValue(out var p);
-        var rk = rooms.TryGetValue(out _);
-        var wk = waste.TryGetValue(out var w);
-        if (!wk || built is not { } b)
+        if (!waste.TryGetValue(out var w) || built is not { } b)
         {
-            return Unknown<bool>();
+            throw new RequiredFactException("waste census or current construction");
         }
-        if (!pk)
+        if (!plan.TryGetValue(out var p))
         {
-            return Unknown<bool>();
+            throw new RequiredFactException("layout plan");
         }
-        if (ak && !a)
+        if (!available.TryGetValue(out var a))
         {
-            return Known(NextTombStep(p!, w!, b.Buildings, shapes, false).Kind != TombStepKind.None);
+            throw new RequiredFactException("sarcophagus availability");
         }
-        if (!ak || !rk)
-        {
-            return Unknown<bool>();
-        }
-        return Known(NextTombStep(p!, w!, b.Buildings, shapes, true).Kind != TombStepKind.None);
+        return NextTombStep(p, w, b.Buildings, shapes, a).Kind != TombStepKind.None;
     }
 }

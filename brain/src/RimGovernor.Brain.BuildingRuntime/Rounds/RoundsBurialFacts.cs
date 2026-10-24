@@ -6,7 +6,7 @@ internal static class RoundsBurialFacts
 
     internal static TombStep TombStep(ColonyProjection facts)
     {
-        if (!TombOwed(facts).TryGetValue(out var owed) || !owed)
+        if (!TombOwed(facts))
         {
             return new TombStep();
         }
@@ -16,8 +16,8 @@ internal static class RoundsBurialFacts
         return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction?.Buildings ?? [], facts.Shapes, available);
     }
 
-    internal static Fact<bool> TombOwed(ColonyProjection facts) =>
-        TombRules.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction);
+    internal static bool TombOwed(ColonyProjection facts) =>
+        TombRules.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Facts.Waste, facts.Facts.CurrentConstruction);
 
     internal static Fact<bool> SarcophagusAvailable(ColonyProjection facts)
     {
@@ -68,15 +68,8 @@ internal static class RoundsBurialFacts
         return new RoomDemand { Tomb = tomb, Morgue = morgue };
     }
 
-    internal static Fact<bool> BurialOwed(ColonyProjection facts)
-    {
-        var tk = TombOwed(facts).TryGetValue(out var tomb);
-        if (PlannedMorgue(facts).Owed || MorgueAwaitingRoom(facts) || (tk && tomb))
-        {
-            return Known(true);
-        }
-        return tk ? Known(false) : Unknown<bool>();
-    }
+    internal static Fact<bool> BurialOwed(ColonyProjection facts) =>
+        Known(PlannedMorgue(facts).Owed || MorgueAwaitingRoom(facts) || TombOwed(facts));
 
     internal static (PlannedRoom Room, Fact<bool> Owed) PlannedMealCloset(ColonyProjection facts)
     {

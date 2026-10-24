@@ -60,7 +60,8 @@ public sealed record MilitaryFacts
     /// <summary>An outdoor hazard holds chop, hunt and forage like it holds remote work.</summary>
     public bool HuntingHeld { get; init; }
 
-    public Fact<TrainingReview> Training { get; init; }
+    /// <summary>The training review; null while the family read none, which raises <see cref="RequiredFactException"/> when the Need derives.</summary>
+    public TrainingReview? Training { get; init; }
 
     /// <summary>The colonists' gear census (loadouts, apparel policies, outfits) the equipment Need is judged on.</summary>
     public Fact<GearObservation> Gear { get; init; }
@@ -398,12 +399,9 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         };
     }
 
-    private static Need TrainingNeed(Fact<TrainingReview> review)
+    private static Need TrainingNeed(TrainingReview? review)
     {
-        if (!review.TryGetValue(out var r))
-        {
-            throw new RequiredFactException("training review");
-        }
+        var r = review ?? throw new RequiredFactException("training review");
         return new Need
         {
             Id = Training,
