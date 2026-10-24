@@ -125,7 +125,7 @@ internal static class NativeNeedsForecast
                 PainShockThreshold = HealthStat(pawn, StatDefOf.PainShockThreshold), HealthScale = HealthScaleOf(pawn),
                 IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor),
                 ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
-                PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)),
+                PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)), Disease = NativeDiseaseFacts.ReadPawn(pawn),
                 CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0 });
         }
         var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()

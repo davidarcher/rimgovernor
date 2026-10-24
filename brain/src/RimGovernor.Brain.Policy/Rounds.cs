@@ -374,6 +374,12 @@ public sealed record RoundsFacts
     /// <summary>The catalog's raid factions, hit coverage and natural armor (#3546), read by the harm term; empty without a catalog.</summary>
     public HarmCatalog HarmCatalog { get; init; } = new();
 
+    /// <summary>The catalog's storyteller disease comps, biomes and disease incidents (#3824), read by IllnessSchedule.Of; empty without a catalog.</summary>
+    public DiseaseTable DiseaseTable { get; init; } = new();
+
+    /// <summary>The colony's disease facts (#3824); null when the threat section or its disease read was not observed.</summary>
+    public RimGovernor.Contracts.Wire.Observations.DiseaseFacts? Disease { get; init; }
+
     /// <summary>The void monolith's state; unknown without Anomaly.</summary>
     public Fact<MonolithFacts> Monolith { get; init; }
 

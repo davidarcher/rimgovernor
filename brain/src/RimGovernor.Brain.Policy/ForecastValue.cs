@@ -219,6 +219,8 @@ public static partial class ForecastValue
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         /// <summary>A pawn's raid distributions by what they depend on (#3546): outcomes that share a pawn's outfit and care share one.</summary>
         public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> Harm = new();
+        /// <summary>A pawn's illness distribution by its care (#3824): outcomes that share the care share one.</summary>
+        public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> Illness = new();
         /// <summary>The food need tasks eating a cookable ingredient raw (#3626), by (task, pawn).</summary>
         public readonly Dictionary<(string, string), ForecastNeedTask> RawEats = context.NeedTasks
             .Where(n => n.Kind == "food" && context.CookedNutritionRatio.ContainsKey(n.Resource))
@@ -245,7 +247,7 @@ public static partial class ForecastValue
         ForecastCoupledOutcome? baseline = null, IEnumerable<ForecastCommitment>? commitments = null)
     {
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
-        return Ledger(outcome, context, index, horizon, baseline, HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments),
+        return Ledger(outcome, context, index, horizon, baseline, HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments, index.Illness),
             GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []), commitments);
     }
 
@@ -516,7 +518,7 @@ public static partial class ForecastValue
     internal static HarmDetail? ReferenceHarm(ForecastCoupledOutcome reference, ForecastCoupledContext context, double horizon)
     {
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
-        return HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, null).Detail;
+        return HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, null, index.Illness).Detail;
     }
 
     /// <summary>One outcome's value in the comparison's order (#3723): the floors and what they need now, the rest of the ledger when it is read.</summary>
@@ -558,7 +560,7 @@ public static partial class ForecastValue
                 if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
                 else assessed = false;
             }
-            harm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments);
+            harm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments, index.Illness);
             contributions = GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []);
             UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0);
             BreakRisk = new(assessed, worst);

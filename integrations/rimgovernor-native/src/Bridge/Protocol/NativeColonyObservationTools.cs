@@ -232,6 +232,7 @@ namespace HomeBridge.BridgeTools
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
                     HostileFactions = [.. HostileRaidFactions()],
                     Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
+                    Disease = NativeDiseaseFacts.Read(map),
                 };
                 facts = facts with { Raids = [.. facts.Raids, .. NativeDefenseObservationTools.RaidTracks(map)] };
                 return new Obs.ThreatSection { Observed = facts };

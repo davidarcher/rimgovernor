@@ -650,6 +650,39 @@ public sealed class ForecastValueTests
     }
 
     [Fact]
+    public void AnIllnessAddsItsTermToHarmAndLeavesTheRaidTermUnchanged()
+    {
+        // #3824: a disease a day at 0.1 that halves consciousness from the day it strikes; the raid day is the same in both.
+        var course = new DiseaseCourse
+        {
+            Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, LethalSeverity = 1, Immunizable = new(0.25, 0.2, -0.5), Stages = [Stage(0, Half("Consciousness"))] },
+        };
+        var illness = new IllnessSchedule { Assessed = true, Comps = [(0, 0.1)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, course)] };
+        var pawn = HarmPawn() with { Disease = new() { ImmunityGainSpeed = 1, Contracts = [new("Disease_Flu", 1)] } };
+        ForecastValueResult Value(IllnessSchedule schedule)
+        {
+            var context = Context(pawn, HarmTables(), RaidDay() with { Illness = schedule }, new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = Cloth });
+            return ForecastValue.Of(Outcome(Calm()), context, Day, Outcome(Calm()), null);
+        }
+
+        var without = Value(IllnessSchedule.Of(new DiseaseTable(), null));
+        var with = Value(illness);
+
+        Assert.Null(without.HarmDetail!.Illness);
+        Assert.Contains("illness_unassessed", without.Findings);
+        Assert.Contains("disease_facts_unobserved", without.Findings);
+        Assert.Equal(without.Harm.Value, without.HarmDetail.RaidLoss, 9);
+        Assert.Equal(without.HarmDetail.RaidLoss, with.HarmDetail!.RaidLoss, 9);
+        var term = with.HarmDetail.Illness;
+        Assert.NotNull(term);
+        Assert.Equal(0.1, term!.IncidentsPerDay, 12);
+        Assert.True(term.Loss > 0);
+        Assert.Equal(with.HarmDetail.RaidLoss + term.Loss, with.Harm.Value, 9);
+        Assert.Equal("pawn", Assert.Single(term.Pawns).Pawn);
+        Assert.DoesNotContain("illness_unassessed", with.Findings);
+    }
+
+    [Fact]
     public void TheDeathFloorBreaksWhenTheOutfitRaisesDeathsOverTheReferenceAndHoldsOtherwise()
     {
         var context = HarmContext(Devilstrand);

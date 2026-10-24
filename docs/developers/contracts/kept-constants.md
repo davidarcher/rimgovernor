@@ -164,6 +164,23 @@ not). A home-map comp whose class the decoder does not list as sending no schedu
 fraction by threat points or progress score, and a `CategoryMTB` that sends `ThreatBig` make that storyteller's rate unknown
 (`threat_comp_unmodelled:<class>`). 1.7 has no `StorytellerCompProperties_ThreatCycle`.
 
+## Mirrored game literals: illness (#3824)
+
+`IllnessSchedule` and `IllnessForecast` (`brain/src/RimGovernor.Brain.Policy/Harm/`) mirror the disease rules no def carries. Read with
+ilspycmd (1.7). The comps, biome numbers, incident rules and hediff comps come from the catalog (`Catalog/Disease.cs`).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Disease rate | 1 / (biome `diseaseMtbDays` × difficulty `diseaseIntervalFactor`) a day; none with `enableRandomDiseases` off or the factor ≥ 100 (`IllnessSchedule.DiseaseIntervalFactorCutoff`) | `StorytellerComp_Disease.MakeIntervalIncidents`, `Difficulty.DiseaseIntervalFactorCutoff` |
+| Victim count | uniform integer on `RoundToInt(n × min)` to `RoundToInt(n × max)` (banker's rounding), clamped to [1, `diseaseMaxVictims`], taken from the potential victims in random order | `IncidentWorker_DiseaseHuman.ActualVictims` |
+| Immunity factor | `immunityPerDaySick` × `ImmunityGainSpeed` × `Lerp(0.8, 1.2, seeded rand)` while sick (`IllnessForecast.ImmunityFactorMin`/`Max`) | `ImmunityRecord.ImmunityChangePerTick` |
+| Tend timing | first care, then after `TendTicksBase` (a tend is allowed once only the overlap is left), then every `TendTicksFull`; the comp's getters are read, not copied | `HediffComp_TendDuration.AllowTend`, `CompTended` |
+| Lethal part | a def with `onlyLifeThreateningTo` kills only on those parts, the part drawn by `coverageAbs` among the affected defs' parts | `Hediff.PostMake`, `HediffGiverUtility.TryApply` |
+
+The model's own choices, not game rules: each uniform draw (the not-immune random factor, the per-day range, the Disappears time, the
+immunity factor of a survivor) is a 4-point midpoint grid (`IllnessForecast.GridPoints`); the tend quality is its mean, not the
+per-tend draw.
+
 ## Mirrored game literals: plant resting (#3523)
 
 `PlantResting` (`brain/src/RimGovernor.Brain.Policy/ColonyModel/PlantResting.cs`) mirrors a method-body literal no def carries.

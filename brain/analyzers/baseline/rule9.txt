@@ -599,7 +599,7 @@ Policy/ColonyModel/ColonyModelInput.cs|Fact|75
 Policy/ColonyModel/ColonyModelPolicy.cs|Fact|1
 Policy/ColonyModel/ColonyModelState.cs|Fact|18
 Policy/ColonyModel/ColonyTrajectory.cs|NullableValue|1
-Policy/ColonyModel/ColonyValue.cs|Fact|26
+Policy/ColonyModel/ColonyValue.cs|Fact|25
 Policy/ColonyModel/CropGrowthModel.cs|Fact|15
 Policy/ColonyModel/GoalPaths.cs|Discard|1
 Policy/ColonyModel/GoalPaths.cs|Fact|9
@@ -879,7 +879,7 @@ Policy/GrowerCrop.cs|Fact|9
 Policy/GrowerCrop.cs|ValueOrDefault|2
 Policy/Harm/ArmorResponse.cs|Discard|2
 Policy/Harm/HarmConsequences.cs|Fact|10
-Policy/Harm/HarmLedger.cs|Fact|28
+Policy/Harm/HarmLedger.cs|Fact|27
 Policy/Harm/RaidComposition.cs|Fact|2
 Policy/Harm/RaidComposition.cs|NullableValue|1
 Policy/Harm/RaidExposure.cs|Fact|3

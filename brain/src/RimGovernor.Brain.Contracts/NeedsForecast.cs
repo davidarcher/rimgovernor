@@ -206,12 +206,26 @@ public sealed record NeedsForecastPawn
     /// </summary>
     public Fact<double> ResearchSpeed { get; init; }
     public Fact<double> PlantWorkSpeed { get; init; }
+    /// <summary>The pawn's illness reads (#3824); null when the pawn has no health tracker.</summary>
+    public PawnDiseaseFacts? Disease { get; init; }
     /// <summary>The memories the pawn's ideo gives it on seeing a corpse lying (#3806); empty when none would (no ideo, no such precept, no mood).</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseThoughtRead>))]
     public EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
     /// <summary>The ticks before the read the pawn's sighting record covers (#3806): since its first observer pass, at most two days; 0 with no record.</summary>
     public int SightingTicks { get; init; }
 }
+/// <summary>
+/// What a disease incident's course and victim draw read of one pawn (#3824): <c>StatDefOf.ImmunityGainSpeed</c>, and per DiseaseHuman
+/// incident the chance it takes hold: <c>immunity.DiseaseContractChanceFactor</c> of its hediff for a potential victim, 0 for a pawn
+/// <c>IncidentWorker_Disease.PotentialVictims</c> leaves out.
+/// </summary>
+public sealed record PawnDiseaseFacts
+{
+    public double ImmunityGainSpeed { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DiseaseContract>))]
+    public EquatableArray<DiseaseContract> Contracts { get; init; }
+}
+public sealed record DiseaseContract(string Incident, double Chance);
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> TravelTicks,

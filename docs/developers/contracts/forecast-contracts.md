@@ -345,7 +345,8 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 - `HarmInputs`: `Schedule` (`ThreatSchedule.Of` at the observed storyteller and days passed), `Composition`
   (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `RoundsFacts.HarmCatalog.Raid`), `RaidPoints`,
   `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage` and `Natural` (`HarmCatalog`, from the
-  catalog). Each defaults to unknown. The hediff tables are `CapacityPenalties`.
+  catalog), and `Illness` (`IllnessSchedule.Of` over `RoundsFacts.DiseaseTable` and `RoundsFacts.Disease`; see
+  [illness term](#illness-term-3824)). Each defaults to unknown. The hediff tables are `CapacityPenalties`.
 - `Harm` = raids per day (major threats per day × raid fraction) × horizon days × Σ over the outcome's pawns of
   (1 − `HarmRiskWeight`) × E + `HarmRiskWeight` × CVaR`HarmRiskAlpha` of `HarmConsequences.Of` for the pawn. Its inputs are
   `RaidExposure.HitsPerColonist(points ÷ DefenseCapacity, role)` and `ArmorResponseRules.OfOutfit` of the pawn's outfit. The role
@@ -359,11 +360,12 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 - Unknown, with the specific finding and no `harm_capability_unassessed`, when an input is: `threat_schedule_unknown` (with the
   schedule's own finding), `raid_composition_unknown` (with the composition's), `raid_points_unobserved`,
   `defense_capacity_unobserved`, `exposure_cell_uncalibrated:<bin>/<role>`, `outfit_unobserved:<pawn>`,
-  `capacities_unobserved:<pawn>`, and `HarmConsequences`' own. A known term still reports `other_threats_unassessed`,
+  `capacities_unobserved:<pawn>`, and `HarmConsequences`' own. A known term adds the illness term's loss and still reports
+  `other_threats_unassessed` (the threats other than raids and disease),
   `adaptation_feedback_unassessed`, `fire_unassessed` and `exposure_layout_unassessed`. An unknown `Harm` makes `Total` unknown;
   a comparison still uses the terms both sides assess (`LossAgainst`).
 - `ForecastValueExplanation.Death` is assessed when the outcome's and the reference's `Harm` are: its excess is the expected deaths per
-  day (raids per day × Σ death probability) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
+  day (`HarmDetail.DeathsPerDay`: raids per day × Σ death probability, plus the illness term's deaths per day) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
   worn outfits. `CompareConsequences` ranks the floors urgent zero, death, break risk, in that order, before the ledger.
 - The search evaluates an outcome in that order (#3723): `ForecastValue.Stage` prices the urgent-zero time, the harm term and death
   excess, the break-risk excess and the goal terms at evaluation, and the remaining ledger terms on the first read of the
@@ -386,9 +388,50 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   `ForecastSearchPhase.Pruned` counts the skipped subsets. A partial portfolio's own value is never a bound on its completions,
   and no bound exists for the death and break-risk floors, the ledger or the tiebreaks. The unpruned search is the test control
   `CompareActivityOutcomesUnpruned`; it ranks the same selection, vectors and findings.
-- `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`) is reported
-  as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
+- `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`, `raid_loss`,
+  `illness`) is reported as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
   a served review reports `exposure_cell_uncalibrated:…` and `harm` null.
+
+### Illness term (#3824)
+
+The harm term's disease part: how many `DiseaseHuman` incidents a day the storyteller sends, which disease each is, and what its course
+costs each pawn.
+
+- Native reads, read-only (`NativeDiseaseFacts`; never `IncidentWorker.CanFireNow` or `BiomeDef.CommonalityOfDisease`):
+  `ThreatFacts.Disease` (`DiseaseFacts`: storyteller and the map tile's primary biome by def name, `DebugSettings.enableRandomDiseases`,
+  the difficulty's `diseaseIntervalFactor`, `GenDate.DaysPassedSinceSettleFloat`, the victim candidates (`FreeColonistsAndPrisoners`
+  outside a biosculpter pod), the free colonists the `minPopulation` gate counts, and per `DiseaseHuman` incident its potential victims
+  (`IncidentWorker_Disease.PotentialVictims`) and `Blocked` (`scenario`, `difficulty`, `planet_layer`)), and per needs pawn
+  `NeedsForecastPawn.Disease` (`PawnDiseaseFacts`: `ImmunityGainSpeed` and, per incident, `DiseaseContractChanceFactor` of its hediff,
+  0 for a pawn that is no potential victim). `ColonyThreat.Disease` carries the read to `RoundsFacts.Disease`.
+- `RoundsFacts.DiseaseTable` (`DiseaseTable`, `Catalog/Disease.cs`): per storyteller its home-map `StorytellerCompProperties_Disease`
+  comps of `DiseaseHuman` (their `minDaysPassed`; any other comp that can send the category is unmodelled), per biome its
+  `diseaseMtbDays` and commonalities (its own records, then the incidents' `diseaseBiomeRecords`), and per incident its victim rules,
+  gates and its hediff's course (`DiseaseCourse`: the penalty table, severity clamp, `SeverityPerDay` range, not-immune random factor,
+  `TendDuration` timing and cure, the lethal part share by coverage of `onlyLifeThreateningTo`, `DestroyOrgan`). A hediff comp, stage
+  death MTB, hediff giver or reversing severity the course does not model makes it unmodelled.
+- `IllnessSchedule.Of(table, facts)`: each comp's rate 1 ÷ (biome MTB × interval factor) a day from its `minDaysPassed` (none with
+  random diseases off or the factor at the 100 cutoff); the usable incidents (home map, `earliestDay` on whole days since settling,
+  biome lists, `minPopulation`, not `Blocked`, a potential victim, commonality > 0), each with its share of the commonality and
+  `VictimChance` (the drawn count uniform on `RoundToInt` of candidates × the fraction range, clamped to [1, `diseaseMaxVictims`],
+  over the potential victims). Unassessed with `disease_facts_unobserved`, `disease_storyteller_unknown:<def>`,
+  `disease_comp_unmodelled:<classes>`, `disease_biome_unknown:<def>`, `disease_rate_invalid`, `disease_incident_unknown:<def>`,
+  `disease_victims_unobserved:<def>`, `disease_course_unmodelled:<hediff>:<what>` or `disease_course_unknown:<def>`.
+- `IllnessForecast.Of(schedule, pawn, …)`: a `HarmDistribution` of one incident for the pawn, each disease weighted by share ×
+  victim chance × contract chance and the rest a point at 0. The course walks severity from its initial value under the
+  Immunizable, SeverityPerDay and tended rates (tended from the support's first care at its tend quality, retended as the
+  TendDuration comp allows), ending at 0, the Disappears time, the cure tend quality, the lethal severity on a threatened part, or the
+  max severity with `DestroyOrgan`. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
+  Deaths cost the horizon's rest plus `DeathTerminalValue`; survivors their capability-days. `PatientDays` (days from first care to
+  the end) and `Treatments` (tends) are its expectations. Unknown with `illness_unobserved:<pawn>`, `capacities_unobserved:<pawn>`,
+  `capacity_penalty_table_unknown:MovingMinForCapable` or `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
+  out: `illness_untended`, `illness_bed_immunity_unassessed` (the bed's `ImmunityGainSpeedFactor` and an earlier immunity record),
+  `disease_organ_loss_unpriced:<hediff>`, `disease_part_efficiency_unpriced:<hediff>`, `disease_severity_factors_unpriced:<hediff>`.
+- `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
+  — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when unassessed; the term's loss is
+  then `HarmDetail.RaidLoss` alone with `illness_unassessed` and the reason. `ColonyValue`'s raid loss reads `RaidLoss`, so its
+  doctor and medicine prices leave illness out (#3829). Mirrored literals:
+  [kept constants](kept-constants.md#mirrored-game-literals-illness-3824).
 
 ### Threat schedule (#3539)
 

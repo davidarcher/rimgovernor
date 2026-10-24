@@ -21,6 +21,15 @@ public sealed record HarmDistribution
 
     public double DeathProbability { get; init; }
 
+    /// <summary>
+    /// The expected days in care of one event: from first care to healed, dead or the horizon (H5 of #3804). The illness forecast
+    /// fills it (<see cref="IllnessForecast"/>); a raid distribution reports 0 until the hospital credit (#3804) prices raid patient-days.
+    /// </summary>
+    public double PatientDays { get; init; }
+
+    /// <summary>The expected tends of one event; filled by the illness forecast (a raid's treatments are <see cref="HarmConsequences.Treatments"/>).</summary>
+    public double Treatments { get; init; }
+
     public IReadOnlyList<string> Findings { get; init; } = [];
 }
 
@@ -140,6 +149,21 @@ public static class HarmConsequences
     }
 
     private static HarmDistribution Unknown(SortedSet<string> findings) => new() { Findings = [.. findings] };
+
+    /// <summary>The care an outcome's support gives a patient: tended, the tend quality and the days to first care, and the services it is the mean over.</summary>
+    internal readonly record struct Care(bool Tended, double Quality, double FirstCareDays, int Services);
+
+    /// <summary>
+    /// Tended only when the outcome serves the care (a service, its tend quality observed); the quality the support sums over its
+    /// services is their mean; first care is <see cref="ForecastSupportConsequences.FirstCareTicks"/>.
+    /// </summary>
+    internal static Care CareOf(ForecastSupportConsequences? support)
+    {
+        var services = support is null || support.CareServices.Length == 0 ? 0 : support.CareServices.Split(';').Length;
+        return support is not null && services > 0 && support.TendQuality.TryGetValue(out var quality)
+            ? new Care(true, Math.Clamp(quality / services, 0, 1), Math.Max(0, support.FirstCareTicks) / GameTime.TicksPerDay, services)
+            : new Care(false, 0, double.PositiveInfinity, services);
+    }
 
     // TendUtility.GetOptimalHediffsToTendWithSingleTreatment: with medicine, one treatment tends the first injury and each further
     // injury while their summed severity stays at or under 20 (TendUtility.DoTend uses up one medicine per treatment). Kept: see
@@ -332,17 +356,16 @@ public static class HarmConsequences
             firstCareDays = double.PositiveInfinity;
             careRoomFactor = 1;
 
-            // Tended only when the outcome serves the care (a service, its tend quality observed); the quality and room factor
-            // the support sums over its services are their mean.
-            var services = support is null || support.CareServices.Length == 0 ? 0 : support.CareServices.Split(';').Length;
-            if (support is not null && services > 0 && support.TendQuality.TryGetValue(out var quality))
+            // The room factor the support sums over its services is their mean, like the quality (CareOf).
+            var care = CareOf(support);
+            if (care.Tended)
             {
                 tended = true;
-                tendQuality = Math.Clamp(quality / services, 0, 1);
-                firstCareDays = Math.Max(0, support.FirstCareTicks) / GameTime.TicksPerDay;
-                if (support.CareRoomFactor.TryGetValue(out var room))
+                tendQuality = care.Quality;
+                firstCareDays = care.FirstCareDays;
+                if (support!.CareRoomFactor.TryGetValue(out var room))
                 {
-                    careRoomFactor = Math.Max(0, room / services);
+                    careRoomFactor = Math.Max(0, room / care.Services);
                 }
                 else
                 {

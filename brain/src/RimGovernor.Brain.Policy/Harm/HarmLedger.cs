@@ -33,7 +33,10 @@ public sealed record HarmInputs
     public BodyCoverage Coverage { get; init; } = new();
     public NaturalArmor Natural { get; init; } = new();
 
-    /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points.</summary>
+    /// <summary>The colony's disease incidents (<see cref="IllnessSchedule.Of"/>, #3824); unassessed by default.</summary>
+    public IllnessSchedule Illness { get; init; } = new();
+
+    /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts.</summary>
     internal static HarmInputs Of(RoundsFacts facts) => new()
     {
         Schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed),
@@ -44,6 +47,7 @@ public sealed record HarmInputs
         DefenseCapacity = facts.DefenseCapacity,
         Coverage = facts.HarmCatalog.Coverage,
         Natural = facts.HarmCatalog.Natural,
+        Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
     };
 }
 
@@ -53,8 +57,14 @@ public sealed record HarmInputs
 /// </summary>
 public sealed record HarmDetail(double RaidsPerDay, double ExposureLo, double ExposureHi, double DownProbability, double DeathProbability, double Cvar)
 {
-    /// <summary>Expected pawn deaths per day: the death floor's measure.</summary>
-    public double DeathsPerDay => RaidsPerDay * DeathProbability;
+    /// <summary>The raids' part of the term's loss, in capability-days over the horizon.</summary>
+    public double RaidLoss { get; init; }
+
+    /// <summary>The illness part (#3824); null when it is unassessed (the term then holds the raids alone, with an <c>illness_unassessed</c> finding).</summary>
+    public IllnessTerm? Illness { get; init; }
+
+    /// <summary>Expected pawn deaths per day, from raids and illness: the death floor's measure.</summary>
+    public double DeathsPerDay => RaidsPerDay * DeathProbability + (Illness?.DeathsPerDay ?? 0);
 }
 
 /// <summary>The harm term of one outcome: the loss in capability-days (unknown with <see cref="Findings"/> saying why) and the detail behind it.</summary>
@@ -67,7 +77,10 @@ internal sealed record HarmTerm(Fact<double> Loss, HarmDetail? Detail, IReadOnly
 /// The risk transform is (1 − w) × E + w × CVaRα with the policy's <see cref="ForecastValuePolicy.HarmRiskWeight"/> and
 /// <see cref="ForecastValuePolicy.HarmRiskAlpha"/>. Unknown, with the specific finding, when any input is. A raid is counted
 /// at its whole-horizon loss wherever it falls in the horizon, and the horizon's days of raids are the schedule's expectation
-/// at the observed days passed.
+/// at the observed days passed. The illness term (#3824, <see cref="IllnessForecast"/>) adds disease incidents per day × horizon
+/// days × Σ over pawns of the same risk transform of one incident's loss; its deaths join the raids' in
+/// <see cref="HarmDetail.DeathsPerDay"/>. An unassessed illness leaves the raids' loss alone with <c>illness_unassessed</c> and
+/// the reason; <c>other_threats_unassessed</c> covers the threats other than raids and disease.
 /// </summary>
 internal static class HarmLedger
 {
@@ -79,20 +92,23 @@ internal static class HarmLedger
 
     /// <summary>The harm of <paramref name="outcome"/> wearing the worn outfits changed by <paramref name="commitments"/>.</summary>
     internal static HarmTerm Of(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments)
+        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
+        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? illnessCache = null)
     {
         var inputs = context.Harm;
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var complete = true;
         var days = horizon / GameTime.TicksPerDay;
         var raidsPerDay = 0.0;
+        var ordered = outcome.Needs.Keys.ToArray();
+        Array.Sort(ordered, StringComparer.Ordinal);
         if (inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && inputs.Schedule.RaidFraction.TryGetValue(out var raidShare))
         {
             raidsPerDay = threats * raidShare;
             if (raidsPerDay == 0)
             {
-                // A schedule with no raids to expect has no harm to price, whatever else is unobserved.
-                return new(Known(0d), new HarmDetail(0, 0, 0, 0, 0, 0), []);
+                // A schedule with no raids to expect has no raid harm to price, whatever else is unobserved; illness is priced alone.
+                return WithIllness(new HarmDetail(0, 0, 0, 0, 0, 0), ordered, outcome, context, horizon, pawns, illnessCache, findings);
             }
         }
         else
@@ -125,8 +141,6 @@ internal static class HarmLedger
         }
 
         complete &= !double.IsNaN(ratio);
-        var ordered = outcome.Needs.Keys.ToArray();
-        Array.Sort(ordered, StringComparer.Ordinal);
         if (ordered.Length == 0)
         {
             complete = false;
@@ -206,7 +220,19 @@ internal static class HarmLedger
         }
 
         findings.UnionWith(Unmodelled);
-        return new(Known(raidsPerDay * days * risked), new HarmDetail(raidsPerDay, lo, hi, down, death, cvar), [.. findings]);
+        return WithIllness(new HarmDetail(raidsPerDay, lo, hi, down, death, cvar) { RaidLoss = raidsPerDay * days * risked }, ordered, outcome, context, horizon, pawns, illnessCache, findings);
+    }
+
+    /// <summary>
+    /// The term of a known raid part with the illness part added (#3824): the loss is the raids' plus the illness's, priced alike;
+    /// an unassessed illness leaves the raids' alone with its findings.
+    /// </summary>
+    private static HarmTerm WithIllness(HarmDetail raids, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
+        IReadOnlyDictionary<string, NeedsForecastPawn> pawns, ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
+    {
+        var illness = IllnessForecast.Term(context.Harm.Illness, ordered, pawns, context.CapacityPenalties, outcome.Support, context.Value, horizon, cache, findings);
+        var detail = raids with { Illness = illness };
+        return new(Known(detail.RaidLoss + (illness?.Loss ?? 0)), detail, [.. findings]);
     }
 
     /// <summary>

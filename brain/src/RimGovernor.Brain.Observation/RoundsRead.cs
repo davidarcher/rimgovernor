@@ -150,6 +150,7 @@ public static class RoundsReads
                 Recipes = catalog.RecipeFacts(),
                 CapacityPenalties = catalog.CapacityPenalties(),
                 ThreatTable = catalog.ThreatSchedule(),
+                DiseaseTable = catalog.DiseaseTable(),
                 HarmCatalog = new() { Raid = catalog.RaidFactions(), Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() },
                 MoodBreak = p.Stations.Mood.Break,
                 ResearchBenchSpeeds = catalog.ResearchBenchSpeeds(),

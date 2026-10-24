@@ -56,6 +56,10 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     // The raid tending term's own cache: its raids are priced over the whole horizon, the apparel's over a day, and the keys omit it.
     private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> raidCache = new();
 
+    // The illness distributions of the two horizons (#3824), each by pawn and care.
+    private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> raidIllness = new();
+    private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> dailyIllness = new();
+
     // The colony's raid harm a day at a tend quality (-1: untended), with the harm model's findings.
     private readonly Dictionary<double, HarmTerm> raidLoss = [];
 
@@ -265,11 +269,12 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = RaidCare, TendQuality = Known(quality) };
             var needs = rows.Keys.ToDictionary(p => p, _ => NoNeeds, StringComparer.Ordinal);
             var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), needs, []) { Support = support };
-            raidLoss[quality] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, raidCache, rows, null);
+            raidLoss[quality] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, raidCache, rows, null, raidIllness);
         }
 
+        // The raids' part alone: illness in the doctor's and the medicine's value is #3829.
         findings.UnionWith(term.Findings);
-        return term.Loss.TryGetValue(out var loss) ? Known(loss / horizonDays) : default;
+        return term.Detail is { } detail ? Known(detail.RaidLoss / horizonDays) : default;
     }
 
     /// <summary>
@@ -481,6 +486,6 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
 
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { [pawn] = NoNeeds }, []);
         return losses[(pawn, outfit)] = HarmLedger.Of(outcome, context, GameTime.TicksPerDay, harmCache, rows,
-            [new ForecastCommitment("apparel", default) { OutfitChanges = [new(pawn, outfit)] }]).Loss;
+            [new ForecastCommitment("apparel", default) { OutfitChanges = [new(pawn, outfit)] }], dailyIllness).Loss;
     }
 }

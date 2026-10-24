@@ -178,6 +178,16 @@ public sealed partial class Rounder
         {
             ["raids_per_day"] = detail.RaidsPerDay, ["exposure_range"] = new[] { detail.ExposureLo, detail.ExposureHi },
             ["down_probability"] = detail.DownProbability, ["death_probability"] = detail.DeathProbability, ["cvar"] = detail.Cvar,
+            ["raid_loss"] = detail.RaidLoss,
+            ["illness"] = detail.Illness is { } illness ? new Dictionary<string, object?>
+            {
+                ["incidents_per_day"] = illness.IncidentsPerDay, ["loss"] = illness.Loss, ["patient_days_per_day"] = illness.PatientDaysPerDay,
+                ["tends_per_day"] = illness.TendsPerDay, ["deaths_per_day"] = illness.DeathsPerDay,
+                ["pawns"] = illness.Pawns.Select(p => new Dictionary<string, object?>
+                {
+                    ["pawn"] = p.Pawn, ["patient_days_per_day"] = p.PatientDaysPerDay, ["tends_per_day"] = p.TendsPerDay, ["deaths_per_day"] = p.DeathsPerDay,
+                }).ToArray(),
+            } : null,
         } : null, ["investment"] = Number(value.Ledger.Investment),
         ["investment_contributions"] = value.Ledger.InvestmentContributions.Select(c => new Dictionary<string, object?> { ["activity"] = c.Activity, ["pawn"] = c.Pawn, ["key"] = c.Key, ["units"] = c.Units, ["value"] = c.Value }).ToArray(),
         ["goals"] = Number(value.Ledger.Goals),

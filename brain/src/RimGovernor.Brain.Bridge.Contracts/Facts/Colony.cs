@@ -36,6 +36,9 @@ public sealed record ColonyThreat
     /// <summary>The hostile lords seen on the map since load.</summary>
     public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
 
+    /// <summary>The colony's disease facts (#3824), as native read them; null when unread.</summary>
+    public DiseaseFacts? Disease { get; init; }
+
     /// <summary>Reads the threat section of a census.</summary>
     public static ColonyThreat ProjectColonyThreat(ColonyFactsSnapshot census)
     {
@@ -61,6 +64,7 @@ public sealed record ColonyThreat
             Storyteller = string.IsNullOrEmpty(facts.Storyteller) ? Unknown<string>() : Known(facts.Storyteller),
             DaysPassed = Number(facts.DaysPassed),
             Raids = DefenseSiteRules.DecodeRaidTracks(facts.Raids),
+            Disease = facts.Disease,
         };
     }
 }

@@ -6276,6 +6276,47 @@ public sealed record ThreatFacts
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<RaidTrack>))]
     public EquatableArray<RaidTrack> Raids { get; init; }
+
+    /// <summary>What the storyteller's disease comps read of the colony now (#3824); absent when the native read did not run.</summary>
+    public DiseaseFacts? Disease { get; init; }
+}
+
+/// <summary>
+/// The colony facts StorytellerComp_Disease and IncidentWorker_DiseaseHuman read (#3824). Read-only: the storyteller and the
+/// map's biome by def name, DebugSettings.enableRandomDiseases, the difficulty's diseaseIntervalFactor,
+/// GenDate.DaysPassedSinceSettleFloat, the incident's victim candidates (the map's free colonists and prisoners outside a
+/// biosculpter pod) and the free colonists the minPopulation gate counts, and one row per DiseaseHuman incident.
+/// </summary>
+public sealed record DiseaseFacts
+{
+    public string Storyteller { get; init; } = "";
+
+    public string Biome { get; init; } = "";
+
+    public bool RandomDiseases { get; init; }
+
+    public double IntervalFactor { get; init; }
+
+    public double DaysSinceSettle { get; init; }
+
+    public int Candidates { get; init; }
+
+    public int FreeColonists { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DiseaseIncidentRead>))]
+    public EquatableArray<DiseaseIncidentRead> Incidents { get; init; }
+}
+
+/// <summary>
+/// One DiseaseHuman incident on the map now: Potential is the count of its potential victims (IncidentWorker_Disease.PotentialVictims:
+/// not in cryptosleep, not a dryad, its development stage, a free affected part, flesh); Blocked names the game-state gates of
+/// IncidentWorker.CanFireNow that hold now (<c>scenario</c>: a ScenPart_DisableIncident, <c>difficulty</c>: disabledWhen,
+/// <c>planet_layer</c>: the layer lists).
+/// </summary>
+public sealed record DiseaseIncidentRead(string Incident, int Potential)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Blocked { get; init; }
 }
 
 public sealed record ThreatSection
