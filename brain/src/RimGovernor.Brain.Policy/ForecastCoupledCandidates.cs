@@ -26,6 +26,10 @@ public sealed partial record ForecastCoupledCandidates
         return roles;
     }
 
+    /// <summary>The layout plan's rooms by id (#3800): the planned shelters, a room id once.</summary>
+    internal static Dictionary<int, PlannedRoom> LayoutRoomsOf(RoundsFacts facts) =>
+        facts.PlannedShelters.Where(r => r.Id > 0).GroupBy(r => r.Id).ToDictionary(g => g.Key, g => g.First());
+
     public static RoundsFacts ReviewCoupledActivities(RoundsFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
 
     public static ForecastCoupledCandidates? GenerateCoupledActivities(RoundsFacts facts, double horizon = GameTime.TicksPerDay)
@@ -351,6 +355,10 @@ public sealed partial record ForecastCoupledCandidates
             PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
                 pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,
             OwedWork = owedWork,
+            LayoutRooms = LayoutRoomsOf(facts),
+            Filth = facts.Filth,
+            ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
+            LaboratoryBench = facts.LaboratoryBench,
             InitialLots = EquatableArray.From(lots),
             FoodUses = read.FoodUses,
             Bindings = bindings,

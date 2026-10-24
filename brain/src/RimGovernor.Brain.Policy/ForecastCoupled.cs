@@ -85,6 +85,15 @@ public sealed record ForecastCoupledContext
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
+    /// <summary>The layout plan's rooms by id (RoundsFacts.PlannedShelters, #3800): what a planned room's predicted
+    /// cleanliness reads beside its closure prediction (PlannedRoomCleanlinessRules.Steady).</summary>
+    public IReadOnlyDictionary<int, PlannedRoom> LayoutRooms { get; init; } = new Dictionary<int, PlannedRoom>();
+    /// <summary>The catalog's filth model (RoundsFacts.Filth) a planned room's predicted cleanliness reads (#3797, #3800).</summary>
+    public FilthModel Filth { get; init; } = new();
+    /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (RoundsFacts.ResearchBenchSpeeds, #3800).</summary>
+    public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+    /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
+    public string LaboratoryBench { get; init; } = "";
     /// <summary>The days a served room's credit runs to (#3655, #3796): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
     /// set beside <see cref="Investment"/>; 0 before tier 2 ran, which credits nothing.</summary>
     public double InvestmentHorizonDays { get; init; }

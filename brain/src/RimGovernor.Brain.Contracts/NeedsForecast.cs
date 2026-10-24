@@ -19,12 +19,17 @@ public sealed record NeedsForecastRead
     /// <summary>The DeteriorationRate stat's StatPart_EnvironmentalEffects def data (#3339); null when the stat has no such part.</summary>
     public NeedDeteriorationPart? Deterioration { get; init; }
     /// <summary>
-    /// <c>StatDefOf.ResearchSpeedFactor</c> of every spawned research bench with power (or none needed), in bench id order: the benches a
-    /// researcher can work at whatever the current project is (#3567). Empty means none observed.
+    /// Every spawned research bench with power (or none needed), in bench id order: the benches a researcher can work at whatever
+    /// the current project is (#3567), each with its <c>StatDefOf.ResearchSpeedFactor</c> now (#3800). Empty means none observed.
     /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
-    public EquatableArray<double> ResearchBenchFactors { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchBenchRead>))]
+    public EquatableArray<ResearchBenchRead> ResearchBenches { get; init; }
 }
+/// <summary>
+/// One research bench now (#3567, #3800): its thing id (the research activities' bench), its def, its Position cell (the
+/// cell whose room its stat parts read) and its <c>StatDefOf.ResearchSpeedFactor</c> with every part applied.
+/// </summary>
+public sealed record ResearchBenchRead(string Bench, string Def, Cell Position, double Factor);
 /// <summary>StatPart_EnvironmentalEffects fields (factorOffsetUnroofed, factorOffsetOutdoors, protectedByEdificeFactor), def data.</summary>
 public sealed record NeedDeteriorationPart(double UnroofedOffset, double OutdoorsOffset, double ProtectedFactor);
 /// <summary>

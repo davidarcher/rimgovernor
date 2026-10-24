@@ -82,7 +82,7 @@ internal static class ColonyModelFixtures
             NeedsAlternatives = new ForecastNeedsReview(new NeedsForecastRead
             {
                 Pawns = [Pawn()],
-                ResearchBenchFactors = [1.0],
+                ResearchBenches = [new("bench", "SimpleResearchBench", new(0, 0), 1.0)],
             }, new Dictionary<string, ForecastNeedsCandidates>()),
             WorkAdmission = new WorkAdmissionObservation
             {

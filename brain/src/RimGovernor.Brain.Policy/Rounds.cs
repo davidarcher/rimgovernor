@@ -129,6 +129,15 @@ public sealed record RoundsFacts
     /// <summary>The catalog's mood-break curve: the mean days each tier's break takes its colonist out of work, which prices break risk in capability-days (#3520); unknown (empty tiers) without a catalog.</summary>
     public MoodBreakModel MoodBreak { get; init; } = new();
 
+    /// <summary>Per research bench def, its ResearchSpeedFactor as the def data states it (DefinitionCatalog.ResearchBenchSpeeds, #3800); empty without a catalog.</summary>
+    public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+
+    /// <summary>The bench a planned laboratory is furnished with (RoomFurniture.BenchFor of Laboratory, #3800); "" without a catalog.</summary>
+    public string LaboratoryBench { get; init; } = "";
+
+    /// <summary>The catalog's filth model (StationCatalog.Filth) a planned room's predicted cleanliness reads (#3797, #3800); the zero model without a catalog.</summary>
+    public FilthModel Filth { get; init; } = new();
+
     /// <summary>The hospital's animal ward; unread (the zero value) until the layout exposes it, which keeps sterilize off.</summary>
     public AnimalWard AnimalWard { get; init; } = new();
 

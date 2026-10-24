@@ -125,13 +125,14 @@ internal static class NativeNeedsForecast
                 ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
                 PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)) });
         }
-        var benchFactors = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
+        var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
             .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
-            .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Select(b => (double)b.GetStatValue(StatDefOf.ResearchSpeedFactor)).ToArray();
+            .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal)
+            .Select(b => new Obs.ResearchBenchRead(b.GetUniqueLoadID(), b.def.defName, new(b.Position.x, b.Position.z), b.GetStatValue(StatDefOf.ResearchSpeedFactor))).ToArray();
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
-            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenchFactors = EquatableArray.From(benchFactors) };
+            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches) };
     }
     /// <summary>The cell's roof and room as Need_Outdoors, the undergrounder workers, ApplyBedThoughts and SteadyEnvironmentEffects read them (#3339).</summary>
     internal static Obs.NeedCell CellAt(Map map, IntVec3 cell)

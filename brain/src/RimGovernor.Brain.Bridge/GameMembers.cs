@@ -58,6 +58,12 @@ public static class GameMembers
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "roomStat")]
     public static extern ref RoomStatDef RoomStat(StatPart_RoomStat part);
 
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "factorIndoors")]
+    public static extern ref float FactorIndoors(StatPart_Outdoors part);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "factorOutdoors")]
+    public static extern ref float FactorOutdoors(StatPart_Outdoors part);
+
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "buildingTagsSet")]
     public static extern ref HashSet<string>? ForbiddenBuildingTagsSet(RoomRequirement_ForbiddenBuildings requirement);
 

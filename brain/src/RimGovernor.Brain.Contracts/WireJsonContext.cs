@@ -628,6 +628,8 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.FoodStock>), TypeInfoPropertyName = "EquatableArrayObservationsFoodStock")]
 [JsonSerializable(typeof(Observations.PatientForecast), TypeInfoPropertyName = "ObservationsPatientForecast")]
 [JsonSerializable(typeof(Observations.NeedsForecastRead))]
+[JsonSerializable(typeof(Observations.ResearchBenchRead))]
+[JsonSerializable(typeof(EquatableArray<Observations.ResearchBenchRead>))]
 [JsonSerializable(typeof(Observations.NeedsForecastPawn))]
 [JsonSerializable(typeof(Observations.SkillLevelMechanics))]
 [JsonSerializable(typeof(Observations.ProductiveSkillWork))]

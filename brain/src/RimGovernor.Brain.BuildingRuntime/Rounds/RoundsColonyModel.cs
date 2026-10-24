@@ -258,7 +258,7 @@ internal static class RoundsColonyModel
     }
 
     /// <summary>The research benches the needs read counts, whatever the current project is; unknown without the read.</summary>
-    private static Fact<int> BenchesOf(NeedsForecastRead? read) => read is null ? Unknown<int>() : Known(read.ResearchBenchFactors.Count);
+    private static Fact<int> BenchesOf(NeedsForecastRead? read) => read is null ? Unknown<int>() : Known(read.ResearchBenches.Count);
 
     /// <summary>The nutrition of the food stacks the colony can eat; unknown while the food census is incomplete or a stack's nutrition is.</summary>
     private static Fact<double> NutritionOf(Fact<FoodSupply> supply) => supply.TryGetValue(out var food) ? ForecastStockScope.Nutrition(food) : default;
@@ -312,7 +312,7 @@ internal static class RoundsColonyModel
         }
 
         // The best bench is the one the researcher takes, so the bench factor joins the pawn's stat here, as the points a tick at speed 1 does in the model.
-        var bestBench = review.Observation.ResearchBenchFactors.Count == 0 ? Unknown<double>() : Known(review.Observation.ResearchBenchFactors.Max());
+        var bestBench = review.Observation.ResearchBenches.Count == 0 ? Unknown<double>() : Known(review.Observation.ResearchBenches.Max(b => b.Factor));
         var pawns = new List<ModelPawn>();
         foreach (var pawn in review.Observation.Pawns)
         {

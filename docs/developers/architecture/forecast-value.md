@@ -443,6 +443,18 @@ A room any of whose occupants' stage, bed, observed thoughts or mood is unread, 
 `bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. A bedroom with no occupant, or one
 not served before tier 2's horizon, pays its material with no credit and waits.
 
+*Laboratory credit (#3800).* A planned lab the outcome serves is credited through the same seam (`ForecastLaboratory.LaboratoryCredit`)
+under `lab/<room>/<pawn>`: the research speed the closed room gives the bench. `BenchSpeedModel` (the bridge's
+`DefinitionCatalog.ResearchBenchSpeeds`, from each research bench def's `ResearchSpeedFactor` statBases, the stat's parts and its
+minValue) evaluates the bench in the closed room, indoors, at the prediction's role and its `PlannedRoomCleanlinessRules.Steady`
+cleanliness. A research bench standing in the room is compared with its observed factor (`NeedsForecastRead.ResearchBenches`) and
+gains the research its researchers do at it; with none standing, the room's planned bench (`LaboratoryBench`) is compared with
+that bench placed outdoors (no proper room, unroofed) and gains all of the schedule's research. Per day each research allocation
+earns its points over the horizon's days / its bench's factor now × the factor gain × `Investment`'s value of a point of its
+project. No research allocation of a valued project earns nothing. The temperature part and the bookcase reading bonus are held at
+1 and facility offsets (multi-analyzer) are not modelled. A room with no closure prediction, an unread prediction or filth model,
+an unread stat part, or a research bench without a bench row or model is named `lab_credit_unassessed:<room>`.
+
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from
 station facts alone (`BedroomGainFacts.Of`, which the clustering's bed merge also reads): `ForecastHousing.BedroomGain` runs the

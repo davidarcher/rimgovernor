@@ -134,7 +134,7 @@ public sealed class ColonyModelInputTests
     {
         var review = projection.Facts.NeedsAlternatives!;
         var pawn = review.Observation.Pawns[0] with { ResearchSpeed = Known(researchSpeed), PlantWorkSpeed = Known(plantWorkSpeed) };
-        var observation = review.Observation with { Pawns = [pawn], ResearchBenchFactors = EquatableArray.From(benchFactors) };
+        var observation = review.Observation with { Pawns = [pawn], ResearchBenches = EquatableArray.From(benchFactors.Select((factor, i) => new RimGovernor.Contracts.Wire.Observations.ResearchBenchRead("bench" + i, "SimpleResearchBench", new(i, 0), factor))) };
         return projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = observation } } };
     }
 
