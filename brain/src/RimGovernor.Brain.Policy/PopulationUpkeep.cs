@@ -281,7 +281,7 @@ public static partial class PopulationRules
     /// when the prisoner does not already have it. A legless prisoner is not released: vanilla cannot release
     /// a downed pawn.
     /// </summary>
-    internal static PrisonerInteractionMode? PrisonerUse(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
+    internal static PrisonerInteractionMode? PrisonerUse(PrisonerFacts row, PrisonerColony colony, FoodRunway? food, PrisonerPolicy p)
     {
         var intent = PrisonerIntent(row, colony, food, p);
         if (intent is null || (row.CurrentInteraction is PrisonerHeldInteraction.Settable { Mode: var current } && current == intent))
@@ -313,7 +313,7 @@ public static partial class PopulationRules
     /// target, else after ReleaseAfterDays in custody. A release that waits on an unread food runway raises
     /// <see cref="RequiredFactException"/>.
     /// </summary>
-    internal static PrisonerInteractionMode? PrisonerIntent(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
+    internal static PrisonerInteractionMode? PrisonerIntent(PrisonerFacts row, PrisonerColony colony, FoodRunway? food, PrisonerPolicy p)
     {
         if (row.Dead || row.CurrentInteraction is not PrisonerHeldInteraction.Settable { Mode: var current })
         {
@@ -340,11 +340,8 @@ public static partial class PopulationRules
         {
             return PrisonerInteractionMode.Release;
         }
-        if (!food.TryGetValue(out var days))
-        {
-            throw new RequiredFactException("food runway");
-        }
-        if (days < p.FoodTargetDays || row.HeldTicks >= p.ReleaseAfterDays * GameTime.TicksPerDay)
+        var runway = food ?? throw new RequiredFactException("food runway");
+        if (!runway.Reaches(p.FoodTargetDays) || row.HeldTicks >= p.ReleaseAfterDays * GameTime.TicksPerDay)
         {
             return PrisonerInteractionMode.Release;
         }

@@ -393,7 +393,7 @@ public sealed partial class RoundsResourcePlanner
     internal static double ResourceLabor(ColonyProjection p)
     {
         var workers = Known(p.WorkPawns.TryGetValue(out var pawns) ? ResearchRules.RoundsWorkers(pawns) : p.Workers);
-        return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan).TryGetValue(out var labor) ? labor : throw new RequiredFactException("resource supply labor");
+        return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan ?? throw new RequiredFactException("food plan")).TryGetValue(out var labor) ? labor : throw new RequiredFactException("resource supply labor");
     }
 
     internal static (Fact<int> Slots, bool NoHunter) HuntSlots(ColonyProjection projection)

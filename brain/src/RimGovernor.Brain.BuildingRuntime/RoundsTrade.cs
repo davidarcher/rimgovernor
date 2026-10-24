@@ -453,7 +453,7 @@ public sealed partial class RoundsTradePlanner
         // A resource is bought only as far as the supply plan opened this trader's offer for it.
         var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
         // An unread food plan opened no nutrition to buy.
-        var plannedNutrition = projection.Facts.FoodPlan.TryGetValue(out var foodPlan) ? Pol.TradePolicyRules.PlannedTradeNutrition(foodPlan, trader) : 0;
+        var plannedNutrition = projection.Facts.FoodPlan is { } foodPlan ? Pol.TradePolicyRules.PlannedTradeNutrition(foodPlan, trader) : 0;
         need = TradeOfferBook.RestrictToPlan(need, planned, plannedNutrition);
         var economic = Pol.TradePolicyRules.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
         var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Lines);
@@ -492,7 +492,7 @@ public sealed partial class RoundsTradePlanner
             }
         }
         facts = facts with { SaleGear = saleGear };
-        facts = facts with { HerdWants = [.. HerdPurchaseRules.HerdWants(herd), .. AnimalAcquireRules.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)] };
+        facts = facts with { HerdWants = [.. HerdPurchaseRules.HerdWants(herd), .. AnimalAcquireRules.PlannedAnimalPurchases(projection.Facts.FoodPlan ?? throw new Pol.RequiredFactException("food plan"), trader)] };
         if (need.SurplusAnimals > 0)
         {
             facts = facts with { SaleAnimals = saleAnimals };

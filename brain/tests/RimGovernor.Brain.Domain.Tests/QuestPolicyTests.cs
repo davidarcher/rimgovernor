@@ -27,7 +27,7 @@ public sealed class QuestPolicyTests
         QuestColonyCalm = Known(true),
         DefenseCapacity = Known(500.0),
         Population = Known(PopulationFixtures.Census()),
-        FoodDays = Known(20.0),
+        FoodDays = new FoodRunway.Days(20.0),
     }, offers);
 
     private static EquatableArray<Pb.QuestState> Offers(RoundsFacts f) => f.QuestOffers.TryGetValue(out var rows) ? rows : [];
@@ -44,7 +44,7 @@ public sealed class QuestPolicyTests
         Assert.Equal((new QuestId("q2"), 0, JoinerPlanReason.None), (choice.Quest, choice.RewardChoice, choice.Reason));
 
         // A food runway under the floor is no room; a raid the colony cannot defend is turned away; an unread capacity is a missing fact.
-        var full = f with { FoodDays = Known(1.0) };
+        var full = f with { FoodDays = new FoodRunway.Days(1.0) };
         Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(Offers(full), PopulationRules.JoinerCapacity(full.JoinerCapacity()), full).Reason);
         var outgunned = Calm(JoinerOffer("q2", threat: 900));
         Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(Offers(outgunned), capacity, outgunned).Reason);

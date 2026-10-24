@@ -168,7 +168,7 @@ public sealed class GoalsFamilyTests
         var full = new RoundsFacts
         {
             Population = Known(PopulationFixtures.Census(custody: Enumerable.Range(0, 100).Select(i => PopulationFixtures.Admitted("c" + i)))),
-            FoodDays = Known(30.0),
+            FoodDays = new FoodRunway.Days(30.0),
         };
         Assert.False(PopulationRules.JoinerCapacity(full.JoinerCapacity()).Value);
         var raised = GoalRules.Apply(full, GoalRules.DemandOf(facts));

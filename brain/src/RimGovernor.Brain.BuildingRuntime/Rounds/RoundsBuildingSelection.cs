@@ -185,7 +185,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (Paste.Count, new MethodId("nutrient-paste"), default);
             }
-            if (!Rounder.FoodPlanSupportOf(facts.Facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
+            if (facts.Facts.FoodPlan is not { } supportPlan || !Rounder.FoodPlanSupportOf(supportPlan, CandidateKind.Cook, "cooking-capacity"))
             {
                 return (0, default, AwaitingFoodPlan("cooking-capacity"));
             }

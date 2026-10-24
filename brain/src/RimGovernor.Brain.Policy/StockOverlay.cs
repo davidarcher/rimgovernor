@@ -65,7 +65,7 @@ public sealed record StockLevels
 
     public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
-    public Fact<double> FoodDays { get; init; }
+    public required FoodRunway FoodDays { get; init; }
 
     public double FoodTargetDays { get; init; }
 }
@@ -150,7 +150,7 @@ public static partial class StockOverlayRules
         }
 
         var (food, general, defs) = z.Stores();
-        if (levels.FoodDays.TryGetValue(out var days) && food)
+        if (levels.FoodDays is FoodRunway.Days { Value: var days } && food)
         {
             Consider(StockFood, days, levels.FoodTargetDays);
         }

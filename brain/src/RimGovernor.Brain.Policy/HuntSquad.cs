@@ -111,14 +111,14 @@ public static class HuntSquadRules
     /// The squad prey the food plan opens: the union of the open squad channels' prey, sorted. It is what
     /// makes the military/combat Need unmet while nothing hostile stands.
     /// </summary>
-    public static IReadOnlyList<PawnId> HuntRequest(Fact<FoodPlan> plan)
+    public static IReadOnlyList<PawnId> HuntRequest(FoodPlan? plan)
     {
-        if (!plan.TryGetValue(out var p))
+        if (plan is null)
         {
             return [];
         }
         var output = new List<PawnId>();
-        foreach (var e in p.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind == CandidateKind.Hunt && e.Decision == FoodPlanDecision.Open)
             {

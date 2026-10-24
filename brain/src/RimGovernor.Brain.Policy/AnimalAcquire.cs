@@ -307,16 +307,15 @@ public static class AnimalAcquireRules
 
     /// <summary>The wild animal the plan opened to tame, while a handler skilled enough exists and the herd's feed is known not short.</summary>
     public static HusbandryChoice FoodTameChoice(
-        Fact<FoodPlan> plan,
+        FoodPlan plan,
         EquatableArray<UpkeepAnimal> wild,
         Fact<bool> feedShort,
         Fact<EquatableArray<PawnProfile>> handlers
     )
     {
-        var pk = plan.TryGetValue(out var p);
         var fk = feedShort.TryGetValue(out var short_);
         var hk = handlers.TryGetValue(out var profiles);
-        if (!pk || !fk || !hk)
+        if (!fk || !hk)
         {
             return new HusbandryChoice.Unread();
         }
@@ -326,7 +325,7 @@ public static class AnimalAcquireRules
             return new HusbandryChoice.NoDeficit();
         }
 
-        foreach (var e in p!.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind != CandidateKind.Tame || e.Decision != FoodPlanDecision.Open)
             {
@@ -350,15 +349,10 @@ public static class AnimalAcquireRules
     }
 
     /// <summary>The animals the plan opened to buy from trader, as the wants SelectAnimalPurchase fills.</summary>
-    public static IReadOnlyList<HerdWant> PlannedAnimalPurchases(Fact<FoodPlan> plan, string trader)
+    public static IReadOnlyList<HerdWant> PlannedAnimalPurchases(FoodPlan plan, string trader)
     {
-        if (!plan.TryGetValue(out var p))
-        {
-            return [];
-        }
-
         var output = new List<HerdWant>();
-        foreach (var e in p.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             var prefix = trader + "/";
             var ok = e.Channel.Id.StartsWith(prefix, StringComparison.Ordinal);

@@ -550,7 +550,7 @@ public sealed partial class Rounder
         fine.Lap("d_planned/firebreak");
         Lap("d_planned");
 
-        if (reading.Projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
+        if (reading.Projection.Facts.FoodPlan is { } foodPlan)
         {
             reading = reading.WithFacts(rf => rf with { AnimalUpkeep = rf.AnimalUpkeep with { Forecast = Known(foodPlan.Forecast) } });
         }
@@ -962,11 +962,11 @@ partial class Rounder
             attrs.AddRange([("food_reserve_days", seasonal.FoodReserveDays), ("food_reserve_target", reserve.TargetNutrition),
                 ("food_reserve_stock", reserve.StockNutrition), ("food_reserve_deficit", reserve.DeficitNutrition), ("food_reserve_emergency", reserve.Emergency)]);
         }
-        if (f.FoodPlan.TryGetValue(out var plan))
+        if (f.FoodPlan is { } plan)
         {
             attrs.AddRange([(RoundsReviewTelemetry.FoodPlanKey, plan.Explain()), ("food_gap_per_day", plan.GapPerDay)]);
         }
-        if (f.FoodDays.TryGetValue(out var days))
+        if (f.FoodDays is FoodRunway.Days { Value: var days })
         {
             attrs.Add(("food_days", days));
         }

@@ -52,10 +52,10 @@ public sealed class FoodFamilyTests
         var facts = new RoundsFacts { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]) };
         var met = facts with
         {
-            FoodDays = Known(1000.0), GrowingCells = Known(10_000L), FieldCoverage = Known(1.0),
+            FoodDays = new FoodRunway.Days(1000.0), GrowingCells = Known(10_000L), FieldCoverage = Known(1.0),
             ButcherBenches = Known<EquatableArray<ButcherBench>>([new() { Definition = "TableButcher" }]),
         };
-        foreach (var f in new[] { facts, met, met with { FoodDays = Known(0.0) }, met with { ButcherBenches = Known<EquatableArray<ButcherBench>>([]) } })
+        foreach (var f in new[] { facts, met, met with { FoodDays = new FoodRunway.Days(0.0) }, met with { ButcherBenches = Known<EquatableArray<ButcherBench>>([]) } })
         {
             var row = Assert.Single(EssentialServicesRules.ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
                 c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed));

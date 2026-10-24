@@ -41,7 +41,7 @@ public enum ColonyRoster
 /// <summary>One <see cref="ColonyStatus"/> read. Unknown facts are unknown, never zero: a native census that omits the field says so.</summary>
 public sealed record ColonyStatusReport
 {
-    public Fact<FoodPlan> FoodPlan { get; init; }
+    public FoodPlan? FoodPlan { get; init; }
 
     public Fact<Tick> FoodPlanTick { get; init; }
 
@@ -165,7 +165,7 @@ public sealed class ColonyStatus
                     MoodLedger = held.Value.Facts.MoodLedger,
                     PetLabels = labels,
                 };
-                if (report.FoodPlan.TryGetValue(out _))
+                if (report.FoodPlan is not null)
                 {
                     report = report with { FoodPlanTick = Known(id.Tick) };
                 }

@@ -89,9 +89,9 @@ public static class FoodAnimalProductsRules
     /// marginal crop channel. Operator floors are never lowered. An operator ceiling bounds a derived floor, but
     /// cannot erase an explicit floor.
     /// </summary>
-    public static HerdPolicy FoodHerdPolicy(HerdPolicy herd, Fact<FoodPlan> fact)
+    public static HerdPolicy FoodHerdPolicy(HerdPolicy herd, FoodPlan? plan)
     {
-        if (!fact.TryGetValue(out var plan))
+        if (plan is null)
         {
             return herd;
         }

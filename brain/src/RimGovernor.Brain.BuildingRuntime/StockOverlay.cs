@@ -32,7 +32,7 @@ public sealed partial class Rounder
             {
                 Targets = result.Needs.ResourceDemand.Needs,
                 Stock = stockByResource,
-                FoodDays = f.FoodDays,
+                FoodDays = f.RequireFoodRunway(),
                 FoodTargetDays = Seasonal(f).FoodTargetDays,
             };
             var census = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood }.Census(levels.Targets);

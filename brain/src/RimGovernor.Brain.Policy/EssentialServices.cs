@@ -142,7 +142,7 @@ public static class EssentialServicesRules
         if (!inactive)
         {
             // Inventory-level food adequacy and alternative channels belong to FoodPlan, not an invented source ranking.
-            if (facts.FoodPlan.TryGetValue(out var plan))
+            if (facts.FoodPlan is { } plan)
                 rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap", Known(plan.HorizonDays)),
                     plan.DemandPerDay == 0 ? ServiceCoverage.NotApplicable : plan.GapPerDay > 0 ? ServiceCoverage.Shortfall : ServiceCoverage.Adequate,
                     plan.Forecast.Consumers.Select(c => c.Id.Value).ToImmutableArray(), []));
@@ -190,10 +190,10 @@ public static class EssentialServicesRules
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
         var target = ServiceTarget.ForNeed(FoodRules.CookingNeed, "recipe-capability", "recipe_eligibility_and_inputs");
-        if (!facts.FoodPlan.IsKnown || !FoodOrdersRules.FoodPlanSupport(facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
+        if (facts.FoodPlan is not { } plan || !FoodOrdersRules.FoodPlanSupport(plan, CandidateKind.Cook, "cooking-capacity"))
         {
-            rows.Add(new(EssentialService.Cooking, target, facts.FoodPlan.IsKnown ? ServiceCoverage.NotApplicable : ServiceCoverage.Unknown,
-                [], facts.FoodPlan.IsKnown ? [] : ["food_plan_cooking_dependency"]));
+            rows.Add(new(EssentialService.Cooking, target, facts.FoodPlan is not null ? ServiceCoverage.NotApplicable : ServiceCoverage.Unknown,
+                [], facts.FoodPlan is not null ? [] : ["food_plan_cooking_dependency"]));
             return;
         }
         if (!facts.EssentialInputs.Benches.TryGetValue(out var benches) || !facts.ForecastObserved.WorkPawns.TryGetValue(out var workers))

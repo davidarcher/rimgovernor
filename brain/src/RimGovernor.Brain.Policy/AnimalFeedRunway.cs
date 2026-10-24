@@ -69,7 +69,7 @@ public static class AnimalFeedRunwayExtensions
             Races = u.AnimalRaces,
             Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
         };
-        if (f.FoodPlan.TryGetValue(out var plan))
+        if (f.FoodPlan is { } plan)
         {
             input = input with { Forecast = Known(plan.Forecast) };
         }

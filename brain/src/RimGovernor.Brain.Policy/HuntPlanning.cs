@@ -102,19 +102,19 @@ public static class HuntPlanningRules
     }
 
     /// <summary>The selected hunters of the open hunt channels, sorted: who the executed formation may send.</summary>
-    public static IReadOnlyList<PawnId> HuntRequestHunters(Fact<FoodPlan> plan) => OpenHuntPawns(plan, c => c.Hunters);
+    public static IReadOnlyList<PawnId> HuntRequestHunters(FoodPlan? plan) => OpenHuntPawns(plan, c => c.Hunters);
 
     /// <summary>The retrievers of the open hunt channels, sorted: not drafted, but held for their trip, so no other voluntary work takes them.</summary>
-    public static IReadOnlyList<PawnId> HuntRequestRetrievers(Fact<FoodPlan> plan) => OpenHuntPawns(plan, c => c.Retrievers);
+    public static IReadOnlyList<PawnId> HuntRequestRetrievers(FoodPlan? plan) => OpenHuntPawns(plan, c => c.Retrievers);
 
-    private static List<PawnId> OpenHuntPawns(Fact<FoodPlan> plan, Func<SupplyCandidate, EquatableArray<string>> role)
+    private static List<PawnId> OpenHuntPawns(FoodPlan? plan, Func<SupplyCandidate, EquatableArray<string>> role)
     {
-        if (!plan.TryGetValue(out var p))
+        if (plan is null)
         {
             return [];
         }
         var output = new List<PawnId>();
-        foreach (var e in p.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind == CandidateKind.Hunt && e.Decision == FoodPlanDecision.Open)
             {

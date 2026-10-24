@@ -67,13 +67,13 @@ public static class HuntPrerequisiteRules
     /// Reports whether the plan opened a hunt that waits on a hunter's weapon: the colonist who will
     /// carry it needs Hunting before it exists.
     /// </summary>
-    public static bool HuntArming(Fact<FoodPlan> plan)
+    public static bool HuntArming(FoodPlan? plan)
     {
-        if (!plan.TryGetValue(out var p))
+        if (plan is null)
         {
             return false;
         }
-        foreach (var e in p.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind != CandidateKind.Hunt || e.Decision != FoodPlanDecision.Open)
             {

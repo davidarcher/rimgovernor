@@ -22,7 +22,7 @@ public sealed record MealCook
 /// </summary>
 public sealed record MealTierRequest
 {
-    public Fact<FoodPlan> Plan { get; init; }
+    public FoodPlan? Plan { get; init; }
     public Fact<double> RawRunwayDays { get; init; }
     public double MinDays { get; init; }
     public double TargetDays { get; init; }
@@ -69,13 +69,13 @@ public static partial class MealRules
     /// </summary>
     public static MealTierReview ReviewMealTier(MealTierRequest r, Fact<EquatableArray<ProductionBench>> benches)
     {
-        var pk = r.Plan.TryGetValue(out var plan);
+        var plan = r.Plan;
         var dk = r.RawRunwayDays.TryGetValue(out var days);
-        if (!pk || !dk || !FoodForecastRules.FoodNumber(days) || !FoodForecastRules.FoodNumber(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays > 60 || r.MinDays >= r.TargetDays || !ValidMealTier(r.Previous))
+        if (plan is null || !dk || !FoodForecastRules.FoodNumber(days) || !FoodForecastRules.FoodNumber(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays > 60 || r.MinDays >= r.TargetDays || !ValidMealTier(r.Previous))
         {
             throw new MealTierFactsException();
         }
-        var (sources, protein, ok) = MealIngredientSources(plan!);
+        var (sources, protein, ok) = MealIngredientSources(plan);
         if (!ok)
         {
             throw new MealTierFactsException();

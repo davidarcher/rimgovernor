@@ -154,7 +154,7 @@ public static class HumanFoodPlanRules
     /// An explicit route filter. Shared colonist meals are admitted only when every diner accepts them; mixed
     /// colonies keep human ingredients in feed and protected trade output.
     /// </summary>
-    public static IReadOnlyList<string> HumanCookingIngredients(FoodSupply supply, IReadOnlyList<FoodConsumer> humans, Fact<FoodPlan> plan, HumanMeatRoute route)
+    public static IReadOnlyList<string> HumanCookingIngredients(FoodSupply supply, IReadOnlyList<FoodConsumer> humans, FoodPlan plan, HumanMeatRoute route)
     {
         if (HumanRouteNutrition(plan, route) <= 0)
         {
@@ -208,14 +208,10 @@ public static class HumanFoodPlanRules
         return @out;
     }
 
-    public static double HumanRouteNutrition(Fact<FoodPlan> plan, HumanMeatRoute route)
+    public static double HumanRouteNutrition(FoodPlan plan, HumanMeatRoute route)
     {
-        if (!plan.TryGetValue(out var p))
-        {
-            return 0;
-        }
         var name = Wire.Name(route);
-        foreach (var e in p.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind == CandidateKind.Corpse && e.Channel.Id == "human-butchery" && e.Decision != FoodPlanDecision.Close)
             {
@@ -231,7 +227,7 @@ public static class HumanFoodPlanRules
         return 0;
     }
 
-    public static bool HumanFoodPending(Fact<FoodPlan> plan) =>
+    public static bool HumanFoodPending(FoodPlan plan) =>
         HumanRouteNutrition(plan, HumanMeatRoute.Feed)
             + HumanRouteNutrition(plan, HumanMeatRoute.SurvivalTrade)
             + HumanRouteNutrition(plan, HumanMeatRoute.RawTrade)
@@ -239,7 +235,7 @@ public static class HumanFoodPlanRules
         > 0;
 
     /// <summary>Explicit human-meat/vegetable membership isolates trade output from ordinary meal bills. Native admission verifies every slot and protects sale products.</summary>
-    public static (BillSelection Selection, bool Ok) SelectHumanSurvivalBill(Fact<EquatableArray<ProductionBench>> benches, FoodSupply supply, Fact<FoodPlan> plan)
+    public static (BillSelection Selection, bool Ok) SelectHumanSurvivalBill(Fact<EquatableArray<ProductionBench>> benches, FoodSupply supply, FoodPlan plan)
     {
         var none = (new BillSelection(), false);
         var budget = HumanRouteNutrition(plan, HumanMeatRoute.SurvivalTrade);

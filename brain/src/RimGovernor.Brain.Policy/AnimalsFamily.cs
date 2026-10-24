@@ -18,7 +18,7 @@ public sealed record AnimalsFacts
 
     public Fact<bool> FeedShort { get; init; }
 
-    public Fact<FoodPlan> FoodPlan { get; init; }
+    public FoodPlan? FoodPlan { get; init; }
 
     /// <summary>The colonists' work profiles (<see cref="PawnRules.Profiles"/>): who can tame, train and master.</summary>
     public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
@@ -149,6 +149,9 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
 
 public static class AnimalsFamilyRules
 {
+    /// <summary>The food plan the herd choices read; a pass that holds none raises <see cref="RequiredFactException"/>.</summary>
+    private static FoodPlan PlanOf(AnimalsFacts f) => f.FoodPlan ?? throw new RequiredFactException("food plan");
+
     /// <summary>
     /// The herd's one husbandry write (husbandry_method's single write per cycle): a removal the herd plan owes,
     /// then training and taming, the food plan's slaughter and tame, then mastering. Sterilizing is the sterilize
@@ -156,18 +159,18 @@ public static class AnimalsFamilyRules
     /// </summary>
     public static HusbandryChoice HerdChoice(AnimalsFacts f)
     {
-        var choice = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
+        var choice = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, PlanOf(f));
         if (choice is HusbandryChoice.NoDeficit)
         {
             choice = HusbandryUpkeepRules.SelectHusbandryMethod(f.Animals, f.Wild, f.FeedShort, f.Herd, f.Handlers);
         }
         if (choice is HusbandryChoice.NoDeficit)
         {
-            choice = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd);
+            choice = AnimalFoodRules.FoodSlaughterChoice(PlanOf(f), f.Animals, f.Herd);
         }
         if (choice is HusbandryChoice.NoDeficit)
         {
-            choice = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers);
+            choice = AnimalAcquireRules.FoodTameChoice(PlanOf(f), f.Wild, f.FeedShort, f.Handlers);
         }
         if (choice is HusbandryChoice.NoDeficit)
         {
@@ -185,11 +188,13 @@ public static class AnimalsFamilyRules
     public static Need HerdNeedOf(AnimalsFacts f)
     {
         var deficit = HusbandryUpkeepRules.AnimalHerdDeficit(f.Animals, f.Wild, f.FeedShort, f.Herd);
-        var removal = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
-        var slaughter = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd) is HusbandryChoice.Write { Method: HusbandryMethod.Slaughter };
-        var tame = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers) is HusbandryChoice.Write { Method: HusbandryMethod.Tame };
+        // A pass that holds no food plan owes no food-plan write; the choice chain below raises for it when nothing else is owed.
+        var plan = f.FoodPlan;
+        var removal = plan is not null && HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, plan) is HusbandryChoice.Write;
+        var slaughter = plan is not null && AnimalFoodRules.FoodSlaughterChoice(plan, f.Animals, f.Herd) is HusbandryChoice.Write { Method: HusbandryMethod.Slaughter };
+        var tame = plan is not null && AnimalAcquireRules.FoodTameChoice(plan, f.Wild, f.FeedShort, f.Handlers) is HusbandryChoice.Write { Method: HusbandryMethod.Tame };
         var master = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers) is HusbandryChoice.Write;
-        var owed = RoundsRules.Positive(deficit) || removal is HusbandryChoice.Write || slaughter || tame || master;
+        var owed = RoundsRules.Positive(deficit) || removal || slaughter || tame || master;
         if (!owed && !deficit.IsKnown)
         {
             throw new RequiredFactException("herd deficit");

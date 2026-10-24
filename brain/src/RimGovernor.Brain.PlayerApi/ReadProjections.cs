@@ -222,7 +222,7 @@ internal static class ReadProjections
         }
 
         return new ColonyStatusDto(
-            v.FoodPlan.TryGetValue(out var plan) ? FoodPlanRow(plan, v.PetLabels) : null,
+            v.FoodPlan is { } plan ? FoodPlanRow(plan, v.PetLabels) : null,
             v.FoodPlanTick.TryGetValue(out var planTick) ? planTick.Value : null,
             v.Tick.Value,
             v.RosterTick.Value,

@@ -281,11 +281,7 @@ public static class QuestSelection
         }
         if ((profile.Demands & QuestDemand.Food) != 0)
         {
-            if (!f.FoodDays.TryGetValue(out var days))
-            {
-                return "food_unknown";
-            }
-            if (days < PopulationRules.JoinerFoodFloorDays(home))
+            if (!f.RequireFoodRunway().Reaches(PopulationRules.JoinerFoodFloorDays(home)))
             {
                 return "food_capacity";
             }

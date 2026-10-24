@@ -64,7 +64,6 @@ Host/SchedulerLoop.cs|SchedulerLoop.Run
 Host/SchedulerLoop.cs|SchedulerLoop.WaitOrWake
 HttpChannel/EndpointFile.cs|EndpointFile.Remove
 HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
-Observation/ColonyDecode.cs|ColonyDecodeReads.DecodeColony
 Observation/Definitions.cs|DefinitionsReads.ReadDefinitionFacts
 Observation/MealTier.cs|ColonyProjection.MealRequest
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept

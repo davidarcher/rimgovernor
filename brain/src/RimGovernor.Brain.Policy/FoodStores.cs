@@ -35,7 +35,7 @@ public sealed record FoodStoresFacts
         Storage = f.FoodStorageUpkeep,
         Reserve = f.FoodReserve,
         Stockpile = StockpileRules.FoodStorageStanding(f),
-        StockProtection = FoodOrdersRules.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"),
+        StockProtection = f.FoodPlan is { } plan && FoodOrdersRules.FoodPlanSupport(plan, CandidateKind.Reserve, "stock-protection"),
         WarmRooms = f.WarmRooms,
         MealClosetOwed = f.MealClosetOwed,
     };

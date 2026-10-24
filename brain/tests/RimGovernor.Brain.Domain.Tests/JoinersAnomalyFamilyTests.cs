@@ -21,7 +21,7 @@ public sealed class JoinersAnomalyFamilyTests
     private static RoundsFacts Room(RoundsFacts f) => f with
     {
         Population = Known(PopulationFixtures.Census()),
-        FoodDays = Known(20.0),
+        FoodDays = new FoodRunway.Days(20.0),
         Sleeping = Known(new SleepingObservation
         {
             Beds = [new SleepingBed { Id = "bed", Humanlike = true }],

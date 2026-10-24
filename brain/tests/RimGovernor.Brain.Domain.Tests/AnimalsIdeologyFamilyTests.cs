@@ -67,7 +67,7 @@ public sealed class AnimalsIdeologyFamilyTests
             Wild = EquatableArray.From<UpkeepAnimal>([]),
             FeedShort = Known(false),
             Handlers = Known<EquatableArray<PawnProfile>>([]),
-            FoodPlan = Known(new FoodPlan()),
+            FoodPlan = new FoodPlan(),
             Uncontained = EquatableArray.From<PawnId>([]),
             Pen = Known(Step(HerdStepKind.None)),
             Ward = Known(Step(HerdStepKind.None)),
@@ -92,7 +92,7 @@ public sealed class AnimalsIdeologyFamilyTests
     [Fact]
     public void TheHerdIsUnknownWhileAnyChoiceReadsAnUnreadFactAndMetWithNothingOwed()
     {
-        Assert.Equal("husbandry census", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Herd)).Fact);
+        Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Herd)).Fact);
 
         var none = new AnimalsFacts
         {
@@ -102,8 +102,8 @@ public sealed class AnimalsIdeologyFamilyTests
             Handlers = Known<EquatableArray<PawnProfile>>([]),
         };
         // The food plan's slaughter and tame read it: unread, the herd is unknown, never held as met.
-        Assert.Equal("husbandry census", Assert.Throws<RequiredFactException>(() => Animal(none, AnimalsFamily.Herd)).Fact);
-        var planned = none with { FoodPlan = Known(new FoodPlan()) };
+        Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => Animal(none, AnimalsFamily.Herd)).Fact);
+        var planned = none with { FoodPlan = new FoodPlan() };
         Assert.Equal(Satisfaction.Met, Animal(planned, AnimalsFamily.Herd).Satisfaction);
         Assert.Empty(new AnimalsFamily().Propose([Animal(planned, AnimalsFamily.Herd)], planned));
     }

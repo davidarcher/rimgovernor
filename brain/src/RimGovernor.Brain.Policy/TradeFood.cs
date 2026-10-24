@@ -56,17 +56,13 @@ public static partial class TradePolicyRules
     /// </summary>
     public static TradeFoodContext? RoundsTradeFood(RoundsFacts f, RoundsPolicy p)
     {
-        if (!f.FoodPlan.TryGetValue(out var plan))
+        if (f.FoodPlan is not { } plan)
         {
             return null;
         }
-        // The plan's forecast runway, else the observed accessible runway.
-        double runway;
-        if (plan.Forecast.RunwayDays is FoodRunway.Days { Value: var days })
-        {
-            runway = days;
-        }
-        else if (!f.FoodDays.TryGetValue(out runway))
+        // The plan's forecast runway, else the observed accessible runway; nobody eating leaves neither.
+        var runway = plan.Forecast.RunwayDays is FoodRunway.Days ? plan.Forecast.RunwayDays : f.FoodDays;
+        if (runway is not FoodRunway.Days { Value: var days })
         {
             return null;
         }
@@ -74,7 +70,7 @@ public static partial class TradePolicyRules
         return new TradeFoodContext
         {
             Plan = plan,
-            RunwayDays = runway,
+            RunwayDays = days,
             MinDays = p.FoodMinDays,
             TargetDays = p.FoodTargetDays,
             DesiredIngredients = slots,

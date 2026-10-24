@@ -9,7 +9,7 @@ public static class HerdRemovalRules
     /// controller-history dependency, so Manual edits and save/load use the same rule. Existing valid removals
     /// consume the budget before new work.
     /// </summary>
-    public static HusbandryChoice ReconcileHerdRemoval(EquatableArray<UpkeepAnimal> animals, HerdPolicy herd, Fact<FoodPlan> food)
+    public static HusbandryChoice ReconcileHerdRemoval(EquatableArray<UpkeepAnimal> animals, HerdPolicy herd, FoodPlan food)
     {
         var rows = animals.OrderBy(a => a.Id).ToList();
         var counts = new Dictionary<Resource, long>();
@@ -23,9 +23,8 @@ public static class HerdRemovalRules
                 sexes[key] = sexes.GetValueOrDefault(key) + 1;
             }
         }
-        var foodKnown = food.TryGetValue(out var plan);
         var foodWanted = new HashSet<PawnId>();
-        foreach (var e in plan?.Portfolio ?? [])
+        foreach (var e in food.Portfolio)
         {
             if (e.Channel.Kind == CandidateKind.Slaughter && e.Decision == FoodPlanDecision.Open)
             {
@@ -83,15 +82,7 @@ public static class HerdRemovalRules
             }
             if (slaughter && !keepSlaughter)
             {
-                // Unknown food demand cannot revoke an otherwise allowed removal.
-                if (room && !foodKnown)
-                {
-                    unknown = true;
-                }
-                else
-                {
-                    return new HusbandryChoice.Write(a.Id, HusbandryMethod.CancelSlaughter);
-                }
+                return new HusbandryChoice.Write(a.Id, HusbandryMethod.CancelSlaughter);
             }
             counts[a.Definition]--;
             if (fertile)

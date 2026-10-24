@@ -270,15 +270,10 @@ public static class AnimalFoodRules
         return [c];
     }
 
-    public static HusbandryChoice FoodSlaughterChoice(Fact<FoodPlan> plan, EquatableArray<UpkeepAnimal> animals, HerdPolicy herd)
+    public static HusbandryChoice FoodSlaughterChoice(FoodPlan plan, EquatableArray<UpkeepAnimal> animals, HerdPolicy herd)
     {
-        if (!plan.TryGetValue(out var p))
-        {
-            return new HusbandryChoice.Unread();
-        }
-
         var safe = HerdSurplusRules.HerdSurplusCandidates(animals, HerdSurplusRules.HerdFoodLimits(animals, herd), herd.FeedShort, herd);
-        foreach (var e in p!.Portfolio)
+        foreach (var e in plan.Portfolio)
         {
             if (e.Channel.Kind != CandidateKind.Slaughter || e.Decision != FoodPlanDecision.Open || !e.Channel.Id.StartsWith("slaughter:", StringComparison.Ordinal))
             {

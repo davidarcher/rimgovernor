@@ -153,7 +153,7 @@ public sealed partial class RoundsAcquisitionPlanner
         FoodRunway? runway = null;
         if (food)
         {
-            if (!projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
+            if (projection.Facts.FoodPlan is not { } foodPlan)
             {
                 return new RoundsAcquisitionResult { Verdict = FieldUnavailable("food_plan") };
             }

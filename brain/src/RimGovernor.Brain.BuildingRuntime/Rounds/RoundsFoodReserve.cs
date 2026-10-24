@@ -27,9 +27,9 @@ public sealed partial class Rounder
 
 partial class Rounder
 {
-    internal static Fact<EquatableArray<double>> FoodDeliveryDays(Fact<FoodPlan> f)
+    internal static Fact<EquatableArray<double>> FoodDeliveryDays(FoodPlan? plan)
     {
-        if (!f.TryGetValue(out var plan) || plan.Unknown.Count > 0)
+        if (plan is null || plan.Unknown.Count > 0)
         {
             return Unknown<EquatableArray<double>>();
         }

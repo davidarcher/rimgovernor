@@ -43,7 +43,7 @@ public sealed record JoinerCapacityFacts
 {
     public Fact<PrisonerCensus> Population { get; init; }
 
-    public Fact<double> FoodDays { get; init; }
+    public FoodRunway? FoodDays { get; init; }
 
     /// <summary>The player's colonist goal (#3494), 0 for none.</summary>
     public int ColonistGoal { get; init; }
@@ -99,12 +99,12 @@ public static partial class PopulationRules
     /// </summary>
     public static Fact<bool> JoinerCapacity(JoinerCapacityFacts f)
     {
-        if (!f.Population.TryGetValue(out var census) || !f.FoodDays.TryGetValue(out var food))
+        if (!f.Population.TryGetValue(out var census) || f.FoodDays is not { } food)
         {
             return Unknown<bool>();
         }
         var hosted = HostedPopulation(census.Custody);
-        return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food >= JoinerFoodFloorDays(hosted));
+        return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food.Reaches(JoinerFoodFloorDays(hosted)));
     }
 
     /// <summary>

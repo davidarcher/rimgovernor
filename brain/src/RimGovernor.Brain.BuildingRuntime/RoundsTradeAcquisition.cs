@@ -86,7 +86,7 @@ public sealed partial class Rounder
     internal async Task PlanFoodAcquisitionAsync(GenerationSnapshot world, Observation.ColonyProjection p, CancellationToken ct)
     {
         var demands = new List<Pol.SupplyDemandResult>();
-        if (p.Facts.FoodPlan.TryGetValue(out var plan))
+        if (p.Facts.FoodPlan is { } plan)
         {
             var thresholds = Seasonal(p.Facts);
             try

@@ -150,12 +150,12 @@ public sealed class BelieverConversionTests
         };
         var colony = new PrisonerColony { Colonists = 1, Ideology = new ColonyIdeology.Installed(false, Ours) };
 
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony, Known(20.0), policy));
-        Assert.Equal(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true }, Known(20.0), policy));
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony, new FoodRunway.Days(20.0), policy));
+        Assert.Equal(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true }, new FoodRunway.Days(20.0), policy));
 
         // A prisoner of our own ideoligion is not converted, and a classic game has no conversion.
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner with { Ideo = Ours }, colony with { BelieversWanted = true }, Known(20.0), policy));
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true, Ideology = new ColonyIdeology.Installed(true, Ours) }, Known(20.0), policy));
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner with { Ideo = Ours }, colony with { BelieversWanted = true }, new FoodRunway.Days(20.0), policy));
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true, Ideology = new ColonyIdeology.Installed(true, Ours) }, new FoodRunway.Days(20.0), policy));
     }
 
     [Fact]

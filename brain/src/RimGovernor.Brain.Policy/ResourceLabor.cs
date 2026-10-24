@@ -3,20 +3,19 @@ namespace RimGovernor.Brain.Policy;
 public static partial class ResourceRules
 {
     /// <summary>
-    /// The daily budget after selected or retained food commitments. Unknown commitment state or cost leaves
+    /// The daily budget after selected or retained food commitments. Unknown commitment cost or unread workers leave
     /// the residual unknown. A known empty plan reserves nothing; each kind/ID is charged once. Throws
     /// <see cref="SupplyPlanFactsException"/> on invalid inputs.
     /// </summary>
-    public static Fact<double> ResidualSupplyLabor(Fact<int> workers, Fact<FoodPlan> food)
+    public static Fact<double> ResidualSupplyLabor(Fact<int> workers, FoodPlan food)
     {
         var workersKnown = workers.TryGetValue(out var count);
         if (workersKnown && count < 0)
         {
             throw new SupplyPlanFactsException();
         }
-        var planKnown = food.TryGetValue(out var knownPlan);
-        var plan = planKnown ? knownPlan! : new FoodPlan();
-        var known = workersKnown && planKnown;
+        var plan = food;
+        var known = workersKnown;
         var budget = (double)count * 20000;
         var charged = new HashSet<(string, string)>();
         foreach (var rows in new[] { plan.Portfolio, plan.Unknown })

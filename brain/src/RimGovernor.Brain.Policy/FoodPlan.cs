@@ -23,9 +23,10 @@ public sealed record FoodPlanRequest
     /// </summary>
     public double EmergencyDays { get; init; }
 
-    public Fact<EquatableArray<SupplyCandidate>> Channels { get; init; }
+    public EquatableArray<SupplyCandidate> Channels { get; init; }
 
-    public Fact<double> Labor { get; init; }
+    /// <summary>The labor budget, in pawn ticks a day.</summary>
+    public double Labor { get; init; }
 }
 
 public enum FoodPlanDecision
@@ -114,23 +115,22 @@ public sealed record FoodField
     public FieldExposure Exposure { get; init; } = new();
 }
 
-/// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unknown benches or cooks leave a crop raw.</summary>
+/// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unread benches leave a crop raw.</summary>
 public sealed record CropKitchen
 {
     public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
 
-    public Fact<double> Cooks { get; init; }
+    public double Cooks { get; init; }
 
     /// <summary>
-    /// Reads the best meal made of vegetables. It is Unknown while the benches
-    /// or the cooks are unknown, and known "none" (empty recipe, Known) is never
-    /// confused with it: a kitchen with no usable bench or no vegetable meal leaves the crop raw.
+    /// Reads the best meal made of vegetables. It is Unknown while the benches are unread, and known "none"
+    /// (empty recipe, Known) is never confused with it: a kitchen with no usable bench or no vegetable meal
+    /// leaves the crop raw.
     /// </summary>
     public Fact<CropCooking> Cooking()
     {
         var bk = Benches.TryGetValue(out var benches);
-        var ck = Cooks.TryGetValue(out var cooks);
-        if (!bk || !ck || !FoodForecastRules.FoodNumber(cooks))
+        if (!bk || !FoodForecastRules.FoodNumber(Cooks))
         {
             return Unknown<CropCooking>();
         }
@@ -162,7 +162,7 @@ public sealed record CropKitchen
                 }
             }
         }
-        return Known(best with { CapacityTicks = Math.Min(usable, cooks) * FoodPlanRules.CookTicksPerDay });
+        return Known(best with { CapacityTicks = Math.Min(usable, Cooks) *FoodPlanRules.CookTicksPerDay });
     }
 }
 
@@ -203,9 +203,7 @@ public static class FoodPlanRules
                 TargetDays = r.TargetDays,
                 EmergencyDays = r.EmergencyDays,
             });
-            // The supply plan budgets known channels against a known labor budget: either unread fails the food plan.
-            var rows = r.Channels.TryGetValue(out var channels) ? channels : throw new FoodPlanFactsException();
-            var labor = r.Labor.TryGetValue(out var budget) ? budget : throw new FoodPlanFactsException();
+            var rows = r.Channels;
             foreach (var c in rows)
             {
                 if (!ValidFoodChannelKind(c.Kind) || c.Yields.Count == 0 || c.Yields[0].Good != SupplyPlanRules.NutritionKey)
@@ -213,7 +211,7 @@ public static class FoodPlanRules
                     throw new FoodPlanFactsException();
                 }
             }
-            plan = SupplyPlanRules.PlanSupply(new SupplyPlanRequest { Demands = [demand], Candidates = rows, Labor = labor });
+            plan = SupplyPlanRules.PlanSupply(new SupplyPlanRequest { Demands = [demand], Candidates = rows, Labor = r.Labor });
         }
         catch (DomainException e) when (e is not FoodPlanFactsException)
         {

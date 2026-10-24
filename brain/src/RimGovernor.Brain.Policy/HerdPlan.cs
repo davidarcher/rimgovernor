@@ -45,7 +45,7 @@ public sealed record HerdPlanInput
     public Fact<double> Budget { get; init; }
     public Fact<WealthFacts> Wealth { get; init; }
     public EquatableArray<PenGrazing> Pens { get; init; }
-    public Fact<FoodPlan> Food { get; init; }
+    public FoodPlan? Food { get; init; }
 
     /// <summary>Races a trader offers or a quest rewards now; they count as obtainable (the buying and reward hooks).</summary>
     public IReadOnlyList<Resource> Offers { get; init; } = [];

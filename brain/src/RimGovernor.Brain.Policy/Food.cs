@@ -50,12 +50,12 @@ public sealed record FoodFacts
         {
             Cooking = f.Cooking,
             CampfireRetireOwed = f.CampfireRetireOwed,
-            HumanFoodSettled = Fact.Known(!HumanFoodPlanRules.HumanFoodPending(f.FoodPlan)),
+            HumanFoodSettled = Fact.Known(f.FoodPlan is not { } held || !HumanFoodPlanRules.HumanFoodPending(held)),
             FootholdFood = RoundsRules.FootholdFood(f, p),
             FootholdProduction = RoundsRules.FootholdProduction(f),
             FieldsCovered = RoundsRules.Measured(f.FieldCoverage, v => v >= 1 - 1e-9),
             ButcherFacility = RoundsRules.ButcherFacilityMet(f),
-            ReserveCovered = RoundsRules.Measured(f.FoodDays, v => v >= p.FoodTargetDays),
+            ReserveCovered = RoundsRules.Reached(f.FoodDays, p.FoodTargetDays),
             BabyFeeding = f.BabyFeeding,
             Blight = f.Blight,
         };

@@ -85,7 +85,7 @@ public sealed class EssentialServicesTests
 
     private static RoundsFacts Kitchen(bool secondChain = false) => Facts() with
     {
-        FoodPlan = Known(new FoodPlan { Portfolio = [new() { Channel = CandidateRules.FoodCandidate(CandidateKind.Cook, "cooking-capacity", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] }),
+        FoodPlan = new FoodPlan { Portfolio = [new() { Channel = CandidateRules.FoodCandidate(CandidateKind.Cook, "cooking-capacity", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] },
         ForecastObserved = new() { WorkPawns = Known<EquatableArray<WorkPawn>>([
             Cook("expert", 8), Cook("learner", 1)]) },
         WorkClaims = new([], [], [], []),
@@ -123,7 +123,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void NoRequiredCookingChainDoesNotCreateDevelopmentFromAnIdleKitchen()
     {
-        var review = Review(Kitchen() with { FoodPlan = Known(new FoodPlan()), WorkClaims = new([], ["expert"], [], []) });
+        var review = Review(Kitchen() with { FoodPlan = new FoodPlan(), WorkClaims = new([], ["expert"], [], []) });
         Assert.Contains(review.Coverage, c => c.Target.Predicate == "recipe_eligibility_and_inputs" && c.Coverage == ServiceCoverage.NotApplicable);
         Assert.DoesNotContain(review.Proposals, p => p.Target.Subject == "recipe-capability");
     }

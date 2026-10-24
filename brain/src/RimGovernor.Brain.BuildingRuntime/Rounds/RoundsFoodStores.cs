@@ -139,7 +139,7 @@ public sealed partial class FoodStoresRounds
     internal async Task<Declared> DeclareMealOrderAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var f = projection.Facts;
-        if (!FoodOrdersRules.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
+        if (f.FoodPlan is not { } storesPlan || !FoodOrdersRules.FoodPlanSupport(storesPlan, CandidateKind.Reserve, "stock-protection"))
         {
             return WorkRules.Abstaining(Cause.UnreadFoodPlan);
         }

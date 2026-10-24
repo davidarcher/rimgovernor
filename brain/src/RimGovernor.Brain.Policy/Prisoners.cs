@@ -13,7 +13,7 @@ public sealed record PrisonersFacts
 
     public PrisonerColony Colony { get; init; } = new();
 
-    public Fact<double> FoodDays { get; init; }
+    public FoodRunway? FoodDays { get; init; }
 
     public EquatableArray<CustodyFacts> Custody { get; init; } = [];
 

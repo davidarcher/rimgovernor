@@ -267,7 +267,7 @@ public sealed class HuntPlanningTests
         Assert.Contains(channel.Terms, t => t.Name == "retrievers" && t.Value == 1);
         Assert.Contains(channel.Terms, t => t.Name == "hunt_haul_ticks" && t.Value == 100);
         Assert.Contains(channel.Terms, t => t.Name == "hunt_return_ticks" && t.Value == 100);
-        var food = Known(new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] });
+        var food = new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] };
         Assert.Equal(["a", "b"], HuntPlanningRules.HuntRequestHunters(food).Select(p => p.Value));
         Assert.Equal(["a"], HuntPlanningRules.HuntRequestRetrievers(food).Select(p => p.Value));
     }
@@ -281,7 +281,7 @@ public sealed class HuntPlanningTests
         Assert.Equal(["a"], channel.Hunters);
         Assert.Equal(["h"], channel.Retrievers);
         Assert.Contains(channel.Terms, t => t.Name == "hunt_haul_ticks" && t.Value == 250);
-        var food = Known(new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] });
+        var food = new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] };
         Assert.Equal(["a"], HuntPlanningRules.HuntRequestHunters(food).Select(p => p.Value));
         var facts = WorkResourceTestFacts.Create("a", "h") with { FoodPlan = food };
         var reviewed = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));

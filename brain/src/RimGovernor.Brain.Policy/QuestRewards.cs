@@ -151,7 +151,7 @@ public static class QuestRewards
                 }
                 benefits += count * price;
                 needed += Math.Min(count, need.GetValueOrDefault(def)) * price;
-                if (f.FoodDays.TryGetValue(out var days) && days < PopulationRules.JoinerFoodFloorDays(hosted))
+                if (!f.RequireFoodRunway().Reaches(PopulationRules.JoinerFoodFloorDays(hosted)))
                 {
                     needed += count * f.Items.Nutrition.GetValueOrDefault(def);
                 }

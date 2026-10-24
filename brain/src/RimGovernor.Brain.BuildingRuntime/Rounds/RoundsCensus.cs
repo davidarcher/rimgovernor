@@ -23,7 +23,7 @@ internal sealed class RoundsCensusStore
     internal RoundsCensus? Latest;
     internal ulong Generation;
     internal Identity FoodIdentity = new();
-    internal Fact<FoodPlan> FoodPlanFact;
+    internal FoodPlan? FoodPlanHeld;
     internal ulong FoodGeneration;
     internal double FoodMin;
     internal double FoodTarget;

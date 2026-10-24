@@ -134,6 +134,9 @@ public abstract record FoodRunway
 
     /// <summary>The shortest runway in days over the selected consumers that eat.</summary>
     public sealed record Days(double Value) : FoodRunway;
+
+    /// <summary>Whether the runway lasts at least <paramref name="days"/>: nobody eating lasts forever.</summary>
+    public bool Reaches(double days) => this is not Days runway || runway.Value >= days;
 }
 
 public sealed record FoodForecast

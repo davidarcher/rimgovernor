@@ -41,7 +41,7 @@ public sealed class PrisonersFamilyTests
     {
         Prisoners = [.. rows],
         Colony = colony,
-        FoodDays = Known(20.0),
+        FoodDays = new FoodRunway.Days(20.0),
         Custody = [],
     };
 
@@ -64,7 +64,7 @@ public sealed class PrisonersFamilyTests
         // A review without the population census raises; a prisoner under a mode the colony never sets is left alone.
         Assert.Equal("population census", Assert.Throws<RequiredFactException>(() => PrisonersFacts.From(new RoundsFacts())).Fact);
         var executing = Prisoner("b") with { CurrentInteraction = new PrisonerHeldInteraction.Other() };
-        Assert.Null(PopulationRules.PrisonerIntent(executing, Colony1, Known(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(executing, Colony1, new FoodRunway.Days(20.0), Policy));
         Assert.Equal(Satisfaction.Met, Derive(Census(Colony1, executing), PrisonersFamily.Recruit).Satisfaction);
 
         // A release that waits on an unread food runway raises rather than reads as settled.
@@ -77,12 +77,12 @@ public sealed class PrisonersFamilyTests
     {
         var drifter = Prisoner("a") with { Prospect = new PrisonerProspect { Age = 30, Health = 1 } };
         var named = Colony1 with { NamedPrisoners = [new PawnId("a")] };
-        Assert.Equal(PrisonerInteractionMode.Recruit, PopulationRules.PrisonerIntent(drifter, named, Known(20.0), Policy));
-        Assert.Null(PopulationRules.PrisonerIntent(drifter, Colony1, Known(20.0), Policy));
+        Assert.Equal(PrisonerInteractionMode.Recruit, PopulationRules.PrisonerIntent(drifter, named, new FoodRunway.Days(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(drifter, Colony1, new FoodRunway.Days(20.0), Policy));
         // Another prisoner the goal does not name is judged on worth as before.
-        Assert.Null(PopulationRules.PrisonerIntent(drifter with { Pawn = new("b") }, named, Known(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(drifter with { Pawn = new("b") }, named, new FoodRunway.Days(20.0), Policy));
         // The custody precondition stays: a dead prisoner is not recruited.
-        Assert.Null(PopulationRules.PrisonerIntent(drifter with { Dead = true }, named, Known(20.0), Policy));
+        Assert.Null(PopulationRules.PrisonerIntent(drifter with { Dead = true }, named, new FoodRunway.Days(20.0), Policy));
         // A named prisoner is not an organ-harvest candidate.
         Assert.False(drifter.HarvestEligible(named));
         Assert.True(drifter.HarvestEligible(Colony1));

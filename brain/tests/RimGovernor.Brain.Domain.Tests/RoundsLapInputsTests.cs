@@ -19,7 +19,7 @@ public sealed class RoundsLapInputsTests
     {
         var inputs = new RoundsLapInputs();
         var observed = ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } };
-        var laid = observed with { Facts = observed.Facts with { FoodDays = Known(3.0) } };
+        var laid = observed with { Facts = observed.Facts with { FoodDays = new FoodRunway.Days(3.0) } };
         inputs.Begin(World);
         inputs.Left("observe", observed);
         inputs.Left("layout", laid);
@@ -96,7 +96,7 @@ public sealed class RoundsLapInputsTests
         var was = ColonyFactsCoreTests.Projection();
         var facts = new RoundsFacts
         {
-            FoodDays = Known(1.0), FieldCoverage = Known(1.0), Colonists = 1L, HousingTarget = Known(1L), BedCapacity = 1L,
+            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = Known(1.0), Colonists = 1L, HousingTarget = Known(1L), BedCapacity = 1L,
             IndoorCapacity = 1L, GrowingCells = Known(1L), Armed = Known(1L), Unarmed = Known(1L), Wood = Known(1L), Hostiles = Known(1L),
             CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingMin = Known(1.0), SleepingMax = Known(1.0), OutdoorTemperature = Known(1.0),
             PowerHeadroom = Known(1.0), OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = Known(true),

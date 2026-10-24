@@ -462,25 +462,31 @@ public static class ColonyDecodeReads
         {
             r = r with { CombinedFoodSupply = Known(combined) };
         }
-        if (combined is not null && r.FoodSupply.TryGetValue(out var human) && human.Consumers.Count > 0)
+        if (combined is null || !r.FoodSupply.TryGetValue(out var human))
+        {
+            throw new ObservationContractException("the food runway needs the colonists' food supply and the combined food supply");
+        }
+        if (human.Consumers.Count == 0)
+        {
+            f = f with { FoodDays = new FoodRunway.NoEaters() };
+        }
+        else
         {
             var selected = new List<PawnId>(human.Consumers.Count);
             foreach (var consumer in human.Consumers)
             {
                 selected.Add(consumer.Id);
             }
+            // The forecast over the colonists who eat; one the policy refuses fails the reading.
             try
             {
                 var forecastFood = FoodForecastRules.ForecastFood(combined, selected);
-                if (forecastFood.RunwayDays is FoodRunway.Days { Value: var days })
-                {
-                    f = f with { FoodDays = Known(days) };
-                }
+                f = f with { FoodDays = forecastFood.RunwayDays };
                 r = r with { FoodAtRiskNutrition = Known(forecastFood.AtRiskNutrition) };
             }
-            catch (DomainException)
+            catch (DomainException e)
             {
-                // A forecast the policy refuses leaves the runway unknown.
+                throw new ObservationContractException("the food forecast refused the colony's food supply: " + e.Message);
             }
         }
         f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = r.CombinedFoodSupply } };

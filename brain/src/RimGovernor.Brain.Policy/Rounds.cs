@@ -162,7 +162,14 @@ public sealed record RoundsFacts
     /// <summary>The hospital's animal ward; unread (the zero value) until the layout exposes it, which keeps sterilize off.</summary>
     public AnimalWard AnimalWard { get; init; } = new();
 
-    public Fact<FoodPlan> FoodPlan { get; init; }
+    /// <summary>
+    /// The food plan every full review plans from the census (#3929). Null while no plan is held: the immediate pass
+    /// before the first full review for its colony, which opens no hunt.
+    /// </summary>
+    public FoodPlan? FoodPlan { get; init; }
+
+    /// <summary>The food plan; a pass that holds none raises <see cref="RequiredFactException"/>.</summary>
+    public FoodPlan RequireFoodPlan() => FoodPlan ?? throw new RequiredFactException("food plan");
 
     public Fact<FoodReserveReview> FoodReserve { get; init; }
 
@@ -495,7 +502,14 @@ public sealed record RoundsFacts
     /// <summary>Counts living, conscious colonists able to fight who hold no weapon; military/defense stays unmet while it is positive.</summary>
     public Fact<long> Unarmed { get; init; }
 
-    public Fact<double> FoodDays { get; init; }
+    /// <summary>
+    /// The colonists' food runway (#3929): the shortest diet and rot aware runway over those who eat, or none eat.
+    /// Null only on a projection no colony decode built.
+    /// </summary>
+    public FoodRunway? FoodDays { get; init; }
+
+    /// <summary>The food runway; a projection no colony decode built raises <see cref="RequiredFactException"/>.</summary>
+    public FoodRunway RequireFoodRunway() => FoodDays ?? throw new RequiredFactException("food runway");
 
     public Fact<double> FieldCoverage { get; init; }
 
@@ -745,7 +759,10 @@ public static partial class RoundsRules
 
     internal static Fact<bool> FootholdProduction(RoundsFacts f) => CountCapacity(f.GrowingCells, FootholdCount(f), 10);
 
-    internal static Fact<bool> FootholdFood(RoundsFacts f, RoundsPolicy p) => Measured(f.FoodDays, v => v >= p.FootholdFoodDays);
+    internal static Fact<bool> FootholdFood(RoundsFacts f, RoundsPolicy p) => Reached(f.FoodDays, p.FootholdFoodDays);
+
+    /// <summary>Whether the runway reaches <paramref name="days"/>; unread when no runway was read.</summary>
+    internal static Fact<bool> Reached(FoodRunway? runway, double days) => runway is null ? default : Known(runway.Reaches(days));
 
     internal static Fact<bool> FootholdTemperature(RoundsFacts f, RoundsPolicy p) =>
         AllFacts(Measured(f.SleepingMin, v => v >= p.ColdEnter), Measured(f.SleepingMax, v => v <= p.HotEnter));
@@ -899,19 +916,20 @@ public static partial class RoundsRules
                 throw new DomainException("invalid routine count");
             }
         }
-        foreach (var fact in new[] { f.FoodDays, f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.OutdoorTemperature, f.PowerHeadroom })
+        foreach (var fact in new[] { f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.OutdoorTemperature, f.PowerHeadroom })
         {
             if (fact.TryGetValue(out var v) && (double.IsNaN(v) || double.IsInfinity(v)))
             {
                 throw new DomainException("nonfinite routine fact");
             }
         }
-        foreach (var fact in new[] { f.FoodDays, f.FieldCoverage })
+        if (f.FieldCoverage.TryGetValue(out var coverage) && coverage < 0)
         {
-            if (fact.TryGetValue(out var v) && v < 0)
-            {
-                throw new DomainException("negative food fact");
-            }
+            throw new DomainException("negative food fact");
+        }
+        if (f.FoodDays is FoodRunway.Days { Value: var runway } && (double.IsNaN(runway) || double.IsInfinity(runway) || runway < 0))
+        {
+            throw new DomainException("nonfinite or negative food runway");
         }
         var latches = new RoundsLatches
         {

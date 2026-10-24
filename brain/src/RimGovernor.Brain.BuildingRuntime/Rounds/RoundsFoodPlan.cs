@@ -34,7 +34,7 @@ public sealed partial class Rounder
     /// The cached food plan for the projection; recomputed when the census generation, the offers, the seasonal thresholds
     /// or the observed identity moved, or a held formation hunt is due for release, so the release's re-comparison is never skipped.
     /// </summary>
-    internal Fact<FoodPlan> FoodPlanOf(ColonyProjection p)
+    internal FoodPlan FoodPlanOf(ColonyProjection p)
     {
         var s = Census;
         lock (s.Mu)
@@ -42,51 +42,43 @@ public sealed partial class Rounder
             var seasonal = Seasonal(p.Facts);
             var trade = FoodTradeOf(p);
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
-            if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
+            if (s.FoodPlanHeld is { } held && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
                 && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
                 && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources, HuntHungry(p)).Length == 0))
             {
-                return s.FoodPlanFact;
+                return held;
             }
 
             var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, (h, released) => s.HuntNote = DescribeHuntPlan(h, released));
-            if (plan.TryGetValue(out var v))
-            {
-                HuntAdmission.Admit(HuntSquadRules.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
-            }
-
+            HuntAdmission.Admit(HuntSquadRules.HuntRequest(plan).Select(id => (Domain.PawnId)id));
             LogFoodCredit(FoodCredit.Drain());
-            if (plan.TryGetValue(out v) && FoodGapZero)
+            if (FoodGapZero)
             {
-                plan = Known(v with { GapPerDay = 0 });
+                plan = plan with { GapPerDay = 0 };
             }
 
-            if (plan.IsKnown)
-            {
-                s.FoodIdentity = p.Identity;
-                s.FoodPlanFact = plan;
-                s.FoodGeneration = s.Generation;
-                s.FoodMin = seasonal.FoodMinDays;
-                s.FoodTarget = seasonal.FoodTargetDays;
-                s.FoodOffers = trade.Revision;
-            }
-
+            s.FoodIdentity = p.Identity;
+            s.FoodPlanHeld = plan;
+            s.FoodGeneration = s.Generation;
+            s.FoodMin = seasonal.FoodMinDays;
+            s.FoodTarget = seasonal.FoodTargetDays;
+            s.FoodOffers = trade.Revision;
             return plan;
         }
     }
 
     /// <summary>
-    /// The food plan the last full review cached for <paramref name="world"/>'s colony, load and map; unknown when none
+    /// The food plan the last full review cached for <paramref name="world"/>'s colony, load and map; null when none
     /// is held for it. The immediate pass and the combat Need carry it forward, so a squad hunt the plan opened stays
     /// a combat deficit between full reviews (#3311).
     /// </summary>
-    internal Fact<FoodPlan> HeldFoodPlan(GenerationSnapshot world)
+    internal FoodPlan? HeldFoodPlan(GenerationSnapshot world)
     {
         var s = Census;
         lock (s.Mu)
         {
             var id = s.FoodIdentity;
-            return s.FoodPlanFact.IsKnown && id.Colony == world.Colony && id.Load == world.Load && id.Map == world.Map ? s.FoodPlanFact : Unknown<FoodPlan>();
+            return id.Colony == world.Colony && id.Load == world.Load && id.Map == world.Map ? s.FoodPlanHeld : null;
         }
     }
 
@@ -131,24 +123,21 @@ partial class Rounder
     private static IReadOnlySet<string> HuntHungry(ColonyProjection p) =>
         HuntPlanningRules.Hungry(p.WorkPawns.TryGetValue(out var pawns) ? pawns.Items : []);
 
-    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
+    internal static FoodPlan ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
     {
-        if (!p.CombinedFoodSupply.TryGetValue(out var supply) || !p.Acquisition.TryGetValue(out var sources))
+        if (!p.CombinedFoodSupply.TryGetValue(out var supply))
         {
-            return Unknown<FoodPlan>();
+            throw new RequiredFactException("combined food supply");
+        }
+
+        if (!p.Acquisition.TryGetValue(out var sources))
+        {
+            throw new RequiredFactException("food acquisition");
         }
 
         var workers = p.WorkPawns.TryGetValue(out var workPawns) ? ResearchRules.RoundsWorkers(workPawns) : p.Workers;
 
-        FoodForecast forecast;
-        try
-        {
-            forecast = FoodForecastRules.ForecastFood(supply, null);
-        }
-        catch (DomainException)
-        {
-            return Unknown<FoodPlan>();
-        }
+        var forecast = FoodForecastRules.ForecastFood(supply, null);
 
         if (p.FoodSupply.TryGetValue(out var human))
         {
@@ -202,14 +191,7 @@ partial class Rounder
                 DistanceSquared = region.DistanceSquared,
             }).ToList();
             var request = new FishingRequest { Research = water.Research, Regions = regions };
-            try
-            {
-                channels.AddRange(FishingRules.FishingChannels(request));
-            }
-            catch (DomainException)
-            {
-                return Unknown<FoodPlan>();
-            }
+            channels.AddRange(FishingRules.FishingChannels(request));
         }
 
         channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(p.FoodChannels.Products));
@@ -219,12 +201,12 @@ partial class Rounder
         {
             channels.AddRange(FoodPlanRules.CropChannels(
                 fields,
-                new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) },
+                new CropKitchen { Benches = p.ProductionBenches, Cooks = workers },
                 new CropSeason { Calendar = p.Facts.Calendar, Conditions = p.Facts.DisasterConditions }));
         }
 
         var (field, _) = RoundsFieldPlanner.FieldRequestOf(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
-        channels.AddRange(FoodPlanRules.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) }));
+        channels.AddRange(FoodPlanRules.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = workers }));
         (CandidateKind Kind, string Id)[] supports = [(CandidateKind.Cook, "cooking-capacity"), (CandidateKind.Reserve, "stock-protection")];
         foreach (var support in supports)
         {
@@ -234,23 +216,15 @@ partial class Rounder
         channels = hunt.Apply(channels).ToList();
         channels = credit.Apply(channels, FoodCreditInput(p, credit)).ToList();
         var seasonal = thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions);
-        FoodPlan plan;
-        try
+        var plan = FoodPlanRules.SupplyFoodPlan(new FoodPlanRequest
         {
-            plan = FoodPlanRules.SupplyFoodPlan(new FoodPlanRequest
-            {
-                Demand = forecast,
-                MinDays = seasonal.FoodMinDays,
-                TargetDays = seasonal.FoodTargetDays,
-                EmergencyDays = seasonal.FootholdFoodDays,
-                Channels = Known(EquatableArray.From(channels)),
-                Labor = Known(workers * 20000.0),
-            });
-        }
-        catch (DomainException)
-        {
-            return Unknown<FoodPlan>();
-        }
+            Demand = forecast,
+            MinDays = seasonal.FoodMinDays,
+            TargetDays = seasonal.FoodTargetDays,
+            EmergencyDays = seasonal.FootholdFoodDays,
+            Channels = EquatableArray.From(channels),
+            Labor = workers * 20000.0,
+        });
 
         credit.Opened(plan, channels, p.Identity.Tick);
         if (plan.GapPerDay > 0)
@@ -272,22 +246,15 @@ partial class Rounder
             if (offers.Count > 0)
             {
                 channels.AddRange(offers);
-                try
+                plan = FoodPlanRules.SupplyFoodPlan(new FoodPlanRequest
                 {
-                    plan = FoodPlanRules.SupplyFoodPlan(new FoodPlanRequest
-                    {
-                        Demand = forecast,
-                        MinDays = seasonal.FoodMinDays,
-                        TargetDays = seasonal.FoodTargetDays,
-                        EmergencyDays = seasonal.FootholdFoodDays,
-                        Channels = Known(EquatableArray.From(channels)),
-                        Labor = Known(workers * 20000.0),
-                    });
-                }
-                catch (DomainException)
-                {
-                    return Unknown<FoodPlan>();
-                }
+                    Demand = forecast,
+                    MinDays = seasonal.FoodMinDays,
+                    TargetDays = seasonal.FoodTargetDays,
+                    EmergencyDays = seasonal.FootholdFoodDays,
+                    Channels = EquatableArray.From(channels),
+                    Labor = workers * 20000.0,
+                });
             }
         }
 
@@ -306,7 +273,7 @@ partial class Rounder
                 Reason = e.Reason + $"; animals/herd {e.Channel.Id} floor {floor}",
             };
         }).ToList();
-        return Known(plan with { Portfolio = portfolio });
+        return plan with { Portfolio = portfolio };
     }
 
     internal static CreditInput FoodCreditInput(ColonyProjection p, DeliveryCredit credit)
@@ -356,7 +323,7 @@ partial class Rounder
         },
     };
 
-    internal static bool FoodPlanSupportOf(Fact<FoodPlan> p, CandidateKind kind, string id) => FoodOrdersRules.FoodPlanSupport(p, kind, id);
+    internal static bool FoodPlanSupportOf(FoodPlan p, CandidateKind kind, string id) => FoodOrdersRules.FoodPlanSupport(p, kind, id);
 
 
     internal static bool FoodPlanOpensField(FoodPlan plan)

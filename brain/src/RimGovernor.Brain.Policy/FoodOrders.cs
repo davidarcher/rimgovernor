@@ -84,12 +84,8 @@ public static class BillSelectionOrderExtensions
 public static class FoodOrdersRules
 {
     /// <summary>Whether the food plan opened or holds the channel.</summary>
-    public static bool FoodPlanSupport(Fact<FoodPlan> p, CandidateKind kind, string id)
+    public static bool FoodPlanSupport(FoodPlan plan, CandidateKind kind, string id)
     {
-        if (!p.TryGetValue(out var plan))
-        {
-            return false;
-        }
         foreach (var entry in plan.Portfolio)
         {
             if (entry.Channel.Kind == kind && entry.Channel.Id == id)
@@ -127,14 +123,14 @@ public static class FoodOrdersRules
         {
             case var purpose when purpose == ProductionRules.CookFood:
             {
-                if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
+                if (!FoodPlanSupport(f.RequireFoodPlan(), CandidateKind.Cook, "cooking-capacity"))
                 {
                     return Gap(FoodOrderGap.Plan, "cooking-capacity");
                 }
                 var context = new ProductionBillContext { Meals = r.Meals };
                 if (r.Supply.TryGetValue(out var supply) && r.Humans.TryGetValue(out var humans))
                 {
-                    context = context with { Ingredients = HumanFoodPlanRules.HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
+                    context = context with { Ingredients = HumanFoodPlanRules.HumanCookingIngredients(supply, humans.Consumers, f.RequireFoodPlan(), HumanMeatRoute.Meals) };
                 }
                 var (selected, known) = Bill(ProductionRules.CookFood, 0, context);
                 if (known)
@@ -145,7 +141,7 @@ public static class FoodOrdersRules
             }
             case var purpose when purpose == ProductionRules.PreserveFood:
             {
-                if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
+                if (!FoodPlanSupport(f.RequireFoodPlan(), CandidateKind.Reserve, "stock-protection"))
                 {
                     return Gap(FoodOrderGap.Plan, "stock-protection");
                 }
@@ -160,7 +156,7 @@ public static class FoodOrdersRules
                 }
                 if (r.Supply.TryGetValue(out var supply))
                 {
-                    var (sale, ok) = HumanFoodPlanRules.SelectHumanSurvivalBill(census, supply, f.FoodPlan);
+                    var (sale, ok) = HumanFoodPlanRules.SelectHumanSurvivalBill(census, supply, f.RequireFoodPlan());
                     if (ok)
                     {
                         selections.Add(sale);
@@ -171,10 +167,9 @@ public static class FoodOrdersRules
             case var purpose when purpose == ProductionRules.ButcherFood:
             {
                 // Owed on the food runway alone: native offers no hunt row until a usable bench carries this bill.
-                var dk = f.FoodDays.TryGetValue(out var days);
-                if ((!dk || days >= r.TargetDays) && !HumanFoodPlanRules.HumanFoodPending(f.FoodPlan))
+                if (f.RequireFoodRunway().Reaches(r.TargetDays) && !HumanFoodPlanRules.HumanFoodPending(f.RequireFoodPlan()))
                 {
-                    return dk ? Gap(FoodOrderGap.NoDeficit, "") : Gap(FoodOrderGap.Field, "food_days");
+                    return Gap(FoodOrderGap.NoDeficit, "");
                 }
                 var (selected, known) = Bill(ProductionRules.ButcherFood, 0);
                 if (known)
@@ -184,7 +179,7 @@ public static class FoodOrdersRules
                 var (human, ok) = HumanFoodRules.SelectHumanButcher(census, f.Ideology, f.Preferences);
                 if (ok)
                 {
-                    if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Corpse, "human-butchery"))
+                    if (!FoodPlanSupport(f.RequireFoodPlan(), CandidateKind.Corpse, "human-butchery"))
                     {
                         return Gap(FoodOrderGap.Plan, "human-butchery");
                     }

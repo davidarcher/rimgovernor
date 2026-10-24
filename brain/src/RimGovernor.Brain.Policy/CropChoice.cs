@@ -122,7 +122,7 @@ public sealed record FieldRequest
 
     public CropClimate Climate { get; init; } = new();
 
-    public Fact<double> Runway { get; init; }
+    public FoodRunway? Runway { get; init; }
 
     public long Colonists { get; init; }
 
@@ -319,8 +319,7 @@ public static class CropChoiceRules
             fastest = Math.Min(fastest, v.Days);
         }
         var seasonKnown = r.Climate.DaysRemaining.IsKnown;
-        var runwayKnown = r.Runway.TryGetValue(out var foodDays);
-        return (!indoor && !seasonKnown) || (runwayKnown && FoodForecastRules.FoodNumber(foodDays) && foodDays < fastest * 2.5);
+        return (!indoor && !seasonKnown) || (r.Runway is FoodRunway.Days { Value: var foodDays } && FoodForecastRules.FoodNumber(foodDays) && foodDays < fastest * 2.5);
     }
 
     /// <summary>PlanField with the indoor switch.</summary>

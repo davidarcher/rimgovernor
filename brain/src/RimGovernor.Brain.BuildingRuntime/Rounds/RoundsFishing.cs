@@ -5,7 +5,7 @@ partial class RoundsFieldPlanner
 {
     internal static IReadOnlyList<WorkRequirement> FishingWork(ColonyProjection p)
     {
-        if (!p.Facts.FoodPlan.TryGetValue(out var plan))
+        if (p.Facts.FoodPlan is not { } plan)
         {
             return [];
         }
@@ -74,10 +74,10 @@ public sealed partial class Rounder
                 return needs;
             }
 
-            var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
-            if (p.FoodChannels.FishableWater is { } w && pk)
+            var plan = p.Facts.FoodPlan;
+            if (p.FoodChannels.FishableWater is { } w && plan is not null)
             {
-                var target = FishingRules.FishingResearchRequest(plan!, w.Research);
+                var target = FishingRules.FishingResearchRequest(plan, w.Research);
                 if (target.Length != 0)
                 {
                     needs = [.. needs, target];
@@ -105,13 +105,13 @@ public sealed partial class RoundsFieldPlanner
     internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, NeedOwner goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
         var p = read.Projection;
-        var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
-        if (!pk || p.FoodChannels.FishableWater is not { } water || water.Research is not FishingResearch.Researched)
+        var plan = p.Facts.FoodPlan;
+        if (plan is null || p.FoodChannels.FishableWater is not { } water || water.Research is not FishingResearch.Researched)
         {
             return (new RoundsFieldResult(), false);
         }
 
-        foreach (var entry in plan!.Portfolio)
+        foreach (var entry in plan.Portfolio)
         {
             if (entry.Channel.Kind != CandidateKind.Fishing || entry.Decision == FoodPlanDecision.Close || !entry.Selected)
             {

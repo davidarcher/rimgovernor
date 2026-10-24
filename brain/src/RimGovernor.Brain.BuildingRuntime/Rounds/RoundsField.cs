@@ -124,7 +124,7 @@ public sealed partial class RoundsFieldPlanner
         {
             return shrunk;
         }
-        if (!(projection.Facts.FoodPlan.TryGetValue(out var foodPlan) && Rounder.FoodPlanOpensField(foodPlan)))
+        if (!(projection.Facts.FoodPlan is { } foodPlan && Rounder.FoodPlanOpensField(foodPlan)))
         {
             return await PlaceOthersAsync(AwaitingFoodPlan("new-field")).ConfigureAwait(false);
         }

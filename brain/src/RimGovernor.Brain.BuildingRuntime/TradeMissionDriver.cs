@@ -365,7 +365,7 @@ public sealed partial class RoundsTradePlanner
         if (nutrition.Values.Any(n => n > 0))
         {
             // A food mission sizes its purchase from the food plan's gap.
-            if (!projection.Facts.FoodPlan.TryGetValue(out var food))
+            if (projection.Facts.FoodPlan is not { } food)
             {
                 throw new Pol.RequiredFactException("food plan");
             }
