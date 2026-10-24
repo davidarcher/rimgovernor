@@ -35,8 +35,9 @@ internal sealed class RoundsCensusStore
     internal ResourceSupplyKey SupplyKey;
     internal Fact<LayoutPlan> Layout;
     internal Identity LayoutScope = new();
-    internal Fact<RoyaltyFacts> Royalty;
-    internal Identity RoyaltyScope = new();
+
+    /// <summary>The latest review's royalty read with Royalty active; null with Royalty inactive or before the first review.</summary>
+    internal RoyaltyFacts? Royalty;
     internal IReadOnlyList<string> Worship = [];
     internal ulong Benches;
     internal PbObservations.ColonyFactsSnapshot? ReadColony;
@@ -86,12 +87,11 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal void RememberRoyalty(Identity identity, Fact<RoyaltyFacts> royalty)
+    internal void RememberRoyalty(RoyaltyState royalty)
     {
         lock (Mu)
         {
-            Royalty = royalty;
-            RoyaltyScope = identity;
+            Royalty = royalty is RoyaltyState.Active { Facts: var facts } ? facts : null;
         }
     }
 
@@ -120,7 +120,7 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal Fact<RoyaltyFacts> Remembered()
+    internal RoyaltyFacts? Remembered()
     {
         lock (Mu)
         {
@@ -128,19 +128,15 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    /// <summary>Serves the remembered layout plan and royalty facts into a projection that did not read them, within one colony/map/load.</summary>
+    /// <summary>Serves the remembered layout plan into a projection that did not read it, within one colony/map/load.</summary>
     internal ColonyProjection ServeLayout(ColonyProjection projection)
     {
         Fact<LayoutPlan> layout;
         Identity scope;
-        Fact<RoyaltyFacts> royalty;
-        Identity royaltyScope;
         lock (Mu)
         {
             layout = Layout;
             scope = LayoutScope;
-            royalty = Royalty;
-            royaltyScope = RoyaltyScope;
         }
         var id = projection.Identity;
         bool Same(Identity s) => s.Colony == id.Colony && s.Map == id.Map && s.Load == id.Load;
@@ -148,10 +144,7 @@ internal sealed class RoundsCensusStore
         {
             projection = projection with { LayoutPlan = layout };
         }
-        if (!projection.Royalty.IsKnown && royalty.IsKnown && Same(royaltyScope))
-        {
-            projection = projection with { Royalty = royalty };
-        }
+
         return projection;
     }
 
@@ -365,7 +358,7 @@ public sealed partial class Rounder
         return f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(Stamp)] }) };
     }
 
-    /// <summary>The remembered layout and royalty served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews.</summary>
+    /// <summary>The remembered layout served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews.</summary>
     private ColonyProjection ServeAndReview(ColonyProjection fresh)
     {
         var projection = Census.ServeLayout(fresh);

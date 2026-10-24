@@ -342,8 +342,8 @@ public sealed record RoundsFacts
 
     public Fact<EquatableArray<WorldSite>> QuestSites { get; init; }
 
-    /// <summary>The royalty facts from the pawn rows, the def mirror and the colony section; unknown when Royalty is not applicable or a read failed.</summary>
-    public Fact<RoyaltyFacts> Royalty { get; init; }
+    /// <summary>The royalty read from the pawn rows, the def mirror and the colony section: Inactive without the expansion (the default before the read).</summary>
+    public RoyaltyState Royalty { get; init; } = new RoyaltyState.Inactive();
 
     /// <summary>The worship room, believers, presence demands and rituals of the frame's ideoligion (#3808); empty without one.</summary>
     public WorshipFacts Worship { get; init; } = new();
@@ -360,8 +360,6 @@ public sealed record RoundsFacts
     /// <summary>Whether the Biotech expansion is active (the colony read's Biotech section is active): without it the biotech family derives no Needs.</summary>
     public bool BiotechInstalled { get; init; }
 
-    /// <summary>Whether the Royalty expansion is active (the colony read's Royalty section is active): without it the royalty family derives no Needs.</summary>
-    public bool RoyaltyInstalled { get; init; }
 
     /// <summary>The bestowing-ceremony quests the title claim gate allows to accept now (ClaimQuests); the review fills it once the plan, rooms and royalty read are known.</summary>
     public EquatableArray<QuestId> TitleClaimQuests { get; init; }

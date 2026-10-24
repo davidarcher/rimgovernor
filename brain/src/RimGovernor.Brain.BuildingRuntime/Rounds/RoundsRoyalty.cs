@@ -41,7 +41,7 @@ public sealed class RoyaltyRounds
     {
         if (scope.Immediate)
         {
-            return new RoyaltyFamilyFacts();
+            return new RoyaltyFamilyFacts { Royalty = new RoyaltyState.Inactive(), PsylinkOwed = false };
         }
         var started = _reviewer.Clock.Now();
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
@@ -51,11 +51,11 @@ public sealed class RoyaltyRounds
             throw new ControlException("royalty read: the scope is another world or older than the review");
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
-        var facts = new RoyaltyFamilyFacts { Installed = read.Projection.Facts.RoyaltyInstalled, Royalty = read.Projection.Facts.Royalty };
-        if (_psylink is not null)
+        var facts = new RoyaltyFamilyFacts
         {
-            facts = facts with { PsylinkOwed = await PsylinkOwedAsync(_psylink, Boundary.Identity(scope.World), read.Projection, call).ConfigureAwait(false) };
-        }
+            Royalty = read.Projection.Facts.Royalty,
+            PsylinkOwed = _psylink is not null && await PsylinkOwedAsync(_psylink, Boundary.Identity(scope.World), read.Projection, call).ConfigureAwait(false),
+        };
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
@@ -65,35 +65,27 @@ public sealed class RoyaltyRounds
     }
 
     /// <summary>
-    /// PsylinkOwed over the projection's royalty and pawn rows: the held neuroformer items are read natively only while
-    /// a candidate or level-up colonist waits and the census does not count none held; an unreadable item list leaves
-    /// them unknown.
+    /// The royalty/psylink Need's predicate over the projection's royalty and pawn rows: a use is owed while a candidate
+    /// or level-up colonist waits and a psylink neuroformer is held. None is owed with Royalty inactive. The held items
+    /// are read natively only while a colonist waits and the census does not count none held. Throws while the pawn
+    /// rows are unread; a failed item read throws.
     /// </summary>
-    internal static async Task<Fact<bool>> PsylinkOwedAsync(FacadeNativeClient native, C.Identity identity, ColonyProjection projection, CancellationToken ct)
+    internal static async Task<bool> PsylinkOwedAsync(FacadeNativeClient native, C.Identity identity, ColonyProjection projection, CancellationToken ct)
     {
-        var candidates = PsylinkRules.PsylinkCandidates(projection.Royalty, projection.WorkPawns);
-        var levelUps = PsylinkRules.PsylinkLevelUps(projection.Royalty, projection.WorkPawns);
-        var items = Unknown<EquatableArray<string>>();
-        if (candidates.TryGetValue(out var first) && levelUps.TryGetValue(out var up) && first.Count + up.Count > 0 && projection.Royalty.TryGetValue(out var royalty))
+        if (projection.Facts.Royalty is not RoyaltyState.Active { Facts: var royalty })
         {
-            if (royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) && stock.Held == 0)
-            {
-                items = Known<EquatableArray<string>>([]);
-            }
-            else if (royalty.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
-            {
-                try
-                {
-                    var read = await native.ReadNeuroformerItemsAsync(identity, PsylinkRules.PsylinkNeuroformer, ct).ConfigureAwait(false);
-                    items = Known<EquatableArray<string>>([.. read]);
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    // An unreadable neuroformer census leaves the items unknown.
-                    items = Unknown<EquatableArray<string>>();
-                }
-            }
+            return false;
         }
-        return PsylinkRules.PsylinkOwed(candidates, levelUps, items);
+        if (!PsylinkRules.PsylinkCandidates(royalty, projection.WorkPawns).TryGetValue(out var first)
+            || !PsylinkRules.PsylinkLevelUps(royalty, projection.WorkPawns).TryGetValue(out var up))
+        {
+            throw new RequiredFactException("royalty/psylink work pawns");
+        }
+        if (first.Count + up.Count == 0 || !royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) || stock.Held == 0)
+        {
+            return false;
+        }
+        var held = await native.ReadNeuroformerItemsAsync(identity, PsylinkRules.PsylinkNeuroformer, ct).ConfigureAwait(false);
+        return held.Count > 0;
     }
 }

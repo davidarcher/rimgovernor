@@ -19,7 +19,7 @@ public static partial class CombatPermitRules
         {
             return PermitFightKind.StrikeCall;
         }
-        if (PermitChoiceRules.PermitCategoryOf(new RoyalPermit { Name = name }) == PermitCategory.Aid && !name.Contains("Laborer", StringComparison.Ordinal))
+        if (PermitChoiceRules.PermitCategoryOf(name) == PermitCategory.Aid && !name.Contains("Laborer", StringComparison.Ordinal))
         {
             return PermitFightKind.AidCall;
         }
@@ -28,23 +28,12 @@ public static partial class CombatPermitRules
 
     internal static string PermitKey(PawnId pawn, string faction, string permit) => pawn.Value + "/" + faction + "/" + permit;
 
-    /// <summary>Reports a held acting permit that is off cooldown and affordable per the royalty read; every unread fact holds the call.</summary>
-    internal static bool PermitReady(RoyaltyFacts f, PawnRoyalHolding h, string name)
-    {
-        if (!f.Permits.TryGetValue(name, out var permit))
-        {
-            return false;
-        }
-        if (!permit.Acts.TryGetValue(out var acts) || !acts)
-        {
-            return false;
-        }
-        if (!permit.FavorCost.TryGetValue(out var cost) || h.Favor < cost)
-        {
-            return false;
-        }
-        return RoyalHoldingRules.PermitReady(h, name);
-    }
+    /// <summary>Reports a held royal-aid permit that is off cooldown and affordable per the royalty read; a passive permit is never ready.</summary>
+    internal static bool PermitReady(RoyaltyFacts f, PawnRoyalHolding h, string name) =>
+        f.Permits.TryGetValue(name, out var permit)
+        && permit.Aid is { } aid
+        && h.Favor >= aid.FavorCost
+        && RoyalHoldingRules.PermitReady(h, name);
 
     /// <summary>
     /// This stop's permit calls: with a known armed squad outmatched, each held, ready aid or strike permit
@@ -54,7 +43,7 @@ public static partial class CombatPermitRules
     /// </summary>
     internal static (CombatMemory Memory, IReadOnlyList<CombatOrder> Calls) PermitCalls(CombatView view, CombatMemory m)
     {
-        if (!view.Royalty.TryGetValue(out var royalty) || view.Hunt || !OutmatchedKnown(view))
+        if (view.Royalty is not { } royalty || view.Hunt || !OutmatchedKnown(view))
         {
             return (m, []);
         }

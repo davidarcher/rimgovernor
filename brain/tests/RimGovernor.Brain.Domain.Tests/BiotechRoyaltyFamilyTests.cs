@@ -29,13 +29,19 @@ public sealed class BiotechRoyaltyFamilyTests
         }).Derive(facts with { Installed = true }), n => n.Id == id);
 
     private static Need Royalty(RoyaltyFamilyFacts facts, NeedId id) =>
-        Assert.Single(new RoyaltyFamily(id == RoyaltyFamily.Permits, id == RoyaltyFamily.Psylink).Derive(facts with { Installed = true }));
+        Assert.Single(new RoyaltyFamily(id == RoyaltyFamily.Permits, id == RoyaltyFamily.Psylink).Derive(facts));
+
+    private static readonly RoyaltyFamilyFacts NoRoyalty = new() { Royalty = new RoyaltyState.Inactive(), PsylinkOwed = false };
+
+    private static RoyaltyFamilyFacts Active(RoyaltyFacts royalty, bool psylinkOwed = false) => new() { Royalty = new RoyaltyState.Active(royalty), PsylinkOwed = psylinkOwed };
 
     [Fact]
     public void WithoutTheExpansionBiotechAndRoyaltyDeriveNothing()
     {
         Assert.Empty(new BiotechFamily(AllBiotech).Derive(new BiotechFacts()));
-        Assert.Empty(new RoyaltyFamily().Derive(new RoyaltyFamilyFacts()));
+        Assert.Empty(new RoyaltyFamily().Derive(NoRoyalty));
+        Assert.Empty(new RoyaltyFamily().Derive(NoRoyalty with { PsylinkOwed = true }));
+        Assert.Empty(new RoyaltyFamily().Propose([], NoRoyalty));
         Assert.Empty(new IdeologyFamily().Derive(new IdeologyFacts()));
         Assert.False(new RoundsFacts().AnomalyInstalled);
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
@@ -158,16 +164,15 @@ public sealed class BiotechRoyaltyFamilyTests
 
     private static RoyaltyFacts TitledWith(string permit, string worker, params string[] holders) => new()
     {
-        Ladder = [new RoyalRung { Title = "Knight", Seniority = Known(100) }],
+        Ladder = [new RoyalRung { Title = "Knight", Seniority = 100, FavorNeeded = 8, Throne = new ThroneRequirements(), BedroomMinImpressiveness = 0, BedroomThings = [] }],
         Permits = new Dictionary<string, RoyalPermit>
         {
             [permit] = new()
             {
                 Name = permit,
-                MinTitle = Known("Knight"),
-                PermitPoints = Known(1),
-                Acts = Known(true),
-                FavorCost = Known(4),
+                MinTitle = "Knight",
+                PermitPoints = 1,
+                Aid = new RoyalAid(4),
                 Worker = worker,
             },
         },
@@ -175,29 +180,29 @@ public sealed class BiotechRoyaltyFamilyTests
     };
 
     [Fact]
-    public void PermitsAreMetUnmetOrUnknownByWhetherAPermitIsTakeable()
+    public void PermitsAreMetOrUnmetByWhetherAPermitIsTakeable()
     {
-        var owed = Royalty(new RoyaltyFamilyFacts { Royalty = Known(Titled("a")) }, RoyaltyFamily.Permits);
+        var owed = Royalty(Active(Titled("a")), RoyaltyFamily.Permits);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Development), (owed.Satisfaction, owed.Tier));
-        Assert.Equal(Satisfaction.Met, Royalty(new RoyaltyFamilyFacts { Royalty = Known(new RoyaltyFacts()) }, RoyaltyFamily.Permits).Satisfaction);
-        Assert.Equal("royalty", Assert.Throws<RequiredFactException>(() => Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Permits)).Fact);
+        Assert.Equal(Satisfaction.Met, Royalty(Active(new RoyaltyFacts()), RoyaltyFamily.Permits).Satisfaction);
+        Assert.False(PermitChoiceRules.PermitsSpent(Titled("a")));
+        Assert.True(PermitChoiceRules.PermitsSpent(new RoyaltyFacts()));
 
-        var method = Assert.Single(new RoyaltyFamily().Propose([owed], new RoyaltyFamilyFacts { Royalty = Known(Titled("a")) }));
+        var method = Assert.Single(new RoyaltyFamily().Propose([owed], Active(Titled("a"))));
         Assert.Equal("permit-a-CallAid", method.Method.Value);
         var setting = Assert.Single(method.Plan(new PlanId("p")).Actions).PawnSettings!;
         Assert.Equal(new PawnId("a"), setting.Pawn);
     }
 
     [Fact]
-    public void PsylinkIsMetUnmetOrUnknownAndHeldWhileOwed()
+    public void PsylinkIsMetOrUnmetAndHeldWhileOwed()
     {
-        var owed = Royalty(new RoyaltyFamilyFacts { PsylinkOwed = Known(true) }, RoyaltyFamily.Psylink);
+        var owed = Royalty(Active(new RoyaltyFacts(), psylinkOwed: true), RoyaltyFamily.Psylink);
         Assert.Equal(Satisfaction.Unmet, owed.Satisfaction);
-        Assert.Equal(Satisfaction.Met, Royalty(new RoyaltyFamilyFacts { PsylinkOwed = Known(false) }, RoyaltyFamily.Psylink).Satisfaction);
-        Assert.Equal("psylink owed", Assert.Throws<RequiredFactException>(() => Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Psylink)).Fact);
-        var held = Assert.Single(new RoyaltyFamily().Propose([owed], new RoyaltyFamilyFacts()));
+        Assert.Equal(Satisfaction.Met, Royalty(Active(new RoyaltyFacts()), RoyaltyFamily.Psylink).Satisfaction);
+        var held = Assert.Single(new RoyaltyFamily().Propose([owed], Active(new RoyaltyFacts(), psylinkOwed: true)));
         Assert.Equal(RoyaltyFamily.UnsupportedNeuroformer, held.Hold!.Subject);
-        var settled = new RoyaltyFamilyFacts { Installed = true, Royalty = Known(new RoyaltyFacts()), PsylinkOwed = Known(false) };
+        var settled = Active(new RoyaltyFacts());
         Assert.Equal(2, new RoyaltyFamily().Derive(settled).Count);
         Assert.DoesNotContain(new RoyaltyFamily(true, false).Derive(settled), n => n.Id == RoyaltyFamily.Psylink);
         Assert.DoesNotContain(new RoyaltyFamily(false, true).Derive(settled), n => n.Id == RoyaltyFamily.Permits);
@@ -207,7 +212,7 @@ public sealed class BiotechRoyaltyFamilyTests
     {
         public required Journal Journal { get; init; }
         public required FamilyRunner<RoyaltyFamilyFacts> Runner { get; init; }
-        public RoyaltyFamilyFacts Facts { get; set; } = new();
+        public RoyaltyFamilyFacts Facts { get; set; } = NoRoyalty;
 
         public void Dispose() => Journal.Dispose();
 
@@ -228,7 +233,7 @@ public sealed class BiotechRoyaltyFamilyTests
         return colony;
     }
 
-    private static RoyaltyFamilyFacts Permit(RoyaltyFacts royalty) => new() { Installed = true, Royalty = Known(royalty) };
+    private static RoyaltyFamilyFacts Permit(RoyaltyFacts royalty) => Active(royalty);
 
     [Fact]
     public void PermitMethodsRunSideBySideAndAHoldersSecondPermitIsHeldByItsClaim()
@@ -272,7 +277,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Assert.Contains(ActionKind.Area, biotech.Kinds);
         Assert.Contains(ActionKind.WastepackHaul, biotech.Kinds);
 
-        var royalty = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(), (_, _) => Task.FromResult(new RoyaltyFamilyFacts()), RoyaltyRounds.Schedule));
+        var royalty = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(), (_, _) => Task.FromResult(NoRoyalty), RoyaltyRounds.Schedule));
         Assert.Equal("royalty", royalty.Name);
         Assert.Contains(ActionKind.PawnSettings, royalty.Kinds);
 

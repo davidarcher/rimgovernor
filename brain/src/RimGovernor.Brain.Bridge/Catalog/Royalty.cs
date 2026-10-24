@@ -34,24 +34,14 @@ public sealed partial class DefinitionCatalog
         foreach (var permit in Rows<RoyalTitlePermitDef>().Values.OrderBy(p => p.defName, StringComparer.Ordinal))
         {
             // The worker class is the type name without its namespace (the base RoyalTitlePermitWorker for a permit with no worker of its own).
-            var entry = new P.RoyalPermit
+            permits[permit.defName] = new P.RoyalPermit
             {
                 Name = permit.defName,
-                PermitPoints = Known(permit.permitPointCost),
-                Acts = Known(permit.royalAid is not null),
-                Worker = permit.workerClass?.Name ?? string.Empty,
+                MinTitle = permit.minTitle?.defName,
+                PermitPoints = permit.permitPointCost,
+                Aid = permit.royalAid is { } aid ? new P.RoyalAid(aid.favorCost) : null,
+                Worker = permit.workerClass?.Name ?? throw new CatalogException($"royalty defs: permit {permit.defName} has no worker class"),
             };
-            if (permit.minTitle is { } min)
-            {
-                entry = entry with { MinTitle = Known(min.defName) };
-            }
-
-            if (permit.royalAid is { } aid)
-            {
-                entry = entry with { FavorCost = Known(aid.favorCost) };
-            }
-
-            permits[permit.defName] = entry;
         }
 
         return facts with { Ladder = Domain.EquatableArray.From(titles.Select(RoyalRung)), Permits = permits };
@@ -61,31 +51,26 @@ public sealed partial class DefinitionCatalog
     private P.RoyalRung RoyalRung(RoyalTitleDef title)
     {
         var bedroom = BedroomRequirements(title, _ => false);
-        var rung = new P.RoyalRung
+        var throne = ThroneRequirements(title.defName);
+        return new P.RoyalRung
         {
             Title = title.defName,
-            Seniority = Known(title.seniority),
-            FavorNeeded = Known(title.favorCost),
+            Seniority = title.seniority,
+            FavorNeeded = title.favorCost,
+            Throne = throne with { ForbiddenDefs = ForbiddenDefs(throne) },
+            BedroomMinImpressiveness = bedroom.Impressiveness,
             BedroomThings = Domain.EquatableArray.From(bedroom.Things),
         };
-        if (bedroom.HaveImpressiveness)
-        {
-            rung = rung with { BedroomMinImpressiveness = Known(bedroom.Impressiveness) };
-        }
-
-        var throne = ThroneRequirements(title.defName);
-        return rung with { Throne = Known(throne with { ForbiddenDefs = ForbiddenDefs(throne) }) };
     }
 
-    /// <summary>A title's bedroom requirements: the largest area and impressiveness any requires (Have* when one does) and the furniture.</summary>
-    private sealed record BedroomNeed(int Area, bool HaveArea, int Impressiveness, bool HaveImpressiveness, IReadOnlyList<P.BedroomThing> Things);
+    /// <summary>A title's bedroom requirements: the largest area and impressiveness any requires (zero when none does) and the furniture.</summary>
+    private sealed record BedroomNeed(int Area, int Impressiveness, IReadOnlyList<P.BedroomThing> Things);
 
     // Title's bedroomRequirements, skipping each whose disablingPrecepts <paramref name="disabled"/> reports waived. A
     // requirement with no furniture is an error.
     private static BedroomNeed BedroomRequirements(RoyalTitleDef title, Func<IEnumerable<string>, bool> disabled)
     {
         int area = 0, impressiveness = 0;
-        bool haveArea = false, haveImpressiveness = false;
         var things = new List<P.BedroomThing>();
 
         void Thing(IEnumerable<ThingDef> anyOf, int count)
@@ -112,10 +97,10 @@ public sealed partial class DefinitionCatalog
             switch (req)
             {
                 case RoomRequirement_Area a:
-                    (haveArea, area) = (true, Math.Max(area, a.area));
+                    area = Math.Max(area, a.area);
                     break;
                 case RoomRequirement_Impressiveness i:
-                    (haveImpressiveness, impressiveness) = (true, Math.Max(impressiveness, i.impressiveness));
+                    impressiveness = Math.Max(impressiveness, i.impressiveness);
                     break;
                 case RoomRequirement_ThingAnyOfCount any:
                     Thing(any.things.Seq(), any.count);
@@ -132,7 +117,7 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new BedroomNeed(area, haveArea, impressiveness, haveImpressiveness, things);
+        return new BedroomNeed(area, impressiveness, things);
     }
 
     /// <summary>
@@ -177,10 +162,10 @@ public sealed partial class DefinitionCatalog
         return new P.Psycast
         {
             Def = name,
-            PsyfocusCost = Known(cost),
-            Entropy = Known(entropy),
+            PsyfocusCost = cost,
+            Entropy = entropy,
             Target = PsycastTarget(row.verbProperties?.targetParams),
-            CooldownTicks = Known(cooldown),
+            CooldownTicks = cooldown,
         };
     }
 

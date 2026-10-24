@@ -28,19 +28,16 @@ public static partial class PsylinkRules
     /// The colonists willing to take a psylink: available (alive, standing, undrafted, out of a mental
     /// state), read with a needs block, and with no psylink. A colonist's psylink facts are known only for a
     /// psycaster (WorkPawn.PsylinkLevel), so with the needs block read, an unknown level is none. Unknown
-    /// without the royalty read or the pawn rows, and none when the game has no psylink neuroformer def.
-    /// Sorted by id.
+    /// without the pawn rows, and none when the game has no psylink neuroformer def. Sorted by id.
     /// </summary>
-    public static Fact<EquatableArray<PawnId>> PsylinkCandidates(Fact<RoyaltyFacts> royalty, Fact<EquatableArray<WorkPawn>> pawns)
+    public static Fact<EquatableArray<PawnId>> PsylinkCandidates(RoyaltyFacts facts, Fact<EquatableArray<WorkPawn>> pawns)
     {
-        var rk = royalty.TryGetValue(out var facts);
-        var pk = pawns.TryGetValue(out var rows);
-        if (!rk || !pk)
+        if (!pawns.TryGetValue(out var rows))
         {
             return Unknown<EquatableArray<PawnId>>();
         }
         var output = new List<PawnId>();
-        if (!facts!.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
+        if (!facts.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {
             return Known(EquatableArray.From(output));
         }
@@ -62,20 +59,18 @@ public static partial class PsylinkRules
     /// The colonists a neuroformer already in stock raises a level: available, read with a needs block,
     /// holding a psylink below MaxPsylinkLevel and with no royal title in any faction (the Empire title caps
     /// the psylink level, and exceeding it breaks the rules). The royalty read's holdings carry every free
-    /// colonist's titles, so a colonist with no holding is untitled. Unknown without the royalty read or the
-    /// pawn rows, and none when the game has no psylink neuroformer def. Sorted by id. These colonists never
-    /// raise NeuroformerNeeds: only existing stock serves them.
+    /// colonist's titles, so a colonist with no holding is untitled. Unknown without the pawn rows, and none
+    /// when the game has no psylink neuroformer def. Sorted by id. These colonists never raise
+    /// NeuroformerNeeds: only existing stock serves them.
     /// </summary>
-    public static Fact<EquatableArray<PawnId>> PsylinkLevelUps(Fact<RoyaltyFacts> royalty, Fact<EquatableArray<WorkPawn>> pawns)
+    public static Fact<EquatableArray<PawnId>> PsylinkLevelUps(RoyaltyFacts facts, Fact<EquatableArray<WorkPawn>> pawns)
     {
-        var rk = royalty.TryGetValue(out var facts);
-        var pk = pawns.TryGetValue(out var rows);
-        if (!rk || !pk)
+        if (!pawns.TryGetValue(out var rows))
         {
             return Unknown<EquatableArray<PawnId>>();
         }
         var output = new List<PawnId>();
-        if (!facts!.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
+        if (!facts.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {
             return Known(EquatableArray.From(output));
         }
@@ -99,19 +94,17 @@ public static partial class PsylinkRules
 
     /// <summary>
     /// Adds a stock floor of one psylink neuroformer to needs while a candidate waits, none is held and the
-    /// game can supply one (an available recipe or a trader selling it). Unknown stock or candidates add
-    /// nothing: the colony never buys against an unread census. candidates are the first-psylink colonists
-    /// only, never PsylinkLevelUps.
+    /// game can supply one (an available recipe or a trader selling it). Unknown candidates add nothing: the
+    /// colony never buys against an unread census. candidates are the first-psylink colonists only, never
+    /// PsylinkLevelUps.
     /// </summary>
-    public static IReadOnlyDictionary<Resource, long> NeuroformerNeeds(IReadOnlyDictionary<Resource, long> needs, Fact<RoyaltyFacts> royalty, Fact<EquatableArray<PawnId>> candidates)
+    public static IReadOnlyDictionary<Resource, long> NeuroformerNeeds(IReadOnlyDictionary<Resource, long> needs, RoyaltyFacts facts, Fact<EquatableArray<PawnId>> candidates)
     {
-        var rk = royalty.TryGetValue(out var facts);
-        var ck = candidates.TryGetValue(out var who);
-        if (!rk || !ck || who!.Count == 0)
+        if (!candidates.TryGetValue(out var who) || who.Count == 0)
         {
             return needs;
         }
-        var ok = facts!.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock);
+        var ok = facts.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock);
         if (!ok)
         {
             return needs;
@@ -123,27 +116,4 @@ public static partial class PsylinkRules
         return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [new Resource(PsylinkRules.PsylinkNeuroformer)] = 1 });
     }
 
-    /// <summary>
-    /// The royalty/psylink Need's predicate: a use is owed while a candidate or a level-up colonist and a held neuroformer
-    /// item both exist. Unknown while the candidates or level-ups are unknown or a colonist waits on an unread
-    /// item list; known false with no one waiting.
-    /// </summary>
-    public static Fact<bool> PsylinkOwed(Fact<EquatableArray<PawnId>> candidates, Fact<EquatableArray<PawnId>> levelUps, Fact<EquatableArray<string>> items)
-    {
-        var ck = candidates.TryGetValue(out var first);
-        var uk = levelUps.TryGetValue(out var up);
-        if (!ck || !uk)
-        {
-            return Unknown<bool>();
-        }
-        if (first!.Count + up!.Count == 0)
-        {
-            return Known(false);
-        }
-        if (!items.TryGetValue(out var held))
-        {
-            return Unknown<bool>();
-        }
-        return Known(held.Count > 0);
-    }
 }

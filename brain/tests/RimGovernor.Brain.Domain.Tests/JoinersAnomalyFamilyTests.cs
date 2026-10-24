@@ -34,7 +34,7 @@ public sealed class JoinersAnomalyFamilyTests
     {
         QuestOffers = Known<EquatableArray<JoinerOffer>>([]),
         JoinerLetters = Known<EquatableArray<JoinerLetterOffer>>([.. letters]),
-        Royalty = Known(new RoyaltyFacts()),
+        Royalty = new RoyaltyState.Active(new RoyaltyFacts()),
     });
 
     private static Need Joiner(RoundsFacts f, NeedId id) => Assert.Single(new JoinersFamily().Derive(JoinersFacts.From(f)), n => n.Id == id);
@@ -55,9 +55,8 @@ public sealed class JoinersAnomalyFamilyTests
         // A letter the colony may have no room for, or an unread census, never reads as settled.
         Assert.Equal("joiner letters", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
         Assert.Equal("joiner offers", Assert.Throws<RequiredFactException>(() => new JoinersFamily().Derive(new JoinersFacts())).Fact);
-        // With Royalty an unread royalty read raises; without it no ceremony can wait, so the Need is met.
-        Assert.Equal("royalty", Assert.Throws<RequiredFactException>(() => Joiner(Census() with { Royalty = default, RoyaltyInstalled = true }, JoinersFamily.Ceremony)).Fact);
-        Assert.Equal(Satisfaction.Met, Joiner(Census() with { Royalty = default }, JoinersFamily.Ceremony).Satisfaction);
+        // With Royalty inactive no ceremony can wait, so the Need is met.
+        Assert.Equal(Satisfaction.Met, Joiner(Census() with { Royalty = new RoyaltyState.Inactive() }, JoinersFamily.Ceremony).Satisfaction);
     }
 
     [Fact]

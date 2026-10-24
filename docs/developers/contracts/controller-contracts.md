@@ -101,14 +101,14 @@ There is no royalty read; the Royalty-applicable gate is the presence of
 `ColonyFactsSnapshot.royalty` (as for other DLC sections). Title ladder and permit
 catalog are def-mirror rows; per-colonist holdings and known psycasts are
 `PawnState.royalty`; neuroformer stock, bestowing ceremonies and thrones are the colony
-section (see observations.md). Absent scalars are unknown, never zero.
+section (see observations.md). Without Royalty the read is `RoyaltyState.Inactive`, never unknown.
 
 Throne-room requirements are not a wire field: the client builds a view from each
 `RoyalTitleDef.throneRoomRequirements` in the definition catalog (`DefinitionCatalog.ThroneRequirements`,
 `WithThroneRequirements`) into `RoyalRung.Throne` before projection. A missing
 `RoyalTitleDef` row or an unset or malformed requirement is an error wrapping
-`bridge.ErrThroneRequirements` naming the title and requirement; the review logs it and
-leaves royalty unknown. `disablingPrecepts` is not modelled. `policy.NextThroneNeed`
+`bridge.ErrThroneRequirements` naming the title and requirement; the review fails on
+it. `disablingPrecepts` is not modelled. `policy.NextThroneNeed`
 picks the first rung above the holder's with a throne.
 
 - `royalty/psylink` (`policy.PsylinkCandidates`, `RoyaltyFamily.cs`): owed while an available

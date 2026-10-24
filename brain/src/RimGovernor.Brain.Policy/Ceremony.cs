@@ -37,9 +37,6 @@ public static class CeremonyRules
         return null;
     }
 
-    /// <summary>CeremonyStart of a royalty read that may be unknown.</summary>
-    public static BestowingCeremony? CeremonyStartOf(Fact<RoyaltyFacts> royalty) =>
-        royalty.TryGetValue(out var f) ? CeremonyStart(f) : null;
 
     /// <summary>
     /// The throne room the first pending ceremony needs: the requirement of the title it bestows, null when

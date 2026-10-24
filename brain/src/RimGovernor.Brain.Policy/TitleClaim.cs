@@ -62,8 +62,8 @@ public sealed record TitleClaimFacts
 
 public static partial class TitleClaimRules
 {
-    /// <summary>The rung a holding would claim next: the first rung above the held title (the first rung for none), false at the top of the ladder.</summary>
-    internal static (RoyalRung Rung, bool Ok) NextClaim(EquatableArray<RoyalRung> ladder, string? held)
+    /// <summary>The rung a holding would claim next: the first rung above the held title (the first rung for none), null at the top of the ladder or for a title off it.</summary>
+    internal static RoyalRung? NextClaim(EquatableArray<RoyalRung> ladder, string? held)
     {
         var next = 0;
         if (held is not null)
@@ -78,14 +78,10 @@ public static partial class TitleClaimRules
             }
             if (next < 0)
             {
-                return (new RoyalRung(), false);
+                return null;
             }
         }
-        if (next >= ladder.Count)
-        {
-            return (new RoyalRung(), false);
-        }
-        return (ladder[next], true);
+        return next < ladder.Count ? ladder[next] : null;
     }
 
     /// <summary>
@@ -94,7 +90,7 @@ public static partial class TitleClaimRules
     /// </summary>
     private static Fact<bool> BedroomMet(TitleClaimFacts f, PawnId holder, RoyalRung rung)
     {
-        rung.BedroomMinImpressiveness.TryGetValue(out var minImpressiveness);
+        var minImpressiveness = rung.BedroomMinImpressiveness;
         if (minImpressiveness <= 0 && rung.BedroomThings.Count == 0)
         {
             return Known(true);
@@ -183,7 +179,7 @@ public static partial class TitleClaimRules
     /// <summary>
     /// The gate's verdict for the colonist closest to the next title: the first holder, by ID, whose favor
     /// reaches the next rung's FavorNeeded. With no such colonist the verdict is NoFavor (or Unknown when the
-    /// ladder or a favor is unread). A claimable colonist whose bedroom or the rung's throne room falls short is
+    /// ladder is unread). A claimable colonist whose bedroom or the rung's throne room falls short is
     /// held, so a title is never claimed ahead of the upkeep it brings.
     /// </summary>
     public static TitleClaim NextTitleClaim(TitleClaimFacts f)
@@ -199,22 +195,7 @@ public static partial class TitleClaimRules
         {
             foreach (var h in f.Royalty.Holders[id])
             {
-                var (rung, ok) = NextClaim(ladder, h.Title);
-                if (!ok)
-                {
-                    continue;
-                }
-                var favor = h.Favor;
-                var nk = rung.FavorNeeded.TryGetValue(out var needed);
-                if (!nk)
-                {
-                    if (verdict.Reason == TitleClaimReason.NoFavor)
-                    {
-                        verdict = new TitleClaim { Holder = id, Title = rung.Title, Reason = TitleClaimReason.Unknown };
-                    }
-                    continue;
-                }
-                if (favor < needed)
+                if (NextClaim(ladder, h.Title) is not { } rung || h.Favor < rung.FavorNeeded)
                 {
                     continue;
                 }

@@ -104,10 +104,10 @@ public sealed class BiotechSectionTests
 
         // Every DLC section of the core snapshot is inactive: no expansion counts as installed, and no family derives.
         var facts = DlcSectionReads.Installed(new RoundsFacts(), ColonyFactsCoreTests.Snapshot());
-        Assert.Equal((false, false, false), (facts.RoyaltyInstalled, facts.AnomalyInstalled, facts.BiotechInstalled));
+        Assert.Equal((false, false, false), (facts.Royalty is RoyaltyState.Active, facts.AnomalyInstalled, facts.BiotechInstalled));
         Assert.Empty(new BiotechFamily(new BiotechNeeds { Mechs = true, MechCharger = true, GeneBank = true, Pollution = true })
             .Derive(new BiotechFacts { Installed = facts.BiotechInstalled }));
-        Assert.Empty(new RoyaltyFamily().Derive(new RoyaltyFamilyFacts { Installed = facts.RoyaltyInstalled }));
+        Assert.Empty(new RoyaltyFamily().Derive(new RoyaltyFamilyFacts { Royalty = facts.Royalty, PsylinkOwed = false }));
         Assert.Empty(new AnomalyFamily().Derive(AnomalyFacts.From(facts)));
 
         var active = DlcSectionReads.Installed(new RoundsFacts(), ColonyFactsCoreTests.Snapshot() with { Biotech = new O.BiotechSection.Active(Colony) });

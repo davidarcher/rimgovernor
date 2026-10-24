@@ -35,7 +35,7 @@ public static class QuestCapacity
         {
             return (default, false);
         }
-        var royalKnown = facts.Royalty.TryGetValue(out var royal);
+        var royal = facts.Royalty is RoyaltyState.Active { Facts: var active } ? active : null;
         long favor = offer.Favor + (choice >= 0 && choice < offer.Rewards.Count ? offer.Rewards[choice].Favor : 0);
         var priorities = new Dictionary<PawnId, int>();
         if (!workers.TryGetValue(out var pawns))
@@ -67,7 +67,7 @@ public static class QuestCapacity
                 continue;
             }
             var isRoyal = false;
-            if (royalKnown && favor > 0 && royal!.Holders.TryGetValue(id, out var holdings))
+            if (royal is not null && favor > 0 && royal.Holders.TryGetValue(id, out var holdings))
             {
                 foreach (var holding in holdings)
                 {

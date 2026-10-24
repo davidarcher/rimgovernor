@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -67,7 +66,7 @@ public static partial class PermitChoiceRules
 
     /// <summary>
     /// Classifies a permit by its worker class. A permit with no worker of its own (the passive trade
-    /// permits) or a read that carries none falls back to its def name.
+    /// permits) falls back to its def name.
     /// </summary>
     internal static PermitCategory PermitCategoryOf(RoyalPermit p)
     {
@@ -82,7 +81,12 @@ public static partial class PermitChoiceRules
             case PermitChoiceRules.PermitWorkerOrbitalStrike:
                 return PermitCategory.Other;
         }
-        var name = p.Name;
+        return PermitCategoryOf(p.Name);
+    }
+
+    /// <summary>Classifies a permit by its def name alone.</summary>
+    internal static PermitCategory PermitCategoryOf(string name)
+    {
         if (name.Contains("Psy", StringComparison.Ordinal))
         {
             return PermitCategory.Psycast;
@@ -104,23 +108,33 @@ public static partial class PermitChoiceRules
     }
 
     /// <summary>Scores a category for this colony: psycast permits outrank trade once any colonist is a psycaster.</summary>
-    internal static int PermitValue(PermitCategory category, bool psycaster) => category switch
+    internal static int PermitValue(PermitCategory category, bool psycaster)
     {
-        PermitCategory.Aid => 40,
-        PermitCategory.Trade => 30,
-        PermitCategory.DropPod => 20,
-        PermitCategory.Psycast => psycaster ? 35 : 10,
-        _ => 0,
-    };
+        switch (category)
+        {
+            case PermitCategory.Aid:
+                return 40;
+            case PermitCategory.Trade:
+                return 30;
+            case PermitCategory.DropPod:
+                return 20;
+            case PermitCategory.Psycast:
+                return psycaster ? 35 : 10;
+            case PermitCategory.Other:
+            case PermitCategory.None:
+                return 0;
+        }
+        throw new DomainException($"permit category {(int)category} is not a category");
+    }
 
-    private static (int Seniority, bool Known) TitleSeniority(IReadOnlyList<RoyalRung> ladder, string title)
+    /// <summary>The seniority of <paramref name="title"/> on the ladder; false for a title the ladder does not hold.</summary>
+    private static (int Seniority, bool OnLadder) TitleSeniority(IReadOnlyList<RoyalRung> ladder, string title)
     {
         foreach (var rung in ladder)
         {
             if (rung.Title == title)
             {
-                var known = rung.Seniority.TryGetValue(out var value);
-                return (value, known);
+                return (rung.Seniority, true);
             }
         }
         return (0, false);
@@ -144,7 +158,7 @@ public static partial class PermitChoiceRules
                     continue;
                 }
                 var held = new HashSet<string>(h.Permits, StringComparer.Ordinal);
-                var (rank, rankKnown) = TitleSeniority(f.Ladder, h.Title);
+                var (rank, ranked) = TitleSeniority(f.Ladder, h.Title);
                 var points = h.PermitPoints;
                 foreach (var name in names)
                 {
@@ -154,13 +168,13 @@ public static partial class PermitChoiceRules
                     }
                     var permit = f.Permits[name];
                     var category = PermitCategoryOf(permit);
-                    var costKnown = permit.PermitPoints.TryGetValue(out var cost);
-                    var (need, needKnown) = (0, true);
-                    if (permit.MinTitle.TryGetValue(out var min) && min.Length != 0)
+                    var cost = permit.PermitPoints;
+                    var (need, needRanked) = (0, true);
+                    if (permit.MinTitle is { } min)
                     {
-                        (need, needKnown) = TitleSeniority(f.Ladder, min);
+                        (need, needRanked) = TitleSeniority(f.Ladder, min);
                     }
-                    var take = costKnown && rankKnown && needKnown && rank >= need && points >= cost;
+                    var take = ranked && needRanked && rank >= need && points >= cost;
                     result.Add(new PermitChoice
                     {
                         Holder = holder,
@@ -192,17 +206,6 @@ public static partial class PermitChoiceRules
         return ranked[0];
     }
 
-    /// <summary>NextPermit of a royalty read that may be unknown.</summary>
-    public static PermitChoice? NextPermitOf(Fact<RoyaltyFacts> royalty) =>
-        royalty.TryGetValue(out var f) ? NextPermit(f) : null;
-
-    /// <summary>The royalty/permits Need's predicate: true once no worthwhile permit is takeable now, unknown without the royalty read (nothing is raised then).</summary>
-    public static Fact<bool> PermitsSpent(Fact<RoyaltyFacts> royalty)
-    {
-        if (!royalty.IsKnown)
-        {
-            return Unknown<bool>();
-        }
-        return Known(NextPermitOf(royalty) is null);
-    }
+    /// <summary>The royalty/permits Need's predicate: true once no worthwhile permit is takeable now.</summary>
+    public static bool PermitsSpent(RoyaltyFacts f) => NextPermit(f) is null;
 }

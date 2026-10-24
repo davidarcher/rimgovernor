@@ -68,21 +68,18 @@ public static partial class CombatCastRules
     private static bool CastCooling(CombatView view, CombatMemory m, PawnId pawn, string def) =>
         m.Casts.Any(c => c.Pawn == pawn && c.Def == def && view.Tick.Value - c.Tick.Value < c.Cooldown);
 
-    /// <summary>A known psycast that is affordable and off cooldown for a caster; every unread fact holds it.</summary>
+    /// <summary>A known psycast that is affordable and off cooldown for a caster.</summary>
     private static bool CastReady(CombatView view, CombatMemory m, PawnPsylink state, PawnId pawn, KnownPsycast known)
     {
         var c = known.Psycast;
-        var ck = c.PsyfocusCost.TryGetValue(out var cost);
-        var gk = c.Entropy.TryGetValue(out var gain);
-        var kk = c.CooldownTicks.IsKnown;
         var (focus, heat, ceiling) = (state.Psyfocus, state.Entropy, state.EntropyMax);
-        if (!ck || !gk || !kk || known.CooldownRemaining != 0 || CastCooling(view, m, pawn, c.Def))
+        if (known.CooldownRemaining != 0 || CastCooling(view, m, pawn, c.Def))
         {
             return false;
         }
 
         var (spentFocus, spentHeat) = CastSpent(m, pawn);
-        return focus - spentFocus >= cost && heat + spentHeat + gain <= ceiling;
+        return focus - spentFocus >= c.PsyfocusCost && heat + spentHeat + c.Entropy <= ceiling;
     }
 
     /// <summary>
@@ -94,7 +91,7 @@ public static partial class CombatCastRules
     internal static List<CombatOrder> CastCalls(CombatView view, CombatMemory m)
     {
         var calls = new List<CombatOrder>();
-        if (!view.Royalty.TryGetValue(out var royalty) || view.Hunt || LiveHostiles(view).Count == 0)
+        if (view.Royalty is not { } royalty || view.Hunt || LiveHostiles(view).Count == 0)
         {
             return calls;
         }
@@ -134,10 +131,7 @@ public static partial class CombatCastRules
                 continue;
             }
 
-            bestCast.PsyfocusCost.TryGetValue(out var cost);
-            bestCast.Entropy.TryGetValue(out var gain);
-            bestCast.CooldownTicks.TryGetValue(out var cool);
-            m.Casts.Add(new CastMark(pawn, bestCast.Def, view.Tick, cost, gain, cool));
+            m.Casts.Add(new CastMark(pawn, bestCast.Def, view.Tick, bestCast.PsyfocusCost, bestCast.Entropy, bestCast.CooldownTicks));
             calls.Add(best);
         }
 

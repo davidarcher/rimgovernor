@@ -450,7 +450,7 @@ public sealed partial class Rounder
         var workActions = p.Journal.WorkActions(state.Snapshot, ct);
         reading = reading.WithFacts(rf => WorkRules.ReviewWorkResources(rf, batches, workActions));
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { ConstructionClaims = reading.Projection.Facts.ConstructionClaims } });
-        ReviewRoyalty(state.Snapshot, reading, ct);
+        ReviewRoyalty(reading);
         // A creepjoiner held apart owes the isolation room, so the census is read before the child rooms and the layout.
         if (CreepJoinerIsolation)
         {
@@ -549,11 +549,7 @@ public sealed partial class Rounder
         }
         fine.Lap("d_planned/firebreak");
         Lap("d_planned");
-        Fact<EquatableArray<PawnId>> psylinkCandidates = default;
-        if (Needs.Contains(RoyaltyFamily.Psylink))
-        {
-            psylinkCandidates = PsylinkRules.PsylinkCandidates(reading.Projection.Royalty, reading.Projection.WorkPawns);
-        }
+
         if (reading.Projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
         {
             reading = reading.WithFacts(rf => rf with { AnimalUpkeep = rf.AnimalUpkeep with { Forecast = Known(foodPlan.Forecast) } });
@@ -617,7 +613,11 @@ public sealed partial class Rounder
         // A prisoner surgery blocked only by the herbal care limit.
         reading = reading.WithFacts(rf => rf with { ResourceNeeds = PrisonerMedicineRules.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, SilverGapRules.RoundsSilverShort(reading.Projection.Facts, Policy, medicine.Active)) });
         // A willing colonist's psylink neuroformer, bought or made by the resource ladder.
-        reading = reading.WithFacts(rf => rf with { ResourceNeeds = PsylinkRules.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates) });
+        if (Needs.Contains(RoyaltyFamily.Psylink) && reading.Projection.Facts.Royalty is RoyaltyState.Active { Facts: var psylinkRoyalty })
+        {
+            var psylinkCandidates = PsylinkRules.PsylinkCandidates(psylinkRoyalty, reading.Projection.WorkPawns);
+            reading = reading.WithFacts(rf => rf with { ResourceNeeds = PsylinkRules.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, psylinkRoyalty, psylinkCandidates) });
+        }
         // The work goal's coverage reads the demand the last review derived: the value the work planner dispatches on.
         var resourceTargets = ResourceTargets(state.Snapshot);
         if (reading.Projection.WorkPawns.TryGetValue(out var pawns))

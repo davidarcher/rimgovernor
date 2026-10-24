@@ -292,9 +292,6 @@ public sealed partial record ColonyProjection
     /// <summary>The persisted v2 layout, served by the routine review; unknown until one is derived.</summary>
     public Fact<LayoutPlan> LayoutPlan { get; init; }
 
-    /// <summary>The Empire ladder, permits and holdings; unknown without Royalty or a royalty source.</summary>
-    public Fact<RoyaltyFacts> Royalty { get; init; }
-
     public RoundsFacts Facts { get; init; } = new();
 
     public required int Workers { get; init; }

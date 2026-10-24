@@ -332,8 +332,8 @@ cost the stat table cannot value are contract errors.
 
 There is no royalty read. The title
 ladder (seniority, favor needed, throne and bedroom requirements) and the permit
-catalog (minimum title, permit points, worker class, whether the permit acts and
-the favor a call spends) are static defs read from the game's Def objects
+catalog (minimum title, null when it asks for none; permit points; worker class;
+the royal aid a call spends favor on, null for a passive permit) are static defs read from the game's Def objects
 (`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`).
 Each colonist's holdings, psycasts and psylink are its `PawnState.royalty`
 (`PawnRoyalty`, every member required: a holding's `title` is null while it
@@ -351,9 +351,9 @@ quest id, colonist, awarded title (null when the favor awards none),
 accepted, bestower waiting in the lord's Wait toil and started;
 `thrones` lists every spawned player throne (`Building_Throne`) with its
 assigned owner, null when unassigned. `policy.RoyaltyFacts.WithColony`
-joins the section to the read; an inactive section leaves the
-royalty fact unknown and is the Royalty-applicable
-gate (`ColonyProjection.RoyaltyOf`). Reads are derived state
+joins the section to the read; the section is the Royalty-applicable
+gate (`ColonyProjection.RoyaltyOf`): `policy.RoyaltyState` is `Inactive` for an
+inactive section and `Active` with the facts otherwise. Reads are derived state
 (persistence-contracts.md); they add no store.
 
 ## Animal races

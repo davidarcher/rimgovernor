@@ -142,8 +142,9 @@ public sealed class RoyalRoomCreditTests
 
     private static RoyalRung Rung(string title, int seniority, int area, int impressiveness) => new()
     {
-        Title = title, Seniority = Known(seniority), FavorNeeded = Known(seniority),
-        Throne = Known(new ThroneRequirements { Things = ["Throne"], MinArea = area, MinImpressiveness = impressiveness }),
+        Title = title, Seniority = seniority, FavorNeeded = seniority,
+        Throne = new ThroneRequirements { Things = ["Throne"], MinArea = area, MinImpressiveness = impressiveness },
+        BedroomMinImpressiveness = 0, BedroomThings = [],
     };
 
     [Fact]

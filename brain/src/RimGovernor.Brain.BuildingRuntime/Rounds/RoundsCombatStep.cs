@@ -11,14 +11,14 @@ internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Or
 
 /// <summary>
 /// The reads the defense round adds to a combat view after the frame: the remembered
-/// royalty facts and the catalog's combat drugs. Unknown royalty is what the round holds without them.
+/// royalty facts and the catalog's combat drugs.
 /// </summary>
 /// <param name="Drugs">The catalog's combat drug definitions in preference order.</param>
-/// <param name="Royalty">The royalty read; unknown holds every permit and psycast call.</param>
-internal sealed partial record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFacts> Royalty)
+/// <param name="Royalty">The remembered royalty read; null (Royalty inactive or no review yet) holds every permit and psycast call.</param>
+internal sealed partial record CombatReads(IReadOnlyList<string> Drugs, RoyaltyFacts? Royalty)
 {
-    /// <summary>No reads: no drugs, unknown royalty.</summary>
-    internal static CombatReads None { get; } = new([], default);
+    /// <summary>No reads: no drugs, no royalty.</summary>
+    internal static CombatReads None { get; } = new([], null);
 
     internal CombatView Complete(CombatView view, CombatMemory memory) => view with { Royalty = Royalty, Drugs = [.. Drugs] };
 }

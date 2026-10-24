@@ -9,7 +9,6 @@ public static class DlcSectionReads
     /// <summary>The installed flags of the review's facts, read from the colony snapshot's DLC sections.</summary>
     public static RoundsFacts Installed(RoundsFacts facts, O.ColonyFactsSnapshot colony) => facts with
     {
-        RoyaltyInstalled = colony.Royalty is O.RoyaltySection.Active,
         AnomalyInstalled = colony.Anomaly is O.AnomalySection.Active,
         BiotechInstalled = colony.Biotech is O.BiotechSection.Active,
     };

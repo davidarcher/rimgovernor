@@ -8,46 +8,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // holder as its owner.
 public sealed partial class Rounder
 {
-    /// <summary>
-    /// Reads the royalty facts onto the projection, resolves the ladder's throne definitions from the review's
-    /// catalog and remembers the read for the planners. A colony without Royalty owes no throne room; a failed
-    /// read leaves royalty unknown.
-    /// </summary>
-    internal Observation.RoundsReading ReviewRoyalty(GenerationSnapshot snapshot, Observation.RoundsReading reading, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        var projection = reading.Projection;
-        if (!Needs.Contains(ShelterFamily.Sleeping) && !Needs.Contains(RoyaltyFamily.Psylink))
-        {
-            return reading;
-        }
-        if (reading.Catalog is not { } catalog)
-        {
-            return reading;
-        }
-        // The colony section gates Royalty; the ladder and permits come from the def mirror and the colonists'
-        // own holdings from their pawn rows. A read that cannot be used leaves royalty unknown.
-        Fact<Pol.RoyaltyFacts> royalty;
-        try
-        {
-            royalty = ColonyProjection.RoyaltyOf(projection.RoyaltySection, reading.Frame.Pawns, catalog);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return reading;
-        }
-        if (!royalty.TryGetValue(out var facts))
-        {
-            return reading;
-        }
-        projection = (projection with { Royalty = royalty }).AddDefinitions(reading.Frame, catalog, [.. RoundsSleepingUpkeepPlanner.ThroneThings(facts), .. RoundsSleepingUpkeepPlanner.ThroneFloorTerrains(catalog, facts)]);
-        Census.RememberRoyalty(projection.Identity, projection.Royalty);
-        return reading with { Reading = reading.Reading with { Projection = projection } };
-    }
+    /// <summary>Remembers the review's royalty read for the planners' throne definitions and the defense round's calls.</summary>
+    internal void ReviewRoyalty(Observation.RoundsReading reading) => Census.RememberRoyalty(reading.Projection.Facts.Royalty);
 
     /// <summary>The throne definitions a planner's read names beside its own: the ladder's, from the review's royalty read.</summary>
     internal IReadOnlyList<string> RememberedThrones() =>
-        Census.Remembered().TryGetValue(out var facts) ? RoundsSleepingUpkeepPlanner.ThroneThings(facts) : [];
+        Census.Remembered() is { } facts ? RoundsSleepingUpkeepPlanner.ThroneThings(facts) : [];
 }
 
 partial class RoundsSleepingUpkeepPlanner
@@ -58,8 +24,7 @@ partial class RoundsSleepingUpkeepPlanner
         var names = new List<string>();
         foreach (var rung in f.Ladder)
         {
-            rung.Throne.TryGetValue(out var req);
-            foreach (var thing in req?.Things ?? [])
+            foreach (var thing in rung.Throne.Things)
             {
                 if (!names.Contains(thing))
                 {
@@ -71,10 +36,10 @@ partial class RoundsSleepingUpkeepPlanner
         return names;
     }
 
-    /// <summary>The throne room the colony owes: unknown royalty owes none.</summary>
+    /// <summary>The throne room the colony owes: a colony without Royalty owes none.</summary>
     internal static (Pol.ThroneNeed Need, bool Owed) ThroneNeed(Observation.ColonyProjection facts)
     {
-        if (!facts.Royalty.TryGetValue(out var royalty))
+        if (facts.Facts.Royalty is not Pol.RoyaltyState.Active { Facts: var royalty })
         {
             return (new Pol.ThroneNeed(), false);
         }
@@ -87,16 +52,19 @@ partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>
     /// The bestowing-ceremony quests the title claim gate allows to accept now (NextTitleClaim, ClaimQuests);
-    /// none while the royalty read, sleeping census, plan, rooms or construction census is unknown.
+    /// none without Royalty or while the sleeping census, plan, rooms or construction census is unknown.
     /// </summary>
     internal static IReadOnlyList<QuestId> TitleClaimQuests(Observation.ColonyProjection facts)
     {
-        var rok = facts.Royalty.TryGetValue(out var royalty);
+        if (facts.Facts.Royalty is not Pol.RoyaltyState.Active { Facts: var royalty })
+        {
+            return [];
+        }
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        if (!rok || !sk || !pk || !rk || census is null)
+        if (!sk || !pk || !rk || census is null)
         {
             return [];
         }
@@ -110,7 +78,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         var claim = TitleClaimRules.NextTitleClaim(new Pol.TitleClaimFacts
         {
-            Royalty = royalty!,
+            Royalty = royalty,
             Sleeping = sleeping,
             BedroomPieces = FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells),
             Plan = plan!,
@@ -146,8 +114,9 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return new Pol.ThroneStep();
         }
-        facts.Royalty.TryGetValue(out var royalty);
-        var step = ThroneRules.NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, royalty!.Thrones);
+        // ThroneNeed owes a room only with Royalty active.
+        var thrones = facts.Facts.Royalty is Pol.RoyaltyState.Active { Facts: var royalty } ? royalty.Thrones : [];
+        var step = ThroneRules.NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, thrones);
         if (step.Kind != Pol.ThroneStepKind.None)
         {
             return step;
@@ -222,18 +191,6 @@ partial class RoundsSleepingUpkeepPlanner
             }
         }
         return v with { Rooms = [.. copy] };
-    }
-
-    /// <summary>Every terrain the ladder's titles accept as a throne floor, from the mirror's terrain tags: the definitions the flooring read must carry for the throne tier to choose among them.</summary>
-    internal static IReadOnlyList<string> ThroneFloorTerrains(Bridge.DefinitionCatalog catalog, Pol.RoyaltyFacts f)
-    {
-        var tags = new List<string>();
-        foreach (var rung in f.Ladder)
-        {
-            rung.Throne.TryGetValue(out var req);
-            tags.AddRange(req?.FloorTags ?? []);
-        }
-        return catalog.TerrainsWithTags(tags);
     }
 }
 

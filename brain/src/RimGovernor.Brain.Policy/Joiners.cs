@@ -23,7 +23,7 @@ public sealed record JoinersFacts
 /// (<see cref="PopulationRules.JoinerDeficit"/>). Its Method accepts the lowest-id offer, <c>joiner-accept-&lt;quest&gt;</c>.</item>
 /// <item><c>joiners/letters</c>: no acceptable joiner letter waits while the colony has room
 /// (<see cref="PopulationRules.JoinerLetterDeficit"/>). Its Method answers the lowest-id letter, <c>joiner-letter-&lt;id&gt;</c>.</item>
-/// <item><c>joiners/ceremony</c>: no accepted bestowing ceremony waits to start (<see cref="CeremonyRules.CeremonyStartOf"/>).
+/// <item><c>joiners/ceremony</c>: no accepted bestowing ceremony waits to start (<see cref="CeremonyRules.CeremonyStart"/>).
 /// Starting one is not yet a supported forecast outcome, so it is held as <c>unsupported_forecast_bestowing</c>.</item>
 /// <item><c>joiners/quests</c>: no quest is worth accepting, and no accepted quest owes hosting, expedition, site or
 /// ideology work or a refugee (<see cref="QuestSelection.QuestDeficit"/>, <see cref="QuestRefugees.RefugeeDeficit"/>).
@@ -133,21 +133,10 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     private static Need Owed(NeedId id, bool owed) => FoodRules.WholeNeed(id, NeedTier.Development, !owed);
 
     /// <summary>
-    /// The ceremony Need: unmet while an accepted ceremony waits to start. Without Royalty none can, so it is met; with
-    /// it, an unread royalty read raises <see cref="RequiredFactException"/>.
+    /// The ceremony Need: unmet while an accepted ceremony waits to start. With Royalty inactive none can, so it is met.
     /// </summary>
-    private static Need Ceremonies(RoundsFacts f)
-    {
-        if (!f.RoyaltyInstalled)
-        {
-            return Owed(Ceremony, false);
-        }
-        if (!f.Royalty.TryGetValue(out _))
-        {
-            throw new RequiredFactException("royalty");
-        }
-        return Owed(Ceremony, CeremonyRules.CeremonyStartOf(f.Royalty) is not null);
-    }
+    private static Need Ceremonies(RoundsFacts f) =>
+        Owed(Ceremony, f.Royalty is RoyaltyState.Active { Facts: var royalty } && CeremonyRules.CeremonyStart(royalty) is not null);
 
     /// <summary>A quest-census Need: <paramref name="owed"/>; an unread census raises <see cref="RequiredFactException"/>.</summary>
     private static Need Quest(NeedId id, bool known, Func<bool> owed) =>

@@ -1,6 +1,21 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
+/// The colony's royalty read, by the colony section's Royalty gate: Inactive without the expansion (nothing is read,
+/// no royalty Need is derived and no permit or psycast is called), Active with the read.
+/// </summary>
+public abstract record RoyaltyState
+{
+    private protected RoyaltyState() { }
+
+    /// <summary>The Royalty expansion is not active.</summary>
+    public sealed record Inactive : RoyaltyState;
+
+    /// <summary>The Royalty expansion is active: the ladder, permits, holdings, psycasts and the colony section.</summary>
+    public sealed record Active(RoyaltyFacts Facts) : RoyaltyState;
+}
+
+/// <summary>
 /// The Empire title ladder and the permit catalog (def rows), the colonists' holdings, psycasts and psylinks (their
 /// pawn rows' royalty blocks) and the colony section's neuroformers, ceremonies and thrones.
 /// </summary>
@@ -62,20 +77,20 @@ public enum PsycastTarget
 }
 
 /// <summary>
-/// One known psycast: PsyfocusCost is the 0-1 Psyfocus it spends,
-/// Entropy the neural heat it adds and Target is None when native did not classify it.
+/// One known psycast's ability row: PsyfocusCost is the 0-1 Psyfocus it spends, Entropy the neural heat it adds,
+/// CooldownTicks its longest cooldown and Target is None when the ability's targeting fits no kind.
 /// </summary>
 public sealed record Psycast
 {
-    public string Def { get; init; } = "";
+    public required string Def { get; init; }
 
-    public Fact<double> PsyfocusCost { get; init; }
+    public required double PsyfocusCost { get; init; }
 
-    public Fact<double> Entropy { get; init; }
+    public required double Entropy { get; init; }
 
-    public PsycastTarget Target { get; init; }
+    public required PsycastTarget Target { get; init; }
 
-    public Fact<int> CooldownTicks { get; init; }
+    public required int CooldownTicks { get; init; }
 }
 
 /// <summary>A psycast a pawn knows: its def row and the ticks left of its cooldown at the read.</summary>
@@ -95,42 +110,44 @@ public sealed record Neuroformer
 }
 
 /// <summary>
-/// One title on the ladder; FavorNeeded is the favor that earns it. Throne is the title's throne-room
-/// requirement read from the def mirror (RoyalTitleDef.throneRoomRequirements, bridge ThroneRequirements):
-/// unknown until the mirror is read, and a title that asks for no throne holds a requirement with no Things.
+/// One title on the ladder (a RoyalTitleDef row); FavorNeeded is the favor that earns it. Throne is the title's
+/// throne-room requirement (RoyalTitleDef.throneRoomRequirements, bridge ThroneRequirements): a title that asks
+/// for no throne holds a requirement with no Things.
 /// </summary>
 public sealed record RoyalRung
 {
-    public string Title { get; init; } = "";
+    public required string Title { get; init; }
 
-    public Fact<int> Seniority { get; init; }
+    public required int Seniority { get; init; }
 
-    public Fact<int> FavorNeeded { get; init; }
+    public required int FavorNeeded { get; init; }
 
-    public Fact<ThroneRequirements> Throne { get; init; }
+    public required ThroneRequirements Throne { get; init; }
 
-    public Fact<int> BedroomMinImpressiveness { get; init; }
+    /// <summary>The title's bedroom minimum impressiveness; zero when the title sets none.</summary>
+    public required int BedroomMinImpressiveness { get; init; }
 
     /// <summary>The title's bedroom furniture; none needs no furniture.</summary>
-    public EquatableArray<BedroomThing> BedroomThings { get; init; }
+    public required EquatableArray<BedroomThing> BedroomThings { get; init; }
 }
 
 /// <summary>
-/// One permit definition. Acts marks a permit the holder calls (rather than a passive one); FavorCost is then
-/// the favor a call spends and unknown for a passive permit.
+/// One permit definition (a RoyalTitlePermitDef row). Aid is the royal aid a holder calls with it, null for a
+/// passive permit; MinTitle is the title it asks for, null when it asks for none.
 /// </summary>
 public sealed record RoyalPermit
 {
-    public string Name { get; init; } = "";
+    public required string Name { get; init; }
 
-    public Fact<string> MinTitle { get; init; }
+    public required string? MinTitle { get; init; }
 
-    public Fact<int> PermitPoints { get; init; }
+    public required int PermitPoints { get; init; }
 
-    public Fact<bool> Acts { get; init; }
+    public required RoyalAid? Aid { get; init; }
 
-    public Fact<int> FavorCost { get; init; }
-
-    /// <summary>The permit def's workerClass type name, empty when the read left it absent: what the permit does (PermitWorker* constants).</summary>
-    public string Worker { get; init; } = "";
+    /// <summary>The permit def's workerClass type name (the base RoyalTitlePermitWorker for a permit with no worker of its own): what the permit does (PermitWorker* constants).</summary>
+    public required string Worker { get; init; }
 }
+
+/// <summary>The royal aid an acting permit calls (RoyalTitlePermitDef.royalAid): the favor a call spends.</summary>
+public sealed record RoyalAid(int FavorCost);

@@ -258,22 +258,11 @@ public static class RoundsReads
                 AnimalUpkeep = p.Facts.AnimalUpkeep with { Animals = HerdPreceptsRules.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, ideologyDefs is not null) },
             },
         };
-        // A pawn row or def the royalty read cannot use leaves the fact unknown; it must not fail the routine
-        // reading the whole review stands on.
-        Fact<RoyaltyFacts> royalty;
-        try
-        {
-            royalty = ColonyProjection.RoyaltyOf(p.RoyaltySection, pawns, catalog);
-        }
-        catch (DomainException)
-        {
-            royalty = Unknown<RoyaltyFacts>();
-        }
         p = p with
         {
             Facts = p.Facts with
             {
-                Royalty = royalty,
+                Royalty = ColonyProjection.RoyaltyOf(p.RoyaltySection, pawns, catalog),
                 Population = default,
             },
         };

@@ -196,8 +196,8 @@ public sealed partial record CombatView
     /// <summary>The selected roster of a hunt: the only defenders it may send, however many that is.</summary>
     public EquatableArray<PawnId> HuntHunters { get; init; }
 
-    /// <summary>The slow-refresh royalty read; unknown holds every permit call.</summary>
-    public Fact<RoyaltyFacts> Royalty { get; init; }
+    /// <summary>The slow-refresh royalty read; null with Royalty inactive or before the first review, which holds every permit call and psycast.</summary>
+    public RoyaltyFacts? Royalty { get; init; }
 
     /// <summary>The catalog's combat drug definitions in preference order. Selection is restricted to each pawn's observed carried inventory.</summary>
     public EquatableArray<string> Drugs { get; init; }

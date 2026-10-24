@@ -195,10 +195,11 @@ public static partial class ThroneRules
     /// <summary>The throne room's slot name for the throne itself (throneWants).</summary>
     internal const string ThroneSlot = "throne";
 
-    /// <summary>The rung's throne requirement, false for a title that asks for no throne or whose requirement is not read.</summary>
+    /// <summary>The rung's throne requirement, false for a title that asks for no throne.</summary>
     internal static (ThroneNeed Need, bool Ok) RungRequirement(RoyalRung rung)
     {
-        if (!rung.Throne.TryGetValue(out var req) || req.Things.Count == 0 || req.MinArea <= 0)
+        var req = rung.Throne;
+        if (req.Things.Count == 0 || req.MinArea <= 0)
         {
             return (new ThroneNeed(), false);
         }
@@ -242,8 +243,7 @@ public static partial class ThroneRules
                     {
                         continue;
                     }
-                    var nk = f.Ladder[0].FavorNeeded.TryGetValue(out var needed);
-                    if (!nk || h.Favor < needed)
+                    if (h.Favor < f.Ladder[0].FavorNeeded)
                     {
                         continue;
                     }

@@ -37,7 +37,7 @@ public static class QuestRewards
 {
     private static bool QuestWantsTitles(RoundsFacts f)
     {
-        if (!f.Royalty.TryGetValue(out var royalty))
+        if (f.Royalty is not RoyaltyState.Active { Facts: var royalty })
         {
             return false;
         }
@@ -45,9 +45,7 @@ public static class QuestRewards
         {
             foreach (var holding in holdings)
             {
-                var (rung, more) = TitleClaimRules.NextClaim(royalty.Ladder, holding.Title);
-                var nk = rung.FavorNeeded.TryGetValue(out var needed);
-                if (more && nk && holding.Favor < needed)
+                if (TitleClaimRules.NextClaim(royalty.Ladder, holding.Title) is { } rung && holding.Favor < rung.FavorNeeded)
                 {
                     return true;
                 }
@@ -105,7 +103,7 @@ public static class QuestRewards
         }
         var titles = QuestWantsTitles(f);
         var hosted = Math.Max(1L, f.Colonists);
-        var royaltyKnown = f.Royalty.TryGetValue(out var royalty);
+        var royalty = f.Royalty is RoyaltyState.Active { Facts: var active } ? active : null;
         var best = new QuestRewardChoice();
         for (var ordinal = 0; ordinal < indices.Count; ordinal++)
         {
@@ -130,7 +128,7 @@ public static class QuestRewards
                 benefits += Math.Max(0, row.Goodwill);
                 benefits += (double)row.Psylink * PermitChoiceRules.PermitValue(PermitCategory.Psycast, true);
                 benefits += (double)row.PermitPoints * PermitChoiceRules.PermitValue(PermitCategory.Aid, false);
-                if (royaltyKnown)
+                if (royalty is not null)
                 {
                     foreach (var name in row.Permits)
                     {
