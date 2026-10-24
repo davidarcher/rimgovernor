@@ -92,7 +92,7 @@ internal sealed class FirebreakMemory
         }
         request = request with { Floors = floors };
         var ground = new Dictionary<Cell, Fact<FirebreakGround>>();
-        var site = new Dictionary<Cell, DefenseCensusCell>();
+        var site = new Dictionary<Cell, O.DefenseCell.Seen>();
         // Every tile is asked in one frame (the game-thread pump drains the queued reads together) instead of one frame each.
         var tiles = FirebreakTiles(cells).Select(tile => tile with
         {
@@ -115,7 +115,10 @@ internal sealed class FirebreakMemory
             }
             foreach (var cell in read.Cells)
             {
-                site[cell.Cell] = cell;
+                if (cell is O.DefenseCell.Seen seen)
+                {
+                    site[cell.Cell] = seen;
+                }
                 ground[cell.Cell] = Known(FirebreakGroundOf(cell));
             }
         }
@@ -137,8 +140,8 @@ internal sealed class FirebreakMemory
         var ruins = new Dictionary<Cell, CoverClearance>();
         foreach (var cell in plan.Deconstruct)
         {
-            var cover = site.TryGetValue(cell, out var sc) ? sc.Cover : null;
-            if (cover is null || cover.Designated || cover.Designation != CoverClearanceDesignation.Deconstruct)
+            var cover = site.GetValueOrDefault(cell)?.Cover;
+            if (cover is null || cover.Designated || cover.Designation() != CoverClearanceDesignation.Deconstruct)
             {
                 continue;
             }
@@ -259,25 +262,25 @@ internal sealed class FirebreakMemory
         return claimed;
     }
 
-    private static FirebreakGround FirebreakGroundOf(DefenseCensusCell cell)
+    private static FirebreakGround FirebreakGroundOf(O.DefenseCell cell)
     {
-        if (cell.Fogged || cell.NaturalRock)
+        if (cell is not O.DefenseCell.Seen seen || seen.Edifice is { NaturalRock: true })
         {
             return FirebreakGround.NaturalRock;
         }
-        if (cell.Terrain.Contains("Water", StringComparison.Ordinal))
+        if (seen.Terrain.Contains("Water", StringComparison.Ordinal))
         {
             return FirebreakGround.Water;
         }
-        if (cell.EdificeDefName == "")
+        if (seen.Edifice is not { } edifice)
         {
             return FirebreakGround.Open;
         }
-        if (cell.PlayerOwned)
+        if (edifice.PlayerOwned)
         {
             return FirebreakGround.PlayerEdifice;
         }
-        if (cell.EdificeStuff == "WoodLog")
+        if (edifice.Stuff == "WoodLog")
         {
             return FirebreakGround.WoodenRuin;
         }

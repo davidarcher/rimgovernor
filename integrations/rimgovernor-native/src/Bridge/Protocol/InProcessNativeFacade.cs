@@ -209,10 +209,10 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.StorageOccupancySnapshot> ReadStorageOccupancyAsync(Obs.StorageOccupancyRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadStorageOccupancy, request, () => NativeStorageOccupancyTool.HandleRead(request), cancellationToken);
 
-        public Task<Obs.DefenseSiteReply> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken)
+        public Task<Obs.DefenseSiteSnapshot> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadDefenseSite, request, () => NativeDefenseObservationTools.HandleReadDefenseSite(request), cancellationToken);
 
-        public Task<Obs.LinesOfFireReply> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken)
+        public Task<Obs.LinesOfFireSnapshot> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadLinesOfFire, request, () => NativeDefenseObservationTools.HandleReadLinesOfFire(request), cancellationToken);
 
         public Task<Presentation.NotificationsSnapshot> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken)
@@ -224,7 +224,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ResourceSourcesSnapshot> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListResourceSources, request, () => NativeResourceSourcesTool.HandleListResourceSources(request), cancellationToken);
 
-        public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)
+        public Task<Obs.SpatialAccessSnapshot> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadSpatialAccess, request, () => NativeSpatialAccessTool.HandleReadSpatialAccess(request), cancellationToken);
 
         public Task<Obs.TradeAcquisition> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken)

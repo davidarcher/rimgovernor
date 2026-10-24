@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using CoverKind = RimGovernor.Contracts.Wire.Observations.CoverKind;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using Domain = RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
 
@@ -29,10 +29,9 @@ public sealed partial class DefinitionCatalog
     /// the facts observations_read_defense_site answered natively: the edifice and terrain on each cell, the cell's cover
     /// (the thing of highest fillPercent, as the game's CoverGrid keeps it) with the designator that removes it, whether
     /// a player door stands, and EdgeReachable as a flood over the mirror from the map edge. A cell the mirror does not
-    /// hold, or holds without its terrain or walkability, is fogged: unknown. The returned site has no Context: it is
-    /// the projection's own tick.
+    /// hold, or holds without its terrain or walkability, is fogged: unknown. The cells are the projection's own tick.
     /// </summary>
-    public DefenseSite DefenseSiteFromCells(IReadOnlyList<P.SiteCell> cells, P.Bounds bounds, CellRect region)
+    public IReadOnlyList<Obs.DefenseCell> DefenseSiteFromCells(IReadOnlyList<P.SiteCell> cells, P.Bounds bounds, CellRect region)
     {
         if (bounds.Width < 1 || bounds.Height < 1)
         {
@@ -54,17 +53,16 @@ public sealed partial class DefinitionCatalog
         }
         var census = new CensusReader(this);
         var reach = CensusReader.EdgeReachable(grid, width, height);
-        var rows = new List<DefenseCensusCell>((int)region.Cells);
+        var rows = new List<Obs.DefenseCell>((int)region.Cells);
         for (var z = region.Min.Z; z <= region.Max.Z; z++)
         {
             for (var x = region.Min.X; x <= region.Max.X; x++)
             {
                 var i = (z * width) + x;
-                var row = census.Cell(grid[i], new Domain.Cell(x, z));
-                rows.Add(row with { EdgeReachable = reach[i] && !row.Fogged });
+                rows.Add(census.Cell(grid[i], new Domain.Cell(x, z), reach[i]));
             }
         }
-        return new DefenseSite(null, (uint)width, (uint)height, region, rows);
+        return rows;
     }
 
     // The traversal of one mirror cell as the census and its flood read it.
@@ -177,12 +175,12 @@ public sealed partial class DefinitionCatalog
         }
 
         // One census row: fogged when the mirror does not know the cell.
-        public DefenseCensusCell Cell(P.SiteCell? cell, Domain.Cell at)
+        public Obs.DefenseCell Cell(P.SiteCell? cell, Domain.Cell at, bool edgeReachable)
         {
             var view = Read(cell);
             if (!view.Known || cell is null)
             {
-                return new DefenseCensusCell { Cell = at, Fogged = true };
+                return new Obs.DefenseCell.Fogged { Cell = at };
             }
             P.Thing? edifice = null;
             P.Thing? cover = null;
@@ -198,36 +196,31 @@ public sealed partial class DefinitionCatalog
                     (cover, fill) = (t, f);
                 }
             }
-            var row = new DefenseCensusCell
+            var kind = cover is null ? null : CoverKindOf(cover);
+            return new Obs.DefenseCell.Seen
             {
                 Cell = at,
                 Terrain = cell.Terrain.ValueOrDefault ?? "",
                 Walkable = view.Walkable,
                 Passable = view.Passable,
-                Door = view.Door,
+                CoverFill = cover is null ? 0 : Math.Min(fill, 1),
+                EdgeReachable = edgeReachable,
+                FoundationRemovalDesignated = cell.FoundationRemoval.ValueOrDefault,
                 Roofed = cell.Roofed.ValueOrDefault,
-                Unbridging = cell.FoundationRemoval.ValueOrDefault,
+                Edifice = edifice is null
+                    ? null
+                    : new Obs.DefenseEdifice
+                    {
+                        DefName = EdificeName(edifice),
+                        Stuff = edifice.Building?.Stuff,
+                        PlayerOwned = edifice.Faction == P.ThingFaction.Player,
+                        NaturalRock = edifice.Has(P.ThingMarks.NaturalRock) || catalog.FindThing(edifice.Def)?.mineable == true,
+                        Door = view.Door,
+                    },
+                Cover = cover is null || kind is not { } k
+                    ? null
+                    : new Obs.DefenseCover { ThingId = ThingLoadId(cover), DefName = EdificeName(cover), Kind = k, Designated = cover.Has(P.ThingMarks.Designated) },
             };
-            if (edifice is not null)
-            {
-                row = row with
-                {
-                    EdificeDefName = EdificeName(edifice),
-                    EdificeStuff = edifice.Building?.Stuff ?? "",
-                    PlayerOwned = edifice.Faction == P.ThingFaction.Player,
-                    NaturalRock = edifice.Has(P.ThingMarks.NaturalRock) || catalog.FindThing(edifice.Def)?.mineable == true,
-                };
-            }
-            if (cover is not null)
-            {
-                row = row with { CoverFill = Math.Min(fill, 1) };
-                var kind = CoverKindOf(cover);
-                if (kind != CoverKind.Unspecified)
-                {
-                    row = row with { Cover = new DefenseCover(ThingLoadId(cover), EdificeName(cover), kind, cover.Has(P.ThingMarks.Designated)) };
-                }
-            }
-            return row;
         }
 
         // The def the game names the thing by: a frame is its own def.
@@ -240,22 +233,22 @@ public sealed partial class DefinitionCatalog
         private double Fill(P.Thing t) =>
             t.Has(P.ThingMarks.Blueprint) ? 0 : t.Has(P.ThingMarks.Frame) ? FrameFill : catalog.FindThing(t.Def)?.fillPercent ?? 0;
 
-        // NativeClearCover.KindOf: how the game's designators remove the thing, unspecified for one they cannot (a corpse, filth).
-        private CoverKind CoverKindOf(P.Thing t)
+        // NativeClearCover.KindOf: how the game's designators remove the thing, null for one they cannot (a corpse, filth).
+        private Obs.CoverKind? CoverKindOf(P.Thing t)
         {
             if (t.Category == P.ThingCategory.Plant)
             {
-                return CoverKind.Plant;
+                return Obs.CoverKind.Plant;
             }
             if (t.Category == P.ThingCategory.Building && (t.Has(P.ThingMarks.NaturalRock) || catalog.FindThing(t.Def)?.mineable == true) && !t.Has(P.ThingMarks.Frame) && !t.Has(P.ThingMarks.Blueprint))
             {
-                return CoverKind.Mineable;
+                return Obs.CoverKind.Mineable;
             }
             if (t.Category == P.ThingCategory.Item)
             {
-                return IsChunk(t.Def) ? CoverKind.Chunk : CoverKind.Unspecified;
+                return IsChunk(t.Def) ? Obs.CoverKind.Chunk : null;
             }
-            return t.Category == P.ThingCategory.Building ? CoverKind.Building : CoverKind.Unspecified;
+            return t.Category == P.ThingCategory.Building ? Obs.CoverKind.Building : null;
         }
 
         private bool IsChunk(string def)

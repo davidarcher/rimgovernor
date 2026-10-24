@@ -79,7 +79,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Killbox = killbox };
         request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
         var requestCells = new List<DefenseCell>();
-        foreach (var cell in site.Cells)
+        foreach (var cell in site)
         {
             requestCells.Add(DefenseCellFacts(cell));
         }
@@ -279,16 +279,16 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return null;
         }
         var site = await DefenseSiteAsync(Boundary.Identity(state.Snapshot), projection, DefenseCensusRegion(scope, projection.Bounds, baseCell), call).ConfigureAwait(false);
-        foreach (var cell in site.Cells)
+        foreach (var cell in site)
         {
-            census.Fogged[cell.Cell] = cell.Fogged;
-            if (!cell.Fogged)
+            census.Fogged[cell.Cell] = cell is O.DefenseCell.Fogged;
+            if (cell is O.DefenseCell.Seen seen)
             {
-                census.Edifice[cell.Cell] = cell.EdificeDefName;
-                census.EdificeStuff[cell.Cell] = cell.EdificeStuff;
-                census.Terrain[cell.Cell] = cell.Terrain;
-                census.Cover[cell.Cell] = cell.Cover;
-                census.Unbridging[cell.Cell] = cell.Unbridging;
+                census.Edifice[cell.Cell] = seen.Edifice?.DefName ?? "";
+                census.EdificeStuff[cell.Cell] = seen.Edifice?.Stuff ?? "";
+                census.Terrain[cell.Cell] = seen.Terrain;
+                census.Cover[cell.Cell] = seen.Cover;
+                census.Unbridging[cell.Cell] = seen.FoundationRemovalDesignated;
             }
         }
         if (projection.PowerPlanning.TryGetValue(out var topology))

@@ -14,12 +14,12 @@ internal sealed partial class DefenseRecorder : IRoundsDefenseSource
 
     public O.PawnSnapshot? Pawns { get; private set; }
 
-    public BridgeLinesOfFire? Lines { get; private set; }
+    public O.LinesOfFireSnapshot? Lines { get; private set; }
 
     public M.CombatGeometry CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct) =>
         _inner.CombatGeometry(request, ct);
 
-    public async Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
+    public async Task<O.DefenseSiteSnapshot> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
         await _inner.ReadDefenseSiteAsync(identity, region, ct).ConfigureAwait(false);
 
     public async Task<BridgeCombat> ReadCombatAsync(C.Identity identity, CancellationToken ct)
@@ -36,7 +36,7 @@ internal sealed partial class DefenseRecorder : IRoundsDefenseSource
         }
         if (v.Frame?.CombatLinesOfFire is { } lines)
         {
-            Lines = new BridgeLinesOfFire(lines.Context, v.Lines, false);
+            Lines = lines;
         }
         return v;
     }

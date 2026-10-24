@@ -16,18 +16,6 @@ public static class FactHelpers
     /// <summary>An absent cell or coordinate reads as zero.</summary>
     internal static DomainCell ToDomainCell(Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
 
-    /// <summary>The cell, false when it or a coordinate is absent.</summary>
-    internal static bool TryProtoCell(Cell? cell, out DomainCell value)
-    {
-        if (cell is null)
-        {
-            value = default;
-            return false;
-        }
-        value = new DomainCell(cell.X, cell.Z);
-        return true;
-    }
-
     /// <summary>The ids of the references, in order.</summary>
     public static IReadOnlyList<string> RefIds(IEnumerable<Ref> references) => [.. references.Select(reference => (reference.Id ?? ""))];
 

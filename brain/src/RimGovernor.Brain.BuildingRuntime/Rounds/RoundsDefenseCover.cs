@@ -44,14 +44,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Tick = tick };
         request = request with { Killbox = killbox };
         request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
-        var byCell = new Dictionary<Cell, DefenseCensusCell>();
+        var byCell = new Dictionary<Cell, O.DefenseCell.Seen>();
         var requestCells = new List<DefenseCell>();
         var entrances = new List<Cell>();
-        foreach (var cell in site.Cells)
+        foreach (var cell in site)
         {
-            byCell[cell.Cell] = cell;
             requestCells.Add(DefenseCellFacts(cell));
-            if (!cell.Fogged && cell.Door && cell.PlayerOwned)
+            if (cell is not O.DefenseCell.Seen seen)
+            {
+                continue;
+            }
+            byCell[cell.Cell] = seen;
+            if (seen.Edifice is { Door: true, PlayerOwned: true })
             {
                 entrances.Add(cell.Cell);
             }
@@ -68,7 +72,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Defenders = defenders };
         request = request with { MinRange = minRange };
         var layout = DefenseRecordLayout(record, layoutPlan, killbox);
-        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutCover, Request = request, Layout = layout, Site = site.Cells }, call);
+        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutCover, Request = request, Layout = layout, Site = site }, call);
         DefenseApproaches approaches;
         try
         {
@@ -154,7 +158,7 @@ partial class RoundsDefenseLayoutPlanner
     }
 
     /// <summary>The ground raids whose spawn or trail enters the region, with the crossing cell.</summary>
-    internal static List<DefenseArrival> DefenseArrivals(IReadOnlyList<RaidTrack> raids, BridgeCellRect region)
+    internal static List<DefenseArrival> DefenseArrivals(IReadOnlyList<O.RaidTrack> raids, BridgeCellRect region)
     {
         bool Inside(Cell c) => c.X >= region.Min.X && c.X <= region.Max.X && c.Z >= region.Min.Z && c.Z <= region.Max.Z;
         var output = new List<DefenseArrival>();
@@ -184,7 +188,7 @@ partial class RoundsDefenseLayoutPlanner
     }
 
     /// <summary>The cover to clear and the counts of the cover held back by reason.</summary>
-    internal static (List<CoverClearance> Clearances, Dictionary<string, int> Held) DefenseCoverSelection(DefenseApproaches approaches, IReadOnlyDictionary<Cell, DefenseCensusCell> byCell)
+    internal static (List<CoverClearance> Clearances, Dictionary<string, int> Held) DefenseCoverSelection(DefenseApproaches approaches, IReadOnlyDictionary<Cell, O.DefenseCell.Seen> byCell)
     {
         var clearances = new List<CoverClearance>();
         var held = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -205,17 +209,13 @@ partial class RoundsDefenseLayoutPlanner
             {
                 Hold("designated");
             }
-            else if (cell.PlayerOwned)
+            else if (cell.Edifice is { PlayerOwned: true })
             {
                 Hold("structure");
             }
-            else if (cell.Cover.Designation is not { } designation)
-            {
-                Hold("unknown_kind");
-            }
             else
             {
-                clearances.Add(new CoverClearance(cell.Cover.ThingId, cell.Cover.DefName, designation, cover.Cell));
+                clearances.Add(new CoverClearance(cell.Cover.ThingId, cell.Cover.DefName, cell.Cover.Designation(), cover.Cell));
             }
         }
         return (clearances, held);

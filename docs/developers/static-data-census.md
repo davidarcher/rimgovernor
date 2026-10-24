@@ -449,21 +449,18 @@ Kept, reason recorded:
 | ResearchSlot | message | 826 | 2 | state | Current project per research category |  |  |
 | ResearchSnapshot | message | 828 | 5 | state | Research snapshot: slots, projects, finished |  |  |
 | ResearchRequest | message | 833 | 6 | state | Read request parameters |  |  |
-| AccessTarget | message | 836 | 4 | code | Per-cell native/projected reachability |  |  |
-| PawnAccess | message | 837 | 8 | code | Reachability counts and per-target access for a pawn |  |  |
-| SpatialAccessSnapshot | message | 840 | 4 | code | Pawn access results and map walkable counts |  |  |
+| AccessTarget | message | 836 | 3 | code | Per-cell native/projected reachability |  |  |
+| PawnAccess | message | 837 | 3 | code | A pawn's access: audited with its targets, stranded, or skipped |  |  |
+| SpatialAccessSnapshot | message | 840 | 2 | code | Pawn access results |  |  |
 | SpatialAccessRequest | message | 841 | 4 | state | Read request parameters |  |  |
-| SpatialAccessReply | message | 842 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| DefenseCell | message | 848 | 19 | state | Per-cell defense census: cover, walkable, edge reachability, designations |  |  |
-| CoverKind | enum | 866 | 5 | code | How the game would remove a cover thing (plant/chunk/mineable/building) |  |  |
-| RaidTrack | message | 871 | 7 | state | Observed hostile lord spawn and trail since load |  |  |
-| DefenseSiteSnapshot | message | 877 | 6 | mixed | Defense census cells plus cover threshold and raid tracks | cover_threshold | Go rule over ThingDef rows: min positive ThingDef.fillPercent (loaded defs) |
+| DefenseCell | message | 848 | 9 | state | Per-cell defense census, fogged or seen: cover, walkable, edge reachability, designations |  |  |
+| CoverKind | enum | 866 | 4 | code | How the game would remove a cover thing (plant/chunk/mineable/building) |  |  |
+| RaidTrack | message | 871 | 5 | state | Observed hostile lord spawn and trail since load |  |  |
+| DefenseSiteSnapshot | message | 877 | 2 | state | Defense census cells |  |  |
 | DefenseSiteRequest | message | 881 | 2 | state | Read request parameters |  |  |
-| DefenseSiteReply | message | 882 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| LineOfFire | message | 887 | 7 | code | Line of sight and cover chance for a firing/approach pair |  |  |
-| LinesOfFireSnapshot | message | 888 | 2 | code | Lines of fire results |  |  |
+| LineOfFire | message | 887 | 4 | code | Line of sight for a firing/approach pair |  |  |
+| LinesOfFireSnapshot | message | 888 | 3 | code | Lines of fire results |  |  |
 | LinesOfFireRequest | message | 889 | 3 | state | Read request parameters |  |  |
-| LinesOfFireReply | message | 890 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RoofSupportCell | message | 891 | 4 | code | Roof cell support counterfactual |  |  |
 | RoofSupportSnapshot | message | 892 | 3 | code | Roof support for removing a target |  |  |
 | RoofSupportRequest | message | 893 | 2 | state | Read request parameters |  |  |

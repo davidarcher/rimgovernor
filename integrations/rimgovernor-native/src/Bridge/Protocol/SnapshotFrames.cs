@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
                     }
             }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
-            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudgetMs is not null ? request.LinesOfFireBudgetMs.GetValueOrDefault() : (uint?)null) }; }
+            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudgetMs ?? uint.MaxValue) }; }
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 

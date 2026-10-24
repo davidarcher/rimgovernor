@@ -234,7 +234,7 @@ public static class ColonyDecodeReads
             Disease = r.Threat.Disease,
             Monolith = AnomalyColonyReads.MonolithFacts(v.Anomaly),
         };
-        r = r with { Raids = DefenseSiteRules.DecodeRaidTracks(r.Threat.Raids) };
+        r = r with { Raids = r.Threat.Raids };
         f = f with { PenGrazing = Known(r.FoodChannels.Grazing), Pasture = Known(r.FoodChannels.Pasture) };
         if (v.Development?.Outcome is { } development && Resolved(buildings, development.Power, row => row.Building))
         {

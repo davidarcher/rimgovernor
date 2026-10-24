@@ -28,7 +28,7 @@ public sealed record Combat
     /// <summary>The frame's pawn table cut to the emergency census: colonists, hostiles and predators with their combat detail.</summary>
     public Pawns Detail { get; init; }
 
-    public IReadOnlyList<Bridge.Contracts.LineOfFire> Lines { get; init; } = [];
+    public IReadOnlyList<O.LineOfFire> Lines { get; init; } = [];
 
     /// <summary>The line-of-fire budget ran out, so a pair absent from <see cref="Lines"/> is unknown, not blocked (the shooter then walks in).</summary>
     public bool LinesSkipped { get; init; }

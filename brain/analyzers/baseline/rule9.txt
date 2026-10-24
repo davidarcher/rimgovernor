@@ -14,7 +14,6 @@ Bridge.Contracts/Facts/CareConditions.cs|Fact|11
 Bridge.Contracts/Facts/CareConditions.cs|Unknown|2
 Bridge.Contracts/Facts/CorpseClass.cs|Discard|1
 Bridge.Contracts/Facts/CreepJoinerFacts.cs|Fact|3
-Bridge.Contracts/Facts/DefenseSite.cs|Discard|1
 Bridge.Contracts/Facts/FactHelpers.cs|Fact|4
 Bridge.Contracts/Facts/FactHelpers.cs|Unknown|2
 Bridge.Contracts/Facts/PlanningWindow.cs|Fact|4
@@ -353,8 +352,8 @@ Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|324
-Contracts/Observations.cs|UnknownMember|4
+Contracts/Observations.cs|NullableValue|295
+Contracts/Observations.cs|UnknownMember|3
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
 Contracts/Placement.cs|NullableValue|17

@@ -49,7 +49,7 @@ internal static class DefenseSiteStuff
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("test/stage replied no site");
         var walls = await s.BuildingsAsync("walls", new Observations.ListBuildingsRequest { DefNames = ["Wall"], Statuses = [Observations.BuildingStatus.Built] }, cancellationToken).ConfigureAwait(false);
-        var reply = await s.CallAsync("defense-site", NativeOps.ReadDefenseSite, new Observations.DefenseSiteRequest
+        var census = await s.CallAsync("defense-site", NativeOps.ReadDefenseSite, new Observations.DefenseSiteRequest
         {
             Scope = s.Scope,
             Region = new Observations.Rectangle
@@ -58,21 +58,20 @@ internal static class DefenseSiteStuff
                 Maximum = new Common.Cell { X = site.X + Width - 1, Z = site.Z },
             },
         }, cancellationToken).ConfigureAwait(false);
-        var census = TypedReads.Observed("defense-site", NativeOps.ReadDefenseSite, reply, reply.Outcome?.Observed);
         var problems = new List<string>();
         foreach (var stuff in s_stuffs)
         {
             var cell = staged.Buildings.GetValueOrDefault(stuff)?.Cells is [var only] ? only : throw new AcceptanceException($"test/stage placed no single {stuff} wall");
             var building = walls.FirstOrDefault(w => w.Occupied is { Minimum: { } min, Maximum: { } max } && min.X == cell.X && min.Z == cell.Z && max.X == cell.X && max.Z == cell.Z);
-            var row = census.Cells.FirstOrDefault(c => c.Cell is { } at && at.X == cell.X && at.Z == cell.Z);
-            s.Record(stuff, $"buildings {building?.Stuff ?? "missing"}, census {row?.EdificeDefName ?? "missing"}/{row?.EdificeStuffDefName ?? "missing"}");
+            var row = (census.Cells.FirstOrDefault(c => c.Cell.X == cell.X && c.Cell.Z == cell.Z) as Observations.DefenseCell.Seen)?.Edifice;
+            s.Record(stuff, $"buildings {building?.Stuff ?? "missing"}, census {row?.DefName ?? "missing"}/{row?.Stuff ?? "missing"}");
             if (building?.Stuff != stuff)
             {
                 problems.Add($"wall at {cell} staged of {stuff}: the building census reads {building?.Stuff ?? "no wall"}");
             }
-            else if (row?.EdificeDefName != "Wall" || row.EdificeStuffDefName != building.Stuff)
+            else if (row?.DefName != "Wall" || row.Stuff != building.Stuff)
             {
-                problems.Add($"wall at {cell} of {building.Stuff}: the defense-site census reads {row?.EdificeDefName ?? "no cell"}/{row?.EdificeStuffDefName ?? "no stuff"}");
+                problems.Add($"wall at {cell} of {building.Stuff}: the defense-site census reads {row?.DefName ?? "no cell"}/{row?.Stuff ?? "no stuff"}");
             }
         }
 

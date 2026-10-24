@@ -24,10 +24,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         };
         var cells = new List<DefenseCell>(request.Cells);
         var entrances = new List<Cell>(request.Entrances);
-        foreach (var cell in site.Cells)
+        foreach (var cell in site)
         {
             cells.Add(DefenseCellFacts(cell));
-            if (!cell.Fogged && cell.Door && cell.PlayerOwned)
+            if (cell is O.DefenseCell.Seen { Edifice: { Door: true, PlayerOwned: true } })
             {
                 entrances.Add(cell.Cell);
             }
@@ -60,7 +60,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseSandbags), DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseEmbrasure), defenders),
         };
         request = DefenseIedRequest(read, request);
-        request = await MarkWallSupportAsync(identity, request, site.Cells, call).ConfigureAwait(false);
+        request = await MarkWallSupportAsync(identity, request, site, call).ConfigureAwait(false);
         return (request, default, true);
     }
 
@@ -291,7 +291,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 partial class RoundsDefenseLayoutPlanner
 {
     /// <summary>The cover the cell's thing offers: its definition and kind, and for a building the stuff when it is the cell's edifice.</summary>
-    internal static CoverThing DefenseCover(DefenseCensusCell cell)
+    internal static CoverThing DefenseCover(O.DefenseCell.Seen cell)
     {
         if (cell.Cover is null)
         {
@@ -311,9 +311,9 @@ partial class RoundsDefenseLayoutPlanner
                 break;
             case O.CoverKind.Building:
                 thing = thing with { Kind = CoverKind.Building };
-                if (cell.EdificeDefName == thing.Def)
+                if (cell.Edifice is { } edifice && edifice.DefName == thing.Def)
                 {
-                    thing = thing with { Stuff = cell.EdificeStuff };
+                    thing = thing with { Stuff = edifice.Stuff ?? "" };
                 }
                 break;
         }

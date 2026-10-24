@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -44,100 +45,54 @@ public sealed record SupplyRead
     public IReadOnlyList<SupplyTarget> Targets { get; init; } = [];
 }
 
-/// <summary>Whether one target cell is reachable natively and in the projected layout.</summary>
-public sealed record AccessTarget
+/// <summary>The access audit's verdicts over the native <see cref="Obs.SpatialAccessSnapshot"/>.</summary>
+public static class SpatialAccessRules
 {
-    public DomainCell Cell { get; init; }
-
-    public bool NativeReachable { get; init; }
-
-    public bool ProjectedReachable { get; init; }
-
-    public uint ProjectedSteps { get; init; }
-}
-
-/// <summary>One audited pawn's access before and after a projected layout.</summary>
-public sealed record PawnAccess
-{
-    public bool Skipped { get; init; }
-
-    public string Id { get; init; } = "";
-
-    public DomainCell Position { get; init; }
-
-    public uint Current { get; init; }
-
-    public uint After { get; init; }
-
-    public bool LosesAccess { get; init; }
-
-    public bool OriginKnown { get; init; }
-
-    public DomainCell ProjectedOrigin { get; init; }
-
-    public uint EgressSteps { get; init; }
-
-    public IReadOnlyList<AccessTarget> Targets { get; init; } = [];
-}
-
-/// <summary>The access audit of a projected layout.</summary>
-public sealed record SpatialAccess
-{
-    public ObservationContext? Context { get; init; }
-
-    public uint MapCells { get; init; }
-
-    public uint Walkable { get; init; }
-
-    public IReadOnlyList<PawnAccess> Pawns { get; init; } = [];
-
-    /// <summary>Whether the layout loses no audited pawn's access to any target.</summary>
-    public bool Accepted() => Refusal().Length == 0;
-
     /// <summary>The first pawn the audit skipped, when there is one.</summary>
-    public (string Id, bool Skipped) Skipped()
+    public static (string Id, bool Skipped) Skipped(this Obs.SpatialAccessSnapshot access)
     {
-        foreach (var p in Pawns)
+        foreach (var p in access.Pawns)
         {
-            if (p.Skipped)
+            if (p is Obs.PawnAccess.Skipped)
             {
-                return (p.Id, true);
+                return (p.Pawn.Value, true);
             }
         }
         return ("", false);
     }
 
     /// <summary>Why the layout is refused; empty when it is accepted.</summary>
-    public string Refusal()
+    public static string Refusal(this Obs.SpatialAccessSnapshot access)
     {
-        if (Pawns.Count == 0)
+        if (access.Pawns.Count == 0)
         {
             return "no colonists audited";
         }
         var reached = new HashSet<DomainCell>();
-        foreach (var p in Pawns)
+        foreach (var p in access.Pawns)
         {
-            if (p.Skipped)
+            switch (p)
             {
-                continue;
-            }
-            if (!p.OriginKnown)
-            {
-                return $"pawn {p.Id} at {Show(p.Position)} has no safe exit";
-            }
-            foreach (var t in p.Targets)
-            {
-                if (t.NativeReachable && !t.ProjectedReachable)
-                {
-                    return $"pawn {p.Id} at {Show(p.Position)} loses target {Show(t.Cell)}";
-                }
-                if (t.NativeReachable && t.ProjectedReachable)
-                {
-                    reached.Add(t.Cell);
-                }
+                case Obs.PawnAccess.Skipped:
+                    continue;
+                case Obs.PawnAccess.Stranded:
+                    return $"pawn {p.Pawn.Value} at {Show(p.Position)} has no safe exit";
+                case Obs.PawnAccess.Audited audited:
+                    foreach (var t in audited.Targets)
+                    {
+                        if (t.NativeReachable && !t.ProjectedReachable)
+                        {
+                            return $"pawn {p.Pawn.Value} at {Show(p.Position)} loses target {Show(t.Cell)}";
+                        }
+                        if (t.NativeReachable && t.ProjectedReachable)
+                        {
+                            reached.Add(t.Cell);
+                        }
+                    }
+                    break;
             }
         }
-        foreach (var t in Pawns[0].Targets)
+        foreach (var t in access.Pawns[0] is Obs.PawnAccess.Audited first ? first.Targets : [])
         {
             if (!reached.Contains(t.Cell))
             {

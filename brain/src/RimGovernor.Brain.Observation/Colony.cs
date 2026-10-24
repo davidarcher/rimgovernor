@@ -313,7 +313,7 @@ public sealed partial record ColonyProjection
     public Fact<RingStuffSources> RingSources { get; init; }
 
     /// <summary>The hostile lords the map has seen since load (the native RaidArrivalState tracks), the defense layout's arrivals.</summary>
-    public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
+    public IReadOnlyList<O.RaidTrack> Raids { get; init; } = [];
 
     /// <summary>The window's provenance when a PlanningWindowSource served it (Source set); null when the reply listed the cells itself.</summary>
     public Held<PlanningCells>? Window { get; init; }

@@ -137,9 +137,9 @@ public interface INativeFacade
 
     Task<Obs.StorageOccupancySnapshot> ReadStorageOccupancyAsync(Obs.StorageOccupancyRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.DefenseSiteReply> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken);
+    Task<Obs.DefenseSiteSnapshot> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.LinesOfFireReply> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken);
+    Task<Obs.LinesOfFireSnapshot> ReadLinesOfFireAsync(Obs.LinesOfFireRequest request, CancellationToken cancellationToken);
 
     Task<Presentation.NotificationsSnapshot> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken);
 
@@ -147,7 +147,7 @@ public interface INativeFacade
 
     Task<Obs.ResourceSourcesSnapshot> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken);
+    Task<Obs.SpatialAccessSnapshot> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken);
 
     Task<Obs.TradeAcquisition> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken);
 

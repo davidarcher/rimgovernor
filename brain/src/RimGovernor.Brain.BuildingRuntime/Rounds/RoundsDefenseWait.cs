@@ -99,7 +99,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     /// <summary>Marks which cells of the request can carry the wall and the trap, from the terrain affordances of the site.</summary>
-    internal async Task<DefenseRequest> MarkWallSupportAsync(C.Identity identity, DefenseRequest request, IReadOnlyList<DefenseCensusCell> site, CancellationToken call)
+    internal async Task<DefenseRequest> MarkWallSupportAsync(C.Identity identity, DefenseRequest request, IReadOnlyList<O.DefenseCell> site, CancellationToken call)
     {
         var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false);
         if (catalog is null)
@@ -111,9 +111,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var terrain = new Dictionary<Cell, string>();
         foreach (var cell in site)
         {
-            if (!cell.Fogged)
+            if (cell is O.DefenseCell.Seen seen)
             {
-                terrain[cell.Cell] = cell.Terrain;
+                terrain[cell.Cell] = seen.Terrain;
             }
         }
         var cells = new List<DefenseCell>(request.Cells.Count);
@@ -173,14 +173,14 @@ partial class RoundsDefenseLayoutPlanner
         return new BridgeCellRect { Min = new Cell(minX, minZ), Max = new Cell(maxX, maxZ) };
     }
 
-    internal static Dictionary<Cell, WaitDoorCell> DefenseFightCensus(BridgeDefenseSite site)
+    internal static Dictionary<Cell, WaitDoorCell> DefenseFightCensus(O.DefenseSiteSnapshot site)
     {
         var census = new Dictionary<Cell, WaitDoorCell>();
         foreach (var c in site.Cells)
         {
-            if (!c.Fogged)
+            if (c is O.DefenseCell.Seen seen)
             {
-                census[c.Cell] = new WaitDoorCell { Edifice = c.EdificeDefName, Stuff = c.EdificeStuff, Walkable = c.Walkable };
+                census[c.Cell] = new WaitDoorCell { Edifice = seen.Edifice?.DefName ?? "", Stuff = seen.Edifice?.Stuff ?? "", Walkable = seen.Walkable };
             }
         }
         return census;

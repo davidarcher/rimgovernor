@@ -2,14 +2,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using Obs = RimGovernor.Contracts.Wire.Observations;
+using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace HomeBridge.BridgeTools
 {
@@ -24,23 +24,20 @@ namespace HomeBridge.BridgeTools
         // is unavailable (LimitExceeded), never partial.
         internal const long MaximumMapCells = 262144;
 
-        internal static Obs.SpatialAccessReply HandleReadSpatialAccess(Obs.SpatialAccessRequest request)
+        internal static Obs.SpatialAccessSnapshot HandleReadSpatialAccess(Obs.SpatialAccessRequest request)
         {
-            if (!Validate(request, out var failure))
-                return new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                return new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) };
+            if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out failure))
+                throw NativeFaults.Refused(failure);
             if ((long)map.Size.x * map.Size.z > MaximumMapCells)
-                return new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size.") };
-            try {
-                var blocked = new HashSet<IntVec3>(request.BlockedCells.Select(Native));
-                var targets = request.TargetCells.Select(Native).ToList();
-                if (blocked.Concat(targets).Any(c => !c.InBounds(map))) return new Obs.SpatialAccessReply {
-                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") };
-                return new Obs.SpatialAccessReply { Outcome = Audit(map, blocked, targets, request.PawnIds.ToList(), context, request.BudgetMs) };
-            }
-            catch (ReadLimit error) { return new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }; }
-            catch (Exception) { return new Obs.SpatialAccessReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }; }
+                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size."));
+            var blocked = new HashSet<IntVec3>(request.BlockedCells.Select(Native));
+            var targets = request.TargetCells.Select(Native).ToList();
+            if (blocked.Concat(targets).Any(c => !c.InBounds(map)))
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map."));
+            try { return Audit(map, blocked, targets, request.PawnIds.ToList(), context, request.BudgetMs); }
+            catch (ReadLimit error) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.LimitExceeded, error.Message)); }
+            catch (Exception) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.")); }
         }
 
         internal static bool Validate(Obs.SpatialAccessRequest request, out Common.Failure failure)
@@ -55,24 +52,23 @@ namespace HomeBridge.BridgeTools
             return failure == null;
         }
 
-        private static HashSet<IntVec3> Reach(IntVec3 start, HashSet<IntVec3> allowed, out Dictionary<IntVec3, int> distance)
+        private static HashSet<IntVec3> Reach(IntVec3 start, HashSet<IntVec3> allowed)
         {
             var found = new HashSet<IntVec3>();
-            distance = new Dictionary<IntVec3, int>();
             var queue = new Queue<IntVec3>();
-            if (allowed.Contains(start)) { found.Add(start); distance[start] = 0; queue.Enqueue(start); }
+            if (allowed.Contains(start)) { found.Add(start); queue.Enqueue(start); }
             while (queue.Count != 0)
             {
                 var cell = queue.Dequeue();
                 foreach (var next in new[] { cell + IntVec3.North, cell + IntVec3.South, cell + IntVec3.East, cell + IntVec3.West })
-                    if (allowed.Contains(next) && found.Add(next)) { distance[next] = distance[cell] + 1; queue.Enqueue(next); }
+                    if (allowed.Contains(next) && found.Add(next)) queue.Enqueue(next);
             }
             return found;
         }
 
-        private static Obs.SpatialAccessSnapshot Audit(Map map, HashSet<IntVec3> blocked, List<IntVec3> targets, List<string> pawnIds, Common.ObservationContext context, uint? budgetMs)
+        private static Obs.SpatialAccessSnapshot Audit(Map map, HashSet<IntVec3> blocked, List<IntVec3> targets, List<string> pawnIds, Common.ObservationContext context, uint budgetMs)
         {
-            var budgetTicks = budgetMs.HasValue ? budgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
+            var budgetTicks = budgetMs * System.Diagnostics.Stopwatch.Frequency / 1000;
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.InMentalState).OrderBy(p => p.thingIDNumber).ToList();
             if (pawnIds.Count != 0)
@@ -83,14 +79,16 @@ namespace HomeBridge.BridgeTools
             }
             if (pawns.Count == 0) throw new ReadLimit("Require at least one mobile native colonist.");
             var terrain = map.AllCells.Where(c => !c.Fogged(map) && c.Walkable(map)).ToList();
-            var result = new Obs.SpatialAccessSnapshot { Context = context, MapCells = (uint)(map.Size.x * map.Size.z), ObservedWalkableCells = (uint)terrain.Count};
+            var rows = new List<Obs.PawnAccess>();
             foreach (var pawn in pawns)
             {
+                var id = new PawnId(pawn.GetUniqueLoadID());
+                var position = Cell(pawn.Position);
                 // The budget is checked between colonists (about 70-80 ms each): one past
                 // it is reported skipped, not audited and not assumed to keep access.
                 if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks)
                 {
-                    result = result with { Pawns = [.. result.Pawns, new Obs.PawnAccess { Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position), Skipped = true }] };
+                    rows.Add(new Obs.PawnAccess.Skipped { Pawn = id, Position = position });
                     continue;
                 }
                 var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
@@ -100,43 +98,41 @@ namespace HomeBridge.BridgeTools
                 // The pawn is where it stands, even on a frame or a
                 // blueprint under construction that is no longer walkable.
                 allowed.Add(pawn.Position);
-                var before = Reach(pawn.Position, allowed, out _);
+                var before = Reach(pawn.Position, allowed);
                 allowed.ExceptWith(blocked);
                 var origin = pawn.Position;
-                var egressSteps = 0;
                 if (blocked.Contains(origin))
                 {
                     // Ordinary construction can move a pawn aside. Require a
                     // currently safe native exit, without moving the pawn here.
-                    var footprint = Reach(origin, new HashSet<IntVec3>(before.Where(blocked.Contains)), out var exits);
+                    var footprint = Reach(origin, new HashSet<IntVec3>(before.Where(blocked.Contains)));
                     var frontier = footprint.SelectMany(c => new[] { c + IntVec3.North, c + IntVec3.South, c + IntVec3.East, c + IntVec3.West })
                         .Where(allowed.Contains).Distinct().OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).ToList();
                     origin = frontier.Where(c => pawn.CanReach(c, PathEndMode.OnCell, Danger.None)).Select(c => (IntVec3?)c).FirstOrDefault() ?? IntVec3.Invalid;
-                    if (origin.IsValid)
-                        egressSteps = exits.Where(pair => Math.Abs(pair.Key.x - origin.x) + Math.Abs(pair.Key.z - origin.z) == 1).Min(pair => pair.Value) + 1;
                 }
-                var distances = new Dictionary<IntVec3, int>();
-                var after = origin.IsValid ? Reach(origin, allowed, out distances) : new HashSet<IntVec3>();
-                var losesAccess = before.Any(c => !blocked.Contains(c) && !after.Contains(c));
-                var row = new Obs.PawnAccess {
-                    Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position),
-                    CurrentCells = (uint)before.Count, ProjectedCells = (uint)after.Count, LosesAccess = losesAccess, EgressSteps = (uint)egressSteps,
-                };
-                if (origin.IsValid) row = row with { ProjectedOrigin = Cell(origin) };
-                foreach (var c in targets)
+                if (!origin.IsValid)
                 {
-                    var projected = after.Contains(c);
-                    var target = new Obs.AccessTarget { Cell = Cell(c), NativeReachable = pawn.CanReach(c, PathEndMode.OnCell, Danger.None), ProjectedReachable = projected };
-                    if (projected) target = target with { ProjectedSteps = (uint)(distances[c] + egressSteps) };
-                    row = row with { Targets = [.. row.Targets, target] };
+                    rows.Add(new Obs.PawnAccess.Stranded { Pawn = id, Position = position });
+                    continue;
                 }
-                result = result with { Pawns = [.. result.Pawns, row] };
+                var after = Reach(origin, allowed);
+                rows.Add(new Obs.PawnAccess.Audited
+                {
+                    Pawn = id,
+                    Position = position,
+                    Targets = [.. targets.Select(c => new Obs.AccessTarget
+                    {
+                        Cell = Cell(c),
+                        NativeReachable = pawn.CanReach(c, PathEndMode.OnCell, Danger.None),
+                        ProjectedReachable = after.Contains(c),
+                    })],
+                });
             }
-            return result;
+            return new Obs.SpatialAccessSnapshot { Context = context, Pawns = [.. rows] };
         }
 
         private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
-        private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
+        private static DomainCell Cell(IntVec3 cell) => new DomainCell(cell.x, cell.z);
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }

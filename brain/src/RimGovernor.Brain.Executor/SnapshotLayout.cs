@@ -36,7 +36,7 @@ public sealed class SnapshotLayout
     public DefenseLayout? Layout { get; set; }
 
     /// <summary>The defense-site read's cells, which the cover selection consults beside the request (LayoutCover only).</summary>
-    public IReadOnlyList<Bridge.Contracts.DefenseCensusCell> Site { get; set; } = [];
+    public IReadOnlyList<O.DefenseCell> Site { get; set; } = [];
 
     /// <summary>The native answers recorded before the line of sight replaced the read; only the oldest recordings carry them.</summary>
     public IReadOnlyList<NativeLine> NativeLines { get; set; } = [];

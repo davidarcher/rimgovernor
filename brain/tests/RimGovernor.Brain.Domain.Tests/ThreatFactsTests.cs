@@ -18,8 +18,8 @@ public sealed class ThreatFactsTests
         [
             new RaidTrack
             {
-                LordId = "lord-1", FactionDef = "Pirate", SpawnTick = 60000, Spawn = new Cell(0, 40), Ground = true,
-                Trail = [new Cell(0, 40), new Cell(3, 41)], LastTick = 60250,
+                LordId = "lord-1", SpawnTick = new Tick(60000), Spawn = new Cell(0, 40), Ground = true,
+                Trail = [new Cell(0, 40), new Cell(3, 41)],
             },
         ],
     };

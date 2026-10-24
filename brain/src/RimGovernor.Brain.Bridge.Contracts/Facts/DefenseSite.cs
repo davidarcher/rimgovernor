@@ -1,4 +1,3 @@
-using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Contracts.Wire.Observations;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
@@ -20,141 +19,26 @@ public readonly record struct CellRect(DomainCell Min, DomainCell Max)
         && region.Max.Z < DefenseSiteRules.MaxDefenseSiteExtent;
 }
 
-/// <summary>
-/// One observed cell of a defense site census. Unknown (fogged) cells carry only
-/// <see cref="Fogged"/>; every other fact is the game's own: <see cref="CoverFill"/> (and sight blocking)
-/// are what CoverUtility/GenSight consult, <see cref="EdgeReachable"/> is native ground reachability to a map edge
-/// without opening doors (the walk-in raid approach), and NaturalRock/Door/PlayerOwned describe the edifice.
-/// </summary>
-public sealed record DefenseCensusCell
-{
-    public DomainCell Cell { get; init; }
-
-    public bool Fogged { get; init; }
-
-    public string Terrain { get; init; } = "";
-
-    public string EdificeDefName { get; init; } = "";
-
-    /// <summary>The edifice's stuff def, empty for a stuffless one (a wooden door is upgraded to plasteel).</summary>
-    public string EdificeStuff { get; init; } = "";
-
-    public bool Walkable { get; init; }
-
-    public bool Passable { get; init; }
-
-    public double CoverFill { get; init; }
-
-    public bool PlayerOwned { get; init; }
-
-    public bool NaturalRock { get; init; }
-
-    public bool Door { get; init; }
-
-    public bool EdgeReachable { get; init; }
-
-    /// <summary>The thing whose fill <see cref="CoverFill"/> reports, when the census can identify one the game's designators could remove.</summary>
-    public DefenseCover? Cover { get; init; }
-
-    /// <summary>A foundation removal designated on the cell.</summary>
-    public bool Unbridging { get; init; }
-
-    /// <summary>The cell is under any roof.</summary>
-    public bool Roofed { get; init; }
-}
-
-/// <summary>
-/// The clearance identity of one cover thing, what it is, which designation removes it
-/// and whether one already stands.
-/// </summary>
-public sealed record DefenseCover(string ThingId, string DefName, CoverKind Kind, bool Designated)
-{
-    /// <summary>
-    /// The native designation def the cover's kind takes, the one a CoverClearance action
-    /// carries; null for an unknown kind.
-    /// </summary>
-    public CoverClearanceDesignation? Designation =>
-        Kind switch
-        {
-            CoverKind.Plant => CoverClearanceDesignation.CutPlant,
-            CoverKind.Chunk => CoverClearanceDesignation.Haul,
-            CoverKind.Mineable => CoverClearanceDesignation.Mine,
-            CoverKind.Building => CoverClearanceDesignation.Deconstruct,
-            _ => null,
-        };
-}
-
-/// <summary>
-/// One hostile lord the map has seen since load, its first pawn's spawn cell (<see cref="Ground"/>
-/// when on the map edge) and a bounded trail of one of its pawns, sampled by the native RaidArrivalState component.
-/// </summary>
-public sealed record RaidTrack
-{
-    public string LordId { get; init; } = "";
-
-    public string FactionDef { get; init; } = "";
-
-    public Tick SpawnTick { get; init; }
-
-    public Tick LastTick { get; init; }
-
-    public DomainCell Spawn { get; init; }
-
-    public bool Ground { get; init; }
-
-    public IReadOnlyList<DomainCell> Trail { get; init; } = [];
-}
-
-/// <summary>One complete rectangle census with the context the caller validates against its acting generation.</summary>
-public sealed record DefenseSite(ObservationContext? Context, uint Width, uint Height, CellRect Region, IReadOnlyList<DefenseCensusCell> Cells);
-
-/// <summary>
-/// The native shooting-model evidence for one (firing, approach) pair, GenSight line of
-/// sight and CoverUtility's overall block chance for a target at <see cref="To"/> shot from <see cref="From"/>
-/// (<see cref="TargetCover"/>) and the reverse (<see cref="ShooterCover"/>). A fogged endpoint leaves
-/// <see cref="Known"/> false with only the distance set.
-/// </summary>
-public sealed record LineOfFire
-{
-    public DomainCell From { get; init; }
-
-    public DomainCell To { get; init; }
-
-    public bool Known { get; init; }
-
-    public bool LineOfSight { get; init; }
-
-    public double TargetCover { get; init; }
-
-    public double ShooterCover { get; init; }
-
-    public double Distance { get; init; }
-}
-
-/// <summary>
-/// The pairs a read produced, firing-major. <see cref="Skipped"/> means the
-/// LinesOfFireBudgetMS ran out: the pairs after <see cref="Lines"/> were not read, so a pair absent from
-/// <see cref="Lines"/> is unknown, not blocked.
-/// </summary>
-public sealed record LinesOfFire(ObservationContext? Context, IReadOnlyList<LineOfFire> Lines, bool Skipped);
-
-// ReadDefenseSite, ReadLinesOfFire and the defense site / lines-of-fire reply validators are
-// wire plumbing and not ported; the raid-track decoder the colony threat projection needs is.
+/// <summary>The defense site census's functions.</summary>
 public static class DefenseSiteRules
 {
     /// <summary>Bounds a defense-layout cell coordinate.</summary>
     internal const int MaxDefenseSiteExtent = 4096;
 
-    /// <summary>Decodes the hostile lords of a threat census, one track per lord.</summary>
-    public static IReadOnlyList<RaidTrack> DecodeRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows) =>
-        [.. rows.Select(row => new RaidTrack
+    /// <summary>The native designation def a cover's kind takes, the one a CoverClearance action carries.</summary>
+    public static CoverClearanceDesignation Designation(this DefenseCover cover)
+    {
+        switch (cover.Kind)
         {
-            LordId = row.LordId,
-            FactionDef = row.FactionDef,
-            SpawnTick = new Tick(row.SpawnTick),
-            LastTick = new Tick(row.LastTick),
-            Spawn = row.Spawn,
-            Ground = row.Ground,
-            Trail = row.Trail,
-        })];
+            case CoverKind.Plant:
+                return CoverClearanceDesignation.CutPlant;
+            case CoverKind.Chunk:
+                return CoverClearanceDesignation.Haul;
+            case CoverKind.Mineable:
+                return CoverClearanceDesignation.Mine;
+            case CoverKind.Building:
+                return CoverClearanceDesignation.Deconstruct;
+        }
+        throw new ArgumentOutOfRangeException(nameof(cover), cover.Kind, "unhandled cover kind");
+    }
 }

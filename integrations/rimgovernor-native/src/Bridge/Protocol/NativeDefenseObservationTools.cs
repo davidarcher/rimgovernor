@@ -8,7 +8,9 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using RimGovernor.Brain.Bridge.Contracts;
 using Common = RimGovernor.Contracts.Wire.Common;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -21,32 +23,28 @@ namespace HomeBridge.BridgeTools
     // where a raid will actually path.
     internal static class NativeDefenseObservationTools
     {
-        internal static Obs.DefenseSiteReply HandleReadDefenseSite(Obs.DefenseSiteRequest request)
+        // A refused request throws NativeRefusedException; facts that cannot be read completely throw an
+        // unavailable fault.
+        internal static Obs.DefenseSiteSnapshot HandleReadDefenseSite(Obs.DefenseSiteRequest request)
         {
-            if (!ValidateSite(request, out var failure0)) return new Obs.DefenseSiteReply { Outcome = failure0 };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.DefenseSiteReply { Outcome = failure };
-            try {
-                var cells = Region(request.Region, map);
-                if (cells == null) return new Obs.DefenseSiteReply {
-                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") };
-                return new Obs.DefenseSiteReply { Outcome = Site(map, cells, context) };
-            }
-            catch (Exception) { return new Obs.DefenseSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }; }
+            if (!ValidateSite(request, out var failure0)) throw NativeFaults.Refused(failure0);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure))
+                throw NativeFaults.Refused(failure);
+            var cells = Region(request.Region, map) ?? throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map."));
+            try { return Site(map, cells, context); }
+            catch (Exception error) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely: " + error.GetType().Name + ": " + error.Message)); }
         }
 
-        internal static Obs.LinesOfFireReply HandleReadLinesOfFire(Obs.LinesOfFireRequest request)
+        internal static Obs.LinesOfFireSnapshot HandleReadLinesOfFire(Obs.LinesOfFireRequest request)
         {
-            if (!ValidateLines(request, out var failure0)) return new Obs.LinesOfFireReply { Outcome = failure0 };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.LinesOfFireReply { Outcome = failure };
-            try {
-                var firing = request.FiringCells.Select(Native).ToList(); var approach = request.ApproachCells.Select(Native).ToList();
-                if (firing.Concat(approach).Any(c => !c.InBounds(map))) return new Obs.LinesOfFireReply {
-                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") };
-                return new Obs.LinesOfFireReply { Outcome = Lines(map, firing, approach, context, request.BudgetMs) };
-            }
-            catch (Exception) { return new Obs.LinesOfFireReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }; }
+            if (!ValidateLines(request, out var failure0)) throw NativeFaults.Refused(failure0);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure))
+                throw NativeFaults.Refused(failure);
+            var firing = request.FiringCells.Select(Native).ToList(); var approach = request.ApproachCells.Select(Native).ToList();
+            if (firing.Concat(approach).Any(c => !c.InBounds(map)))
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map."));
+            try { return Lines(map, firing, approach, context, request.BudgetMs); }
+            catch (Exception error) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely: " + error.GetType().Name + ": " + error.Message)); }
         }
 
         internal static bool ValidateSite(Obs.DefenseSiteRequest request, out Common.Failure failure)
@@ -94,35 +92,32 @@ namespace HomeBridge.BridgeTools
             // array per cell and cloned each row per field, the game thread's largest allocation per read.
             var rows = new List<Obs.DefenseCell>(cells.Count);
             foreach (var cell in cells) {
-                var at = new Common.Cell { X = cell.x, Z = cell.z };
-                if (cell.Fogged(map)) { rows.Add(new Obs.DefenseCell { Cell = at, Fogged = true }); continue; }
+                var at = new DomainCell(cell.x, cell.z);
+                if (cell.Fogged(map)) { rows.Add(new Obs.DefenseCell.Fogged { Cell = at }); continue; }
                 var edifice = cell.GetEdifice(map);
                 var cover = cell.GetCover(map);
                 var giver = cover ?? (edifice != null && edifice.def.fillPercent > 0 ? edifice : null);
-                var kind = giver != null ? NativeClearCover.KindOf(giver) : Obs.CoverKind.Unspecified;
-                var covered = kind != Obs.CoverKind.Unspecified;
+                var kind = giver != null ? NativeClearCover.KindOf(giver) : null;
                 var passable = !cell.Impassable(map);
-                rows.Add(new Obs.DefenseCell {
-                    Cell = at, Fogged = false,
+                rows.Add(new Obs.DefenseCell.Seen {
+                    Cell = at,
                     Terrain = Identifier(cell.GetTerrain(map)?.defName),
                     FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null,
                     Walkable = cell.Walkable(map), Passable = passable,
                     Roofed = cell.Roofed(map),
                     CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0),
-                    CoverThingId = covered ? giver!.GetUniqueLoadID() : null,
-                    CoverDefName = covered ? Identifier(giver!.def.defName) : null,
-                    CoverKind = covered ? kind : null,
-                    CoverDesignated = covered ? NativeClearCover.Designated(giver!) : null,
-                    EdificeDefName = edifice != null ? Identifier(edifice.def.defName) : null,
-                    EdificeStuffDefName = edifice?.Stuff != null ? Identifier(edifice.Stuff.defName) : null,
-                    PlayerOwned = edifice != null && edifice.Faction == player,
-                    NaturalRock = edifice != null && (edifice.def.building?.isNaturalRock == true || edifice.def.mineable),
-                    Door = edifice is Building_Door,
+                    Cover = kind is { } k ? new Obs.DefenseCover { ThingId = giver!.GetUniqueLoadID(), DefName = Identifier(giver.def.defName), Kind = k, Designated = NativeClearCover.Designated(giver) } : null,
+                    Edifice = edifice == null ? null : new Obs.DefenseEdifice {
+                        DefName = Identifier(edifice.def.defName),
+                        Stuff = edifice.Stuff != null ? Identifier(edifice.Stuff.defName) : null,
+                        PlayerOwned = edifice.Faction == player,
+                        NaturalRock = edifice.def.building?.isNaturalRock == true || edifice.def.mineable,
+                        Door = edifice is Building_Door,
+                    },
                     EdgeReachable = passable && map.reachability.CanReachMapEdge(cell, raider),
                 });
             }
-            return new Obs.DefenseSiteSnapshot { Context = context,
-                MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) }, Cells = [.. rows] };
+            return new Obs.DefenseSiteSnapshot { Context = context, Cells = [.. rows] };
         }
 
         // The hostile lords RaidArrivalState has tracked since load, oldest first.
@@ -131,29 +126,28 @@ namespace HomeBridge.BridgeTools
             var raids = map.GetComponent<RaidArrivalState>();
             if (raids == null) yield break;
             foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
-                yield return new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
-                    SpawnTick = track.SpawnTick, Spawn = new RimGovernor.Brain.Domain.Cell(track.Spawn.x, track.Spawn.z), Ground = track.Ground, LastTick = track.LastTick,
+                yield return new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    SpawnTick = new RimGovernor.Brain.Domain.Tick(track.SpawnTick), Spawn = new RimGovernor.Brain.Domain.Cell(track.Spawn.x, track.Spawn.z), Ground = track.Ground,
                     Trail = [.. track.Trail.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] };
             }
         }
 
-        internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context, uint? budgetMs)
+        internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context, uint budgetMs)
         {
             var lines = new List<Obs.LineOfFire>();
-            var budgetTicks = budgetMs.HasValue ? budgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
+            var budgetTicks = budgetMs * System.Diagnostics.Stopwatch.Frequency / 1000;
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             foreach (var from in firing) foreach (var to in approach) {
                 // About 3 us a pair; the budget is checked per pair, so the snapshot holds a
                 // firing-major prefix of the product and says so.
                 if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) return new Obs.LinesOfFireSnapshot { Context = context, Lines = [.. lines], Skipped = true };
-                var row = new Obs.LineOfFire { From = new Common.Cell { X = from.x, Z = from.z }, To = new Common.Cell { X = to.x, Z = to.z },
-                    Distance = Finite((from - to).LengthHorizontal) };
-                if (from.Fogged(map) || to.Fogged(map)) { lines.Add(row); continue; }
-                lines.Add(row with { LineOfSight = GenSight.LineOfSight(from, to, map, true),
-                    TargetCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(to), from, map)),
-                    ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map)) });
+                var a = new DomainCell(from.x, from.z); var b = new DomainCell(to.x, to.z);
+                var distance = Finite((from - to).LengthHorizontal);
+                if (from.Fogged(map) || to.Fogged(map)) { lines.Add(new Obs.LineOfFire.Fogged { From = a, To = b, Distance = distance }); continue; }
+                lines.Add(new Obs.LineOfFire.Traced { From = a, To = b, Distance = distance,
+                    LineOfSight = GenSight.LineOfSight(from, to, map, true) });
             }
-            return new Obs.LinesOfFireSnapshot { Context = context, Lines = [.. lines] };
+            return new Obs.LinesOfFireSnapshot { Context = context, Lines = [.. lines], Skipped = false };
         }
 
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");

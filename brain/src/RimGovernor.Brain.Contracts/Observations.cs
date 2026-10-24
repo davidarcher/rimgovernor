@@ -123,16 +123,10 @@ public enum BuildingStatus
 [JsonConverter(typeof(WireEnumConverter<CoverKind>))]
 public enum CoverKind
 {
-    [WireName("COVER_KIND_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("COVER_KIND_PLANT")]
-    Plant = 1,
-    [WireName("COVER_KIND_CHUNK")]
-    Chunk = 2,
-    [WireName("COVER_KIND_MINEABLE")]
-    Mineable = 3,
-    [WireName("COVER_KIND_BUILDING")]
-    Building = 4,
+    Plant,
+    Chunk,
+    Mineable,
+    Building,
 }
 
 /// <summary>
@@ -2808,176 +2802,157 @@ public sealed record ResearchRequest
     public bool ProgressOnly { get; init; }
 }
 
+/// <summary>
+/// One target cell of the access audit: whether the pawn reaches it natively now (CanReach, no danger), and whether it
+/// reaches it in the projected layout, the blocked cells impassable.
+/// </summary>
 public sealed record AccessTarget
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool? NativeReachable { get; init; }
+    public required bool NativeReachable { get; init; }
 
-    public bool? ProjectedReachable { get; init; }
-
-    public uint? ProjectedSteps { get; init; }
+    public required bool ProjectedReachable { get; init; }
 }
 
-public sealed record PawnAccess
+/// <summary>
+/// One colonist of the access audit, at <see cref="Position"/> when the access was read: <see cref="Audited"/> with
+/// its targets, <see cref="Stranded"/> when the blocked cells leave it no safe exit, or <see cref="Skipped"/> when the
+/// request's budget ran out before it (not audited, and not assumed to keep access).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Audited), "audited")]
+[JsonDerivedType(typeof(Stranded), "stranded")]
+[JsonDerivedType(typeof(Skipped), "skipped")]
+public abstract record PawnAccess
 {
-    public Common.Ref? Pawn { get; init; }
+    private PawnAccess()
+    {
+    }
 
-    public uint? CurrentCells { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public uint? ProjectedCells { get; init; }
+    public required Cell Position { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<AccessTarget>))]
-    public EquatableArray<AccessTarget> Targets { get; init; }
+    public sealed record Audited : PawnAccess
+    {
+        [JsonConverter(typeof(EquatableArrayJsonConverter<AccessTarget>))]
+        public required EquatableArray<AccessTarget> Targets { get; init; }
+    }
 
-    public Common.Cell? ProjectedOrigin { get; init; }
+    public sealed record Stranded : PawnAccess;
 
-    public uint? EgressSteps { get; init; }
-
-    public bool? LosesAccess { get; init; }
-
-    /// <summary>
-    /// The pawn's cell when the access was read.
-    /// </summary>
-    public Common.Cell? Position { get; init; }
-
-    /// <summary>
-    /// The request's budget_ms ran out before this colonist: every field but pawn
-    /// and position is absent (unknown, not "keeps access").
-    /// </summary>
-    public bool? Skipped { get; init; }
+    public sealed record Skipped : PawnAccess;
 }
 
 public sealed record SpatialAccessSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnAccess>))]
-    public EquatableArray<PawnAccess> Pawns { get; init; }
-
-    public uint? MapCells { get; init; }
-
-    public uint? ObservedWalkableCells { get; init; }
+    public required EquatableArray<PawnAccess> Pawns { get; init; }
 }
 
 /// <summary>
 /// budget_ms: main-thread milliseconds the audit may spend (about 70-80 ms per colonist,
 /// independent of the blocked and target cell counts). Colonists past it come back
-/// PawnAccess.skipped. Absent: audit every colonist.
+/// <see cref="PawnAccess.Skipped"/>. An empty <see cref="PawnIds"/> audits every mobile free colonist.
 /// </summary>
 public sealed record SpatialAccessRequest
 {
-    public ReadScope? Scope { get; init; }
+    public required ReadScope Scope { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> BlockedCells { get; init; }
+    public required EquatableArray<Common.Cell> BlockedCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> TargetCells { get; init; }
+    public required EquatableArray<Common.Cell> TargetCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
+    public required EquatableArray<string> PawnIds { get; init; }
 
-    public uint? BudgetMs { get; init; }
-}
-
-public sealed record SpatialAccessReply
-{
-    public SpatialAccessReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="SpatialAccessReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(SpatialAccessReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(SpatialAccessReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(SpatialAccessReplyOutcome.FailureCase), "failure")]
-public abstract record SpatialAccessReplyOutcome
-{
-    private protected SpatialAccessReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SpatialAccessSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(SpatialAccessSnapshot Value) : SpatialAccessReplyOutcome;
-
-    public static implicit operator SpatialAccessReplyOutcome(SpatialAccessSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : SpatialAccessReplyOutcome;
-
-    public static implicit operator SpatialAccessReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : SpatialAccessReplyOutcome;
-
-    public static implicit operator SpatialAccessReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required uint BudgetMs { get; init; }
 }
 
 /// <summary>
-/// Defense site census: bounded terrain, cover and raider-approach facts for
-/// layout planning. cover_fill is the native edifice/cover fillPercent the
-/// shooting model uses (0 when open); edge_reachable is native ground
-/// reachability from the cell to any map edge without opening doors, the
-/// ordinary walk-in raid approach. Every cell of the requested rectangle.
+/// Defense site census: bounded terrain, cover and raider-approach facts for layout planning, every cell of the
+/// requested rectangle. A <see cref="Fogged"/> cell carries no facts; a <see cref="Seen"/> one carries the game's own.
 /// </summary>
-public sealed record DefenseCell
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Fogged), "fogged")]
+[JsonDerivedType(typeof(Seen), "seen")]
+public abstract record DefenseCell
 {
-    public Common.Cell? Cell { get; init; }
+    private DefenseCell()
+    {
+    }
 
-    public bool? Fogged { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool? Walkable { get; init; }
-
-    public bool? Passable { get; init; }
-
-    public double? CoverFill { get; init; }
-
-    public string? EdificeDefName { get; init; }
-
-    public bool? PlayerOwned { get; init; }
-
-    public bool? NaturalRock { get; init; }
-
-    public bool? EdgeReachable { get; init; }
-
-    public string? Terrain { get; init; }
-
-    public bool? Door { get; init; }
+    public sealed record Fogged : DefenseCell;
 
     /// <summary>
-    /// The thing whose fillPercent cover_fill reports (GetCover, else the
-    /// edifice), with the clearance designation ordinary work would need.
-    /// Absent when the cell is open.
+    /// <see cref="CoverFill"/> is the native edifice/cover fillPercent the shooting model uses (0 when open);
+    /// <see cref="EdgeReachable"/> is native ground reachability from the cell to any map edge without opening doors,
+    /// the ordinary walk-in raid approach.
     /// </summary>
-    public string? CoverThingId { get; init; }
+    public sealed record Seen : DefenseCell
+    {
+        public required string Terrain { get; init; }
 
-    public string? CoverDefName { get; init; }
+        public required bool Walkable { get; init; }
 
-    public CoverKind? CoverKind { get; init; }
+        public required bool Passable { get; init; }
 
-    public bool? CoverDesignated { get; init; }
+        public required double CoverFill { get; init; }
 
-    /// <summary>
-    /// The cell's foundation (a Bridge) is designated for removal.
-    /// </summary>
-    public bool? FoundationRemovalDesignated { get; init; }
+        public required bool EdgeReachable { get; init; }
 
-    /// <summary>
-    /// The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one.
-    /// </summary>
-    public string? EdificeStuffDefName { get; init; }
+        /// <summary>The cell's foundation (a Bridge) is designated for removal.</summary>
+        public required bool FoundationRemovalDesignated { get; init; }
 
-    /// <summary>
-    /// The cell is under any roof.
-    /// </summary>
-    public bool? Roofed { get; init; }
+        /// <summary>The cell is under any roof.</summary>
+        public required bool Roofed { get; init; }
+
+        /// <summary>The edifice standing on the cell; null for none.</summary>
+        public required DefenseEdifice? Edifice { get; init; }
+
+        /// <summary>
+        /// The thing whose fillPercent <see cref="CoverFill"/> reports (GetCover, else the edifice) when the game's
+        /// designators can remove it; null when the cell is open or its cover cannot be cleared.
+        /// </summary>
+        public required DefenseCover? Cover { get; init; }
+    }
+}
+
+/// <summary>A defense cell's edifice: its def, its stuff (null for a stuffless one) and what it is.</summary>
+public sealed record DefenseEdifice
+{
+    public required string DefName { get; init; }
+
+    /// <summary>The stuff def (WoodLog, Plasteel); null for a stuffless edifice.</summary>
+    public required string? Stuff { get; init; }
+
+    public required bool PlayerOwned { get; init; }
+
+    public required bool NaturalRock { get; init; }
+
+    public required bool Door { get; init; }
+}
+
+/// <summary>
+/// The clearance identity of one cover thing: what it is, which designation removes it and whether one already
+/// stands.
+/// </summary>
+public sealed record DefenseCover
+{
+    public required string ThingId { get; init; }
+
+    public required string DefName { get; init; }
+
+    public required CoverKind Kind { get; init; }
+
+    public required bool Designated { get; init; }
 }
 
 /// <summary>
@@ -2990,9 +2965,7 @@ public sealed record RaidTrack
 {
     public required string LordId { get; init; }
 
-    public required string FactionDef { get; init; }
-
-    public required long SpawnTick { get; init; }
+    public required Tick SpawnTick { get; init; }
 
     public required Cell Spawn { get; init; }
 
@@ -3000,148 +2973,76 @@ public sealed record RaidTrack
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
     public required EquatableArray<Cell> Trail { get; init; }
-
-    public required long LastTick { get; init; }
 }
 
 public sealed record DefenseSiteSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
-
-    public MapSize MapSize { get; init; } = new();
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseCell>))]
-    public EquatableArray<DefenseCell> Cells { get; init; }
+    public required EquatableArray<DefenseCell> Cells { get; init; }
 }
 
 public sealed record DefenseSiteRequest
 {
-    public ReadScope? Scope { get; init; }
+    public required ReadScope Scope { get; init; }
 
-    public Rectangle? Region { get; init; }
-}
-
-public sealed record DefenseSiteReply
-{
-    public DefenseSiteReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="DefenseSiteReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(DefenseSiteReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(DefenseSiteReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(DefenseSiteReplyOutcome.FailureCase), "failure")]
-public abstract record DefenseSiteReplyOutcome
-{
-    private protected DefenseSiteReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public DefenseSiteSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(DefenseSiteSnapshot Value) : DefenseSiteReplyOutcome;
-
-    public static implicit operator DefenseSiteReplyOutcome(DefenseSiteSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : DefenseSiteReplyOutcome;
-
-    public static implicit operator DefenseSiteReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : DefenseSiteReplyOutcome;
-
-    public static implicit operator DefenseSiteReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required Rectangle Region { get; init; }
 }
 
 /// <summary>
-/// Lines of fire: native GenSight line of sight and CoverUtility overall block
-/// chance for every (firing, approach) pair. target_cover is the chance a
-/// target at `to` is protected from a shooter at `from`; shooter_cover is the
-/// reverse. Pairs are read firing-major under the request's budget_ms (about 3 us a
-/// pair); past it the snapshot is skipped and holds only the pairs read.
+/// Lines of fire: native GenSight line of sight for every (firing, approach) pair. A pair with a fogged end is
+/// <see cref="Fogged"/>, its distance only. Pairs are read firing-major under the request's budget_ms (about 3 us a pair); past it
+/// the snapshot is skipped and holds only the pairs read.
 /// </summary>
-public sealed record LineOfFire
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Fogged), "fogged")]
+[JsonDerivedType(typeof(Traced), "traced")]
+public abstract record LineOfFire
 {
-    public Common.Cell? From { get; init; }
+    private LineOfFire()
+    {
+    }
 
-    public Common.Cell? To { get; init; }
+    public required Cell From { get; init; }
 
-    public bool? LineOfSight { get; init; }
+    public required Cell To { get; init; }
 
-    public double? TargetCover { get; init; }
+    public required double Distance { get; init; }
 
-    public double? ShooterCover { get; init; }
+    public sealed record Fogged : LineOfFire;
 
-    public double? Distance { get; init; }
+    public sealed record Traced : LineOfFire
+    {
+        public required bool LineOfSight { get; init; }
+    }
 }
 
+/// <summary>
+/// The pairs a read produced, firing-major. <see cref="Skipped"/> means the budget ran out: the pairs after
+/// <see cref="Lines"/> were not read, so a pair absent from them was not traced, not blocked.
+/// </summary>
 public sealed record LinesOfFireSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<LineOfFire>))]
-    public EquatableArray<LineOfFire> Lines { get; init; }
+    public required EquatableArray<LineOfFire> Lines { get; init; }
 
-    public bool? Skipped { get; init; }
+    public required bool Skipped { get; init; }
 }
 
 public sealed record LinesOfFireRequest
 {
-    public ReadScope? Scope { get; init; }
+    public required ReadScope Scope { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> FiringCells { get; init; }
+    public required EquatableArray<Common.Cell> FiringCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> ApproachCells { get; init; }
+    public required EquatableArray<Common.Cell> ApproachCells { get; init; }
 
-    public uint? BudgetMs { get; init; }
-}
-
-public sealed record LinesOfFireReply
-{
-    public LinesOfFireReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="LinesOfFireReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(LinesOfFireReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(LinesOfFireReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(LinesOfFireReplyOutcome.FailureCase), "failure")]
-public abstract record LinesOfFireReplyOutcome
-{
-    private protected LinesOfFireReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public LinesOfFireSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(LinesOfFireSnapshot Value) : LinesOfFireReplyOutcome;
-
-    public static implicit operator LinesOfFireReplyOutcome(LinesOfFireSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : LinesOfFireReplyOutcome;
-
-    public static implicit operator LinesOfFireReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : LinesOfFireReplyOutcome;
-
-    public static implicit operator LinesOfFireReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required uint BudgetMs { get; init; }
 }
 
 /// <summary>One requested cell of an excavation site read, in request order.</summary>

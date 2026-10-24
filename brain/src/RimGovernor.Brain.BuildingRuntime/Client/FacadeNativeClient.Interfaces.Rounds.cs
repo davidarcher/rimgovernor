@@ -1,4 +1,4 @@
-﻿using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Observation;
@@ -28,6 +28,6 @@ public sealed partial class FacadeNativeClient
     Task<BridgeCombat> IRoundsDefenseSource.ReadCombatAsync(C.Identity identity, CancellationToken ct) =>
         ReadCombatAsync(identity, ct);
 
-    Task<BridgeDefenseSite> IRoundsDefenseSource.ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
+    Task<O.DefenseSiteSnapshot> IRoundsDefenseSource.ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
         ReadDefenseSiteAsync(identity, region, ct);
 }

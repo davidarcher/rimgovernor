@@ -834,8 +834,8 @@ mined. Demand within a sector ranks nearest Entry first. Ranking cover demand do
 not change geometry.
 
 Each cell whose fill comes from a thing the game's own designators could remove names
-it (`cover_thing_id`, `cover_def_name`, `cover_kind` plant/chunk/mineable/building,
-`cover_designated`) with a CAS token over identity, definition, cell and designation
+it (`DefenseCover`: `thing_id`, `def_name`, `kind` plant/chunk/mineable/building,
+`designated`) with a CAS token over identity, definition, cell and designation
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
 the pawn nearest the home area adds one trail cell per sample; a live lord's trail is
@@ -934,7 +934,7 @@ through the same siting.
 ### A blocked tier
 
 When a tree, a rock chunk or a new building stands on a cell a pinned tier needs
-(`DefenseCensusCell.Cover`), `policy.PriceTierBlocks` (`DefenseBlock.cs`) prices both ways out
+(`DefenseCell.Seen.Cover`), `policy.PriceTierBlocks` (`DefenseBlock.cs`) prices both ways out
 in the layout's units and takes the cheaper; neither is a veto, and a tie keeps the tier.
 Clear is the work from the game's defs (a plant's `harvestWork`, a building's
 `WorkToBuild` clamped to `JobDriver_Deconstruct`'s limits; `DefinitionCatalog.ClearRow`)

@@ -27,6 +27,9 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.ReadStorageOccupancy) ? """{"groups":[],"sinceHour":0}"""
                 : ReferenceEquals(op, NativeOps.ListResourceSources) ? """{"resource":""}"""
                 : ReferenceEquals(op, NativeOps.ReadRecipes) ? """{"benchId":""}"""
+                : ReferenceEquals(op, NativeOps.ReadDefenseSite) ? """{"scope":{},"region":{}}"""
+                : ReferenceEquals(op, NativeOps.ReadLinesOfFire) ? """{"scope":{},"firingCells":[],"approachCells":[],"budgetMs":0}"""
+                : ReferenceEquals(op, NativeOps.ReadSpatialAccess) ? """{"scope":{},"blockedCells":[],"targetCells":[],"pawnIds":[],"budgetMs":0}"""
                 : ReferenceEquals(op, NativeOps.ListSupplies) ? """{"filter":{"category":"STOCK_CATEGORY_HAULABLE","ownership":"STOCK_OWNERSHIP_OURS","includeHeld":true}}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }

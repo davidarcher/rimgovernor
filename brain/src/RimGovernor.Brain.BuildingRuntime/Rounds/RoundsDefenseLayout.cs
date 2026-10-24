@@ -577,7 +577,7 @@ internal sealed class DefenseCensus
     public Dictionary<Cell, string> Terrain = [];
     public Dictionary<Cell, bool> Conduits = [];
     public Dictionary<Cell, PowerSite> Consumers = [];
-    public Dictionary<Cell, BridgeDefenseCover?> Cover = [];
+    public Dictionary<Cell, O.DefenseCover?> Cover = [];
     public Dictionary<Cell, bool> Unbridging = [];
     public Dictionary<Cell, bool> Fogged = [];
 

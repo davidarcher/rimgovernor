@@ -41,7 +41,7 @@ public sealed class SnapshotDefense
 
     public string? LinesContext { get; set; }
 
-    public IReadOnlyList<LineOfFire> Lines { get; set; } = [];
+    public IReadOnlyList<O.LineOfFire> Lines { get; set; } = [];
 
     /// <summary>The step's result.</summary>
     public string Reason { get; set; } = "";

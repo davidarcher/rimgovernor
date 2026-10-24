@@ -18,13 +18,14 @@ namespace HomeBridge.BridgeTools
     {
         internal const string Mine = "Mine", CutPlant = "CutPlant", Haul = "Haul", Deconstruct = "Deconstruct";
 
-        internal static Obs.CoverKind KindOf(Thing thing)
+        // The kind of a cover thing; null for one the designators cannot remove (a corpse, filth).
+        internal static Obs.CoverKind? KindOf(Thing thing)
         {
             if (thing is Plant) return Obs.CoverKind.Plant;
             if (thing is Mineable) return Obs.CoverKind.Mineable;
             if (thing.def.category == ThingCategory.Item && thing.def.IsWithinCategory(ThingCategoryDefOf.Chunks)) return Obs.CoverKind.Chunk;
             if (thing is Building) return Obs.CoverKind.Building;
-            return Obs.CoverKind.Unspecified;
+            return null;
         }
         internal static string DesignationFor(Thing thing)
         {

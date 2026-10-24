@@ -302,7 +302,7 @@ public sealed partial class FacadeNativeClient
         }
         if (v.CombatLinesOfFire is { } lines)
         {
-            output = output with { Lines = DefenseDecodeLinesOfFire(lines), LinesSkipped = lines.Skipped.GetValueOrDefault() };
+            output = output with { Lines = lines.Lines, LinesSkipped = lines.Skipped };
         }
         var mortars = new List<P.CombatMortar>();
         foreach (var row in v.CombatMortars)

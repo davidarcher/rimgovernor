@@ -99,7 +99,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             var targets = new List<Cell> { killbox.Entry };
             targets.AddRange(record.Entrances);
-            BridgeSpatialAccess access;
+            O.SpatialAccessSnapshot access;
             try
             {
                 access = await _native.ReadSpatialAccessAsync(Boundary.Identity(state.Snapshot), blockedCells, targets, [], call).ConfigureAwait(false);
@@ -360,23 +360,24 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return output;
     }
 
-    internal static DefenseCell DefenseCellFacts(DefenseCensusCell cell)
+    internal static DefenseCell DefenseCellFacts(O.DefenseCell cell)
     {
         var output = new DefenseCell { Cell = cell.Cell };
-        if (cell.Fogged)
+        if (cell is not O.DefenseCell.Seen seen)
         {
             return output;
         }
-        output = output with { Walkable = Known(cell.Walkable) };
-        output = output with { Passable = Known(cell.Passable) };
-        output = output with { PlayerOwned = Known(cell.PlayerOwned) };
-        output = output with { NaturalRock = Known(cell.NaturalRock) };
-        output = output with { EdgeReachable = Known(cell.EdgeReachable) };
-        output = output with { Door = Known(cell.Door) };
-        output = output with { CoverFill = Known(cell.CoverFill) };
-        output = output with { Edifice = cell.EdificeDefName };
-        output = output with { Roofed = Known(cell.Roofed) };
-        output = output with { Cover = DefenseCover(cell) };
+        var edifice = seen.Edifice;
+        output = output with { Walkable = Known(seen.Walkable) };
+        output = output with { Passable = Known(seen.Passable) };
+        output = output with { PlayerOwned = Known(edifice is { PlayerOwned: true }) };
+        output = output with { NaturalRock = Known(edifice is { NaturalRock: true }) };
+        output = output with { EdgeReachable = Known(seen.EdgeReachable) };
+        output = output with { Door = Known(edifice is { Door: true }) };
+        output = output with { CoverFill = Known(seen.CoverFill) };
+        output = output with { Edifice = edifice?.DefName ?? "" };
+        output = output with { Roofed = Known(seen.Roofed) };
+        output = output with { Cover = DefenseCover(seen) };
         return output;
     }
 
@@ -482,7 +483,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
     }
 
-    internal async Task<BridgeDefenseSite> DefenseSiteAsync(C.Identity identity, ColonyProjection projection, BridgeCellRect region, CancellationToken call)
+    internal async Task<IReadOnlyList<O.DefenseCell>> DefenseSiteAsync(C.Identity identity, ColonyProjection projection, BridgeCellRect region, CancellationToken call)
     {
         var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false) ?? throw new ControlException("defense site: no definition catalog");
         return catalog.DefenseSiteFromCells(projection.Cells, projection.Bounds, region);

@@ -417,7 +417,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     pending = true;
                     continue;
                 }
-                if (cover is null || cover.DefName != b.Definition || cover.Designation != CoverClearanceDesignation.Deconstruct)
+                if (cover is null || cover.DefName != b.Definition || cover.Designation() != CoverClearanceDesignation.Deconstruct)
                 {
                     lost.Add(b.Cell);
                     continue;

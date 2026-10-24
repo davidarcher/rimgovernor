@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the defense planner: the geometry question and the combat read.</summary>
 public interface IRoundsDefenseSource
 {
-    Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
+    Task<O.DefenseSiteSnapshot> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
 
     M.CombatGeometry CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct);
 
@@ -697,7 +697,7 @@ partial class RoundsDefensePlanner
     }
 
     /// <summary>The shooters with a line of fire to each threatening building: for every known line within the weapon reach, the shooters standing at its origin.</summary>
-    internal static Dictionary<PawnId, HashSet<PawnId>> BuildingLinesOfFire(IReadOnlyList<LineOfFire> read, IReadOnlyList<EmergencyThreat> buildings, IReadOnlyList<SquadDefenderFacts> defenders, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyDictionary<string, double> reaches)
+    internal static Dictionary<PawnId, HashSet<PawnId>> BuildingLinesOfFire(IReadOnlyList<O.LineOfFire> read, IReadOnlyList<EmergencyThreat> buildings, IReadOnlyList<SquadDefenderFacts> defenders, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyDictionary<string, double> reaches)
     {
         var lines = new Dictionary<PawnId, HashSet<PawnId>>();
         var shooters = new Dictionary<Cell, List<PawnId>>();
@@ -724,7 +724,7 @@ partial class RoundsDefensePlanner
         }
         foreach (var line in read)
         {
-            if (!line.Known || !line.LineOfSight)
+            if (line is not O.LineOfFire.Traced { LineOfSight: true })
             {
                 continue;
             }
