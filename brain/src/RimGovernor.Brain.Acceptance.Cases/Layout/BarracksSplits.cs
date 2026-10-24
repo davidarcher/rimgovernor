@@ -1,7 +1,9 @@
 using System.Globalization;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -9,8 +11,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>layout/barracks-splits</c> (#3661): three colonists sleep in a staged, roofed three-bed barracks the injected plan holds
 /// as its Barracks, and one of them is held near its break. Under the served brain the replan splits that pawn's bed out
 /// (BarracksSwitchTests owns the price and the hysteresis): a coupled selection starts a planned bedroom credited to its
-/// sleeper, and that pawn ends up owning a bed outside the barracks. A unit test cannot prove the native mood read, the
-/// bedroom build or the bed move.
+/// sleeper, and that pawn ends up owning a bed outside the barracks. Ring first (#3743): the new bed is first seen (a
+/// blueprint, at the latest built) in a proper room its ring encloses, never on open ground; the roof follows the ring on
+/// its own and is not part of the claim. A unit test cannot prove the native mood read, the bedroom build, its order or
+/// the bed move.
 /// </summary>
 /// <remarks>
 /// Near its break (#3680): the bed merge prices a sleeper's barracks loss at a flat mood target, and a break tier's cost
@@ -111,8 +115,23 @@ internal static class LayoutBarracksSplits
         var before = CoupledSelections.Of(s, 0).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         CoupledSelectionRow? started = null;
         var owned = "";
+        Observations.BuildingState? newBed = null;
+        Observations.RoomState? bedRoom = null;
         _ = await s.ServeUntilAsync("bedroom-moved", s.TicksLeft, async ct =>
         {
+            // The first bed placed outside the barracks, at whatever stage, and the room its cell lies in then.
+            if (newBed is null)
+            {
+                var buildings = await s.BuildingsAsync("beds", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
+                newBed = buildings.FirstOrDefault(b => (b.BuildDefName ?? b.Building.DefName) == "Bed" && !barracksBeds.Contains(b.Building.Id));
+                if (newBed?.Building.Position is { } at)
+                {
+                    var request = new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = at, Maximum = at } };
+                    var reply = await s.CallAsync("bed-room", NativeOps.ListRooms, request, ct).ConfigureAwait(false);
+                    var rooms = TypedReads.Observed("bed-room", NativeOps.ListRooms, reply, reply.Outcome?.Observed).Rooms;
+                    bedRoom = rooms.Count > 0 ? rooms[0] : new Observations.RoomState();
+                }
+            }
             started ??= CoupledSelections.Of(s, before).FirstOrDefault(r => (r.Selected.Contributions ?? []).Any(c => c.Key.StartsWith(BedroomKey, StringComparison.Ordinal)
                 && r.SelectedIds.Any(id => id.StartsWith("planned/room" + c.Key.Split('/')[1] + "/", StringComparison.Ordinal))));
             var row = await TypedPawnOps.PawnAsync(s, "pawn", pawn, ct).ConfigureAwait(false);
@@ -123,7 +142,12 @@ internal static class LayoutBarracksSplits
 
         s.Record("selection", started is null ? "none" : string.Join(' ', started.SelectedIds));
         s.Record("bed", owned);
+        s.Record("bed-room", bedRoom is null ? "none" : string.Create(CultureInfo.InvariantCulture, $"{newBed?.Status} {bedRoom.Id}:{bedRoom.ProperRoom}:{bedRoom.TouchesMapEdge}"));
         _ = started ?? throw new AcceptanceException("no coupled selection started a planned bedroom");
+        if (bedRoom is not { ProperRoom: true, Doorway: not true, TouchesMapEdge: not true })
+        {
+            throw new AcceptanceException($"the new bed ({newBed?.Status}) was placed in room {bedRoom?.Id ?? "none"}, not a proper room its ring encloses: furniture came before the ring");
+        }
         if (owned == "" || barracksBeds.Contains(owned))
         {
             throw new AcceptanceException($"{pawn} still owns \"{owned}\", a barracks bed or none");

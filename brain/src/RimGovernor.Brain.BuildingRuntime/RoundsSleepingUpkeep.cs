@@ -130,7 +130,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                         break;
                     case Pol.BedroomStepKind.Reconcile:
                         // The room's ring, floor and bed through the shared build side; a bed left empty in the starter shell is packed and reinstalled rather than built again.
-                        return await ReconcileBedroomAsync(stock, state, review, goal, reading, step, call, epoch).ConfigureAwait(false);
+                        // A room held (the portfolio's hold among them) gives way to the next owed room (#3743).
+                        return await FirstUnheldRoomAsync(step.Owed.Count > 0 ? step.Owed : [step.Room], room => ReconcileBedroomAsync(stock, state, review, goal, reading, step with { Room = room }, call, epoch)).ConfigureAwait(false);
                     case Pol.BedroomStepKind.Clear:
                         return await RemoveOldBedAsync(state, review, goal, reading, new Pol.BedReplacement { Room = "shell", Bed = step.Bed, Def = SleepingRules.SleepingSpotDefinition.ToString(), Cell = step.Cells[0] }, call, epoch).ConfigureAwait(false);
                     default:

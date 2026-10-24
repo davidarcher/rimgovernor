@@ -185,10 +185,30 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         // A barracks is furnished to its tiled bed slots, a bed each.
         var furnishing = SleepingRules.BedroomFurnishing(step.Room, rooms.Shapes, bed, StandingBuildings(facts), null, SleepingRules.BedSlotsOf(plan, step.Room, rooms.Shapes.Furniture));
-        if (!furnishing.Absent)
+        // A bed standing in an unenclosed room still owes the room its ring; the diff skips the pieces that stand.
+        if (!SleepingRules.BedroomReconcileOwed(step.Room, rooms, furnishing))
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
         }
         return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = furnishing.Pieces, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Answers a Reconcile step over its owed rooms in plan order (#3743): a room the build side holds (AwaitingPlan, the
+    /// portfolio's hold among them) gives way to the next; the first result that is not AwaitingPlan, else the first one.
+    /// </summary>
+    internal static async Task<RoundsBuildingResult> FirstUnheldRoomAsync(IReadOnlyList<Pol.PlannedRoom> owed, Func<Pol.PlannedRoom, Task<RoundsBuildingResult>> reconcile)
+    {
+        RoundsBuildingResult? first = null;
+        foreach (var room in owed)
+        {
+            var result = await reconcile(room).ConfigureAwait(false);
+            if (!result.Verdict.Is(Cause.AwaitingPlan))
+            {
+                return result;
+            }
+            first ??= result;
+        }
+        return first ?? new RoundsBuildingResult();
     }
 }

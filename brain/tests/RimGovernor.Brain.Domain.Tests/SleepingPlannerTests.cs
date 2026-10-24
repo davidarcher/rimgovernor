@@ -147,6 +147,129 @@ public sealed class SleepingPlannerTests
         Assert.Equal((A, "b3", "b2", Larger.Id), (onward.Pawn, onward.Bed, onward.PreviousBed, onward.Room.Id));
     }
 
+    // #3743: a 5x5 bedroom, its door south, furnished to the bedroom template's one bed.
+    private const string BedDef = "Bed";
+    private static readonly PlannedRoom Ringed = Planned(5, LayoutSurveyRules.PlannedBedroom, Rect(30, 5, 5)) with { Door = new Cell(32, -1), DoorRot = Rotation.South };
+
+    private static PieceShapes BedShapes
+    {
+        get
+        {
+            var lamp = InteriorRegionRules.InteriorDefs().LampDef;
+            return new()
+            {
+                Defs = new Dictionary<string, InteriorPieceDef>
+                {
+                    [BedDef] = new(BedDef, new Cell(1, 2), RoomRole.Bedroom, null),
+                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, null),
+                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, null),
+                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, null),
+                },
+                Furniture = new RoomFurniture
+                {
+                    Beds = [new FurnitureBed { Def = BedDef, Slots = 1 }],
+                    EndTable = new FacilityLink { Def = "EndTable" },
+                    Dresser = new FacilityLink { Def = "Dresser" },
+                },
+            };
+        }
+    }
+
+    private static CurrentBuilding StandingPiece(WantedPiece p) => new()
+    {
+        Id = "bed",
+        Building = new Building(p.DefName, p.Minimum, Rotation.North, ""),
+        Cells = [.. p.Cells()],
+    };
+
+    /// <summary>The ring standing but for <paramref name="missing"/>: walls on the rest, the planned door in place.</summary>
+    private static GroundCensus RingBut(params Cell[] missing) => new()
+    {
+        Walls = [.. Ringed.Region.Walls().Cells().Where(c => c != Ringed.Door && !missing.Contains(c))],
+        Doors = [Ringed.Door],
+    };
+
+    private static Reconciliation Diff(Furnishing furnishing, GroundCensus ground, params CurrentBuilding[] standing)
+    {
+        var rows = standing.Select(b => new ClearanceTarget
+        {
+            EntityId = b.Id, DefName = b.Building!.Definition, Minimum = b.Cells[0], Maximum = b.Cells[^1], Player = true, Packable = true,
+        }).ToList();
+        return ReconcileRules.Reconcile(new ReconcileInput
+        {
+            Plan = new LayoutPlan { Rooms = [Ringed], NextRoomId = 6 },
+            Room = Ringed,
+            Ground = ground,
+            Rows = ReconcileRules.OwnerRows(Ringed, rows, furnishing.Pieces, null, _ => false),
+            Furniture = furnishing.Pieces,
+        });
+    }
+
+    [Fact]
+    public void ABedStandingInAnUnenclosedRoomOwesTheRoomItsMissingWallsAndAnEnclosedFurnishedRoomOwesNothing()
+    {
+        // The bed stood in the room before its ring closed: two ring walls are still missing, so no census room stands
+        // enclosed in it. The bedroom step reconciles the room rather than holding on bedroom_template forever.
+        var fresh = SleepingRules.BedroomFurnishing(Ringed, BedShapes, BedDef, [], null);
+        var bed = StandingPiece(Assert.Single(fresh.Pieces));
+        var furnished = SleepingRules.BedroomFurnishing(Ringed, BedShapes, BedDef, [bed], null);
+        Assert.False(furnished.Absent);
+        Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, new RoomObservation(), furnished));
+
+        Cell[] missing = [new(29, 1), new(29, 2)];
+        var diff = Diff(furnished, RingBut(missing), bed);
+        var walls = Assert.Single(diff.Ready, o => o.Kind == OpKind.WallIn);
+        Assert.Equal(missing.ToHashSet(), walls.Cells.ToHashSet());
+        // The standing bed is kept where it stands: nothing builds, installs or removes it.
+        Assert.DoesNotContain(diff.Owed, o => o.Kind is OpKind.Build or OpKind.Install or OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut);
+
+        // Enclosed and furnished: nothing is left to reconcile.
+        var enclosed = new RoomObservation { Rooms = [Standing("ringed", Ringed, "bed")] };
+        Assert.False(SleepingRules.BedroomReconcileOwed(Ringed, enclosed, furnished));
+        // A template slot still empty in the enclosed room is owed.
+        Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, enclosed, fresh));
+    }
+
+    [Fact]
+    public void FurnitureIsReadyOnlyOnceTheRingStands()
+    {
+        var fresh = SleepingRules.BedroomFurnishing(Ringed, BedShapes, BedDef, [], null);
+
+        // A wall still owed: the bed's build is owed, not ready, while the wall is.
+        var open = Diff(fresh, RingBut(new Cell(35, 2)));
+        Assert.Contains(open.Ready, o => o.Kind == OpKind.WallIn);
+        Assert.Contains(open.Owed, o => o.Kind == OpKind.Build);
+        Assert.DoesNotContain(open.Ready, o => o.Kind is OpKind.Build or OpKind.Install);
+
+        // The door still owed holds the bed too.
+        var noDoor = RingBut();
+        noDoor.Doors = [];
+        var doorless = Diff(fresh, noDoor);
+        Assert.Contains(doorless.Ready, o => o.Kind == OpKind.DoorIn);
+        Assert.DoesNotContain(doorless.Ready, o => o.Kind is OpKind.Build or OpKind.Install);
+
+        // The ring complete: the bed's build is ready.
+        var closed = Diff(fresh, RingBut());
+        Assert.DoesNotContain(closed.Owed, o => o.Kind is OpKind.WallIn or OpKind.DoorIn);
+        Assert.Contains(closed.Ready, o => o.Kind == OpKind.Build);
+    }
+
+    [Fact]
+    public void TheBedroomStepCarriesEveryOwedRoomInPlanOrder()
+    {
+        var hall = Standing("hall", Hall, "s1", "s2") with { Role = Known(RoomRole.Barracks) };
+        var housed = new SleepingObservation
+        {
+            Colonists = 2,
+            People = [Person(A, "s1"), Person(B, "s2")],
+            Beds = [Bed("s1", "hall", A), Bed("s2", "hall", B)],
+        };
+        var step = Step(Wing, [hall], housed);
+        Assert.Equal(BedroomStepKind.Reconcile, step.Kind);
+        Assert.Equal(new[] { Wing1.Id, Wing2.Id }, step.Owed.Select(r => r.Id));
+        Assert.Equal(step.Owed[0], step.Room);
+    }
+
     /// <summary>
     /// upkeep/couple (#3434): once one partner owns the vacant double bed, the other is assigned to it on the next review,
     /// so nothing waits on a retry; partners native reports unwilling to share a bed (a spouse-only lovin' precept for

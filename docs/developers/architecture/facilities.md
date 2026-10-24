@@ -835,7 +835,13 @@ step takes the two single beds up, the install is a reconcile of the couple's
 planned room to a `DoubleBed` template (`CoupleBed.Template`, the standing
 lever pieces listed beside it), and a couple whose room is outside the plan
 is never packed for. `NextBedroomStep` yields one bedroom per step, the first owed room in
-plan order (a Retiring wing is never carried); bedrooms are not batched by
+plan order (a Retiring wing is never carried), with every owed room behind it
+(`BedroomStep.Owed`): a room the build side holds (AwaitingPlan, the portfolio's
+hold among them) gives way to the next, and with every one held the step reports
+the first hold (#3743). A room whose bed stands but which no enclosed census room
+fills (its ring or roof still owed) is still reconciled to its template, the diff
+skipping the standing bed; only an enclosed, furnished room owes nothing
+(`BedroomReconcileOwed`). Bedrooms are not batched by
 wing, and the native tier gate orders delivery across them (see
 [construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock
 gate. Move, clear and the bed replacement, sculpture and upgrade levers
@@ -902,7 +908,10 @@ planner raises it under the `shelter/sleeping` Need, like the tomb:
    deconstruct, remove floor), then installs from packed stock
    (`packedStock`), then everything built on site (doors, walls, floors from
    the flooring review's `WantedFloors`, furniture). Stock comes first: a
-   piece is built only when none is stored. A placement the native preview
+   piece is built only when none is stored. Ring first, every role (#3743):
+   no furniture is ready while the room still owes a wall or a door, so a
+   piece never stands in an unenclosed room; a piece already standing is
+   kept, never removed to enforce the order. A placement the native preview
    refuses is not ready this pass and the room waits. The ring's removals
    (wall or door out, roof off) are the plan-wide clear side's
    (`PlannedGroundStep`), which also reconciles standing rooms. A ruin wall

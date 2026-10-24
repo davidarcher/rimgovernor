@@ -28,7 +28,14 @@ public sealed class PlannedRoomGateTests
         Door = new Cell(6, 4), DoorRot = Rotation.South,
     };
 
-    private static readonly LayoutPlan Plan = new() { Rooms = [Room], NextRoomId = 2 };
+    /// <summary>Room 2: the next owed bedroom, a 3x3 interior at (20,5), its door south at (21,4).</summary>
+    private static readonly PlannedRoom Next = new()
+    {
+        Id = 2, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle { X = 20, Z = 5, Width = 3, Height = 3 }),
+        Door = new Cell(21, 4), DoorRot = Rotation.South,
+    };
+
+    private static readonly LayoutPlan Plan = new() { Rooms = [Room, Next], NextRoomId = 3 };
 
     public interface ITestNative : IRoundsSource, IRoundsWorkBenchSource, IRoundsBuildingSource;
 
@@ -138,7 +145,8 @@ public sealed class PlannedRoomGateTests
             .Select(p => p.Action.Building).OfType<Building>()];
     }
 
-    private static Colony Open(Func<RoundsFacts, RoundsFacts>? review = null)
+    /// <summary>The rig; with <paramref name="owed"/> the step walks those rooms as the bedroom step does (FirstUnheldRoomAsync).</summary>
+    private static Colony Open(Func<RoundsFacts, RoundsFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null)
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-planned-gate-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -189,7 +197,10 @@ public sealed class PlannedRoomGateTests
             };
             // A department room step's ring call: the room's own stuff is wood until the selection says otherwise.
             var rr = new RoomReconcile { RingOnly = true, Room = Room, Name = "test-bedroom", Reason = "test room", Stuff = (_, _) => ("WoodLog", "WoodLog", default, true) };
-            var verdict = (await planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null, rr, call, work.Epoch)).Verdict;
+            var verdict = owed is null
+                ? (await planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null, rr, call, work.Epoch)).Verdict
+                : (await RoundsSleepingUpkeepPlanner.FirstUnheldRoomAsync(owed, room => planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null,
+                    rr with { Room = room, Name = "test-bedroom" + room.Id }, call, work.Epoch))).Verdict;
             colony.Reconciled = verdict;
             return verdict;
         });
@@ -250,6 +261,33 @@ public sealed class PlannedRoomGateTests
         Assert.DoesNotContain(rest, b => south.Contains(b.Cell));
         Assert.All(rest, b => Assert.Equal("WoodLog", b.Stuff));
         Assert.Equal(2, colony.Journal.OwnerMethodHistory(colony.Journal.LoadNeed(Bedroom, World, ct), ct).Count);
+    }
+
+    [Fact]
+    public async Task ABedroomStepFallsThroughARoomThePortfolioHoldsToTheNextOwedRoom()
+    {
+        // #3743: owed rooms [1, 2]; the comparison assessed room 1 and selected none of it, so it is held. The step
+        // does not stop there: room 2, never assessed, is reconciled instead.
+        using var colony = Open(owed: [Room, Next]);
+        Select(colony);
+        var run = await colony.RunAsync();
+        Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
+        var placed = colony.Placed(run);
+        Assert.Equal(16, placed.Count);
+        var ring = Next.Region.Walls().Cells().ToHashSet();
+        Assert.All(placed, b => Assert.Contains(b.Cell, ring));
+    }
+
+    [Fact]
+    public async Task ABedroomStepWithEveryOwedRoomHeldReturnsTheFirstHold()
+    {
+        using var colony = Open(owed: [Room, Next]);
+        colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection { Assessed = [1, 2], Sites = [] });
+        var run = await colony.RunAsync();
+        Assert.Empty(run.Methods);
+        var verdict = Assert.IsType<Verdict>(colony.Reconciled);
+        Assert.True(verdict.Is(Cause.AwaitingPlan), verdict.ToString());
+        Assert.Contains("test-bedroom1", verdict.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

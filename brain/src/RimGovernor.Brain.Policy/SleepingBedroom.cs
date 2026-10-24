@@ -41,6 +41,12 @@ public sealed record BedroomStep
     /// <summary>The step's room.</summary>
     public PlannedRoom Room { get; init; } = new();
 
+    /// <summary>
+    /// The bedroom step's owed rooms in plan order, <see cref="Room"/> first: the build side falls through a room the
+    /// portfolio holds to the next (#3743). Empty for a suite or migration step, which reconciles <see cref="Room"/> alone.
+    /// </summary>
+    public EquatableArray<PlannedRoom> Owed { get; init; }
+
     /// <summary>A Clear's one cell.</summary>
     public EquatableArray<Cell> Cells { get; init; }
 
@@ -88,8 +94,8 @@ public static partial class SleepingRules
     /// <summary>
     /// Picks the next bedroom step from the plan, the room census and the sleeping census. Move comes first
     /// (it costs nothing), into a vacant bedroom bed, else a vacant bed of a planned barracks; then a room to
-    /// reconcile (the first in plan order that owes one: a bedroom with no bed, a barracks with fewer beds than
-    /// its tiled bed slots), only while the standing rooms cannot take every colonist still outside one; a room
+    /// reconcile (the first in plan order that owes one: a bedroom with no bed in its enclosed room, a barracks with fewer
+    /// beds than its tiled bed slots; the rest follow in BedroomStep.Owed), only while the standing rooms cannot take every colonist still outside one; a room
     /// dug into rock is a shell too, whose builder mines it first. A colonist owning a bed in a planned barracks
     /// is housed, but for the owners past its seats (CrowdedOut). It reports BedroomStepKind.None whenever a fact it needs is unknown. A colonist who owns alone a
     /// room RoomTargets marks NeverUpgrade (an ascetic) counts as housed: the move never takes them from the
@@ -165,8 +171,8 @@ public static partial class SleepingRules
         var owed = OwedRoomsOf(plan, rooms, census.Spots);
         if (owed.Count > 0)
         {
-            // One room per step: the first owed in plan order.
-            return new BedroomStep { Kind = BedroomStepKind.Reconcile, Room = owed[0].Room, Unhoused = unhoused.Count };
+            // One room per step: the first owed in plan order the build side does not hold (#3743).
+            return new BedroomStep { Kind = BedroomStepKind.Reconcile, Room = owed[0].Room, Owed = EquatableArray.From(owed.Select(o => o.Room).ToArray()), Unhoused = unhoused.Count };
         }
         // No slot left: Unhoused still counts who stays outside a bedroom.
         return SuiteStep();
@@ -485,6 +491,14 @@ public static partial class SleepingRules
         var slot = add.Slotted().Wanted();
         return furnishing with { Pieces = [.. furnishing.Pieces.Select(p => p.DefName == slot.DefName && p.Minimum == slot.Minimum && p.Maximum == slot.Maximum ? p with { Stuff = add.Stuff } : p)] };
     }
+
+    /// <summary>
+    /// Whether a bedroom step's room still owes its reconcile to <paramref name="furnishing"/> (#3743): a template piece
+    /// is absent, or the room is not enclosed (no census room stands enclosed in it), so its ring is still owed though
+    /// the bed stands. An enclosed, furnished room owes nothing, nor does a room the template does not fit.
+    /// </summary>
+    public static bool BedroomReconcileOwed(PlannedRoom room, RoomObservation rooms, Furnishing furnishing) =>
+        furnishing.Pieces.Count > 0 && (furnishing.Absent || !PlannedRoom.CensusRoomIn(room, rooms).Ok);
 
     /// <summary>Unlocks Bed and DoubleBed.</summary>
     public const string BedResearch = "ComplexFurniture";

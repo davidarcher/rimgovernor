@@ -546,7 +546,10 @@ holds the station-chain design.
 There is no separate tidy pass. A PlannedRoom is worked toward the plan by the room's owner
 (build side) and by planned-ground clearance (clear side), both over one per-cell diff
 (`policy.Reconcile`, `ReconcileRoom`): furniture off its template slot is packed and the
-slot filled from packed stock or built on site, floors are replaced. A wall stands in the
+slot filled from packed stock or built on site, floors are replaced. Ring first (#3743): an
+`Install` or `Build` is owed but not ready while the same diff owes a `WallIn` or `DoorIn`, in
+every role; a room with no ring (unfenced, a stand-in spot) has none to wait for, and `RoofIn`
+waits for the ring as before. Furniture already standing is matched and kept. A wall stands in the
 stuff it was built in; it is swapped in place only to a priced upgrade the planned-room
 comparison selected (`SelectedWallUpgrade`, #3657), one wall at a time on a ring with no
 other work. Standing census rooms are reconciled too. The plan's

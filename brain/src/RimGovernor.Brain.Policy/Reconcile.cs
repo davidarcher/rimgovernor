@@ -569,6 +569,9 @@ public static partial class ReconcileRules
         var shellOut = Owed(OpKind.DoorOut, OpKind.WallOut, OpKind.RoofOff);
         var otherRemoval = Owed(OpKind.Pack, OpKind.FurnitureOut);
         var packOwed = Owed(OpKind.Pack, OpKind.PackInUse);
+        // Ring first, every role: furniture waits while the room still owes a wall or a door, so a piece never
+        // stands in an unenclosed room (#3743). A piece already standing is matched above and never removed.
+        var ringOwed = Owed(OpKind.WallIn, OpKind.DoorIn);
         var floorOutCells = new HashSet<Cell>(floorOut.Select(it => it.Cell));
         var floorInCells = new HashSet<Cell>(floorIn.Select(it => it.Cell));
         foreach (var it in items)
@@ -600,7 +603,7 @@ public static partial class ReconcileRules
                     it.Ready = !removalCells.Contains(it.Cell) && !floorOutCells.Contains(it.Cell);
                     break;
                 case OpKind.Install or OpKind.Build:
-                    var ready = true;
+                    var ready = !ringOwed;
                     foreach (var c in it.Piece.Cells())
                     {
                         ready = ready && !removalCells.Contains(c) && !floorOutCells.Contains(c) && !floorInCells.Contains(c);
