@@ -74,6 +74,9 @@ public sealed record GearRoleInput
     public bool DraftedSquad { get; init; }
     public bool Prisoner { get; init; }
     public bool UnrevealedCreepjoiner { get; init; }
+
+    /// <summary>The PreceptDef names of the pawn's ideo, from its pawn row (<see cref="GearObservation"/>'s stamp); empty for a pawn without an ideo.</summary>
+    public EquatableArray<string> Precepts { get; init; } = [];
 }
 
 /// <summary>

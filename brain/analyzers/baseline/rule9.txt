@@ -395,9 +395,7 @@ Policy/DoorControl.cs|Fact|4
 Policy/Economy.cs|Fact|10
 Policy/Economy.cs|Unknown|1
 Policy/EconomyTrade.cs|Fact|6
-Policy/EffectSources.cs|Fact|6
-Policy/EffectSources.cs|NullableValue|2
-Policy/EffectSources.cs|Unknown|2
+Policy/EffectSources.cs|Fact|2
 Policy/EmergencyNeeds.cs|Fact|22
 Policy/EmergencyNeeds.cs|Unknown|4
 Policy/EssentialServices.cs|Fact|19
@@ -445,7 +443,7 @@ Policy/ForecastIncumbentPreparation.cs|Fact|9
 Policy/ForecastLiveEvidence.cs|Fact|3
 Policy/ForecastMaintenance.cs|Fact|3
 Policy/ForecastMaterialChoices.cs|Fact|5
-Policy/ForecastMood.cs|Fact|21
+Policy/ForecastMood.cs|Fact|18
 Policy/ForecastNeeds.cs|Fact|37
 Policy/ForecastServiceInvestments.cs|Fact|15
 Policy/ForecastShelter.cs|Fact|26
@@ -512,10 +510,6 @@ Policy/MaterialBudget.cs|Unknown|1
 Policy/MealStock.cs|Discard|1
 Policy/MealTier.cs|Fact|13
 Policy/MechChargerConcern.cs|Fact|9
-Policy/MechanicCardGuards.cs|Discard|2
-Policy/MechanicCardGuards.cs|Fact|82
-Policy/MechanicCardGuards.cs|Unknown|36
-Policy/MechanicCards.cs|NullableValue|1
 Policy/Medical.cs|Fact|20
 Policy/Medical.cs|Unknown|1
 Policy/MedicalCare.cs|Fact|5
@@ -529,7 +523,6 @@ Policy/MethodClaims.cs|Fact|3
 Policy/Methods/Evaluation/WorkMaterialEvaluation.cs|Fact|7
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|NullableValue|2
 Policy/Methods/Generation/CoupledShelterCandidates.cs|Fact|8
-Policy/Methods/Generation/EffectSourceCandidates.cs|Fact|5
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Discard|1
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Fact|1
 Policy/Methods/Generation/PracticeMethodCandidates.cs|Fact|2

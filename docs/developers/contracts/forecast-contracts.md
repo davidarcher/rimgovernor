@@ -260,10 +260,10 @@ hand-written temperature-mood constants, and mood is valued only as `BreakRisk`.
   read's `Outdoors` (#3673), and stays in `UnknownTicks` only with neither known.
 - `MechanicCardGuards.CardStageOffset` prices a stage card at one moment from the
   comfort range, the ambient temperature, Ideology's state and the pawn's ideo
-  precepts. A nullifier gives 0, as for count cards. An unknown fact the
-  evaluation needs gives unknown, never 0: for example the precepts while
-  Ideology is active, or whether Ideology is active when the precepts are
-  unknown.
+  precepts (`CardPawnFacts`, the precepts read from the pawn row). A nullifier
+  gives 0, as for count cards. A card the evaluator does not model, such as an
+  unbound input decl, is `CardOffset.Unmodeled`, never 0; a pawn with no card
+  facts keeps its observed thoughts.
 - Along each assessed span, the card is cut where its input crosses a literal it
   compares against and evaluated on each piece. Its offset replaces the
   thought's observed contribution (`MoodPawn.Thoughts`) as a delta inside the

@@ -137,10 +137,8 @@ internal static class GuardOutput
                 foreach (var li in c.Data.Fields.TryGetValue("stages", out var stages) ? stages.Elements("li") : [])
                 {
                     w.WriteStartObject();
-                    if (li.Element("baseMoodEffect") is { } e)
-                    {
-                        w.WriteNumber("baseMoodEffect", double.Parse(e.Value.Trim(), System.Globalization.CultureInfo.InvariantCulture));
-                    }
+                    // The game's ThoughtStage.baseMoodEffect defaults to 0 when the XML lists none.
+                    w.WriteNumber("baseMoodEffect", li.Element("baseMoodEffect") is { } e ? double.Parse(e.Value.Trim(), System.Globalization.CultureInfo.InvariantCulture) : 0);
                     w.WriteEndObject();
                 }
                 w.WriteEndArray();

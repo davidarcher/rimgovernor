@@ -352,10 +352,8 @@ public sealed partial class Rounder
         {
             return f;
         }
-        // GearChoice carries no floor for one the comparator left at the worn insulation.
-        static InsulationFloor Floor(double? chosen) => chosen is { } v ? new InsulationFloor.Chosen(v) : new InsulationFloor.Worn();
         GearPawn Stamp(GearPawn p) => choices.FirstOrDefault(c => c.Pawn == p.Pawn.Value) is { } c
-            ? p with { AllowTainted = c.AllowTainted, ColdFloor = Floor(c.ColdFloor), HeatFloor = Floor(c.HeatFloor) }
+            ? p with { AllowTainted = c.AllowTainted, ColdFloor = c.ColdFloor, HeatFloor = c.HeatFloor }
             : p with { AllowTainted = false, ColdFloor = new InsulationFloor.Worn(), HeatFloor = new InsulationFloor.Worn() };
         return f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(Stamp)] }) };
     }

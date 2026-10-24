@@ -16,15 +16,15 @@ internal static class GuardTableCheck
     public static void Require(string shipped, SourceIndex index)
     {
         using var stream = File.OpenRead(shipped);
-        var problems = Problems(MechanicCards.Parse(stream), MechanicCardGuards.BoundDecls, MechanicCardGuards.SiteActions, index, MechanicCardGuards.AnomalyHediffs);
+        var problems = Problems(MechanicCards.Parse(stream), MechanicCardGuards.BoundDecls, MechanicCardGuards.SiteActions, index);
         if (problems.Count > 0)
         {
             throw new ToolException("thoughtaudit -guards: the guard tables in MechanicCardGuards.cs disagree with the cards: " + string.Join("; ", problems));
         }
     }
 
-    /// <summary>The table rows naming a decl or site absent from the cards or, given an index, from the decompiled sources, and the <paramref name="hediffs"/> no card lists as nullifying.</summary>
-    public static IReadOnlyList<string> Problems(IReadOnlyDictionary<string, MechanicCard> cards, IEnumerable<string> bindings, IEnumerable<CardSiteAction> sites, SourceIndex? index, IEnumerable<string>? hediffs = null)
+    /// <summary>The table rows naming a decl or site absent from the cards or, given an index, from the decompiled sources.</summary>
+    public static IReadOnlyList<string> Problems(IReadOnlyDictionary<string, MechanicCard> cards, IEnumerable<string> bindings, IEnumerable<CardSiteAction> sites, SourceIndex? index)
     {
         var problems = new List<string>();
         var cardSites = cards.Values.SelectMany(c => c.Sites).ToList();
@@ -66,13 +66,6 @@ internal static class GuardTableCheck
                 && cardSites.Where(s => s.Site == row.Site).Any(s => s.Guards.Count == 0 || s.Guards.Any(g => g.Count is null)))
             {
                 problems.Add($"site {row.Site} has a guard that is not a count, so {MechanicCardGuards.DisallowCounted} cannot falsify it");
-            }
-        }
-        foreach (var hediff in hediffs ?? [])
-        {
-            if (!cards.Values.Any(c => c.Xml.NullifyingHediffs.Contains(hediff)))
-            {
-                problems.Add($"hediff {hediff} is not a nullifying hediff in the card file");
             }
         }
         return problems;

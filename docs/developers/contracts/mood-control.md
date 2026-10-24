@@ -190,17 +190,16 @@ counts, which makes the count 0. The one row maps `ThoughtWorker_ApparelThought.
 absent from the shipped cards or the decompiled sources, or when a stage band names a symbol the sources do not
 declare (`GuardTableCheck`, also run over the embedded cards by a test).
 
-`MechanicCardGuards.CardStageOffset` (pure, #3281) prices a count card for one pawn (`CardPawnFacts`: observed trait
-and hediff def names, whether Anomaly is active) and one outfit (its `GearOption` items). Each item is counted when the
+`MechanicCardGuards.CardStageOffset` (pure, #3281) prices a count card for one pawn (`CardPawnFacts`: trait and hediff
+def names, whether Ideology is active and the pawn's ideo precepts) and one outfit (its `GearOption` items). It returns
+a `CardOffset`: `Staged(offset)`, or `Unmodeled` for a card outside the evaluator. Each item is counted when the
 `where` predicate holds through the `ItemBindings` table (`Apparel.WornByCorpse` is `GearOption.Tainted`, native
 `NativeGearFacts`); `over` must be a `CountCollections` row (`Pawn_ApparelTracker.WornApparel`). The one site whose
 count condition holds gives the stage, clamped to the last defined stage as native `ThoughtState.StageIndexFor` does,
 and the offset is that stage's `baseMoodEffect` (`DeadMansApparel`: -5, -8, -11, then -14 for four or more). It is 0
-when a nullifying trait or hediff is present or no site holds (a count of 0), and unknown when a binding, an
-observation or a modelled guard is missing. A hediff only Anomaly adds (`AnomalyHediffs`: `Inhumanized`) is absent
-while Anomaly is inactive, even when the hediff list is unread. It does not check `Live`; only a verified card may
-drive play. The effect-source prevention branch consumes it. `MechanicCardGuards.Counts` says
-whether a card counts one item (some site's `where` holds), unknown when a binding is missing.
+when a nullifying trait or hediff is present or no site holds (a count of 0), and `Unmodeled` when a binding or a guard
+the evaluator does not model is met (a guard that is false still decides its site). It does not check `Live`; only a
+verified card may drive play. The effect-source prevention branch consumes it.
 
 A card is `verified` only for the code it was probed against. Its drift hash is the first 16 hex digits of SHA-256
 over the `bodyHash` of every site, every count guard's `via` override and every writer of the draft cards (follows included), distinct, sorted ordinally and joined by
@@ -250,21 +249,21 @@ card prices it: a situational change, or a comfort shift on a side a Live `Envir
 armor-only alternative (#3569: the planned apparel differs from the worn in groups, layers, sharp, blunt or heat rating, quality or
 condition) is also a candidate, carrying the outfit change alone; whether it is chosen is the value comparison's call (harm
 avoided against cost), not generation's.
-Candidates are in pawn order; a budget reports `effect_source_generation_truncated`. An unknown offset or counted item
-gives a finding and no candidate. The comparator, not the generator, decides whether the mood change is worth the warmth.
+Candidates are in pawn order; a budget reports `effect_source_generation_truncated`. An unmodeled offset or counted item
+gives a finding and no candidate (`effect_source_offset_unmodeled`, `effect_source_variant_unmodeled`; a pawn with no medical row, `effect_source_offset_unread`). The comparator, not the generator, decides whether the mood change is worth the warmth.
 
 ##### Mechanic cards: now live
 
 Since #3285 (epic #3217 Gate 1) the cards drive play. `GenerateCoupledActivities` appends the effect-source family
 next to the clothing family, behind the same `military/equipment` Need enablement and gear census
 (`EffectSourceFactsOf`: every unblocked pawn with a loadout model, under its climate, its trait def names from the
-work facts and its hediff def names from the medical read's `CareConditions`; an unread list leaves the offset unknown,
-so the pawn gets `effect_source_offset_unknown` and no candidate). After the review, `GearChoices` reads the
+work facts and its hediff def names from the medical read's `CareConditions`; a pawn the medical read has no row for is
+listed unread, so it gets `effect_source_offset_unread` and no candidate; an unread Ideology state raises `RequiredFactException`). After the review, `GearChoices` reads the
 comparator's outcome per pawn: a selected pair gives its filter and floor; a rejected assessed pair that removed a
 tainted item keeps the worn outfit (tainted allowed, worn floor); absent or never assessed keeps the default (tainted
 disallowed, worn insulation floor). The Rounder keeps that outcome in derived memory for the review's world (a review
 with no coupled selection leaves it standing) and the rounds census read stamps it onto `GearPawn.AllowTainted`,
-`ColdFloor` and `HeatFloor` for every gear reader, which drives the outfit filter and the planner's floor ([tainted apparel](equipment-upkeep.md#tainted-apparel-and-warmth)). Nothing else decides tainted apparel or warmth: the
+`ColdFloor` and `HeatFloor` (a `GearChoice` carries an `InsulationFloor`, `Worn` or `Chosen`) for every gear reader, which drives the outfit filter and the planner's floor ([tainted apparel](equipment-upkeep.md#tainted-apparel-and-warmth)). Nothing else decides tainted apparel or warmth: the
 gear planner's thermal scalar (#3329), its hand mood curve, its constraint-mode mood tier, the `TaintFree` trait flag and the always-exclude rule
 are deleted. What came from the card: the stage offsets, the count predicate (`Apparel.WornByCorpse`) and the
 nullifying traits and hediffs. What came from generic machinery: the gear planner's outfit prediction, the

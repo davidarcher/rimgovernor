@@ -2,39 +2,54 @@ namespace RimGovernor.Brain.Policy;
 
 // Mechanic card evaluation (#3217 Gate 1). A verified count card (#3281) is priced for one pawn and one outfit
 // (CardStageOffset): the hand-kept element binding table (ItemBindings) maps the counted element's decl to a typed
-// observation of a gear option, and an unmapped decl is unknown. A stage card (#3324) is priced at one moment (#3327):
-// StageBindings maps its input's decls to the comfort range and ambient temperature, and its ideo decls read the pawn's
-// precepts. A hand-kept site -> action-kind map (SiteActions) names,
-// for a prevention row (DisallowCounted), the existing action that makes the site's count guard false.
-// Unknown never certifies. `thoughtaudit -guards` fails when a table row names a decl or site absent from the card file
-// or the decompiled game.
+// observation of a gear option, and an unmapped decl leaves the card unmodeled. A stage card (#3324) is priced at one moment
+// (#3327): StageBindings maps its input's decls to the comfort range and ambient temperature, and its ideo decls read the
+// pawn's precepts. A hand-kept site -> action-kind map (SiteActions) names, for a prevention row (DisallowCounted), the
+// existing action that makes the site's count guard false.
+// A card whose shape or decls lie outside what the evaluator models is CardOffset.Unmodeled, which never certifies.
+// `thoughtaudit -guards` fails when a table row names a decl or site absent from the card file or the decompiled game.
 
 /// <summary>A grant site and the existing action kind that, under Constraint, makes its guards false.</summary>
 public sealed record CardSiteAction(string Site, ActionKind Action, string Constraint);
 
-/// <summary>What a card's stage offset is evaluated against for one pawn (#3281): its observed trait and hediff def names and whether Anomaly is active.</summary>
+/// <summary>
+/// What a card's stage offset is evaluated against for one pawn (#3281): its trait and hediff def names, whether Ideology is
+/// active (#3327) and the PreceptDef names of the pawn's ideo (empty for a pawn without one).
+/// </summary>
 public sealed record CardPawnFacts
 {
-    public Fact<EquatableArray<string>> Traits { get; init; }
+    public required EquatableArray<string> Traits { get; init; }
 
-    /// <summary>The pawn's hediff def names; known only when the observed list is complete.</summary>
-    public Fact<EquatableArray<string>> Hediffs { get; init; }
-
-    /// <summary>While Anomaly is inactive, a hediff only Anomaly adds (<see cref="MechanicCardGuards.AnomalyHediffs"/>) cannot exist.</summary>
-    public Fact<bool> AnomalyActive { get; init; }
+    public required EquatableArray<string> Hediffs { get; init; }
 
     /// <summary>ModsConfig.IdeologyActive (#3327).</summary>
-    public Fact<bool> IdeologyActive { get; init; }
+    public required bool IdeologyActive { get; init; }
 
-    /// <summary>The PreceptDef names of the pawn's ideo; Known(empty) is no ideo (#3327).</summary>
-    public Fact<EquatableArray<string>> Precepts { get; init; }
+    public required EquatableArray<string> Precepts { get; init; }
 }
 
 /// <summary>What a stage card's input reads at one moment (#3327): the pawn's comfortable range, comfort shifts included, and the ambient temperature.</summary>
 public sealed record CardStageFacts(double ComfortableMin, double ComfortableMax, double Ambient);
 
 /// <summary>A count guard's element decl bound to the counted item's observed truth (#3281).</summary>
-public sealed record CardItemBinding(string Decl, Func<GearOption, Fact<bool>> Read);
+public sealed record CardItemBinding(string Decl, Func<GearOption, bool> Read);
+
+/// <summary>
+/// What a card gives a pawn: the <see cref="Staged"/> offset, or <see cref="Unmodeled"/> when the card has no site the
+/// evaluator can price, names a decl no binding table row reads, uses an operator outside its grammar or has two active sites.
+/// </summary>
+public abstract record CardOffset
+{
+    private CardOffset()
+    {
+    }
+
+    /// <summary>The mood offset: 0 when a nullifier is present or no site is active.</summary>
+    public sealed record Staged(double Offset) : CardOffset;
+
+    /// <summary>The card lies outside the evaluator; it prices nothing and never drives live play.</summary>
+    public sealed record Unmodeled : CardOffset;
+}
 
 public static class MechanicCardGuards
 {
@@ -50,17 +65,14 @@ public static class MechanicCardGuards
         new("ThoughtWorker_ApparelThought.CurrentStateInternal", ActionKind.ApparelPolicy, DisallowCounted),
     ];
 
-    /// <summary>The count collections the items of <see cref="CardStageOffset"/> stand for: a pawn's worn apparel, priced as the outfit's gear options.</summary>
+    /// <summary>The count collections the items of <see cref="CardStageOffset(MechanicCard, CardPawnFacts, IReadOnlyList{GearOption}, IReadOnlyList{CardItemBinding}?)"/> stand for: a pawn's worn apparel, priced as the outfit's gear options.</summary>
     public static readonly IReadOnlyList<string> CountCollections = ["Pawn_ApparelTracker.WornApparel"];
 
     /// <summary>The element binding table (#3281): <c>GearOption.Tainted</c> is native <c>Apparel.WornByCorpse</c> (NativeGearFacts).</summary>
     public static readonly IReadOnlyList<CardItemBinding> ItemBindings =
     [
-        new("Apparel.WornByCorpse", o => Known(o.Tainted)),
+        new("Apparel.WornByCorpse", o => o.Tainted),
     ];
-
-    /// <summary>The nullifying hediffs only the Anomaly expansion adds (their XML entry is MayRequire Anomaly).</summary>
-    public static readonly IReadOnlyList<string> AnomalyHediffs = ["Inhumanized"];
 
     /// <summary>The stage input binding table (#3327): the numeric decls a stage card's input and guards read.</summary>
     public static readonly IReadOnlyDictionary<string, Func<CardStageFacts, double>> StageBindings = new Dictionary<string, Func<CardStageFacts, double>>(StringComparer.Ordinal)
@@ -81,50 +93,40 @@ public static class MechanicCardGuards
     /// The mood offset a stage card (#3324) gives a pawn at <paramref name="at"/> (#3327): when every guard of its one active
     /// site holds, the <c>baseMoodEffect</c> of the band's stage for the input plus the deltas of the modifiers that hold,
     /// clamped to the last defined stage. 0 when a nullifier is present or no site is active (a negative stage is inactive).
-    /// Unknown when a decl is unbound or a fact the evaluation needs is unknown, for example the precepts while Ideology is
-    /// active, or whether Ideology is active. It does not check <see cref="MechanicCard.Live"/>.
+    /// <see cref="CardOffset.Unmodeled"/> when a decl is unbound or the card has no banded site or two active ones. It does not
+    /// check <see cref="MechanicCard.Live"/>.
     /// </summary>
-    public static Fact<double> CardStageOffset(MechanicCard card, CardPawnFacts pawn, CardStageFacts at)
+    public static CardOffset CardStageOffset(MechanicCard card, CardPawnFacts pawn, CardStageFacts at)
     {
-        var nullified = Nullified(card.Xml, pawn);
-        if (nullified.TryGetValue(out var n) && n)
+        if (Nullified(card.Xml, pawn))
         {
-            return Known(0.0);
+            return new CardOffset.Staged(0);
         }
         if (card.Sites.Count == 0)
         {
-            return Unknown<double>();
+            return new CardOffset.Unmodeled();
         }
         int? stage = null;
         foreach (var site in card.Sites)
         {
-            if (site.Stage is not { } band)
+            if (site.Stage is not { } band || !TryActive(site.Guards, pawn, at, out var on))
             {
-                return Unknown<double>();
-            }
-            var active = Known(true);
-            foreach (var guard in site.Guards)
-            {
-                active = And(active, Holds(guard.Expr, pawn, at));
-            }
-            if (!active.TryGetValue(out var on))
-            {
-                return Unknown<double>();
+                return new CardOffset.Unmodeled();
             }
             if (!on)
             {
                 continue;
             }
-            if (!Number(band.Input, pawn, at).TryGetValue(out var input))
+            if (!TryNumber(band.Input, pawn, at, out var input))
             {
-                return Unknown<double>();
+                return new CardOffset.Unmodeled();
             }
             var index = (double)(band.Thresholds.FirstOrDefault(t => input < t.Below)?.Stage ?? band.Else);
             foreach (var modifier in band.Modifiers)
             {
-                if (!Holds(modifier.When, pawn, at).TryGetValue(out var hit))
+                if (!TryHolds(modifier.When, pawn, at, out var hit))
                 {
-                    return Unknown<double>();
+                    return new CardOffset.Unmodeled();
                 }
                 index += hit ? modifier.Delta : 0;
             }
@@ -134,25 +136,19 @@ public static class MechanicCardGuards
             }
             if (stage is not null)
             {
-                return Unknown<double>();
+                return new CardOffset.Unmodeled();
             }
             stage = (int)index;
         }
-        if (stage is null)
-        {
-            return Known(0.0);
-        }
-        if (!nullified.IsKnown)
-        {
-            return Unknown<double>();
-        }
-        var last = Math.Min(stage.Value, card.Xml.Stages.Count - 1);
-        return Known(last < 0 ? 0.0 : card.Xml.Stages[last].BaseMoodEffect ?? 0);
+        return stage is null ? new CardOffset.Staged(0) : StageOffset(card, stage.Value);
     }
 
-    /// <summary>A stage site's input at <paramref name="at"/>; unknown without a band or with an unbound decl.</summary>
-    public static Fact<double> StageInput(MechanicCardSite site, CardPawnFacts pawn, CardStageFacts at) =>
-        site.Stage is { } band ? Number(band.Input, pawn, at) : Unknown<double>();
+    /// <summary>Whether a stage site's input at <paramref name="at"/> is modeled, and its value; false without a band or with an unbound decl.</summary>
+    public static bool TryStageInput(MechanicCardSite site, CardPawnFacts pawn, CardStageFacts at, out double input)
+    {
+        input = 0;
+        return site.Stage is { } band && TryNumber(band.Input, pawn, at, out input);
+    }
 
     /// <summary>The numeric literals a stage card's guards and bands compare against: where its offset can change along its input.</summary>
     public static IReadOnlyList<double> StageCuts(MechanicCard card) => Cuts.GetValue(card, static card =>
@@ -167,213 +163,258 @@ public static class MechanicCardGuards
     // A card's cuts depend on the card alone, and the coupled search asks for them on every schedule it evaluates.
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MechanicCard, double[]> Cuts = new();
 
-    /// <summary>Kleene conjunction: a known false decides.</summary>
-    private static Fact<bool> And(Fact<bool> a, Fact<bool> b) =>
-        a == Known(false) || b == Known(false) ? Known(false) : a.IsKnown && b.IsKnown ? Known(true) : Unknown<bool>();
+    // The evaluator reads a card's expressions through Try functions: false means the expression lies outside the grammar
+    // (an unbound decl, an unsupported operator), so the card is Unmodeled; the out value is meaningful only when true.
+    // A conjunction with a false conjunct is false, and a disjunction with a true disjunct is true, whatever the other is.
 
-    private static Fact<bool> Holds(MechanicCardExpr e, CardPawnFacts pawn, CardStageFacts at)
+    /// <summary>Whether a site's guards all hold: false is decided by any guard that is false; true needs every guard modeled.</summary>
+    private static bool TryActive(IReadOnlyList<MechanicCardGuard> guards, CardPawnFacts pawn, CardStageFacts at, out bool active)
+    {
+        var modeled = true;
+        foreach (var guard in guards)
+        {
+            if (!TryHolds(guard.Expr, pawn, at, out var holds))
+            {
+                modeled = false;
+            }
+            else if (!holds)
+            {
+                active = false;
+                return true;
+            }
+        }
+        active = true;
+        return modeled;
+    }
+
+    private static bool TryHolds(MechanicCardExpr e, CardPawnFacts pawn, CardStageFacts at, out bool holds)
     {
         var args = e.Args ?? [];
+        holds = false;
         switch (e.Op)
         {
             case null when e.Decl == IdeologyActive:
-                return pawn.IdeologyActive;
+                holds = pawn.IdeologyActive;
+                return true;
             case null:
-                return e.Lit is "true" or "false" ? Known(e.Lit == "true") : Unknown<bool>();
+                holds = e.Lit == "true";
+                return e.Lit is "true" or "false";
             case "not" when args.Count == 1:
-                return Holds(args[0], pawn, at).TryGetValue(out var v) ? Known(!v) : Unknown<bool>();
-            case "and" when args.Count == 2:
-                return And(Holds(args[0], pawn, at), Holds(args[1], pawn, at));
-            case "or" when args.Count == 2:
-                var or = And(Not(Holds(args[0], pawn, at)), Not(Holds(args[1], pawn, at)));
-                return Not(or);
-            case "==" or "!=" when args is [{ Op: null, Decl: PawnIdeo }, { Lit: "null" }]:
-                return pawn.Precepts.TryGetValue(out var held) ? Known(held.Count > 0 == (e.Op == "!=")) : Unknown<bool>();
-            case "call" when args is [{ Op: null, Decl: HasPrecept }, { Op: null, Decl: { } precept }] && precept.StartsWith(PreceptDefOf, StringComparison.Ordinal):
-                return pawn.Precepts.TryGetValue(out var precepts) ? Known(precepts.Contains(precept[PreceptDefOf.Length..])) : Unknown<bool>();
-            case "==" or "!=" or "<" or ">" or "<=" or ">=" when args.Count == 2:
-                if (!Number(args[0], pawn, at).TryGetValue(out var l) || !Number(args[1], pawn, at).TryGetValue(out var r))
+                if (!TryHolds(args[0], pawn, at, out var v))
                 {
-                    return Unknown<bool>();
+                    return false;
                 }
-                return Known(e.Op switch { "==" => l == r, "!=" => l != r, "<" => l < r, ">" => l > r, "<=" => l <= r, _ => l >= r });
+                holds = !v;
+                return true;
+            case "and" or "or" when args.Count == 2:
+                var left = TryHolds(args[0], pawn, at, out var a);
+                var right = TryHolds(args[1], pawn, at, out var b);
+                var decided = e.Op == "or";
+                if ((left && a == decided) || (right && b == decided))
+                {
+                    holds = decided;
+                    return true;
+                }
+                holds = !decided;
+                return left && right;
+            case "==" or "!=" when args is [{ Op: null, Decl: PawnIdeo }, { Lit: "null" }]:
+                holds = pawn.Precepts.Count > 0 == (e.Op == "!=");
+                return true;
+            case "call" when args is [{ Op: null, Decl: HasPrecept }, { Op: null, Decl: { } precept }] && precept.StartsWith(PreceptDefOf, StringComparison.Ordinal):
+                holds = pawn.Precepts.Contains(precept[PreceptDefOf.Length..]);
+                return true;
+            case "==" or "!=" or "<" or ">" or "<=" or ">=" when args.Count == 2:
+                if (!TryNumber(args[0], pawn, at, out var l) || !TryNumber(args[1], pawn, at, out var r))
+                {
+                    return false;
+                }
+                holds = e.Op switch { "==" => l == r, "!=" => l != r, "<" => l < r, ">" => l > r, "<=" => l <= r, _ => l >= r };
+                return true;
             default:
-                return Unknown<bool>();
+                return false;
         }
-        static Fact<bool> Not(Fact<bool> f) => f.TryGetValue(out var b) ? Known(!b) : Unknown<bool>();
     }
 
     /// <summary>A numeric expression: bound decls, numeric literals, + and -, and conditionals.</summary>
-    private static Fact<double> Number(MechanicCardExpr e, CardPawnFacts pawn, CardStageFacts at)
+    private static bool TryNumber(MechanicCardExpr e, CardPawnFacts pawn, CardStageFacts at, out double value)
     {
-        switch (e)
+        value = 0;
+        if (e is { Op: null, Decl: { } decl } && StageBindings.TryGetValue(decl, out var read))
         {
-            case { Op: null, Decl: { } decl } when StageBindings.TryGetValue(decl, out var read):
-                return Known(read(at));
-            case { Op: null, Lit: { } lit } when double.TryParse(lit.TrimEnd('f', 'F'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v):
-                return Known(v);
-            case { Op: "+" or "-", Args: [var l, var r] }:
-                return Number(l, pawn, at).TryGetValue(out var a) && Number(r, pawn, at).TryGetValue(out var b) ? Known(e.Op == "+" ? a + b : a - b) : Unknown<double>();
-            case { Op: "cond", Args: [var c, var then, var otherwise] }:
-                return Holds(c, pawn, at).TryGetValue(out var pick) ? Number(pick ? then : otherwise, pawn, at) : Unknown<double>();
-            default:
-                return Unknown<double>();
+            value = read(at);
+            return true;
         }
+        if (e is { Op: null, Lit: { } lit })
+        {
+            return double.TryParse(lit.TrimEnd('f', 'F'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
+        }
+        if (e is { Op: "+" or "-", Args: [var l, var r] })
+        {
+            if (!TryNumber(l, pawn, at, out var a) || !TryNumber(r, pawn, at, out var b))
+            {
+                return false;
+            }
+            value = e.Op == "+" ? a + b : a - b;
+            return true;
+        }
+        if (e is { Op: "cond", Args: [var c, var then, var otherwise] })
+        {
+            return TryHolds(c, pawn, at, out var pick) && TryNumber(pick ? then : otherwise, pawn, at, out value);
+        }
+        return false;
     }
 
     /// <summary>
     /// The mood offset a count card (#3281) gives a pawn wearing <paramref name="items"/>: the <c>baseMoodEffect</c> of the
     /// stage its one active site returns for the count of items its predicate holds for, the index clamped to the last
     /// defined stage as native <c>ThoughtState.StageIndexFor</c> does. 0 when a nullifying trait or hediff is present or no
-    /// site is active (a count of 0); unknown when a binding, an observation or a guard the evaluation needs is missing.
-    /// It does not check <see cref="MechanicCard.Live"/>: only a verified card may drive live play (#3217).
+    /// site is active (a count of 0); <see cref="CardOffset.Unmodeled"/> when a binding or a guard the evaluation needs lies
+    /// outside the tables. It does not check <see cref="MechanicCard.Live"/>: only a verified card may drive live play (#3217).
     /// </summary>
-    public static Fact<double> CardStageOffset(MechanicCard card, CardPawnFacts pawn, IReadOnlyList<GearOption> items, IReadOnlyList<CardItemBinding>? bindings = null)
+    public static CardOffset CardStageOffset(MechanicCard card, CardPawnFacts pawn, IReadOnlyList<GearOption> items, IReadOnlyList<CardItemBinding>? bindings = null)
     {
-        var nullified = Nullified(card.Xml, pawn);
-        if (nullified.TryGetValue(out var n) && n)
+        if (Nullified(card.Xml, pawn))
         {
-            return Known(0.0);
+            return new CardOffset.Staged(0);
         }
         int? stage = null;
         foreach (var site in card.Sites)
         {
             if (site.Guards is not [{ Count: { } count } guard] || !CountCollections.Contains(count.Over.Decl ?? ""))
             {
-                return Unknown<double>();
+                return new CardOffset.Unmodeled();
             }
             var hits = 0;
             foreach (var item in items)
             {
-                if (!Item(count.Where, item, bindings ?? ItemBindings).TryGetValue(out var hit))
+                if (!TryItem(count.Where, item, bindings ?? ItemBindings, out var hit))
                 {
-                    return Unknown<double>();
+                    return new CardOffset.Unmodeled();
                 }
                 hits += hit ? 1 : 0;
             }
-            if (!Counted(guard.Expr, hits).TryGetValue(out var active))
+            if (!TryCounted(guard.Expr, hits, out var active))
             {
-                return Unknown<double>();
+                return new CardOffset.Unmodeled();
             }
             if (!active)
             {
                 continue;
             }
             // Two active sites, or a stage expression the evaluator does not model, have no one stage.
-            if (stage is not null || Index(count.Stage, hits) is not { } index)
+            if (stage is not null || !TryIndex(count.Stage, hits, out var index))
             {
-                return Unknown<double>();
+                return new CardOffset.Unmodeled();
             }
             stage = index;
         }
         if (card.Sites.Count == 0)
         {
-            return Unknown<double>();
+            return new CardOffset.Unmodeled();
         }
-        if (stage is null)
-        {
-            return Known(0.0);
-        }
-        if (!nullified.IsKnown)
-        {
-            return Unknown<double>();
-        }
-        var at = Math.Min(stage.Value, card.Xml.Stages.Count - 1);
-        return Known(at < 0 ? 0.0 : card.Xml.Stages[at].BaseMoodEffect ?? 0);
+        return stage is null ? new CardOffset.Staged(0) : StageOffset(card, stage.Value);
     }
 
-    /// <summary>Whether a count card counts <paramref name="item"/>: some site's count <c>where</c> holds for it; unknown when a binding is missing.</summary>
-    public static Fact<bool> Counts(MechanicCard card, GearOption item, IReadOnlyList<CardItemBinding>? bindings = null)
+    /// <summary>The <c>baseMoodEffect</c> of stage <paramref name="stage"/> clamped to the card's last defined stage; 0 for a card with none.</summary>
+    private static CardOffset.Staged StageOffset(MechanicCard card, int stage)
     {
-        var any = false;
-        foreach (var count in card.Sites.SelectMany(s => s.Guards).Select(g => g.Count).OfType<MechanicCardCount>())
-        {
-            if (!Item(count.Where, item, bindings ?? ItemBindings).TryGetValue(out var hit))
-            {
-                return Unknown<bool>();
-            }
-            any |= hit;
-        }
-        return Known(any);
+        var last = Math.Min(stage, card.Xml.Stages.Count - 1);
+        return new CardOffset.Staged(last < 0 ? 0 : card.Xml.Stages[last].BaseMoodEffect);
     }
 
-    /// <summary>Whether a nullifying trait or hediff is present; unknown when one could be and is not observed.</summary>
-    private static Fact<bool> Nullified(MechanicCardXml xml, CardPawnFacts pawn)
-    {
-        var unknown = false;
-        foreach (var trait in xml.NullifyingTraits)
-        {
-            if (!pawn.Traits.TryGetValue(out var traits))
-            {
-                unknown = true;
-            }
-            else if (traits.Contains(trait))
-            {
-                return Known(true);
-            }
-        }
-        foreach (var hediff in xml.NullifyingHediffs)
-        {
-            if (pawn.Hediffs.TryGetValue(out var hediffs))
-            {
-                if (hediffs.Contains(hediff))
-                {
-                    return Known(true);
-                }
-            }
-            else if (!(AnomalyHediffs.Contains(hediff) && pawn.AnomalyActive.TryGetValue(out var anomaly) && !anomaly))
-            {
-                unknown = true;
-            }
-        }
-        return unknown ? Unknown<bool>() : Known(false);
-    }
+    /// <summary>Whether a nullifying trait or hediff is present.</summary>
+    private static bool Nullified(MechanicCardXml xml, CardPawnFacts pawn) =>
+        xml.NullifyingTraits.Any(t => pawn.Traits.Contains(t)) || xml.NullifyingHediffs.Any(h => pawn.Hediffs.Contains(h));
 
-    private static Fact<bool> Item(MechanicCardExpr e, GearOption item, IReadOnlyList<CardItemBinding> bindings)
+    private static bool TryItem(MechanicCardExpr e, GearOption item, IReadOnlyList<CardItemBinding> bindings, out bool holds)
     {
         var args = e.Args ?? [];
+        holds = false;
         switch (e.Op)
         {
             case null when e.Decl is { Length: > 0 } decl:
-                return bindings.FirstOrDefault(b => b.Decl == decl)?.Read(item) ?? Unknown<bool>();
+                if (bindings.FirstOrDefault(b => b.Decl == decl) is not { } binding)
+                {
+                    return false;
+                }
+                holds = binding.Read(item);
+                return true;
             case null:
-                return e.Lit is "true" or "false" ? Known(e.Lit == "true") : Unknown<bool>();
+                holds = e.Lit == "true";
+                return e.Lit is "true" or "false";
             case "not" when args.Count == 1:
-                return Item(args[0], item, bindings).TryGetValue(out var v) ? Known(!v) : Unknown<bool>();
+                if (!TryItem(args[0], item, bindings, out var v))
+                {
+                    return false;
+                }
+                holds = !v;
+                return true;
             case "and" or "or" when args.Count == 2:
-                var known = Item(args[0], item, bindings).TryGetValue(out var a) & Item(args[1], item, bindings).TryGetValue(out var b);
-                return known ? Known(e.Op == "and" ? a && b : a || b) : Unknown<bool>();
+                if (!TryItem(args[0], item, bindings, out var a) || !TryItem(args[1], item, bindings, out var b))
+                {
+                    return false;
+                }
+                holds = e.Op == "and" ? a && b : a || b;
+                return true;
             default:
-                return Unknown<bool>();
+                return false;
         }
     }
 
     /// <summary>A count guard's condition at a count: comparisons of the count symbol and integer literals, under not/and/or.</summary>
-    private static Fact<bool> Counted(MechanicCardExpr e, int count)
+    private static bool TryCounted(MechanicCardExpr e, int count, out bool holds)
     {
         var args = e.Args ?? [];
+        holds = false;
         switch (e.Op)
         {
             case null:
-                return e.Lit is "true" or "false" ? Known(e.Lit == "true") : Unknown<bool>();
+                holds = e.Lit == "true";
+                return e.Lit is "true" or "false";
             case "not" when args.Count == 1:
-                return Counted(args[0], count).TryGetValue(out var v) ? Known(!v) : Unknown<bool>();
+                if (!TryCounted(args[0], count, out var v))
+                {
+                    return false;
+                }
+                holds = !v;
+                return true;
             case "and" or "or" when args.Count == 2:
-                var known = Counted(args[0], count).TryGetValue(out var a) & Counted(args[1], count).TryGetValue(out var b);
-                return known ? Known(e.Op == "and" ? a && b : a || b) : Unknown<bool>();
-            case "==" or "!=" or "<" or ">" or "<=" or ">=" when args.Count == 2 && Index(args[0], count) is { } l && Index(args[1], count) is { } r:
-                return Known(e.Op switch { "==" => l == r, "!=" => l != r, "<" => l < r, ">" => l > r, "<=" => l <= r, _ => l >= r });
+                if (!TryCounted(args[0], count, out var a) || !TryCounted(args[1], count, out var b))
+                {
+                    return false;
+                }
+                holds = e.Op == "and" ? a && b : a || b;
+                return true;
+            case "==" or "!=" or "<" or ">" or "<=" or ">=" when args.Count == 2 && TryIndex(args[0], count, out var l) && TryIndex(args[1], count, out var r):
+                holds = e.Op switch { "==" => l == r, "!=" => l != r, "<" => l < r, ">" => l > r, "<=" => l <= r, _ => l >= r };
+                return true;
             default:
-                return Unknown<bool>();
+                return false;
         }
     }
 
     /// <summary>An integer expression over the count: the count symbol, integer literals, + and -.</summary>
-    private static int? Index(MechanicCardExpr e, int count) => e switch
+    private static bool TryIndex(MechanicCardExpr e, int count, out int value)
     {
-        { Op: null, Kind: "count" } => count,
-        { Op: null, Lit: { } lit } => int.TryParse(lit, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var i) ? i : null,
-        { Op: "+" or "-", Args: [var l, var r] } => Index(l, count) is { } a && Index(r, count) is { } b ? (e.Op == "+" ? a + b : a - b) : null,
-        _ => null,
-    };
+        value = 0;
+        if (e is { Op: null, Kind: "count" })
+        {
+            value = count;
+            return true;
+        }
+        if (e is { Op: null, Lit: { } lit })
+        {
+            return int.TryParse(lit, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out value);
+        }
+        if (e is { Op: "+" or "-", Args: [var l, var r] })
+        {
+            if (!TryIndex(l, count, out var a) || !TryIndex(r, count, out var b))
+            {
+                return false;
+            }
+            value = e.Op == "+" ? a + b : a - b;
+            return true;
+        }
+        return false;
+    }
 }

@@ -26,6 +26,9 @@ internal sealed record EffectSourceFacts
 {
     public IReadOnlyList<EffectSourcePawn> Pawns { get; init; } = [];
 
+    /// <summary>The unblocked, modeled pawns whose hediffs the medical read does not hold: no card prices them, so each gets a finding and no candidate.</summary>
+    public EquatableArray<string> Unread { get; init; }
+
     /// <summary>The candidate budget: candidates emitted before the search reports truncation.</summary>
     public int Budget { get; init; } = 32;
 }
@@ -35,7 +38,7 @@ internal sealed record EffectSourceFacts
 /// prevention card's offset for them, and their summed quality-scaled insulation.
 /// </summary>
 internal sealed record EffectSourceOutfit(bool AllowTainted, double ColdFloor, double HeatFloor, EquatableArray<GearOption> Items,
-    IReadOnlyDictionary<string, Fact<double>> Offsets, double Cold, double Heat);
+    IReadOnlyDictionary<string, CardOffset> Offsets, double Cold, double Heat);
 
 /// <summary>The labor-free root commitments, the findings and whether the budget truncated the search.</summary>
 internal sealed record EffectSourceResult(EquatableArray<ForecastCommitment> Roots, EquatableArray<string> Findings, bool Truncated);
@@ -70,6 +73,13 @@ internal static class EffectSourceCandidates
                 usable.Add(card);
             }
         }
+        foreach (var pawn in facts.Unread.Order(StringComparer.Ordinal))
+        {
+            foreach (var card in usable)
+            {
+                findings.Add("effect_source_offset_unread:" + card.Def + "/" + pawn);
+            }
+        }
         var roots = new List<ForecastCommitment>();
         var truncated = false;
         var budget = facts.Budget;
@@ -80,12 +90,12 @@ internal static class EffectSourceCandidates
                 continue;
             }
             var worn = options[0];
-            var unknown = usable.Where(c => !worn.Offsets.GetValueOrDefault(c.Def).IsKnown).ToArray();
-            foreach (var card in unknown)
+            var unmodeled = usable.Where(c => worn.Offsets[c.Def] is not CardOffset.Staged).ToArray();
+            foreach (var card in unmodeled)
             {
-                findings.Add("effect_source_offset_unknown:" + card.Def + "/" + pawn.Pawn);
+                findings.Add("effect_source_offset_unmodeled:" + card.Def + "/" + pawn.Pawn);
             }
-            if (unknown.Length > 0)
+            if (unmodeled.Length > 0)
             {
                 continue;
             }
@@ -95,14 +105,16 @@ internal static class EffectSourceCandidates
                 var changes = new List<ForecastSituationalChange>();
                 foreach (var card in usable)
                 {
-                    if (!outfit.Offsets.GetValueOrDefault(card.Def).TryGetValue(out var then))
+                    if (outfit.Offsets[card.Def] is not CardOffset.Staged { Offset: var then })
                     {
-                        findings.Add("effect_source_variant_unknown:" + id);
+                        findings.Add("effect_source_variant_unmodeled:" + id);
                         goto next;
                     }
-                    if (then != worn.Offsets[card.Def].Value)
+                    // Every usable card is staged for the worn outfit: the pawn was skipped above otherwise.
+                    var was = ((CardOffset.Staged)worn.Offsets[card.Def]).Offset;
+                    if (then != was)
                     {
-                        changes.Add(new(pawn.Pawn, card.Def, then - worn.Offsets[card.Def].Value));
+                        changes.Add(new(pawn.Pawn, card.Def, then - was));
                     }
                 }
                 var (dc, dh) = (Math.Round(outfit.Cold - worn.Cold, 6), Math.Round(outfit.Heat - worn.Heat, 6));
@@ -157,7 +169,8 @@ internal static class EffectSourceCandidates
     {
         var parts = id[(GearOutcome.Length + pawn.Length + 1)..].Split('/');
         var floor = parts[1]["cold".Length..].Split("-heat");
-        return new(pawn, parts[0] == Allow, double.Parse(floor[0], CultureInfo.InvariantCulture), double.Parse(floor[1], CultureInfo.InvariantCulture));
+        return new(pawn, parts[0] == Allow, new InsulationFloor.Chosen(double.Parse(floor[0], CultureInfo.InvariantCulture)),
+            new InsulationFloor.Chosen(double.Parse(floor[1], CultureInfo.InvariantCulture)));
     }
 
     /// <summary>

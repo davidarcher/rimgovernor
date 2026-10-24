@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
-using static RimGovernor.Brain.Domain.Fact;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -67,14 +66,16 @@ internal static class DeadMans
 
             var facts = new CardPawnFacts
             {
-                Traits = Known(EquatableArray.From(worn.Traits.ToArray())),
-                Hediffs = Known(EquatableArray.From<string>([])),
-                AnomalyActive = Known(true),
+                Traits = EquatableArray.From(worn.Traits.ToArray()),
+                Hediffs = EquatableArray.From<string>([]),
+                // A count card reads neither.
+                IdeologyActive = false,
+                Precepts = [],
             };
             GearOption[] items = [.. Enumerable.Range(0, Garments).Select(i => new GearOption { ID = "g" + i, Tainted = i < tainted })];
-            if (!MechanicCardGuards.CardStageOffset(card, facts, items).TryGetValue(out var want))
+            if (MechanicCardGuards.CardStageOffset(card, facts, items) is not CardOffset.Staged { Offset: var want })
             {
-                throw new AcceptanceException($"{label}: the card prices this pawn and outfit as unknown");
+                throw new AcceptanceException($"{label}: the card does not model this pawn and outfit");
             }
 
             var (offset, row, ticks, _) = await MoodProbe.ReadAsync(s, label, worn.Pawn, Thought, cancellationToken).ConfigureAwait(false);

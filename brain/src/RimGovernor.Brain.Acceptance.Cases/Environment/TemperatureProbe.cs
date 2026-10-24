@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
-using static RimGovernor.Brain.Domain.Fact;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -95,15 +94,14 @@ internal static class TemperatureProbe
             // The #3327 evaluator over the same read and the fixture's native trait and precept lists.
             var facts = new CardPawnFacts
             {
-                Traits = Known(EquatableArray.From(held.Traits.ToArray())),
-                Hediffs = Known(EquatableArray.From<string>([])),
-                AnomalyActive = Known(true),
-                IdeologyActive = Known(held.Ideology),
-                Precepts = Known(EquatableArray.From(held.Precepts.ToArray())),
+                Traits = EquatableArray.From(held.Traits.ToArray()),
+                Hediffs = EquatableArray.From<string>([]),
+                IdeologyActive = held.Ideology,
+                Precepts = EquatableArray.From(held.Precepts.ToArray()),
             };
-            if (!MechanicCardGuards.CardStageOffset(card, facts, new CardStageFacts(comfyMin, comfyMax, cell)).TryGetValue(out var want))
+            if (MechanicCardGuards.CardStageOffset(card, facts, new CardStageFacts(comfyMin, comfyMax, cell)) is not CardOffset.Staged { Offset: var want })
             {
-                throw new AcceptanceException($"{label}: the card prices this pawn and temperature as unknown");
+                throw new AcceptanceException($"{label}: the card does not model this pawn and temperature");
             }
 
             var stage = MoodProbe.StageOf(card, offset);

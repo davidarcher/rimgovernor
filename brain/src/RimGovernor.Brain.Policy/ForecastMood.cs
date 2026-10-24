@@ -372,7 +372,7 @@ public static class ForecastMood
     /// A temperature card's offset along a pawn's assessed exposure spans (#3327), as deltas from the thought's observed
     /// contribution (its <c>MoodPawn.Thoughts</c> rows; none is 0). Each span is cut where the stage input, linear in the
     /// span's temperature, crosses a literal the card compares against, and each piece is evaluated at its midpoint. No
-    /// spans (the observed constant stays) when the facts or any piece's offset are unknown.
+    /// spans (the observed constant stays) for a pawn without card facts or when any piece's card is unmodeled.
     /// </summary>
     internal static (string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans) TemperatureThought(MechanicCard card,
         CardPawnFacts? pawn, EquatableArray<MoodThought> observed, IReadOnlyList<ForecastThermalSpan> exposure)
@@ -389,8 +389,8 @@ public static class ForecastMood
             var times = new SortedSet<double> { span.Start, span.End };
             foreach (var site in card.Sites)
             {
-                if (!MechanicCardGuards.StageInput(site, pawn, At(span.Start)).TryGetValue(out var from)
-                    || !MechanicCardGuards.StageInput(site, pawn, At(span.End)).TryGetValue(out var to)) return none;
+                if (!MechanicCardGuards.TryStageInput(site, pawn, At(span.Start), out var from)
+                    || !MechanicCardGuards.TryStageInput(site, pawn, At(span.End), out var to)) return none;
                 if (from == to) continue;
                 foreach (var cut in cuts)
                     if ((cut - from) / (to - from) is var f and > 0 and < 1) times.Add(span.Start + f * (span.End - span.Start));
@@ -398,7 +398,7 @@ public static class ForecastMood
             var points = times.ToArray();
             for (var i = 0; i < points.Length - 1; i++)
             {
-                if (!MechanicCardGuards.CardStageOffset(card, pawn, At((points[i] + points[i + 1]) / 2)).TryGetValue(out var offset)) return none;
+                if (MechanicCardGuards.CardStageOffset(card, pawn, At((points[i] + points[i + 1]) / 2)) is not CardOffset.Staged { Offset: var offset }) return none;
                 rows.Add((points[i], points[i + 1], offset - current));
             }
         }

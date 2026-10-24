@@ -761,12 +761,12 @@ public sealed class ForecastCoupledSelectionTests
             Assert.Equal([root.Id], result.Selection.Selected);
             Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
             // #3329: the selected pair keeps the worn insulation floor.
-            Assert.Equal([new GearChoice("pawn", false, 30, 0)], allowed);
+            Assert.Equal([new GearChoice("pawn", false, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0))], allowed);
             return;
         }
         Assert.NotEmpty(result.Selection.Selected);
         Assert.DoesNotContain(root.Id, result.Selection.Selected);
-        Assert.Equal([new GearChoice("pawn", true)], allowed);
+        Assert.Equal([GearChoice.KeepFloors("pawn", true)], allowed);
         // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
         Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
@@ -785,13 +785,13 @@ public sealed class ForecastCoupledSelectionTests
         var world = new GenerationSnapshot(new("colony"), new(0), new("load"), new("plan"), new(1), new(1));
         var memory = new RimGovernor.Brain.BuildingRuntime.ReviewMemory<EquatableArray<GearChoice>>([]);
         RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearChoices(memory, world, facts.CoupledAlternatives, result);
-        Assert.Equal([new GearChoice("pawn", true)], memory.Get(world));
+        Assert.Equal([GearChoice.KeepFloors("pawn", true)], memory.Get(world));
         RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearChoices(memory, world, facts.CoupledAlternatives, null);
-        Assert.Equal([new GearChoice("pawn", true)], memory.Get(world));
+        Assert.Equal([GearChoice.KeepFloors("pawn", true)], memory.Get(world));
         Assert.Empty(memory.Get(world with { Native = new(2) }));
         var (nearFacts, nearResult, _) = TaintedParkaReview(true);
         RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearChoices(memory, world, nearFacts.CoupledAlternatives, nearResult);
-        Assert.Equal([new GearChoice("pawn", false, 30, 0)], memory.Get(world));
+        Assert.Equal([new GearChoice("pawn", false, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0))], memory.Get(world));
     }
 
     private static (RoundsFacts Facts, ForecastCoupledSelection Result, ForecastCommitment Root) TaintedParkaReview(bool nearBreak)
@@ -850,8 +850,8 @@ public sealed class ForecastCoupledSelectionTests
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
                 CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
                 {
-                    Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]),
-                    IdeologyActive = Known(false), Precepts = Known<EquatableArray<string>>([])
+                    Traits = [], Hediffs = [],
+                    IdeologyActive = false, Precepts = []
                 } },
                 ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>>
                 { ["pawn"] = mild ? [] : [new("EnvironmentCold", -12)] },
@@ -913,7 +913,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Empty(root.SituationalChanges);
 
         var (choices, target) = WarmthReview(pawn, root, mood, mild);
-        Assert.Equal(wins ? [new GearChoice("pawn", false, 30, 0)] : [], choices);
+        Assert.Equal(wins ? [new GearChoice("pawn", false, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0))] : [], choices);
         Assert.Equal(wins, target.Any(o => o.ID == "parka"));
     }
 
@@ -931,7 +931,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal([new ForecastSituationalChange("pawn", "DeadMansApparel", -5)], root.SituationalChanges);
 
         var (choices, target) = WarmthReview(pawn, root, .28, mild);
-        Assert.Equal(wins ? [new GearChoice("pawn", true, 30, 0)] : [], choices);
+        Assert.Equal(wins ? [new GearChoice("pawn", true, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0))] : [], choices);
         Assert.Equal(wins, target.Any(o => o.ID == "parka"));
     }
 
@@ -1032,8 +1032,8 @@ public sealed class ForecastCoupledSelectionTests
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
                 CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
                 {
-                    Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]),
-                    IdeologyActive = Known(false), Precepts = Known<EquatableArray<string>>([])
+                    Traits = [], Hediffs = [],
+                    IdeologyActive = false, Precepts = []
                 } },
                 ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>> { ["pawn"] = [new("EnvironmentCold", -12)] },
             }

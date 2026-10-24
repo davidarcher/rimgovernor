@@ -67,38 +67,43 @@ public static class EffectSourcesRules
     }
 
     /// <summary>
-    /// The effect-source facts of the gear census (#3285): every unblocked pawn with a loadout model, with its observed trait names and its hediff names from the medical read. Hediffs are unknown when the medical read, the
-    /// pawn's row or a condition's def is; the card's offset is then unknown and the generator records a finding.
+    /// The effect-source facts of the gear census (#3285): every unblocked pawn with a loadout model, with its observed trait
+    /// names, its hediff names from the medical read, whether Ideology is active and the precepts of its ideo. A pawn the
+    /// medical read holds no row for is listed in <see cref="EffectSourceFacts.Unread"/>: no card prices it, and the generator
+    /// records a finding.
     /// </summary>
     internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, Fact<EquatableArray<CarePawn>> medical, bool ideologyActive = false)
     {
+        var rows = medical.TryGetValue(out var read) ? read : [];
         var pawns = new List<EffectSourcePawn>();
+        var unread = new List<string>();
         foreach (var pawn in gear.Pawns)
         {
             if (pawn.Blocked || pawn.Model is not { } input)
             {
                 continue;
             }
-            pawns.Add(new(pawn.Pawn.Value, input, CardPawnFactsOf(pawn.Pawn, input, medical, ideologyActive)));
+            if (rows.FirstOrDefault(r => r.Id == pawn.Pawn) is not { } care)
+            {
+                unread.Add(pawn.Pawn.Value);
+                continue;
+            }
+            pawns.Add(new(pawn.Pawn.Value, input, CardPawnFactsOf(input, care, ideologyActive)));
         }
-        return new() { Pawns = pawns };
+        return new() { Pawns = pawns, Unread = EquatableArray.From(unread) };
     }
 
     /// <summary>
-    /// A pawn's card facts from its loadout model's work row and the medical read: trait names, hediff names (unknown when
-    /// the medical read, the pawn's row or a condition's def is), whether Ideology is active and its ideo's precepts
-    /// (Known(empty) when its policy inputs name no ideo, #3327).
+    /// A pawn's card facts from its loadout model's work row and its medical row: trait names, hediff names, whether Ideology
+    /// is active and its ideo's precepts (empty for a pawn without an ideo, #3327).
     /// </summary>
-    internal static CardPawnFacts CardPawnFactsOf(PawnId pawn, GearLoadoutInput input, Fact<EquatableArray<CarePawn>> medical, bool ideologyActive)
+    internal static CardPawnFacts CardPawnFactsOf(GearLoadoutInput input, CarePawn care, bool ideologyActive) => new()
     {
-        var hediffs = Unknown<EquatableArray<string>>();
-        if (medical.TryGetValue(out var rows) && rows.FirstOrDefault(r => r.Id == pawn) is { } care)
-        {
-            hediffs = Known(EquatableArray.From(care.Conditions.Select(c => c.DefName).Distinct().Order(StringComparer.Ordinal)));
-        }
-        var traits = Known(EquatableArray.From(input.Role.Traits.Select(t => t.Name)));
-        return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = Known(ideologyActive) };
-    }
+        Traits = EquatableArray.From(input.Role.Traits.Select(t => t.Name)),
+        Hediffs = EquatableArray.From(care.Conditions.Select(c => c.DefName).Distinct().Order(StringComparer.Ordinal)),
+        IdeologyActive = ideologyActive,
+        Precepts = input.Role.Precepts,
+    };
 
     /// <summary>
     /// The comparator's per-pawn gear outcome (#3285, #3329, decided 2026-10-16), for the pawns that differ from the default
@@ -128,12 +133,16 @@ public static class EffectSourcesRules
             }
             else if (pawn.Any(c => assessed.Contains(c.Id) && c.SituationalChanges.Any(s => s.OffsetDelta > 0)))
             {
-                choices.Add(new(pawn.Key, true));
+                choices.Add(GearChoice.KeepFloors(pawn.Key, true));
             }
         }
         return EquatableArray.From(choices);
     }
 }
 
-/// <summary>A pawn's gear outcome (#3329): whether its outfit allows tainted apparel, and its insulation floor (null is its worn insulation).</summary>
-public sealed record GearChoice(string Pawn, bool AllowTainted, double? ColdFloor = null, double? HeatFloor = null);
+/// <summary>A pawn's gear outcome (#3329): whether its outfit allows tainted apparel, and its cold and heat insulation floors.</summary>
+public sealed record GearChoice(string Pawn, bool AllowTainted, InsulationFloor ColdFloor, InsulationFloor HeatFloor)
+{
+    /// <summary>The outcome that leaves both floors at the pawn's worn insulation.</summary>
+    public static GearChoice KeepFloors(string pawn, bool allowTainted) => new(pawn, allowTainted, new InsulationFloor.Worn(), new InsulationFloor.Worn());
+}

@@ -32,14 +32,15 @@ public sealed record MechanicCard(string Def, MechanicCardStatus Status, Mechani
     public bool Live => Status == MechanicCardStatus.Verified;
 }
 
-/// <summary>The def's XML fields; a number absent from the XML is null (the game's default applies).</summary>
+/// <summary>The def's XML fields.</summary>
 public sealed record MechanicCardXml(IReadOnlyList<string> NullifyingTraits, IReadOnlyList<MechanicCardStage> Stages)
 {
     /// <summary>The HediffDefs whose presence nullifies the thought (#3281); empty when the XML lists none.</summary>
     public IReadOnlyList<string> NullifyingHediffs { get; init; } = [];
 }
 
-public sealed record MechanicCardStage(double? BaseMoodEffect = null);
+/// <summary>A stage's <c>baseMoodEffect</c>; the card file writes the game's field default, 0, for a stage whose XML lists none.</summary>
+public sealed record MechanicCardStage(double BaseMoodEffect);
 
 /// <summary>
 /// A granting member and the guards on its path. <see cref="Stage"/> is set when the site returns a banded stage (#3324).

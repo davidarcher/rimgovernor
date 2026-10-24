@@ -38,7 +38,7 @@ public sealed class MechanicCardsTests
     {
         var card = MechanicCards.ByDef["DeadMansApparel"];
 
-        Assert.Equal([-5.0, -8, -11, -14], card.Xml.Stages.Select(s => s.BaseMoodEffect ?? 0));
+        Assert.Equal([-5.0, -8, -11, -14], card.Xml.Stages.Select(s => s.BaseMoodEffect));
         Assert.Equal(["Bloodlust"], card.Xml.NullifyingTraits);
         Assert.Equal(["Inhumanized"], card.Xml.NullifyingHediffs);
         Assert.Equal(2, card.Sites.Count);
@@ -62,7 +62,7 @@ public sealed class MechanicCardsTests
 
         Assert.Equal(MechanicCardStatus.Verified, card.Status);
         Assert.True(card.Live);
-        Assert.Equal([-4.0, -8, -12, -16], card.Xml.Stages.Select(s => s.BaseMoodEffect ?? 0));
+        Assert.Equal([-4.0, -8, -12, -16], card.Xml.Stages.Select(s => s.BaseMoodEffect));
         var band = Assert.Single(card.Sites).Stage!;
         Assert.Equal("-", band.Input.Op);
         Assert.Equal(("stat", stat), (band.Input.Args![statArg].Kind, band.Input.Args[statArg].Decl));

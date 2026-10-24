@@ -32,7 +32,7 @@ public sealed class EffectSourceCandidatesTests
             Options = [Garment("thin-parka", GearSlot.Outer, "Shell", "Torso", 10, source: GearSource.Stored)],
         }, new CardPawnFacts
         {
-            Traits = Known<EquatableArray<string>>([.. traits ?? []]), Hediffs = Known<EquatableArray<string>>([]), AnomalyActive = Known(false),
+            Traits = [.. traits ?? []], Hediffs = [], IdeologyActive = false, Precepts = [],
         });
 
     // #3329: a pawn in a shirt and pants (no insulation) with a parka (cold insulation 30, tainted or not) loose.
@@ -117,7 +117,7 @@ public sealed class EffectSourceCandidatesTests
     }
 
     [Fact]
-    public void AMissingBindingGivesNoCandidateAndAnUnknownFinding()
+    public void AMissingBindingGivesNoCandidateAndAnUnmodeledFinding()
     {
         var unbound = Verified with
         {
@@ -130,7 +130,7 @@ public sealed class EffectSourceCandidatesTests
         var result = Generate(Facts(), unbound);
 
         Assert.Empty(result.Roots);
-        Assert.Equal(["effect_source_offset_unknown:" + Def + "/pawn"], result.Findings);
+        Assert.Equal(["effect_source_offset_unmodeled:" + Def + "/pawn"], result.Findings);
     }
 
     [Fact]
@@ -165,14 +165,28 @@ public sealed class EffectSourceCandidatesTests
         var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true, LoadoutModel = new GearModel.NoOutfit() }] };
         var care = CareFixtures.Patient("pawn", [CareFixtures.Condition("Flu")]);
 
-        var facts = EffectSourcesRules.EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
+        var facts = EffectSourcesRules.EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]), false);
         var read = Assert.Single(facts.Pawns);
-        Assert.Equal(Known<EquatableArray<string>>(["Flu"]), read.Card.Hediffs);
+        Assert.Equal((EquatableArray<string>)["Flu"], read.Card.Hediffs);
         Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(facts).Roots).Id);
 
-        var unread = Generate(EffectSourcesRules.EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>()));
+        var unread = Generate(EffectSourcesRules.EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>(), false));
         Assert.Empty(unread.Roots);
-        Assert.Equal(["effect_source_offset_unknown:" + Def + "/pawn"], unread.Findings);
+        Assert.Equal(["effect_source_offset_unread:" + Def + "/pawn"], unread.Findings);
+    }
+
+    // #3327: the stage cards read whether Ideology is active and the pawn's ideo precepts, which the census stamps on its role.
+    [Fact]
+    public void CensusFactsCarryTheIdeologyStateAndTheRolesPrecepts()
+    {
+        var model = Pawn().Gear;
+        model = model with { Role = model.Role with { Precepts = ["Temperature_Tough"] } };
+        var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }] };
+        var medical = Known<EquatableArray<CarePawn>>([CareFixtures.Patient("pawn", [])]);
+
+        var read = Assert.Single(EffectSourcesRules.EffectSourceFactsOf(gear, medical, true).Pawns).Card;
+        Assert.True(read.IdeologyActive);
+        Assert.Equal((EquatableArray<string>)["Temperature_Tough"], read.Precepts);
     }
 
     // #3285 parity, the default: a pawn the comparator did not leave allowed plans and dresses with tainted apparel out.
@@ -213,7 +227,7 @@ public sealed class EffectSourceCandidatesTests
         var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, []).Gear;
         Assert.NotEmpty(GearRules.GearReplacementNeeds(standing));
 
-        var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [new GearChoice("pawn", true)]).Gear;
+        var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [GearChoice.KeepFloors("pawn", true)]).Gear;
         Assert.True(Assert.Single(allowed.Value.Pawns).AllowTainted);
         Assert.True(GearRules.ReviewGear(allowed).Recovered);
         Assert.Empty(GearRules.GearReplacementNeeds(allowed));
@@ -233,7 +247,7 @@ public sealed class EffectSourceCandidatesTests
         Assert.Equal(["gear/pawn/disallow-tainted/cold30-heat0", "gear/pawn/disallow-tainted/cold0-heat0"], result.Roots.Select(r => r.Id));
         Assert.All(result.Roots, r => Assert.Equal("gear/pawn", r.ExclusiveOutcome));
         Assert.Equal([new ForecastComfortShift("pawn", 30, 0)], result.Roots[1].ComfortShifts);
-        Assert.Equal(new GearChoice("pawn", false, 30, 0), EffectSourceCandidates.Choice("pawn", result.Roots[0].Id));
+        Assert.Equal(new GearChoice("pawn", false, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0)), EffectSourceCandidates.Choice("pawn", result.Roots[0].Id));
         Assert.DoesNotContain(result.Findings, f => f.StartsWith("effect_source_site_unreached:", StringComparison.Ordinal));
     }
 

@@ -58,7 +58,7 @@ public sealed class GearNamedStatesTests
                 new GearPawn { Pawn = new("unchosen"), LoadoutModel = new GearModel.NoOutfit(), Candidates = [], ColdFloor = new InsulationFloor.Chosen(3) },
             ],
         };
-        var stamped = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = Known(gear) }, [new GearChoice("chosen", false, ColdFloor: -10)]).Gear.Value.Pawns;
+        var stamped = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = Known(gear) }, [new GearChoice("chosen", false, new InsulationFloor.Chosen(-10), new InsulationFloor.Worn())]).Gear.Value.Pawns;
         Assert.Equal(new InsulationFloor.Chosen(-10), stamped[0].ColdFloor);
         Assert.IsType<InsulationFloor.Worn>(stamped[0].HeatFloor);
         // A pawn the comparator names no choice for is back at its worn insulation.

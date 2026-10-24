@@ -504,7 +504,9 @@ public static class ColonyGearReads
     /// <summary>
     /// Flags each census colonist that is a creepjoiner with an unrevealed downside
     /// (GearRoleInput.UnrevealedCreepjoiner), from pawn rows, on both the apparel policy state and the loadout model
-    /// so every reader derives the same constrained role. A pawn with no row is left unflagged; the census is
+    /// so every reader derives the same constrained role, and gives each the PreceptDef names of its pawn row's ideo
+    /// (GearRoleInput.Precepts; the temperature cards read them). A pawn with no row is left as it is, as is the census
+    /// without pawn rows: the medical read has no row for such a pawn either, so no card prices it. The census is
     /// copied, never mutated in place.
     /// </summary>
     public static GearObservation StampGearCreepjoiners(GearObservation gear, O.PawnSnapshot? pawns, CreepJoinerDownsides downsides)
@@ -522,17 +524,20 @@ public static class ColonyGearReads
         for (var i = 0; i < stamped.Count; i++)
         {
             var g = stamped[i];
-            if (!rows.TryGetValue(g.Pawn.Value, out var row) || !downsides.Unrevealed(CreepJoinerFacts.CreepJoinerPawn(row)))
+            if (!rows.TryGetValue(g.Pawn.Value, out var row))
             {
                 continue;
             }
+            var unrevealed = downsides.Unrevealed(CreepJoinerFacts.CreepJoinerPawn(row));
+            var precepts = row.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member ideo ? ideo.Precepts : [];
+            GearRoleInput Stamp(GearRoleInput role) => role with { UnrevealedCreepjoiner = role.UnrevealedCreepjoiner || unrevealed, Precepts = precepts };
             if (g.Policy is { } state)
             {
-                g = g with { Policy = state with { Role = state.Role with { UnrevealedCreepjoiner = true } } };
+                g = g with { Policy = state with { Role = Stamp(state.Role) } };
             }
             if (g.Model is { } model)
             {
-                g = g with { LoadoutModel = new GearModel.Modeled(model with { Role = model.Role with { UnrevealedCreepjoiner = true } }) };
+                g = g with { LoadoutModel = new GearModel.Modeled(model with { Role = Stamp(model.Role) }) };
             }
             stamped[i] = g;
         }
