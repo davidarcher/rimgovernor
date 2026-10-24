@@ -5,19 +5,19 @@ namespace RimGovernor.Brain.Policy;
 /// game grows under them, plant growers (hydroponics) with their fertility and sow tag, roofed rooms with
 /// temperature and light, and every power network's headroom split by source. Site-type selection reads it to
 /// price greenhouse reuse, new lamps, basins and dark rooms against outdoor soil; nothing here is planned or
-/// written natively.
+/// written natively. Every row is whole.
 /// </summary>
 public sealed record ControlledEnvironment
 {
-    public EquatableArray<GrowLight> Lights { get; init; }
+    public required EquatableArray<GrowLight> Lights { get; init; }
 
-    public EquatableArray<PlantGrower> Growers { get; init; }
+    public required EquatableArray<PlantGrower> Growers { get; init; }
 
-    public EquatableArray<GrowRoom> Rooms { get; init; }
+    public required EquatableArray<GrowRoom> Rooms { get; init; }
 
-    public EquatableArray<PowerHeadroom> Networks { get; init; }
+    public required EquatableArray<PowerHeadroom> Networks { get; init; }
 
-    public double OutdoorTemperatureC { get; init; }
+    public required double OutdoorTemperatureC { get; init; }
 
     /// <summary>The headroom row for a native network id.</summary>
     public PowerHeadroom? Network(string id)
@@ -41,7 +41,7 @@ public sealed record ControlledEnvironment
         var result = new Dictionary<Cell, string>();
         foreach (var l in Lights)
         {
-            if (!RoundsRules.Positive(l.LitNow))
+            if (!l.LitNow)
             {
                 continue;
             }
@@ -59,97 +59,93 @@ public sealed record ControlledEnvironment
 
 public sealed record GrowLight
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public Fact<string> Room { get; init; }
+    /// <summary>The native room id the lamp stands in; null when it stands in none.</summary>
+    public required string? Room { get; init; }
 
-    public Fact<string> Network { get; init; }
+    /// <summary>The power network the lamp is connected to; null when it is connected to none.</summary>
+    public required string? Network { get; init; }
 
     /// <summary>Powered and inside the lamp's native schedule.</summary>
-    public Fact<bool> LitNow { get; init; }
+    public required bool LitNow { get; init; }
 
     /// <summary>The native growth radius, not the wider glow radius.</summary>
-    public EquatableArray<Cell> GrowthCells { get; init; }
+    public required EquatableArray<Cell> GrowthCells { get; init; }
 }
 
 public sealed record PlantGrower
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public Fact<double> Fertility { get; init; }
+    public required GrowerFertility Fertility { get; init; }
 
-    public Fact<string> SowTag { get; init; }
+    /// <summary>The sow tag of the grower def's building properties; null when the def names none, so it takes no crop.</summary>
+    public required string? SowTag { get; init; }
 
-    public Fact<string> Crop { get; init; }
+    /// <summary>The plant the grower sows; null when it is set to sow none.</summary>
+    public required string? Crop { get; init; }
 
-    public Fact<bool> CanSow { get; init; }
+    public required bool CanSow { get; init; }
+}
+
+/// <summary>
+/// The fertility a plant grower gives its plants: a fixed value its def sets (hydroponics), or, for a def that
+/// sets none, the fertility of the ground beneath it, which the census does not price.
+/// </summary>
+public abstract record GrowerFertility
+{
+    private GrowerFertility()
+    {
+    }
+
+    public sealed record Fixed(double Value) : GrowerFertility;
+
+    public sealed record Ground : GrowerFertility;
 }
 
 public sealed record GrowRoom
 {
-    public string Id { get; init; } = "";
+    /// <summary>The native room id.</summary>
+    public required string Id { get; init; }
 
     /// <summary>The room's key in the cell grid (SiteCell.Room); Id is the native room id, a different key space.</summary>
-    public Fact<int> GridRoom { get; init; }
+    public required int GridRoom { get; init; }
 
-    public Fact<double> TemperatureC { get; init; }
+    public required double TemperatureC { get; init; }
 }
 
 public sealed record PowerHeadroom
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public Fact<double> GenerationW { get; init; }
+    public required double GenerationW { get; init; }
 
-    public Fact<double> SolarW { get; init; }
+    public required double SolarW { get; init; }
 
-    public Fact<double> WindW { get; init; }
+    public required double WindW { get; init; }
 
-    public Fact<double> ConsumptionW { get; init; }
+    public required double ConsumptionW { get; init; }
 
-    public Fact<double> CapacityWattDays { get; init; }
+    public required double CapacityWattDays { get; init; }
 
-    public Fact<bool> ActiveSource { get; init; }
+    public required bool ActiveSource { get; init; }
 
-    /// <summary>The network's surplus once solar output stops. Unknown when any term is unknown.</summary>
-    public Fact<double> NightHeadroomW()
-    {
-        var gk = GenerationW.TryGetValue(out var generation);
-        var sk = SolarW.TryGetValue(out var solar);
-        var ck = ConsumptionW.TryGetValue(out var consumption);
-        if (!gk || !sk || !ck || !FoodForecastRules.FoodNumber(generation) || !FoodForecastRules.FoodNumber(solar) || !FoodForecastRules.FoodNumber(consumption))
-        {
-            return Unknown<double>();
-        }
-        return Known(generation - solar - consumption);
-    }
+    /// <summary>The network's surplus by day: generation less consumption.</summary>
+    public double DayHeadroomW() => GenerationW - ConsumptionW;
+
+    /// <summary>The network's surplus once solar output stops.</summary>
+    public double NightHeadroomW() => GenerationW - SolarW - ConsumptionW;
 
     /// <summary>
     /// The surplus with neither sun nor wind: the margin a lamp or basin must fit in to keep growing through
     /// a still night.
     /// </summary>
-    public Fact<double> CalmNightHeadroomW()
-    {
-        var nk = NightHeadroomW().TryGetValue(out var night);
-        var wk = WindW.TryGetValue(out var wind);
-        if (!nk || !wk || !FoodForecastRules.FoodNumber(wind))
-        {
-            return Unknown<double>();
-        }
-        return Known(night - wind);
-    }
+    public double CalmNightHeadroomW() => NightHeadroomW() - WindW;
 }
 
 public static class ControlledEnvironmentRules
 {
-    /// <summary>Reports whether a crop's native sow tags include the grower's sow tag; unknown tags never match.</summary>
-    public static bool GrowerAccepts(PlantGrower grower, CropChoice crop)
-    {
-        var tk = grower.SowTag.TryGetValue(out var tag);
-        var ck = crop.SowTags.TryGetValue(out var tags);
-        return tk && ck && !string.IsNullOrEmpty(tag) && tags.Contains(tag);
-    }
-
     /// <summary>Reports a crop whose native minimum glow is zero, such as cave fungus, so an unlit roofed room is eligible for it.</summary>
     public static bool GrowsInDark(CropChoice crop) =>
         crop.MinGlow.TryGetValue(out var glow) && FoodForecastRules.FoodNumber(glow) && glow <= 0;

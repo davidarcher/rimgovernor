@@ -541,11 +541,10 @@ public static class ColonyDecodeReads
             }
             f = f with { EventLoot = Known(EquatableArray.From(rows)) };
         }
-        if (v.Planning is O.Planning.Requested { Facts: var planningObserved } && planningObserved.Environment is { } planningEnvironment
-            && !HasIssue(planningObserved.Issues, "environment")
-            && Headed(buildings, planningEnvironment.Lights, l => l.Building) && Headed(buildings, planningEnvironment.Growers, g => g.Building))
+        if (v.Planning is O.Planning.Requested { Facts: var planningObserved }
+            && Headed(buildings, planningObserved.Environment.Lights, l => l.Building) && Headed(buildings, planningObserved.Environment.Growers, g => g.Building))
         {
-            var environment = ColonyEnvironment(planningEnvironment, v.OutdoorTemperatureC, buildings, catalog);
+            var environment = ColonyEnvironment(planningObserved.Environment, v.OutdoorTemperatureC, buildings, catalog);
             r = r with { Environment = Known(environment) };
         }
         // Facts.Gear needs the catalog: ObserveColony fills it.
@@ -555,96 +554,84 @@ public static class ColonyDecodeReads
     internal static DefinitionCatalog RequireCatalog(DefinitionCatalog? catalog) =>
         catalog ?? throw new BridgeContractException("no definition catalog is held for this load");
 
-    internal static EquatableArray<Cell> CellsOf(IEnumerable<C.Cell> rows)
-    {
-        var output = new List<Cell>();
-        foreach (var row in rows)
-        {
-            output.Add(CellOf(row));
-        }
-        return EquatableArray.From(output);
-    }
-
     /// <summary>
-    /// Decodes the native controlled-growing census. Rows keep their native order (ids ascending); every
-    /// scalar stays unknown when the native side omitted it.
+    /// Decodes the native controlled-growing census whole. Rows keep their native order (ids ascending); a
+    /// grower's fertility and sow tag are its def row's in the catalog.
     /// </summary>
     internal static ControlledEnvironment ColonyEnvironment(O.ControlledEnvironment v, double outdoor, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var e = new ControlledEnvironment
-        {
-            OutdoorTemperatureC = outdoor,
-        };
         var lights = new List<GrowLight>();
         foreach (var row in v.Lights)
         {
-            var reference = buildings.Entity(row.Building);
             lights.Add(new GrowLight
             {
-                Id = reference?.Id ?? "",
-                Room = OptionalRef(row.Room),
-                Network = Optional(row.PowerNetId is not null, (row.PowerNetId ?? "")),
-                LitNow = Optional(row.LitNow is not null, row.LitNow.GetValueOrDefault()),
-                GrowthCells = CellsOf(row.GrowthCells),
+                Id = HeadedEntity(buildings, row.Building).Id,
+                Room = row.Room?.Id,
+                Network = row.PowerNetId,
+                LitNow = row.LitNow,
+                GrowthCells = row.GrowthCells,
             });
         }
         var growers = new List<PlantGrower>();
         foreach (var row in v.Growers)
         {
-            var reference = buildings.Entity(row.Building);
-            var (fertility, sowTag) = GrowerRows(catalog, reference?.DefName ?? "");
+            var reference = HeadedEntity(buildings, row.Building);
+            var (fertility, sowTag) = GrowerRows(catalog, reference.DefName);
             growers.Add(new PlantGrower
             {
-                Id = reference?.Id ?? "",
+                Id = reference.Id,
                 Fertility = fertility,
                 SowTag = sowTag,
-                Crop = Optional(row.CropDefName is not null, (row.CropDefName ?? "")),
-                CanSow = Optional(row.CanSow is not null, row.CanSow.GetValueOrDefault()),
+                Crop = row.CropDefName,
+                CanSow = row.CanSow,
             });
         }
         var rooms = new List<GrowRoom>();
         foreach (var row in v.Rooms)
         {
-            rooms.Add(new GrowRoom
-            {
-                Id = row.Room?.Id ?? "",
-                GridRoom = Optional(row.GridRoom is not null, row.GridRoom.GetValueOrDefault()),
-                TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
-            });
+            rooms.Add(new GrowRoom { Id = row.Room.Id, GridRoom = row.GridRoom, TemperatureC = row.TemperatureC });
         }
         var networks = new List<PowerHeadroom>();
         foreach (var row in v.Networks)
         {
             networks.Add(new PowerHeadroom
             {
-                Id = row.Id ?? "",
-                GenerationW = Optional(row.GenerationW is not null, row.GenerationW.GetValueOrDefault()),
-                SolarW = Optional(row.SolarW is not null, row.SolarW.GetValueOrDefault()),
-                WindW = Optional(row.WindW is not null, row.WindW.GetValueOrDefault()),
-                ConsumptionW = Optional(row.ConsumptionW is not null, row.ConsumptionW.GetValueOrDefault()),
-                CapacityWattDays = Optional(row.CapacityWattDays is not null, row.CapacityWattDays.GetValueOrDefault()),
-                ActiveSource = Optional(row.HasActiveSource is not null, row.HasActiveSource.GetValueOrDefault()),
+                Id = row.Id,
+                GenerationW = row.GenerationW,
+                SolarW = row.SolarW,
+                WindW = row.WindW,
+                ConsumptionW = row.ConsumptionW,
+                CapacityWattDays = row.CapacityWattDays,
+                ActiveSource = row.HasActiveSource,
             });
         }
-        return e with { Lights = [.. lights], Growers = [.. growers], Rooms = [.. rooms], Networks = [.. networks] };
+        return new ControlledEnvironment
+        {
+            Lights = [.. lights],
+            Growers = [.. growers],
+            Rooms = [.. rooms],
+            Networks = [.. networks],
+            OutdoorTemperatureC = outdoor,
+        };
     }
 
-    /// <summary>A plant grower def's own numbers: its fixed fertility (when it sets one) and the sow tag of its building properties, unknown for a def that names none.</summary>
-    internal static (Fact<double> Fertility, Fact<string> SowTag) GrowerRows(DefinitionCatalog? catalog, string def)
+    /// <summary>
+    /// A plant grower def's own numbers: its fixed fertility, or the ground's for a def that sets none, and the
+    /// sow tag of its building properties (null when it names none). A def the catalog has no row for is a contract break.
+    /// </summary>
+    /// <summary>The building row a census row refers to; the caller checked <see cref="Headed{TRow}(Buildings, IEnumerable{TRow}, Func{TRow, C.Ref?})"/> first.</summary>
+    private static O.EntityRef HeadedEntity(Buildings buildings, C.Ref reference) =>
+        buildings.Entity(reference) ?? throw new ObservationContractException($"building {reference.Id} is not in the building table");
+
+    internal static (GrowerFertility Fertility, string? SowTag) GrowerRows(DefinitionCatalog? catalog, string def)
     {
-        var row = RequireCatalog(catalog).FindThing(def);
-        var fertility = Unknown<double>();
-        var sowTag = Unknown<string>();
-        if (row is not null && row.fertility >= 0)
-        {
-            fertility = PlanningViewReads.FiniteFact(row.fertility);
-        }
-        var tag = row?.building?.sowTag ?? "";
-        if (tag != "")
-        {
-            sowTag = Known(tag);
-        }
-        return (fertility, sowTag);
+        var row = RequireCatalog(catalog).FindThing(def)
+            ?? throw new ObservationContractException($"plant grower {def} has no definition row");
+        GrowerFertility fertility = row.fertility >= 0
+            ? new GrowerFertility.Fixed(double.IsFinite(row.fertility) ? row.fertility : throw new ObservationContractException($"plant grower {def} has a nonfinite fertility"))
+            : new GrowerFertility.Ground();
+        var tag = row.building?.sowTag;
+        return (fertility, string.IsNullOrEmpty(tag) ? null : tag);
     }
 
     /// <summary>

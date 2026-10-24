@@ -212,17 +212,18 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   derives every deficit and replacement need from the model (the native deficit
   and replacement-need fields are reserved). Blocked pawns can still have
   equipment needs. The complete candidate list belongs to that exact loadout
-  token. Planning read issues distinguish an
-  unavailable gear census from a complete census with no eligible replacements.
+  token. PlanningFacts carries no read issues: a failed gear or
+  controlled-environment read fails the colony facts read.
 - PlanningFacts.environment is the controlled-growing census inside the 45x45
-  planning region: sun lamps with the native growth cells (specialDisplayRadius,
-  not glow radius), power draw, schedule-aware lit_now and network; plant growers
-  with fertility, sow tag, current crop and can_sow; proper indoor rooms with
-  temperature and open-roof counts; and every power network's current
-  generation split into solar and wind, consumption and capacity
-  watt-days. Planning definitions add sow_tags and grow_min_glow for plants and
-  power_w, glow_radius, sow_tag and grower_fertility for buildings. An
-  `environment` section issue withholds the census; row counts are bounded.
+  planning region, every row whole: sun lamps with the native growth cells
+  (specialDisplayRadius, not glow radius), schedule-aware litNow, and their room
+  and power network (null when none); plant growers with their current crop
+  (null when set to none) and canSow; proper indoor rooms that have an unfogged
+  cell, with their grid room key and temperature; and every power network's
+  current generation split into solar and wind, consumption and capacity
+  watt-days. A grower's fertility and sow tag are its def row's in the
+  definition catalog (sow_tags and grow_min_glow for plants; power_w,
+  glow_radius, sow_tag and grower_fertility for buildings).
 - The colony upkeep projection includes independent complete visible item,
   structure, fire and filth censuses, each returning every row whole; a read
   native cannot make fails the observation rather than leaving a field unknown. Item deterioration uses the native base rate, so covered items still

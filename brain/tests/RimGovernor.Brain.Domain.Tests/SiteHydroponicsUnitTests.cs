@@ -56,11 +56,11 @@ public sealed class SiteHydroponicsUnitTests
                 Coverage = Known(0.0),
                 Site = new FarmSiteRequest { Cells = cells },
             },
-            Environment = Known(new ControlledEnvironment
+            Environment = Known(ControlledEnvironmentTests.NoEnvironment with
             {
                 OutdoorTemperatureC = 20.0,
                 // The native room id differs from the grid key the cells carry.
-                Rooms = EquatableArray.From([new GrowRoom { Id = "native-9", GridRoom = Known(GridKey), TemperatureC = Known(-5.0) }]),
+                Rooms = EquatableArray.From([new GrowRoom { Id = "native-9", GridRoom = GridKey, TemperatureC = -5.0 }]),
             }),
             Lamp = Known(new Infrastructure { Name = "SunLamp", Available = Known(true), PowerW = Known(2900.0) }),
             Basin = Known(new Infrastructure { Name = "HydroponicsBasin", Available = Known(true), PowerW = Known(70.0), Fertility = Known(2.8) }),

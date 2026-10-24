@@ -5724,72 +5724,76 @@ public sealed record FoodClimate
 /// <summary>
 /// Controlled-environment growing facts within the planning region: sun lamps
 /// with the exact cells they grow, plant growers (hydroponics) with their
-/// crop cells and crop, roofed rooms with temperature, and per-network
+/// crop and sowing state, roofed rooms with temperature, and per-network
 /// power headroom split by source so night and outage margins are computable.
+/// Every row is whole; a read native cannot make fails the colony facts read.
 /// </summary>
 public sealed record GrowLight
 {
-    public Common.Ref? Building { get; init; }
+    public required Common.Ref Building { get; init; }
 
-    public Common.Ref? Room { get; init; }
+    /// <summary>The room the lamp stands in; null when it stands in none.</summary>
+    public required Common.Ref? Room { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> GrowthCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> GrowthCells { get; init; }
 
-    public bool? LitNow { get; init; }
+    public required bool LitNow { get; init; }
 
-    public string? PowerNetId { get; init; }
+    /// <summary>The power network the lamp is connected to; null when it is connected to none.</summary>
+    public required string? PowerNetId { get; init; }
 }
 
 public sealed record PlantGrower
 {
-    public Common.Ref? Building { get; init; }
+    public required Common.Ref Building { get; init; }
 
-    public string? CropDefName { get; init; }
+    /// <summary>The plant the grower sows; null when it is set to sow none.</summary>
+    public required string? CropDefName { get; init; }
 
-    public bool? CanSow { get; init; }
+    public required bool CanSow { get; init; }
 }
 
 public sealed record GrowRoom
 {
-    public Common.Ref? Room { get; init; }
+    public required Common.Ref Room { get; init; }
 
-    /// <summary>The room's key in the cell grid (RoomState.GridRoom); absent when every cell is fogged.</summary>
-    public int? GridRoom { get; init; }
+    /// <summary>The room's key in the cell grid (RoomState.GridRoom). A room whose every cell is fogged is not listed.</summary>
+    public required int GridRoom { get; init; }
 
-    public double? TemperatureC { get; init; }
+    public required double TemperatureC { get; init; }
 }
 
 public sealed record PowerHeadroom
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public double? GenerationW { get; init; }
+    public required double GenerationW { get; init; }
 
-    public double? SolarW { get; init; }
+    public required double SolarW { get; init; }
 
-    public double? WindW { get; init; }
+    public required double WindW { get; init; }
 
-    public double? ConsumptionW { get; init; }
+    public required double ConsumptionW { get; init; }
 
-    public double? CapacityWattDays { get; init; }
+    public required double CapacityWattDays { get; init; }
 
-    public bool? HasActiveSource { get; init; }
+    public required bool HasActiveSource { get; init; }
 }
 
 public sealed record ControlledEnvironment
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<GrowLight>))]
-    public EquatableArray<GrowLight> Lights { get; init; }
+    public required EquatableArray<GrowLight> Lights { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlantGrower>))]
-    public EquatableArray<PlantGrower> Growers { get; init; }
+    public required EquatableArray<PlantGrower> Growers { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GrowRoom>))]
-    public EquatableArray<GrowRoom> Rooms { get; init; }
+    public required EquatableArray<GrowRoom> Rooms { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PowerHeadroom>))]
-    public EquatableArray<PowerHeadroom> Networks { get; init; }
+    public required EquatableArray<PowerHeadroom> Networks { get; init; }
 }
 
 /// <summary>
@@ -5816,10 +5820,7 @@ public sealed record PlanningFacts
 {
     public required GearSnapshot Gear { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
-    public ControlledEnvironment? Environment { get; init; }
+    public required ControlledEnvironment Environment { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<EdibleCrop>))]
     public EquatableArray<EdibleCrop> Crops { get; init; }

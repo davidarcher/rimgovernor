@@ -155,7 +155,7 @@ public static partial class SiteRules
         var cold = env.OutdoorTemperatureC < SiteColdC;
         foreach (var room in env.Rooms)
         {
-            if (room.TemperatureC.TryGetValue(out var t) && room.GridRoom.TryGetValue(out var gridRoom) && gridRoom.ToString(System.Globalization.CultureInfo.InvariantCulture) == RoomAt(center) && t < SiteColdC)
+            if (room.GridRoom.ToString(System.Globalization.CultureInfo.InvariantCulture) == RoomAt(center) && room.TemperatureC < SiteColdC)
             {
                 cold = true;
             }

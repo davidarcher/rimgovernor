@@ -344,7 +344,8 @@ public static partial class MealRules
                 return ("", false);
             }
             seen.Add(network.Id);
-            if (!network.CalmNightHeadroomW().TryGetValue(out var margin) || !RoundsRules.Positive(network.ActiveSource) || margin < watts)
+            var margin = network.CalmNightHeadroomW();
+            if (!network.ActiveSource || margin < watts)
             {
                 continue;
             }

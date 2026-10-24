@@ -34,8 +34,8 @@ public static class GrowerCropRules
     /// <summary>
     /// Ranks, for each grower that can sow, every available edible crop carrying the
     /// grower's sow tag by its nutrition rate over the grower's fertility (the same rate a basin candidate is
-    /// scored with), and returns the growers whose current crop is not the winner. A grower whose crop, sow tag,
-    /// fertility or sowing state is unknown is left alone, as is one already sowing the winner; growers are
+    /// scored with), and returns the growers whose current crop is not the winner. A grower set to sow no crop,
+    /// whose def names no sow tag, whose fertility is the ground's, or that cannot sow now is left alone, as is one already sowing the winner; growers are
     /// returned in id order.
     /// </summary>
     public static IReadOnlyList<GrowerCropChoice> PlanGrowerCrops(GrowerCropRequest r)
@@ -43,10 +43,8 @@ public static class GrowerCropRules
         var @out = new List<GrowerCropChoice>();
         foreach (var g in r.Growers)
         {
-            var tk = g.SowTag.TryGetValue(out var tag);
-            var ck = g.Crop.TryGetValue(out var current);
-            var fk = g.Fertility.TryGetValue(out var fertility);
-            if (!RoundsRules.Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldCapacityRules.FieldPositive(fertility) || g.Id.Length == 0)
+            if (!g.CanSow || g.SowTag is not { Length: > 0 } tag || g.Crop is not { } current
+                || g.Fertility is not GrowerFertility.Fixed(var fertility) || !FieldCapacityRules.FieldPositive(fertility) || g.Id.Length == 0)
             {
                 continue;
             }
@@ -55,7 +53,7 @@ public static class GrowerCropRules
             {
                 continue;
             }
-            @out.Add(new GrowerCropChoice { Grower = g.Id, Current = current!, Crop = ranking[0].Crop, Reason = ranking[0].Reason });
+            @out.Add(new GrowerCropChoice { Grower = g.Id, Current = current, Crop = ranking[0].Crop, Reason = ranking[0].Reason });
         }
         return [.. @out.OrderBy(c => c.Grower, StringComparer.Ordinal)];
     }

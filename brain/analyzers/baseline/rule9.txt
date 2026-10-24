@@ -273,7 +273,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|58
+Contracts/Observations.cs|NullableValue|48
 Contracts/Observations.cs|UnknownMember|1
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -328,8 +328,8 @@ Observation/BiotechColony.cs|Fact|1
 Observation/Clearance.cs|Fact|1
 Observation/Colony.cs|Fact|80
 Observation/Colony.cs|Unknown|4
-Observation/ColonyDecode.cs|Fact|53
-Observation/ColonyDecode.cs|Unknown|5
+Observation/ColonyDecode.cs|Fact|50
+Observation/ColonyDecode.cs|Unknown|3
 Observation/ColonyFrames.cs|Fact|20
 Observation/ColonyFrames.cs|Unknown|3
 Observation/ColonyGear.cs|Fact|16
@@ -457,8 +457,7 @@ Policy/ConstructionOwnership.cs|Unknown|1
 Policy/ConstructionProjection.cs|Fact|4
 Policy/ConstructionProjection.cs|Unknown|3
 Policy/ContainmentCell.cs|Fact|4
-Policy/ControlledEnvironment.cs|Fact|27
-Policy/ControlledEnvironment.cs|Unknown|2
+Policy/ControlledEnvironment.cs|Fact|1
 Policy/CoordinatedActivities.cs|Fact|5
 Policy/CorpseLarder.cs|Fact|1
 Policy/CoupleBed.cs|Fact|1
@@ -564,7 +563,7 @@ Policy/GoalsFamily.cs|Discard|7
 Policy/GoalsFamily.cs|Fact|89
 Policy/GoalsFamily.cs|NullableValue|1
 Policy/GoalsFamily.cs|Unknown|1
-Policy/GrowerCrop.cs|Fact|9
+Policy/GrowerCrop.cs|Fact|6
 Policy/GrowerCrop.cs|ValueOrDefault|2
 Policy/Harm/HarmLedger.cs|Fact|10
 Policy/HerdMaster.cs|Fact|4
@@ -643,7 +642,7 @@ Policy/LootRelease.cs|Fact|6
 Policy/MaterialBudget.cs|Fact|7
 Policy/MaterialBudget.cs|Unknown|1
 Policy/MealStock.cs|Discard|1
-Policy/MealTier.cs|Fact|16
+Policy/MealTier.cs|Fact|15
 Policy/MechChargerConcern.cs|Fact|9
 Policy/MechanicCardGuards.cs|Discard|2
 Policy/MechanicCardGuards.cs|Fact|82
@@ -788,9 +787,9 @@ Policy/Sheltering.cs|Fact|25
 Policy/Sheltering.cs|Unknown|2
 Policy/SilverGap.cs|Fact|22
 Policy/SilverGap.cs|Unknown|6
-Policy/SiteHydroponicsUnit.cs|Fact|10
+Policy/SiteHydroponicsUnit.cs|Fact|8
 Policy/SiteType.cs|Discard|2
-Policy/SiteType.cs|Fact|42
+Policy/SiteType.cs|Fact|32
 Policy/SleepingBedroom.cs|Fact|13
 Policy/SleepingBedroom.cs|Unknown|1
 Policy/SleepingMethod.cs|Fact|11

@@ -407,44 +407,24 @@ public static partial class SiteRules
     /// all night (basins, heaters). Networks without an active source never qualify; a network without
     /// batteries must carry a night load through a calm night.
     /// </summary>
-    internal static (PowerHeadroom Network, double Room, bool Fits) SitePower(ControlledEnvironment env, double drawW, bool night)
+    internal static (PowerHeadroom? Network, double Room, bool Fits) SitePower(ControlledEnvironment env, double drawW, bool night)
     {
-        var best = new PowerHeadroom();
+        PowerHeadroom? best = null;
         var bestRoom = 0.0;
-        var found = false;
         foreach (var n in env.Networks)
         {
-            if (!RoundsRules.Positive(n.ActiveSource))
+            if (!n.ActiveSource)
             {
                 continue;
             }
-            Fact<double> room = default;
-            if (!night)
-            {
-                var gk = n.GenerationW.TryGetValue(out var generation);
-                var ck = n.ConsumptionW.TryGetValue(out var consumption);
-                if (gk && ck && FoodForecastRules.FoodNumber(generation) && FoodForecastRules.FoodNumber(consumption))
-                {
-                    room = Known(generation - consumption);
-                }
-            }
-            else if (n.CapacityWattDays.TryGetValue(out var capacity) && capacity > 0)
-            {
-                room = n.NightHeadroomW();
-            }
-            else
-            {
-                room = n.CalmNightHeadroomW();
-            }
-            var known = room.TryGetValue(out var v);
-            if (known && (!found || v > bestRoom || (v == bestRoom && string.CompareOrdinal(n.Id, best.Id) < 0)))
+            var v = !night ? n.DayHeadroomW() : n.CapacityWattDays > 0 ? n.NightHeadroomW() : n.CalmNightHeadroomW();
+            if (best is null || v > bestRoom || (v == bestRoom && string.CompareOrdinal(n.Id, best.Id) < 0))
             {
                 best = n;
                 bestRoom = v;
-                found = true;
             }
         }
-        return (best, bestRoom, found && bestRoom >= drawW);
+        return (best, bestRoom, best is not null && bestRoom >= drawW);
     }
 
     private static SiteTypeCandidate SiteCandidate(SiteTypeRequest r, SiteTypeWeights w, ControlledEnvironment env, SiteKind kind, ViableCrop v)
@@ -497,9 +477,7 @@ public static partial class SiteRules
             if (network != "")
             {
                 var n = env.Network(network);
-                var room = 0.0;
-                var rk = n is not null && n.CalmNightHeadroomW().TryGetValue(out room);
-                if (n is null || !RoundsRules.Positive(n.ActiveSource) || !rk || room < total)
+                if (n is null || !n.ActiveSource || n.CalmNightHeadroomW() < total)
                 {
                     reason = "no night power headroom for heating";
                     return false;
@@ -557,16 +535,13 @@ public static partial class SiteRules
                     foreach (var cell in PlannedRules.RectCells(patch))
                     {
                         lamps.TryGetValue(lit.GetValueOrDefault(cell) ?? "", out var lamp);
-                        if (lamp is not null && lamp.Network.TryGetValue(out var id) && network == "")
+                        if (lamp?.Network is { } id && network == "")
                         {
                             network = id;
                         }
-                        if (lamp is not null && lamp.Room.TryGetValue(out var roomId))
+                        if (lamp?.Room is { } roomId && rooms.TryGetValue(roomId, out var gr) && gr.TemperatureC < SiteColdC)
                         {
-                            if (rooms.TryGetValue(roomId, out var gr) && gr.TemperatureC.TryGetValue(out var t) && t < SiteColdC)
-                            {
-                                cold.Add(roomId);
-                            }
+                            cold.Add(roomId);
                         }
                     }
                 }
@@ -625,7 +600,7 @@ public static partial class SiteRules
                     return c with { Sites = sites, Cells = cells, Reason = "no free unlit roofed soil" };
                 }
                 var (network, _, fits) = SitePower(env, draw, false);
-                if (!fits)
+                if (!fits || network is null)
                 {
                     return c with { Reason = "no daytime power headroom for a sun lamp" };
                 }

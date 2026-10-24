@@ -351,15 +351,16 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
-            // A failed gear read fails the colony facts read (#3777): the census is whole or absent.
+            // A failed gear or controlled-environment read fails the colony facts read (#3777, #3921): each census is whole or absent.
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var result = new Obs.PlanningFacts { Gear = NativeGearFacts.Read(map) };
+            var gear = NativeGearFacts.Read(map);
             ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            began = System.Diagnostics.Stopwatch.GetTimestamp();
+            var result = new Obs.PlanningFacts { Gear = gear, Environment = Environment(map) };
+            ObservationWork.Detail("cf.environment", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
             result = result with { Crops = [.. result.Crops, .. Crops(map)] };
             ObservationWork.Detail("cf.crops", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            try { result = result with { Environment = Environment(map) }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Issues = [.. result.Issues, Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")] }; }
             return result;
         }
 
@@ -406,41 +407,41 @@ namespace HomeBridge.BridgeTools
         private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
         private static Obs.ControlledEnvironment Environment(Map map)
         {
-            var result = new Obs.ControlledEnvironment();
             string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
             var rooms = new Dictionary<int, Room>();
             void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
+            var lights = new List<Obs.GrowLight>();
+            var growers = new List<Obs.PlantGrower>();
             var buildings = map.listerBuildings.allBuildingsColonist.OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var building in buildings) {
                 var power = building.TryGetComp<CompPowerTrader>();
                 var room = building.GetRoom();
                 if (IsSunLamp(building)) { var lamp = building;
-                    var row = new Obs.GrowLight { Building = NativeBuildingObservationTools.Ref(lamp) };
-                    if (power != null) { var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
                     var schedule = lamp.TryGetComp<CompSchedule>();
-                    row = row with { LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed) };
-                    foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row = row with { GrowthCells = [.. row.GrowthCells, Cell(c)] };
-                    if (room != null) { row = row with { Room = NativeRef.Room(room) }; Note(room); }
-                    result = result with { Lights = [.. result.Lights, row] };
+                    lights.Add(new Obs.GrowLight {
+                        Building = NativeBuildingObservationTools.Ref(lamp),
+                        Room = room == null ? null : NativeRef.Room(room),
+                        GrowthCells = [.. GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map)).Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))],
+                        LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed),
+                        PowerNetId = NetId(power) });
+                    Note(room);
                 } else if (building is Building_PlantGrower grower) {
-                    var row = new Obs.PlantGrower { Building = NativeBuildingObservationTools.Ref(grower),
-                        CanSow = grower.CanAcceptSowNow() };
-                    var crop = grower.GetPlantDefToGrow();
-                    if (crop != null) row = row with { CropDefName = crop.defName };
-                    if (room != null) Note(room);
-                    result = result with { Growers = [.. result.Growers, row] };
+                    growers.Add(new Obs.PlantGrower { Building = NativeBuildingObservationTools.Ref(grower),
+                        CropDefName = grower.GetPlantDefToGrow()?.defName, CanSow = grower.CanAcceptSowNow() });
+                    Note(room);
                 }
             }
-            foreach (var room in map.regionGrid.AllRooms) if (room.Cells.Any(c => !c.Fogged(map))) Note(room);
+            foreach (var room in map.regionGrid.AllRooms) Note(room);
+            var grown = new List<Obs.GrowRoom>();
             foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
-                var row = new Obs.GrowRoom { Room = NativeRef.Room(room), TemperatureC = Finite(room.Temperature) };
+                // A room whose every cell is fogged has no key in the cell grid and is not listed.
                 var held = room.Cells.Where(c => !c.Fogged(map)).ToList();
-                if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x) };
-                result = result with { Rooms = [.. result.Rooms, row] };
+                if (held.Count == 0) continue;
+                grown.Add(new Obs.GrowRoom { Room = NativeRef.Room(room), GridRoom = held.Min(c => c.z * map.Size.x + c.x), TemperatureC = Finite(room.Temperature) });
             }
+            var networks = new List<Obs.PowerHeadroom>();
             var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
             foreach (var net in nets.OrderBy(n => n.GetHashCode())) {
-                var row = new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), HasActiveSource = net.HasActivePowerSource };
                 double generation = 0, solar = 0, wind = 0, consumption = 0;
                 foreach (var trader in net.powerComps ?? new List<CompPowerTrader>()) {
                     if (trader == null) continue;
@@ -454,11 +455,10 @@ namespace HomeBridge.BridgeTools
                 }
                 double capacity = 0;
                 foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
-                row = row with { GenerationW = generation }; row = row with { SolarW = solar }; row = row with { WindW = wind }; row = row with { ConsumptionW = consumption };
-                row = row with { CapacityWattDays = capacity };
-                result = result with { Networks = [.. result.Networks, row] };
+                networks.Add(new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), HasActiveSource = net.HasActivePowerSource,
+                    GenerationW = generation, SolarW = solar, WindW = wind, ConsumptionW = consumption, CapacityWattDays = capacity });
             }
-            return result;
+            return new Obs.ControlledEnvironment { Lights = [.. lights], Growers = [.. growers], Rooms = [.. grown], Networks = [.. networks] };
         }
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
