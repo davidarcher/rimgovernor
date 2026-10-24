@@ -361,11 +361,20 @@ partial class RoundsMedicalPlanner
         return "medicine_stock";
     }
 
-    internal static Verdict MedicineChoiceVerdict(MedicineMethodKind kind, Resource resource) => kind switch
+    internal static Verdict MedicineChoiceVerdict(MedicineMethodKind kind, Resource resource)
     {
-        MedicineMethodKind.Recovered => BuildingReasonNoDeficit,
-        MedicineMethodKind.Unknown => FieldUnavailable("medicine_target"),
-        MedicineMethodKind.Blocked => AwaitingPlan("production_bench", resource.Value),
-        _ => WaitFor(Cause.MethodUsed, "medicine_method"),
-    };
+        if (kind == MedicineMethodKind.Recovered)
+        {
+            return BuildingReasonNoDeficit;
+        }
+        if (kind == MedicineMethodKind.Unknown)
+        {
+            return FieldUnavailable("medicine_target");
+        }
+        if (kind == MedicineMethodKind.Blocked)
+        {
+            return AwaitingPlan("production_bench", resource.Value);
+        }
+        return WaitFor(Cause.MethodUsed, "medicine_method");
+    }
 }

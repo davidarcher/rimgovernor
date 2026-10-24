@@ -41,9 +41,22 @@ public enum RecoveryStatus
     Held,
 }
 
+/// <summary>Native's verdict on the route to a thing.</summary>
+public enum RouteSafety
+{
+    /// <summary>The route keeps clear of the colony's hazards.</summary>
+    Safe,
+
+    /// <summary>The route is unsafe: the thing is held.</summary>
+    Unsafe,
+
+    /// <summary>Native read no route verdict for the thing (no salvage evidence, or a stack whose safety was not read); it is held like an unsafe route.</summary>
+    Unread,
+}
+
 /// <summary>
 /// One candidate. Hold is a thing-level refusal already in the RemoteHoldReason vocabulary (not_deconstructible,
-/// ancient_danger, casket, roof_support_risk, ...); RouteSafe is native's route verdict. A thing with no yield
+/// ancient_danger, casket, roof_support_risk, ...); Route is native's route verdict. A thing with no yield
 /// evidence has Evidenced false and is held "salvage_unknown".
 /// </summary>
 public sealed record RecoveryThing
@@ -68,7 +81,7 @@ public sealed record RecoveryThing
 
     public string Hold { get; init; } = "";
 
-    public Fact<bool> RouteSafe { get; init; }
+    public RouteSafety Route { get; init; }
 }
 
 /// <summary>
@@ -185,7 +198,7 @@ public static partial class RecoveryRules
         {
             return "salvage_unknown";
         }
-        if (!t.RouteSafe.TryGetValue(out var safe) || !safe)
+        if (t.Route != RouteSafety.Safe)
         {
             return RemoteRules.RemoteHoldRouteUnsafe;
         }
@@ -306,7 +319,7 @@ public static partial class RecoveryRules
             RoomObstruction = roomObstruction,
             Cell = new Cell((row.Minimum.X + row.Maximum.X) / 2, (row.Minimum.Z + row.Maximum.Z) / 2),
             Hold = RemoteRules.RemoteHoldReason(ClearanceRules.ClearanceHoldReason(own)),
-            RouteSafe = Unknown<bool>(),
+            Route = RouteSafety.Unread,
             Skipped = row.SalvageSkipped,
         };
         if (row.Salvage is not null)
@@ -315,7 +328,7 @@ public static partial class RecoveryRules
             {
                 Candidate = RemoteRules.SalvagePriced(row.EntityId, row.Salvage).Candidate,
                 Evidenced = true,
-                RouteSafe = row.Salvage.Safe,
+                Route = row.Salvage.Safe.TryGetValue(out var safe) ? (safe ? RouteSafety.Safe : RouteSafety.Unsafe) : RouteSafety.Unread,
             };
         }
         return (t, true);
@@ -336,7 +349,7 @@ public static partial class RecoveryRules
             Cell = row.Supply.Cell,
             Evidenced = true,
             Candidate = LootCandidate(row),
-            RouteSafe = row.SafetyKnown ? Known(row.SafeToHaul) : Unknown<bool>(),
+            Route = !row.SafetyKnown ? RouteSafety.Unread : row.SafeToHaul ? RouteSafety.Safe : RouteSafety.Unsafe,
         };
         return (t, true);
     }

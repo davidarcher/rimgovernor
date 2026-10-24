@@ -32,8 +32,6 @@ BuildingRuntime/ArrivalHold.cs|Fact|1
 BuildingRuntime/Boundary/Boundary.cs|Discard|2
 BuildingRuntime/Boundary/Boundary.cs|Fact|4
 BuildingRuntime/Boundary/Boundary.cs|Unknown|2
-BuildingRuntime/Boundary/FamilyFacts.cs|Fact|35
-BuildingRuntime/Boundary/FamilyFacts.cs|Unknown|4
 BuildingRuntime/BreakDispatch.cs|Fact|7
 BuildingRuntime/BreakDispatch.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.CellGrid.cs|Fact|17
@@ -172,7 +170,6 @@ BuildingRuntime/Rounds/RoundsMaintainShelter.cs|Fact|15
 BuildingRuntime/Rounds/RoundsMaintainShelter.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsMeals.cs|Fact|3
 BuildingRuntime/Rounds/RoundsMech.cs|Fact|2
-BuildingRuntime/Rounds/RoundsMedical.cs|Discard|1
 BuildingRuntime/Rounds/RoundsMedical.cs|Fact|7
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Unknown|2
@@ -393,7 +390,6 @@ Policy/AnimalFood.cs|Unknown|2
 Policy/AnimalUpkeep.cs|Fact|10
 Policy/AnimalsFamily.cs|Fact|17
 Policy/AnomalyFamily.cs|Fact|3
-Policy/ApparelPolicy.cs|Discard|1
 Policy/Armory.cs|Fact|1
 Policy/ArmoryShells.cs|Fact|5
 Policy/ArmoryShells.cs|Unknown|1
@@ -413,7 +409,6 @@ Policy/Calendar.cs|Fact|41
 Policy/Calendar.cs|Unknown|5
 Policy/CapabilityMaintenance.cs|Fact|2
 Policy/CapacityPenaltyTables.cs|NullableValue|6
-Policy/CareOrders.cs|Discard|1
 Policy/ChildRooms.cs|Fact|2
 Policy/Climate.cs|Discard|2
 Policy/Climate.cs|Fact|1
@@ -488,7 +483,6 @@ Policy/Disaster.cs|Unknown|2
 Policy/DisasterFamily.cs|Fact|4
 Policy/DiseaseRest.cs|Fact|2
 Policy/DoorControl.cs|Fact|4
-Policy/DrugPolicyPlan.cs|Discard|1
 Policy/Economy.cs|Fact|18
 Policy/Economy.cs|Unknown|3
 Policy/EconomyTrade.cs|Fact|6
@@ -746,8 +740,8 @@ Policy/RecoveryBatch.cs|Fact|2
 Policy/RecoveryMethod.cs|Discard|1
 Policy/RecoveryMethod.cs|Fact|18
 Policy/RecoveryMethod.cs|Unknown|2
-Policy/RecoveryQueue.cs|Fact|15
-Policy/RecoveryQueue.cs|Unknown|3
+Policy/RecoveryQueue.cs|Fact|13
+Policy/RecoveryQueue.cs|Unknown|1
 Policy/Refrigeration.cs|Fact|10
 Policy/Refrigeration.cs|Unknown|1
 Policy/Refrigeration.cs|UnknownMember|1
@@ -758,7 +752,6 @@ Policy/RemoteHold.cs|Fact|11
 Policy/RemoteHold.cs|Unknown|1
 Policy/RemoteLoot.cs|Fact|8
 Policy/RemoteSalvage.cs|Fact|1
-Policy/Rescue.cs|Fact|18
 Policy/ResearchFacts.cs|Fact|29
 Policy/ResearchFacts.cs|Unknown|8
 Policy/ResourceConsumption.cs|Fact|2
@@ -831,8 +824,6 @@ Policy/TechTier.cs|Fact|7
 Policy/TechTier.cs|Unknown|1
 Policy/TemperatureMethod.cs|Fact|34
 Policy/TemperatureMethod.cs|UnknownMember|1
-Policy/Tend.cs|Fact|46
-Policy/Tend.cs|Unknown|1
 Policy/ThemePresets.cs|Discard|1
 Policy/ThemePresets.cs|NullableValue|6
 Policy/Throne.cs|Fact|4

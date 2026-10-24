@@ -3,6 +3,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
+using BleedOut = RimGovernor.Contracts.Wire.Observations.BleedOut;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -81,16 +82,16 @@ public sealed class MedicalFamilyTests
 
     private static TendDoctorFacts Doctor(string id, int skill) => new()
     {
-        Pawn = new(id), Dead = Known(false), Downed = Known(false), Drafted = Known(false), MentalState = false, PlayerForced = Known(false),
-        QueuedJobs = Known(0u), ExistingJobDef = Known(""), MedicineSkill = Known(skill), MedicineSkillDisabled = Known(false),
-        DoctorWorkEnabled = Known(true), DoctorWorkOverrideDisabled = Known(false), ControlEligible = Known(true), TendCapacities = Known(true),
+        Pawn = new(id), Dead = false, Downed = false, Drafted = false, MentalState = false, PlayerForced = false,
+        QueuedJobs = 0u, ExistingJobDef = null, MedicineSkill = skill, MedicineSkillDisabled = false,
+        Work = DoctorWork.Assigned, ControlEligible = true, TendCapacities = true,
     };
 
     private static TendPatientFacts Patient(PawnId id, double bleedHours = double.NaN) => new()
     {
-        Pawn = id, Dead = Known(false), Downed = Known(true), InBed = Known(false), NeedsTend = Known(true), NoCare = Known(false),
-        Bleeding = Known(!double.IsNaN(bleedHours)), LifeThreatening = Known(false),
-        HoursUntilDeathFromBloodLoss = double.IsNaN(bleedHours) ? Unknown<double>() : Known(bleedHours), ExistingJobDef = Known(""),
+        Pawn = id, Dead = false, Downed = true, InBed = false, NeedsTend = true, Care = TendCare.Provided,
+        BleedOut = double.IsNaN(bleedHours) ? new BleedOut.NotBleedingOut() : new BleedOut.Within(bleedHours),
+        LifeThreatening = false, ExistingJobDef = null, Threatened = false,
     };
 
     private static TendReachability Everyone(params string[] doctors) =>
@@ -120,15 +121,48 @@ public sealed class MedicalFamilyTests
     {
         static RescuerFacts Rescuer(string id) => new()
         {
-            Pawn = new(id), Dead = Known(false), Downed = Known(false), Drafted = Known(false), MentalState = false,
-            PlayerForced = Known(false), QueuedJobs = Known(0u), ExistingJobDef = Known(""),
+            Pawn = new(id), Dead = false, Downed = false, Drafted = false, MentalState = false,
+            PlayerForced = false, QueuedJobs = 0u, ExistingJobDef = null,
         };
-        static RescuePatientFacts Downed(PawnId id) => new() { Pawn = id, Dead = Known(false), Downed = Known(true), InBed = Known(false), ExistingJobDef = Known("") };
+        static RescuePatientFacts Downed(PawnId id) => new() { Pawn = id, Dead = false, Downed = true, InBed = false, ExistingJobDef = null };
         var care = new CriticalCare { Rescuers = [Rescuer("r1"), Rescuer("r2")], RescuePatients = [Downed(P1), Downed(P2)] };
         Assert.Equal((new PawnId("r1"), true), MedicalRules.RescuerFor(care, P1));
         Assert.Equal((new PawnId("r2"), true), MedicalRules.RescuerFor(care, P2));
         Assert.Equal((new PawnId("r2"), true), MedicalRules.RescuerFor(care with { Busy = [new("r1")] }, P1));
         Assert.False(MedicalRules.RescuerFor(care with { Busy = [new("r1"), new("r2")] }, P1).Ok);
+    }
+
+    [Fact]
+    public void ADoctorWhoseWorkIsUnassignedOrUninitializedIsNotPaired()
+    {
+        var care = new CriticalCare { TendPatients = [Patient(P1)], Reach = Everyone("d1") };
+        Assert.True(MedicalRules.TendDoctorFor(care with { Doctors = [Doctor("d1", 3)] }, P1).Ok);
+        Assert.False(MedicalRules.TendDoctorFor(care with { Doctors = [Doctor("d1", 3) with { Work = DoctorWork.Unassigned }] }, P1).Ok);
+        Assert.False(MedicalRules.TendDoctorFor(care with { Doctors = [Doctor("d1", 3) with { Work = DoctorWork.Uninitialized }] }, P1).Ok);
+    }
+
+    [Fact]
+    public void APatientWhoseCareIsWithheldOrUnmanagedIsNotPaired()
+    {
+        var care = new CriticalCare { Doctors = [Doctor("d1", 3)], Reach = Everyone("d1") };
+        Assert.True(MedicalRules.TendDoctorFor(care with { TendPatients = [Patient(P1)] }, P1).Ok);
+        Assert.False(MedicalRules.TendDoctorFor(care with { TendPatients = [Patient(P1) with { Care = TendCare.Withheld }] }, P1).Ok);
+        Assert.False(MedicalRules.TendDoctorFor(care with { TendPatients = [Patient(P1) with { Care = TendCare.Unmanaged }] }, P1).Ok);
+    }
+
+    [Fact]
+    public void ADoctorOutsideTheReachTableReachesNoOne()
+    {
+        var care = new CriticalCare { Doctors = [Doctor("d1", 3)], TendPatients = [Patient(P1)], Reach = TendReachability.None };
+        Assert.False(MedicalRules.TendDoctorFor(care, P1).Ok);
+    }
+
+    [Fact]
+    public void APatientBleedingTowardNoFiniteDeathRanksAfterOneThatDoes()
+    {
+        var care = new CriticalCare { Doctors = [Doctor("d1", 3)], TendPatients = [Patient(P1), Patient(P2, 9)], Reach = Everyone("d1") };
+        Assert.Equal((new PawnId("d1"), true), MedicalRules.TendDoctorFor(care, P2));
+        Assert.False(MedicalRules.TendDoctorFor(care, P1).Ok);
     }
 
     private sealed class Colony : IDisposable

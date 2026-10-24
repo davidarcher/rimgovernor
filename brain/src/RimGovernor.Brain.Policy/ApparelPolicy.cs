@@ -95,12 +95,10 @@ public static class ApparelPolicyRules
         foreach (var d in state.Definitions)
         {
             var stage = (role == GearRole.Child && d.Child) || (role != GearRole.Child && d.Adult);
-            var wearable = state.Preference switch
-            {
-                ApparelPreference.Nude => false,
-                ApparelPreference.ArmorOnly => stage && d.Armor && (!state.Nude || !d.CoversBody),
-                _ => stage && (!d.Armor || role == GearRole.Soldier) && (!state.Nude || !d.CoversBody),
-            };
+            var fits = stage && (!state.Nude || !d.CoversBody);
+            var wearable = state.Preference == ApparelPreference.Nude
+                ? false
+                : state.Preference == ApparelPreference.ArmorOnly ? fits && d.Armor : fits && (!d.Armor || role == GearRole.Soldier);
             if (required.Contains(d.Name) || wearable)
             {
                 r.Add(d.Name);

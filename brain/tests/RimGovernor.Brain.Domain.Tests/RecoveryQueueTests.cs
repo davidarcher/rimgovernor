@@ -21,7 +21,7 @@ public sealed class RecoveryQueueTests
         Kind = RemoteWorkKind.Salvage,
         Cell = new Cell(10, 10),
         Evidenced = true,
-        RouteSafe = Known(true),
+        Route = RouteSafety.Safe,
         Candidate = CandidateRules.SourceCandidate(
             CandidateKind.Salvage,
             id,
@@ -57,15 +57,26 @@ public sealed class RecoveryQueueTests
         Assert.Equal("", q.Admitted);
     }
 
-    [Fact]
-    public void UnsafeRouteHoldsThing()
+    [Theory]
+    [InlineData(RouteSafety.Unsafe)]
+    [InlineData(RouteSafety.Unread)]
+    public void AnUnsafeOrUnreadRouteHoldsThing(RouteSafety route)
     {
-        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1") with { RouteSafe = Known(false) }], Threat = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1") with { Route = route }], Threat = Known(false) });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryStatus.Held, e.Status);
         Assert.Equal(RemoteRules.RemoteHoldRouteUnsafe, e.Reason);
         Assert.Equal("", q.Admitted);
+    }
+
+    [Fact]
+    public void ALootStackWhoseSafetyWasNotReadHasAnUnreadRoute()
+    {
+        var row = new LootItem { Supply = new StartingSupply { Thing = "Thing_Steel7", Definition = "Steel", Cell = new Cell(30, 30) }, Forbidden = true, SafetyKnown = false, SafeToHaul = true, Count = 50 };
+        Assert.Equal(RouteSafety.Unread, RecoveryRules.RecoveryLootThing(row).Thing.Route);
+        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { SafetyKnown = true }).Thing.Route);
+        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { SafetyKnown = true, SafeToHaul = false }).Thing.Route);
     }
 
     [Fact]

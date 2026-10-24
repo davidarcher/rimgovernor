@@ -32,12 +32,11 @@ public static class DrugPolicyPlanRules
         DrugPolicyEntry Entry(Drug d, bool joy) =>
             new(d.Def.Value, joy, false, !joy, DefaultDaysFrequency, DefaultThreshold, DefaultThreshold, 0);
 
-        return preference switch
+        if (preference == DrugPolicyPreference.SocialOnly)
         {
-            DrugPolicyPreference.SocialOnly => [.. items.RecreationDrugs().Select(d => Entry(d, true))],
-            DrugPolicyPreference.Medical => [.. items.MedicalDrugs().Select(d => Entry(d, false))],
-            _ => [],
-        };
+            return [.. items.RecreationDrugs().Select(d => Entry(d, true))];
+        }
+        return preference == DrugPolicyPreference.Medical ? [.. items.MedicalDrugs().Select(d => Entry(d, false))] : [];
     }
 
     /// <summary>

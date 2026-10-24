@@ -3,38 +3,40 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Describes one undrafted candidate rescuer.</summary>
 public sealed record RescuerFacts
 {
-    public PawnId Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> Drafted { get; init; }
+    public required bool Drafted { get; init; }
 
-    public bool MentalState { get; init; }
+    public required bool MentalState { get; init; }
 
-    public Fact<bool> PlayerForced { get; init; }
+    public required bool PlayerForced { get; init; }
 
-    public Fact<uint> QueuedJobs { get; init; }
+    public required uint QueuedJobs { get; init; }
 
-    public Fact<string> ExistingJobDef { get; init; }
+    /// <summary>The def of the job the pawn runs; null when it runs none.</summary>
+    public required string? ExistingJobDef { get; init; }
 }
 
 /// <summary>
-/// Describes one candidate patient. Completion is a known InBed; a downed pawn who has
+/// Describes one candidate patient. Completion is InBed; a downed pawn who has
 /// simply stopped moving is not evidence of a completed rescue.
 /// </summary>
 public sealed record RescuePatientFacts
 {
-    public PawnId Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public Fact<bool> InBed { get; init; }
+    public required bool InBed { get; init; }
 
-    public Fact<string> ExistingJobDef { get; init; }
+    /// <summary>The def of the job the pawn runs; null when it runs none.</summary>
+    public required string? ExistingJobDef { get; init; }
 }
 
 public static partial class RescueRules
@@ -46,26 +48,11 @@ public static partial class RescueRules
     public static (PawnId Rescuer, PawnId Patient, bool Ok) SelectRescue(
         IReadOnlyList<RescuerFacts> rescuers, IReadOnlyList<RescuePatientFacts> patients)
     {
-        static bool EligibleRescuer(RescuerFacts r)
-        {
-            if (!r.Dead.TryGetValue(out var dead) || !r.Downed.TryGetValue(out var downed)
-                || !r.Drafted.TryGetValue(out var drafted)
-                || !r.ExistingJobDef.TryGetValue(out var existing))
-            {
-                return false;
-            }
-            return !dead && !downed && !drafted && !r.MentalState && existing != "Rescue";
-        }
+        static bool EligibleRescuer(RescuerFacts r) =>
+            !r.Dead && !r.Downed && !r.Drafted && !r.MentalState && r.ExistingJobDef != "Rescue";
 
-        static bool EligiblePatient(RescuePatientFacts p)
-        {
-            if (!p.Dead.TryGetValue(out var dead) || !p.Downed.TryGetValue(out var downed)
-                || !p.InBed.TryGetValue(out var inBed) || !p.ExistingJobDef.TryGetValue(out var existing))
-            {
-                return false;
-            }
-            return !dead && downed && !inBed && existing != "Rescue";
-        }
+        static bool EligiblePatient(RescuePatientFacts p) =>
+            !p.Dead && p.Downed && !p.InBed && p.ExistingJobDef != "Rescue";
 
         var rescuerPool = rescuers.Where(EligibleRescuer).ToList();
         var patientPool = patients.Where(EligiblePatient).ToList();

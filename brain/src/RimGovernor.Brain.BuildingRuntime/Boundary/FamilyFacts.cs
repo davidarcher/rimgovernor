@@ -4,101 +4,105 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public static class RescueFacts
 {
-    public static RescuerFacts NewRescuerFacts(PawnId pawn, PbObservations.PawnState row)
+    public static RescuerFacts NewRescuerFacts(PawnId pawn, PbObservations.PawnState row) => new()
     {
-        var facts = new RescuerFacts
-        {
-            Pawn = pawn,
-            Dead = Fact.Known(row.Dead),
-            Downed = Fact.Known(row.Downed),
-            Drafted = Fact.Known(row.Drafted),
-            MentalState = row.MentalState is not null,
-            PlayerForced = Known(row.Job.PlayerForced),
-            QueuedJobs = Known(row.Job.QueuedJobs),
-        };
-        if (row.Job.DefName is { } jobDef)
-        {
-            facts = facts with { ExistingJobDef = Known(jobDef) };
-        }
-        return facts;
-    }
+        Pawn = pawn,
+        Dead = row.Dead,
+        Downed = row.Downed,
+        Drafted = row.Drafted,
+        MentalState = row.MentalState is not null,
+        PlayerForced = row.Job.PlayerForced,
+        QueuedJobs = row.Job.QueuedJobs,
+        ExistingJobDef = row.Job.DefName,
+    };
 
-    public static RescuePatientFacts NewRescuePatientFacts(PawnId pawn, PbObservations.PawnState row)
+    public static RescuePatientFacts NewRescuePatientFacts(PawnId pawn, PbObservations.PawnState row) => new()
     {
-        var facts = new RescuePatientFacts
-        {
-            Pawn = pawn,
-            Dead = Fact.Known(row.Dead),
-            Downed = Fact.Known(row.Downed),
-            InBed = Fact.Known(row.InBed),
-        };
-        if (row.Job.DefName is { } jobDef)
-        {
-            facts = facts with { ExistingJobDef = Known(jobDef) };
-        }
-        return facts;
-    }
+        Pawn = pawn,
+        Dead = row.Dead,
+        Downed = row.Downed,
+        InBed = row.InBed,
+        ExistingJobDef = row.Job.DefName,
+    };
 }
 
 public static class TendFacts
 {
-    private static (Fact<int> Level, Fact<bool> Disabled) MedicineSkillLevel(IEnumerable<PbObservations.Skill> skills)
+    /// <summary>A colonist always carries a Medicine skill row; one without it is a broken read.</summary>
+    private static PbObservations.Skill MedicineSkillOf(PawnId pawn, IEnumerable<PbObservations.Skill> skills)
     {
         foreach (var s in skills)
         {
             if (s.DefName == "Medicine")
             {
-                return (Known(s.Level), Known(s.Disabled));
+                return s;
             }
         }
-        return (Unknown<int>(), Unknown<bool>());
+        throw new RequiredFactException("tend_doctor_medicine_skill:" + pawn.Value);
     }
 
-    private static (Fact<bool> Enabled, Fact<bool> OverrideDisabled) DoctorWorkFacts(IEnumerable<PbObservations.WorkSetting> work)
+    /// <summary>The Doctor work type of a pawn's settings: never-working pawns have none, a tracker not initialized yet has no priority to read.</summary>
+    private static DoctorWork DoctorWorkOf(PawnId pawn, PbObservations.PawnWork work)
     {
-        foreach (var w in work)
+        if (work is PbObservations.PawnWork.NeverWorks)
         {
-            if (w.DefName == "Doctor")
+            return DoctorWork.Unassigned;
+        }
+        if (work is PbObservations.PawnWork.Uninitialized)
+        {
+            return DoctorWork.Uninitialized;
+        }
+        if (work is PbObservations.PawnWork.Works works)
+        {
+            foreach (var w in works.Rows)
             {
-                return (Known(!w.Disabled), Known(w.Priority == 0));
+                if (w.DefName == "Doctor")
+                {
+                    return !w.Disabled && w.Priority != 0 ? DoctorWork.Assigned : DoctorWork.Unassigned;
+                }
             }
         }
-        return (Unknown<bool>(), Unknown<bool>());
+        throw new RequiredFactException("tend_doctor_work:" + pawn.Value);
+    }
+
+    /// <summary>The patient's care policy: a configured pawn carries one, a pawn without player settings none.</summary>
+    private static TendCare TendCareOf(PawnId pawn, PbObservations.PawnCare care)
+    {
+        if (care is PbObservations.PawnCare.Configured configured)
+        {
+            return configured.MedicalCare == PbOperations.MedicalCare.NoCare ? TendCare.Withheld : TendCare.Provided;
+        }
+        if (care is PbObservations.PawnCare.None)
+        {
+            return TendCare.Unmanaged;
+        }
+        throw new RequiredFactException("tend_patient_care:" + pawn.Value);
     }
 
     public static TendDoctorFacts NewTendDoctorFacts(PawnId pawn, PbObservations.PawnState row, PbObservations.TendDoctor doctor)
     {
-        var job = row.Job;
-        var (level, disabled) = MedicineSkillLevel(row.Biography.Skills);
-        var facts = new TendDoctorFacts
+        var skill = MedicineSkillOf(pawn, row.Biography.Skills);
+        return new TendDoctorFacts
         {
             Pawn = pawn,
-            Dead = Fact.Known(row.Dead),
-            Downed = Fact.Known(row.Downed),
-            Drafted = Fact.Known(row.Drafted),
+            Dead = row.Dead,
+            Downed = row.Downed,
+            Drafted = row.Drafted,
             MentalState = row.MentalState is not null,
-            PlayerForced = Known(job.PlayerForced),
-            QueuedJobs = Known(job.QueuedJobs),
-            MedicineSkill = level,
-            MedicineSkillDisabled = disabled,
-            ControlEligible = Known(doctor.ControlEligible),
-            TendCapacities = Known(doctor.CapacitiesOk),
+            PlayerForced = row.Job.PlayerForced,
+            QueuedJobs = row.Job.QueuedJobs,
+            ExistingJobDef = row.Job.DefName,
+            MedicineSkill = skill.Level,
+            MedicineSkillDisabled = skill.Disabled,
+            Work = DoctorWorkOf(pawn, row.Settings.Work),
+            ControlEligible = doctor.ControlEligible,
+            TendCapacities = doctor.CapacitiesOk,
         };
-        if (job.DefName is { } jobDef)
-        {
-            facts = facts with { ExistingJobDef = Known(jobDef) };
-        }
-        if (row.Settings.Work is PbObservations.PawnWork.Works works)
-        {
-            var (enabled, overrideDisabled) = DoctorWorkFacts(works.Rows);
-            facts = facts with { DoctorWorkEnabled = enabled, DoctorWorkOverrideDisabled = overrideDisabled };
-        }
-        return facts;
     }
 
     /// <summary>
     /// Collects the pairwise CanReach facts one tend table carries. A doctor whose reach was skipped (budget spent)
-    /// contributes no fact: the doctor is then never proposed.
+    /// has no row: <see cref="Reached"/> is false for it and it is no candidate.
     /// </summary>
     public static TendReachability TendReachabilityOf(IEnumerable<PbObservations.TendDoctor> doctors)
     {
@@ -113,31 +117,20 @@ public static class TendFacts
         return TendReachability.Observe(reachable);
     }
 
-    public static TendPatientFacts NewTendPatientFacts(PawnId pawn, PbObservations.PawnState row)
+    /// <summary>Whether the doctor's reach was read; one whose reach budget ran out is skipped.</summary>
+    public static bool Reached(PbObservations.TendDoctor doctor) => doctor.Reach is PbObservations.TendReach.Read;
+
+    public static TendPatientFacts NewTendPatientFacts(PawnId pawn, PbObservations.PawnState row, bool threatened) => new()
     {
-        var health = row.Health;
-        var facts = new TendPatientFacts
-        {
-            Pawn = pawn,
-            Dead = Fact.Known(row.Dead),
-            Downed = Fact.Known(row.Downed),
-            InBed = Fact.Known(row.InBed),
-            NeedsTend = Known(health.NeedsTend),
-            Bleeding = Known(health.Bleeding),
-            LifeThreatening = Known(health.LifeThreatening),
-        };
-        if (row.Job.DefName is { } jobDef)
-        {
-            facts = facts with { ExistingJobDef = Known(jobDef) };
-        }
-        if (health.BleedOut is PbObservations.BleedOut.Within bleedOut)
-        {
-            facts = facts with { HoursUntilDeathFromBloodLoss = Known(bleedOut.Hours) };
-        }
-        if (row.Settings.Care is PbObservations.PawnCare.Configured care)
-        {
-            facts = facts with { NoCare = Known(care.MedicalCare == PbOperations.MedicalCare.NoCare) };
-        }
-        return facts;
-    }
+        Pawn = pawn,
+        Dead = row.Dead,
+        Downed = row.Downed,
+        InBed = row.InBed,
+        NeedsTend = row.Health.NeedsTend,
+        Care = TendCareOf(pawn, row.Settings.Care),
+        BleedOut = row.Health.BleedOut,
+        LifeThreatening = row.Health.LifeThreatening,
+        ExistingJobDef = row.Job.DefName,
+        Threatened = threatened,
+    };
 }

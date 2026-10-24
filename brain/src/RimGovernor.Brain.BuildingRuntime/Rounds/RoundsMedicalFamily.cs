@@ -188,13 +188,14 @@ public sealed class MedicalRounds
             foreach (var row in observed.Pawns)
             {
                 var pawn = new PawnId(row.Pawn.Id ?? "");
-                if (workers.Contains(pawn))
+                // A doctor whose reach budget ran out (TendReach.Skipped) is no candidate this read.
+                if (workers.Contains(pawn) && TendFacts.Reached(tend[pawn.Value]))
                 {
                     doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, tend[pawn.Value]));
                 }
                 if (eligible.Contains(pawn))
                 {
-                    tendPatients.Add(TendFacts.NewTendPatientFacts(pawn, row) with { Threatened = threatened.Contains(pawn) });
+                    tendPatients.Add(TendFacts.NewTendPatientFacts(pawn, row, threatened.Contains(pawn)));
                 }
             }
             care = care with { Doctors = doctors, TendPatients = tendPatients, Reach = TendFacts.TendReachabilityOf(tend.Values) };

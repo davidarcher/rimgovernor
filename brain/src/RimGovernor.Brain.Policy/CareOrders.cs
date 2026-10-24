@@ -64,24 +64,24 @@ public static class CareOrdersRules
     /// </summary>
     public static Declared DeclareMedicine(MedicineMethod m, IEnumerable<GearBench> benches)
     {
-        switch (m.Kind)
+        if (m.Kind == MedicineMethodKind.Unknown)
         {
-            case MedicineMethodKind.Unknown:
-                return WorkRules.Abstaining(Cause.UnreadMedicine);
-            case MedicineMethodKind.Produce:
-                return DeclareSelection(
-                    new BillSelection
-                    {
-                        Bench = m.Bench,
-                        Recipe = m.Recipe,
-                        Mode = BillMode.StockTarget,
-                        Target = (int)m.Target,
-                    },
-                    true,
-                    benches
-                );
-            default:
-                return new Declared();
+            return WorkRules.Abstaining(Cause.UnreadMedicine);
         }
+        if (m.Kind != MedicineMethodKind.Produce)
+        {
+            return new Declared();
+        }
+        return DeclareSelection(
+            new BillSelection
+            {
+                Bench = m.Bench,
+                Recipe = m.Recipe,
+                Mode = BillMode.StockTarget,
+                Target = (int)m.Target,
+            },
+            true,
+            benches
+        );
     }
 }
