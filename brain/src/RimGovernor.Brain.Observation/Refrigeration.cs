@@ -11,87 +11,83 @@ public interface IRefrigerationSource
 
 public static class RefrigerationReads
 {
+    /// <summary>The most building ids one typed building read takes.</summary>
+    private const int BuildingReadBatch = 256;
+
     /// <summary>
-    /// Joins the colony power census's Cooler rows with a typed building read of those exact IDs. A cooler the
-    /// building read does not return, or returns without temperature control, makes the census unknown: the
-    /// planner must not build a second cooler on a fact it cannot see.
+    /// Assembles the method's observation from a rooms routine reading (rooms with cells, planning definitions, site cells),
+    /// the power census's Cooler rows and a typed building read of those exact IDs. A reading without its room census,
+    /// power topology, solar-flare read or <paramref name="cooler"/> definition raises <see cref="RequiredFactException"/>; so does a cooler
+    /// the building read does not return: the planner must not build a second cooler on a fact it cannot see.
     /// </summary>
-    public static async Task<Fact<EquatableArray<RefrigerationCooler>>> ReadRefrigerationCoolers(
-        IRefrigerationSource source, Identity expected, Fact<PowerTopology> topology, CancellationToken cancellationToken)
+    public static async Task<RefrigerationObservation> RefrigerationFacts(IRefrigerationSource source, ColonyProjection projection, string cooler, CancellationToken cancellationToken)
     {
-        var unknown = Unknown<EquatableArray<RefrigerationCooler>>();
-        var identity = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
-        if (!topology.TryGetValue(out var v))
+        if (!projection.Rooms.TryGetValue(out var rooms))
         {
-            return unknown;
+            throw new RequiredFactException("refrigeration rooms");
         }
-        var rows = new Dictionary<string, RefrigerationCooler>(StringComparer.Ordinal);
-        var ids = new List<string>();
-        foreach (var b in v.Buildings)
+        if (!projection.PowerPlanning.TryGetValue(out var topology))
         {
-            if (b.Definition != "Cooler")
-            {
-                continue;
-            }
-            rows[b.Id] = new RefrigerationCooler { Id = b.Id, Position = b.Cell, Connected = Known(b.Connected), PowerOn = Known(b.Powered) };
-            ids.Add(b.Id);
+            throw new RequiredFactException("refrigeration power topology");
         }
-        if (ids.Count == 0)
+        if (!topology.Blackout.TryGetValue(out var blackout))
         {
-            return Known(EquatableArray.From(new List<RefrigerationCooler>()));
+            throw new RequiredFactException("refrigeration solar flare");
         }
-        ids.Sort(StringComparer.Ordinal);
-        if (ids.Count > 256)
+        if (!projection.DefinitionAvailable(cooler).TryGetValue(out var available))
         {
-            return unknown;
+            throw new RequiredFactException("cooler definition");
         }
-        var reply = await source.ReadConstructionBuildingsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
-        var observed = reply?.Outcome?.Observed;
-        if (observed is null || observed.Buildings.Count != ids.Count)
+        return new RefrigerationObservation
         {
-            return unknown;
-        }
-        var coolers = new List<RefrigerationCooler>(ids.Count);
-        foreach (var row in observed.Buildings)
-        {
-            if (!rows.TryGetValue(row.Building.Id, out var cooler))
-            {
-                return unknown;
-            }
-            cooler = cooler with { Rotation = ConstructionReads.RotationOf(row.Rotation) };
-            cooler = cooler with { Target = ColonyDecodeReads.Optional(row.Settings.TargetTemperatureC is not null, row.Settings.TargetTemperatureC.GetValueOrDefault()) };
-            coolers.Add(cooler);
-        }
-        coolers.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
-        return Known(EquatableArray.From(coolers));
+            Rooms = rooms,
+            Coolers = await Coolers(source, projection.Identity, topology, cooler, cancellationToken).ConfigureAwait(false),
+            Cells = EquatableArray.From(projection.Cells),
+            CoolerAvailable = available,
+            Blackout = blackout,
+        };
     }
 
-    /// <summary>Assembles the method's observation from a rooms routine reading (rooms with cells, planning definitions, site cells) and the cooler census.</summary>
-    public static Fact<RefrigerationObservation> RefrigerationFacts(ColonyProjection projection, Fact<EquatableArray<RefrigerationCooler>> coolers)
+    /// <summary>Joins the power census's <paramref name="cooler"/> rows with typed building reads of those exact IDs, sorted by id.</summary>
+    private static async Task<EquatableArray<RefrigerationCooler>> Coolers(IRefrigerationSource source, Identity expected, PowerTopology topology, string cooler, CancellationToken cancellationToken)
     {
-        if (!projection.Rooms.TryGetValue(out var temperature) || !coolers.TryGetValue(out var rows))
+        var identity = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
+        var power = new Dictionary<string, PowerSite>(StringComparer.Ordinal);
+        foreach (var b in topology.Buildings)
         {
-            return Unknown<RefrigerationObservation>();
-        }
-        var result = new RefrigerationObservation
-        {
-            Rooms = temperature,
-            Coolers = rows,
-            Cells = EquatableArray.From(projection.Cells),
-            CoolerAvailable = Unknown<bool>(),
-            Blackout = Unknown<bool>(),
-        };
-        if (projection.PowerPlanning.TryGetValue(out var topology))
-        {
-            result = result with { Blackout = topology.Blackout };
-        }
-        foreach (var d in projection.Definitions)
-        {
-            if (d.Name == "Cooler")
+            if (b.Definition == cooler)
             {
-                result = result with { CoolerAvailable = d.Available };
+                power[b.Id] = b;
             }
         }
-        return Known(result);
+        var ids = power.Keys.Order(StringComparer.Ordinal).ToList();
+        var coolers = new List<RefrigerationCooler>(ids.Count);
+        foreach (var batch in ids.Chunk(BuildingReadBatch))
+        {
+            var reply = await source.ReadConstructionBuildingsAsync(identity, batch, cancellationToken).ConfigureAwait(false);
+            var observed = reply?.Outcome?.Observed;
+            if (observed is null || observed.Buildings.Count != batch.Length)
+            {
+                throw new RequiredFactException("refrigeration coolers");
+            }
+            foreach (var row in observed.Buildings)
+            {
+                if (!power.TryGetValue(row.Building.Id, out var site))
+                {
+                    throw new RequiredFactException("refrigeration coolers");
+                }
+                coolers.Add(new RefrigerationCooler
+                {
+                    Id = site.Id,
+                    Position = site.Cell,
+                    Rotation = ConstructionReads.RotationOf(row.Rotation),
+                    Target = row.Settings.TargetTemperatureC ?? throw new BridgeContractException($"cooler {site.Id}: the building read carries no target temperature"),
+                    Connected = site.Connected,
+                    PowerOn = site.Powered,
+                });
+            }
+        }
+        coolers.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
+        return EquatableArray.From(coolers);
     }
 }

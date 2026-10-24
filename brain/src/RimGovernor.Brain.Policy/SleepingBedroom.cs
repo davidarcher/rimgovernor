@@ -286,18 +286,15 @@ public static partial class SleepingRules
         foreach (var b in sleeping.Beds)
         {
             beds[b.Id] = b;
-            if (b.Room.TryGetValue(out var room))
+            if (!owners.TryGetValue(b.Room, out var set))
             {
-                if (!owners.TryGetValue(room, out var set))
-                {
-                    owners[room] = set = [];
-                }
-                set.UnionWith(b.Owners);
+                owners[b.Room] = set = [];
             }
+            set.UnionWith(b.Owners);
         }
         // A NeverUpgrade room (an ascetic's) houses its owner only while they own it alone (#3656): a shared barracks
         // gives an ascetic no room thought, so it is unhoused and ranked like anyone else.
-        bool Kept(SleepingPerson p, string bed) => beds.TryGetValue(bed, out var b) && b.Room.TryGetValue(out var room)
+        bool Kept(SleepingPerson p, string bed) => beds.TryGetValue(bed, out var b) && b.Room is var room
             && NeverUpgradeOf(targets, room) && owners[room].All(o => o == p.Id);
         var people = sleeping.People.OrderBy(p => p.Id).ToList();
         var couples = SleepingCouples(sleeping.People);

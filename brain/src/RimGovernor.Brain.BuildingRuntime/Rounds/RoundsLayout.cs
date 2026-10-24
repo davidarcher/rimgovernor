@@ -117,7 +117,7 @@ public sealed partial class LayoutRounds
             }
             if (_needs.StoneShell)
             {
-                facts = facts with { StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.StoneStructures) };
+                facts = facts with { StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.Upkeep.Structures) };
             }
         }
         if (_needs.ClimateEnvelope || _needs.Routes)

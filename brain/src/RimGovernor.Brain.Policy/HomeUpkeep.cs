@@ -19,7 +19,7 @@ public sealed record ClearanceCandidate(MethodId Method, bool ReplacesWithWall, 
 /// </summary>
 public sealed record HomeUpkeepFacts
 {
-    public Fact<EquatableArray<UpkeepStructure>> Structures { get; init; }
+    public Fact<EquatableArray<RepairStructure>> Structures { get; init; }
 
     /// <summary>The clearance census rows that are not the player's own buildings.</summary>
     public Fact<EquatableArray<ClearanceTarget>> Clearance { get; init; }
@@ -104,17 +104,18 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     /// The damaged player buildings inside Home, most urgent first (repair priority, then lowest health fraction,
     /// then id), and their missing hit points. Throws on an invalid row.
     /// </summary>
-    public static (IReadOnlyList<string> Targets, double Missing) DamagedStructures(IReadOnlyList<UpkeepStructure> structures)
+    public static (IReadOnlyList<string> Targets, double Missing) DamagedStructures(IReadOnlyList<RepairStructure> structures)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var selected = new List<UpkeepStructure>();
+        var selected = new List<RepairStructure>();
         foreach (var row in structures)
         {
-            if (!FoodForecastRules.FoodId(row.Id) || !seen.Add(row.Id) || row.HitPoints < 0 || row.MaxHitPoints < row.HitPoints || row.Priority < 0 || row.Priority > 2 || row.Cell.X < 0 || row.Cell.Z < 0)
+            var s = row.Structure;
+            if (!FoodForecastRules.FoodId(s.Id) || !seen.Add(s.Id) || s.HitPoints < 0 || s.MaxHitPoints < s.HitPoints || row.Priority < 0 || row.Priority > 2 || s.Cell.X < 0 || s.Cell.Z < 0)
             {
                 throw new DomainException("invalid upkeep structure");
             }
-            if (row.Home && row.MaxHitPoints > 0 && row.HitPoints < row.MaxHitPoints)
+            if (s.Home && s.MaxHitPoints > 0 && s.HitPoints < s.MaxHitPoints)
             {
                 selected.Add(row);
             }
@@ -125,16 +126,16 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             {
                 return a.Priority.CompareTo(b.Priority);
             }
-            var x = (double)a.HitPoints / a.MaxHitPoints;
-            var y = (double)b.HitPoints / b.MaxHitPoints;
-            return x != y ? (x < y ? -1 : 1) : string.CompareOrdinal(a.Id, b.Id);
+            var x = (double)a.Structure.HitPoints / a.Structure.MaxHitPoints;
+            var y = (double)b.Structure.HitPoints / b.Structure.MaxHitPoints;
+            return x != y ? (x < y ? -1 : 1) : string.CompareOrdinal(a.Structure.Id, b.Structure.Id);
         });
-        var missing = selected.Sum(r => (double)(r.MaxHitPoints - r.HitPoints));
+        var missing = selected.Sum(r => (double)(r.Structure.MaxHitPoints - r.Structure.HitPoints));
         if (!double.IsFinite(missing))
         {
             throw new DomainException("upkeep metric overflow");
         }
-        return ([.. selected.Select(r => r.Id)], missing);
+        return ([.. selected.Select(r => r.Structure.Id)], missing);
     }
 
     /// <summary>
@@ -170,7 +171,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         return selected;
     }
 
-    private static Need RepairsNeed(Fact<EquatableArray<UpkeepStructure>> census)
+    private static Need RepairsNeed(Fact<EquatableArray<RepairStructure>> census)
     {
         if (!census.TryGetValue(out var structures))
         {

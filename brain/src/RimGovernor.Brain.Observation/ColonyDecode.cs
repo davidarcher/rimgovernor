@@ -433,7 +433,6 @@ public static class ColonyDecodeReads
         f = ColonyFramesReads.ColonyDisaster(v, f, buildings, catalog, conditions, conditionsKnown);
         var comfort = ColonyFramesReads.ColonyComfort(v, catalog);
         f = f with { Comfort = comfort, BasicComfort = comfort, HomeCoverage = v.Upkeep.Outcome.HomeCoverage };
-        f = f with { StoneStructures = FacilityUpkeepReads.ColonyStoneStructures(v, buildings, catalog) };
         f = f with { Sleeping = SleepingUpkeepReads.ColonySleeping(v, buildings, catalog) };
         f = f with
         {

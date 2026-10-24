@@ -28,47 +28,42 @@ public sealed record RefrigerationReview
 }
 
 /// <summary>
-/// One observed Cooler building: geometry from the typed building read, power state from the same-tick power
-/// census. Cold is the cell behind the cooler (Position - facing), Hot the cell in front.
+/// One observed Cooler building: geometry and setpoint from the typed building read, power state from the same-tick
+/// power census. Cold is the cell behind the cooler (Position - facing), Hot the cell in front.
 /// </summary>
 public sealed record RefrigerationCooler
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public Cell Position { get; init; }
+    public required Cell Position { get; init; }
 
-    public Rotation Rotation { get; init; }
+    public required Rotation Rotation { get; init; }
 
-    public Fact<double> Target { get; init; }
+    /// <summary>The cooler's CompTempControl target temperature.</summary>
+    public required double Target { get; init; }
 
-    public Fact<bool> Connected { get; init; }
+    public required bool Connected { get; init; }
 
-    public Fact<bool> PowerOn { get; init; }
+    public required bool PowerOn { get; init; }
 
-    /// <summary>The typed thermal-side fact when the reader supplies it; otherwise the hot cell is classified from the site cells and rooms.</summary>
-    public Fact<bool> HotIndoors { get; init; }
+    public Cell Cold() => RefrigerationRules.ColdSide(Position, Rotation);
 
-    public Cell Cold() => RefrigerationRules.Step(Position, RefrigerationRules.Facing(Rotation), -1);
-
-    public Cell Hot() => RefrigerationRules.Step(Position, RefrigerationRules.Facing(Rotation), 1);
+    public Cell Hot() => RefrigerationRules.HotSide(Position, Rotation);
 }
 
 public sealed record RefrigerationObservation
 {
     public required RoomObservation Rooms { get; init; }
 
-    public EquatableArray<RefrigerationCooler> Coolers { get; init; }
+    public required EquatableArray<RefrigerationCooler> Coolers { get; init; }
 
-    /// <summary>The Cooler planning definition's availability (research AirConditioning); unknown when the definition was not read.</summary>
-    public Fact<bool> CoolerAvailable { get; init; }
+    /// <summary>The Cooler planning definition's availability (research AirConditioning).</summary>
+    public required bool CoolerAvailable { get; init; }
 
-    public EquatableArray<SiteCell> Cells { get; init; }
+    public required EquatableArray<SiteCell> Cells { get; init; }
 
-    /// <summary>
-    /// The power topology's solar-flare read: every cooler is off while it is true, so no cooler method is
-    /// proposed. Unknown when the environment census was not read; the method then proceeds as before.
-    /// </summary>
-    public Fact<bool> Blackout { get; init; }
+    /// <summary>The power topology's solar-flare read: every cooler is off while it is true, so no cooler method is proposed.</summary>
+    public required bool Blackout { get; init; }
 
     public void Validate()
     {
@@ -84,7 +79,7 @@ public sealed record RefrigerationObservation
             {
                 throw new DomainException("invalid cooler rotation");
             }
-            if (c.Target.TryGetValue(out var target) && (double.IsNaN(target) || double.IsInfinity(target)))
+            if (!double.IsFinite(c.Target))
             {
                 throw new DomainException("invalid cooler target");
             }
@@ -253,6 +248,12 @@ public static partial class RefrigerationRules
     internal static Cell Step(Cell from, Cell direction, int times) =>
         new(from.X + (direction.X * times), from.Z + (direction.Z * times));
 
+    /// <summary>The cell a cooler at <paramref name="position"/> facing <paramref name="rotation"/> cools: the one behind it.</summary>
+    public static Cell ColdSide(Cell position, Rotation rotation) => Step(position, Facing(rotation), -1);
+
+    /// <summary>The cell a cooler at <paramref name="position"/> facing <paramref name="rotation"/> heats: the one in front.</summary>
+    public static Cell HotSide(Cell position, Rotation rotation) => Step(position, Facing(rotation), 1);
+
     /// <summary>The cell a building's front points at for each rotation; a cooler pushes heat out its front and cools the cell behind it.</summary>
     internal static Cell Facing(Rotation r) => r switch
     {
@@ -263,27 +264,23 @@ public static partial class RefrigerationRules
     };
 
     /// <summary>
-    /// Serves the lowest-sorted candidate room first. A known solar flare defers every room. Deterministic
+    /// Serves the lowest-sorted candidate room first. A solar flare defers every room. Deterministic
     /// order per room: enclosure, then an existing cooler serving the room (power, heat rejection, target,
     /// wait), then one new cooler on a wall cell whose outside is not indoors. A second cooler is proposed
     /// only when allowance is true: the caller's bounded native cooling allowance for the existing one has
     /// already elapsed without recovery.
     /// </summary>
     public static RefrigerationProposal SelectRefrigerationMethod(
-        RefrigerationReview review, Fact<RefrigerationObservation> fact, FoodStoragePolicy p, bool allowance)
+        RefrigerationReview review, RefrigerationObservation v, FoodStoragePolicy p, bool allowance)
     {
         if (!review.Active)
         {
             return new RefrigerationProposal { Method = RefrigerationMethod.NoMethod };
         }
-        if (!fact.TryGetValue(out var v))
-        {
-            return new RefrigerationProposal { Method = RefrigerationMethod.Unknown };
-        }
         v.Validate();
         // Under a solar flare no cooler runs and none is built for an outage measured in hours; the room keeps
         // its deficit and waits for the power to return (same outcome as PowerWaitBlackout).
-        if (v.Blackout.TryGetValue(out var blackout) && blackout)
+        if (v.Blackout)
         {
             return new RefrigerationProposal { Method = RefrigerationMethod.WaitBlackout };
         }
@@ -332,11 +329,7 @@ public static partial class RefrigerationRules
                     continue;
                 }
             }
-            if (!v.CoolerAvailable.TryGetValue(out var available))
-            {
-                return new RefrigerationProposal { Method = RefrigerationMethod.Unknown };
-            }
-            if (!available)
+            if (!v.CoolerAvailable)
             {
                 deferred = FirstReason(deferred, RefrigerationMethod.ResearchNeeded);
                 continue;
@@ -383,13 +376,7 @@ public static partial class RefrigerationRules
         var waiting = RefrigerationMethod.None;
         foreach (var cooler in coolers)
         {
-            var ck = cooler.Connected.TryGetValue(out var connected);
-            var ok = cooler.PowerOn.TryGetValue(out var on);
-            if (!ck || !ok)
-            {
-                return (new RefrigerationProposal { Method = RefrigerationMethod.Unknown }, RefrigerationMethod.None);
-            }
-            if (!connected || !on)
+            if (!cooler.Connected || !cooler.PowerOn)
             {
                 waiting = FirstReason(waiting, RefrigerationMethod.PowerNeeded);
                 continue;
@@ -404,11 +391,7 @@ public static partial class RefrigerationRules
                 waiting = FirstReason(waiting, RefrigerationMethod.HeatRejectionBlocked);
                 continue;
             }
-            if (!cooler.Target.TryGetValue(out var target))
-            {
-                return (new RefrigerationProposal { Method = RefrigerationMethod.Unknown }, RefrigerationMethod.None);
-            }
-            if (target > p.FreezerTargetC)
+            if (cooler.Target > p.FreezerTargetC)
             {
                 var digest = SHA256.HashData(Encoding.UTF8.GetBytes(cooler.Id + "/target"));
                 return (
@@ -426,11 +409,7 @@ public static partial class RefrigerationRules
         // A working cooler outranks a blocked one: the room is cooling.
         foreach (var cooler in coolers)
         {
-            if (!(cooler.Connected.TryGetValue(out var connected) && connected))
-            {
-                continue;
-            }
-            if (!(cooler.PowerOn.TryGetValue(out var on) && on))
+            if (!cooler.Connected || !cooler.PowerOn)
             {
                 continue;
             }
@@ -455,10 +434,6 @@ public static partial class RefrigerationRules
         if (cells.TryGetValue(hot, out var c) && c.Walkable.TryGetValue(out var walkable) && !walkable)
         {
             return (true, true);
-        }
-        if (cooler.HotIndoors.TryGetValue(out var hotIndoors))
-        {
-            return (hotIndoors, true);
         }
         if (cells.TryGetValue(hot, out var hc))
         {

@@ -179,8 +179,8 @@ public static partial class RoomQualityRules
         foreach (var bed in obs.Beds)
         {
             beds[bed.Id] = bed;
-            var ok = bed.Room.TryGetValue(out var bedRoom);
-            if (ok && !string.IsNullOrEmpty(bedRoom) && bed.Humanlike && !bed.Medical && !bed.Prisoners && !bed.Slaves)
+            var bedRoom = bed.Room;
+            if (bed.Humanlike && !bed.Medical && !bed.Prisoners && !bed.Slaves)
             {
                 if (!inRoom.TryGetValue(bedRoom, out var list))
                 {

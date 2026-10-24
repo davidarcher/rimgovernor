@@ -157,9 +157,9 @@ public static partial class RoomQualityRules
         var leaving = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in sleeping.Beds)
         {
-            if (b.Room.TryGetValue(out var room) && claimed.Contains(b.Id))
+            if (claimed.Contains(b.Id))
             {
-                leaving.Add(room);
+                leaving.Add(b.Room);
             }
         }
         var output = new Dictionary<string, RoomTarget>(targets.Count, StringComparer.Ordinal);

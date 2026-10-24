@@ -157,16 +157,16 @@ namespace HomeBridge.BridgeTools
                 }).ToList();
                 result = result with { Items = [.. result.Items, .. values] };
             });
-            Read("structures", () => {
-                // Non-damageable markers (including sleeping spots) have a
-                // native -1 sentinel and cannot be repair targets.
-                var rows = sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
-                var values = rows.Select(b => new Obs.UpkeepStructure {
-                    Building = NativeBuildingObservationTools.Ref(b),
-                    Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
-                }).ToList();
-                result = result with { Structures = [.. result.Structures, .. values] };
-            });
+            // The structure census is read whole: a failed read throws and fails the upkeep read (#3833).
+            var structuresBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+            // Non-damageable markers (including sleeping spots) have a
+            // native -1 sentinel and cannot be repair targets.
+            result = result with { Structures = [.. sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).Select(b => new Obs.UpkeepStructure {
+                Id = Id(b.GetUniqueLoadID()), Definition = Id(b.def.defName), Stuff = b.Stuff?.defName, Cell = Spot(b.Position),
+                Home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
+                HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints
+            })] };
+            ObservationWork.Detail("cf.upkeep.structures", System.Diagnostics.Stopwatch.GetTimestamp() - structuresBegan);
             Read("flooring", () => {
                 // Every proper indoor room the colony lives in (any cell in
                 // the home area, not psychologically outdoors) with the
@@ -366,9 +366,9 @@ namespace HomeBridge.BridgeTools
                 var values = beds.Select(b => {
                     var row = new Obs.UpkeepBed { Bed = NativeBuildingObservationTools.Ref(b),
                         Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
-                        TemperatureC = Number(b.AmbientTemperature) };
-                    var room = b.GetRoom();
-                    if (room != null) row = row with { Room = NativeRef.Room(room) };
+                        TemperatureC = Number(b.AmbientTemperature),
+                        // Every spawned bed stands in a room (outdoors is one); none is a broken read.
+                        Room = (b.GetRoom() ?? throw new InvalidOperationException("Bed " + b.GetUniqueLoadID() + " stands in no room.")).ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
                     if (b.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality }; if (b.Stuff != null) row = row with { Stuff = b.Stuff.defName };
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
                     row = row with { Owners = [.. row.Owners, .. NativeRef.All(owners)] };

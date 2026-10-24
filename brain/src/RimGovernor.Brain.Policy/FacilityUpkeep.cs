@@ -1,14 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record StoneStructure
-{
-    public string Id { get; init; } = "";
-
-    public Resource Definition { get; init; }
-
-    public Fact<double> Flammability { get; init; }
-}
-
 public static class FacilityUpkeepRules
 {
     /// <summary>The native project whose recipes cut the stone blocks a wall replacement needs.</summary>
@@ -32,7 +23,7 @@ public static class FacilityUpkeepRules
     }
 
     /// <summary>Throws <see cref="DomainException"/>.</summary>
-    public static Fact<EquatableArray<string>> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<StoneStructure>> structures)
+    public static Fact<EquatableArray<string>> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<RepairStructure>> structures)
     {
         var unknown = Unknown<EquatableArray<string>>();
         if (!owned.TryGetValue(out var buildings))
@@ -59,19 +50,18 @@ public static class FacilityUpkeepRules
         var result = new List<string>();
         foreach (var row in rows)
         {
-            DomainException.Require(FoodForecastRules.FoodId(row.Id) && seen.Add(row.Id) && AdmissionRules.ValidResource(row.Definition), "invalid structure census");
-            if (!walls.Contains(row.Id))
+            var s = row.Structure;
+            DomainException.Require(FoodForecastRules.FoodId(s.Id) && seen.Add(s.Id) && AdmissionRules.ValidResource(new Resource(s.Definition)), "invalid structure census");
+            if (!walls.Contains(s.Id))
             {
                 continue;
             }
-            if (!row.Flammability.TryGetValue(out var flam) || row.Definition.Value != "Wall")
+            // An owned wall the census reads as another def is a conflicting observation.
+            DomainException.Require(s.Definition == "Wall", "owned wall read as another def");
+            DomainException.Require(FoodForecastRules.FoodNumber(row.Flammability), "invalid wall flammability");
+            if (row.Flammability > 0)
             {
-                return unknown;
-            }
-            DomainException.Require(FoodForecastRules.FoodNumber(flam), "invalid wall flammability");
-            if (flam > 0)
-            {
-                result.Add(row.Id);
+                result.Add(s.Id);
             }
         }
         // A current owned wall missing from the same-tick structure census is a conflicting observation, not

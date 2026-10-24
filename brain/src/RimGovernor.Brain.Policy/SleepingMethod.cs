@@ -151,13 +151,10 @@ public static partial class SleepingRules
         var roomOf = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var b in sleeping.Beds)
         {
-            if (b.Room.TryGetValue(out var room))
+            roomOf[b.Id] = b.Room;
+            if (impressiveness.TryGetValue(b.Room, out var v))
             {
-                roomOf[b.Id] = room;
-                if (impressiveness.TryGetValue(room, out var v))
-                {
-                    quality[b.Id] = v;
-                }
+                quality[b.Id] = v;
             }
         }
         if (r.RoomTargets is not null && roomOf.TryGetValue(t.PreviousBed, out var previousRoom)
@@ -250,12 +247,7 @@ public static partial class SleepingRules
         var band = new Dictionary<PawnId, (double Min, double Max)>();
         foreach (var p in sleeping.People.Concat(sleeping.Slaves))
         {
-            var mk = p.ComfortableMin.TryGetValue(out var min);
-            var xk = p.ComfortableMax.TryGetValue(out var max);
-            if (mk && xk)
-            {
-                band[p.Id] = (min, max);
-            }
+            band[p.Id] = (p.ComfortableMin, p.ComfortableMax);
         }
         var unhoused = 0;
         foreach (var t in ordered)
@@ -269,7 +261,7 @@ public static partial class SleepingRules
             unhoused++;
             if (!band.TryGetValue(t.Pawn, out var b))
             {
-                return choice with { Unhoused = unhoused, Method = SleepingMethod.Unknown, Missing = "sleeper_comfort_range" };
+                throw new DomainException($"sleeping target {t.Pawn.Value} is not in the sleeping census");
             }
             lo = Math.Max(lo, b.Min);
             hi = Math.Min(hi, b.Max);
@@ -327,17 +319,12 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            var lk = p.ComfortableMin.TryGetValue(out var lo);
-            var hk = p.ComfortableMax.TryGetValue(out var hi);
-            if (!lk || !hk)
-            {
-                continue;
-            }
+            var (lo, hi) = (p.ComfortableMin, p.ComfortableMax);
             foreach (var b in beds)
             {
-                var tk = b.Temperature.TryGetValue(out var temperature);
+                var temperature = b.Temperature;
                 if (!b.Humanlike || b.Medical || b.Prisoners || b.Slaves || !b.Roofed || b.Owners.Count != 0 || b.Definition.Value == SleepingSpotDefinition
-                    || b.RestEffectiveness <= 0 || !tk || temperature < lo || temperature > hi || !b.AccessibleTo.Contains(p.Id))
+                    || b.RestEffectiveness <= 0 || temperature < lo || temperature > hi || !b.AccessibleTo.Contains(p.Id))
                 {
                     continue;
                 }

@@ -20,9 +20,9 @@ public sealed class BedReplacementBedlessTests
         People = [new SleepingPerson { Id = Owner, OwnedBed = Known("bed-owner") }, new SleepingPerson { Id = Other, OwnedBed = Known(otherBed) }],
         Beds =
         [
-            new SleepingBed { Id = "bed-owner", Definition = new Resource("Bed"), Humanlike = true, Room = Known("dorm"), Owners = [Owner] },
-            new SleepingBed { Id = "spot", Definition = new Resource(SleepingRules.SleepingSpotDefinition), Humanlike = true, Room = Known("dorm"), Owners = [] },
-            new SleepingBed { Id = "bed-other", Definition = new Resource("Bed"), Humanlike = true, Room = Known("other-room"), Owners = otherBed == "" ? [] : [Other] },
+            new SleepingBed { Id = "bed-owner", Definition = new Resource("Bed"), Humanlike = true, Room = "dorm", Owners = [Owner] },
+            new SleepingBed { Id = "spot", Definition = new Resource(SleepingRules.SleepingSpotDefinition), Humanlike = true, Room = "dorm", Owners = [] },
+            new SleepingBed { Id = "bed-other", Definition = new Resource("Bed"), Humanlike = true, Room = "other-room", Owners = otherBed == "" ? [] : [Other] },
         ],
         Rooms = Known<EquatableArray<UpkeepRoom>>(
         [

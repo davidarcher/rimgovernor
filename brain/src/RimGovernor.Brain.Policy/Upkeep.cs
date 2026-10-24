@@ -1,3 +1,5 @@
+using NativeStructure = RimGovernor.Contracts.Wire.Observations.UpkeepStructure;
+
 namespace RimGovernor.Brain.Policy;
 
 
@@ -9,7 +11,7 @@ public sealed record UpkeepObservation
     /// <summary>The clearance rows standing on the ground of a planned room (RoomObstructionIDs): tier 1 of the recovery queue.</summary>
     public IReadOnlySet<string> RoomObstructions { get; init; } = new HashSet<string>();
 
-    public Fact<EquatableArray<UpkeepStructure>> Structures { get; init; }
+    public Fact<EquatableArray<RepairStructure>> Structures { get; init; }
 
     /// <summary>The measured room census of the same read.</summary>
     public Fact<RoomObservation> Rooms { get; init; }
@@ -24,17 +26,5 @@ public sealed record UpkeepObservation
     public Fact<RoutesObservation> Routes { get; init; }
 }
 
-public sealed record UpkeepStructure
-{
-    public string Id { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public bool Home { get; init; }
-
-    public long HitPoints { get; init; }
-
-    public long MaxHitPoints { get; init; }
-
-    public int Priority { get; init; }
-}
+/// <summary>A native structure census row with its def rows' repair priority (DefinitionCatalog.RepairPriority: 0 most urgent) and flammability as made (its def with its stuff).</summary>
+public sealed record RepairStructure(NativeStructure Structure, int Priority, double Flammability);

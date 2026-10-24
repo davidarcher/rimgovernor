@@ -88,7 +88,7 @@ public sealed class SleepingStandInTests
 
     private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
 
-    private static SleepingBed Bed(string id, string def, Fact<string> room, params PawnId[] owners) => new()
+    private static SleepingBed Bed(string id, string def, string room, params PawnId[] owners) => new()
     {
         Id = id, Definition = new(def), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A],
     };
@@ -105,7 +105,7 @@ public sealed class SleepingStandInTests
         {
             Colonists = 1,
             People = [new SleepingPerson { Id = A, OwnedBed = Known("x") }],
-            Beds = [Bed("x", SleepingRules.SleepingSpotDefinition, Known("bedroom"), A)],
+            Beds = [Bed("x", SleepingRules.SleepingSpotDefinition, "bedroom", A)],
         };
 
         // The spot stands inside the enclosed bedroom: the bedroom still owes its bed.
@@ -116,12 +116,12 @@ public sealed class SleepingStandInTests
     [Fact]
     public void AVacantStandInIsClearedOnceTheIndoorBedsTakeEveryone()
     {
-        var outdoors = Bed("x", SleepingRules.SleepingSpotDefinition, Unknown<string>());
+        var outdoors = Bed("x", SleepingRules.SleepingSpotDefinition, "outdoors");
         var sleeping = new SleepingObservation
         {
             Colonists = 1,
             People = [new SleepingPerson { Id = A, OwnedBed = Known("w1") }],
-            Beds = [outdoors, Bed("w1", "Bed", Known("bedroom"), A)],
+            Beds = [outdoors, Bed("w1", "Bed", "bedroom", A)],
         };
 
         var clear = Step(OneBedroom, [Standing("bedroom", Bedroom, "w1")], sleeping);

@@ -32,8 +32,8 @@ public static class SleepingUpkeepReads
                 {
                     Id = new PawnId(p.Pawn?.Id ?? ""),
                     OwnedBed = Known(p.OwnedBed?.Id ?? ""),
-                    ComfortableMin = ColonyDecodeReads.Optional(p.ComfortableMinC is not null, p.ComfortableMinC.GetValueOrDefault()),
-                    ComfortableMax = ColonyDecodeReads.Optional(p.ComfortableMaxC is not null, p.ComfortableMaxC.GetValueOrDefault()),
+                    ComfortableMin = p.ComfortableMinC,
+                    ComfortableMax = p.ComfortableMaxC,
                     Partners = Ids(FactHelpers.RefIds(p.Partners)),
                     BedSharingAllowed = ColonyDecodeReads.Optional(p.BedSharingAllowed is not null, p.BedSharingAllowed.GetValueOrDefault()),
                     Title = title,
@@ -84,11 +84,11 @@ public static class SleepingUpkeepReads
                 Slaves = b.ForSlaves,
                 Roofed = b.Roofed,
                 RestEffectiveness = (float)rest,
-                Temperature = ColonyDecodeReads.Optional(b.TemperatureC is not null, b.TemperatureC.GetValueOrDefault()),
+                Temperature = b.TemperatureC,
                 Owners = Ids(FactHelpers.RefIds(b.Owners)),
                 Users = Ids(FactHelpers.RefIds(b.Users)),
                 AccessibleTo = Ids(FactHelpers.RefIds(b.AccessibleTo)),
-                Room = ColonyDecodeReads.OptionalRef(b.Room),
+                Room = b.Room,
                 Quality = ColonyDecodeReads.Optional(b.Quality is not null, (int)b.Quality.GetValueOrDefault()),
                 Stuff = ColonyDecodeReads.Optional(b.Stuff is not null, b.Stuff ?? ""),
                 Cell = ColonyDecodeReads.CellOf(head.Position),
@@ -100,9 +100,9 @@ public static class SleepingUpkeepReads
     /// <summary>
     /// The room-quality view of the frame's rooms census: every room holding a colonist bed (humanlike, not
     /// medical, not for prisoners) or carrying a common role (dining, rec room) and not fogged, with its native
-    /// stats. Unknown when a bed's room is unknown
+    /// stats.
     /// </summary>
-    internal static Fact<EquatableArray<UpkeepRoom>> UpkeepRooms(O.RoomsSnapshot? census, EquatableArray<SleepingBed> beds)
+    internal static Fact<EquatableArray<UpkeepRoom>> UpkeepRooms(O.RoomsSnapshot census, EquatableArray<SleepingBed> beds)
     {
         var owned = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var b in beds)
@@ -111,18 +111,14 @@ public static class SleepingUpkeepReads
             {
                 continue;
             }
-            if (!b.Room.TryGetValue(out var room))
+            if (!owned.TryGetValue(b.Room, out var list))
             {
-                return Unknown<EquatableArray<UpkeepRoom>>();
-            }
-            if (!owned.TryGetValue(room, out var list))
-            {
-                owned[room] = list = [];
+                owned[b.Room] = list = [];
             }
             list.Add(b.Id);
         }
         var rows = new List<UpkeepRoom>();
-        foreach (var r in census?.Rooms ?? [])
+        foreach (var r in census.Rooms)
         {
             var held = owned.GetValueOrDefault(r.Id) ?? [];
             if (held.Count == 0 && (r.Fogged || (r.Role != RoomRole.DiningRoom && r.Role != RoomRole.RecRoom)))

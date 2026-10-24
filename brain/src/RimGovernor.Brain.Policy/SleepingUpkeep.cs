@@ -6,9 +6,9 @@ public sealed record SleepingPerson
 
     public Fact<string> OwnedBed { get; init; }
 
-    public Fact<double> ComfortableMin { get; init; }
+    public double ComfortableMin { get; init; }
 
-    public Fact<double> ComfortableMax { get; init; }
+    public double ComfortableMax { get; init; }
 
     /// <summary>The lover, spouse and fiance relations to living pawns on the same map.</summary>
     public EquatableArray<PawnId> Partners { get; init; }
@@ -42,7 +42,7 @@ public sealed record SleepingBed
 
     public double RestEffectiveness { get; init; }
 
-    public Fact<double> Temperature { get; init; }
+    public double Temperature { get; init; }
 
     public EquatableArray<PawnId> Owners { get; init; }
 
@@ -50,8 +50,8 @@ public sealed record SleepingBed
 
     public EquatableArray<PawnId> AccessibleTo { get; init; }
 
-    /// <summary>The native room id (RoomQuality.ID).</summary>
-    public Fact<string> Room { get; init; }
+    /// <summary>The native id (Room.ID) of the room the bed stands in, outdoors included.</summary>
+    public string Room { get; init; } = "";
 
     /// <summary>The bed's QualityCategory ordinal (0 Awful .. 6 Legendary), unknown for a bed without quality.</summary>
     public Fact<int> Quality { get; init; }
@@ -243,7 +243,6 @@ public static partial class SleepingRules
         {
             return r;
         }
-        static bool Finite(Fact<double> f) => f.TryGetValue(out var n) && !double.IsNaN(n) && !double.IsInfinity(n);
         var people = new HashSet<PawnId>();
         var complete = true;
         // Slaves sleep only in beds set for slaves, colonists never in one.
@@ -269,16 +268,13 @@ public static partial class SleepingRules
             {
                 throw invalid;
             }
-            if (!bk || !Finite(p.ComfortableMin) || !Finite(p.ComfortableMax))
-            {
-                complete = false;
-                continue;
-            }
-            p.ComfortableMin.TryGetValue(out var lo);
-            p.ComfortableMax.TryGetValue(out var hi);
-            if (lo > hi)
+            if (!double.IsFinite(p.ComfortableMin) || !double.IsFinite(p.ComfortableMax) || p.ComfortableMin > p.ComfortableMax)
             {
                 throw invalid;
+            }
+            if (!bk)
+            {
+                complete = false;
             }
         }
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
@@ -292,9 +288,9 @@ public static partial class SleepingRules
             {
                 throw invalid;
             }
-            if (!Finite(b.Temperature))
+            if (!double.IsFinite(b.Temperature))
             {
-                complete = false;
+                throw invalid;
             }
             foreach (var ids in new[] { b.Owners, b.Users, b.AccessibleTo })
             {
@@ -325,8 +321,7 @@ public static partial class SleepingRules
             {
                 return ("", false);
             }
-            var known = b.Room.TryGetValue(out var id);
-            return (id ?? "", known && id != "");
+            return (b.Room, b.Room != "");
         }
         // shared: the bed holds nobody but p and its partner, and a couple sleeps together (one bed, or one room).
         bool Shared(SleepingBed b, PawnId p)
@@ -352,11 +347,10 @@ public static partial class SleepingRules
         var ordered = everyone.OrderBy(p => p.Id).ToList();
         foreach (var p in ordered)
         {
-            p.ComfortableMin.TryGetValue(out var lo);
-            p.ComfortableMax.TryGetValue(out var hi);
+            var (lo, hi) = (p.ComfortableMin, p.ComfortableMax);
             bool Safe(SleepingBed b)
             {
-                b.Temperature.TryGetValue(out var temperature);
+                var temperature = b.Temperature;
                 return b.Humanlike && !b.Medical && !b.Prisoners && b.Slaves == slave.Contains(p.Id) && b.Roofed && b.AccessibleTo.Contains(p.Id) && temperature >= lo && temperature <= hi;
             }
             bool Suitable(SleepingBed b) => Safe(b) && SleepingRung(b.Definition, v.BedBuildable) && b.RestEffectiveness > 0;
@@ -524,8 +518,7 @@ public static partial class SleepingRules
                     n++;
                 }
             }
-            b.Room.TryGetValue(out var id);
-            if (!rooms.TryGetValue(id ?? "", out var room))
+            if (!rooms.TryGetValue(b.Room, out var room))
             {
                 return n;
             }

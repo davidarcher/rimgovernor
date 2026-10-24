@@ -5047,9 +5047,11 @@ public sealed record UpkeepBed
 
     public bool Roofed { get; init; }
 
-    public double? TemperatureC { get; init; }
+    /// <summary>The bed's ambient temperature (Building_Bed.AmbientTemperature).</summary>
+    public required double TemperatureC { get; init; }
 
-    public Common.Ref? Room { get; init; }
+    /// <summary>The native id (Room.ID) of the room the bed stands in, outdoors included; the room census holds its stats.</summary>
+    public required string Room { get; init; }
 
     public Defs.QualityCategory? Quality { get; init; }
 
@@ -5059,11 +5061,26 @@ public sealed record UpkeepBed
 }
 
 
+/// <summary>
+/// One damageable (useHitPoints) spawned player building, read whole: its def, stuff (null for a def not made from
+/// stuff) and position, whether the Home area covers its whole footprint, and its hit points. Its flammability and
+/// repair priority are the def rows' (static-data census).
+/// </summary>
 public sealed record UpkeepStructure
 {
-    public Common.Ref Building { get; init; } = new();
+    public required string Id { get; init; }
 
-    public bool Home { get; init; }
+    public required string Definition { get; init; }
+
+    public required string? Stuff { get; init; }
+
+    public required Cell Cell { get; init; }
+
+    public required bool Home { get; init; }
+
+    public required int HitPoints { get; init; }
+
+    public required int MaxHitPoints { get; init; }
 }
 
 /// <summary>
@@ -5082,9 +5099,11 @@ public sealed record UpkeepPerson
 
     public Common.Ref? OwnedBed { get; init; }
 
-    public double? ComfortableMinC { get; init; }
+    /// <summary>StatDefOf.ComfyTemperatureMin of the pawn.</summary>
+    public required double ComfortableMinC { get; init; }
 
-    public double? ComfortableMaxC { get; init; }
+    /// <summary>StatDefOf.ComfyTemperatureMax of the pawn.</summary>
+    public required double ComfortableMaxC { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Partners { get; init; }

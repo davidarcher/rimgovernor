@@ -158,8 +158,8 @@ public static partial class RoomQualityRules
         var owners = new Dictionary<string, List<PawnId>>(StringComparer.Ordinal);
         foreach (var bed in obs.Beds)
         {
-            var ok = bed.Room.TryGetValue(out var room);
-            if (!ok || string.IsNullOrEmpty(room) || !bed.Humanlike || bed.Medical || bed.Prisoners)
+            var room = bed.Room;
+            if (!bed.Humanlike || bed.Medical || bed.Prisoners)
             {
                 continue;
             }

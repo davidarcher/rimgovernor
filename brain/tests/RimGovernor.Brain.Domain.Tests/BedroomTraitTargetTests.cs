@@ -21,8 +21,8 @@ public sealed class BedroomTraitTargetTests
         People = [new SleepingPerson { Id = Owner }, new SleepingPerson { Id = Other }],
         Beds =
         [
-            new SleepingBed { Id = "bed-owner", Humanlike = true, Room = Known("room-owner"), Owners = [Owner] },
-            new SleepingBed { Id = "bed-other", Humanlike = true, Room = Known("room-other"), Owners = [Other] },
+            new SleepingBed { Id = "bed-owner", Humanlike = true, Room = "room-owner", Owners = [Owner] },
+            new SleepingBed { Id = "bed-other", Humanlike = true, Room = "room-other", Owners = [Other] },
         ],
         Rooms = Known<EquatableArray<UpkeepRoom>>(
         [

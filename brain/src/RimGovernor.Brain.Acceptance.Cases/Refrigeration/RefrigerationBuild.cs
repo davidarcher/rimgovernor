@@ -90,8 +90,8 @@ internal static class RefrigerationBuild
             throw new AcceptanceException($"cooler at {cell} facing {cooler.Rotation} is not on a fixture wall cell");
         }
 
-        var placed = new RefrigerationCooler { Position = cell, Rotation = (Rotation)((int)cooler.Rotation - 1) };
-        var (cold, hot) = (placed.Cold(), placed.Hot());
+        var rotation = (Rotation)((int)cooler.Rotation - 1);
+        var (cold, hot) = (RefrigerationRules.ColdSide(cell, rotation), RefrigerationRules.HotSide(cell, rotation));
         if (!Inside(room.Interior, cold) || Inside(room.Interior, hot) || room.Walls.Contains(new Fx.StageCell(hot.X, hot.Z)))
         {
             throw new AcceptanceException($"cooler at {cell} facing {cooler.Rotation} has cold side {cold} and hot side {hot}; want cold inside and hot outdoors");

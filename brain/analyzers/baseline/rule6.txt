@@ -142,8 +142,6 @@ Observation/Definitions.cs|DefinitionsReads.StarterDefinitions|"Wall"
 Observation/Definitions.cs|DefinitionsReads.StarterDefinitions|"WindTurbine"
 Observation/Definitions.cs|DefinitionsReads.StarterDefinitions|"WoodFiredGenerator"
 Observation/MealTier.cs|ColonyProjection.MealRequest|"NutrientPasteDispenser"
-Observation/Refrigeration.cs|RefrigerationReads.ReadRefrigerationCoolers|"Cooler"
-Observation/Refrigeration.cs|RefrigerationReads.RefrigerationFacts|"Cooler"
 Observation/SleepingUpkeep.cs|SleepingUpkeepReads.UpkeepRooms|"Space"
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept|"WoodLog"
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000

@@ -35,9 +35,8 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        var coolers = await RefrigerationReads.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
-        var fact = RefrigerationReads.RefrigerationFacts(facts, coolers);
-        var proposal = RefrigerationRules.SelectRefrigerationMethod(review, fact, Reviewer.Policy.FoodStorage, allowance);
+        var observed = await RefrigerationReads.RefrigerationFacts((IRefrigerationSource)Native, facts, Definition, ct).ConfigureAwait(false);
+        var proposal = RefrigerationRules.SelectRefrigerationMethod(review, observed, Reviewer.Policy.FoodStorage, allowance);
         switch (proposal.Method)
         {
             case RefrigerationMethod.Build:

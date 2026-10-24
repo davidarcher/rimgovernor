@@ -16,8 +16,8 @@ public sealed class HomeUpkeepFamilyTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static UpkeepStructure Structure(string id, long hp, long max = 100, bool home = true, int priority = 1) =>
-        new() { Id = id, Cell = new(1, 1), Home = home, HitPoints = hp, MaxHitPoints = max, Priority = priority };
+    private static RepairStructure Structure(string id, int hp, int max = 100, bool home = true, int priority = 1) =>
+        new(new() { Id = id, Definition = "Wall", Stuff = null, Cell = new(1, 1), Home = home, HitPoints = hp, MaxHitPoints = max }, priority, 0);
 
     // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
     private static Need Derive(HomeUpkeepFacts facts, NeedId id) =>
@@ -26,10 +26,10 @@ public sealed class HomeUpkeepFamilyTests
     [Fact]
     public void RepairsIsMetUnmetOrUnknownByTheDamagedHomeStructures()
     {
-        var met = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([Structure("whole", 100), Structure("outside", 10, home: false)]) }, HomeUpkeepFamily.Repairs);
+        var met = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<RepairStructure>>([Structure("whole", 100), Structure("outside", 10, home: false)]) }, HomeUpkeepFamily.Repairs);
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit.Value, met.Tier));
 
-        var unmet = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([Structure("wall", 60), Structure("door", 90)]) }, HomeUpkeepFamily.Repairs);
+        var unmet = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<RepairStructure>>([Structure("wall", 60), Structure("door", 90)]) }, HomeUpkeepFamily.Repairs);
         Assert.Equal((Satisfaction.Unmet, 50.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
         Assert.Equal("repair census", Assert.Throws<RequiredFactException>(() => Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs)).Fact);
@@ -78,7 +78,7 @@ public sealed class HomeUpkeepFamilyTests
         Assert.Equal((HomeUpkeepFamily.Clearance, "deconstruct-a"), (cut.Need, cut.Method.Value));
 
         // Clearance no longer waits on repairs: the old hold only labelled the progress strip.
-        Assert.Empty(new HomeUpkeepFamily().Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([]), Clearance = Known<EquatableArray<ClearanceTarget>>([]) }).SelectMany(n => n.Preconditions));
+        Assert.Empty(new HomeUpkeepFamily().Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<RepairStructure>>([]), Clearance = Known<EquatableArray<ClearanceTarget>>([]) }).SelectMany(n => n.Preconditions));
     }
 
     private static ClearanceCandidate Step(string method, string target, int x = 5, bool wall = false) =>
@@ -129,7 +129,7 @@ public sealed class HomeUpkeepFamilyTests
 
     private static HomeUpkeepFacts Unmet(ClearanceCandidate? step) => new()
     {
-        Structures = Known<EquatableArray<UpkeepStructure>>([Structure("wall", 40)]),
+        Structures = Known<EquatableArray<RepairStructure>>([Structure("wall", 40)]),
         Clearance = Known<EquatableArray<ClearanceTarget>>([new ClearanceTarget { EntityId = "a", Deconstructible = true }]),
         Candidate = step,
     };
@@ -250,7 +250,7 @@ public sealed class HomeUpkeepFamilyTests
         Assert.NotNull(colony.Row(HomeUpkeepFamily.Repairs));
 
         // Repairs met: its row goes, clearance's stays.
-        colony.Facts = Unmet(Step("deconstruct-a", "a")) with { Structures = Known<EquatableArray<UpkeepStructure>>([Structure("wall", 100)]) };
+        colony.Facts = Unmet(Step("deconstruct-a", "a")) with { Structures = Known<EquatableArray<RepairStructure>>([Structure("wall", 100)]) };
         colony.File(colony.Run());
         Assert.Null(colony.Row(HomeUpkeepFamily.Repairs));
         Assert.NotNull(colony.Row(HomeUpkeepFamily.Clearance));

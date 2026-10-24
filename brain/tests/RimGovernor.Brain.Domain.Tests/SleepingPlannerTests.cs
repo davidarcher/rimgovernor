@@ -24,7 +24,7 @@ public sealed class SleepingPlannerTests
 
     private static SleepingBed Bed(string id, string room, params PawnId[] owners) => new()
     {
-        Id = id, Definition = new("Bed"), Humanlike = true, Room = Known(room), Owners = [.. owners], AccessibleTo = [A, B],
+        Id = id, Definition = new("Bed"), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
     };
 
     private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
@@ -281,12 +281,12 @@ public sealed class SleepingPlannerTests
     {
         static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new()
         {
-            Id = id, OwnedBed = Known(bed), ComfortableMin = Known(6.0), ComfortableMax = Known(30.0), Partners = [other], BedSharingAllowed = Known(willing),
+            Id = id, OwnedBed = Known(bed), ComfortableMin = 6.0, ComfortableMax = 30.0, Partners = [other], BedSharingAllowed = Known(willing),
         };
         var dbl = new SleepingBed
         {
-            Id = "double", Definition = new("DoubleBed"), Humanlike = true, Roofed = true, RestEffectiveness = 1, Temperature = Known(28.0),
-            Owners = [A], AccessibleTo = [A, B], Room = Known("42"),
+            Id = "double", Definition = new("DoubleBed"), Humanlike = true, Roofed = true, RestEffectiveness = 1, Temperature = 28.0,
+            Owners = [A], AccessibleTo = [A, B], Room = "42",
         };
         var sleeping = new SleepingObservation
         {

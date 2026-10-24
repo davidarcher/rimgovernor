@@ -69,7 +69,7 @@ public static class JailRules
             var marks = new List<string>();
             foreach (var b in beds)
             {
-                if (!stands || b.Room.ValueOrDefault != standing!.Id || !b.Humanlike || b.Prisoners)
+                if (!stands || b.Room != standing!.Id || !b.Humanlike || b.Prisoners)
                 {
                     continue;
                 }

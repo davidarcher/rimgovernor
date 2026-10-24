@@ -15,50 +15,7 @@ public static class ColonyUpkeepReads
         {
             return r;
         }
-        if (!ColonyDecodeReads.HasIssue(u.Issues, "structures"))
-        {
-            var rows = new List<UpkeepStructure>();
-            var known = true;
-            var medical = new Dictionary<string, bool>(StringComparer.Ordinal);
-            foreach (var bed in u.Beds)
-            {
-                medical[bed.Bed.Id ?? ""] = bed.Medical;
-            }
-            foreach (var item in u.Structures)
-            {
-                if (!buildings.TryGetRow(item.Building, out var b) || b is null || b.HitPoints is null || b.MaxHitPoints is null)
-                {
-                    known = false;
-                    break;
-                }
-                if (catalog is null)
-                {
-                    throw new DomainException("upkeep structures: no definition catalog was loaded");
-                }
-                int priority;
-                try
-                {
-                    priority = catalog.RepairPriority(b.Building.DefName, medical.GetValueOrDefault(item.Building.Id ?? ""));
-                }
-                catch (DomainException e)
-                {
-                    throw new DomainException($"upkeep structure {item.Building.Id}: {e.Message}");
-                }
-                rows.Add(new UpkeepStructure
-                {
-                    Id = item.Building.Id ?? "",
-                    Cell = ColonyDecodeReads.CellOf(b.Building.Position),
-                    Home = item.Home,
-                    HitPoints = b.HitPoints.GetValueOrDefault(),
-                    MaxHitPoints = b.MaxHitPoints.GetValueOrDefault(),
-                    Priority = priority,
-                });
-            }
-            if (known)
-            {
-                r = r with { Structures = Known(EquatableArray.From(rows)) };
-            }
-        }
+        r = r with { Structures = Known(RepairStructures(u, ColonyDecodeReads.RequireCatalog(catalog))) };
         r = r with { Lighting = Known(ColonyLighting(u.Lighting, buildings, catalog)) };
         if (!ColonyDecodeReads.HasIssue(u.Issues, "routes"))
         {
@@ -79,6 +36,36 @@ public static class ColonyUpkeepReads
             }
         }
         return r;
+    }
+
+    /// <summary>
+    /// The structure census with each row's catalog repair priority (a medical bed is the bed census's) and
+    /// flammability; a def the catalog cannot answer for throws naming the structure.
+    /// </summary>
+    private static EquatableArray<RepairStructure> RepairStructures(O.UpkeepFacts u, DefinitionCatalog catalog)
+    {
+        var medical = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var bed in u.Beds)
+        {
+            if (bed.Medical)
+            {
+                medical.Add(bed.Bed.Id ?? "");
+            }
+        }
+        var rows = new List<RepairStructure>(u.Structures.Count);
+        foreach (var s in u.Structures)
+        {
+            try
+            {
+                // The flammability of the building as made: its def with its stuff.
+                rows.Add(new RepairStructure(s, catalog.RepairPriority(s.Definition, medical.Contains(s.Id)), catalog.PlannerStatValue(s.Definition, s.Stuff ?? "", CatalogStats.Flammability)));
+            }
+            catch (DomainException e)
+            {
+                throw new DomainException($"upkeep structure {s.Id}: {e.Message}");
+            }
+        }
+        return EquatableArray.From(rows);
     }
 
     /// <summary>

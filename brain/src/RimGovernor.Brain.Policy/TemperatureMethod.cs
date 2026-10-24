@@ -208,14 +208,12 @@ public static partial class TemperatureMethodRules
         foreach (var p in sleepers)
         {
             var bk = p.OwnedBed.TryGetValue(out var bed);
-            var mk = p.ComfortableMin.TryGetValue(out var min);
-            var xk = p.ComfortableMax.TryGetValue(out var max);
-            if (!bk || !mk || !xk || !beds.Contains(bed!))
+            if (!bk || !beds.Contains(bed!))
             {
                 continue;
             }
-            low = Math.Max(low, min);
-            high = Math.Min(high, max);
+            low = Math.Max(low, p.ComfortableMin);
+            high = Math.Min(high, p.ComfortableMax);
             banded = true;
         }
         return banded ? (low, high, true) : (0, 0, false);

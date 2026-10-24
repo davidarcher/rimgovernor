@@ -129,7 +129,7 @@ public sealed class RoyalRoomCreditTests
     {
         Colonists = 1,
         People = [new() { Id = A, OwnedBed = Known("b1"), Title = title }],
-        Beds = [new() { Id = "b1", Definition = new("Bed"), Humanlike = true, Room = Known("std"), Owners = [A], AccessibleTo = [A] }],
+        Beds = [new() { Id = "b1", Definition = new("Bed"), Humanlike = true, Room = "std", Owners = [A], AccessibleTo = [A] }],
         Rooms = Known<EquatableArray<UpkeepRoom>>([new() { Id = "std", Role = RoomRole.None, Quality = new RoomQuality(30, 0, 0, 0, 30), Cells = 12, Beds = [] }]),
     };
 

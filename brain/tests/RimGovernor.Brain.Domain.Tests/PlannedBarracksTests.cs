@@ -130,7 +130,7 @@ public sealed class PlannedBarracksTests
 
     private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new()
     {
-        Id = id, Definition = new(Bed), Humanlike = true, Room = Known(room), Owners = [.. owners], AccessibleTo = [A, B],
+        Id = id, Definition = new(Bed), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
     };
 
     private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
