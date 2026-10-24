@@ -39,11 +39,10 @@ public sealed class ForecastCoupledTests
                     { ApproachTicks = Known(0.0), DeliveryTicks = Known(10.0), HarvestAllowed = Known(true), SourceCount = Known(8.0) }]
                     },
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.1), Known(10.0), 4, Known(expiry))],
-                    Construction = new()
+                    Construction = ConstructionFixtures.NoConstruction() with
                     {
                         Context = Context,
-                        Known = true,
-                        Options = [new("frame", "TestWall", new(1,1), "pawn", "", "", new(1,1), 0, 0,
+                        Options = [new Row("frame", "TestWall", new(1,1), "pawn", "", "", new(1,1), 0, 0,
                     "Finish", default, default, Known(build)) { SiteApproachTicks = Known(0.0) }]
                     },
                 },
@@ -146,7 +145,7 @@ public sealed class ForecastCoupledTests
             {
                 Coupled = coupled with
                 {
-                    Construction = coupled.Construction with { Options = EquatableArray.From(coupled.Construction.Options.Select(o => o with { FinishTicks = default })) }
+                    Construction = coupled.Construction with { Options = EquatableArray.From(coupled.Construction.Options.Select(o => o with { Finish = new ConstructionFinish.CannotFinish() })) }
                 }
             }
         });
@@ -168,14 +167,13 @@ public sealed class ForecastCoupledTests
             {
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
-                    Construction = new()
+                    Construction = ConstructionFixtures.NoConstruction() with
                     {
                         Context = Context,
-                        Known = true,
-                        Options = EquatableArray.From(Enumerable.Range(0, sites).Select(i =>
-                    new ConstructionActivityOption("frame" + i, "TestWall", new(1, 1), "pawn", "Rice", "stack", new(1, 1), 100, 100, "Finish",
+                        Options = EquatableArray.From<ConstructionActivityOption>(Enumerable.Range(0, sites).Select(i =>
+                    new Row("frame" + i, "TestWall", new(1, 1), "pawn", "Rice", "stack", new(1, 1), 100, 100, "Finish",
                         Known(0.0), Known(20.0), Known(30.0))
-                    { AvailableInput = Known((double)stock), SiteApproachTicks = Known(0.0) }))
+                    { AvailableInput = Known((double)stock), SiteApproachTicks = Known(0.0) }.Option))
                     }
                 }
             }

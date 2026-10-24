@@ -6,9 +6,8 @@ namespace RimGovernor.Brain.Policy;
 /// One hypothetical construction site: one owed operation of one planned room (Room, Op) in one stuff, or one
 /// unplaced shelf candidate (Zone, Op Build, Room 0). Positions are its placement anchors, one per piece (every cell
 /// of a wall run or floor op, a piece's one anchor). Material is the piece cost times the pieces, priced the way
-/// PlannedOwedCost prices the op. The rest is the native planned-site answer (#3273) joined back by Id: Verdict is
-/// unspecified while native has not answered (no read, an unknown read, an unresolved def) and Options are the
-/// per pawn x material source rows.
+/// PlannedOwedCost prices the op. The rest is the native planned-site answer (#3273) joined back by Id (Answer), absent
+/// while native has not answered.
 /// A RoofIn site has no native placement: its work per cell is the coupled read's ThermalWorker.RoofCellWorkTicks,
 /// so it is never requested and stays unknown here.
 /// </summary>
@@ -19,13 +18,17 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
 
     public EquatableArray<Amount> Material { get; init; }
 
-    public EquatableArray<ConstructionActivityOption> Options { get; init; }
+    /// <summary>
+    /// The native answer for the site (its Verdict, feasibility once the footprint is cleared; its Options, this site's
+    /// rows; its Clearing), or null while native has not answered: a roof, no read, or no answer naming the site.
+    /// </summary>
+    public PlannedSiteAnswer? Answer { get; init; }
 
-    /// <summary>Feasibility once the footprint is cleared (native Verdict); Unspecified while native has not answered.</summary>
-    public PlannedSiteVerdict Verdict { get; init; }
+    /// <summary>The answer's per pawn x material source rows; empty while unanswered.</summary>
+    public EquatableArray<ConstructionActivityOption> Options => Answer?.Options ?? default;
 
-    /// <summary>The Cut, Haul and Mine prerequisites native reports for the footprint.</summary>
-    public EquatableArray<PlannedSiteClearing> Clearing { get; init; }
+    /// <summary>The Cut, Haul and Mine prerequisites native reports for the footprint; empty while unanswered.</summary>
+    public EquatableArray<PlannedSiteClearing> Clearing => Answer?.Clearing ?? default;
 
     /// <summary>
     /// A room's Build site whose piece no builder can work now, on read evidence (the one blocked predicate,
@@ -301,15 +304,16 @@ public static partial class PlannedRules
 
     /// <summary>
     /// The sites with the read's answers joined back by id. The read covers every free colonist (#3341), so an answer
-    /// is the site's whole answer. A missing or unknown read (planned_site_read_unknown) answers none, and a site no
-    /// answer names stays unknown. The read's own findings are kept. Null with nothing asked adds no finding.
+    /// is the site's whole answer. A missing read (planned_site_read_unknown) answers none, and a site no
+    /// answer names has no Answer. The read's own findings are kept. Null with nothing asked adds no finding.
     /// </summary>
     public static PlannedSiteFacts JoinPlannedSites(IReadOnlyList<PlannedBuildSite> sites, ConstructionActivityRead? read)
     {
         var all = new SortedSet<string>(StringComparer.Ordinal);
         var answers = new Dictionary<string, PlannedSiteAnswer>(StringComparer.Ordinal);
-        if (read is { Known: true })
+        if (read is not null)
         {
+
             all.UnionWith(read.Findings);
             foreach (var answer in read.Planned)
             {
@@ -321,13 +325,9 @@ public static partial class PlannedRules
             all.Add("planned_site_read_unknown");
         }
         var joined = sites.Select(site => answers.TryGetValue(site.Id, out var a)
-            ? site with
-            {
-                Options = EquatableArray.From(a.Options.Where(o => o.Site == site.Id)),
-                Verdict = a.Verdict,
-                Clearing = a.Clearing,
-            }
+            ? site with { Answer = a with { Options = EquatableArray.From(a.Options.Where(o => o.Site == site.Id)) } }
             : site);
+
         return new PlannedSiteFacts { Sites = EquatableArray.From(joined), Findings = EquatableArray.From(all) };
     }
 
@@ -397,13 +397,13 @@ public static partial class PlannedRules
     public const int PlannedNeedRouteTargets = 8;
 
     /// <summary>
-    /// The facts with the route read's rows. A missing or unknown read (planned_route_read_unknown) contributes no
+    /// The facts with the route read's rows. A missing read (planned_route_read_unknown) contributes no
     /// route, so every route stays unknown; the read's own findings are kept. Null with nothing asked adds no finding.
     /// </summary>
     public static PlannedSiteFacts JoinPlannedRoutes(PlannedSiteFacts facts, EquatableArray<PlannedRouteProbe> asked, ConstructionActivityRead? read)
     {
         var all = new SortedSet<string>(facts.Findings, StringComparer.Ordinal);
-        if (read is not { Known: true })
+        if (read is null)
         {
             if (asked.Count > 0)
             {

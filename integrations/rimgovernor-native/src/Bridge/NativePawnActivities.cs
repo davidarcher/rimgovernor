@@ -76,7 +76,9 @@ namespace HomeBridge.BridgeTools
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
         internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
         private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
-            e.Step, e.State, e.Reason, e.Running == null ? null : e.RunningId, e.Tick);
+            e.Step, e.State, e.Reason, e.Tick);
+        /// <summary>The load id of the job the pawn's order is running, or null while it runs none (#3775: native-side, never on the wire).</summary>
+        internal static int? RunningJobId(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Running != null ? e.RunningId : null;
 
         internal static bool TrySelectPracticePair(Pawn pawn, Thing target, PawnActivityStep step)
         {

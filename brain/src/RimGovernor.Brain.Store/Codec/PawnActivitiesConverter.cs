@@ -11,12 +11,11 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             r.GetProperty("Steps").EnumerateArray().Select(ReadStep).ToArray())
             { OutputDelivery = ReadOutput(r.GetProperty("OutputDelivery")), Task = r.Str("Task"), Preparing = r.GetProperty("Preparing").GetBoolean() }).ToArray();
         var value = new PawnActivities(e.GetProperty("AuthorityGeneration").GetUInt64(), orders)
-        { Tasks = EquatableArray.From(e.GetProperty("Tasks").EnumerateArray().Select(t => new SelectedActivityTask(t.Str("Id"), t.Str("Pawn"),
+        { Tasks = EquatableArray.From(e.GetProperty("Tasks").EnumerateArray().Select(t => Bound(t, new SelectedActivityTask(t.Str("Id"), t.Str("Pawn"),
             EquatableArray.From(t.GetProperty("Prerequisites").EnumerateArray().Select(p => p.GetString()!)),
             ReadStep(t.GetProperty("Step")),
             new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32()), t.GetProperty("DepartTick").GetInt64())
             { Resource = t.Str("Resource"), SupportDemand = t.Str("SupportDemand"), ProductStuff = t.Str("ProductStuff"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
-                ProductiveWorkTicks = t.GetProperty("ProductiveWorkTicks") is var work && work.ValueKind != JsonValueKind.Null ? Fact.Known(work.GetDouble()) : default,
                 Inputs = EquatableArray.From(t.GetProperty("Inputs").EnumerateArray().Select(i => new SelectedActivityInput(
                     i.Str("Resource"), i.Str("Lot"), i.GetProperty("Count").GetInt32(),
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
@@ -25,9 +24,12 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 Source = t.GetProperty("Source") is var source && source.ValueKind != JsonValueKind.Null
                     ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null,
                 PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)),
-                UseUntilTick = t.GetProperty("UseUntilTick").GetInt64() })) };
+                UseUntilTick = t.GetProperty("UseUntilTick").GetInt64() }))) };
         value.Validate(); return value;
     }
+    /// <summary>A task stored with its recipe's productive work ticks is a recipe task bound to that much work.</summary>
+    private static SelectedActivityTask Bound(JsonElement t, SelectedActivityTask task) =>
+        t.GetProperty("ProductiveWorkTicks") is { ValueKind: JsonValueKind.Number } work ? new BoundRecipeTask(task, work.GetDouble()) : task;
     private static PawnActivityStep ReadStep(JsonElement s) => new(
         (PawnActivityKind)s.GetProperty("Kind").GetInt32(), s.Str("Target"), s.Str("WorkGiver"), s.Str("Job"),
         s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64())
@@ -64,7 +66,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteNum("UseUntilTick", task.UseUntilTick);
             w.WriteString("Resource", task.Resource); w.WriteString("SiteDefinition", task.SiteDefinition); w.WriteNum("AttemptsLeft", task.AttemptsLeft);
             w.WriteString("ProductStuff", task.ProductStuff);
-            if (task.ProductiveWorkTicks.TryGetValue(out var work)) w.WriteNum("ProductiveWorkTicks", work); else w.WriteNull("ProductiveWorkTicks");
+            if (task is BoundRecipeTask bound) w.WriteNum("ProductiveWorkTicks", bound.ProductiveWorkTicks); else w.WriteNull("ProductiveWorkTicks");
             w.WriteString("SupportDemand", task.SupportDemand);
             w.WriteBoolean("CompletionMustBeObserved", task.CompletionMustBeObserved);
             w.WriteStartArray("Inputs");

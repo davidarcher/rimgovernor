@@ -302,7 +302,7 @@ stuff first. Otherwise it is owing when it is open (`Context.OpenRooms`: observe
 `PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile found,
 `Rounder.DoneRooms`; #3754) or the schedule finished one of its items. Its remaining
 work is the owed work (`Context.OwedWork`, by item id) of its unfinished items (a
-planned site's least finish option, FinishTicks or a roof's `RoofCellWorkTicks` times
+planned site's least finish option (its `Finishes` ticks) or a roof's `RoofCellWorkTicks` times
 its cells, plus the least option of each of its `PlannedSiteOperations.WorkGroups`,
 deliveries and clearings; a placed item's least work over its bound tasks); the least
 stuff wins, and a room with an item without an owed-work row is unassessed. The
@@ -626,8 +626,8 @@ every free colonist, since any may build, cut, mine or haul; native gives a pawn
 sites, rows, sources or positions. It searches each path once (`NativePathLegs`): a colonist's
 leg to a stack or site once per (colonist cell, target), a stack's legs to a site and back once per (stack, site),
 re-priced at each colonist's move ticks, since free colonists share the cell grid. `JoinPlannedSites` takes each
-site's answer by id: per pawn x source `Options`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul, mine and deconstruct prerequisites). A site
-stays unknown when no answer names it, or when the read is missing or unknown (`planned_site_read_unknown`).
+site's answer by id as its `Answer`: per pawn x source `Options`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul, mine and deconstruct prerequisites). A site
+has no `Answer` when no answer names it, or when no read came (`planned_site_read_unknown`); a read that fails throws (#3775).
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
 `ThermalWorker.RoofCellWorkTicks`, which the generator joins.

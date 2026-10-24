@@ -92,7 +92,7 @@ internal static class ControlCut
         }
 
         var row = op.Options.FirstOrDefault(r => r.Pawn == worker);
-        if (row is null || row.WorkGiver.Length == 0 || !row.SiteApproachTicks.IsKnown || !row.FinishTicks.IsKnown || row.FinishTicks.Value <= 0)
+        if (row is null || row.WorkGiver.Length == 0 || row.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 })
         {
             throw new AcceptanceException($"removals: want a row for {worker} with a work giver, a known route and finish, got [{string.Join(";", op.Options)}]");
         }

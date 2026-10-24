@@ -14,7 +14,7 @@ public sealed record CoupledForecastRead
     public SupportActivityRead Support { get; init; } = new();
     public CoupledThermalRead? Thermal { get; init; }
     public FoodActivityRead Food { get; init; } = new();
-    public ConstructionActivityRead Construction { get; init; } = new();
+    public required ConstructionActivityRead Construction { get; init; }
     public RecipeActivityRead Clothing { get; init; } = new();
     [JsonConverter(typeof(EquatableArrayJsonConverter<CoupledFoodConversion>))]
     public EquatableArray<CoupledFoodConversion> FoodConversions { get; init; }

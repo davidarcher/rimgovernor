@@ -64,12 +64,12 @@ public sealed class SharedStackRemainderTests
     private static int Owed(WorkResourceView view, string? owner = null) =>
         view.Claims.Shared.Where(s => s.Target == Stack && (owner is null || s.Owner == owner)).Sum(s => s.Count);
 
-    private static ActivityTaskRead Observe(PawnActivities batch, string state, long tick, params ActivityTaskBinding[] bindings) => new()
+    private static ActivityTaskRead Observe(PawnActivities batch, string state, long tick, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
-        Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick },
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick },
         Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-            new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, state, "", null, tick)))),
+            new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, state, "", tick)))),
     };
     private static ActivityOwnership[] Owners(PawnActivities batch, string state) =>
         batch.Orders.Select(o => new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, state)).ToArray();
@@ -179,7 +179,7 @@ public sealed class SharedStackRemainderTests
         using var journal = Journal.Open(Open(), ct);
         var (_, _, _, next, _) = Install(journal, ct);
         var later = Assert.Single(next.Tasks);
-        var bound = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Observe(next, "holding", later.DepartTick, new ActivityTaskBinding(later.Id, Eat(15))))!;
+        var bound = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(15))))!;
         var order = Assert.Single(bound.Orders);
         Assert.False(order.Release);
         Assert.Equal(Eat(15), Assert.Single(order.Steps));
@@ -187,7 +187,7 @@ public sealed class SharedStackRemainderTests
         // that was split, merged or moved into another thing, yields no binding; a short binding is malformed. Both release.
         Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Observe(next, "holding", later.DepartTick))!.Orders).Release);
         Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true),
-            Observe(next, "holding", later.DepartTick, new ActivityTaskBinding(later.Id, Eat(14))))!.Orders).Release);
+            Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(14))))!.Orders).Release);
     }
 
     [Fact]

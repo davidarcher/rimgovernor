@@ -64,7 +64,7 @@ public sealed class PlannedSitesTests
         var roof = sites.Single(s => s.Op == OpKind.RoofIn);
         Assert.Equal(3, roof.Positions.Count);
         Assert.Empty(roof.Material);
-        Assert.All(sites, s => Assert.Equal(O.PlannedSiteVerdict.Unspecified, s.Verdict));
+        Assert.All(sites, s => Assert.Null(s.Answer));
 
         // The roof has no native placement: everything else is asked, in one read.
         var asked = PlannedRules.PlannedSiteRequest(sites);
@@ -77,12 +77,11 @@ public sealed class PlannedSitesTests
     public void TheJoinAttachesRowsAndVerdict()
     {
         var sites = Sites([Owed()]);
-        var row = new O.ConstructionActivityOption("planned/room1/wall/Steel", ContainmentCellRules.ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
+        var row = new Row("planned/room1/wall/Steel", ContainmentCellRules.ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
             new Cell(5, 5), 6, 75, "ConstructFinishFrames", Known(10d), Known(20d), Known(300d));
-        var clearing = new O.PlannedSiteClearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut);
-        var answered = new O.ConstructionActivityRead
+        var clearing = ConstructionFixtures.Clearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut);
+        var answered = ConstructionFixtures.NoConstruction() with
         {
-            Known = true,
             Findings = ["planned_quality_minimum_unset"],
             Planned =
             [
@@ -97,14 +96,14 @@ public sealed class PlannedSitesTests
         var wall = facts.Sites.Single(s => s.Id == "planned/room1/wall/Steel");
         Assert.Equal([row], wall.Options);
         // Feasibility once cleared, and the clearing it owes, come through the join (#3276).
-        Assert.Equal(O.PlannedSiteVerdict.Feasible, wall.Verdict);
+        Assert.Equal(O.PlannedSiteVerdict.Feasible, wall.Answer!.Verdict);
         Assert.Equal([clearing], wall.Clearing);
-        // A site no answer names stays unknown.
-        Assert.Equal(O.PlannedSiteVerdict.Unspecified, facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").Verdict);
+        // A site no answer names stays unanswered.
+        Assert.Null(facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").Answer);
         Assert.Equal(["planned_quality_minimum_unset"], facts.Findings);
         // A read that never came leaves every site unknown, saying so.
         var missing = PlannedRules.JoinPlannedSites(sites, null);
-        Assert.All(missing.Sites, s => Assert.Equal(O.PlannedSiteVerdict.Unspecified, s.Verdict));
+        Assert.All(missing.Sites, s => Assert.Null(s.Answer));
         Assert.Equal(["planned_site_read_unknown"], missing.Findings);
     }
 
@@ -231,9 +230,12 @@ public sealed class PlannedSitesTests
     private static PlannedBuildSite Answered(string id, OpKind op, Cell[] cells, Cell origin, int count, params O.PlannedSiteClearing[] clearing) =>
         new(id, 1, op, "Wall", "WoodLog", Rotation.North, EquatableArray.From(cells))
         {
-            Options = [new O.ConstructionActivityOption(id, "Wall", cells[0], "Pawn_1", "WoodLog", count > 0 ? "stack" : "", origin, count, 75, "Finish",
-                Known(1d), Known(1d), Known(10d))],
-            Clearing = EquatableArray.From(clearing),
+            Answer = ConstructionFixtures.Answer(id) with
+            {
+                Options = [new Row(id, "Wall", cells[0], "Pawn_1", "WoodLog", count > 0 ? "stack" : "", origin, count, 75, "Finish",
+                    Known(1d), Known(1d), Known(10d))],
+                Clearing = EquatableArray.From(clearing),
+            },
         };
 
     /// <summary>
@@ -244,8 +246,8 @@ public sealed class PlannedSitesTests
     [Fact]
     public void RouteProbesRunFromEachEndOfARoomToEachOtherStartAndTheRoofFromStart()
     {
-        var cut = new O.PlannedSiteClearing("planned/room1/wall/WoodLog/clear/cut", O.PlannedClearingKind.Cut)
-            { Options = [new O.ConstructionActivityOption("planned/room1/wall/WoodLog/clear/cut", "", new Cell(0, 3), "Pawn_1", "", "", new Cell(0, 3), 0, 0, "Cut",
+        var cut = ConstructionFixtures.Clearing("planned/room1/wall/WoodLog/clear/cut", O.PlannedClearingKind.Cut) with
+            { Options = [new Row("planned/room1/wall/WoodLog/clear/cut", "", new Cell(0, 3), "Pawn_1", "", "", new Cell(0, 3), 0, 0, "Cut",
                 Known(1d), default, Known(10d))] };
         var wall = Answered("planned/room1/wall/WoodLog", OpKind.WallIn, [new(0, 0), new(0, 1)], new Cell(9, 9), 10, cut);
         var door = Answered("planned/room1/door/WoodLog", OpKind.DoorIn, [new(1, 0)], new Cell(1, 0), 0);
@@ -303,7 +305,7 @@ public sealed class PlannedSitesTests
         EquatableArray<O.PlannedRouteProbe> asked = [new(new(0, 0), new(1, 0), [new(1, 0)]), new(new(1, 1), new(1, 1), [new(1, 1)]) { FromStart = true }];
         var known = new O.CoupledRoute("Pawn_1", new(0, 0), new(1, 0), Known(2d));
         var fromStart = new O.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), Known(12d)) { FromStart = true };
-        var read = new O.ConstructionActivityRead { Known = true, Routes = [known, fromStart], Findings = ["planned_route_out_of_bounds"] };
+        var read = ConstructionFixtures.NoConstruction() with { Routes = [known, fromStart], Findings = ["planned_route_out_of_bounds"] };
         var sites = new PlannedSiteFacts { Findings = ["planned_site_read_unknown"] };
         var facts = PlannedRules.JoinPlannedRoutes(sites, asked, read);
         Assert.Equal([known, fromStart], facts.Routes);

@@ -44,12 +44,12 @@ public sealed class PlannedRoomActivitiesTests
         var at = cells[0];
         var reach = Ticks(Start, Nearest(cells, Start));
         var rows = count == 0
-            ? [new ConstructionActivityOption(id, def, at, Pawn, "", "", at, 0, 0, "Finish", default, default, Known(finish)) { SiteApproachTicks = Known(reach) }]
-            : stacks.Select(s => new ConstructionActivityOption(id, def, at, Pawn, stuff, s.Id, s.At, count, 75, "Finish", Known(Ticks(Start, s.At)),
+            ? [new Row(id, def, at, Pawn, "", "", at, 0, 0, "Finish", default, default, Known(finish)) { SiteApproachTicks = Known(reach) }]
+            : stacks.Select(s => new Row(id, def, at, Pawn, stuff, s.Id, s.At, count, 75, "Finish", Known(Ticks(Start, s.At)),
                 Known(Ticks(s.At, Nearest(cells, s.At))), Known(finish)) { SiteApproachTicks = Known(reach), AvailableInput = Known(s.Available) }).ToArray();
         return new PlannedBuildSite(id, room, op, def, op == OpKind.FloorIn ? "" : stuff, Rotation.North, EquatableArray.From(cells))
         {
-            Verdict = verdict, Options = EquatableArray.From(rows),
+            Answer = ConstructionFixtures.Answer(id, verdict) with { Options = [.. rows.Select(r => r.Option)] },
             Material = count > 0 ? [new RimGovernor.Brain.Policy.Amount(new Resource(stuff), count)] : [],
         };
     }
@@ -75,9 +75,8 @@ public sealed class PlannedRoomActivitiesTests
         var facts = new PlannedSiteFacts { Sites = EquatableArray.From(planned) };
         if (!routes) return facts;
         var probes = PlannedRules.PlannedRouteProbes(facts.Sites);
-        return PlannedRules.JoinPlannedRoutes(facts, probes, new ConstructionActivityRead
+        return PlannedRules.JoinPlannedRoutes(facts, probes, ConstructionFixtures.NoConstruction() with
         {
-            Known = true,
             Routes = EquatableArray.From(probes.Select(p =>
             {
                 var origin = p.FromStart ? Start : p.From;
@@ -111,7 +110,7 @@ public sealed class PlannedRoomActivitiesTests
         {
             // The colony holds what the stacks hold.
             Resources = Known(EquatableArray.From(planned.SelectMany(s => s.Options).Where(o => o.Input.Length > 0).DistinctBy(o => o.Input)
-                .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput.Value))))),
+                .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput))))),
             PlannedSites = Known(PlannedFacts(planned, routes)),
             ForecastObserved = facts.ForecastObserved with
             {
@@ -125,7 +124,7 @@ public sealed class PlannedRoomActivitiesTests
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = Known(true),
                             SourceCount = Known(2d) })) },
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d))],
-                    Construction = new() { Context = Context, Known = true },
+                    Construction = ConstructionFixtures.NoConstruction() with { Context = Context },
                     // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.
                     Thermal = roofCellWork > 0 ? CoupledThermalTests.NoThermal with { Workers = [new(Pawn, roofCellWork)] } : null,
                 },
@@ -322,7 +321,7 @@ public sealed class PlannedRoomActivitiesTests
         Ring(OpKind.WallIn, "WoodLog", 60), Ring(OpKind.DoorIn, "WoodLog", 30),
         .. BarracksBeds.Select((id, i) => Site(id, OpKind.Build, "Bed", "WoodLog", [new Cell(5 + i, 5)], 40, 0, [])),
         new PlannedBuildSite(BarracksStove, 1, OpKind.Build, "FueledStove", "", Rotation.North, [new Cell(6, 7)])
-            { Verdict = PlannedSiteVerdict.Feasible, Material = [new RimGovernor.Brain.Policy.Amount(new Resource("Steel"), 80)] },
+            { Answer = ConstructionFixtures.Answer(BarracksStove), Material = [new RimGovernor.Brain.Policy.Amount(new Resource("Steel"), 80)] },
     ]).ToList());
 
     /// <summary>
@@ -401,13 +400,13 @@ public sealed class PlannedRoomActivitiesTests
         const string clearingId = site + "/deconstruct/" + ruin;
         var at = WallCells[0];
         Cell[] cells = [new(at.X + 1, at.Z), new(at.X + 1, at.Z + 1)];
-        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Deconstruct)
+        var clearing = ConstructionFixtures.Clearing(clearingId, PlannedClearingKind.Deconstruct) with
         {
-            Options = [new ConstructionActivityOption(clearingId, "Wall", cells[0], Pawn, "Wall", ruin, cells[0], 0, 0, "Deconstruct", default, default, Known(50d))
+            Options = [new Row(clearingId, "Wall", cells[0], Pawn, "Wall", ruin, cells[0], 0, 0, "Deconstruct", default, default, Known(50d))
                 { SiteApproachTicks = Known(Ticks(Start, cells[0])) }],
             Cells = EquatableArray.From(cells),
         };
-        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
@@ -439,12 +438,12 @@ public sealed class PlannedRoomActivitiesTests
         const string site = "planned/room1/wall/WoodLog";
         const string clearingId = site + "/deconstruct/" + ruin;
         var at = WallCells[0];
-        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Deconstruct)
+        var clearing = ConstructionFixtures.Clearing(clearingId, PlannedClearingKind.Deconstruct) with
         {
-            Options = [new ConstructionActivityOption(clearingId, "Wall", at, Pawn, "Door", ruin, at, 0, 0, "Deconstruct", default, default, Known(50d))
+            Options = [new Row(clearingId, "Wall", at, Pawn, "Door", ruin, at, 0, 0, "Deconstruct", default, default, Known(50d))
                 { SiteApproachTicks = Known(Ticks(Start, at)) }],
         };
-        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
@@ -463,7 +462,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
 
         // A deconstruct row naming no building binds nothing and leaves the alternative unvalued.
-        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing with { Options = [clearing.Options[0] with { Input = "" }] }] },
+        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing with { Options = [clearing.Options[0] with { Input = "" }] }),
             Ring(OpKind.DoorIn, "WoodLog", 60)]);
         Assert.Contains("planned_room_alternative_unvalued:planned/room1/WoodLog/Shell:" + site + ":clearing_unrouted", unnamed.CoupledAlternatives!.Findings);
     }
@@ -480,13 +479,13 @@ public sealed class PlannedRoomActivitiesTests
         const string clearingId = site + "/cut";
         string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2"];
         var at = WallCells[0];
-        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Cut)
+        var clearing = ConstructionFixtures.Clearing(clearingId, PlannedClearingKind.Cut) with
         {
-            Options = [new ConstructionActivityOption(clearingId, "Wall", at, Pawn, "", "", at, 0, 0, "PlantsCut", default, default, Known(50d))
+            Options = [new Row(clearingId, "Wall", at, Pawn, "", "", at, 0, 0, "PlantsCut", default, default, Known(50d))
                 { SiteApproachTicks = Known(Ticks(Start, at)) }],
             Targets = EquatableArray.From(trees),
         };
-        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "CutPlant");
         Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "PlantsCut", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
@@ -504,7 +503,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(trees, task.Step.Targets);
         Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
 
-        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing with { Targets = default }] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing with { Targets = [] }), Ring(OpKind.DoorIn, "WoodLog", 60)]);
         Assert.DoesNotContain(unnamed.CoupledAlternatives!.Context.Bindings.Values, b => b.Job == "CutPlant");
         Assert.DoesNotContain(unnamed.CoupledAlternatives.Findings, f => f.StartsWith("planned_room_alternative_unvalued", StringComparison.Ordinal));
     }
@@ -522,13 +521,13 @@ public sealed class PlannedRoomActivitiesTests
         const string clearingId = site + "/mine";
         string[] rocks = ["Thing_Sandstone1", "Thing_Sandstone2"];
         var at = WallCells[0];
-        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Mine)
+        var clearing = ConstructionFixtures.Clearing(clearingId, PlannedClearingKind.Mine) with
         {
-            Options = [new ConstructionActivityOption(clearingId, "Wall", at, Pawn, "", "", at, 0, 0, "Mine", default, default, Known(50d))
+            Options = [new Row(clearingId, "Wall", at, Pawn, "", "", at, 0, 0, "Mine", default, default, Known(50d))
                 { SiteApproachTicks = Known(Ticks(Start, at)) }],
             Targets = EquatableArray.From(rocks),
         };
-        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Mine");
         Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "Mine", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
@@ -544,7 +543,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(rocks, task.Step.Targets);
         Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
 
-        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing with { Targets = default }] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing with { Targets = [] }), Ring(OpKind.DoorIn, "WoodLog", 60)]);
         Assert.DoesNotContain(unnamed.CoupledAlternatives!.Context.Bindings.Values, b => b.Job == "Mine");
         Assert.DoesNotContain(unnamed.CoupledAlternatives.Findings, f => f.StartsWith("planned_room_alternative_unvalued", StringComparison.Ordinal));
     }
@@ -564,12 +563,12 @@ public sealed class PlannedRoomActivitiesTests
         const string clearingId = site + "/haul/" + stack;
         var at = WallCells[0];
         var store = new Cell(2, 2);
-        var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Haul)
+        var clearing = ConstructionFixtures.Clearing(clearingId, PlannedClearingKind.Haul) with
         {
-            Options = [new ConstructionActivityOption(clearingId, "Wall", store, Pawn, "Steel", stack, at, count, 75, "HaulGeneral", Known(Ticks(Start, at)),
+            Options = [new Row(clearingId, "Wall", store, Pawn, "Steel", stack, at, count, 75, "HaulGeneral", Known(Ticks(Start, at)),
                 Known(Ticks(at, store)), Known(0d)) { SiteApproachTicks = Known(Ticks(Start, at)), AvailableInput = Known((double)count) }],
         };
-        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]));
+        var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Target == stack);
@@ -655,7 +654,7 @@ public sealed class PlannedRoomActivitiesTests
         // bound before placement, no order went out and the builder stood on standby beside an open blueprint it could work.
         // The floor blueprint and the shell do not both fit the builder's horizon; equal development, so the cheaper shell wins.
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 100), Ring(OpKind.DoorIn, "WoodLog", 40)]);
-        var floor = new ConstructionActivityOption("blueprint/floor", FlooringRules.DefaultFlooringPolicy().Floors[0], new(2, 2), Pawn,
+        var floor = new Row("blueprint/floor", FlooringRules.DefaultFlooringPolicy().Floors[0], new(2, 2), Pawn,
             "WoodLog", "stack-WoodLog", StackCell("WoodLog"), 1, 1, "FinishFrames", Known(0d), Known(10d), Known(200d))
             { SiteApproachTicks = Known(0d), AvailableInput = Known(10d) };
         facts = facts with

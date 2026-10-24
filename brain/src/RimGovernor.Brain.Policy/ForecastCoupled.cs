@@ -54,7 +54,8 @@ public sealed record ForecastCoupledContext
     public EquatableArray<ForecastMaintenanceRequirement> MaintenanceRequirements { get; init; }
     public EquatableArray<ForecastPracticeTask> PracticeTasks { get; init; }
     public required WorkResourceView Resources { get; init; }
-    public ConstructionActivityRead Construction { get; init; } = new();
+    /// <summary>The construction read the candidates came from; null for a context built without one.</summary>
+    public ConstructionActivityRead? Construction { get; init; }
     public SupportActivityRead Support { get; init; } = new();
     public CoupledThermalRead? Thermal { get; init; }
     public EquatableArray<ForecastShelterPlan> Shelters { get; init; }
@@ -71,7 +72,7 @@ public sealed record ForecastCoupledContext
     /// <summary>The builders a room's owed work is projected over (#3744, #3796): the free colonists of the needs census
     /// capable of Construction (LayoutClusterRules.BuildersOf). None (none free, or their work facts unread) projects nothing.</summary>
     public int PlannedBuilders { get; init; }
-    /// <summary>The owed work in ticks (#3744, #3796) of each planned site (by site id: the least finish, FinishTicks or a
+    /// <summary>The owed work in ticks (#3744, #3796) of each planned site (by site id: the least finish, a Finishes row's ticks or a
     /// roof's RoofCellWorkTicks per cell, plus the least delivery haul and clearing it was generated with) and of each placed
     /// site and standing removal (by its id: the least work of its finishes). A room owing an item without a row is not projected.</summary>
     public IReadOnlyDictionary<string, double> OwedWork { get; init; } = new Dictionary<string, double>(StringComparer.Ordinal);

@@ -11,11 +11,11 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// review compares the need service against the remaining work.</summary>
 public sealed class ActivityNeedBoundaryTests
 {
-    private static ActivityTaskRead Read(PawnActivities batch, string state, double rest) => new()
+    private static ActivityTaskRead Read(PawnActivities batch, string state, double rest) => ConstructionFixtures.NoTasks() with
     {
-        Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 },
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 },
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-            new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 200)))),
+            new(o.Assignment, o.Method, o.Revision, 0, state, "", 200)))),
         Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
             Needs = [new("rest", Known(rest), Known(.00002), Known(.3)), new("food", Known(.9), Known(.00003), Known(.3))] }] }
     };
@@ -25,7 +25,7 @@ public sealed class ActivityNeedBoundaryTests
     {
         var supply = ActivityContinuationFixtures.Cooking();
         var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .08) with { Bindings = [new(cook.Id, cook.Step)] })!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .08) with { Bindings = [new ActivityTaskBinding.Bound(cook.Id, cook.Step)] })!;
         Assert.True(Assert.Single(next.Orders).Release);
         Assert.Empty(next.Tasks);
     }
@@ -36,7 +36,7 @@ public sealed class ActivityNeedBoundaryTests
         var supply = ActivityContinuationFixtures.Cooking();
         var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .9) with
-        { Bindings = [new(cook.Id, cook.Step)] })!;
+        { Bindings = [new ActivityTaskBinding.Bound(cook.Id, cook.Step)] })!;
         Assert.False(Assert.Single(next.Orders).Release);
         Assert.Equal(cook.Id, next.Orders[0].Task);
     }
@@ -45,11 +45,11 @@ public sealed class ActivityNeedBoundaryTests
     public void TiredParticipantWaitingToDepartIsReleasedWhileTheRunningTaskIsUntouched()
     {
         var batch = ActivityContinuationFixtures.Harvest("producer", "helper", 2000);
-        var read = new ActivityTaskRead
+        var read = ConstructionFixtures.NoTasks() with
         {
-            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 },
+            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 },
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-                new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, o.Pawn == "producer" ? "started" : "holding", "", null, 300)))),
+                new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, o.Pawn == "producer" ? "started" : "holding", "", 300)))),
             Needs = new() { Tick = 300, Pawns = [new() { Pawn = "helper", State = "eligible", Needs = [new("rest", Known(.05), Known(.00002), Known(.3))] }] }
         };
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), read)!;
@@ -81,7 +81,7 @@ public sealed class ActivityNeedBoundaryTests
     {
         var batch = Service(PawnActivityKind.Eat, 100);
         var task = batch.Tasks.Single();
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "holding", .08) with { Bindings = [new(task.Id, task.Step)] })!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "holding", .08) with { Bindings = [new ActivityTaskBinding.Bound(task.Id, task.Step)] })!;
         var order = Assert.Single(next.Orders);
         Assert.False(order.Release);
         Assert.Equal(PawnActivityKind.Eat, Assert.Single(order.Steps).Kind);
@@ -99,7 +99,7 @@ public sealed class ActivityNeedBoundaryTests
             { Resource = "Rice", Source = new(4, 4) };
         var batch = new PawnActivities(1, [new("pawn", "method/pawn", "method", 0, 1, false, [play.Step]) { Task = play.Id }])
             { Tasks = [play, harvest, haul, eat] };
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .08) with { Bindings = [new(harvest.Id, harvest.Step)] })!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .08) with { Bindings = [new ActivityTaskBinding.Bound(harvest.Id, harvest.Step)] })!;
         var order = Assert.Single(next.Orders);
         Assert.False(order.Release);
         Assert.Equal(harvest.Id, order.Task);
@@ -159,8 +159,8 @@ public sealed class ActivityNeedBoundaryTests
         var eat = new SelectedActivityTask("eat", "pawn", [cook.Id], new(PawnActivityKind.Eat, "observed-output", "", "", 1, 9000), new(3, 3), eatDepart);
         var batch = new PawnActivities(1, [new("cook", "method/cook", "method", 0, 1, false, [cook.Step]) { Task = cook.Id },
             new("pawn", "method/pawn", "method", 0, 1, false, [haul.Step]) { Task = haul.Id }]) { Tasks = [cook, haul, eat] };
-        var read = Read(batch, "completed", .9) with { Pawns = [new("cook", new("method/cook", "method", 1, 0, "started", "", null, 200)),
-            new("pawn", new("method/pawn", "method", 1, 0, "completed", "", null, 200))] };
+        var read = Read(batch, "completed", .9) with { Pawns = [new("cook", new("method/cook", "method", 1, 0, "started", "", 200)),
+            new("pawn", new("method/pawn", "method", 1, 0, "completed", "", 200))] };
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), read)!;
         var order = Assert.Single(next.Orders, o => o.Pawn == "pawn");
         Assert.Equal(released, order.Release);

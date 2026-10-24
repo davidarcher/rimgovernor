@@ -22,7 +22,7 @@ public sealed class SupportMethodTests
                     [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(1d), Known(0d), Known(.3))] }] },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Construction = ConstructionFixtures.NoConstruction(),
                     Tick = 100, Support = support,
                     FoodSources = cooking ? [new("rice", "Rice", new(1, 1), 4, Known(1000d))] : [],
                     FoodConversions = cooking ? [new("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1,
@@ -165,7 +165,7 @@ public sealed class SupportMethodTests
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
         Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
         Assert.Contains(tasks, t => t.Step.Job == "DoBill");
-        Assert.All(tasks, t => Assert.False(t.ProductiveWorkTicks.IsKnown));
+        Assert.All(tasks, t => Assert.IsNotType<BoundRecipeTask>(t));
         var allocations = result.Selected.Plan.Allocations;
         var tend = Assert.Single(allocations, a => a.Pawn == "pawn").Learning!;
         Assert.Equal(("Medicine", Known(250d), SkillXpPath.NormalTracker), (tend.Skill, tend.Callbacks.Single().RawXp, tend.Callbacks.Single().Path));

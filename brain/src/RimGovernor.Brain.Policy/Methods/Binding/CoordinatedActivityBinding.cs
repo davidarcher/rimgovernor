@@ -58,7 +58,7 @@ internal static class CoordinatedActivityBinding
     {
         if (selection?.Plan is not { } plan || selection.Selected.Length == 0) return null;
         var tasks = plan.Allocations.Where(a => unplaced?.Contains(a.Activity) != true).Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
-            ? new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
+            ? Bound(a, task, new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
@@ -67,9 +67,7 @@ internal static class CoordinatedActivityBinding
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
-                        // The native binding checks a recipe step's learning-dependent duration; support work keeps its own bound.
-                        ProductiveWorkTicks = a.Learning is null || task.Kind != PawnActivityKind.Recipe ? default : Known(a.WorkTicks), PriorSteps = PriorSteps(task),
-                        UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) } : null).ToArray();
+                        PriorSteps = PriorSteps(task), UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) }) : null).ToArray();
         if (tasks.Any(t => t is null)) return null;
         var selected = tasks.Select(t => t!).ToArray();
         if (selected.Length == 0) return null; // Retaining observed baseline work requires no new orders.
@@ -89,6 +87,11 @@ internal static class CoordinatedActivityBinding
         }).ToArray();
         return new(authority, orders) { Tasks = EquatableArray.From(selected) };
     }
+
+    /// <summary>The selected task, bound to its scheduled duration when it is a recipe whose schedule read its learning: the
+    /// native binding checks a recipe step's learning-dependent duration; support work keeps its own bound.</summary>
+    private static SelectedActivityTask Bound(ForecastActivityAllocation allocation, ActivityTaskCandidate candidate, SelectedActivityTask task) =>
+        allocation.Learning is null || candidate.Kind != PawnActivityKind.Recipe ? task : new BoundRecipeTask(task, allocation.WorkTicks);
 
     internal static ActivityTaskTransition Continue(PawnActivities batch, ActivityTaskRead read,
         IReadOnlyDictionary<string, ActivityOwnership> rows, long tick)
@@ -178,7 +181,7 @@ internal static class CoordinatedActivityBinding
                 changed = true; continue;
             }
             var binding = read.Bindings.Where(b => b.Task == next.Id && CompatibleActivityBinding(next, b.Step)
-                    && (!next.ProductiveWorkTicks.IsKnown || b.ProductiveWorkTicks.IsKnown && b.ProductiveWorkTicks.Value <= Math.Ceiling(next.ProductiveWorkTicks.Value)))
+                    && (next is not BoundRecipeTask bound || b is ActivityTaskBinding.Recipe recipe && recipe.ProductiveWorkTicks <= Math.Ceiling(bound.ProductiveWorkTicks)))
                 .OrderBy(b => b.Step.Target, StringComparer.Ordinal).FirstOrDefault();
             if (binding is null)
             {
@@ -188,8 +191,8 @@ internal static class CoordinatedActivityBinding
             if (order.Revision == long.MaxValue) return new(null, false);
             if (next.Step.IsSet)
                 remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Targets = binding.Step.Targets, Cells = binding.Step.Cells, Count = binding.Step.Count } };
-            else if (binding.RemainingCount.TryGetValue(out var remainingCount))
-                remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, remainingCount) } };
+            else if (binding is ActivityTaskBinding.Supply supply)
+                remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, supply.RemainingCount) } };
             orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = false,
                 Task = next.Id, Preparing = false, Steps = [.. next.PriorSteps, binding.Step],
                 OutputDelivery = next.Resource.Length == 0 || binding.Step.Count <= 0 ? null : new(next.Resource, next.Source ?? next.Location,
@@ -236,7 +239,7 @@ internal static class CoordinatedActivityBinding
     }
 
     private static bool NeedsService(ActivityTaskRead read, string pawn) =>
-        read.Needs?.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
+        read.Needs.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
         && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level.TryGetValue(out var level)
             && n.Threshold.TryGetValue(out var threshold) && level <= threshold);
 

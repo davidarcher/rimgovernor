@@ -73,8 +73,8 @@ carries for a vanilla job that holds the stack (`CarryHeld`).
 
 The live census supports one required material, repeated capacity-bounded trips,
 or an already-supplied site. Native lists every spawned stack of the material the
-player may use (#3046), each row with its `AvailableInput` and `StorageDistance`,
-and `DeliveryTicks` priced for the share the stack can supply (the demand, or the
+player may use (#3046), each row with its `AvailableInput` and `Storage`, and its
+`Carried` delivery priced for the share the stack can supply (the demand, or the
 whole stack under it). Every stack that covers the demand alone is a source, each a
 whole alternative; a remote one is a full-load Supply that collects nearby stacks
 ([remote construction pickup](spatial-contracts.md#remote-construction-pickup)),
@@ -165,7 +165,7 @@ the giver and job require; it stands no designation and no guard record. The don
 the in-memory execution entry with the sow count; a load restarts it.
 
 Continuation rebinds a set step to the members the pawn can still work, nearest first (`Targets` or
-`Cells` the legal members, `Count` and `RemainingCount` their number), and treats a set with no
+`Cells` the legal members, `Count` their number), and treats a set with no
 member standing (no thing on the map, no cell still to work) as satisfied. The coordinated binding
 handles a set step as it handles a delivery: a completed
 order that carried fewer members than the task leaves the rest, a failed order is retried on the

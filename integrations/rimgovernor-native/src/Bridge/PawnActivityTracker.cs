@@ -166,7 +166,7 @@ namespace HomeBridge.BridgeTools
             emitter?.EmitRow(PawnActivityTelemetry.ExecutionKind, new RowContext { Component = "pawn-activity", Tick = row.Tick },
                 new Dictionary<string, object?> { [PawnActivityTelemetry.PawnKey] = pawn.GetUniqueLoadID(), [PawnActivityTelemetry.AssignmentKey] = row.Assignment,
                     ["method"] = row.Method, [PawnActivityTelemetry.RevisionKey] = row.Revision, ["step"] = row.Step, [PawnActivityTelemetry.StateKey] = row.State,
-                    [PawnActivityTelemetry.ReasonKey] = row.Reason, ["job_id"] = row.JobId });
+                    [PawnActivityTelemetry.ReasonKey] = row.Reason, ["job_id"] = NativePawnActivities.RunningJobId(pawn) });
         }
         private static void Fail(Exception error)
         {

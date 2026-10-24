@@ -7,7 +7,8 @@ public static class CoordinatedActivitiesRules
     /// <summary>Continue the selected attempt. No family names or independent assignment/valuation loop.</summary>
     public static PawnActivities? ContinueCoordinatedActivity(PawnActivities batch, Fact<bool> needed, ActivityTaskRead read)
     {
-        if (batch.Tasks.Count == 0 || !read.Known || read.Context?.Tick is not { } tick) return null;
+        if (batch.Tasks.Count == 0) return null;
+        var tick = read.Context.Tick;
         var observed = read.Pawns.Select(p => p.Execution is { } e
             ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State)
             : new ActivityOwnership(p.Pawn, "", "", 0, "unowned")).ToArray();

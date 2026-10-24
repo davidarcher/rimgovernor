@@ -23,7 +23,7 @@ public sealed partial class Worker
             if (method.Batch.Tasks.Count != 0 && _config.Pawns is IActivityTaskSource taskSource)
             {
                 var read = await taskSource.ReadActivityTasksAsync(new(Boundary.Identity(current), method.Batch), ct).ConfigureAwait(false);
-                if (!read.Known || read.Context?.Tick is not { } taskTick) continue;
+                var taskTick = read.Context.Tick;
                 _ = Boundary.Context(read.Context, current);
                 _player.ForecastEvidence.Tasks(current, method.Batch, read);
                 var participants = read.Pawns.Select(p => p.Execution is { } e

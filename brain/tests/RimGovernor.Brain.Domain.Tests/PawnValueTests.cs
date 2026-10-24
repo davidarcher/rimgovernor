@@ -170,7 +170,7 @@ public sealed class PawnValueTests
                 {
                     Construction = observed.Construction with
                     {
-                        Options = [.. observed.Construction.Options.Select(o => o with { WorkGiver = "ConstructFinishFrames", FinishTicks = Known(finishTicks) })],
+                        Options = [.. observed.Construction.Options.Select(o => o with { WorkGiver = "ConstructFinishFrames", Finish = new ConstructionFinish.Finishes(finishTicks, (o.Finish as ConstructionFinish.Finishes)?.SkillWork) })],
                     },
                 },
             },

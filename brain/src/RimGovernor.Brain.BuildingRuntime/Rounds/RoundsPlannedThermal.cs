@@ -26,10 +26,6 @@ public sealed partial class Rounder
         }
         var read = await source.ReadConstructionActivityAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), [])
             { Thermal = thermal, RoomPredictions = predictions }, ct).ConfigureAwait(false);
-        if (read is not { Known: true })
-        {
-            return (null, default);
-        }
         return (read.Thermal, predictions.Count == 0 ? default : Known(read.RoomPredictions));
     }
 }

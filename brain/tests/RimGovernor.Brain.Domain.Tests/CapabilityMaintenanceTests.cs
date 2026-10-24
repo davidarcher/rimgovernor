@@ -89,7 +89,7 @@ public sealed class CapabilityMaintenanceTests
         var emergency = facts with { Hostiles = Known(1L) };
         var postponed = ForecastCoupledCandidates.GenerateCoupledActivities(emergency, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = postponed.Context }, postponed).Selection.Selected);
-        var absent = new ActivityTaskRead();
+        var absent = ConstructionFixtures.NoTasks();
         Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
         { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() with { Xp = Known(100d) } }]) }))) } };

@@ -529,7 +529,7 @@ internal static class NativeNeedsForecast
         var job = pawn.CurJob;
         var driver = pawn.jobs?.curDriver;
         if (execution == null || execution.State != "started" || step == null || job == null
-            || execution.JobId != job.loadID || job.playerForced || pawn.jobs!.jobQueue.Count != 0
+            || NativePawnActivities.RunningJobId(pawn) != job.loadID || job.playerForced || pawn.jobs!.jobQueue.Count != 0
             || pawn.pather.Moving || step.Deadline <= Find.TickManager.TicksGame) return null;
         // A stationary recreation driver's final Delay toil (NativeRecreation.StationaryDriver); billiards' shot loop
         // and sleep's dynamic wake/medical/other-job conditions remain unassessed.

@@ -66,7 +66,7 @@ public sealed class ClothingChoiceTests
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
                 template with { Pawn = "wearer", Apparel = new(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read }
+            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
         } };
     }
     private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
@@ -325,13 +325,12 @@ public sealed class ClothingChoiceTests
         Assert.Equal("Cloth", Recipe(intent).Stuff);
         Assert.Equal(batch.Tasks, intent.Tasks);
         var output = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
-        var execution = new ActivityTaskRead
+        var execution = ConstructionFixtures.NoTasks() with
         {
-            Known = true,
             Context = Read().Context! with { Tick = 400 },
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-                new(o.Assignment, o.Method, o.Revision, 0, "completed", "", null, 100)))),
-            Bindings = [new(output.Id, output.Step with { Target = "actual-cloth-product" })]
+                new(o.Assignment, o.Method, o.Revision, 0, "completed", "", 100)))),
+            Bindings = [new ActivityTaskBinding.Bound(output.Id, output.Step with { Target = "actual-cloth-product" })]
         };
         var delivery = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), execution)!;
         Assert.Equal("actual-cloth-product", delivery.Orders.Single().Steps[0].Target);

@@ -15,17 +15,17 @@ public sealed class FoodCookingContinuationTests
     private static FoodActivityOption Raw(string target = "raw") => new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", 10, 0)
         { ApproachTicks = Known(20.0), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Options = EquatableArray.From(options) };
-    private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => new()
+    private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
-        Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-            new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 200)))),
+            new(o.Assignment, o.Method, o.Revision, 0, state, "", 200)))),
     };
     private static PawnActivities Cooking(PawnActivities supply, string ingredient = "changed-stack")
     {
         var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         return CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings:
-            [new(task.Id, task.Step with { Recipe = task.Step.Recipe! with { Ingredients = [new(ingredient, 10)] } })]))!;
+            [new ActivityTaskBinding.Bound(task.Id, task.Step with { Recipe = task.Step.Recipe! with { Ingredients = [new(ingredient, 10)] } })]))!;
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class FoodCookingContinuationTests
         Assert.Equal("recipe", step.Recipe.Recipe);
         var delivery = cooking.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
         var delivered = CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, bindings:
-            [new(delivery.Id, delivery.Step with { Target = "observed-meal" })]))!;
+            [new ActivityTaskBinding.Bound(delivery.Id, delivery.Step with { Target = "observed-meal" })]))!;
         Assert.Equal("observed-meal", delivered.Orders[0].Steps[0].Target);
         Assert.Equal(500, delivered.Orders[0].Steps[0].Deadline);
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking))!.Orders[0].Release);
@@ -66,7 +66,7 @@ public sealed class FoodCookingContinuationTests
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply))!.Orders[0].Release);
         var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var wrong = task.Step with { Recipe = task.Step.Recipe! with { Bill = "other-bill" } };
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings: [new(task.Id, wrong)]))!.Orders[0].Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings: [new ActivityTaskBinding.Bound(task.Id, wrong)]))!.Orders[0].Release);
         var cooking = Cooking(supply);
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, "failed"))!.Orders[0].Release);
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(false), Done(cooking))!.Orders[0].Release);
@@ -78,7 +78,7 @@ public sealed class FoodCookingContinuationTests
     {
         var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
-            ? t with { ProductiveWorkTicks = Known(100d) } : t)) };
+            ? new BoundRecipeTask(t, 100d) : t)) };
         IntentActionRules.RegisterIntentKinds();
         var action = DomainAction.NewPawnActivitiesAction(new("productive-action"), supply);
         using var stream = new MemoryStream();
@@ -88,10 +88,11 @@ public sealed class FoodCookingContinuationTests
         var intent = IntentActionRules.IntentAction("productive-action", decoded).Intent!.PawnActivities!.Batch!;
         Assert.Equal(supply.Tasks, intent.Tasks);
         var recipe = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var binding = new ActivityTaskBinding(recipe.Id, recipe.Step with { Recipe = recipe.Step.Recipe! with { Ingredients = [new("observed-rice", 10)] } });
-        foreach (var estimate in new[] { Unknown<double>(), Known(101d) })
-            Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = estimate }]))!.Orders[0].Release);
-        Assert.False(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = Known(100d) }]))!.Orders[0].Release);
+        var step = recipe.Step with { Recipe = recipe.Step.Recipe! with { Ingredients = [new("observed-rice", 10)] } };
+        // A bound recipe task needs the pawn's fresh recipe ticks: a binding without them, or slower, retires the work.
+        foreach (var binding in new ActivityTaskBinding[] { new ActivityTaskBinding.Bound(recipe.Id, step), new ActivityTaskBinding.Recipe(recipe.Id, step, 101d) })
+            Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding]))!.Orders[0].Release);
+        Assert.False(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [new ActivityTaskBinding.Recipe(recipe.Id, step, 100d)]))!.Orders[0].Release);
         var wire = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, intent)));
         Assert.Equal(intent.Tasks, wire.Batch.Tasks);
     }
@@ -103,7 +104,7 @@ public sealed class FoodCookingContinuationTests
     {
         var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
-            ? t with { ProductiveWorkTicks = Known(100d) } : t).Append(new("eat", "pawn", [],
+            ? new BoundRecipeTask(t, 100d) : t).Append(new("eat", "pawn", [],
                 new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
         var read = Done(supply) with { Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
             Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3))] }] } };
@@ -122,18 +123,18 @@ public sealed class FoodCookingContinuationTests
         Assert.Equal(2, decoded.Options.Count);
         Assert.Equal(20, decoded.Options[0].ApproachTicks.Value);
         Assert.False(decoded.Options[1].ApproachTicks.IsKnown);
-        var tasks = new ActivityTaskRead { Known = true, SatisfiedTasks = ["one"],
-            Bindings = [new("deliver", new(PawnActivityKind.Deliver, "stack", "", "", 2, 500) { Destination = new(3, 4) }) { RemainingCount = Known(2) }],
+        var tasks = ConstructionFixtures.NoTasks() with { SatisfiedTasks = ["one"],
+            Bindings = [new ActivityTaskBinding.Supply("deliver", new(PawnActivityKind.Deliver, "stack", "", "", 2, 500) { Destination = new(3, 4) }, 2)],
             Pawns = [new("pawn", null)] };
         var restored = WireJson.Deserialize<ActivityTaskRead>(WireJson.Serialize(tasks));
         Assert.Equal(tasks.SatisfiedTasks, restored.SatisfiedTasks);
-        Assert.Equal(2, restored.Bindings[0].RemainingCount.Value);
+        Assert.Equal(2, Assert.IsType<ActivityTaskBinding.Supply>(restored.Bindings[0]).RemainingCount);
         Assert.Equal("pawn", restored.Pawns[0].Pawn);
-        var construction = new ConstructionActivityRead { Known = true, Findings = ["mixed_material_demand_unsupported"],
-            Options = [new("site", "Wall", new(2, 2), "pawn", "WoodLog", "wood", new(1, 1), 5, 10, "FinishFrames", Known(2.0), Known(3.0), default)] };
+        var construction = ConstructionFixtures.NoConstruction() with { Findings = ["mixed_material_demand_unsupported"],
+            Options = [new Row("site", "Wall", new(2, 2), "pawn", "WoodLog", "wood", new(1, 1), 5, 10, "FinishFrames", Known(2.0), Known(3.0), default)] };
         var sites = WireJson.Deserialize<ConstructionActivityRead>(WireJson.Serialize(construction));
         Assert.Equal(construction.Findings, sites.Findings);
-        Assert.False(sites.Options[0].FinishTicks.IsKnown);
-        Assert.Equal(3, sites.Options[0].DeliveryTicks.Value);
+        Assert.IsType<ConstructionFinish.CannotFinish>(sites.Options[0].Finish);
+        Assert.Equal(new ConstructionDelivery.Carried(2, 3), sites.Options[0].Delivery);
     }
 }

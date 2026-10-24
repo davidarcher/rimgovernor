@@ -58,9 +58,9 @@ internal static class RemovalDesignationRowsCase
             + "uninstall), a slate chunk (a designateHaulable thing) under a plain Haul Designate beside a chunk stockpile and a wood-plank "
             + "floor cell under a RemoveFloor: the construction activity read reports each "
             + "in Removals as a clearing op of its kind whose Id is the thing, one row per free colonist naming it (Site and Input its id, "
-            + "Resource its def) with a known route and FinishTicks through the native deconstruct or uninstall work giver, or for the chunk "
-            + "the stockpile cell as Location, its count as Count and a known DeliveryTicks, or for the floor one RemoveFloor op "
-            + "(Id removefloor/{x}/{z}/x1, Cells the cell) with a known route and FinishTicks through the remove-floors giver; an "
+            + "Resource its def) with a route and a Finishes finish through the native deconstruct or uninstall work giver, or for the chunk "
+            + "the stockpile cell as Location, its count as Count and a Carried delivery, or for the floor one RemoveFloor op "
+            + "(Id removefloor/{x}/{z}/x1, Cells the cell) with a route and a Finishes finish through the remove-floors giver; an "
             + "undesignated thing has no op. Does not prove the brain's binding or the jobs (control/pawn-activity-deconstruct-designated, "
             + "control/pawn-activity-uninstall-designated, control/pawn-activity-haul-designated, control/pawn-activity-remove-floor-designated).",
         Ticks = 0,
@@ -107,7 +107,7 @@ internal static class RemovalDesignationRowsCase
         var id = string.Create(CultureInfo.InvariantCulture, $"removefloor/{floored.X}/{floored.Z}/x1");
         var ops = read.Removals.Where(r => r.Kind == Observations.PlannedClearingKind.RemoveFloor).ToList();
         if (ops is not [var op] || op.Id != id || op.Cells.Count != 1 || op.Cells[0] != floored || op.Options.Count == 0 || op.Options.Any(r => r.Site != id
-            || r.Definition != Floor || r.Location != floored || r.WorkGiver.Length == 0 || !r.SiteApproachTicks.IsKnown || !r.FinishTicks.IsKnown || r.FinishTicks.Value <= 0))
+            || r.Definition != Floor || r.Location != floored || r.WorkGiver.Length == 0 || r.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 }))
         {
             throw new AcceptanceException($"designated: want one RemoveFloor op {id} over {floored} ({Floor}) with a row per free colonist at the cell with a "
                 + $"known route and finish, got [{string.Join(";", read.Removals)}]; findings {string.Join(",", read.Findings)}");
@@ -120,7 +120,7 @@ internal static class RemovalDesignationRowsCase
         var ops = read.Removals.Where(r => r.Id == stack).ToList();
         if (ops is not [var op] || op.Kind != Observations.PlannedClearingKind.Haul || op.Options.Count == 0 || op.Options.Any(r => r.Site != stack || r.Input != stack
             || r.Resource != Stack || r.Definition != Stack || r.Origin != new Cell(origin.X, origin.Z) || r.Location != store || r.Count != StackCount || r.Capacity <= 0
-            || r.WorkGiver.Length == 0 || !r.ApproachTicks.IsKnown || !r.SiteApproachTicks.IsKnown || !r.DeliveryTicks.IsKnown || r.DeliveryTicks.Value <= 0))
+            || r.WorkGiver.Length == 0 || r.Delivery is not Observations.ConstructionDelivery.Carried { DeliveryTicks: > 0 }))
         {
             throw new AcceptanceException($"designated: want one Haul op for {stack} ({Stack}) from {origin} to {store} with a row per free colonist naming it with "
                 + $"known routes and delivery, got [{string.Join(";", read.Removals)}]; findings {string.Join(",", read.Findings)}");
@@ -132,7 +132,7 @@ internal static class RemovalDesignationRowsCase
         var ops = read.Removals.Where(r => r.Id == building).ToList();
         if (ops is not [var op] || op.Kind != kind || op.Options.Count == 0 || op.Options.Any(r => r.Site != building || r.Input != building
             || r.Resource != definition || r.Definition != definition || r.Location != new Cell(cell.X, cell.Z)
-            || r.WorkGiver.Length == 0 || !r.SiteApproachTicks.IsKnown || !r.FinishTicks.IsKnown || r.FinishTicks.Value <= 0))
+            || r.WorkGiver.Length == 0 || r.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 }))
         {
             throw new AcceptanceException($"designated: want one {kind} op for {building} ({definition}) at {cell} with a row per free colonist naming it with a "
                 + $"known route and finish, got [{string.Join(";", read.Removals)}]; findings {string.Join(",", read.Findings)}");

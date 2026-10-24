@@ -19,10 +19,10 @@ public sealed class PlannedShelterTests
         var kind = op == OpKind.WallIn ? "wall" : "door";
         var id = "planned/room1/" + kind + "/WoodLog";
         var cell = op == OpKind.WallIn ? WallCell : DoorCell;
-        var row = new ConstructionActivityOption(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
+        var row = new Row(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
             Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
         return new PlannedBuildSite(id, 1, op, kind == "wall" ? "Wall" : "Door", "WoodLog", Rotation.North, [cell])
-            { Verdict = verdict, Options = [row] };
+            { Answer = ConstructionFixtures.Answer(id, verdict) with { Options = [row] } };
     }
 
     private static PlannedBuildSite Roof() => new("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, [Inside]);
@@ -34,10 +34,10 @@ public sealed class PlannedShelterTests
     private static PlannedBuildSite Heater(double finish, PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible, string def = "Heater")
     {
         var id = "planned/room1/build/" + def + "/1/1";
-        var row = new ConstructionActivityOption(id, def, Inside, "pawn", "", "", Inside, 0, 0, "Finish",
+        var row = new Row(id, def, Inside, "pawn", "", "", Inside, 0, 0, "Finish",
             Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
         return new PlannedBuildSite(id, 1, OpKind.Build, def, "", Rotation.North, [Inside])
-            { Verdict = verdict, Options = [row] };
+            { Answer = ConstructionFixtures.Answer(id, verdict) with { Options = [row] } };
     }
 
     private static readonly ThermalSource PlannedHeater = new(HeaterSite, Inside, false, .35, 20d, new HeatSupply.Powered("net", 175d, 500d, 60000d));

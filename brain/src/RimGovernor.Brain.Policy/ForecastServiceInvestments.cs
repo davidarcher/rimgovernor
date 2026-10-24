@@ -10,14 +10,14 @@ public sealed record ForecastServiceInvestment(ServiceTarget Target, EquatableAr
 public static class ForecastServiceInvestments
 {
     public static Fact<bool> ReviewServiceActivityNeed(PawnActivities batch, Fact<bool> needed, ActivityTaskRead read)
-        => read.Known && read.Context is not null && (ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read)) ? Known(false) : needed;
+        => ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read) ? Known(false) : needed;
 
     /// <summary>Reconsider only at a physical work boundary. Fresh needs can retire the supported
     /// ingestion-only investment; missing observations cannot establish demand satisfaction.</summary>
     private static bool ProductiveFoodDemandEnded(PawnActivities batch, ActivityTaskRead read)
     {
-        if (read.Needs is not { } needs
-            || read.Context?.Tick != needs.Tick
+        var needs = read.Needs;
+        if (read.Context.Tick != needs.Tick
             || batch.Tasks.Any(t => t.Step.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Deliver or PawnActivityKind.Eat)
                 && !(t.Step.Kind == PawnActivityKind.Work && t.Step.Job == "Harvest"))
             || batch.Orders.Any(o => !o.Release && read.Pawns.FirstOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is not ("completed" or "holding" or "failed"))) return false;

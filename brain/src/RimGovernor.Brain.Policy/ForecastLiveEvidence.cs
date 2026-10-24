@@ -90,7 +90,7 @@ public static class ForecastLiveEvidence
 
     public static ForecastExecution ExecutionOf(ForecastPrediction prediction, ActivityTaskRead read, bool seen)
     {
-        if (!read.Known || read.Truncated || read.Context?.Tick is not { } tick || tick < prediction.OriginTick)
+        if (read.Truncated || read.Context.Tick < prediction.OriginTick)
             return ForecastExecution.Unknown;
         var native = read.Pawns.FirstOrDefault(p => p.Pawn == prediction.Key.Subject)?.Execution;
         if (native?.Method == prediction.Key.Method && native.Revision >= prediction.Key.Revision
@@ -108,7 +108,7 @@ public static class ForecastLiveEvidence
         long? unfinishedTick, bool consistentStart, ForecastExecution prior, out bool unfinished)
     {
         unfinished = false;
-        if (!read.Known || read.Truncated || read.Context?.Tick is not { } tick || tick < prediction.OriginTick) return null;
+        if (read.Truncated || read.Context.Tick is var tick && tick < prediction.OriginTick) return null;
         var task = batch.Tasks.FirstOrDefault(t => t.Id == prediction.Key.Task && t.Pawn == prediction.Key.Subject);
         var order = batch.Orders.FirstOrDefault(o => o.Pawn == prediction.Key.Subject);
         var native = read.Pawns.FirstOrDefault(p => p.Pawn == prediction.Key.Subject)?.Execution;

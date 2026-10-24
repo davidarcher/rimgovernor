@@ -74,7 +74,7 @@ internal static class ControlHaulOut
         var row = op.Options.FirstOrDefault(o => o.Pawn == worker)
             ?? throw new AcceptanceException($"designated: the Haul removal of {stack} has no row for the worker {worker}: {op}");
         s.Record("capacity", row.Capacity.ToString(CultureInfo.InvariantCulture));
-        if (row.Count != Count || row.Capacity <= 0 || row.Capacity >= Count || row.Location != destination || !row.DeliveryTicks.IsKnown)
+        if (row.Count != Count || row.Capacity <= 0 || row.Capacity >= Count || row.Location != destination || row.Delivery is not Observations.ConstructionDelivery.Carried)
         {
             throw new AcceptanceException($"designated: want the Haul row of {stack} at Count {Count}, Capacity under {Count} and a known delivery to {destination}, got {row}");
         }

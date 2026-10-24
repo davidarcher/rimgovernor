@@ -229,8 +229,8 @@ public sealed class ForecastActivityCompositionTests
                     FoodSources = [new("a", "Rice", new(1, 1), 2, Known(1000d)), new("b", "Rice", new(1, 1), 2, Known(1000d)), new("unused-unknown", "Rice", new(9, 9), 2, default),
                         new("unrelated-meal", "Meal", new(9, 9), 1, existingMealFreshness < 0 ? default : Known(existingMealFreshness))],
                     FoodConversions = [Conversion("a"), Conversion("b")],
-                    Construction = new() { Context = context, Known = true,
-                        Options = [new ConstructionActivityOption("shared-stock-frame", "TestWall", new(3, 1), "pawn", "Rice", "a", new(1, 1), 2, 4, "Finish",
+                    Construction = ConstructionFixtures.NoConstruction() with { Context = context,
+                        Options = [new Row("shared-stock-frame", "TestWall", new(3, 1), "pawn", "Rice", "a", new(1, 1), 2, 4, "Finish",
                             Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(2d), SiteApproachTicks = Known(0d) }] },
                     FoodUses = [new("pawn", "Meal", new(2, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d))] },
             },
@@ -306,7 +306,7 @@ public sealed class ForecastActivityCompositionTests
         var context = new ObservationContext { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
         var inside = new Cell(1, 1); var wall = new Cell(0, 1);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
-        ConstructionActivityOption Option(string source) => new("wall", "TestWall", wall, "pawn", "Rice", source, wall, 1, 10, "Finish",
+        ConstructionActivityOption Option(string source) => new Row("wall", "TestWall", wall, "pawn", "Rice", source, wall, 1, 10, "Finish",
             Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(1d), SiteApproachTicks = Known(0d) };
         facts = facts with
         {
@@ -315,7 +315,7 @@ public sealed class ForecastActivityCompositionTests
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {
                 Food = new(), FoodUses = [],
-                Construction = new() { Context = context, Known = true, Options = [Option("a"), Option("b")] },
+                Construction = ConstructionFixtures.NoConstruction() with { Context = context, Options = [Option("a"), Option("b")] },
                 Thermal = CoupledThermalTests.NoThermal with
                 {
                     Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,

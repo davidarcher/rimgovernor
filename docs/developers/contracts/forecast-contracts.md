@@ -667,36 +667,47 @@ and uncertainty rather than treating a final balance as proof of execution.
 hypothetical, unplaced sites. A `PlannedConstructionSite` is an id, a definition
 (thing or floor), a stuff, a rotation and its `Positions`: one placement anchor per
 piece (every cell of a wall run; the one anchor of a 2x1 shelf). Each comes back as
-a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
+a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`.
+
+Every `ConstructionActivityOption` row names its states (#3775): `SiteApproachTicks`
+is the pawn's route to the site (a pawn with no route has no row); `Delivery` is
+`Carried` (`ApproachTicks` the pawn's path to the stack, `DeliveryTicks` the loaded
+carries plus returns), `Unsourced` (the row carries no stack), `CannotCarry` (the
+pawn cannot haul it) or `Unreachable` (a carry leg has no path); `Finish` is
+`Finishes` (`Ticks` at the pawn's speed, with the `SkillWork` it learns) or
+`CannotFinish` (no giver, a guard, capability or skill refuses it, or its speed is
+zero); `AvailableInput` is the stack's count (0 without one) and `Storage` is
+`Accepted` (`Distance` to the nearest accepting storage, 0 when stored),
+`Unaccepted` or `Unsourced`. A read that fails throws: there is no unknown read.
 
 - A site native cannot resolve (definition or stuff unresolved, empty, out of
-  bounds or over the position cap) comes back with no rows and an `Unspecified`
-  `Verdict`; the reason is a read finding (`planned_site_*`).
+  bounds or over the position cap) comes back `Unresolved` with no rows and no
+  clearing; the reason is a read finding (`planned_site_*`).
 - `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
   `Mine`, `Deconstruct`) and per-pawn `ConstructionActivityOption` rows with `Site` set
   to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
   covers the site's plants, its `Targets` their ids lowest first (what the brain binds
-  its Work/CutPlant set step over, #3613): `FinishTicks` sums `harvestWork /
+  its Work/CutPlant set step over, #3613): the `Finish` ticks sum `harvestWork /
   JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
   pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut
   every plant. One `Mine` op (`<site>/mine`) covers its natural rock, its `Targets`
   the rocks' ids lowest first (what the brain binds its Work/Mine set step over,
-  #3616): `FinishTicks` sums `ceil(HitPoints / 80)` pick hits at
+  #3616): the `Finish` ticks sum `ceil(HitPoints / 80)` pick hits at
   `round(100 / MiningSpeed)` ticks (JobDriver_Mine), for a pawn not incapable of
   Mining. For both, `SiteApproachTicks`
   is the route to the target nearest the pawn and `Location` is that target;
   walking between targets is not modelled. One `Haul` op per stack
   (`<site>/haul/<thing>`): `Origin`/`Input`/`Resource`/`Count` are the stack,
   `Location` is the nearest cell of the best-priority player storage accepting it
-  outside the footprint, `ApproachTicks` (and `SiteApproachTicks`) the pickup route,
-  `DeliveryTicks` the loaded carries plus returns over `Capacity`, and `FinishTicks`
-  is a known 0. Native's own blocking haul moves the stack aside; the forecast
+  outside the footprint, `SiteApproachTicks` and the `Carried` delivery's `ApproachTicks`
+  the pickup route, its `DeliveryTicks` the loaded carries plus returns over `Capacity`, and
+  `Finish` is `Finishes` at 0. Native's own blocking haul moves the stack aside; the forecast
   charges a carry to storage instead (#3241), and binds the stack as its Deliver to
   `Location` before placement (#3614), one carry at a time over a stack larger than
   `Capacity` (#3625). One `Deconstruct` op per building the
   player may deconstruct (`<site>/deconstruct/<thing>`: a ruin wall, door or piece
   of furniture, or the colony's own; #3557): `Input` is the building's id,
-  `Resource` its def and `Location` its cell; `FinishTicks` is `JobDriver_Deconstruct`'s
+  `Resource` its def and `Location` its cell; the `Finish` ticks are `JobDriver_Deconstruct`'s
   work (`WorkToBuild` clamped to 20..3000) over `ConstructionSpeed x 1.7` a tick
   (`JobDriver_RemoveBuilding`), for a pawn not incapable of Construction and able to
   manipulate. A roof-holder the enclosure guard would hold for roof support
@@ -706,7 +717,7 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   building gone (`RoofSupportSafety.Unsupported`: the roof components around its
   footprint no other holder connects to, the collapsible cells within
   `RoofMaxSupportDistance` of it with no holder within that range through roofed
-  cells, and the components those leave with no holder); the rows' `FinishTicks`
+  cells, and the components those leave with no holder); the rows' `Finish` ticks
   add `JobDriver_RemoveRoof`'s work (65 a cell at the same rate) and route to, and
   `Location` is, the cell nearest the pawn. The brain removes that roof before the
   Deconstruct in one order; a cell outside the planned room stays unroofed (the
@@ -714,8 +725,8 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   is unknown (fogged or out-of-bounds geometry, a pending collapse, a thick roof or
   an unprovably large roof among the cells, or an empty set while `RoofWait` still
   holds) has no op (finding `planned_clearing_roof_support`). A speed
-  of zero leaves `FinishTicks` unknown; a pawn with no route or unable to do the
-  work has no row.
+  of zero is `CannotFinish`; a pawn with no route or unable to do the work has no
+  row.
 - `Verdict`, from `GenConstruct.HandleBlockingThingJob`'s kinds for every thing in
   the footprint: `Illegal` when a refusal outlasts clearing (native re-checks each
   piece with every removable footprint thing skipped: terrain affordance or water,
@@ -723,19 +734,19 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   (a building the player may not deconstruct), which is infeasible; else
   `Unestimable` when a thing is removable but not estimated (a blueprint or frame
   to cancel, a non-natural mineable, a never-haulable item), or a refused piece is
-  fogged (finding `planned_site_fogged`): leave the alternative unvalued; else
-  `Unspecified` when a haulable has no accepting storage (finding
+  fogged (finding `planned_site_fogged`), or a haulable has no accepting storage (finding
   `planned_clearing_haul_destination_unknown`) or a deconstructible roof-holder's
-  support is unknown (`planned_clearing_roof_support`); else `Feasible`. A pawn, something
+  support is unknown (`planned_clearing_roof_support`): leave the alternative
+  unvalued; else `Feasible`. A pawn, something
   blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
   not `BlocksConstruction` needs no clearing.
 - `Options`: the placed-site `ConstructionActivityOption` rows, one per pawn and
   material source (the multi-stack rule is in
-  [pawn activities](pawn-activities.md#live-material-delivery-and-building)). `FinishTicks` is `WorkToBuild(stuff)` summed over
+  [pawn activities](pawn-activities.md#live-material-delivery-and-building)). The `Finish` ticks are `WorkToBuild(stuff)` summed over
   the pieces over the pawn's `ConstructionSpeed`. Routes end at the piece nearest
   the origin. Material owed is the piece cost times the pieces. A pawn with no route
   has no row. A quality definition has no stored finishing minimum before placement,
-  so only its native skill prerequisite gates `FinishTicks` (finding
+  so only its native skill prerequisite gates `Finish` (finding
   `planned_quality_minimum_unset`).
 
 `ConstructionActivityRequest.Routes` asks for routes between planned sites
@@ -768,7 +779,7 @@ deconstruct), `Uninstall` (a minifiable building of the colony's own, what
 `WorkGiver_Uninstall` takes) or `Haul` (a spawned haulable item), and `Options` one
 row per free colonist. A building's rows: `Site` and `Input` the building's id,
 `Definition` and `Resource` its def, `Location` its cell, `WorkGiver` the deconstruct
-or uninstall giver, `SiteApproachTicks` the route and `FinishTicks` the job's work
+or uninstall giver, `SiteApproachTicks` the route and the `Finish` ticks the job's work
 (`JobDriver_Deconstruct`'s clamped `WorkToBuild`, or `JobDriver_Uninstall`'s
 `uninstallWork`) over `ConstructionSpeed x 1.7` a tick; `Count` and `Capacity` are 0.
 A Deconstruct over a roof-holder the enclosure guard would hold for roof support
@@ -780,7 +791,7 @@ has no row. A stack's rows are the planned-clearing haul rows (`Definition` the
 stack's def): `Location` the nearest cell of the best-priority player storage
 accepting it outside the footprint of every requested planned site covering the
 stack's cell (the whole map when none does), `Origin` its cell, `Count` the stack,
-`DeliveryTicks` by trips; a stack with no such destination has no op (finding
+`Delivery` carried by trips; a stack with no such destination has no op (finding
 `removal_haul_destination_unknown`).
 
 A standing Cut wave (#3613) is read the same way: the spawned plants under a CutPlant
@@ -788,7 +799,7 @@ designation (the reconcile's `Cut` obstruction clearing, or the player's) groupe
 contiguity (eight-adjacent cells; CutPlant takes no guard record, so the cells group
 the wave) are one `Cut` op per group, `Id` the lowest plant's id, `Targets` the
 plants lowest id first, `Definition` the first plant's def, and rows in the planned
-Cut op's shape (`Location` the member nearest the pawn, `FinishTicks` the summed
+Cut op's shape (`Location` the member nearest the pawn, the `Finish` ticks the summed
 plant work, `WorkGiver` the plant-cut giver). A HarvestPlant stood as chop wood is a
 harvest's designation and is not read.
 
@@ -800,9 +811,9 @@ layer can still be removed, grouped by contiguity (eight-adjacent cells), are on
 order (empty `Targets`), `Definition` the first cell's terrain, and rows for each
 free colonist not incapable of Construction and able to manipulate: `Location` the
 member cell nearest the pawn, `SiteApproachTicks` the route to it, `WorkGiver` the
-remove-floors giver (`WorkGiver_ConstructRemoveFloor`) and `FinishTicks` the cells'
+remove-floors giver (`WorkGiver_ConstructRemoveFloor`) and the `Finish` ticks the cells'
 summed `JobDriver_RemoveFloor` work (200 a cell) over `ConstructionSpeed x 1.7` a
-tick (a rate of zero leaves it unknown).
+tick (a rate of zero is `CannotFinish`).
 
 ### Planned shelter thermal read
 

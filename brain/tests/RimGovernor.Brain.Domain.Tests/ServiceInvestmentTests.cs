@@ -33,7 +33,7 @@ public sealed class ServiceInvestmentTests
         var wall = read.Construction.Options.Single();
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read with
         { Construction = read.Construction with { Options = [wall with
-        { AvailableInput = late ? wall.AvailableInput : Known(0d), FinishTicks = late ? Known(2000d) : wall.FinishTicks }] } } } };
+        { AvailableInput = late ? wall.AvailableInput : 0, Finish = late ? new ConstructionFinish.Finishes(2000d, null) : wall.Finish }] } } } };
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1000)?.Priced() };
         var selection = ForecastThermalPortfolioTests.Select(facts);
         Assert.Empty(selection.Selected.CompletedDevelopmentSites);
@@ -70,9 +70,9 @@ public sealed class ServiceInvestmentTests
             batch = batch with { Orders = [.. batch.Orders.Select(o => o.Task.Length == 0 ? o
                 : o with { Task = batch.Tasks.First(t => t.Pawn == o.Pawn && t.Step.Kind != PawnActivityKind.Supply).Id })] };
         }
-        var read = new ActivityTaskRead { Known = true, Context = new() { Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
+        var read = ConstructionFixtures.NoTasks() with { Context = new() { Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-                new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 110)))) };
+                new(o.Assignment, o.Method, o.Revision, 0, state, "", 110)))) };
         Assert.Equal(Known(needed), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), read));
         Assert.Contains(batch.Tasks, t => t.SiteDefinition.Length != 0 || t.Step.Job == "BuildRoof");
         Assert.Empty(read.SatisfiedTasks);

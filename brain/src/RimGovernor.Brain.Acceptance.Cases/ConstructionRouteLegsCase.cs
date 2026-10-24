@@ -109,10 +109,10 @@ internal static class ConstructionRouteLegsCase
         _ = await s.RunUntilAsync("ticking", TickingTicks, async ct =>
         {
             var again = await s.CallAsync($"ticking-{reads}", NativeOps.ReadConstructionActivity, request, ct).ConfigureAwait(false);
-            var tick = again.Context?.Tick ?? 0;
+            var tick = again.Context.Tick;
             if (tick < lastTick + TicksBetweenReads) return ($"waiting {tick}", false);
             // No route row at all: no colonist was free at that tick (a row with unknown ticks is a leg not priced).
-            if (again.Known && again.Routes.Count == 0 && again.Options.Count == 0) return ($"no free colonist at {tick}", false);
+            if (again.Routes.Count == 0 && again.Options.Count == 0) return ($"no free colonist at {tick}", false);
             lastTick = tick;
             reads++;
             s.RecordWire($"ticking-read-{reads}", again);
@@ -136,12 +136,6 @@ internal static class ConstructionRouteLegsCase
     private static List<string> Problems(Observations.ConstructionActivityRead read, string? builder, Cell[] plans, Cell open, Cell walledIn)
     {
         var problems = new List<string>();
-        if (!read.Known)
-        {
-            problems.Add("the read is unknown");
-            return problems;
-        }
-
         if (builder == null)
         {
             // A colonist that wandered next to the open cell is priced 0.
@@ -170,10 +164,10 @@ internal static class ConstructionRouteLegsCase
             }
 
             var row = rows[0];
-            if (row.Resource != Stuff || !Priced(row.SiteApproachTicks) || !Priced(row.ApproachTicks) || !Priced(row.DeliveryTicks))
+            if (row.Resource != Stuff || !(row.SiteApproachTicks > 0) || row.Delivery is not Observations.ConstructionDelivery.Carried { ApproachTicks: > 0, DeliveryTicks: > 0 })
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture,
-                    $"blueprint {plan.X},{plan.Z}: resource {row.Resource}, site approach {row.SiteApproachTicks}, approach {row.ApproachTicks}, delivery {row.DeliveryTicks}"));
+                    $"blueprint {plan.X},{plan.Z}: resource {row.Resource}, site approach {row.SiteApproachTicks}, delivery {row.Delivery}"));
             }
         }
 

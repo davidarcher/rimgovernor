@@ -27,9 +27,9 @@ public sealed class ForecastLiveEvidenceTests
     private static PawnActivities Batch => new(1, [new("pawn", "assignment", "method", 0, 1, false,
         [new(PawnActivityKind.Eat, "food", "", "", 1, 1000)]) { Task = "task" }]) {
         Tasks = [new("task", "pawn", [], new(PawnActivityKind.Eat, "food", "", "", 1, 1000), new(1, 1), 100)] };
-    private static ActivityTaskRead Read(long tick, string state, string method = "method", long revision = 1) => new() {
-        Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 }, Tick = tick },
-        Pawns = [new("pawn", new("assignment", method, revision, 0, state, "", null, tick))] };
+    private static ActivityTaskRead Read(long tick, string state, string method = "method", long revision = 1) => ConstructionFixtures.NoTasks() with {
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 }, Tick = tick },
+        Pawns = [new("pawn", new("assignment", method, revision, 0, state, "", tick))] };
 
     [Fact]
     public void ProductionOwnerUsesSelectedValuesAndFreshActualMoodOnceAcrossOverlappingReviews()

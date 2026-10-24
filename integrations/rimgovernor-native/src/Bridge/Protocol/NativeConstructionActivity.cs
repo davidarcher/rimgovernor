@@ -5,10 +5,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
@@ -23,10 +26,21 @@ internal static class NativeConstructionActivity
     // Every site, probe and free spawned colonist asked (#3341): nothing is capped. Each path is searched once per read
     // (NativePathLegs) and shared by every row that walks it, and the rows are built batched (NativePathLegs.Batched,
     // #3556): the legs every row could ask are collected first and searched together on the game's path job workers.
+    // A bad identity is refused, and a read that fails is unavailable (#3775): never an empty read.
     internal static Obs.ConstructionActivityRead Read(Obs.ConstructionActivityRequest request, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
-        legs ??= new(map);
+        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
+        try { return Read(map, context, request, legs ?? new(map)); }
+        catch (Exception readError)
+        {
+            ModLog.Error("observe", "Construction activity read failed: " + readError);
+            throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                Detail = PlacementPreviewOperation.Diagnostic("Construction activity could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
+        }
+    }
+
+    private static Obs.ConstructionActivityRead Read(Map map, Common.ObservationContext context, Obs.ConstructionActivityRequest request, NativePathLegs legs)
+    {
         // Where the hop's run time goes, per part of the read (hop_run parts): the placement legality, the rows (both
         // runs of the batched read, less the searches), the path searches, the thermal read and the room predictions.
         var mark = Stopwatch.GetTimestamp();
@@ -58,12 +72,12 @@ internal static class NativeConstructionActivity
         // delivery to storage outside its planned room's footprint (the whole map's best storage when no planned site covers
         // it). The Cut and RemoveFloor waves below are read as set ops (#3613, #3615).
         var removals = map.designationManager.AllDesignations
+            .Where(d => d.def == DesignationDefOf.Deconstruct || d.def == DesignationDefOf.Uninstall || d.def == DesignationDefOf.Haul)
             .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? Obs.PlannedClearingKind.Deconstruct
-                : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall
-                : d.def == DesignationDefOf.Haul ? Obs.PlannedClearingKind.Haul : Obs.PlannedClearingKind.Unspecified, Thing: d.target.Thing))
+                : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall : Obs.PlannedClearingKind.Haul, Thing: d.target.Thing))
             .Where(d => d.Thing != null && d.Thing.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Thing is Verse.Building deconstructible && deconstructible.DeconstructibleBy(Faction.OfPlayer).Accepted
                 : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
-                : d.Kind == Obs.PlannedClearingKind.Haul && Haulable(d.Thing)))
+                : Haulable(d.Thing)))
             .Select(d => (d.Kind, Thing: d.Thing!))
             .Concat(NativeDesignationGuards.HaulOuts(map).Where(Haulable).Select(t => (Kind: Obs.PlannedClearingKind.Haul, Thing: t))).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613), and the standing RemoveFloor
@@ -94,20 +108,21 @@ internal static class NativeConstructionActivity
                     // The stack leaves the planned room it stands in: storage inside any planned footprint covering it is no destination.
                     var footprint = new HashSet<IntVec3>(planned.Where(p => p.Site != null && p.Site.Footprint.Contains(thing.Position)).SelectMany(p => p.Site!.Footprint));
                     if (Destination(map, thing, footprint) is not { } destination) { runFindings.Add("removal_haul_destination_unknown"); continue; }
-                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(HaulRows(legs, free, thing, id, thing.def.defName, haulGiver, destination)) });
+                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(HaulRows(legs, free, thing, id, thing.def.defName, haulGiver, destination)), Targets = [], Cells = [] });
                     continue;
                 }
                 var building = (Verse.Building)thing;
                 if (kind == Obs.PlannedClearingKind.Uninstall)
                 {
                     if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
-                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)) });
+                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)), Targets = [], Cells = [] });
                     continue;
                 }
                 if (RoofCells(building) is not { } roofCells) { runFindings.Add("removal_roof_support"); continue; }
                 removalOps.Add(new(id, kind)
                 {
                     Options = EquatableArray.From(RemovalRows(legs, free, building, id, building.def.defName, deconstructGiver, DeconstructWork(building), roofCells)),
+                    Targets = [],
                     Cells = EquatableArray.From(roofCells.Select(c => new Cell(c.x, c.z))),
                 });
             }
@@ -127,7 +142,7 @@ internal static class NativeConstructionActivity
         Lap("thermal");
         var predictions = NativeRoomPrediction.Predict(map, request.RoomPredictions);
         Lap("predictions");
-        return new() { Context = context, Known = true,
+        return new() { Context = context,
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
             Removals = EquatableArray.From(runRemovals),
             Thermal = thermal, RoomPredictions = predictions,
@@ -168,10 +183,10 @@ internal static class NativeConstructionActivity
         (Thing Thing, Clear Kind)[] Things, HashSet<IntVec3> Footprint, (ThingDef Def, int Count)[] Owed, float Work, ThingDef? Stuff);
 
     // A hypothetical site's leg-free half: native blueprint legality for every piece and its footprint. Anything native
-    // cannot resolve leaves the site unknown (no verdict, no rows; Site null with the unknown answer), never a default.
+    // cannot resolve leaves the site Unresolved (no rows, no clearing; Site null with the unresolved answer), never a default.
     private static (Obs.PlannedSiteAnswer Unknown, Prepared? Site) Prepare(Map map, Obs.PlannedConstructionSite request, HashSet<string> findings)
     {
-        var unknown = new Obs.PlannedSiteAnswer(request.Id);
+        var unknown = new Obs.PlannedSiteAnswer(request.Id) { Verdict = Obs.PlannedSiteVerdict.Unresolved, Options = [], Clearing = [] };
         if (request.Positions.Count == 0) { findings.Add("planned_site_empty"); return (unknown, null); }
         if (!PlacementPreviewOperation.TryResolveBuildable(request.Definition, out var definition, out _)
             || !definition.BuildableByPlayer || definition.blueprintDef == null) { findings.Add("planned_site_definition_unresolved"); return (unknown, null); }
@@ -226,8 +241,8 @@ internal static class NativeConstructionActivity
     {
         var clearing = Clearing(map, legs, roster, site.Id, site.Definition, site.Things, site.Footprint, findings, out var unsure);
         var siteVerdict = site.Illegal ? Obs.PlannedSiteVerdict.Illegal
-            : site.Fogged || site.Things.Any(t => t.Kind == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
-            : unsure ? Obs.PlannedSiteVerdict.Unspecified : Obs.PlannedSiteVerdict.Feasible;
+            : site.Fogged || unsure || site.Things.Any(t => t.Kind == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
+            : Obs.PlannedSiteVerdict.Feasible;
         var cells = site.Cells;
         IntVec3 Nearest(IntVec3 origin) => cells.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
         var options = new List<Obs.ConstructionActivityOption>();
@@ -281,10 +296,10 @@ internal static class NativeConstructionActivity
                 {
                     // JobDriver_Mine: a hit every round(100 / MiningSpeed) ticks; the hit that finds HP at or under the damage destroys it.
                     var speed = pawn.GetStatValue(StatDefOf.MiningSpeed);
-                    return speed > 0 ? Fact.Known(rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
-                        * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed)) : default;
+                    return speed > 0 ? rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
+                        * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed) : null;
                 }, pawn => MiningLearning(pawn, rock));
-            result.Add(new(mineId, Obs.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())) });
+            result.Add(new(mineId, Obs.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())), Cells = [] });
         }
         // One Deconstruct op per building, its rows naming it: the brain binds the op to it before placement (#3557). A
         // roof-holder's op carries the roofed cells its removal leaves unsupported (#3617); one whose support is unknown has no op.
@@ -296,6 +311,7 @@ internal static class NativeConstructionActivity
             result.Add(new(id, Obs.PlannedClearingKind.Deconstruct)
             {
                 Options = EquatableArray.From(RemovalRows(legs, pawns, building, id, definition.defName, deconstructGiver, DeconstructWork(building), roofCells)),
+                Targets = [],
                 Cells = EquatableArray.From(roofCells.Select(c => new Cell(c.x, c.z))),
             });
         }
@@ -304,7 +320,7 @@ internal static class NativeConstructionActivity
         {
             if (Destination(map, item, footprint) is not { } destination) { unknown = true; findings.Add("planned_clearing_haul_destination_unknown"); continue; }
             var id = site + "/haul/" + item.GetUniqueLoadID();
-            result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)) });
+            result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)), Targets = [], Cells = [] });
         }
         return result;
     }
@@ -325,9 +341,10 @@ internal static class NativeConstructionActivity
                 Fact.Known(pawn.Faction == null || r.Faction != pawn.Faction ? 0.07 : 0), 1, true)))
         };
     }
-    // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed native work.
+    // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed
+    // native work (null when the pawn's rate is zero: it cannot finish).
     private static List<Obs.ConstructionActivityOption> WorkRows(NativePathLegs legs, Pawn[] pawns, Thing[] targets, string id, string definition, string giver,
-        Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish, Func<Pawn, Obs.ProductiveSkillWork?>? learning = null)
+        Func<Pawn, bool> able, Func<Pawn, double?> finish, Func<Pawn, Obs.ProductiveSkillWork?>? learning = null)
     {
         var rows = new List<Obs.ConstructionActivityOption>();
         foreach (var pawn in pawns.Where(able))
@@ -335,27 +352,27 @@ internal static class NativeConstructionActivity
             var nearest = targets.OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.thingIDNumber).First();
             if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
             var cell = new Cell(nearest.Position.x, nearest.Position.z);
-            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default, finish(pawn))
-                { SiteApproachTicks = Fact.Known((double)route), SkillWork = learning?.Invoke(pawn) });
+            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, route,
+                new Obs.ConstructionDelivery.Unsourced(), Finish(finish(pawn), () => learning?.Invoke(pawn)), 0, new Obs.StackStorage.Unsourced()));
         }
         return rows;
     }
 
     // A Cut op over its plants (a planned site's, or a standing wave's, #3613), Targets the plants lowest id first: rows for a
-    // pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut every plant; FinishTicks sums
-    // harvestWork / JobDriver_PlantWork.WorkDonePerTick (a rate of zero leaves it unknown).
+    // pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut every plant; its Finish sums
+    // harvestWork / JobDriver_PlantWork.WorkDonePerTick (a rate of zero: CannotFinish).
     private static Obs.PlannedSiteClearing CutOp(NativePathLegs legs, Pawn[] pawns, Plant[] plants, string id, string definition, string giver)
     {
         var rows = WorkRows(legs, pawns, plants, id, definition, giver,
             pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting) && plants.All(p => PlantUtility.PawnWillingToCutPlant_Job(p, pawn)),
             pawn => plants.Select(p => (double)JobDriver_PlantWork.WorkDonePerTick(pawn, p)).All(r => r > 0)
-                ? Fact.Known(plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p))) : default,
+                ? plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p)) : null,
             pawn => NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
                 plants.Sum(p => (double)p.def.plant.harvestWork), 1, 0.085, true, false,
                 "JobDriver_PlantCut: yielding plants learn before work") is { } learning ? learning with
                 { Stages = EquatableArray.From(plants.Select(p => new Obs.ProductiveWorkStage(p.def.plant.harvestWork,
                     UnityEngine.Mathf.Lerp(3.3f, 1f, p.Growth), Fact.Known(p.def.plant.harvestedThingDef != null && p.CanYieldNow() ? 0.085 : 0)))) } : null);
-        return new(id, Obs.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())) };
+        return new(id, Obs.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())), Cells = [] };
     }
 
     // The standing Cut waves (#3613): the spawned plants under a CutPlant designation (the room reconcile's Cut, or the
@@ -392,8 +409,8 @@ internal static class NativeConstructionActivity
 
     // A RemoveFloor op over a wave of cells (#3615), Id "removefloor/{x}/{z}/x{n}" of its first cell (as GroundStepMethod names
     // the FloorOut method), Definition the first cell's terrain, Cells the wave: rows for a free pawn not incapable of
-    // Construction and able to manipulate, routed to the cell nearest it (Location that cell); FinishTicks is the cells'
-    // summed floor-removal work at JobDriver_RemoveBuilding's rate (a rate of zero leaves it unknown).
+    // Construction and able to manipulate, routed to the cell nearest it (Location that cell); its Finish is the cells'
+    // summed floor-removal work at JobDriver_RemoveBuilding's rate (a rate of zero: CannotFinish).
     private static Obs.PlannedSiteClearing RemoveFloorOp(Map map, NativePathLegs legs, Pawn[] pawns, IntVec3[] cells, string giver)
     {
         var id = "removefloor/" + cells[0].x + "/" + cells[0].z + "/x" + cells.Length;
@@ -406,15 +423,18 @@ internal static class NativeConstructionActivity
             if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
             var cell = new Cell(nearest.x, nearest.z);
-            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default,
-                rate > 0 ? Fact.Known(Math.Ceiling(RemoveFloorWork * cells.Length / rate)) : default)
-                { SiteApproachTicks = Fact.Known((double)route), SkillWork = NativeProductiveSkill.ReadWork(pawn,
+            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, route, new Obs.ConstructionDelivery.Unsourced(),
+                Finish(rate > 0 ? Math.Ceiling(RemoveFloorWork * cells.Length / rate) : null, () => NativeProductiveSkill.ReadWork(pawn,
                     SkillDefOf.Construction, StatDefOf.ConstructionSpeed, RemoveFloorWork * cells.Length, 1.7, 0.1,
                     false, false, "JobDriver_AffectFloor: work then learning") is { } learning
-                    ? learning with { WorkQuantum = RemoveFloorWork } : null });
+                    ? learning with { WorkQuantum = RemoveFloorWork } : null), 0, new Obs.StackStorage.Unsourced()));
         }
-        return new(id, Obs.PlannedClearingKind.RemoveFloor) { Options = EquatableArray.From(rows), Cells = EquatableArray.From(cells.Select(c => new Cell(c.x, c.z))) };
+        return new(id, Obs.PlannedClearingKind.RemoveFloor) { Options = EquatableArray.From(rows), Targets = [], Cells = EquatableArray.From(cells.Select(c => new Cell(c.x, c.z))) };
     }
+
+    // A row's finish: the work's ticks with the skill learning it pays, or CannotFinish without ticks (the learning unread).
+    private static Obs.ConstructionFinish Finish(double? ticks, Func<Obs.ProductiveSkillWork?> learning) =>
+        ticks is { } work ? new Obs.ConstructionFinish.Finishes(work, learning()) : new Obs.ConstructionFinish.CannotFinish();
 
     // The standing FloorOut waves (#3615): the cells under a RemoveFloor designation (the room reconcile's FloorOut, or the
     // player's) whose top layer can still be removed, grouped by contiguity (eight-adjacent cells), each wave lowest x then z first.
@@ -457,9 +477,9 @@ internal static class NativeConstructionActivity
 
     // A building's removal rows (#3557, #3612), one per free pawn not incapable of Construction and able to manipulate, with
     // a route to it: Site is the op (a planned clearing's id, or the building's own for a standing designation), Input the
-    // building's id and Resource its def. FinishTicks is the removal job's work (JobDriver_Deconstruct's clamped
+    // building's id and Resource its def. Its Finish is the removal job's work (JobDriver_Deconstruct's clamped
     // WorkToBuild, JobDriver_Uninstall's uninstallWork) at JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7 a
-    // tick); a rate of zero leaves it unknown. A roof-holder's rows (#3617) add JobDriver_RemoveRoof's work (65 a cell at
+    // tick); a rate of zero: CannotFinish. A roof-holder's rows (#3617) add JobDriver_RemoveRoof's work (65 a cell at
     // the same rate) for its roofCells and route to, and locate at, the one nearest the pawn.
     private static List<Obs.ConstructionActivityOption> RemovalRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver, double work,
         List<IntVec3>? roofCells = null)
@@ -475,12 +495,11 @@ internal static class NativeConstructionActivity
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
             var total = work + RemoveRoofWorkPerCell * (roofCells?.Count ?? 0);
             rows.Add(new(site, definition, cell, pawn.GetUniqueLoadID(), building.def.defName, building.GetUniqueLoadID(), cell, 0, 0, giver,
-                default, default, rate > 0 ? Fact.Known(Math.Ceiling(total / rate)) : default)
-                { SiteApproachTicks = Fact.Known((double)route), SkillWork = NativeProductiveSkill.ReadWork(pawn,
+                route, new Obs.ConstructionDelivery.Unsourced(), Finish(rate > 0 ? Math.Ceiling(total / rate) : null, () => NativeProductiveSkill.ReadWork(pawn,
                     SkillDefOf.Construction, StatDefOf.ConstructionSpeed, total, 1.7, 0, false, false,
                     "JobDriver_RemoveBuilding: construction speed, no learning") is { } learning ? learning with
                     { Stages = EquatableArray.From(Enumerable.Repeat(new Obs.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, Fact.Known(0d)), roofCells?.Count ?? 0)
-                        .Append(new(work, 1, Fact.Known(0d)))) } : null });
+                        .Append(new(work, 1, Fact.Known(0d)))) } : null), 0, new Obs.StackStorage.Unsourced()));
         }
         return rows;
     }
@@ -489,8 +508,9 @@ internal static class NativeConstructionActivity
 
     // A stack's haul rows (a planned clearing's, or a standing Haul designation's, #3614), one per free pawn able to haul
     // it with a carry capacity and routes: Site is the op, Input the stack's id, Resource its def, Origin its cell,
-    // Location the destination, Count the stack and Capacity the carry; ApproachTicks (and SiteApproachTicks) the pickup
-    // route, DeliveryTicks the loaded carries plus the returns between trips, FinishTicks a known 0.
+    // Location the destination, Count the stack and Capacity the carry; SiteApproachTicks and the Carried delivery's
+    // ApproachTicks the pickup route, its DeliveryTicks the loaded carries plus the returns between trips, a Finish of 0
+    // (the carry is the work), AvailableInput the stack and Storage where storage would take it.
     private static List<Obs.ConstructionActivityOption> HaulRows(NativePathLegs legs, Pawn[] pawns, Thing item, string site, string definition, string giver, IntVec3 destination)
     {
         var rows = new List<Obs.ConstructionActivityOption>();
@@ -504,9 +524,9 @@ internal static class NativeConstructionActivity
                 || legs.Cost(pawn, destination, item, PathEndMode.Touch) is not { } returning) continue;
             var trips = (item.stackCount + capacity - 1) / capacity;
             rows.Add(new(site, definition, new(destination.x, destination.z), pawn.GetUniqueLoadID(), item.def.defName, item.GetUniqueLoadID(),
-                new(item.Position.x, item.Position.z), item.stackCount, capacity, giver, Fact.Known((double)first),
-                Fact.Known((double)loaded * trips + returning * (trips - 1)), Fact.Known(0.0))
-                { SiteApproachTicks = Fact.Known((double)first), AvailableInput = Fact.Known((double)item.stackCount) });
+                new(item.Position.x, item.Position.z), item.stackCount, capacity, giver, first,
+                new Obs.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1)), new Obs.ConstructionFinish.Finishes(0, null),
+                item.stackCount, StackStorageOf(item.Map, item)));
         }
         return rows;
     }
@@ -543,30 +563,30 @@ internal static class NativeConstructionActivity
 
     // A site's material sources (#3673, #3046): every spawned stack of its material the player may use, lowest id first,
     // each with the share it can supply (the demand, or the whole stack under it) and its storage distance
-    // (StorageDistance). The reader picks the whole alternatives, or the set nearest the site that covers the demand, and
+    // (StackStorageOf). The reader picks the whole alternatives, or the set nearest the site that covers the demand, and
     // the stacks a remote delivery collects. Too little stock leaves none (source_stock_short).
-    private static (Thing? Source, int Share, Fact<double> Storage)[] Sources(Map map, Site site, HashSet<string> findings)
+    private static (Thing? Source, int Share, Obs.StackStorage Storage)[] Sources(Map map, Site site, HashSet<string> findings)
     {
-        if (site.Owed.Length == 0) return [(null, 0, default)];
+        if (site.Owed.Length == 0) return [(null, 0, new Obs.StackStorage.Unsourced())];
         var (def, need) = site.Owed[0];
         var stacks = map.listerThings.ThingsOfDef(def).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer))
             .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         if (!stacks.Any(t => t.stackCount >= need) && stacks.Sum(t => (long)t.stackCount) < need) { findings.Add("source_stock_short"); return []; }
-        return stacks.Select(t => ((Thing?)t, Math.Min(t.stackCount, need), StorageDistance(map, t))).ToArray();
+        return stacks.Select(t => ((Thing?)t, Math.Min(t.stackCount, need), StackStorageOf(map, t))).ToArray();
     }
 
     // Straight-line distance from the stack to the nearest cell of any storage that accepts it: zero when it already
-    // sits in storage, unknown when none accepts it.
-    internal static Fact<double> StorageDistance(Map map, Thing thing)
+    // sits in storage, Unaccepted when none accepts it.
+    internal static Obs.StackStorage StackStorageOf(Map map, Thing thing)
     {
-        if (thing.GetSlotGroup() != null) return Fact.Known(0.0);
+        if (thing.GetSlotGroup() != null) return new Obs.StackStorage.Accepted(0);
         var best = double.PositiveInfinity;
         foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder)
         {
             if (!group.Settings.AllowedToAccept(thing)) continue;
             foreach (var cell in group.CellsList) best = Math.Min(best, (cell - thing.Position).LengthHorizontal);
         }
-        return double.IsPositiveInfinity(best) ? default : Fact.Known(best);
+        return double.IsPositiveInfinity(best) ? new Obs.StackStorage.Unaccepted() : new Obs.StackStorage.Accepted(best);
     }
 
     // Per pawn x material source (Sources): site approach, first approach, delivery trips for the source's share and
@@ -593,31 +613,31 @@ internal static class NativeConstructionActivity
             var skillWork = finish ? NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
                 site.Work, factor, site.PaysXp ? 0.25 : 0, true, false, "JobDriver_ConstructFinishFrame: learning before construction work") : null;
             if (skillWork != null) skillWork = skillWork with { WorkQuantum = site.WorkQuantum };
-            Fact<double> finishTicks = finish && speed > 0 ? Fact.Known((double)site.Work / speed) : default;
+            Obs.ConstructionFinish finishes = finish && speed > 0 ? new Obs.ConstructionFinish.Finishes((double)site.Work / speed, skillWork) : new Obs.ConstructionFinish.CannotFinish();
             foreach (var (source, share, storage) in sources)
             {
                 var count = site.Owed.Length == 0 ? 0 : site.Owed[0].Count;
                 var capacity = source == null ? 0 : pawn.carryTracker.MaxStackSpaceEver(source.def);
-                Fact<double> approach = default, delivery = default;
-                if (source != null && capacity > 0 && !source.IsForbidden(pawn)
-                    && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
-                    && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-                    && pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None))
+                // How the pawn carries the stack: no stack, a carry it cannot make, a leg with no path, or the priced carry.
+                Obs.ConstructionDelivery delivery;
+                if (source == null) delivery = new Obs.ConstructionDelivery.Unsourced();
+                else if (capacity <= 0 || source.IsForbidden(pawn)
+                    || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
+                    || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
+                    || !pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None)) delivery = new Obs.ConstructionDelivery.CannotCarry();
+                else if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is { } first
+                    && legs.Cost(pawn, source.Position, To(source.Position), PathEndMode.Touch) is { } loaded
+                    && legs.Cost(pawn, site.Target(source.Position), source, PathEndMode.Touch) is { } returning)
                 {
-                    if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is { } first
-                        && legs.Cost(pawn, source.Position, To(source.Position), PathEndMode.Touch) is { } loaded
-                        && legs.Cost(pawn, site.Target(source.Position), source, PathEndMode.Touch) is { } returning)
-                    {
-                        approach = Fact.Known((double)first);
-                        if (share < count)
-                            setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), Fact.Known((double)returning)));
-                        var trips = (share + capacity - 1) / capacity;
-                        delivery = Fact.Known((double)loaded * trips + returning * (trips - 1));
-                    }
+                    if (share < count)
+                        setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), Fact.Known((double)returning)));
+                    var trips = (share + capacity - 1) / capacity;
+                    delivery = new Obs.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1));
                 }
+                else delivery = new Obs.ConstructionDelivery.Unreachable();
                 options.Add(new(site.Id, site.Definition.defName, new(site.Location.x, site.Location.z), pawn.GetUniqueLoadID(),
                     source?.def.defName ?? "", source?.GetUniqueLoadID() ?? "", new(source?.Position.x ?? site.Location.x, source?.Position.z ?? site.Location.z),
-                    count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute), AvailableInput = Fact.Known((double)(source?.stackCount ?? 0)), StorageDistance = storage, SkillWork = skillWork });
+                    count, capacity, finishGiver?.defName ?? "", siteRoute, delivery, finishes, source?.stackCount ?? 0, storage));
             }
         }
     }

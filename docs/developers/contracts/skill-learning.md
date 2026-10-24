@@ -134,8 +134,8 @@ once per completed treatment, before and whatever its quality, depending on the
 patient (humanlike or animal) and medicine, not on skill. Tend learning never changes
 the schedule: the observed tend duration is always kept, and an unprojectable callback
 (outside the window, or after the work starts) yields no evidence with a finding.
-Neither medical allocation sets `ProductiveWorkTicks`, which stays a recipe-task
-bound. `lab/skill-learning-tend` and `lab/skill-learning-surgery` check both native
+Neither medical allocation is a `BoundRecipeTask`: only a recipe task bound at its
+learning carries `ProductiveWorkTicks` (#3775). `lab/skill-learning-tend` and `lab/skill-learning-surgery` check both native
 callbacks against the projection.
 
 ## Skill progress is capability

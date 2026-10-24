@@ -80,7 +80,7 @@ internal static class ControlDeconstructRoofHolder
         }
 
         var row = op.Options.FirstOrDefault(r => r.Pawn == worker);
-        if (row is null || row.WorkGiver.Length == 0 || !row.SiteApproachTicks.IsKnown || !row.FinishTicks.IsKnown || row.FinishTicks.Value <= 0 || !roof.Contains(row.Location))
+        if (row is null || row.WorkGiver.Length == 0 || row.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 } || !roof.Contains(row.Location))
         {
             throw new AcceptanceException($"removals: want a row for {worker} with a work giver, a known route and finish, located at a roof cell, got [{string.Join(";", op.Options)}]");
         }

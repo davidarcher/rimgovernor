@@ -83,12 +83,13 @@ public sealed partial record ForecastCoupledCandidates
         var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
             plannedFacts is null ? [] : plannedFacts.Routes, read.Thermal, resources,
             needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline);
-        var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
-    .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))
-    .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => new ForecastMaterialLot(i.Thing, Location(i.Location), new(i.Resource), Known((double)i.AvailableCount))))
-    .Concat(read.Support.Deliveries.Select(d => new ForecastMaterialLot(d.Target, Location(d.Source), new(d.Resource), Known((double)d.Available))))
+        ForecastMaterialLot Lot(string lot, string location, string resource, double count) => new(lot, location, new(resource), Known(count));
+        var lots = read.FoodSources.Select(o => Lot(o.Target, Location(o.Location), o.Resource, o.Count) with { Perishable = true, FreshTicks = o.FreshTicks })
+    .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => Lot(o.Input, Location(o.Origin), o.Resource, o.AvailableInput)))
+    .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => Lot(i.Thing, Location(i.Location), i.Resource, i.AvailableCount)))
+    .Concat(read.Support.Deliveries.Select(d => Lot(d.Target, Location(d.Source), d.Resource, d.Available)))
     .Concat(read.Support.Workers.Where(w => w.Medicine.Length != 0 && w.MedicineLocation is not null)
-        .Select(w => new ForecastMaterialLot(w.Medicine, Location(w.MedicineLocation!.Value), new(w.MedicineResource), Known((double)w.MedicineAvailable))))
+        .Select(w => Lot(w.Medicine, Location(w.MedicineLocation!.Value), w.MedicineResource, w.MedicineAvailable)))
     .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Location is not null)
         .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location!.Value), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
     .Concat(planned.Lots)

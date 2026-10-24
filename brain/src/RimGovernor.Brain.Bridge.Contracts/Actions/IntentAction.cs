@@ -83,7 +83,7 @@ public static class IntentActionRules
         [ActionKind.PawnSettings] = PolicyActions.PawnSettingsAction,
         [ActionKind.AutoHomeArea] = BuildingsRules.AutoHomeAreaAction,
         [ActionKind.Repair] = GiveJobRules.RepairAction,
-        [ActionKind.PawnActivities] = a => new Op.Action { Intent = new Op.PawnActivitiesIntent { Batch = a.PawnActivities } },
+        [ActionKind.PawnActivities] = a => new Op.Action { Intent = new Op.PawnActivitiesIntent { Batch = a.PawnActivities! } },
         [ActionKind.Tend] = GiveJobRules.TendAction,
         [ActionKind.Equip] = GiveJobRules.EquipAction,
         [ActionKind.DropEquipment] = GiveJobRules.DropEquipmentAction,

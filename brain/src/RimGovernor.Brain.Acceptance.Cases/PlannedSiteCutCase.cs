@@ -37,7 +37,7 @@ internal static class PlannedSiteCutCase
     {
         Name = "observations/planned-site-cut",
         Scope = "Two oaks on cells of a planned wood wall ring: the construction activity read answers the planned wall site Feasible "
-            + "with one Cut clearing whose Targets are the two oaks (lowest id first) and a known per-pawn FinishTicks row through the "
+            + "with one Cut clearing whose Targets are the two oaks (lowest id first) and a per-pawn Finishes row through the "
             + "native plant-cut work giver. Does not prove the brain's binding or the job (control/pawn-activity-cut-designated).",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
@@ -89,7 +89,7 @@ internal static class PlannedSiteCutCase
                 problems.Add($"targets: want the two oaks [{string.Join(",", trees)}] lowest id first, got [{string.Join(",", op.Targets)}]");
             }
 
-            if (!op.Options.Any(r => r.WorkGiver.Length > 0 && r.SiteApproachTicks.IsKnown && r.FinishTicks.IsKnown && r.FinishTicks.Value > 0))
+            if (!op.Options.Any(r => r.WorkGiver.Length > 0 && r.Finish is Observations.ConstructionFinish.Finishes { Ticks: > 0 }))
             {
                 problems.Add($"rows: want a pawn row with a work giver, a known route and finish, got [{string.Join(";", op.Options)}]");
             }

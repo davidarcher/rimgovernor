@@ -213,7 +213,7 @@ partial class RoundsBuildingPlanner
     {
         var blocked = DefinitionBlockedOf(projection);
         var ring = context.Closures.SelectMany(c => c.Placed).Select(p => p.Site).ToHashSet(StringComparer.Ordinal);
-        var placed = context.Construction.Options.GroupBy(o => o.Site, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Definition, StringComparer.Ordinal);
+        var placed = (context.Construction?.Options ?? default).GroupBy(o => o.Site, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Definition, StringComparer.Ordinal);
         var items = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in context.RoomItems.Where(i => !ring.Contains(i.Item)))
         {

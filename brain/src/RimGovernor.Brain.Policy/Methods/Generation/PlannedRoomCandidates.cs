@@ -65,14 +65,15 @@ internal static class PlannedRoomCandidates
             if (site.Op == OpKind.RoofIn)
                 return thermal is null ? (Assessment.Unvalued, "roof_work_unread") : thermal.Workers.Count == 0 ? (Assessment.Unvalued, "no_roof_worker")
                     : RoofOptions(site, "").Length == 0 ? (Assessment.Unvalued, "roof_unrouted") : (Assessment.Valued, "");
-            if (site.Verdict == PlannedSiteVerdict.Illegal) return (Assessment.Infeasible, "illegal");
-            if (site.Verdict == PlannedSiteVerdict.Unestimable) return (Assessment.Unvalued, "unestimable");
-            if (site.Verdict != PlannedSiteVerdict.Feasible) return (Assessment.Unvalued, "unknown");
+            if (site.Answer is not { } answer) return (Assessment.Unvalued, "unanswered");
+            if (answer.Verdict == PlannedSiteVerdict.Illegal) return (Assessment.Infeasible, "illegal");
+            if (answer.Verdict == PlannedSiteVerdict.Unestimable) return (Assessment.Unvalued, "unestimable");
+            if (answer.Verdict == PlannedSiteVerdict.Unresolved) return (Assessment.Unvalued, "unresolved");
             var rows = site.Options.Where(Free).ToArray();
-            if (!rows.Any(r => r.FinishTicks.IsKnown)) return (Assessment.Unvalued, "no_finish_option");
+            if (!rows.Any(r => r.Finish is ConstructionFinish.Finishes)) return (Assessment.Unvalued, "no_finish_option");
             if (site.Material.Count > 0 && Sourcing(site, rows).Groups.Length == 0) return (Assessment.Unvalued, "no_delivery_option");
             foreach (var clearing in site.Clearing)
-                if (clearing.Kind == PlannedClearingKind.Unspecified || !ClearingRows(clearing).Any())
+                if (ClearingRows(clearing).Length == 0)
                     return (Assessment.Unvalued, "clearing_unrouted");
             return (Assessment.Valued, "");
         }
@@ -80,7 +81,7 @@ internal static class PlannedRoomCandidates
         IEnumerable<ConstructionActivityOption[]> Deliveries(ConstructionActivityOption[] rows) => rows.Where(r => r.Count > 0)
             .GroupBy(r => r.Input).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Where(g => g.Select(r => (r.Resource, r.Count, r.Origin)).Distinct().Count() == 1)
-            .Select(g => g.Where(r => r.Capacity > 0 && r.DeliveryTicks.IsKnown).GroupBy(r => r.Pawn).Select(p => p.First()).ToArray())
+            .Select(g => g.Where(r => r.Capacity > 0 && r.Delivery is ConstructionDelivery.Carried).GroupBy(r => r.Pawn).Select(p => p.First()).ToArray())
             .Where(g => g.Length > 0);
         // A site's deliveries (#3673): its whole-stack sources, alternatives (Shares null), or its multi-stack set, every
         // stack delivered for its share, when each of them has a deliverable row and the set fits SourcesPerSite (else none).
@@ -93,9 +94,10 @@ internal static class PlannedRoomCandidates
             var set = groups.Where(g => shares.ContainsKey(g[0].Input)).ToArray();
             return shares.Count > 0 && shares.Count <= SourcesPerSite && set.Length == shares.Count ? (set, shares) : ([], shares);
         }
-        IEnumerable<ConstructionActivityOption> ClearingRows(PlannedSiteClearing clearing) => clearing.Options.Where(Free)
-            .Where(r => (clearing.Kind == PlannedClearingKind.Haul ? r.DeliveryTicks : r.FinishTicks).IsKnown)
-            .Where(r => clearing.Kind != PlannedClearingKind.Deconstruct || r.Input.Length > 0).GroupBy(r => r.Pawn).Select(p => p.First());
+        (ConstructionActivityOption Row, (double Ticks, ProductiveSkillWork? SkillWork, double ApproachTicks) Work)[] ClearingRows(PlannedSiteClearing clearing) =>
+            clearing.Options.Where(Free).Where(r => clearing.Kind != PlannedClearingKind.Deconstruct || r.Input.Length > 0)
+            .SelectMany(r => ConstructionMethodCandidates.Work(clearing.Kind, r) is { } work ? new[] { (Row: r, Work: work) } : [])
+            .GroupBy(r => r.Row.Pawn).Select(p => p.First()).ToArray();
         string RingKind(OpKind op) => op switch { OpKind.WallIn => "wall", OpKind.DoorIn => "door", OpKind.WallUp => "wallup", _ => "vent" };
         var assessed = new Dictionary<string, (Assessment Verdict, string Reason)>(StringComparer.Ordinal);
         foreach (var room in alternatives.GroupBy(a => a.Room).OrderBy(g => g.Key))
@@ -167,11 +169,9 @@ internal static class PlannedRoomCandidates
                             var ready = delivery + "/ready";
                             var source = "construction-source/" + first.Input;
                             var sourceLocation = ForecastLocations.Of(first.Origin);
-                            roomObserved.Add(new(source, new(first.Resource), first.AvailableInput.TryGetValue(out var available)
-                                && available >= 0 && available <= int.MaxValue && available == Math.Floor(available) ? Known((int)available) : default,
-                                sourceLocation, Known(0.0), Known(horizon))
+                            roomObserved.Add(new(source, new(first.Resource), Known(first.AvailableInput), sourceLocation, Known(0.0), Known(horizon))
                             { Lot = first.Input, Provenance = "native-construction-source:" + site.Id + ":" + first.Input });
-                            roomLots.Add(new(first.Input, sourceLocation, new(first.Resource), first.AvailableInput));
+                            roomLots.Add(new(first.Input, sourceLocation, new(first.Resource), Known((double)first.AvailableInput)));
                             // A whole-stack source is one of the site's alternative deliveries; a set's stacks are each delivered.
                             roomOperations.Add(new(new(delivery, sourceLocation, siteLocation, []) { ChoiceIdentity = shares is null ? site.Id + "/delivery" : delivery },
                                 [new(delivery + "/material", new(first.Resource), Known(units), sourceLocation,
@@ -180,8 +180,9 @@ internal static class PlannedRoomCandidates
                                 { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-delivery:" + site.Id }]));
                             foreach (var row in group.Rows)
                             {
-                                roomOptions.Add(new(delivery, row.Pawn, row.DeliveryTicks, Known(0.0)));
-                                roomRoutes.Add(new(row.Pawn, "start", sourceLocation, row.ApproachTicks));
+                                if (row.Delivery is not ConstructionDelivery.Carried carried) continue;
+                                roomOptions.Add(ConstructionMethodCandidates.Option(delivery, row.Pawn, carried.DeliveryTicks));
+                                roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, sourceLocation, carried.ApproachTicks));
                             }
                             readies.Add(ready); ids.Add(delivery);
                         }
@@ -193,25 +194,26 @@ internal static class PlannedRoomCandidates
                         else requirements.AddRange(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready/" + k, capability, Known(1),
                             siteLocation, ForecastRequirementKind.Reusable, Known<EquatableArray<string>>([ready]), Known(0.0), Known(horizon))));
                     }
-                    foreach (var row in rows.Where(r => r.FinishTicks.IsKnown).GroupBy(r => r.Pawn).Select(p => p.First()))
+                    foreach (var row in rows.Where(r => r.Finish is ConstructionFinish.Finishes).GroupBy(r => r.Pawn).Select(p => p.First()))
                     {
-                        roomOptions.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
-                        roomRoutes.Add(new(row.Pawn, "start", siteLocation, row.SiteApproachTicks));
+                        if (row.Finish is not ConstructionFinish.Finishes work) continue;
+                        roomOptions.Add(ConstructionMethodCandidates.Option(finish, row.Pawn, work.Ticks, work.SkillWork));
+                        roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, siteLocation, row.SiteApproachTicks));
                     }
                     foreach (var clearing in site.Clearing.OrderBy(c => c.Id, StringComparer.Ordinal))
                     {
-                        var clearingRows = ClearingRows(clearing).ToArray();
+                        var clearingRows = ClearingRows(clearing);
                         var haul = clearing.Kind == PlannedClearingKind.Haul;
-                        var from = ForecastLocations.Of(haul ? clearingRows[0].Origin : clearingRows[0].Location);
-                        var to = ForecastLocations.Of(clearingRows[0].Location);
+                        var from = ForecastLocations.Of(haul ? clearingRows[0].Row.Origin : clearingRows[0].Row.Location);
+                        var to = ForecastLocations.Of(clearingRows[0].Row.Location);
                         var done = clearing.Id + "/cleared";
                         roomOperations.Add(new(new(clearing.Id, from, to, []), [],
                             [new(done, cleared, Known(1), siteLocation, Known(0.0), Known(horizon))
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
-                        foreach (var row in clearingRows)
+                        foreach (var (row, work) in clearingRows)
                         {
-                            roomOptions.Add(new(clearing.Id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
-                            roomRoutes.Add(new(row.Pawn, "start", from, haul ? row.ApproachTicks : row.SiteApproachTicks));
+                            roomOptions.Add(ConstructionMethodCandidates.Option(clearing.Id, row.Pawn, work.Ticks, work.SkillWork));
+                            roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, from, work.ApproachTicks));
                             // The building, stack or plants under the footprint stand now: their removal binds before placement, a
                             // building as Work/Deconstruct on it (#3557; a roof-holder's order removes the roof over the op's
                             // Cells first, #3617), a stack as a Deliver of it to the row's storage cell (#3614; one carry at a

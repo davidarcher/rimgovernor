@@ -45,10 +45,10 @@ internal static class PlannedSiteDeconstructCase
             ? "An ancients' wall on a cell of a planned wood wall ring, holding a thin rock roof over itself and the interior cell "
                 + "beside it: the construction activity read answers the planned wall site Feasible (valued, not unknown) with one "
                 + "Deconstruct clearing naming the wall whose Cells are the two roofed cells the wall leaves unsupported, and a known "
-                + "per-pawn FinishTicks row located at a roof cell. Does not prove the brain's binding or the job "
+                + "per-pawn Finishes row located at a roof cell. Does not prove the brain's binding or the job "
                 + "(control/pawn-activity-deconstruct-roof-holder)."
             : "An ancients' door on a cell of a planned wood wall ring: the construction activity read answers the planned wall site "
-                + "Feasible with one Deconstruct clearing naming the door (Input its id, Resource its def) and a known per-pawn FinishTicks "
+                + "Feasible with one Deconstruct clearing naming the door (Input its id, Resource its def) and a per-pawn Finishes "
                 + "row through the native deconstruct work giver. Does not prove the brain's binding or the job (control/pawn-activity-deconstruct).",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
@@ -96,8 +96,7 @@ internal static class PlannedSiteDeconstructCase
         }
         else
         {
-            if (!op.Options.Any(r => r.Input == ruin && r.Resource == Ruin(roofHolder) && r.WorkGiver.Length > 0 && r.SiteApproachTicks.IsKnown
-                && r.FinishTicks.IsKnown && r.FinishTicks.Value > 0 && (!roofHolder || roof.Contains(r.Location))))
+            if (!op.Options.Any(r => r.Input == ruin && r.Resource == Ruin(roofHolder) && r.WorkGiver.Length > 0 && r.Finish is Observations.ConstructionFinish.Finishes { Ticks: > 0 } && (!roofHolder || roof.Contains(r.Location))))
             {
                 problems.Add($"rows: want a pawn row naming {ruin} ({Ruin(roofHolder)}) with a known route and finish{(roofHolder ? " at a roof cell" : "")}, got [{string.Join(";", op.Options)}]");
             }

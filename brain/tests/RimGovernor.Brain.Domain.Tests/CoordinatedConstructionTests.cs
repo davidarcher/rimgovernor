@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CoordinatedConstructionTests
 {
-    private static ConstructionActivityOption Option(string pawn, double approach, double delivery, double finish) =>
+    private static Row Option(string pawn, double approach, double delivery, double finish) =>
         new("blueprint", "Wall", new(30, 30), pawn, "WoodLog", "wood", new(10, 10), 20, 10, "FinishFrames",
             Known(approach), Known(delivery), Known(finish)) { SiteApproachTicks = Known(approach), AvailableInput = Known(20d) };
     private static WorkResourceView Resources()
@@ -27,7 +27,7 @@ public sealed class CoordinatedConstructionTests
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
+            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
@@ -54,7 +54,7 @@ public sealed class CoordinatedConstructionTests
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From([option]) } }
+            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [option] } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var outcome = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal)).Outcome!;
@@ -69,7 +69,7 @@ public sealed class CoordinatedConstructionTests
         return facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
                 Removals = EquatableArray.From(removals) } }
         } };
     }
@@ -86,9 +86,9 @@ public sealed class CoordinatedConstructionTests
     public void AStandingRemovalDesignationIsRemovalWorkTheSelectionOrders(PlannedClearingKind kind, string job, string definition)
     {
         var building = "Thing_" + definition + "1";
-        var row = new ConstructionActivityOption(building, definition, new(30, 30), "producer", definition, building, new(30, 30), 0, 0, job,
+        var row = new Row(building, definition, new(30, 30), "producer", definition, building, new(30, 30), 0, 0, job,
             default, default, Known(50d)) { SiteApproachTicks = Known(10d) };
-        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => new(building, kind) { Options = EquatableArray.From(rows) };
+        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => ConstructionFixtures.Clearing(building, kind) with { Options = EquatableArray.From(rows) };
         var facts = RemovalFacts(Removal(row, row with { Pawn = "helper", FinishTicks = Known(80d) }));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == job && b.Pawn == "producer");
@@ -120,9 +120,9 @@ public sealed class CoordinatedConstructionTests
     {
         const string wall = "Thing_Wall1";
         Cell[] cells = [new(31, 30), new(31, 31)];
-        var row = new ConstructionActivityOption(wall, "Wall", new(31, 30), "producer", "Wall", wall, new(31, 30), 0, 0, "Deconstruct",
+        var row = new Row(wall, "Wall", new(31, 30), "producer", "Wall", wall, new(31, 30), 0, 0, "Deconstruct",
             default, default, Known(180d)) { SiteApproachTicks = Known(10d) };
-        var facts = RemovalFacts(new PlannedSiteClearing(wall, PlannedClearingKind.Deconstruct) { Options = [row], Cells = EquatableArray.From(cells) });
+        var facts = RemovalFacts(ConstructionFixtures.Clearing(wall, PlannedClearingKind.Deconstruct) with { Options = [row], Cells = EquatableArray.From(cells) });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "Deconstruct");
         Assert.Equal((PawnActivityKind.Work, wall, "Deconstruct", "Wall", 0), (binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition, binding.Count));
@@ -153,9 +153,9 @@ public sealed class CoordinatedConstructionTests
     public void AStandingCutWaveIsOneSetOrderOverItsPlants()
     {
         string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
-        var row = new ConstructionActivityOption(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
+        var row = new Row(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
             default, default, Known(150d)) { SiteApproachTicks = Known(10d) };
-        PlannedSiteClearing Wave(params string[] targets) => new(trees[0], PlannedClearingKind.Cut)
+        PlannedSiteClearing Wave(params string[] targets) => ConstructionFixtures.Clearing(trees[0], PlannedClearingKind.Cut) with
             { Options = [row, row with { Pawn = "helper", FinishTicks = Known(200d) }], Targets = EquatableArray.From(targets) };
         var facts = RemovalFacts(Wave(trees));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
@@ -190,9 +190,9 @@ public sealed class CoordinatedConstructionTests
     {
         Cell[] cells = [new(30, 30), new(31, 30), new(30, 31), new(31, 31)];
         var id = "removefloor/30/30/x4";
-        var row = new ConstructionActivityOption(id, "WoodPlankFloor", cells[0], "producer", "", "", cells[0], 0, 0, "ConstructRemoveFloors",
+        var row = new Row(id, "WoodPlankFloor", cells[0], "producer", "", "", cells[0], 0, 0, "ConstructRemoveFloors",
             default, default, Known(120d)) { SiteApproachTicks = Known(10d) };
-        PlannedSiteClearing Wave(params Cell[] members) => new(id, PlannedClearingKind.RemoveFloor)
+        PlannedSiteClearing Wave(params Cell[] members) => ConstructionFixtures.Clearing(id, PlannedClearingKind.RemoveFloor) with
             { Options = [row, row with { Pawn = "helper", FinishTicks = Known(200d) }], Cells = EquatableArray.From(members) };
         var facts = RemovalFacts(Wave(cells));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
@@ -224,29 +224,29 @@ public sealed class CoordinatedConstructionTests
 
     /// <summary>
     /// #3613: a set step completes partially the way a delivery does. A failed order is retried on the members native still
-    /// finds legal (the binding's Targets, its RemainingCount); the retried order carries only those, and its completion
+    /// finds legal (the binding's Targets and Count); the retried order carries only those, and its completion
     /// (or a native satisfied task, every member gone) finishes the task and releases the pawn.
     /// </summary>
     [Fact]
     public void ASetStepRetriesOnTheMembersStillLegalAndCompletesWithThem()
     {
         string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
-        var row = new ConstructionActivityOption(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
+        var row = new Row(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
             default, default, Known(150d)) { SiteApproachTicks = Known(10d) };
-        var facts = RemovalFacts(new PlannedSiteClearing(trees[0], PlannedClearingKind.Cut) { Options = [row], Targets = EquatableArray.From(trees) });
+        var facts = RemovalFacts(ConstructionFixtures.Clearing(trees[0], PlannedClearingKind.Cut) with { Options = [row], Targets = EquatableArray.From(trees) });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
-        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => new()
+        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
-            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 300))))
+            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var remaining = task.Step with { Targets = EquatableArray.From(trees.Skip(1)), Count = 2 };
         var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
-            new ActivityTaskBinding(task.Id, remaining) { RemainingCount = Known(2) }))!;
+            new ActivityTaskBinding.Bound(task.Id, remaining)))!;
         var retried = Assert.Single(retry.Orders);
         Assert.False(retried.Release);
         Assert.Equal((2, 2), (retried.Steps[0].Count, retried.Steps[0].Targets.Count));
@@ -255,7 +255,7 @@ public sealed class CoordinatedConstructionTests
         Assert.Equal(2, retry.Tasks.Single().AttemptsLeft);
         // A binding naming a member outside the set is not this task's.
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
-            new ActivityTaskBinding(task.Id, remaining with { Targets = ["Thing_Plant_TreeOak9", trees[2]] }) { RemainingCount = Known(2) }))!.Orders.Single().Release);
+            new ActivityTaskBinding.Bound(task.Id, remaining with { Targets = ["Thing_Plant_TreeOak9", trees[2]] })))!.Orders.Single().Release);
         var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed"))!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
@@ -275,9 +275,9 @@ public sealed class CoordinatedConstructionTests
         const string item = "Thing_Steel1";
         var store = new Cell(40, 30);
         var origin = new Cell(30, 30);
-        var row = new ConstructionActivityOption(item, "Steel", store, "producer", "Steel", item, origin, 75, 75, "HaulGeneral",
+        var row = new Row(item, "Steel", store, "producer", "Steel", item, origin, 75, 75, "HaulGeneral",
             Known(10d), Known(20d), Known(0d)) { SiteApproachTicks = Known(10d), AvailableInput = Known(75d) };
-        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => new(item, PlannedClearingKind.Haul) { Options = EquatableArray.From(rows) };
+        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => ConstructionFixtures.Clearing(item, PlannedClearingKind.Haul) with { Options = EquatableArray.From(rows) };
         var facts = RemovalFacts(Removal(row, row with { Pawn = "helper", DeliveryTicks = Known(30d) }));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver && b.Pawn == "producer");
@@ -312,9 +312,9 @@ public sealed class CoordinatedConstructionTests
         const string item = "Thing_Silver1";
         var store = new Cell(40, 30);
         var origin = new Cell(30, 30);
-        var row = new ConstructionActivityOption(item, "Silver", store, "producer", "Silver", item, origin, 100, 75, "HaulGeneral",
+        var row = new Row(item, "Silver", store, "producer", "Silver", item, origin, 100, 75, "HaulGeneral",
             Known(10d), Known(50d), Known(0d)) { SiteApproachTicks = Known(10d), AvailableInput = Known(100d) };
-        var facts = RemovalFacts(new PlannedSiteClearing(item, PlannedClearingKind.Haul) { Options = [row] });
+        var facts = RemovalFacts(ConstructionFixtures.Clearing(item, PlannedClearingKind.Haul) with { Options = [row] });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver);
         Assert.Equal((item, 100, 75), (binding.Target, binding.Count, binding.Capacity));
@@ -326,13 +326,13 @@ public sealed class CoordinatedConstructionTests
         var first = Assert.Single(Assert.Single(batch.Orders, o => !o.Release).Steps);
         Assert.Equal((PawnActivityKind.Deliver, item, 75, (Cell?)store), (first.Kind, first.Target, first.Count, first.Destination));
 
-        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => new()
+        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
-            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 300))))
+            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed",
-            new ActivityTaskBinding(task.Id, task.Step with { Count = 25 })))!;
+            new ActivityTaskBinding.Bound(task.Id, task.Step with { Count = 25 })))!;
         Assert.Equal(25, Assert.Single(next.Tasks).Step.Count);
         var second = Assert.Single(Assert.Single(next.Orders, o => !o.Release).Steps);
         Assert.Equal((PawnActivityKind.Deliver, item, 25, (Cell?)store), (second.Kind, second.Target, second.Count, second.Destination));
@@ -345,9 +345,9 @@ public sealed class CoordinatedConstructionTests
     [Fact]
     public void RemovalOpsShareOneCapAcrossKindsAndAnUnworkedKindBindsNothing()
     {
-        static PlannedSiteClearing Removal(int n, PlannedClearingKind kind) => new("Thing_" + n, kind)
+        static PlannedSiteClearing Removal(int n, PlannedClearingKind kind) => ConstructionFixtures.Clearing("Thing_" + n, kind) with
         {
-            Options = [new("Thing_" + n, "Bed", new(30, 30), "producer", "Bed", "Thing_" + n, new(30, 30), 0, 0, "Giver", default, default, Known(50d)) { SiteApproachTicks = Known(10d) }],
+            Options = [new Row("Thing_" + n, "Bed", new(30, 30), "producer", "Bed", "Thing_" + n, new(30, 30), 0, 0, "Giver", default, default, Known(50d)) { SiteApproachTicks = Known(10d) }],
         };
         var ops = Enumerable.Range(10, 17).Select(n => Removal(n, n % 2 == 0 ? PlannedClearingKind.Deconstruct : PlannedClearingKind.Uninstall)).ToArray();
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(ops), 1900)!;
@@ -382,8 +382,8 @@ public sealed class CoordinatedConstructionTests
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
                     Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
-                    Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
-                        Options = EquatableArray.From([Option("pawn", 0, 20, 20), Option("helper", 0, 20, 20)]) }
+                    Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+                        Options = [Option("pawn", 0, 20, 20), Option("helper", 0, 20, 20)] }
                 }
             } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
@@ -408,8 +408,9 @@ public sealed class CoordinatedConstructionTests
         Assert.Equal(10, batch.Orders.Single(o => o.Pawn == "helper").Steps[0].Count);
         Assert.Equal(20, batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply).Step.Count);
         Assert.Single(Start(out _, builder, hauler with { ApproachTicks = Known(1500.0), SiteApproachTicks = Known(1500.0) })!.Orders);
-        Assert.Null(Start(out var unknown, builder with { DeliveryTicks = default }));
-        Assert.Contains(unknown!.Findings, f => f.Contains("unknown", StringComparison.Ordinal));
+        // A builder whose carry has no path (Unreachable) has no delivery option, so nothing is planned (#3775).
+        Assert.Null(Start(out var unreachable, builder with { DeliveryTicks = default }));
+        Assert.Null(unreachable!.Plan);
     }
 
     /// <summary>#3673: no one stack holds the site's 20 logs, so both are supplied, each its share, before the finish.</summary>
@@ -435,18 +436,18 @@ public sealed class CoordinatedConstructionTests
     {
         var batch = Start(out _, Option("producer", 0, 20, 10))!;
         var supply = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply);
-        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => new()
+        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-                new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 300))))
+                new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
-            new ActivityTaskBinding(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }) { RemainingCount = Known(7) }))!;
+            new ActivityTaskBinding.Supply(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }, 7)))!;
         Assert.Equal(7, retry.Tasks.Single(t => t.Id == supply.Id).Step.Count);
         var finish = retry.Tasks.Single(t => t.Step.Job == "FinishFrame");
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed",
-            new ActivityTaskBinding(finish.Id, finish.Step with { Target = "frame" })) with { SatisfiedTasks = [supply.Id] })!;
+            new ActivityTaskBinding.Bound(finish.Id, finish.Step with { Target = "frame" })) with { SatisfiedTasks = [supply.Id] })!;
         Assert.Equal("frame", next.Orders.Single().Steps[0].Target);
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed"))!.Orders.Single().Release);
         var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
@@ -463,14 +464,14 @@ public sealed class CoordinatedConstructionTests
     [Fact]
     public void ARemoteDeliveryTakesAFullLoadAndCollectsTheStackWorthItsDetour()
     {
-        ConstructionActivityOption Stack(string id, Cell origin, double held, double delivery) => Option("producer", 0, delivery, 20) with
+        Row Stack(string id, Cell origin, double held, double delivery) => Option("producer", 0, delivery, 20) with
         { Location = new(50, 50), Input = id, Origin = origin, Count = 5, Capacity = 75, AvailableInput = Known(held), StorageDistance = Known(0.0) };
-        ConstructionActivityOption[] rows = [Stack("wood", new(90, 50), 15, 20), Stack("wood-near", new(90, 58), 20, 30), Stack("wood-far", new(90, 36), 20, 30)];
-        var (fullLoad, collect) = RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0], rows);
+        Row[] rows = [Stack("wood", new(90, 50), 15, 20), Stack("wood-near", new(90, 58), 20, 30), Stack("wood-far", new(90, 36), 20, 30)];
+        var (fullLoad, collect) = RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0], rows.Select(r => r.Option));
         Assert.True(fullLoad);
         Assert.Equal(["wood-near"], collect);
-        Assert.False(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0] with { StorageDistance = default }, rows).FullLoad);
-        Assert.False(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0] with { StorageDistance = Known(41.0) }, rows).FullLoad);
+        Assert.False(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0] with { StorageDistance = default }, rows.Select(r => r.Option)).FullLoad);
+        Assert.False(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0] with { StorageDistance = Known(41.0) }, rows.Select(r => r.Option)).FullLoad);
         // The selected step carries the full load to native, collecting a stack under the need a cell away (1 < 4 * 40 / 75);
         // the site still takes its need.
         var supply = Start(out _, rows[0], Stack("wood-small", new(90, 51), 4, 30))!.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply).Step;

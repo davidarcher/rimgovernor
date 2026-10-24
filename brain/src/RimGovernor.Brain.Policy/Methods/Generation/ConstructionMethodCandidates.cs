@@ -11,31 +11,38 @@ internal static class ConstructionMethodCandidates
     /// The pawn activity job a standing removal op binds as Work of, by kind (#3612, #3613, #3615); null for a Haul, which binds
     /// as a Deliver of the stack (#3614), and for a kind no order works yet.
     /// </summary>
-    internal static string? RemovalJob(PlannedClearingKind kind) => kind switch
-    {
-        PlannedClearingKind.Deconstruct => "Deconstruct",
-        PlannedClearingKind.Uninstall => "Uninstall",
-        PlannedClearingKind.Cut => "CutPlant",
-        PlannedClearingKind.RemoveFloor => "RemoveFloor",
-        PlannedClearingKind.Mine => "Mine",
-        _ => null,
-    };
+    internal static string? RemovalJob(PlannedClearingKind kind) =>
+        kind == PlannedClearingKind.Deconstruct ? "Deconstruct"
+        : kind == PlannedClearingKind.Uninstall ? "Uninstall"
+        : kind == PlannedClearingKind.Cut ? "CutPlant"
+        : kind == PlannedClearingKind.RemoveFloor ? "RemoveFloor"
+        : kind == PlannedClearingKind.Mine ? "Mine"
+        : null;
     /// <summary>A set kind's op (a Cut wave over plants, #3613; a RemoveFloor wave over cells, #3615; a Mine op, #3616) is bound over its members and needs them named.</summary>
-    private static bool Bindable(PlannedSiteClearing op) => op.Kind switch
-    {
-        PlannedClearingKind.Cut or PlannedClearingKind.Mine => op.Targets.Count > 0,
-        PlannedClearingKind.RemoveFloor => op.Cells.Count > 0,
-        _ => true,
-    };
+    private static bool Bindable(PlannedSiteClearing op) =>
+        op.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine ? op.Targets.Count > 0
+        : op.Kind != PlannedClearingKind.RemoveFloor || op.Cells.Count > 0;
 
-    /// <summary>A standing removal row a pawn can work: a Haul's delivery is known and carriable (#3614, #3625), another kind's finish.</summary>
-    private static bool Workable(PlannedClearingKind kind, ConstructionActivityOption row) =>
-        kind == PlannedClearingKind.Haul ? Carriable(row) && row.DeliveryTicks.IsKnown : row.FinishTicks.IsKnown;
+    /// <summary>
+    /// The work a pawn's removal row prices, or null when it cannot work it: a Haul is its carried delivery
+    /// (#3614, #3625), from the pawn's approach to the stack; another kind is its finish, from the approach to the site.
+    /// </summary>
+    internal static (double Ticks, ProductiveSkillWork? SkillWork, double ApproachTicks)? Work(PlannedClearingKind kind, ConstructionActivityOption row) =>
+        kind == PlannedClearingKind.Haul
+            ? row.Delivery is ConstructionDelivery.Carried carried ? (carried.DeliveryTicks, null, carried.ApproachTicks) : null
+            : row.Finish is ConstructionFinish.Finishes finishes ? (finishes.Ticks, finishes.SkillWork, row.SiteApproachTicks) : null;
+
+    /// <summary>A pawn's option to do <paramref name="activity"/> in <paramref name="ticks"/> of labor, with no recovery labor.</summary>
+    internal static ForecastActivityOption Option(string activity, string pawn, double ticks, ProductiveSkillWork? skillWork = null) =>
+        new(activity, pawn, Known(ticks), Known(0.0)) { SkillWork = skillWork };
+
+    /// <summary>A pawn's leg from its start to <paramref name="location"/>.</summary>
+    internal static ForecastActivityRoute Start(string pawn, string location, double ticks) => new(pawn, "start", location, Known(ticks));
 
     /// <summary>
     /// A haul row the Deliver task can work: a stack and a carry. A stack larger than one carry is still one task, its
     /// order a Deliver of one carry at a time (CoordinatedActivityBinding clamps the step to Capacity) repeated over the
-    /// remainder until the stack is delivered (#3625); the row's DeliveryTicks price every trip.
+    /// remainder until the stack is delivered (#3625); the row's Carried delivery prices every trip.
     /// </summary>
     internal static bool Carriable(ConstructionActivityOption row) => row.Count > 0 && row.Capacity > 0;
 
@@ -58,8 +65,8 @@ internal static class ConstructionMethodCandidates
                 : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
                     { SiteDefinition = row.Definition, Targets = targets, Cells = cells };
 
-    /// <summary>A site row whose stack alone covers the site's demand (or whose stock is unknown): a whole alternative.</summary>
-    internal static bool Whole(ConstructionActivityOption row) => !(row.AvailableInput.TryGetValue(out var held) && held < row.Count);
+    /// <summary>A site row whose stack alone covers the site's demand: a whole alternative.</summary>
+    internal static bool Whole(ConstructionActivityOption row) => row.AvailableInput >= row.Count;
 
     /// <summary>
     /// The shares of a multi-stack source set (#3673), by stack id. Native lists every usable stack of a site's material
@@ -74,18 +81,18 @@ internal static class ConstructionMethodCandidates
         if (stacks.Length == 0 || stacks.Any(Whole)) return null;
         var shares = new Dictionary<string, int>(StringComparer.Ordinal);
         if (stacks.Select(r => (r.Resource, r.Count)).Distinct().Count() != 1
-            || stacks.Any(r => r.AvailableInput.Value < 1 || r.AvailableInput.Value != Math.Floor(r.AvailableInput.Value))) return shares;
+            || stacks.Any(r => r.AvailableInput < 1)) return shares;
         var need = stacks[0].Count;
         var set = new List<ConstructionActivityOption>();
         var held = 0L;
         foreach (var r in stacks.OrderBy(siteDistance).ThenBy(r => r.Input, StringComparer.Ordinal))
         {
             if (held >= need) break;
-            set.Add(r); held += (long)r.AvailableInput.Value;
+            set.Add(r); held += r.AvailableInput;
         }
         if (held < need) return shares;
-        var remainder = set.OrderByDescending(r => r.AvailableInput.Value).ThenBy(r => r.Input, StringComparer.Ordinal).First();
-        foreach (var r in set) shares[r.Input] = r == remainder ? (int)(need - (held - (long)r.AvailableInput.Value)) : (int)r.AvailableInput.Value;
+        var remainder = set.OrderByDescending(r => r.AvailableInput).ThenBy(r => r.Input, StringComparer.Ordinal).First();
+        foreach (var r in set) shares[r.Input] = r == remainder ? (int)(need - (held - r.AvailableInput)) : r.AvailableInput;
         return shares;
     }
 
@@ -95,18 +102,17 @@ internal static class ConstructionMethodCandidates
     /// <summary>
     /// Remote pickup (#2517, #3046, <see cref="RemotePickup"/>): a whole-stack delivery whose stack is remote takes a full
     /// carry load instead of the site's need, the surplus dropped beside the site for its next delivery, and collects the
-    /// site's other stacks worth the detour. A local delivery, or one whose storage distance is unknown (no storage accepts
-    /// it), takes the need alone.
+    /// site's other stacks worth the detour. A local delivery, or one no storage accepts, takes the need alone.
     /// </summary>
     internal static (bool FullLoad, EquatableArray<string> Collect) RemoteLoad(ConstructionActivityOption row, IEnumerable<ConstructionActivityOption> stacks)
     {
-        if (!row.StorageDistance.TryGetValue(out var storage) || !row.AvailableInput.TryGetValue(out var held) || row.Capacity <= 0) return (false, default);
+        if (row.Storage is not StackStorage.Accepted accepted || row.Capacity <= 0) return (false, default);
         var site = Distance(row.Origin, row.Location);
-        if (!RemotePickup.IsRemote(site, storage)) return (false, default);
-        var candidates = stacks.Where(s => s.Input.Length != 0 && s.Input != row.Input && s.Resource == row.Resource && s.AvailableInput.IsKnown)
+        if (!RemotePickup.IsRemote(site, accepted.Distance)) return (false, default);
+        var candidates = stacks.Where(s => s.Input.Length != 0 && s.Input != row.Input && s.Resource == row.Resource)
             .GroupBy(s => s.Input).Select(g => g.First()).OrderBy(s => s.Input, StringComparer.Ordinal)
-            .Select(s => (s.Input, Distance(row.Origin, s.Origin), s.AvailableInput.Value));
-        return (true, EquatableArray.From(RemotePickup.Collect(site, row.Capacity, held, candidates)));
+            .Select(s => (s.Input, Distance(row.Origin, s.Origin), (double)s.AvailableInput));
+        return (true, EquatableArray.From(RemotePickup.Collect(site, row.Capacity, row.AvailableInput, candidates)));
     }
 
     /// <summary>The placed-site candidates one comparison generates, in site id order; an urgent build's review compares all of its own (#3537).</summary>
@@ -116,7 +122,8 @@ internal static class ConstructionMethodCandidates
         int siteBound = SiteBound)
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
-        if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
+        var tick = read.Context.Tick;
+        if (deadline <= tick || resources.Claims.Truncated)
             return new(null, [], bindings, resources.Claims.Truncated);
         var horizon = deadline - tick;
         // A site's candidates: one per whole-stack source, or one for its multi-stack set (#3673), whose every stack is
@@ -160,9 +167,7 @@ internal static class ConstructionMethodCandidates
                 var ready = "construction-ready/" + delivery;
                 activities.Add(new(delivery, sourceLocation, siteLocation, []) { Inputs = [new(new(stack.Resource), Known((double)units)) { Lot = stack.Input }] });
                 var source = "construction-source/" + stack.Input;
-                observed[source] = new(source, new(stack.Resource), stack.AvailableInput.TryGetValue(out var available)
-                    && available >= 0 && available <= int.MaxValue && available == Math.Floor(available) ? Known((int)available) : default,
-                    sourceLocation, Known(0.0), Known((double)horizon))
+                observed[source] = new(source, new(stack.Resource), Known(stack.AvailableInput), sourceLocation, Known(0.0), Known((double)horizon))
                 { Lot = stack.Input, Provenance = "native-construction-source:" + stack.Site + ":" + stack.Input };
                 operations.Add(new(activities[^1] with { Inputs = [], ChoiceIdentity = "construction-delivery/" + stack.Site + (shares is null ? "" : "/" + stack.Input) },
                     [new(delivery + "/material", new(stack.Resource), Known(units), sourceLocation,
@@ -172,9 +177,10 @@ internal static class ConstructionMethodCandidates
                 readies.Add(ready);
                 foreach (var row in rows.GroupBy(o => o.Pawn).Select(g => g.First()).Where(r => r.Count > 0 && r.Capacity > 0))
                 {
+                    if (row.Delivery is not ConstructionDelivery.Carried carried) continue;
                     workers.Add(row.Pawn);
-                    options.Add(new(delivery, row.Pawn, row.DeliveryTicks, Known(0.0)));
-                    routes.Add(new(row.Pawn, "start", sourceLocation, row.ApproachTicks));
+                    options.Add(Option(delivery, row.Pawn, carried.DeliveryTicks));
+                    routes.Add(Start(row.Pawn, sourceLocation, carried.ApproachTicks));
                     // A set's next stack is fetched from the site: native reads that leg for each of its stacks.
                     if (shares is not null)
                         foreach (var back in read.Routes.Where(r => r.Pawn == row.Pawn && r.From == row.Location && r.To == row.Origin && !r.FromStart))
@@ -201,10 +207,10 @@ internal static class ConstructionMethodCandidates
             foreach (var row in all.GroupBy(o => o.Pawn).Select(g => g.First()))
             {
                 workers.Add(row.Pawn);
-                if (row.FinishTicks.IsKnown)
+                if (row.Finish is ConstructionFinish.Finishes finishes)
                 {
-                    options.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
-                    routes.Add(new(row.Pawn, "start", siteLocation, row.SiteApproachTicks));
+                    options.Add(Option(finish, row.Pawn, finishes.Ticks, finishes.SkillWork));
+                    routes.Add(Start(row.Pawn, siteLocation, row.SiteApproachTicks));
                     bindings[(finish, row.Pawn)] = new(finish, row.Pawn, [.. prerequisites], PawnActivityKind.Work,
                         row.Site, row.WorkGiver, "FinishFrame", 0, deadline, row.Location)
                     { SiteDefinition = row.Definition, CompletionMustBeObserved = true };
@@ -226,13 +232,14 @@ internal static class ConstructionMethodCandidates
         // storage cell, and each Cut or RemoveFloor wave one Work set step over its members, one unit of requested development
         // when it is gone (its relief, like a floor's, also exempts it from the thermal gate). A kind with no job binds nothing.
         var removals = read.Removals.Where(op => (op.Kind == PlannedClearingKind.Haul || RemovalJob(op.Kind) != null) && Bindable(op) && !resources.Claims.Targets.Contains(op.Id))
-            .Select(op => (op.Id, op.Kind, op.Targets, op.Cells, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && Workable(op.Kind, o))
-                .GroupBy(o => o.Pawn).Select(g => g.First()).ToArray()))
+            .Select(op => (op.Id, op.Kind, op.Targets, op.Cells, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && (op.Kind != PlannedClearingKind.Haul || Carriable(o)))
+                .SelectMany(o => Work(op.Kind, o) is { } work ? new[] { (Row: o, Work: work) } : [])
+                .GroupBy(o => o.Row.Pawn).Select(g => g.First()).ToArray()))
             .Where(op => op.Rows.Length > 0).OrderBy(op => op.Id, StringComparer.Ordinal).Take(17).ToArray();
         foreach (var op in removals.Take(16))
         {
             var id = "removal-" + outcomes.Count;
-            var first = op.Rows[0];
+            var first = op.Rows[0].Row;
             var haul = op.Kind == PlannedClearingKind.Haul;
             // A haul is worked from the stack's cell; a building's removal at the building.
             var location = ForecastLocations.Of(haul ? first.Origin : first.Location);
@@ -245,11 +252,11 @@ internal static class ConstructionMethodCandidates
             operations.Add(new(activities[^1] with { ChoiceIdentity = "construction-removal/" + op.Id },
                 [new(id + "/ready", capability, Known(1), location, ForecastRequirementKind.Reusable,
                     Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon))], []));
-            foreach (var row in op.Rows)
+            foreach (var (row, work) in op.Rows)
             {
                 workers.Add(row.Pawn);
-                options.Add(new(id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
-                routes.Add(new(row.Pawn, "start", location, haul ? row.ApproachTicks : row.SiteApproachTicks));
+                options.Add(Option(id, row.Pawn, work.Ticks, work.SkillWork));
+                routes.Add(Start(row.Pawn, location, work.ApproachTicks));
                 bindings[(id, row.Pawn)] = RemovalBinding(id, op.Kind, row, op.Id, deadline, op.Targets, op.Cells);
             }
             outcomes.Add(new(id, "construction-method", id, Known((double)horizon), default)

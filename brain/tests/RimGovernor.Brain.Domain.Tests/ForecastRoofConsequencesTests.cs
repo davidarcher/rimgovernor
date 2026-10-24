@@ -33,10 +33,10 @@ public sealed class ForecastRoofConsequencesTests
         var kind = op == OpKind.WallIn ? "wall" : "door";
         var id = op == OpKind.WallIn ? Wall : Door;
         var cell = op == OpKind.WallIn ? WallCell : DoorCell;
-        var row = new ConstructionActivityOption(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
+        var row = new Row(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
             Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
         return new PlannedBuildSite(id, 1, op, kind == "wall" ? "Wall" : "Door", "WoodLog", Rotation.North, [cell])
-            { Verdict = PlannedSiteVerdict.Feasible, Options = [row] };
+            { Answer = ConstructionFixtures.Answer(id) with { Options = [row] } };
     }
 
     /// <summary>One sleepy builder whose owned bed stands in the open where planned room 1 will be closed by a wall and a door.</summary>

@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
             // A carried resource (vanilla's first choice) is not a pickup.
             if (!(__result.targetA.Thing is Thing first) || !first.Spawned || !(__result.targetC.Thing is Thing site) || !site.Spawned) return;
             var distance = (double)(first.Position - site.Position).LengthHorizontal;
-            if (!NativeConstructionActivity.StorageDistance(pawn.Map, first).TryGetValue(out var storage) || !RemotePickup.IsRemote(distance, storage)) return;
+            if (NativeConstructionActivity.StackStorageOf(pawn.Map, first) is not RimGovernor.Contracts.Wire.Observations.StackStorage.Accepted { Distance: var storage } || !RemotePickup.IsRemote(distance, storage)) return;
             var capacity = pawn.carryTracker.MaxStackSpaceEver(first.def);
             var queue = __result.targetQueueA ?? new List<LocalTargetInfo>();
             var queued = new HashSet<Thing>(queue.Select(q => q.Thing));

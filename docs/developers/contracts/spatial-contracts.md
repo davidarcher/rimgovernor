@@ -69,7 +69,7 @@ A remote construction delivery takes a full carry load, by one rule
 
 - the brain's Supply step (`ConstructionMethodCandidates.RemoteLoad`) for a
   committed order; native lists every usable stack of a site's material, each
-  row with its `StorageDistance`;
+  row with its `Storage` (`Accepted` at a distance, `Unaccepted` or `Unsourced`);
 - vanilla's own delivery job, which a controlled colonist with no committed order
   takes under supervised play (#3669): `RemotePickupGuard`, a postfix on
   `WorkGiver_ConstructDeliverResources.ResourceDeliverJobFor` (frames and
