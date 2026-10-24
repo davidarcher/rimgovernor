@@ -725,7 +725,6 @@ public sealed class ForecastCoupledSelectionTests
         var result = Select(facts);
         Assert.Equal(["memory"], result.Selection.Selected);
         var needs = result.Selected.Needs["pawn"];
-        Assert.DoesNotContain("commitment_mood_memory_unassessed", needs.Findings);
         Assert.Equal(.32, needs.Mood!.Trajectory[0].Target.Value, 9);
         Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
     }

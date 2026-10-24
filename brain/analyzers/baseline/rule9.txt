@@ -732,7 +732,7 @@ Policy/ForecastConstruction.cs|Fact|50
 Policy/ForecastConstruction.cs|Unknown|1
 Policy/ForecastCoupled.cs|Fact|18
 Policy/ForecastCoupledCandidates.cs|Fact|33
-Policy/ForecastCoupledEvaluation.cs|Fact|172
+Policy/ForecastCoupledEvaluation.cs|Fact|168
 Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|31
 Policy/ForecastCoupledSelection.cs|Discard|1

@@ -17,6 +17,8 @@ internal static class NativePracticeActivities
     {
         legs ??= new(map);
         var workers = new List<Obs.PracticeWorker>();
+        // Every stand and marker, for a drill's company (#3871).
+        var practiceTargets = RangeTraining.Stands(map).Concat(map.listerThings.ThingsOfDef(SparringBouts.MarkerDef)).ToArray();
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             if (!NativeFoodActivity.Available(pawn)) continue;
@@ -52,9 +54,10 @@ internal static class NativePracticeActivities
                         JoyGainPerTick = ranged || pawn.needs.joy == null ? 0d
                             : DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
                             * pawn.needs.joy.tolerances.JoyFactorFromTolerance(DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyKind),
-                        Thoughts = ranged ? [] : SparThoughts(pawn),
+                        Thoughts = TrainedWith(pawn),
+                        Company = ranged ? Company(target, practiceTargets) : [],
                         Findings = ranged
-                            ? ["conditional_successful_practice_cycles", "practice_injury_recovery_unassessed", "practice_company_mood_unassessed", "future_tolerance_changes", "practice_movement_repair_overhead_unassessed"]
+                            ? ["conditional_successful_practice_cycles", "practice_injury_recovery_unassessed", "practice_company_outside_sessions_not_modelled", "future_tolerance_changes", "practice_movement_repair_overhead_unassessed"]
                             : ["conditional_successful_practice_cycles", "practice_injury_recovery_unassessed", "future_tolerance_changes", "practice_movement_repair_overhead_unassessed"]
                     });
                 }
@@ -64,16 +67,25 @@ internal static class NativePracticeActivities
     }
 
     /// <summary>
-    /// The memories a completed spar gives the pawn (#3858): SparringJobDriver's finish action calls TrainingCompany.Finished with
-    /// a shared session (it fought a partner), which gains RimGovernor_TrainedWith through MemoryThoughtHandler.TryGainMemory;
-    /// that refuses it where ThoughtUtility.CanGetThought does. None without a mood or the def.
+    /// The memories a completed session in company gives the pawn (#3858, #3871): the spar's and the drill's finish actions call
+    /// TrainingCompany.Finished, which gains RimGovernor_TrainedWith through MemoryThoughtHandler.TryGainMemory when the session
+    /// was shared (a bout) or NearTrainer finds company; that refuses it where ThoughtUtility.CanGetThought does. None without a
+    /// mood or the def.
     /// </summary>
-    private static EquatableArray<Obs.NeedMemory> SparThoughts(Pawn pawn)
+    private static EquatableArray<Obs.NeedMemory> TrainedWith(Pawn pawn)
     {
         // The mod's own def has no DefOf; TrainingCompany names it.
         var def = DefDatabase<ThoughtDef>.GetNamedSilentFail(TrainingCompany.ThoughtName);
         return def == null || pawn.needs?.mood == null || !ThoughtUtility.CanGetThought(pawn, def) ? [] : [NativeNeedsForecast.Memory(pawn, def)];
     }
+
+    /// <summary>The other practice targets where a colonist on its session is a drill's company at <paramref name="stand"/>
+    /// (TrainingCompany.NearTrainer: SocialInteractionUtility.IsGoodPositionForInteraction between the cells; each session stands
+    /// on its target's cell). Company while walking to a target, or in the CompanyTicks after another's session, is the
+    /// practice_company_outside_sessions_not_modelled finding.</summary>
+    private static EquatableArray<string> Company(Thing stand, Thing[] targets) => EquatableArray.From(targets
+        .Where(t => t != stand && SocialInteractionUtility.IsGoodPositionForInteraction(stand.Position, t.Position, stand.Map))
+        .Select(t => t.GetUniqueLoadID()).Order(StringComparer.Ordinal));
 
     /// <summary>The selected practice is still the pawn's to do: it may practise the skill (RangeTraining.CanTrain, under the
     /// ceiling) and the stand or marker is usable. No Ideology role is required (#3813).</summary>

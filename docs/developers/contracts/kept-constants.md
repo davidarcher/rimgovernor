@@ -62,7 +62,7 @@ native ones `NativeRoomPrediction.cs`.
 | `PsychologicallyOutdoorsOpenRoofCells`, native `PsychOutdoorsOpenRoof` | 300 | `Room.PsychologicallyOutdoors` (`OpenRoofCountStopAt(300)`) |
 | `PsychologicallyOutdoorsEdgeOpenFraction`, native `PsychOutdoorsEdgeFraction` | 0.5 | `Room.PsychologicallyOutdoors` (map edge, open/cells) |
 | `OutdoorTemperatureOpenFraction` | 0.25 | `Room.UsesOutdoorTemperature` |
-| `BedThoughtsEarliestTicks`, `BedThoughtsLatestTicks` | 2500 (`GameTime.TicksPerHour`), 10000 | `Toils_LayDown.LayDown` (`Rand.Range(2500, 10000)` before `ApplyBedThoughts`) |
+| `BedThoughtsEarliestTicks`, `BedThoughtsLatestTicks` | 2500 (`GameTime.TicksPerHour`), 10000 | `Toils_LayDown.LayDown` (`Rand.Range(2500, 10000)` before `ApplyBedThoughts`; the chance a sleep gets them, #3871) |
 | `NeedIntervalTicks` | 150 | `Pawn_NeedsTracker.NeedsTrackerTick` |
 | `OutdoorsDeltaScale` | 0.0025 | `Need_Outdoors.NeedInterval` |
 | `Outdoors*Roof` deltas | -0.45, -0.4, -0.32, 1, 5, 8 | `Need_Outdoors.Delta_{Indoors,Outdoors}{ThickRoof,ThinRoof,NoRoof}` |

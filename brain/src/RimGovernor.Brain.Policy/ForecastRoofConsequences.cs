@@ -26,10 +26,10 @@ internal sealed record ForecastClosedRoom(EquatableArray<Cell> Interior, Planned
 /// <summary>A cell's roof and room state at one tick: the observed NeedCell, changed where a planned room closes or is roofed over it.</summary>
 internal readonly record struct ForecastCellState(bool Roofed, bool ThickRoof, bool NaturalRoof, bool OutdoorTemperature, bool PsychologicallyOutdoors);
 
-/// <summary>The roof and room thoughts of one pawn over one schedule (#3339); Unassessed names why the pawn's mood is unknown ("" assessed).</summary>
+/// <summary>The roof and room thoughts of one pawn over one schedule (#3339).</summary>
 internal sealed record ForecastRoofMood(IReadOnlyList<ForecastMemoryRenewal> Renewals,
     IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> Banded,
-    IReadOnlyList<string> Findings, string Unassessed);
+    IReadOnlyList<string> Findings);
 
 public static class ForecastRoofConsequences
 {
@@ -153,9 +153,11 @@ public static class ForecastRoofConsequences
     /// One pawn's roof and room thoughts along a schedule (#3339):
     /// the bed thoughts ApplyBedThoughts renews at each completed sleep's wake (SleptOutside when the bed's room is
     /// psychologically outdoors; SleptInBedroom or SleptInBarracks at the room's Impressiveness stage for an owned,
-    /// non-prisoner bed of a non-ascetic, from the closed-room prediction once the room is closed by then), the weather
-    /// thought renewed over each known-location span, and the outdoors need and undergrounder thoughts as banded spans.
-    /// A pawn's location is known only at its selected joy and rest targets; elsewhere these hold their observed value.
+    /// non-prisoner bed of a non-ascetic, from the closed-room prediction once the room is closed by then), at the chance
+    /// <see cref="BedThoughtsChance"/> gives, the weather thought renewed over each known-location span, and the outdoors
+    /// need and undergrounder thoughts as banded spans. A pawn's location is known only at its selected joy and rest targets;
+    /// elsewhere these hold their observed value. A stage row, room role or observed thought these need that the read lacks
+    /// throws <see cref="RequiredFactException"/> (#3871): native reads every one.
     /// </summary>
     internal static ForecastRoofMood RoofMoodOf(NeedsForecastPawn pawn, NeedsForecastRead read, IReadOnlyList<ForecastNeedChoice> choices,
         IReadOnlyList<ForecastClosedRoom> rooms, Fact<EquatableArray<MoodThought>> observed, double horizon)
@@ -163,8 +165,7 @@ public static class ForecastRoofConsequences
         var renewals = new List<ForecastMemoryRenewal>();
         var banded = new List<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>();
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var unassessed = "";
-        void Unknown(string reason) { if (unassessed.Length == 0) unassessed = reason; }
+        RequiredFactException Unread(string fact) => new(fact + ":" + pawn.Pawn);
         // A situational stage is not a memory a renewal can give.
         NeedMemory? Memory(NeedThoughtStage row) => row.Lasting is ThoughtLasting.Memory m
             ? new(row.Thought, row.Offset, new MemoryLife.Expires(m.DurationTicks), m.Fades) { StackLimit = m.StackLimit } : null;
@@ -180,29 +181,24 @@ public static class ForecastRoofConsequences
             if (wakes is null || !wakes.TryGetValue(rest.Id, out var wake)) break;
             if (!targets.TryGetValue(rest.Target, out var bed) || bed.Bed is null || bedDefs.Length == 0)
             { findings.Add("sleep_room_thoughts_unread:" + rest.Target); continue; }
-            var continuing = rest.Start == 0 && !pawn.Awake;
-            var slept = wake - rest.Start;
-            if (!continuing && slept < ForecastRoofConsequences.BedThoughtsEarliestTicks) continue;
-            if (slept < ForecastRoofConsequences.BedThoughtsLatestTicks) { Unknown("sleep_bed_thoughts_onset_unassessed:" + rest.Id); continue; }
+            var chance = BedThoughtsChance(pawn, rest, wake);
+            if (chance == 0) continue;
             var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Prediction.Beds.Contains(bed.Id));
             var (role, stage) = closed is null ? (bed.Bed.Role, bed.Bed.Stage) : (closed.Prediction.Role, closed.Prediction.Stage);
             var gains = new List<NeedMemory>();
             if (CellStateAt(bed.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors)
-            {
-                if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row || Memory(row) is not { } memory) { Unknown("sleep_outside_unpriced"); continue; }
-                gains.Add(memory);
-            }
+                gains.Add(stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is { } row && Memory(row) is { } memory ? memory
+                    : throw Unread("slept_outside thought stage"));
             if (bed.Id == pawn.OwnedBed && !pawn.Ascetic && !bed.Bed.ForPrisoners)
             {
-                if (role.Length == 0) { Unknown("sleep_room_role_unknown:" + rest.Id); continue; }
+                // Room.Role is never null in game (None when no other role scores); an empty one is a read that failed.
+                if (role.Length == 0) throw Unread("bed room role:" + bed.Id);
                 var thought = role == BedroomRole ? "slept_in_bedroom" : role == BarracksRole ? "slept_in_barracks" : "";
                 if (thought.Length != 0)
-                {
-                    if (stages.FirstOrDefault(r => r.Role == thought && r.Stage == stage) is not { } row || Memory(row) is not { } memory) { Unknown("sleep_room_stage_unpriced:" + rest.Id); continue; }
-                    gains.Add(memory);
-                }
+                    gains.Add(stages.FirstOrDefault(r => r.Role == thought && r.Stage == stage) is { } row && Memory(row) is { } memory ? memory
+                        : throw Unread(thought + " thought stage " + stage));
             }
-            renewals.Add(new(wake, EquatableArray.From(bedDefs), EquatableArray.From(gains)));
+            renewals.Add(new(wake, EquatableArray.From(bedDefs), EquatableArray.From(gains)) { Chance = chance });
             findings.Add("sleep_ground_and_temperature_memories_constant");
         }
 
@@ -229,7 +225,7 @@ public static class ForecastRoofConsequences
                 if (roofed && single) continue;
                 var index = single || roofed ? 0 : 1;
                 if (stages.FirstOrDefault(r => r.Role == "weather" && r.Thought == read.WeatherThought && r.Stage == index) is not { } row || Memory(row) is not { } memory)
-                { Unknown("weather_thought_unpriced"); break; }
+                    throw Unread("weather thought stage " + index);
                 // Renewed through the span: one renewal where it starts and one where it ends (adjacent spans share one).
                 foreach (var at in new[] { span.Start, span.End }.Where(t => t < horizon))
                     if (!renewals.Any(r => r.At == at && r.Ends.Contains(row.Thought))) renewals.Add(new(at, [row.Thought], [memory]));
@@ -273,10 +269,10 @@ public static class ForecastRoofConsequences
                 }
                 level = LevelAt(span.End);
             }
-            if (changes.Count > 0 && unassessed.Length == 0)
+            if (changes.Count > 0)
             {
-                if (!observed.IsKnown) Unknown("outdoors_need_observed_thought_unknown");
-                else foreach (var def in stages.Where(r => r.Role == "need_outdoors").Select(r => r.Thought).Distinct(StringComparer.Ordinal))
+                if (!observed.IsKnown) throw Unread("observed thoughts");
+                foreach (var def in stages.Where(r => r.Role == "need_outdoors").Select(r => r.Thought).Distinct(StringComparer.Ordinal))
                 {
                     var current = Current(def);
                     var rowsOut = new List<(double Start, double End, double OffsetDelta)>();
@@ -284,9 +280,9 @@ public static class ForecastRoofConsequences
                     {
                         var to = i + 1 < changes.Count ? changes[i + 1].At : horizon;
                         if (changes[i].Stage == initial || to <= changes[i].At) continue;
-                        var offset = changes[i].Stage < 0 ? 0 : stages.FirstOrDefault(r => r.Thought == def && r.Stage == changes[i].Stage)?.Offset;
-                        if (offset is null) { Unknown("outdoors_need_stage_unpriced"); break; }
-                        rowsOut.Add((changes[i].At, Math.Min(to, horizon), offset.Value - current));
+                        var offset = changes[i].Stage < 0 ? 0 : stages.FirstOrDefault(r => r.Thought == def && r.Stage == changes[i].Stage)?.Offset
+                            ?? throw Unread(def + " thought stage " + changes[i].Stage);
+                        rowsOut.Add((changes[i].At, Math.Min(to, horizon), offset - current));
                     }
                     banded.Add((def, rowsOut));
                 }
@@ -298,7 +294,7 @@ public static class ForecastRoofConsequences
             foreach (var def in stages.Where(r => r.Role == role && r.Offset != 0).Select(r => r.Thought).Distinct(StringComparer.Ordinal))
             {
                 if (awake.Length == 0) continue;
-                if (!observed.IsKnown) { Unknown("undergrounder_observed_thought_unknown"); continue; }
+                if (!observed.IsKnown) throw Unread("observed thoughts");
                 var offset = stages.First(r => r.Thought == def && r.Stage == stages.Where(s => s.Thought == def).Min(s => s.Stage)).Offset;
                 var rowsOut = new List<(double Start, double End, double OffsetDelta)>();
                 foreach (var span in awake)
@@ -315,7 +311,22 @@ public static class ForecastRoofConsequences
                 }
                 banded.Add((def, rowsOut));
             }
-        return new(renewals, banded, findings.ToArray(), unassessed);
+        return new(renewals, banded, findings.ToArray());
+    }
+
+    /// <summary>
+    /// The chance a rest's lie-down gives its bed thoughts by its wake (#3871, Toils_LayDown). A sleep the pawn starts draws
+    /// the onset uniformly from the ints Rand.Range(2500, 10000) gives, so a sleep of <c>s</c> ticks gets them with chance
+    /// (floor(s) - 2499) / 7500: none under 2500, always from 10000. A sleep observed now continues the lie-down whose onset
+    /// native read (<see cref="NeedsForecastPawn.BedThoughts"/>): given already, due by the wake, or none drawn.
+    /// </summary>
+    internal static double BedThoughtsChance(NeedsForecastPawn pawn, ForecastNeedChoice rest, double wake)
+    {
+        var slept = wake - rest.Start;
+        if (rest.Start == 0 && !pawn.Awake)
+            return pawn.BedThoughts is BedThoughtOnset.Given || pawn.BedThoughts is BedThoughtOnset.Due due && due.InTicks <= slept ? 1 : 0;
+        var window = BedThoughtsLatestTicks - BedThoughtsEarliestTicks;
+        return Math.Clamp((Math.Floor(slept) - BedThoughtsEarliestTicks + 1) / window, 0, 1);
     }
 
     /// <summary>ThoughtWorker_NeedOutdoors' stage of an outdoors level (Need_Outdoors.CurCategory): -1 when Free (inactive).</summary>

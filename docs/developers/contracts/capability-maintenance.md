@@ -36,8 +36,9 @@ cycles: misses, movement, repairs, injuries and interrupted work can yield less 
 Sparring's native gathering delay consumes time before its callbacks and recreation. Its joy
 rate uses the current native tolerance; future tolerance is unassessed. A completed spar gives
 its `RimGovernor_TrainedWith` memory (`PracticeWorker.Thoughts`, #3858), so a pawn on a spar keeps its mood
-forecast; a range drill's company memory depends on who else trains and remains unassessed, as do
-injury probability and recovery duration. Accounted schedule labor
+forecast. A range drill gives it when another colonist is on a session at a stand or marker within chat
+range as it finishes (`PracticeWorker.Company`, #3871); company outside sessions is
+`practice_company_outside_sessions_not_modelled`. Injury probability and recovery duration remain unassessed. Accounted schedule labor
 excludes unassessed injury recovery; it is not a zero-risk estimate. Existing pain, bleeding,
 exchange, ceiling and daily-budget stops are unchanged.
 

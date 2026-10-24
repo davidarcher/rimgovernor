@@ -23,7 +23,7 @@ internal static class NeedsFixtures
     public static NeedsForecastPawn Pawn(string id = "pawn") => new()
     {
         Pawn = id, State = "eligible", Location = new(0, 0), CurrentService = null, VoluntaryControlBlockers = [],
-        LocalHour = 12, Awake = true, SleepThreshold = .75, WakeThreshold = 1, SleepBlocked = false, SleepBlockedUntilTicks = 0,
+        LocalHour = 12, Awake = true, BedThoughts = new BedThoughtOnset.None(), SleepThreshold = .75, WakeThreshold = 1, SleepBlocked = false, SleepBlockedUntilTicks = 0,
         SleepWhileStarving = false, Mood = null, ComfortableMin = 16, ComfortableMax = 26, SleepComfortableMin = 0, SleepComfortableMax = 0,
         Sleep = null, Needs = [], Targets = [], Unsupported = [], Outdoors = new NeedLevel.Lacks(), OutdoorsDisabled = false,
         OwnedBed = "", OwnedBedRoom = null, Ascetic = false, RivalRooms = [], ThoughtStages = [], Apparel = null,

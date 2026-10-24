@@ -324,12 +324,17 @@ observed state holds.
   the bed's room is psychologically outdoors, and, for a non-Ascetic owner of a bed
   not for prisoners, SleptInBedroom or SleptInBarracks at the impressiveness stage.
   Role and stage come from the prediction when a room closed by the wake lists the bed,
-  else from the bed's observed room. A sleep shorter than 2500 ticks gains nothing;
-  one shorter than 10000 (the game's random onset window) is unassessed. SleptOnGround
-  and the temperature sleep thoughts are held at their observed contribution
-  (`sleep_ground_and_temperature_memories_constant`). An unknown role, stage or
-  outdoors leaves the pawn's mood unassessed; an unread room keeps the baseline with
-  `sleep_room_thoughts_unread`.
+  else from the bed's observed room. The renewal carries a chance (#3871): a sleep the
+  pawn starts draws the onset from `Rand.Range(2500, 10000)`, so a sleep of `s` ticks
+  gets the thoughts with chance (floor(s) - 2499) / 7500, none under 2500 and always
+  from 10000. A sleep observed now continues the lie-down whose onset native reads
+  (`NeedsForecastPawn.BedThoughts`: given already, due in some ticks, or none drawn).
+  The timeline prices a renewal at chance p as its expected value: the memories it ends
+  keep 1 - p of their weight and its gains carry p. SleptOnGround and the temperature
+  sleep thoughts are held at their observed contribution
+  (`sleep_ground_and_temperature_memories_constant`). A stage row, room role or
+  observed thought the read lacks throws `RequiredFactException`; an unread room keeps
+  the baseline with `sleep_room_thoughts_unread`.
 - **Memory renewal.** The mood timeline ends an observed memory at the first renewal
   that names its def and runs each gained memory from its renewal to the next renewal
   of its def (or its duration). A renewal whose def is also a meal memory refuses with
@@ -367,7 +372,7 @@ observed state holds.
 
 The location is known only at joy and rest targets; travel, work and food spans hold
 the observed roof consequences. Bed thoughts land at the wake rather than at the
-game's random onset during sleep.
+game's random onset during sleep; the onset only sets their chance.
 
 ### Bounds and evidence
 

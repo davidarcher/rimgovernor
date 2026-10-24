@@ -98,6 +98,28 @@ public sealed record NeedCell(bool Roofed, bool ThickRoof, bool NaturalRoof, boo
 /// stat, 0 on the ground) and <see cref="Temperature"/> the ambient temperature ApplyBedThoughts compares.
 /// </summary>
 public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double GainPerTick, double Comfort, double Temperature);
+/// <summary>
+/// When the pawn's current lie-down gives its bed thoughts (#3871). Toils_LayDown's init draws mindState.applyBedThoughtsTick =
+/// now + Rand.Range(2500, 10000) when it is 0; ApplyBedRelatedEffects gives the thoughts once that tick passes and sets
+/// applyBedThoughtsOnLeave, so FinalizeLayingJob gives them again when the pawn gets up; Pawn_MindState resets the tick to 0
+/// whenever the pawn is not laying. <see cref="Given"/>: given in this lie-down, so given again when it ends; <see cref="Due"/>:
+/// given once the pawn has lain <c>InTicks</c> more; <see cref="None"/>: no onset drawn (the tick is 0), so none before the
+/// pawn lies down again.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BedThoughtOnset.Given), "given")]
+[JsonDerivedType(typeof(BedThoughtOnset.Due), "due")]
+[JsonDerivedType(typeof(BedThoughtOnset.None), "none")]
+public abstract record BedThoughtOnset
+{
+    private protected BedThoughtOnset() { }
+
+    public sealed record Given : BedThoughtOnset;
+
+    public sealed record Due(double InTicks) : BedThoughtOnset;
+
+    public sealed record None : BedThoughtOnset;
+}
 /// <summary>A bed's room now (#3339): its RoomRoleDef ("" none), its Impressiveness score stage and ForPrisoners.</summary>
 public sealed record NeedBedRoom(string Role, int Stage, bool ForPrisoners)
 {
@@ -297,6 +319,9 @@ public sealed record NeedsForecastPawn
     /// <summary>GenLocalDate.HourFloat at the pawn.</summary>
     public required double LocalHour { get; init; }
     public required bool Awake { get; init; }
+    /// <summary>When the current lie-down gives the bed thoughts (<see cref="BedThoughtOnset"/>, #3871); the forecast reads it for a
+    /// pawn asleep now, whose observed sleep continues.</summary>
+    public required BedThoughtOnset BedThoughts { get; init; }
     /// <summary>RestUtility's FallAsleepMaxLevel and WakeThreshold for the pawn.</summary>
     public required double SleepThreshold { get; init; }
     public required double WakeThreshold { get; init; }

@@ -353,12 +353,13 @@ public static class ForecastNeeds
             // A stackLimit-1 meal renews the memory live before it (#3598); any other shared def is not additive evidence.
             var planned = ForecastMood.PlannedMemoryEnds(memories, added);
             if (planned is null) { findings.Add("unsupported_meal_memory_overlap"); complete = false; }
-            double ObservedEnd(string id) => Math.Min(schedule is { } s ? s.ObservedEnds[id] : double.PositiveInfinity,
-                planned is { } p && p.ObservedEnds.TryGetValue(id, out var at) ? at : double.PositiveInfinity);
-            var delta = memories.Sum(m => (ObservedEnd(m.Id) <= horizonTicks ? 0 : Remaining(m, horizonTicks)) - m.Offset);
+            // The share of each observed memory left at the horizon: its renewals' expected cut, nothing once a planned memory renewed it.
+            double ObservedShare(string id) => planned is { } p && p.ObservedEnds.TryGetValue(id, out var at) && at <= horizonTicks ? 0
+                : schedule is { } s ? s.Observed[id].At(horizonTicks) : 1;
+            var delta = memories.Sum(m => Remaining(m, horizonTicks) * ObservedShare(m.Id) - m.Offset);
             if (schedule is { } renewedSchedule)
-                foreach (var gain in renewedSchedule.Gains.Where(g => g.Start <= horizonTicks && g.End > horizonTicks))
-                    delta += Remaining(gain.Thought, horizonTicks - gain.Start);
+                foreach (var gain in renewedSchedule.Gains.Where(g => g.Start <= horizonTicks))
+                    delta += Remaining(gain.Thought, horizonTicks - gain.Start) * gain.Share.At(horizonTicks);
             for (var i = 0; i < added.Length; i++)
             {
                 var (thought, start) = added[i];

@@ -25,24 +25,50 @@ public sealed record ForecastShiftedBreaks(double Shift, EquatableArray<double> 
 /// defs stops counting from At (an observed one and an earlier renewal's gain alike), then the gains start at At. A gain
 /// is itself ended by the next later renewal that ends its def. Ends names every gained def.
 /// </summary>
-public sealed record ForecastMemoryRenewal(double At, EquatableArray<string> Ends, EquatableArray<NeedMemory> Gains);
+public sealed record ForecastMemoryRenewal(double At, EquatableArray<string> Ends, EquatableArray<NeedMemory> Gains)
+{
+    /// <summary>
+    /// The chance the renewal happens (#3871): 1 for a certain one; less for a sleep inside the game's random bed-thought onset
+    /// window (Toils_LayDown's Rand.Range(2500, 10000)). An uncertain renewal is priced at its expectation: its gains count
+    /// <c>Chance</c> of their offset and every memory it ends keeps <c>1 - Chance</c> of its own.
+    /// </summary>
+    public double Chance { get; init; } = 1;
+}
+
+/// <summary>
+/// The expected share of a memory that still counts at a tick (#3871): its base share, the chance it was gained, times
+/// <c>Keep</c> of every cut at or before the tick. A certain renewal of its def cuts it to 0, an uncertain one keeps
+/// <c>1 - Chance</c>.
+/// </summary>
+internal sealed class MemoryShare(double baseShare = 1)
+{
+    private readonly List<(double At, double Keep)> cuts = [];
+    internal IReadOnlyList<(double At, double Keep)> Cuts => cuts;
+    internal void Cut(double at, double keep) => cuts.Add((at, keep));
+    internal double At(double state)
+    {
+        var share = baseShare;
+        foreach (var (at, keep) in cuts) if (at <= state) share *= keep;
+        return share;
+    }
+}
 
 public static class ForecastMood
 {
     /// <summary>
-    /// The timed memories of a renewal list against the observed ones: the tick each observed memory is ended at
-    /// (infinity when no renewal ends it) and each gain with its start and end. Null when a renewal is malformed (a
-    /// gain its own Ends omits, a gain of unknown duration, a non-finite time) or a meal or granted memory shares a
-    /// renewed def, which is not additive evidence.
+    /// The timed memories of a renewal list against the observed ones: each observed def's share (cut at each renewal that
+    /// ends it) and each gain with its start and share (its renewal's chance, cut at each later renewal of its def). Null when
+    /// a renewal is malformed (a gain its own Ends omits, a gain of unknown duration, a non-finite time, a chance outside
+    /// (0, 1]) or a meal or granted memory shares a renewed def, which is not additive evidence.
     /// </summary>
-    internal static (Dictionary<string, double> ObservedEnds, List<(NeedMemory Thought, double Start, double End)> Gains)? RenewalSchedule(
+    internal static (Dictionary<string, MemoryShare> Observed, List<(NeedMemory Thought, double Start, MemoryShare Share)> Gains)? RenewalSchedule(
         IReadOnlyList<NeedMemory> observed, IReadOnlyList<ForecastMemoryRenewal>? renewals, IEnumerable<string> mealIds)
     {
-        var ends = observed.Select(m => m.Id).Distinct(StringComparer.Ordinal).ToDictionary(id => id, _ => double.PositiveInfinity, StringComparer.Ordinal);
-        var gains = new List<(NeedMemory Thought, double Start, double End)>();
-        if (renewals is null || renewals.Count == 0) return (ends, gains);
+        var shares = observed.Select(m => m.Id).Distinct(StringComparer.Ordinal).ToDictionary(id => id, _ => new MemoryShare(), StringComparer.Ordinal);
+        var gains = new List<(NeedMemory Thought, double Start, MemoryShare Share)>();
+        if (renewals is null || renewals.Count == 0) return (shares, gains);
         var ordered = renewals.OrderBy(r => r.At).ToArray();
-        if (ordered.Any(r => !double.IsFinite(r.At) || r.At < 0 || r.Gains.Any(g => !r.Ends.Contains(g.Id)
+        if (ordered.Any(r => !double.IsFinite(r.At) || r.At < 0 || !(r.Chance > 0 && r.Chance <= 1) || r.Gains.Any(g => !r.Ends.Contains(g.Id)
             || !double.IsFinite(g.Offset))))
             return null;
         var renewed = ordered.SelectMany(r => r.Ends).ToHashSet(StringComparer.Ordinal);
@@ -51,14 +77,15 @@ public static class ForecastMood
         {
             var at = ordered[i].At;
             foreach (var id in ordered[i].Ends)
-                if (ends.TryGetValue(id, out var end) && end > at) ends[id] = at;
+                if (shares.TryGetValue(id, out var share)) share.Cut(at, 1 - ordered[i].Chance);
             foreach (var gain in ordered[i].Gains)
             {
-                var stop = ordered.Skip(i + 1).FirstOrDefault(r => r.At > at && r.Ends.Contains(gain.Id))?.At ?? double.PositiveInfinity;
-                gains.Add((gain, at, stop));
+                var share = new MemoryShare(ordered[i].Chance);
+                foreach (var later in ordered.Skip(i + 1).Where(r => r.At > at && r.Ends.Contains(gain.Id))) share.Cut(later.At, 1 - later.Chance);
+                gains.Add((gain, at, share));
             }
         }
-        return (ends, gains);
+        return (shares, gains);
     }
 
     /// <summary>
@@ -151,8 +178,8 @@ public static class ForecastMood
         if (PlannedMemoryEnds(memories, meals) is not { } planned
             || RenewalSchedule(memories, renewals, meals.Select(m => m.Thought.Id)) is not { } schedule)
             return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
-        var (observedEnds, renewed) = schedule;
-        foreach (var (id, at) in planned.ObservedEnds) observedEnds[id] = Math.Min(observedEnds[id], at);
+        var (observedShares, renewed) = schedule;
+        foreach (var (id, at) in planned.ObservedEnds) observedShares[id].Cut(at, 0);
         var mealEnds = planned.Ends;
         for (var i = 0; i < meals.Length; i++)
         {
@@ -163,10 +190,11 @@ public static class ForecastMood
         foreach (var gain in renewed)
         {
             events.Add(gain.Start);
-            if (gain.End < horizon) events.Add(gain.End);
+            foreach (var (at, _) in gain.Share.Cuts) if (at < horizon) events.Add(at);
             if (ExpiresIn(gain.Thought) is { } gainExpiry && gain.Start + gainExpiry < horizon) events.Add(gain.Start + gainExpiry);
         }
-        foreach (var end in observedEnds.Values) if (end > 0 && end < horizon) events.Add(end);
+        foreach (var share in observedShares.Values)
+            foreach (var (at, _) in share.Cuts) if (at > 0 && at < horizon) events.Add(at);
         foreach (var change in situational) if (change.Start > 0 && change.Start < horizon) events.Add(change.Start);
         foreach (var bound in banded.SelectMany(b => b.Spans).SelectMany(s => new[] { s.Start, s.End }))
             if (bound > 0 && bound < horizon) events.Add(bound);
@@ -201,11 +229,11 @@ public static class ForecastMood
             double conditional = 0, changedMemories = 0, mealMemories = 0;
             foreach (var effect in effects)
                 conditional += (!effect.AwakeOnly || !asleep) && InHours(hour, effect.StartHour, effect.EndHour) ? effect.Offset : 0;
-            foreach (var memory in memories) changedMemories += (state < observedEnds[memory.Id] ? MemoryAt(memory, time, state) : 0) - memory.Offset;
+            foreach (var memory in memories) changedMemories += MemoryAt(memory, time, state) * observedShares[memory.Id].At(state) - memory.Offset;
             for (var i = 0; i < meals.Length; i++)
                 if (meals[i].Start <= state && state < mealEnds[i]) mealMemories += MemoryAt(meals[i].Thought, time - meals[i].Start, state - meals[i].Start);
             foreach (var gain in renewed)
-                if (gain.Start <= state && state < gain.End) mealMemories += MemoryAt(gain.Thought, time - gain.Start, state - gain.Start);
+                if (gain.Start <= state) mealMemories += MemoryAt(gain.Thought, time - gain.Start, state - gain.Start) * gain.Share.At(state);
             changedMemories += mealMemories;
             foreach (var change in situational) if (change.Start <= state) changedMemories += change.OffsetDelta;
             foreach (var span in bandedSpans) if (span.Start <= state && state < span.End) changedMemories += span.OffsetDelta;

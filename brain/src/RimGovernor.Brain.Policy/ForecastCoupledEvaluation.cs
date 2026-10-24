@@ -63,7 +63,7 @@ public static partial class ForecastCoupled
     private sealed record ContextIndex(PawnFacts[] Pawns, Dictionary<string, int> Index, HashSet<string> Nonproductive,
         HashSet<string> ShelterTasks, HashSet<string> DevelopmentTasks, ForecastSupportConsequences? Support,
         List<(NeedMemory Thought, double Start)>[] Granted, List<(string Thought, double OffsetDelta, double Start)>[] Situational,
-        List<(double MinDelta, double MaxDelta, double Start)>[] Comfort, bool[] GrantUnknown, bool[] ComfortUnknown,
+        List<(double MinDelta, double MaxDelta, double Start)>[] Comfort, bool[] ComfortUnknown,
         List<ForecastActivityAllocation>[] Allocations, List<ForecastActivityAllocation>[] Use, Cached<ForecastThermalExposure>[] Exposure);
 
     /// <summary>
@@ -217,7 +217,7 @@ public static partial class ForecastCoupled
             static T[] Lists<T>(int count) where T : new() { var lists = new T[count]; for (var i = 0; i < count; i++) lists[i] = new(); return lists; }
             index = new(pawns, byName, new HashSet<string>(context.NonproductiveOccupancy, StringComparer.Ordinal), shelterTasks, developmentTasks, support,
                 Lists<List<(NeedMemory, double)>>(pawns.Length), Lists<List<(string, double, double)>>(pawns.Length), Lists<List<(double, double, double)>>(pawns.Length),
-                new bool[pawns.Length], new bool[pawns.Length], Lists<List<ForecastActivityAllocation>>(pawns.Length), Lists<List<ForecastActivityAllocation>>(pawns.Length),
+                new bool[pawns.Length], Lists<List<ForecastActivityAllocation>>(pawns.Length), Lists<List<ForecastActivityAllocation>>(pawns.Length),
                 new Cached<ForecastThermalExposure>[pawns.Length]);
             pawnsOf = (context, horizon);
             return index;
@@ -263,7 +263,7 @@ public static partial class ForecastCoupled
         private readonly Dictionary<(int Pawn, int Choices, int Granted, int Situational, int Banded, int Renewals), Cached<ForecastMoodResult>> moods = [];
         private readonly Dictionary<(int Pawn, int Choices, EquatableArray<ForecastClosedRoom> Rooms), Cached<ForecastRoofMood>> roofs = [];
         private readonly Dictionary<(int Pawn, int Exposure, int Roof, int Choices), Cached<BandedThought[]>> banded = [];
-        private readonly Dictionary<(int Needs, int Mood, int Roof, bool Grants), ForecastNeedsResult> projected = [];
+        private readonly Dictionary<(int Needs, int Mood, int Roof), ForecastNeedsResult> projected = [];
         private Cached<ForecastThermalExposure> Exposure(ForecastThermalExposure value)
         {
             if (!exposuresByValue.TryGetValue(value, out var cached)) exposuresByValue.Add(value, cached = Next(value));
@@ -678,12 +678,12 @@ public static partial class ForecastCoupled
             Expire(horizon);
             // A commitment's mood memories, situational changes, comfort shifts and outfit changes take effect when all its activities
             // have completed inside the horizon, or at the forecast start when it has none. Failed or later work changes
-            // nothing here; unknown completion leaves those pawns' mood (or thermal exposure) unassessed.
+            // nothing here; unknown completion grants no mood row (a finding) and leaves thermal exposure unassessed.
             var byName = pawns.Index;
             for (var p = 0; p < pawns.Pawns.Length; p++)
             {
                 pawns.Granted[p].Clear(); pawns.Situational[p].Clear(); pawns.Comfort[p].Clear(); pawns.Allocations[p].Clear(); pawns.Use[p].Clear();
-                pawns.GrantUnknown[p] = false; pawns.ComfortUnknown[p] = false;
+                pawns.ComfortUnknown[p] = false;
             }
             List<ForecastEffectiveTick>? outfitTicks = null;
             foreach (var commitment in Granting(commitments))
@@ -697,17 +697,20 @@ public static partial class ForecastCoupled
                     if (!done.IsKnown) { at = default; break; }
                     at = Known(Math.Max(at.Value, allocation.End));
                 }
+                // An unknown completion leaves the outcome uncertain; its mood rows are not granted (NaN is past every horizon)
+                // and the forecast names them (#3871), as an unknown need completion drops its task.
+                var grantedAt = at.IsKnown ? at.Value : double.NaN;
+                if (double.IsNaN(grantedAt) && (commitment.MoodMemories.Count > 0 || commitment.SituationalChanges.Count > 0))
+                    Finding("commitment_completion_unassessed", commitment.Id, horizon);
                 foreach (var row in commitment.MoodMemories)
                 {
                     if (!byName.TryGetValue(row.Pawn, out var p)) continue;
-                    if (!at.IsKnown) pawns.GrantUnknown[p] = true;
-                    else if (at.Value <= horizon) pawns.Granted[p].Add((row.Memory, at.Value));
+                    if (grantedAt <= horizon) pawns.Granted[p].Add((row.Memory, grantedAt));
                 }
                 foreach (var row in commitment.SituationalChanges)
                 {
                     if (!byName.TryGetValue(row.Pawn, out var p)) continue;
-                    if (!at.IsKnown) pawns.GrantUnknown[p] = true;
-                    else if (at.Value <= horizon) pawns.Situational[p].Add((row.Thought, row.OffsetDelta, at.Value));
+                    if (grantedAt <= horizon) pawns.Situational[p].Add((row.Thought, row.OffsetDelta, grantedAt));
                 }
                 foreach (var row in commitment.ComfortShifts)
                 {
@@ -734,6 +737,17 @@ public static partial class ForecastCoupled
                 var use = needTasksByTask.Contains(a.Activity);
                 if (use) useRows.Add(a);
                 if (byName.TryGetValue(a.Pawn, out var p)) { pawns.Allocations[p].Add(a); if (use) pawns.Use[p].Add(a); }
+            }
+            // A completed range drill's company memory (TrainingCompany.Finished and NearTrainer, #3871): another colonist is on
+            // its own completed session at a target within chat range of the stand when the drill finishes.
+            foreach (var drill in context.PracticeTasks)
+            {
+                if (drill.Worker.Skill != "Shooting" || drill.Worker.Thoughts.Count == 0 || drill.Worker.Company.Count == 0
+                    || !byName.TryGetValue(drill.Worker.Pawn, out var p)
+                    || completedRows.FirstOrDefault(r => r.Activity == drill.Task) is not { } a || a.End > horizon) continue;
+                if (context.PracticeTasks.Any(other => other.Worker.Pawn != drill.Worker.Pawn && drill.Worker.Company.Contains(other.Worker.Target)
+                        && completedRows.Any(b => b.Activity == other.Task && b.Start <= a.End && a.End <= b.End)))
+                    foreach (var thought in drill.Worker.Thoughts) pawns.Granted[p].Add((thought, a.End));
             }
             var completedId = allocs.Id(completedRows);
             var sheltersId = allocs.Id(shelterRows);
@@ -808,7 +822,7 @@ public static partial class ForecastCoupled
                     moods.Add(moodKey, mood = Next(ForecastMood.ForecastMoodTimeline(pawn, horizon, choiceKeys.Array(choicesId), null,
                         grantedId == 0 ? null : grantedKeys.Array(grantedId), situationalId == 0 ? null : situationalKeys.Array(situationalId),
                         bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn))));
-                needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof, pawns.GrantUnknown[p]);
+                needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof);
             }
             // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
             if (rejectedWork is not null && rejectedWork.Count > (unavailableWork?.Count ?? 0))
@@ -959,24 +973,15 @@ public static partial class ForecastCoupled
             return result;
         }
 
-        /// <summary>A pawn's needs result with its mood, roof findings and unassessed mood inputs applied.</summary>
-        private ForecastNeedsResult Projected(Cached<ForecastNeedsResult> needsResult, Cached<ForecastMoodResult> moodResult, Cached<ForecastRoofMood> roofMood,
-            bool grantUnknown)
+        /// <summary>A pawn's needs result with its mood and roof findings applied.</summary>
+        private ForecastNeedsResult Projected(Cached<ForecastNeedsResult> needsResult, Cached<ForecastMoodResult> moodResult, Cached<ForecastRoofMood> roofMood)
         {
-            var key = (needsResult.Id, moodResult.Id, roofMood.Id, grantUnknown);
+            var key = (needsResult.Id, moodResult.Id, roofMood.Id);
             if (projected.TryGetValue(key, out var result)) return result;
             var (mood, roof) = (moodResult.Value, roofMood.Value);
             result = needsResult.Value with { Mood = mood, Findings = mood.BreakRisk.IsKnown ? needsResult.Value.Findings
                 : EquatableArray.From(needsResult.Value.Findings.Append("mental_break_probability_unassessed").Distinct().Order(StringComparer.Ordinal)) };
             if (roof.Findings.Count > 0) result = result with { Findings = EquatableArray.From(result.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
-            if (grantUnknown || roof.Unassessed.Length != 0)
-                result = result with
-                {
-                    ThoughtOffsetAtHorizon = default,
-                    MemoryAdjustedMoodTarget = default,
-                    Mood = null,
-                    Findings = [.. result.Findings, grantUnknown ? "commitment_mood_memory_unassessed" : roof.Unassessed]
-                };
             projected.Add(key, result);
             return result;
         }

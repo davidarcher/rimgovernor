@@ -9,11 +9,11 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>Roof and room consequences of a planned room (#3339): bed thoughts, the outdoors need, deterioration and bench speed.</summary>
 public sealed class ForecastRoofConsequencesTests
 {
-    private const double Horizon = 30000;
+    internal const double Horizon = 30000;
     private static readonly Cell Inside = new(1, 1);
     private static readonly Cell WallCell = new(0, 1);
     private static readonly Cell DoorCell = new(2, 1);
-    private const string Wall = "planned/room1/wall/WoodLog", Door = "planned/room1/door/WoodLog";
+    internal const string Wall = "planned/room1/wall/WoodLog", Door = "planned/room1/door/WoodLog";
 
     /// <summary>An open bed cell now: no roof, no room (the outdoors).</summary>
     private static readonly NeedCell OpenCell = new(false, false, false, true, true);
@@ -39,8 +39,10 @@ public sealed class ForecastRoofConsequencesTests
             { Answer = ConstructionFixtures.Answer(id) with { Options = [row] } };
     }
 
-    /// <summary>One sleepy builder whose owned bed stands in the open where planned room 1 will be closed by a wall and a door.</summary>
-    private static RoundsFacts Review(PlannedRoomPrediction prediction)
+    /// <summary>One sleepy builder whose owned bed stands in the open where planned room 1 will be closed by a wall and a door;
+    /// <paramref name="sleeper"/> changes the pawn and <paramref name="plan"/> the facts before the candidates are generated.</summary>
+    internal static RoundsFacts Review(PlannedRoomPrediction prediction, Func<NeedsForecastPawn, NeedsForecastPawn>? sleeper = null,
+        Func<RoundsFacts, RoundsFacts>? plan = null)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
@@ -77,7 +79,7 @@ public sealed class ForecastRoofConsequencesTests
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
+                Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper is null ? pawn : sleeper(pawn)] },
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
                     Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
@@ -86,11 +88,12 @@ public sealed class ForecastRoofConsequencesTests
                 },
             },
         };
+        if (plan is not null) facts = plan(facts);
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon).BuildersRead() };
     }
 
-    private static PlannedRoomPrediction Closed(string role, int stage)
+    internal static PlannedRoomPrediction Closed(string role, int stage)
         => PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 30d, stage, 1, 1, false) with { Beds = ["bed"] };
 
     /// <summary>The pawn's mood targets at the horizon over the feasible schedules of the full sleep and the given sites' roots.</summary>
@@ -141,14 +144,52 @@ public sealed class ForecastRoofConsequencesTests
         var observed = NeedsFixtures.Memory("SleptOutside", -4, 30000d, false);
         var renewal = new ForecastMemoryRenewal(10000, ["SleptOutside", "SleptInBedroom"], [NeedsFixtures.Memory("SleptInBedroom", 2, 60000d, false)]);
         var (ends, gains) = ForecastMood.RenewalSchedule([observed], [renewal], [])!.Value;
-        Assert.Equal(10000, ends["SleptOutside"]);
+        Assert.Equal((1d, 0d), (ends["SleptOutside"].At(9999), ends["SleptOutside"].At(10000)));
         var gain = Assert.Single(gains);
-        Assert.Equal((10000d, double.PositiveInfinity), (gain.Start, gain.End));
+        Assert.Equal((10000d, 1d), (gain.Start, gain.Share.At(double.PositiveInfinity)));
         // A meal memory of a renewed def is not additive evidence.
         Assert.Null(ForecastMood.RenewalSchedule([observed], [renewal], ["SleptInBedroom"]));
         // A later renewal of the same def ends the earlier gain.
         var (_, twice) = ForecastMood.RenewalSchedule([], [renewal, renewal with { At = 20000 }], [])!.Value;
-        Assert.Equal([20000d, double.PositiveInfinity], twice.Select(g => g.End));
+        Assert.Equal([0d, 1d], twice.Select(g => g.Share.At(20000)));
+    }
+
+    [Fact]
+    public void AChanceRenewalKeepsTheRestOfTheMemoryItMayReplace()
+    {
+        // A renewal at chance 0.4 (a sleep inside the bed-thought onset window) keeps 0.6 of the observed memory and gives 0.4
+        // of its gain; a later certain renewal of the def ends both.
+        var observed = NeedsFixtures.Memory("SleptOutside", -4, 60000d, false);
+        var renewal = new ForecastMemoryRenewal(10000, ["SleptOutside"], [NeedsFixtures.Memory("SleptOutside", -4, 60000d, false)]) { Chance = .4 };
+        var (ends, gains) = ForecastMood.RenewalSchedule([observed], [renewal, renewal with { At = 20000, Chance = 1 }], [])!.Value;
+        var share = ends["SleptOutside"];
+        Assert.Equal(1, share.At(0), 9);
+        Assert.Equal(.6, share.At(10000), 9);
+        Assert.Equal(0, share.At(20000), 9);
+        Assert.Equal(2, gains.Count);
+        Assert.Equal(.4, gains[0].Share.At(10000), 9);
+        Assert.Equal(0, gains[0].Share.At(20000), 9);
+        Assert.Equal(1, gains[1].Share.At(20000), 9);
+        // A chance outside (0, 1] is no renewal the game makes.
+        Assert.Null(ForecastMood.RenewalSchedule([observed], [renewal with { Chance = 0 }], []));
+    }
+
+    [Fact]
+    public void BedThoughtsComeWithTheOnsetTheGameDraws()
+    {
+        // A fresh sleep draws its onset from Rand.Range(2500, 10000): none under 2500 ticks, (floor(s) - 2499) / 7500 inside,
+        // always from 10000. A sleep observed now gives them as the native read says.
+        ForecastNeedChoice Rest(double start) => new("rest", "pawn", "rest", "bed", "", 0, 0, start, start + 1, 1, []);
+        var awake = NeedsFixtures.Pawn();
+        Assert.Equal(0, ForecastRoofConsequences.BedThoughtsChance(awake, Rest(100), 2599));
+        Assert.Equal(1d / 7500, ForecastRoofConsequences.BedThoughtsChance(awake, Rest(100), 2600), 12);
+        Assert.Equal(.5, ForecastRoofConsequences.BedThoughtsChance(awake, Rest(0), 6249), 12);
+        Assert.Equal(1, ForecastRoofConsequences.BedThoughtsChance(awake, Rest(0), 12000));
+        var asleep = awake with { Awake = false };
+        Assert.Equal(1, ForecastRoofConsequences.BedThoughtsChance(asleep with { BedThoughts = new BedThoughtOnset.Given() }, Rest(0), 100));
+        Assert.Equal(1, ForecastRoofConsequences.BedThoughtsChance(asleep with { BedThoughts = new BedThoughtOnset.Due(50) }, Rest(0), 100));
+        Assert.Equal(0, ForecastRoofConsequences.BedThoughtsChance(asleep with { BedThoughts = new BedThoughtOnset.Due(500) }, Rest(0), 100));
+        Assert.Equal(0, ForecastRoofConsequences.BedThoughtsChance(asleep, Rest(0), 20000));
     }
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
@@ -168,7 +209,6 @@ public sealed class ForecastRoofConsequencesTests
         ForecastNeedChoice[] joy = [new("joy", "pawn", "joy", "pin", "", 0, 0, 0, 12000, 1, [])];
         var observed = Known<EquatableArray<MoodThought>>([]);
         var roofed = ForecastRoofConsequences.RoofMoodOf(pawn, NeedsFixtures.Empty, joy, [Room(0, 0)], observed, Horizon);
-        Assert.Equal("", roofed.Unassessed);
         var (thought, spans) = Assert.Single(roofed.Banded);
         Assert.Equal("NeedOutdoors", thought);
         var span = Assert.Single(spans);

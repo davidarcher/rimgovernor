@@ -231,6 +231,16 @@ the pawn's choices instead of staying at their observed stage.
 - A spar's joy task carries `PracticeWorker.Thoughts`, the `RimGovernor_TrainedWith`
   memory a completed bout gives, at the task's end (#3858). The meal and spar
   thoughts are always read, so neither leaves a pawn's mood forecast null.
+- A range drill carries the same memory and `PracticeWorker.Company`, the stands and
+  markers within chat range of its stand (`SocialInteractionUtility.IsGoodPositionForInteraction`,
+  #3871). A completed drill gains the memory at its end when another colonist's
+  completed session at a company target spans that end (`TrainingCompany.NearTrainer`).
+  Company while walking to a target, or in the 2500 ticks after another's session, is
+  `practice_company_outside_sessions_not_modelled`.
+- A commitment whose completion is unknown grants none of its mood memories or
+  situational changes; its outcome is already uncertain, and the forecast names it
+  `commitment_completion_unassessed` (#3871), as an unknown need completion drops its
+  task.
 
 ### Temperature mood from banded cards
 
@@ -293,7 +303,9 @@ unknown. What the game does not have is a case, never an unknown:
   `StatPart_EnvironmentalEffects` def data (unroofed and outdoors offsets, edifice
   protection factor).
 - `NeedsForecastPawn`: `Outdoors` and `OutdoorsDisabled` (Need\_Outdoors),
-  `OwnedBed` and `Ascetic` (the two pawn facts `ApplyBedThoughts` reads), and
+  `OwnedBed` and `Ascetic` (the two pawn facts `ApplyBedThoughts` reads),
+  `BedThoughts` (the current lie-down's onset from `Pawn_MindState.applyBedThoughtsTick`
+  and `applyBedThoughtsOnLeave`: given, due in some ticks, or none drawn; #3871), and
   `ThoughtStages`, one `NeedThoughtStage` per thought stage the pawn can get, priced
   by the game's `MoodOffset` for this pawn, with its duration. `Role` names why the
   row was read: `slept_outside`, `slept_in_bedroom`, `slept_in_barracks`, `weather`,

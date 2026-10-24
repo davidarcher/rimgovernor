@@ -275,7 +275,7 @@ Mood target and actual mood remain distinct. Actual response uses observed
 seeker rise/fall and sleep-freeze mechanics; unclamped target preserves overflow.
 Unknown thought mechanics, meal thoughts and future health are explicit
 boundaries; memory renewal is modeled only for the bed thoughts at each wake
-(`ForecastMemoryRenewal`, #3339). Sleep activation respects native thresholds, disturbance,
+(`ForecastMemoryRenewal`, #3339), at the chance the game's onset gives (#3871). Sleep activation respects native thresholds, disturbance,
 starvation and wake thresholds; occupied bed time is not automatically asleep.
 Current-rate projections beyond one day remain unassessed.
 

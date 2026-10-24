@@ -384,7 +384,7 @@ public sealed class PlannedRoomCreditTests
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
         var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
-            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = .0001, Thoughts = [trainedWith] }).ToArray();
+            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = .0001, Thoughts = [trainedWith], Company = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = Known(EquatableArray.From(roster)),
@@ -401,22 +401,137 @@ public sealed class PlannedRoomCreditTests
         RunsEveryShippedCredit(generated, outcome, 300);
     }
 
-    /// <summary>One planned room per shipped role, each predicted as native predicts every priced room.</summary>
-    private static (int Room, PlannedRole Role)[] ShippedRooms() => PlannedRoomCredits.Shipped.Keys.Select((role, i) => (Room: i + 1, Role: role)).ToArray();
-
-    /// <summary><paramref name="review"/> with <see cref="ShippedRooms"/> planned, the way RoundsRead and RoundsWork read them.</summary>
-    private static RoundsFacts WithEveryShippedRoom(RoundsFacts review)
+    /// <summary>
+    /// #3871 acceptance: a pending commitment, the production way (the fresh colony's construction where native could not read the
+    /// bill reservations, so the frame's material and its completion are unknown). A commitment granting a memory at that frame
+    /// leaves its outcome uncertain and grants nothing, named as commitment_completion_unassessed: the mood forecast stays whole
+    /// and every shipped credit runs.
+    /// </summary>
+    [Fact]
+    public void APendingCommitmentKeepsItsMoodForecastAndRunsEveryShippedCredit()
     {
-        var roles = ShippedRooms();
+        var memory = NeedsFixtures.Memory("KnowBuriedInSarcophagus", 4, 8d * Day, false);
+        // Native could not read the colony's bill reservations, so what the frame's material may draw on is unknown.
+        var facts = WorkRules.ReviewWorkResources(WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview()) with { BillReservations = default },
+            Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
+        var pending = generated.Alternatives.Where(c => c.Id.StartsWith("site-", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))
+            .Select(c => c with { MoodMemories = [new("pawn", memory)] }).ToArray();
+        Assert.NotEmpty(pending);
+        var outcomes = Evaluated(facts with { CoupledAlternatives = generated with { Alternatives = EquatableArray.From(pending) } }, Day, pending);
+        var unassessed = outcomes.Where(o => o.Findings.Any(f => f.Reason == "commitment_completion_unassessed")).ToArray();
+        Assert.NotEmpty(unassessed);
+        foreach (var outcome in unassessed)
+        {
+            Assert.False(outcome.Feasible.IsKnown);
+            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+            RunsEveryShippedCredit(generated.Context, outcome, Day);
+        }
+    }
+
+    /// <summary>
+    /// #3871 acceptance: a planned roof, the production way (ForecastRoofConsequencesTests' builder whose owned bed is closed into a
+    /// bedroom by a wall and a door). A fresh sleep inside the onset window (0.8 rest at 0.00016 a tick, 5000 ticks) renews its bed
+    /// thoughts at the chance Rand.Range(2500, 10000) gives, and a pawn asleep now at the onset native read: either way the mood
+    /// forecast stays whole and every shipped credit runs.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void APlannedRoofKeepsItsMoodForecastAndRunsEveryShippedCredit(bool asleep)
+    {
+        var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => asleep
+            ? pawn with { Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Due(1000) }
+            : pawn with { Targets = [.. pawn.Targets.Select(t => t with { Recovery = new NeedRecovery.Rate(.00016) })] }, review =>
+            {
+                review = WithEveryShippedRoom(review);
+                // A pawn asleep in its bed is at the bed: native's route from its start there costs nothing.
+                var sites = review.PlannedSites.Value;
+                return !asleep ? review : review with { PlannedSites = Known(sites with
+                    { Routes = EquatableArray.From(sites.Routes.Select(r => r.FromStart ? r with { Ticks = Known(0d) } : r)) }) };
+            });
+        var generated = facts.CoupledAlternatives!;
+        var full = generated.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain.Value).First();
+        var roots = generated.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
+            || new[] { ForecastRoofConsequencesTests.Wall, ForecastRoofConsequencesTests.Door }.Any(site =>
+                c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
+        Assert.Equal(3, roots.Length);
+        // The schedules that sleep: an observed sleep continues (Pawn_JobTracker keeps the lie-down until the wake).
+        var outcomes = Evaluated(facts, ForecastRoofConsequencesTests.Horizon, roots).Where(o => o.Plan.Allocations.Any(a => a.Activity == full.Task)).ToArray();
+        Assert.Contains(outcomes, o => o.Plan.Allocations.Any(a => a.Activity.StartsWith(ForecastRoofConsequencesTests.Wall, StringComparison.Ordinal)));
+        foreach (var outcome in outcomes)
+        {
+            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+            RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
+        }
+    }
+
+    /// <summary>
+    /// #3871 acceptance: two colonists on range drills at stands within chat range, the production way (PracticeMethodCandidates'
+    /// drills priced by tier 2's skill marginal). Each finishes while the other is on its session, so each gains the TrainedWith
+    /// memory (TrainingCompany.NearTrainer): the mood forecast stays whole, the memory is priced (stands out of range leave a lower
+    /// thought offset), and every shipped credit runs on the outcome without a throw.
+    /// </summary>
+    [Fact]
+    public void TwoColonistsDrillingTogetherKeepTheirMoodForecastAndRunEveryShippedCredit()
+    {
+        var trainedWith = NeedsFixtures.Memory("RimGovernor_TrainedWith", 3, Day, false) with { StackLimit = 1 };
+        (ForecastCoupledContext, ForecastCoupledOutcome) Drill(bool company)
+        {
+            var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
+            var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
+            var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Shooting", Level = 1, Learning = learning }]) }).ToArray();
+            var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Shooting", "stand/" + i, new(i + 1, 1), "RimGovernor_TrainRange", "RimGovernor_TrainShooting",
+                Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = 0, Thoughts = [trainedWith],
+                    Company = company ? ["stand/" + (1 - i)] : [] }).ToArray();
+            facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
+            {
+                WorkPawns = Known(EquatableArray.From(roster)),
+                Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
+                { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
+                Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
+            } };
+            var investment = roster.ToDictionary(p => ProjectGraph.SkillKey(p.Id.Value, "Shooting"), _ => 1d, StringComparer.Ordinal);
+            return Selected(WithEveryShippedRoom(facts), 300, investment);
+        }
+        var (generated, outcome) = Drill(company: true);
+        var drills = generated.PracticeTasks.Where(p => outcome.Plan.Allocations.Any(a => a.Activity == p.Task)).ToArray();
+        Assert.Equal(2, drills.Select(d => d.Worker.Pawn).Distinct().Count());
+        var (_, alone) = Drill(company: false);
+        foreach (var pawn in drills.Select(d => d.Worker.Pawn).Distinct())
+        {
+            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs[pawn].Mood).BreakRisk.IsKnown);
+            Assert.True(outcome.Needs[pawn].ThoughtOffsetAtHorizon.Value > alone.Needs[pawn].ThoughtOffsetAtHorizon.Value);
+        }
+        RunsEveryShippedCredit(generated, outcome, 300);
+    }
+
+    /// <summary>Every outcome the production forecast evaluates over <paramref name="facts"/>, with <paramref name="add"/> proposed.</summary>
+    private static ForecastCoupledOutcome[] Evaluated(RoundsFacts facts, double horizon, ForecastCommitment[] add)
+    {
+        var forecast = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), horizon / GameTime.TicksPerDay, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }));
+        Assert.True(forecast.Proposed.Coupled is { Alternatives.Count: > 0 }, "proposed: " + string.Join(",", forecast.Proposed.Coupled?.Findings ?? []) + " baseline: " + string.Join(",", forecast.Baseline.Coupled?.Findings ?? []));
+        return [.. forecast.Proposed.Coupled!.Alternatives];
+    }
+
+    /// <summary>One planned room per shipped role numbered from <paramref name="first"/>, each predicted as native predicts every priced room.</summary>
+    private static (int Room, PlannedRole Role)[] ShippedRooms(int first = 1) => PlannedRoomCredits.Shipped.Keys.Select((role, i) => (Room: i + first, Role: role)).ToArray();
+
+    /// <summary><paramref name="review"/> with <see cref="ShippedRooms"/> planned after its own planned rooms, the way RoundsRead and
+    /// RoundsWork read them.</summary>
+    internal static RoundsFacts WithEveryShippedRoom(RoundsFacts review)
+    {
+        var roles = ShippedRooms(review.PlannedShelters.Count == 0 ? 1 : review.PlannedShelters.Max(r => r.Id) + 1);
         var facts = review with
         {
             // RoundsWork reads each work pawn's skills (a fresh colonist with none it could practise) and health.
             ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value
                 .Select(p => p with { Skills = p.Skills.IsKnown ? p.Skills : Known<EquatableArray<WorkSkill>>([]), Health = Known(1d) }))) },
-            PlannedShelters = [.. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
+            PlannedShelters = [.. review.PlannedShelters, .. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
-            PlannedRoomPredictions = EquatableArray.From(roles.Select(r => PlannedRoomPredictionTests.Closed(
-                r.Room.ToString(System.Globalization.CultureInfo.InvariantCulture), "", Wire.Name(r.Role), 30d, 0, 9, 0, false))),
+            PlannedRoomPredictions = EquatableArray.From(review.PlannedRoomPredictions.Concat(roles.Select(r => PlannedRoomPredictionTests.Closed(
+                r.Room.ToString(System.Globalization.CultureInfo.InvariantCulture), "", Wire.Name(r.Role), 30d, 0, 9, 0, false)))),
             // RoundsRead furnishes the planned hospital with the catalog's hospital bed.
             HospitalBed = new RoomFurniture { Beds = [new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07 }] }.HospitalBed(),
         };
@@ -444,7 +559,7 @@ public sealed class PlannedRoomCreditTests
     /// </summary>
     private static void RunsEveryShippedCredit(ForecastCoupledContext generated, ForecastCoupledOutcome outcome, double horizon)
     {
-        var roles = ShippedRooms();
+        var roles = ShippedRooms(generated.PlannedRoomRoles.Keys.Max() - PlannedRoomCredits.Shipped.Count + 1);
         var context = generated with
         {
             // The round reads no creepjoiner held apart (RoundsCreepJoiner.CreepJoinerForecastOf, #3844).

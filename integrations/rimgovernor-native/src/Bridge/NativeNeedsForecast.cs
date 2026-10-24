@@ -120,7 +120,7 @@ internal static class NativeNeedsForecast
             var health = pawn.health ?? throw new InvalidOperationException("colonist without a health tracker: " + pawn.GetUniqueLoadID());
             rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
                 CurrentService = voluntary ? CurrentService(pawn) : null,
-                LocalHour = F(GenLocalDate.HourFloat(pawn), "local hour"), Awake = pawn.Awake(),
+                LocalHour = F(GenLocalDate.HourFloat(pawn), "local hour"), Awake = pawn.Awake(), BedThoughts = BedThoughtsOf(pawn),
                 SleepThreshold = sleep.SleepThreshold, WakeThreshold = sleep.WakeThreshold, SleepBlocked = sleep.Blocked,
                 SleepBlockedUntilTicks = sleep.BlockedUntilTicks, SleepWhileStarving = sleep.WhileStarving, Mood = moodRead,
                 ComfortableMin = F(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin), "comfortable min"), ComfortableMax = F(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax), "comfortable max"),
@@ -287,6 +287,19 @@ internal static class NativeNeedsForecast
             SurgerySuccessFactor = bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor),
             ImmunityGainSpeedFactor = bed.GetStatValue(StatDefOf.ImmunityGainSpeedFactor),
         };
+    }
+    /// <summary>
+    /// When the pawn's current lie-down gives its bed thoughts (Obs.BedThoughtOnset, #3871), from the two Pawn_MindState fields
+    /// Toils_LayDown reads: applyBedThoughtsTick 0 (reset whenever the pawn is not laying) draws a fresh onset at the next
+    /// lie-down; applyBedThoughtsOnLeave is set once ApplyBedRelatedEffects gave them, so FinalizeLayingJob gives them again; else
+    /// they are given once the drawn tick passes. Read-only.
+    /// </summary>
+    private static Obs.BedThoughtOnset BedThoughtsOf(Pawn pawn)
+    {
+        var mind = pawn.mindState;
+        if (mind.applyBedThoughtsTick == 0) return new Obs.BedThoughtOnset.None();
+        return mind.applyBedThoughtsOnLeave ? new Obs.BedThoughtOnset.Given()
+            : new Obs.BedThoughtOnset.Due(Math.Max(0, mind.applyBedThoughtsTick - Find.TickManager.TicksGame));
     }
     /// <summary>
     /// Where JobGiver_GetRest lays <paramref name="pawn"/> now and what Toils_LayDown gives it there (#3840, Obs.NeedSleep): the
