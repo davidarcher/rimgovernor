@@ -170,13 +170,13 @@ is classified from observed facts.
   prerequisite (the plan definition's, else the site's native finishing
   skill) is helper work. The parallelism of its runnable `building:<def>`
   candidates is demand, and the highest such prerequisite is the helper floor.
-- Quality-sensitive with an observed `MinimumFinishingSkill` is protected:
+- Quality-sensitive with a planner-set finishing `Minimum` is protected:
   native enforces the setting per target, so it neither counts as demand nor
   moves the floor.
 - Anything else withholds helpers and withdraws current ones at once, under
   the reason naming the fact: `construction_prerequisite_unknown` (also a
   construction candidate with no `building:` definition),
-  `construction_quality_unknown` (no observed site or unreadable quality fact)
+  `construction_quality_unknown` (no observed site)
   or `construction_quality_unprotected` (a quality site awaiting its finishing
   minimum from the quality adoption below). `Withheld` lists the definitions.
 

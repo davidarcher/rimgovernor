@@ -60,6 +60,7 @@ public static class PlanningViewReads
             Name = name,
             Research = [.. (row.researchPrerequisites ?? []).Select(project => project.defName)],
             ConstructionSkill = Known(row.constructionSkillPrerequisite),
+            PathCost = row.pathCost,
         };
         v = v with { Size = Known(new Bounds(row.size.x, row.size.z)) };
         var draw = DefinitionCatalog.PowerDraw(row);
@@ -243,7 +244,7 @@ public static class PlanningViewReads
             Cleanliness = FiniteFact(floor.Cleanliness),
             Beauty = FiniteFact(floor.Beauty),
             Flammability = FiniteFact(floor.Flammability),
-            PathCost = Known(floor.PathCost),
+            PathCost = floor.PathCost,
             WorkToBuild = NonnegativeFact(catalog.TerrainWorkToBuild(name)),
         };
         if (row.tags is { Count: > 0 } floorTags)

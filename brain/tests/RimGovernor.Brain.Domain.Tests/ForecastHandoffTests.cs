@@ -140,7 +140,7 @@ public sealed class ForecastHandoffTests
     {
         var request = Request();
         var basis = request.Coupled!.ModelBasis!;
-        var input = basis.Input with { Sites = Known<EquatableArray<ConstructionSite>>([new() { Id = "site", WorkLeft = Known(100d), MaterialsOwed = Known<EquatableArray<Amount>>([new(Steel, 8)]) }]) };
+        var input = basis.Input with { Sites = Known<EquatableArray<ConstructionSite>>([new() { Id = "site", WorkLeft = 100d, MaterialsOwed = [new(Steel, 8)] }]) };
         var graph = ProjectGraph.Construction(input, "site", []);
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("research", "pawn", [], PawnActivityKind.Supply, "steel-stack", "", "", 5, 60000, new(2, 2)) { Container = "site" };
         request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = graph }),

@@ -393,14 +393,9 @@ public sealed record ProjectGraph
             return Gap($"site_unknown:{site}");
         }
 
-        if (!row.WorkLeft.TryGetValue(out var work) || !row.MaterialsOwed.TryGetValue(out var owed))
-        {
-            return Gap($"site_unread:{site}");
-        }
-
         return new ProjectGraph
         {
-            Nodes = EquatableArray.From(new[] { new ProjectNode { Id = ConstructionId(site), Target = site, Kind = ProjectKind.Construction, Prerequisites = after, Work = work, Ingredients = owed } }),
+            Nodes = EquatableArray.From(new[] { new ProjectNode { Id = ConstructionId(site), Target = site, Kind = ProjectKind.Construction, Prerequisites = after, Work = row.WorkLeft, Ingredients = row.MaterialsOwed } }),
         };
     }
 

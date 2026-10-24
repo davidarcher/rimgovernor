@@ -56,7 +56,7 @@ public static class ConstructionTierRules
     /// unlisted, so Expand.
     /// </summary>
     public static ConstructionTier AdoptedTier(ConstructionSite site) =>
-        site.Tier.TryGetValue(out var tier) ? tier : ConstructionTier.Expand;
+        site.Gate is ConstructionGate.Tiered { Tier: var tier } ? tier : ConstructionTier.Expand;
 
     /// <summary>
     /// The tier of a loose building a Concern's planner places outside any planned room. Every concern has a

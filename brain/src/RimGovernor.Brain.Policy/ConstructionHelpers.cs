@@ -30,8 +30,8 @@ public sealed record ConstructionHelp
     /// <summary>The highest observed skill prerequisite among the quality-free definitions in play; a helper must reach it.</summary>
     public int Floor { get; init; }
 
-    /// <summary>The runnable helper-eligible construction parallelism; unknown never authorizes help.</summary>
-    public Fact<int> Ready { get; init; }
+    /// <summary>The runnable helper-eligible construction parallelism; an unreported count never authorizes help.</summary>
+    public HelpReady Ready { get; init; } = new HelpReady.Unreported();
 
     /// <summary>The definitions whose prerequisite or quality is unobserved or unconfigured.</summary>
     public EquatableArray<string> Withheld { get; init; }
@@ -41,6 +41,18 @@ public sealed record ConstructionHelp
 
     /// <summary>The last review's record in the same world, empty when none.</summary>
     public ConstructionHelpRecord Previous { get; init; } = new();
+}
+
+/// <summary>The helper-eligible ready construction: unreported when no ready-work report of this world reads it, else counted.</summary>
+public abstract record HelpReady
+{
+    private protected HelpReady() { }
+
+    /// <summary>No current ready-work report: the demand is not read, so no helper is authorized.</summary>
+    public sealed record Unreported : HelpReady;
+
+    /// <summary>The runnable parallelism of the helper-eligible candidates the current report lists.</summary>
+    public sealed record Counted(int Parallelism) : HelpReady;
 }
 
 /// <summary>
@@ -118,7 +130,7 @@ public static class ConstructionHelpersRules
         ConstructionHelpRecord? previous,
         Fact<CurrentConstruction> census)
     {
-        var help = new ConstructionHelp { Tick = tick, Ready = Unknown<int>() };
+        var help = new ConstructionHelp { Tick = tick };
         report = ConstructionSkillRules.ConstructionHelperView(report, census, current);
         if (previous is not null && previous.Tick <= tick)
         {
@@ -136,36 +148,16 @@ public static class ConstructionHelpersRules
         // Quality per definition: absent (no observed site, or no census) is unknown.
         var quality = new Dictionary<string, HelpQuality>(StringComparer.Ordinal);
         var siteSkill = new Dictionary<string, int>(StringComparer.Ordinal);
-        var siteSkillUnknown = new HashSet<string>(StringComparer.Ordinal);
         if (census.TryGetValue(out var observed) && observed.Colony)
         {
             foreach (var site in observed.Sites)
             {
                 var name = site.Building!.Definition;
-                var q = HelpQuality.Unprotected;
-                var sensitiveKnown = site.QualitySensitive.TryGetValue(out var sensitive);
-                var set = site.MinimumFinishingSkill.IsKnown;
-                if (sensitiveKnown && !sensitive)
-                {
-                    q = HelpQuality.Free;
-                }
-                else if (sensitiveKnown && set)
-                {
-                    q = HelpQuality.Protected;
-                }
-                else if (!sensitiveKnown)
-                {
-                    Withhold(name, HelpQualityUnknown);
-                }
+                var q = !site.QualitySensitive ? HelpQuality.Free
+                    : site.Minimum is not null ? HelpQuality.Protected
+                    : HelpQuality.Unprotected;
                 quality[name] = (HelpQuality)Math.Max((int)quality.GetValueOrDefault(name), (int)q);
-                if (site.NativeFinishingSkill.TryGetValue(out var skill))
-                {
-                    siteSkill[name] = Math.Max(siteSkill.GetValueOrDefault(name), skill);
-                }
-                else
-                {
-                    siteSkillUnknown.Add(name);
-                }
+                siteSkill[name] = Math.Max(siteSkill.GetValueOrDefault(name), site.NativeFinishingSkill);
             }
         }
         var skills = new Dictionary<string, Fact<int>>(StringComparer.Ordinal);
@@ -218,7 +210,7 @@ public static class ConstructionHelpersRules
             else if (q == HelpQuality.Free)
             {
                 var known = skills.GetValueOrDefault(name).TryGetValue(out var skill);
-                if (!known && !siteSkillUnknown.Contains(name))
+                if (!known && siteSkill.ContainsKey(name))
                 {
                     skill = siteSkill.GetValueOrDefault(name); // a free definition has an observed site
                     known = true;
@@ -243,7 +235,7 @@ public static class ConstructionHelpersRules
                     ready += c.Parallelism;
                 }
             }
-            help = help with { Ready = Known(ready) };
+            help = help with { Ready = new HelpReady.Counted(ready) };
         }
         var reason = "";
         foreach (var (_, why) in withheld)
@@ -290,7 +282,7 @@ public static class ConstructionHelpersRules
             }
         }
         rec = rec with { Idle = EquatableArray.From(idleList) };
-        if (!h.Ready.TryGetValue(out var ready))
+        if (h.Ready is not HelpReady.Counted { Parallelism: var ready })
         {
             return rec with { Reason = HelpDemandUnknown };
         }

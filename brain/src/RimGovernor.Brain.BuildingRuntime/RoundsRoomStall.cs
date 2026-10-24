@@ -1,3 +1,5 @@
+using ConstructionGate = RimGovernor.Contracts.Wire.Observations.ConstructionGate;
+
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Remembers since when a room has had unfinished sites and when the stall was last reported. Derived, in memory only.</summary>
@@ -37,11 +39,11 @@ partial record struct RoomStall
         {
             return s.FinishingBlocker;
         }
-        if (s.ResourcesComplete.TryGetValue(out var done) && !done)
+        if (!s.ResourcesComplete)
         {
             return "awaiting_materials";
         }
-        if (s.EligibleFinishers.TryGetValue(out var n) && n == 0)
+        if (s.Minimum is { EligibleFinishers: 0 })
         {
             return "no_eligible_builder";
         }
@@ -163,18 +165,15 @@ public sealed partial class Rounder
         var skill = 0;
         foreach (var s in sites)
         {
-            if (s.Tier.TryGetValue(out var tier))
+            if (s.Gate is ConstructionGate.Tiered { Tier: var tier })
             {
                 var key = ((int)tier).ToString(CultureInfo.InvariantCulture);
                 tiers[key] = tiers.GetValueOrDefault(key) + 1;
             }
-            if (s.EligibleFinishers.TryGetValue(out var n))
+            if (s.Minimum is { } minimum)
             {
-                eligible += n;
-            }
-            if (s.MinimumFinishingSkill.TryGetValue(out var m) && m > skill)
-            {
-                skill = m;
+                eligible += minimum.EligibleFinishers;
+                skill = Math.Max(skill, minimum.Skill);
             }
         }
         var names = sites

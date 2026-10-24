@@ -166,7 +166,7 @@ public sealed record FloorRoom
 {
     public string Id { get; init; } = "";
 
-    public Fact<RoomRole> Role { get; init; }
+    public RoomRole Role { get; init; }
 
     public IReadOnlyList<FloorCell> Cells { get; init; } = [];
 
@@ -293,7 +293,8 @@ public sealed record FloorDefinition
 
     public Fact<double> Flammability { get; init; }
 
-    public Fact<int> PathCost { get; init; }
+    /// <summary>The floor's own pathCost.</summary>
+    public int PathCost { get; init; }
 
     public Fact<EquatableArray<Amount>> Costs { get; init; }
 
@@ -415,29 +416,44 @@ public static class FlooringRules
                 return FloorTier.Clean;
             }
         }
-        return room.Role.TryGetValue(out var role) ? RoleFloorTier(role) : null;
+        return RoleFloorTier(room.Role);
     }
 
     /// <summary>The tier a room role alone requires.</summary>
-    internal static FloorTier? RoleFloorTier(RoomRole role) =>
-        role switch
+    internal static FloorTier? RoleFloorTier(RoomRole role)
+    {
+        switch (role)
         {
-            RoomRole.Kitchen or RoomRole.Hospital or RoomRole.Laboratory => FloorTier.Clean,
-            RoomRole.Bedroom or RoomRole.Barracks or RoomRole.DiningRoom or RoomRole.RecRoom => FloorTier.Living,
-            RoomRole.Barn => FloorTier.Barn,
-            _ => null,
-        };
+            case RoomRole.Kitchen or RoomRole.Hospital or RoomRole.Laboratory:
+                return FloorTier.Clean;
+            case RoomRole.Bedroom or RoomRole.Barracks or RoomRole.DiningRoom or RoomRole.RecRoom:
+                return FloorTier.Living;
+            case RoomRole.Barn:
+                return FloorTier.Barn;
+            case RoomRole.None or RoomRole.Room or RoomRole.PrisonCell or RoomRole.Workshop or RoomRole.Storeroom or RoomRole.PrisonBarracks
+                or RoomRole.Tomb or RoomRole.ThroneRoom or RoomRole.WorshipRoom or RoomRole.Nursery or RoomRole.Playroom or RoomRole.Classroom
+                or RoomRole.DeathrestChamber or RoomRole.ContainmentCell or RoomRole.CeremonialChamber or RoomRole.Unrecognized:
+                return null;
+        }
+        throw new DomainException($"undefined room role {(int)role}");
+    }
 
     /// <summary>Reports whether tags holds any of want.</summary>
     internal static bool HasAnyTag(IReadOnlyList<string> tags, IReadOnlyList<string> want) => tags.Any(want.Contains);
 
-    private static bool FloorDeficient(FloorTier tier, FloorTerrain t) =>
-        tier switch
+    private static bool FloorDeficient(FloorTier tier, FloorTerrain t)
+    {
+        switch (tier)
         {
-            FloorTier.Clean => t.Cleanliness < 0,
-            FloorTier.Living or FloorTier.Traffic or FloorTier.Barn => t.Natural,
-            _ => false,
-        };
+            case FloorTier.Clean:
+                return t.Cleanliness < 0;
+            case FloorTier.Living or FloorTier.Traffic or FloorTier.Barn:
+                return t.Natural;
+            case FloorTier.Firebreak or FloorTier.Throne:
+                return false;
+        }
+        throw new DomainException($"undefined floor tier {(int)tier}");
+    }
 
     /// <summary>
     /// Gathers the natural home cells colonists are observed to walk where a laid floor pays for itself. The
@@ -482,7 +498,7 @@ public static class FlooringRules
             return (d, pending > 0);
         }
         var floor = v.Floors![name];
-        var floorPath = floor.PathCost.ValueOrDefault;
+        var floorPath = floor.PathCost;
         var cost = FloorTicks(floor, p);
         var payback = new Dictionary<Cell, double>();
         foreach (var t in cells)
@@ -527,7 +543,7 @@ public static class FlooringRules
         return why == FlooringMethod.Unknown ? ("", false) : ("", true);
     }
 
-    internal static bool FloorPriced(FloorDefinition d) => d.WorkToBuild.IsKnown && d.Costs.IsKnown && d.PathCost.IsKnown;
+    internal static bool FloorPriced(FloorDefinition d) => d.WorkToBuild.IsKnown && d.Costs.IsKnown;
 
     /// <summary>One cell's one-time cost in colony work ticks: the native WorkToBuild plus MaterialTicksPerUnit for every unit of its cost list.</summary>
     private static double FloorTicks(FloorDefinition d, FlooringPolicy p)
@@ -577,7 +593,7 @@ public static class FlooringRules
             {
                 roomed.Add(c.Cell);
             }
-            var role = room.Role.ValueOrDefault;
+            var role = room.Role;
             var cells = new List<Cell>();
             var pending = 0;
             foreach (var c in room.Cells)
@@ -643,15 +659,23 @@ public static class FlooringRules
         return cells;
     }
 
-    private static int FloorTierRank(FloorTier t) =>
-        t switch
+    private static int FloorTierRank(FloorTier t)
+    {
+        switch (t)
         {
-            FloorTier.Clean => 0,
-            FloorTier.Barn => 1,
-            FloorTier.Living or FloorTier.Throne => 2,
-            FloorTier.Firebreak => 4,
-            _ => 5,
-        };
+            case FloorTier.Clean:
+                return 0;
+            case FloorTier.Barn:
+                return 1;
+            case FloorTier.Living or FloorTier.Throne:
+                return 2;
+            case FloorTier.Firebreak:
+                return 4;
+            case FloorTier.Traffic:
+                return 5;
+        }
+        throw new DomainException($"undefined floor tier {(int)t}");
+    }
 
     /// <summary>Prices one candidate for a tier; Ok is false when the floor fails the tier's requirement outright.</summary>
     internal static (double Score, bool Ok) FloorScore(FloorTier tier, FloorDefinition d, FloorWeights w)
@@ -659,7 +683,7 @@ public static class FlooringRules
         var cleanliness = d.Cleanliness.ValueOrDefault;
         var beauty = d.Beauty.ValueOrDefault;
         var fk = d.Flammability.TryGetValue(out var flammability);
-        var pathCost = d.PathCost.ValueOrDefault;
+        var pathCost = d.PathCost;
         if (tier.Fireproof() && (!fk || flammability > 0))
         {
             return (0, false);
@@ -756,13 +780,7 @@ public static class FlooringRules
     /// </summary>
     internal static (string Name, int Cells, FlooringMethod Reason) ChooseFloor(FloorDeficit d, FlooringFacts facts, int batch, FlooringPolicy p)
     {
-        var weights = d.Tier switch
-        {
-            FloorTier.Living or FloorTier.Throne => p.Living,
-            FloorTier.Traffic => p.Traffic,
-            FloorTier.Firebreak => FirebreakWeights,
-            _ => p.Clean,
-        };
+        var weights = TierWeights(d.Tier, p);
         string? bestName = null;
         var bestCells = 0;
         var bestScore = 0.0;
@@ -840,6 +858,23 @@ public static class FlooringRules
             return ("", 0, unknown ? FlooringMethod.Unknown : reason);
         }
         return (bestName, bestCells, FlooringMethod.None);
+    }
+
+    /// <summary>The weights a tier scores its candidate floors with.</summary>
+    private static FloorWeights TierWeights(FloorTier tier, FlooringPolicy p)
+    {
+        switch (tier)
+        {
+            case FloorTier.Living or FloorTier.Throne:
+                return p.Living;
+            case FloorTier.Traffic:
+                return p.Traffic;
+            case FloorTier.Firebreak:
+                return FirebreakWeights;
+            case FloorTier.Clean or FloorTier.Barn:
+                return p.Clean;
+        }
+        throw new DomainException($"undefined floor tier {(int)tier}");
     }
 
     private static FlooringMethod FirstFlooringReason(FlooringMethod current, FlooringMethod next) =>

@@ -75,10 +75,7 @@ public static partial class TrafficRules
         var output = new List<TrafficFinding>();
         foreach (var ((index, layer), steps) in busiest)
         {
-            if (!v.Rooms[index].Role.TryGetValue(out var role))
-            {
-                continue;
-            }
+            var role = v.Rooms[index].Role;
             var f = new TrafficFinding { Room = v.Rooms[index].Id, Layer = layer };
             if (ThoroughfareRoles.Contains(role) && ((layer == TrafficLayer.Colonist && steps >= ThoroughfareColonistSteps) || (layer == TrafficLayer.Visitor && steps >= ThoroughfareVisitorSteps)))
             {

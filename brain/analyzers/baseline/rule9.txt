@@ -176,7 +176,6 @@ BuildingRuntime/Rounds/RoundsField.cs|Fact|19
 BuildingRuntime/Rounds/RoundsFirebreak.cs|Fact|14
 BuildingRuntime/Rounds/RoundsFirebreak.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsFishing.cs|Fact|15
-BuildingRuntime/Rounds/RoundsFlooring.cs|Discard|1
 BuildingRuntime/Rounds/RoundsFlooring.cs|Fact|12
 BuildingRuntime/Rounds/RoundsFood.cs|Fact|3
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|35
@@ -271,7 +270,6 @@ BuildingRuntime/Rounds/RoundsRoyalty.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Unknown|4
 BuildingRuntime/RoundsRoomReconcile.cs|Fact|16
-BuildingRuntime/RoundsRoomStall.cs|Fact|5
 BuildingRuntime/RoundsRoutes.cs|Discard|1
 BuildingRuntime/RoundsRoutes.cs|Fact|5
 BuildingRuntime/RoundsShelter.cs|Fact|10
@@ -400,7 +398,7 @@ Observation/AnomalyColony.cs|Unknown|7
 Observation/BiotechColony.cs|Fact|20
 Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Fact|4
-Observation/Colony.cs|Fact|83
+Observation/Colony.cs|Fact|82
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|54
 Observation/ColonyDecode.cs|Unknown|5
@@ -414,10 +412,9 @@ Observation/ColonyProduction.cs|Unknown|8
 Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
 Observation/ColonyUpkeep.cs|Discard|1
-Observation/ColonyUpkeep.cs|Fact|11
+Observation/ColonyUpkeep.cs|Fact|10
 Observation/Combat.cs|Fact|1
-Observation/Construction.cs|Discard|1
-Observation/Construction.cs|Fact|19
+Observation/Construction.cs|Fact|11
 Observation/Construction.cs|Unknown|4
 Observation/Decode.cs|Fact|3
 Observation/Definitions.cs|Fact|8
@@ -428,7 +425,7 @@ Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
 Observation/MealTier.cs|Fact|15
 Observation/Observation.cs|Fact|4
-Observation/PlanningView.cs|Fact|29
+Observation/PlanningView.cs|Fact|28
 Observation/PlanningView.cs|Unknown|2
 Observation/Quest.cs|Fact|33
 Observation/Quest.cs|Unknown|13
@@ -525,7 +522,7 @@ Policy/ColonyForecast.cs|Fact|36
 Policy/ColonyForecast.cs|Unknown|6
 Policy/ColonyForecastFacts.cs|Fact|2
 Policy/ColonyModel/ColonyModel.cs|Fact|11
-Policy/ColonyModel/ColonyModelInput.cs|Fact|64
+Policy/ColonyModel/ColonyModelInput.cs|Fact|62
 Policy/ColonyModel/ColonyModelPolicy.cs|Fact|1
 Policy/ColonyModel/ColonyModelState.cs|Fact|18
 Policy/ColonyModel/ColonyTrajectory.cs|NullableValue|1
@@ -536,7 +533,7 @@ Policy/ColonyModel/GoalPaths.cs|Fact|6
 Policy/ColonyModel/GoalPaths.cs|NullableValue|2
 Policy/ColonyModel/PawnCycle.cs|Fact|43
 Policy/ColonyModel/PawnCycle.cs|Unknown|11
-Policy/ColonyModel/ProjectGraph.cs|Fact|19
+Policy/ColonyModel/ProjectGraph.cs|Fact|17
 Policy/ColonyModel/ProjectMarginalValue.cs|Fact|7
 Policy/ColonyModel/ProjectRun.cs|Discard|1
 Policy/ColonyModel/ProjectRun.cs|Fact|19
@@ -596,14 +593,12 @@ Policy/Comfort.cs|Unknown|2
 Policy/ConcernProgress.cs|NullableValue|1
 Policy/ConstructionDemand.cs|Fact|19
 Policy/ConstructionDemand.cs|Unknown|2
-Policy/ConstructionHelpers.cs|Fact|14
-Policy/ConstructionHelpers.cs|Unknown|1
-Policy/ConstructionOwnership.cs|Fact|16
+Policy/ConstructionHelpers.cs|Fact|8
+Policy/ConstructionOwnership.cs|Fact|8
 Policy/ConstructionOwnership.cs|Unknown|1
 Policy/ConstructionProjection.cs|Fact|6
 Policy/ConstructionProjection.cs|Unknown|3
-Policy/ConstructionSkill.cs|Fact|14
-Policy/ConstructionTier.cs|Fact|1
+Policy/ConstructionSkill.cs|Fact|10
 Policy/ContainmentCell.cs|Fact|12
 Policy/ControlledEnvironment.cs|Fact|27
 Policy/ControlledEnvironment.cs|Unknown|2
@@ -640,7 +635,7 @@ Policy/DefensePositions.cs|Fact|18
 Policy/DefenseRearm.cs|Fact|10
 Policy/DefenseSight.cs|Fact|11
 Policy/DefenseSight.cs|Unknown|4
-Policy/DefenseTier.cs|Fact|5
+Policy/DefenseTier.cs|Fact|4
 Policy/DefenseTiers.cs|Fact|5
 Policy/DefenseTurrets.cs|Discard|1
 Policy/DefenseTurrets.cs|Fact|10
@@ -687,10 +682,9 @@ Policy/FirebreakRing.cs|Fact|5
 Policy/FirebreakRing.cs|Unknown|1
 Policy/Fishing.cs|Fact|16
 Policy/Fishing.cs|Unknown|1
-Policy/Flooring.cs|Discard|4
-Policy/Flooring.cs|Fact|31
+Policy/Flooring.cs|Fact|27
 Policy/Flooring.cs|UnknownMember|1
-Policy/Flooring.cs|ValueOrDefault|6
+Policy/Flooring.cs|ValueOrDefault|3
 Policy/Food.cs|Fact|17
 Policy/FoodAnimalProducts.cs|Fact|16
 Policy/FoodAnimalProducts.cs|Unknown|1
@@ -721,7 +715,7 @@ Policy/ForecastActivityOutcomes.cs|Fact|28
 Policy/ForecastCapacity.cs|Fact|24
 Policy/ForecastClaims.cs|Fact|55
 Policy/ForecastComposedCandidates.cs|Fact|9
-Policy/ForecastConstruction.cs|Fact|50
+Policy/ForecastConstruction.cs|Fact|38
 Policy/ForecastConstruction.cs|Unknown|1
 Policy/ForecastCoupled.cs|Fact|18
 Policy/ForecastCoupledCandidates.cs|Fact|33
@@ -1162,7 +1156,6 @@ Policy/TradeOffer.cs|Unknown|2
 Policy/TradePawn.cs|Fact|6
 Policy/TradeRoutine.cs|Fact|31
 Policy/TradeRoutine.cs|Unknown|3
-Policy/TrafficFindings.cs|Fact|1
 Policy/TrafficOverlay.cs|Discard|1
 Policy/Training.cs|Fact|7
 Policy/Training.cs|Unknown|2

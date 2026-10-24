@@ -76,9 +76,10 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, FieldUnavailable("flooring"));
             case FlooringMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
-            default:
+            case FlooringMethod.None or FlooringMethod.Pending or FlooringMethod.ResearchNeeded or FlooringMethod.MaterialsNeeded:
                 return (null, AwaitingMethod(proposal.Method));
         }
+        throw new DomainException($"undefined flooring method {(int)proposal.Method}");
     }
 
     /// <summary>

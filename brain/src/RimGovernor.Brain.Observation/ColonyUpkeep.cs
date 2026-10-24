@@ -96,7 +96,7 @@ public static class ColonyUpkeepReads
                 }
                 cells.Add(new FloorCell { Cell = cell.Cell, Terrain = cell.Terrain, Pending = cell.Pending ?? "" });
             }
-            rooms.Add(new FloorRoom { Id = room.Room, Role = Known(room.Role), Cells = [.. cells] });
+            rooms.Add(new FloorRoom { Id = room.Room, Role = room.Role, Cells = [.. cells] });
         }
         return Known(r with { Rooms = rooms });
     }

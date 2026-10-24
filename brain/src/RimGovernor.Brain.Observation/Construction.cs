@@ -215,14 +215,17 @@ internal readonly record struct SiteNeed(Resource Resource, long Count);
 public static class ConstructionReads
 {
     /// <summary>Maps a native cardinal rotation onto the domain's; any other value is refused by the building constructor.</summary>
-    internal static Rotation RotationOf(Placement.Rotation r) => r switch
+    internal static Rotation RotationOf(Placement.Rotation r)
     {
-        Placement.Rotation.North => Rotation.North,
-        Placement.Rotation.East => Rotation.East,
-        Placement.Rotation.South => Rotation.South,
-        Placement.Rotation.West => Rotation.West,
-        _ => (Rotation)(-1),
-    };
+        switch (r)
+        {
+            case Placement.Rotation.North: return Rotation.North;
+            case Placement.Rotation.East: return Rotation.East;
+            case Placement.Rotation.South: return Rotation.South;
+            case Placement.Rotation.West: return Rotation.West;
+        }
+        throw new ObservationContractException($"undefined building rotation {(int)r}");
+    }
 
     /// <summary>Projects one built row for the construction census.</summary>
     internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
@@ -257,21 +260,15 @@ public static class ConstructionReads
                 Building = new Building(build.Definition, ColonyDecodeReads.MapCellOf(row.Building), RotationOf(row.Rotation), row.Stuff ?? ""),
                 Stage = row.Status == O.BuildingStatus.Blueprint ? ConstructionSite.BlueprintStage : "frame",
                 Id = row.Building.Id,
-                ResourcesComplete = Known(build.Resources.All(r => r.StillNeeded == 0)),
-                WorkLeft = Known(build.WorkLeft),
-                MaterialsOwed = Known(EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count)))),
-                QualitySensitive = Known(build.QualitySensitive),
-                NativeFinishingSkill = Known(build.NativeFinishingSkill),
+                ResourcesComplete = build.Resources.All(r => r.StillNeeded == 0),
+                WorkLeft = build.WorkLeft,
+                MaterialsOwed = EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count))),
+                QualitySensitive = build.QualitySensitive,
+                NativeFinishingSkill = build.NativeFinishingSkill,
+                Minimum = build.Minimum,
+                Gate = build.Gate,
                 FinishingBlocker = FinishingBlocker(build),
             };
-            if (build.Minimum is { } minimum)
-            {
-                site = site with { MinimumFinishingSkill = Known(minimum.Skill), EligibleFinishers = Known(minimum.EligibleFinishers) };
-            }
-            if (build.Gate is O.ConstructionGate.Tiered gate)
-            {
-                site = site with { Tier = Known(gate.Tier) };
-            }
             return (site, true, null);
         }
         catch (DomainException e)

@@ -117,7 +117,8 @@ public sealed partial record PlanningDefinition
 
     public Fact<double> Flammability { get; init; }
 
-    public Fact<int> PathCost { get; init; }
+    /// <summary>The def's own pathCost: what a pawn pays to walk over the built thing or the laid floor.</summary>
+    public int PathCost { get; init; }
 
     /// <summary>The native WorkToBuild stat (work ticks) for the row's stuff.</summary>
     public Fact<double> WorkToBuild { get; init; }

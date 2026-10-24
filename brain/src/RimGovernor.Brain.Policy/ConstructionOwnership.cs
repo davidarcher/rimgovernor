@@ -68,24 +68,26 @@ public sealed record ConstructionSite
 
     public string Id { get; init; } = "";
 
-    public Fact<bool> ResourcesComplete { get; init; }
+    /// <summary>Every material the build needs is delivered.</summary>
+    public bool ResourcesComplete { get; init; }
 
     /// <summary>Native remaining work units, not elapsed pawn ticks.</summary>
-    public Fact<double> WorkLeft { get; init; }
+    public double WorkLeft { get; init; }
 
     /// <summary>Exact outstanding material units; delivered frame contents are excluded.</summary>
-    public Fact<EquatableArray<Amount>> MaterialsOwed { get; init; }
+    public EquatableArray<Amount> MaterialsOwed { get; init; }
 
-    public Fact<bool> QualitySensitive { get; init; }
+    /// <summary>The built thing has quality, so the finisher's skill sets it.</summary>
+    public bool QualitySensitive { get; init; }
 
-    public Fact<int> MinimumFinishingSkill { get; init; }
+    /// <summary>The def's own constructionSkillPrerequisite.</summary>
+    public int NativeFinishingSkill { get; init; }
 
-    public Fact<int> NativeFinishingSkill { get; init; }
+    /// <summary>The planner-set minimum finishing skill and how many free colonists meet it; null when none is set.</summary>
+    public FinishingMinimum? Minimum { get; init; }
 
-    /// <summary>The native per-target tier; unknown means ungated.</summary>
-    public Fact<ConstructionTier> Tier { get; init; }
-
-    public Fact<int> EligibleFinishers { get; init; }
+    /// <summary>The native per-target tier: ungated, or gated at a tier.</summary>
+    public ConstructionGate Gate { get; init; } = new ConstructionGate.Ungated();
 
     public string FinishingBlocker { get; init; } = "";
 }

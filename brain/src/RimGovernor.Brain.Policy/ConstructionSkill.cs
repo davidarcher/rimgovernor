@@ -56,15 +56,7 @@ public static class ConstructionSkillRules
         var result = new List<ConstructionSkillChoice>();
         foreach (var site in sites.Sites)
         {
-            if (site.Id.Length == 0 || !(site.QualitySensitive.TryGetValue(out var sensitive) && sensitive))
-            {
-                continue;
-            }
-            if (site.MinimumFinishingSkill.IsKnown)
-            {
-                continue;
-            }
-            if (!site.NativeFinishingSkill.TryGetValue(out var native) || best < native)
+            if (site.Id.Length == 0 || !site.QualitySensitive || site.Minimum is not null || best < site.NativeFinishingSkill)
             {
                 continue;
             }
@@ -103,7 +95,7 @@ public static class ConstructionSkillRules
                 Claims = EquatableArray.From([claim]),
                 Reason = "frame_materials_complete",
             };
-            if (site.Stage != "frame" || !(site.ResourcesComplete.TryGetValue(out var complete) && complete))
+            if (site.Stage != "frame" || !site.ResourcesComplete)
             {
                 row = row with { State = ReadyState.Awaiting, Parallelism = 0, Reason = "construction_materials_pending" };
             }

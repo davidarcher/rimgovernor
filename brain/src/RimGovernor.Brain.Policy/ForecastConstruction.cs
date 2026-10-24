@@ -55,7 +55,7 @@ public static class ForecastConstruction
         var complete = context.Census.TryGetValue(out var census) && census.Colony;
         census ??= new CurrentConstruction();
         var sites = census.Sites.Where(s => s.Building is not null).ToDictionary(s => s.Building!);
-        foreach (var commitment in rows.OrderBy(c => sites.TryGetValue(c.Construction!, out var s) && s.Tier.TryGetValue(out var tier) ? (int)tier : -1)
+        foreach (var commitment in rows.OrderBy(c => sites.TryGetValue(c.Construction!, out var s) && s.Gate is ConstructionGate.Tiered { Tier: var tier } ? (int)tier : -1)
             .ThenBy(c => c.Id, StringComparer.Ordinal))
         {
             var site = sites.GetValueOrDefault(commitment.Construction!);
@@ -64,8 +64,7 @@ public static class ForecastConstruction
             if (!complete) { Result("unknown_construction_census"); continue; }
             if (census.Built(commitment.Construction!) is not null) { Result("already_built", day: Known(0.0)); continue; }
             if (site is null) { Result("construction_gone"); continue; }
-            if (!site.WorkLeft.TryGetValue(out var work) || !site.MaterialsOwed.TryGetValue(out var owed)
-                || !site.ResourcesComplete.TryGetValue(out var supplied)) { Result("unknown_construction_work_or_materials"); continue; }
+            var (work, owed, supplied) = (site.WorkLeft, site.MaterialsOwed, site.ResourcesComplete);
             if (!double.IsFinite(work) || work < 0 || owed.Any(a => !AdmissionRules.ValidResource(a.Resource) || a.Count < 0)
                 || owed.Select(a => a.Resource).Distinct().Count() != owed.Count || supplied != owed.All(a => a.Count == 0))
                 throw new DomainException("invalid construction work or material facts");
@@ -75,12 +74,11 @@ public static class ForecastConstruction
                 if (!materialKnown || needs.Any(n => !stock.GetValueOrDefault(n.Resource, Known(0.0)).IsKnown))
                 { Result("unknown_available_materials"); continue; }
                 // Conservatively preserve the native tier rule. Per-pawn reachability exceptions await a native estimate.
-                if (site.Tier.TryGetValue(out var tier))
+                if (site.Gate is ConstructionGate.Tiered { Tier: var tier })
                 {
                     var lowerSites = census.Sites.Where(other => other.Id != site.Id
-                        && other.Tier.TryGetValue(out var lower) && lower < tier).ToArray();
-                    if (lowerSites.Any(other => !other.MaterialsOwed.IsKnown)) { Result("unknown_lower_tier_material_need"); continue; }
-                    if (lowerSites.Any(other => other.MaterialsOwed.Value.Any(n => n.Count > 0 && needs.Any(a => a.Resource == n.Resource))))
+                        && other.Gate is ConstructionGate.Tiered { Tier: var lower } && lower < tier).ToArray();
+                    if (lowerSites.Any(other => other.MaterialsOwed.Any(n => n.Count > 0 && needs.Any(a => a.Resource == n.Resource))))
                     { Result("lower_tier_material_need"); continue; }
                 }
                 if (needs.Any(n => stock.GetValueOrDefault(n.Resource, Known(0.0)).Value < n.Count)) { Result("insufficient_uncommitted_materials"); continue; }
@@ -106,10 +104,10 @@ public static class ForecastConstruction
                         { Equipment = estimate.DeliveryEquipment });
                 }
                 if (!estimate.FinishAllowed.TryGetValue(out var finish) || !pawn.ConstructionAble.TryGetValue(out var able)
-                    || !pawn.Skills.TryGetValue(out var skills) || !site.NativeFinishingSkill.TryGetValue(out var native)
-                    || !site.QualitySensitive.TryGetValue(out var quality) || (quality && !site.MinimumFinishingSkill.IsKnown))
+                    || !pawn.Skills.TryGetValue(out var skills)
+                    || (site.QualitySensitive && site.Minimum is null))
                 { eligibilityUnknown = true; continue; }
-                var minimum = Math.Max(native, site.MinimumFinishingSkill.TryGetValue(out var floor) ? floor : 0);
+                var minimum = Math.Max(site.NativeFinishingSkill, site.Minimum?.Skill ?? 0);
                 if (!finish || !able || !skills.Any(s => s.Name == "Construction" && !s.Disabled && s.Level >= minimum)) continue;
                 var duration = Unknown<double>();
                 if (worker.WorkPerTick.TryGetValue(out var rate))

@@ -64,6 +64,9 @@
     <!-- The population read's ideology mode and owned names (#3785). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.OwnedName" Alias="OwnedName" />
+    <!-- A construction site's finishing minimum and tier gate (#3874). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FinishingMinimum" Alias="FinishingMinimum" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ConstructionGate" Alias="ConstructionGate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.WorldSite" Alias="WorldSite" />
   </ItemGroup>
 </Project>

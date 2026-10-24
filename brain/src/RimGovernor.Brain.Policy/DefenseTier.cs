@@ -39,8 +39,7 @@ public sealed partial record DefenseTier
         }
         return sites
             .Where(s => s.Id.Length != 0
-                && s.Tier.TryGetValue(out var tier)
-                && tier != ConstructionTier.Survive
+                && s.Gate is ConstructionGate.Tiered { Tier: not ConstructionTier.Survive }
                 && wanted.Contains((s.Building!.Definition, s.Building.Cell)))
             .OrderBy(s => s.Id, StringComparer.Ordinal)
             .ToList();

@@ -517,9 +517,9 @@ public sealed record ColonyModelInput
         {
             foreach (var site in sites)
             {
-                if (!site.WorkLeft.TryGetValue(out var work) || !Number(work) || work < 0 || !site.MaterialsOwed.IsKnown)
+                if (!Number(site.WorkLeft) || site.WorkLeft < 0 || site.MaterialsOwed.Any(a => a.Count < 0))
                 {
-                    gaps.Add($"sites: '{site.Id}' lacks its remaining work or owed materials");
+                    gaps.Add($"sites: '{site.Id}' reads an invalid remaining work or owed materials");
                 }
             }
         }
