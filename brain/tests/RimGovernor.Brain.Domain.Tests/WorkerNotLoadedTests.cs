@@ -38,6 +38,7 @@ public sealed class WorkerNotLoadedTests
         }
 
         public Task ObserveTargetAsync(GenerationSnapshot requested, CancellationToken ct) => Task.CompletedTask;
+        public Task<Executor.BatchItem> ReassertMovementAsync(PlanId plan, ActionId action, Tick observed, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private static async Task<(Worker Worker, Session Session, CancellationTokenSource Lifetime, string Path)> Start(Exception failure)

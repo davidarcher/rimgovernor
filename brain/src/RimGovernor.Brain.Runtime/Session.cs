@@ -201,6 +201,13 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         return await _executor.RunBatchAsync(plan, actions, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Reissues a lost movement order as a new journaled attempt under current authority.</summary>
+    public async Task<Executor.BatchItem> ReassertMovementAsync(PlanId plan, ActionId action, Tick observed, CancellationToken ct)
+    {
+        using var intent = OperationIntentScope.Begin(await PlanIntentAsync(_journal, plan, ct).ConfigureAwait(false));
+        return await _executor.ReassertMovementAsync(plan, action, observed, ct).ConfigureAwait(false);
+    }
+
     public Task CloseAsync(CancellationToken ct) => _control.CloseAsync(ct);
 
     /// <summary>Whether the session carries the owned clock boundary (a <see cref="ClockCapabilities"/> was configured).</summary>

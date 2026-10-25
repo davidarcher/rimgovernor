@@ -111,6 +111,7 @@ public sealed class FoodActivityContinuationTests
         public ControlState State() => new(Root, true, true);
         public Task CloseAsync(CancellationToken ct) => Task.CompletedTask;
         public Task ObserveTargetAsync(GenerationSnapshot requested, CancellationToken ct) => Task.CompletedTask;
+        public Task<RimGovernor.Brain.Executor.BatchItem> ReassertMovementAsync(PlanId plan, ActionId action, Tick observed, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<RimGovernor.Brain.Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct)
         {
             var action = journal.LoadPlan(plan, ct).Spec.Actions.Single(a => a.Id == actions[0]);

@@ -17,12 +17,6 @@ public interface IBoundaryNative
     Task<MapBounds> ReadMapBoundsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, Cell anchor, CancellationToken ct);
 }
 
-/// <summary>Sends intents through Actions/Apply.</summary>
-public interface IActionsWriter
-{
-    Task<RimGovernor.Brain.GameFacts.Operations.ApplyReply> ApplyAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, IReadOnlyList<RimGovernor.Brain.GameOrders.Operations.Action> actions, CancellationToken ct);
-}
-
 /// <summary>The building boundary of the executor.</summary>
 public sealed class BuildingBoundary : IBoundary
 {
@@ -102,7 +96,7 @@ public static class Boundary
         });
 
     public static RimGovernor.Brain.GameFacts.Common.Identity Identity(GenerationSnapshot s) =>
-        new() { ColonyId = s.Colony.Value, LoadToken = s.Load.Value, MapId = s.Map.Value };
+        ActionObservations.Identity(s);
 
     public static bool World(GenerationSnapshot a, GenerationSnapshot b) => a.Colony == b.Colony && a.Load == b.Load && a.Map == b.Map;
 
@@ -111,24 +105,7 @@ public static class Boundary
     /// Throws <see cref="AuthorityException"/> when the native generation or the world differs.
     /// </summary>
     public static GenerationSnapshot Context(RimGovernor.Brain.GameFacts.Common.ObservationContext? v, GenerationSnapshot expected)
-    {
-        if (v is null || v.Identity is null || !v.NativeGeneration.IsAt(expected.Native.Value))
-        {
-            throw new AuthorityException();
-        }
-        var output = expected with
-        {
-            Colony = new ColonyId((v.Identity.ColonyId ?? "")),
-            Load = new LoadId((v.Identity.LoadToken ?? "")),
-            Map = new MapId(v.Identity.MapId),
-            Native = expected.Native,
-        };
-        if (!World(output, expected))
-        {
-            throw new AuthorityException();
-        }
-        return output;
-    }
+        => ActionObservations.Context(v, expected);
 
     /// <summary>Checks that a receipt answers exactly the placement's attempt and was admitted in its world.</summary>
     public static void Admission(RimGovernor.Brain.GameFacts.Receipts.Receipt? receipt, Placement placement, string session)

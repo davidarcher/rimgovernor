@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.Runtime;
 
-/// <summary>
-/// Current scope and local permission, never lease secrets. Unknown observation scope has a default snapshot; it
-/// cannot authorize inspection.
-/// </summary>
-public readonly record struct ControlState(GenerationSnapshot Snapshot, bool ObservationKnown, bool Enabled);
-
 public sealed partial class Control
 {
     /// <summary>

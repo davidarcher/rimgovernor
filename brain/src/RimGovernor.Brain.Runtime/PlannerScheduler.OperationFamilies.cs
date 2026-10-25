@@ -18,29 +18,3 @@ partial class PlannerScheduler
             : (true, []);
     }
 }
-
-/// <summary>
-/// Marks the
-/// Actions and Apply calls issued under it defer_snapshot, so native records the write without capturing a frame
-/// until the flush. The mark follows the async flow.
-/// </summary>
-internal static class DeferredSnapshotScope
-{
-    private static readonly AsyncLocal<bool> s_deferred = new();
-
-    /// <summary>Whether the flow carries the mark.</summary>
-    internal static bool Current => s_deferred.Value;
-
-    /// <summary>Marks the flow until the returned scope is disposed.</summary>
-    internal static IDisposable Begin()
-    {
-        var previous = s_deferred.Value;
-        s_deferred.Value = true;
-        return new Restore(previous);
-    }
-
-    private sealed class Restore(bool previous) : IDisposable
-    {
-        public void Dispose() => s_deferred.Value = previous;
-    }
-}

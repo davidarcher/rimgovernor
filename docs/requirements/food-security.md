@@ -278,7 +278,7 @@ and completion require further evidence.
 
 **F3 — Execute and observe.** The shared assignment/dispatch path was sampled in
 [Coupled](../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.Coupled.cs),
-[Worker](../../brain/src/RimGovernor.Brain.Runtime/Worker.cs) and
+[Hands advancement](../../brain/src/RimGovernor.Brain.Executor/ActionAdvancement.cs) and
 [NativePawnActivities](../../integrations/rimgovernor-native/src/Bridge/NativePawnActivities.cs).
 The Eat branch checks availability and starts `JobDefOf.Ingest` with the selected
 count. [ConsumptionHooks](../../integrations/rimgovernor-native/src/Bridge/ConsumptionHooks.cs)

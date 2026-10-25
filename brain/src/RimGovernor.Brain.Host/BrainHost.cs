@@ -197,7 +197,6 @@ public sealed class BrainHost : IAsyncDisposable
             {
                 BreakSource = planners.BreakSource,
                 Pawns = planners.Pawns,
-                Moves = planners.Moves,
                 ReviewMethods = options.ReviewMethods,
                 StepInterval = timings.WorkerStepInterval,
                 MaxBackoff = timings.WorkerMaxBackoff,

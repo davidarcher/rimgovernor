@@ -1,5 +1,10 @@
 using RimGovernor.Brain.Policy;
-namespace RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Store;
+using RimGovernor.Brain.GameAccess;
+using StoreJournal = RimGovernor.Brain.Store.Store;
+using JournalStore = RimGovernor.Brain.Store.Store;
+namespace RimGovernor.Brain.Executor;
 
 /// <summary>Releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
 internal static class BreakDispatch
@@ -74,7 +79,7 @@ internal static class BreakDispatch
     }
 }
 
-public sealed partial class Worker
+public sealed partial class ActionAdvancement
 {
     /// <summary>
     /// Reads one fresh census for the worker step. Cleanup and uncertain outcomes are never fenced: only new
@@ -87,11 +92,11 @@ public sealed partial class Worker
         {
             return held;
         }
-        var census = await _config.BreakSource.ReadEmergencyAsync(Boundary.Identity(current), ct).ConfigureAwait(false);
-        _ = Boundary.Context(census.Context, current);
+        var census = await _config.BreakSource(ActionObservations.Identity(current), ct).ConfigureAwait(false);
+        _ = ActionObservations.Context(census.Context, current);
         if (!census.Facts.AllSeen)
         {
-            throw new ControlException("breakDispatchHolds: !known || !complete");
+            throw new DomainException("breakDispatchHolds: !known || !complete");
         }
         var ids = new List<string>();
         var broken = new HashSet<PawnId>();
@@ -116,13 +121,13 @@ public sealed partial class Worker
         var positions = new Dictionary<string, Cell>(StringComparer.Ordinal);
         if (aggressive.Count > 0)
         {
-            var reply = await _config.BreakSource.ReadPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
+            var reply = await _config.BreakPawns!.ReadPawnsAsync(ActionObservations.Identity(current), ids, ct).ConfigureAwait(false);
             var observed = reply;
             if (observed.Pawns.Count != ids.Count)
             {
-                throw new ControlException("breakDispatchHolds: len(observed.Pawns) != len(ids)");
+                throw new DomainException("breakDispatchHolds: len(observed.Pawns) != len(ids)");
             }
-            _ = Boundary.Context(observed.Context, current);
+            _ = ActionObservations.Context(observed.Context, current);
             foreach (var row in observed.Pawns)
             {
                 if (BreakDispatch.TryBreakCell(row, out var standing))
@@ -133,7 +138,7 @@ public sealed partial class Worker
         }
         foreach (var plan in plans)
         {
-            var sites = await _player.Journal.DispatchSitesAsync(plan.Spec.Id, ct).ConfigureAwait(false);
+            var sites = await _config.Journal.DispatchSitesAsync(plan.Spec.Id, ct).ConfigureAwait(false);
             var drafts = new HashSet<ActionId>();
             foreach (var action in plan.Spec.Actions)
             {

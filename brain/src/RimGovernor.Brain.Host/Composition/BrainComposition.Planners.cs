@@ -361,7 +361,6 @@ public sealed partial class BrainComposition
             Scheduler = scheduler,
             BreakSource = client,
             Pawns = client,
-            Moves = writer,
             Flush = client.FlushSnapshotAsync,
             OpenFrames = client.OpenFramesAsync,
             Clock = clock,

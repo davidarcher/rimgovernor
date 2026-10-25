@@ -25,7 +25,7 @@ internal static class DraftNeeds
                 if (progress.Action.OwnedDraft is { } draft)
                 {
                     if (v.Unresolved || v.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation
-                        || Worker.WorkerPlanHoldsDraft(plan, v))
+                        || DraftOwnershipRules.PlanHoldsDraft(plan.Progress, v))
                     {
                         needed.Add((PawnId)draft.Pawn);
                     }

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace RimGovernor.Brain.Runtime;
+namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
 /// Laps one step into named stages: the wall time and the process allocation between consecutive

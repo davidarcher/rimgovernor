@@ -14,7 +14,7 @@ public sealed partial class Worker
         _finishedTasks.RemoveWhere(k => !live.Contains(k[..k.IndexOf('/', StringComparison.Ordinal)]));
         if (methods.Count == 0 || _config.Pawns is null) return;
         var ids = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Pawn)).Distinct(StringComparer.Ordinal).ToArray();
-        var (rows, tick) = await ArrivalRowsAsync(current, ids, ct).ConfigureAwait(false);
+        var (rows, tick) = await ActionObservations.ReadPawnsAsync(_config.Pawns, current, ids, ct).ConfigureAwait(false);
         var ownership = rows.Select(pair => pair.Value.ActivityExecution is { } e
             ? new ActivityOwnership(pair.Key, e.Assignment, e.Method, e.Revision, e.State)
             : new ActivityOwnership(pair.Key, "", "", 0, "unowned")).ToArray();

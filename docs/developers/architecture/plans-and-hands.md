@@ -9,6 +9,35 @@ executes accepted work. Advisers cannot commit game orders. Safeguards veto
 proposals at admission, and a Method is admitted by
 [claim overlap](control-loop.md#method-journal-claim-admission).
 
+Runtime's `Worker` owns the controller lifetime, the player gate, world checks and
+the cadence of Method continuation. It gives Hands a bounded opportunity to advance
+accepted work. `ActionAdvancement` in Executor owns action eligibility, arrival and
+mental-break holds, fair plan rotation, batching, retry waits, focused retries and
+outstanding-attempt reconciliation. Those waits and the rotation cursor are memory
+only; the existing journal remains the authority for every attempt and receipt.
+Policy-driven Method continuation stays in Runtime, including completed-task review
+and forecast evidence; it can admit a successor without issuing an order itself.
+
+Ordinary root plans and admitted routine Methods use this advancement path. Tactical
+combat batches already enter the same guarded Executor through `Session.RunBatchAsync`;
+they keep their explicit batch order and uncertain receipts. Paused work can attach
+an observation target and reconcile outstanding attempts without dispatch authority.
+The final Executor authority check still runs after earlier eligibility and native
+inspection. Runtime's stop/resume and shutdown fences remain around the whole call.
+
+Arrival is checked before selecting dependent actions even when the move itself
+will first dispatch in that opportunity. Accepting a move is not proof of arrival.
+An idle drafted mover's completed move can be prepared again only in the same
+world under current or newer authority. Hands records a new attempt and its receipt
+through the ordinary guarded movement flow; a lost receipt stays explicit and
+cannot trigger another resend under the same authority. An interrupted preparation
+remains eligible, while dependent work continues to wait for physical arrival.
+
+The Host's orphan trade cancellation during a world rebuild is lifecycle cleanup of
+a native dialog whose old journal owner is being discarded. It is not advancement
+of an admitted Method and remains in that rebuild callback. It neither buys nor
+sells and does not create a second action execution queue.
+
 ```mermaid
 flowchart LR
     Request[Semantic request] --> Admit[Validate and commit]

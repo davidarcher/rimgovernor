@@ -15,7 +15,7 @@ internal static class Metrics
 
     // The kinds the Worker may dispatch.
     private static readonly Vocabulary ActionKindVocabulary = Vocabulary.Where(kind =>
-        Wire.TryParse<ActionKind>(kind, out var parsed) && Worker.ExecutableKind(parsed));
+        Wire.TryParse<ActionKind>(kind, out var parsed) && ActionAdvancement.ExecutableKind(parsed));
 
     public static double MillisOf(TimeSpan d) => d.TotalMilliseconds;
 

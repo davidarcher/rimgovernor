@@ -5,6 +5,7 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Host;
 
@@ -105,9 +106,6 @@ public sealed class PlannerParts
     public GameClient? BreakSource { get; init; }
 
     public IArrivalPawns? Pawns { get; init; }
-
-    /// <summary>The Worker's movement writer, which resends an idle drafted mover's order.</summary>
-    public IActionsWriter? Moves { get; init; }
 
     /// <summary>Asks native to capture the frame a step's deferred writes need.</summary>
     public Func<CancellationToken, Task>? Flush { get; init; }

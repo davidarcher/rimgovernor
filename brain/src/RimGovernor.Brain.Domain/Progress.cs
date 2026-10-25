@@ -383,10 +383,15 @@ public sealed partial record Progress
     /// durably before any native write, so a Prepared action never has a write outstanding: when its authority
     /// moves (a native generation advance after a cancelled dispatch) it is prepared again under the current
     /// snapshot rather than left behind with one it can never dispatch against.
+    /// A completed movement may be prepared again in the same world under current or newer authority when
+    /// its drafted pawn lost the order before dependent work. The next dispatch mints a new attempt; earlier
+    /// attempts and receipts remain in the journal. No other completed action can be reopened this way.
     /// </summary>
     public Progress Prepare(GenerationSnapshot snapshot, Tick tick)
     {
-        DomainException.Require((View.Stage is Stage.Pending or Stage.Prepared) && !View.Unresolved, "action is not ready");
+        var reassertMovement = Action.Kind == ActionKind.Movement && View.Stage == Stage.Completed
+            && View.Snapshot.SameWorld(snapshot) && snapshot.Native >= View.Snapshot.Native;
+        DomainException.Require((View.Stage is Stage.Pending or Stage.Prepared || reassertMovement) && !View.Unresolved, "action is not ready");
         snapshot.Validate();
         DomainException.Require(
             snapshot.Plan == View.Plan && snapshot.Revision == View.Revision && tick >= View.Tick,
