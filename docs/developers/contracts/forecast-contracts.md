@@ -766,7 +766,14 @@ costs each pawn.
   `PopulationIntent`), `TrySelectRandomIncident` for `RandomMain` and `CategoryMTB` (a `RandomMain` also by its category weights and
   the forced `ThreatBig`). Each incident carries its rate per comp (`IllnessIncident.Rates`; its share of the incidents over a
   horizon is `IllnessSchedule.Share`) and `VictimChance` (the drawn count uniform on `RoundToInt` of candidates × the fraction range,
-  clamped to [1, `diseaseMaxVictims`], over the potential victims). The draw is gated at today's facts (not at the comp's start day). Unassessed with `disease_facts_unobserved`, `disease_storyteller_unknown:<def>`,
+  clamped to [1, `diseaseMaxVictims`], over the potential victims). Each comp gates `earliestDay` at the whole day of
+  max(today, its `minDaysPassed`), and evaluates its days-passed MTB and cycle acceptance curves at that fractional start day.
+  Each comp reweights its own eligible incidents; rates remain additive from their respective starts, without assuming a new
+  draw when an incident's earliest day arrives after that comp's start. A future start names `disease_future_state_unprojected`:
+  population and intent, potential victims and victim candidates, native incident weights (including recent incidents),
+  difficulty/debug/scenario/planet-layer gates, biome, progress, threat points and tree connection retain the observed frame.
+  Their future changes are not projected; the schedule is conditional on them. The harm term carries this finding.
+  Unassessed with `disease_facts_unobserved`, `disease_storyteller_unknown:<def>`,
   `disease_biome_unknown:<def>`, `disease_rate_invalid`, `disease_incident_unknown:<def>`,
   `disease_victims_unobserved:<def>`, `disease_course_unmodelled:<hediff>:<what>` or `disease_course_unknown:<def>`. A storyteller
   comp the decoder does not model (a mod's comp class)

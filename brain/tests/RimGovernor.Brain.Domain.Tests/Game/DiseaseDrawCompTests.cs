@@ -93,6 +93,110 @@ public sealed class DiseaseDrawCompTests
         Assert.Empty(Schedule(Biome(), Reads(flu: 1), facts => facts with { Disease = facts.Disease with { Biome = "AridShrubland" } }).Incidents);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void EachCompGatesAtItsOwnStartAndRetainsItsOwnRate(int kind)
+    {
+        StorytellerCompProperties Comp(float start)
+        {
+            StorytellerCompProperties comp = kind switch
+            {
+                0 => new StorytellerCompProperties_Disease { category = DiseaseTableTests.DiseaseHuman },
+                1 => Mtb(30),
+                2 => Single("Disease_Flu", 50),
+                3 => Biome(),
+                4 => Cycle(start, 5, 5, 1, 1),
+                _ => RandomMain(4),
+            };
+            comp.minDaysPassed = start;
+            return comp;
+        }
+
+        static void Gate(IncidentDef def)
+        {
+            if (def.defName == "Disease_Flu") def.earliestDay = 30;
+        }
+
+        // The first comp starts on whole day 29; the second starts on day 30. Today is day 20.
+        var schedule = Schedule([Comp(29.5f), Comp(30)], Reads(flu: 3, worms: 1), configure: Gate);
+        var atStart = Schedule([Comp(30)], Reads(flu: 3, worms: 1),
+            facts => facts with { Disease = facts.Disease with { DaysSinceSettle = 30 } }, Gate);
+        var flu = schedule.Incidents.Single(i => i.Incident == "Disease_Flu");
+
+        Assert.True(schedule.Assessed);
+        Assert.Equal(["disease_future_state_unprojected"], schedule.Findings);
+        Assert.Empty(atStart.Findings);
+        var rate = Assert.Single(flu.Rates);
+        Assert.Equal(10, rate.StartDay);
+        Assert.Equal(atStart.Incidents.Single(i => i.Incident == "Disease_Flu").PerDay(30), rate.PerDay, 12);
+        Assert.Equal(0, flu.PerDay(10));
+        Assert.Equal(rate.PerDay * 20 / 30, flu.PerDay(30), 12);
+        if (kind == 1)
+        {
+            // Reweight separately: the early comp has only worms; the late comp draws flu 3: worms 1.
+            var worms = schedule.Incidents.Single(i => i.Incident == "Disease_GutWorms");
+            Assert.Equal([(9.5, 1 / 30.0), (10.0, 1 / 120.0)], worms.Rates);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DayCurvesUseTheFutureStartOrTodayForAnAlreadyStartedComp(bool cycle)
+    {
+        StorytellerCompProperties Comp(float start)
+        {
+            var curve = new SimpleCurve([new Verse.CurvePoint(20, 1), new Verse.CurvePoint(40, 3)]);
+            if (cycle)
+            {
+                var comp = Cycle(start, 5, 5, 1, 1);
+                comp.acceptFractionByDaysPassedCurve = curve;
+                return comp;
+            }
+
+            var mtb = Mtb(30);
+            mtb.minDaysPassed = start;
+            mtb.mtbDaysFactorByDaysPassedCurve = curve;
+            return mtb;
+        }
+
+        var schedule = Schedule([Comp(0), Comp(30)], Reads(flu: 1));
+        var rates = schedule.Incidents.Single().Rates;
+        Assert.Equal(2, rates.Count);
+        Assert.Equal(cycle ? 0.1 : 1 / 30.0, rates[0].PerDay, 12);
+        Assert.Equal(cycle ? 0.2 : 1 / 60.0, rates[1].PerDay, 12);
+        Assert.Equal(schedule.Incidents.Single().PerDay(30), rates[0].PerDay + rates[1].PerDay * 20 / 30, 12);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FutureStartsKeepTheNamedObservedPopulationVictimAndNativeGates(int gate)
+    {
+        var comp = Mtb(30);
+        comp.minDaysPassed = 30;
+        var reads = Reads(flu: 3, worms: 1);
+        if (gate == 0) reads[0] = reads[0] with { Blocked = ["scenario"] };
+        if (gate == 1) reads[0] = reads[0] with { Potential = 0 };
+        var schedule = Schedule([comp], reads, configure: def =>
+        {
+            if (def.defName == "Disease_Flu")
+            {
+                def.earliestDay = 30;
+                if (gate == 2) def.minPopulation = 4;
+            }
+        });
+
+        Assert.Equal(["Disease_GutWorms"], schedule.Incidents.Select(i => i.Incident));
+        Assert.Equal(["disease_future_state_unprojected"], schedule.Findings);
+        Assert.Equal(1 / 30.0 * 20 / 30, schedule.IncidentsPerDay(30), 12);
+    }
     private static DiseaseIncidentRead[] Reads(double flu = 0, double worms = 0) =>
     [
         new DiseaseIncidentRead("Disease_Flu", 3) { Weight = flu },
@@ -100,11 +204,15 @@ public sealed class DiseaseDrawCompTests
         new DiseaseIncidentRead("Disease_OrganDecay", 3),
     ];
 
-    // The review's illness inputs for a storyteller of just this draw comp, on a day-20 colony.
+    // The review's illness inputs for these storyteller comps, on a day-20 colony.
     private static IllnessSchedule Schedule(StorytellerCompProperties comp, DiseaseIncidentRead[] reads, Func<ThreatFacts, ThreatFacts>? with = null)
+        => Schedule([comp], reads, with);
+
+    private static IllnessSchedule Schedule(StorytellerCompProperties[] comps, DiseaseIncidentRead[] reads,
+        Func<ThreatFacts, ThreatFacts>? with = null, Action<IncidentDef>? configure = null)
     {
         var facts = ColonyFactsCoreTests.QuietThreat with { Disease = IllnessForecastTests.Facts(20, reads) with { Storyteller = "Modded" } };
-        var catalog = Catalog(Teller(comp));
+        var catalog = Catalog(Teller(comps), configure);
         return HarmInputs.Of(new ReviewFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = with?.Invoke(facts) ?? facts } } }).Illness;
     }
 
@@ -112,9 +220,10 @@ public sealed class DiseaseDrawCompTests
 
     private static StorytellerDef Teller(params StorytellerCompProperties[] comps) => new() { defName = "Modded", comps = [.. comps] };
 
-    private static DefinitionCatalog Catalog(StorytellerDef teller)
+    private static DefinitionCatalog Catalog(StorytellerDef teller, Action<IncidentDef>? configure = null)
     {
         var defs = DiseaseTableTests.CoreDefs();
+        foreach (var incident in defs.OfType<IncidentDef>()) configure?.Invoke(incident);
         defs.OfType<IncidentDef>().Single(d => d.defName == "Disease_Flu").mtbDaysByBiome = [new MTBByBiome { biome = defs.OfType<BiomeDef>().Single(b => b.defName == "TemperateForest"), mtbDays = 40 }];
         return DiseaseTableTests.Catalog([.. defs, teller]);
     }

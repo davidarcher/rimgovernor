@@ -233,10 +233,11 @@ public sealed record IllnessIncident(string Incident, IReadOnlyList<(double Star
 /// <summary>
 /// The colony's disease incidents: each DiseaseHuman comp's rate for each usable incident (StorytellerComp_Disease at 1 ÷ (biome MTB
 /// × the difficulty's interval factor) a day, drawing by the biome's commonality; the other comps by their own draw, #3860) from
-/// the day it starts (its minDaysPassed less the days since settling). Unassessed (with
+/// the day it starts (its minDaysPassed less the days since settling), with elapsed-day gates evaluated at that start. Unassessed (with
 /// <see cref="Findings"/> naming why) when a fact it rests on is unread (<see cref="Unread"/>) or the table does not model the
 /// colony's storyteller, biome, incident or course. An assessed schedule's Findings name the storyteller comps it does not model
-/// (<c>disease_comp_unmodelled:&lt;comps&gt;</c>), which send no incidents.
+/// (<c>disease_comp_unmodelled:&lt;comps&gt;</c>), which send no incidents. Future comp starts retain the observed non-time inputs,
+/// named <c>disease_future_state_unprojected</c>.
 /// </summary>
 public sealed record IllnessSchedule
 {
@@ -302,9 +303,9 @@ public sealed record IllnessSchedule
             rows[read.Incident] = read;
         }
 
-        // IncidentWorker.CanFireNow and CanFireNowSub: the home map, earliestDay, the biome lists, minPopulation, the game-state
+        // IncidentWorker.CanFireNow and CanFireNowSub: the home map, the biome lists, minPopulation, the game-state
         // gates the native read reports, and a potential victim; TryRandomElementByWeight never picks a weight of 0.
-        var settled = Math.Floor(facts.DaysSinceSettle);
+
         var open = new List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)>();
         foreach (var rules in table.Incidents.Values.OrderBy(r => r.Incident, StringComparer.Ordinal))
         {
@@ -313,7 +314,7 @@ public sealed record IllnessSchedule
                 return Unassessed("disease_victims_unobserved:" + rules.Incident) with { Unread = true };
             }
 
-            if (!rules.OnHomeMap || settled < rules.EarliestDay || rules.AllowedBiomes.Count > 0 && !rules.AllowedBiomes.Contains(facts.Biome)
+            if (!rules.OnHomeMap || rules.AllowedBiomes.Count > 0 && !rules.AllowedBiomes.Contains(facts.Biome)
                 || rules.DisallowedBiomes.Contains(facts.Biome) || rules.MinPopulation > 0 && facts.FreeColonists < rules.MinPopulation
                 || read.Blocked.Count > 0 || read.Potential <= 0)
             {
@@ -323,6 +324,13 @@ public sealed record IllnessSchedule
             open.Add((rules, read));
         }
 
+        // Only elapsed time can be projected from this frame. The other gates, victims and rate inputs below are conditional
+        // on the observed colony; name that bound when a comp starts in the future rather than inventing its future state.
+        var futureStart = teller.MinDaysPassed.Any(d => d > facts.DaysSinceSettle)
+            || teller.Draws.Any(c => c.MinDaysPassed > facts.DaysSinceSettle)
+            || teller.BiomeComps.Any(c => c.MinDaysPassed > facts.DaysSinceSettle);
+        List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)> OpenAt(double start) =>
+            [.. open.Where(o => o.Rules.EarliestDay <= Math.Floor(start))];
         var rates = new Dictionary<string, List<(double StartDay, double PerDay)>>(StringComparer.Ordinal);
         void Send(string incident, double minDaysPassed, double perDay)
         {
@@ -342,10 +350,11 @@ public sealed record IllnessSchedule
         // StorytellerComp_Disease: an event at 1 / mtb a day, the incident drawn by the biome's commonality.
         if (diseaseOn)
         {
-            var weighted = open.Select(o => (o.Rules.Incident, Weight: biome.Commonality.GetValueOrDefault(o.Rules.Incident))).Where(o => o.Weight > 0).ToList();
-            var all = weighted.Sum(o => o.Weight);
             foreach (var min in teller.MinDaysPassed)
             {
+                var weighted = OpenAt(Math.Max(facts.DaysSinceSettle, min))
+                    .Select(o => (o.Rules.Incident, Weight: biome.Commonality.GetValueOrDefault(o.Rules.Incident))).Where(o => o.Weight > 0).ToList();
+                var all = weighted.Sum(o => o.Weight);
                 foreach (var (incident, weight) in weighted)
                 {
                     Send(incident, min, 1 / mtb * weight / all);
@@ -353,10 +362,11 @@ public sealed record IllnessSchedule
             }
         }
 
-        var now = new CycleNow(facts.DaysSinceSettle, threat!.RaidPoints, threat.ProgressScore, threat.NoTreeConnection);
         foreach (var comp in teller.Draws)
         {
-            DrawComp(comp, table, open, facts, now, threat.Trade.PopulationIntent, Send);
+            var start = Math.Max(facts.DaysSinceSettle, comp.MinDaysPassed);
+            var now = new CycleNow(start, threat!.RaidPoints, threat.ProgressScore, threat.NoTreeConnection);
+            DrawComp(comp, table, OpenAt(start), now, threat.Trade.PopulationIntent, Send);
         }
 
         foreach (var comp in teller.BiomeComps)
@@ -365,6 +375,7 @@ public sealed record IllnessSchedule
             // when its worker can fire.
             if (comp.ByBiome.TryGetValue(facts.Biome, out var individual))
             {
+                var usableAtStart = OpenAt(Math.Max(facts.DaysSinceSettle, comp.MinDaysPassed));
                 foreach (var (incident, days) in individual)
                 {
                     if (!(days > 0))
@@ -372,7 +383,7 @@ public sealed record IllnessSchedule
                         return Unassessed("disease_comp_invalid:CategoryIndividualMTBByBiome");
                     }
 
-                    if (open.Any(o => o.Rules.Incident == incident))
+                    if (usableAtStart.Any(o => o.Rules.Incident == incident))
                     {
                         Send(incident, comp.MinDaysPassed, 1 / days);
                     }
@@ -402,12 +413,12 @@ public sealed record IllnessSchedule
                 VictimChance(facts.Candidates, read.Potential, rules.FractionMin, rules.FractionMax, rules.MaxVictims), rules.Course));
         }
 
-        return new IllnessSchedule { Assessed = true, Findings = unmodelled, Incidents = usable };
+        return new IllnessSchedule { Assessed = true, Findings = futureStart ? [.. unmodelled, "disease_future_state_unprojected"] : unmodelled, Incidents = usable };
     }
 
     // A comp other than StorytellerComp_Disease: its rate and the chance each of its events is each open incident (#3860).
     private static void DrawComp(DiseaseDrawComp comp, DiseaseTable table, List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)> open,
-        DiseaseFacts facts, CycleNow now, double populationIntent, Action<string, double, double> send)
+        CycleNow now, double populationIntent, Action<string, double, double> send)
     {
         // IncidentChanceFinal: the read weight (without the population-intent factor) times that factor.
         var usable = open.Select(o => (o.Rules.Incident, o.Rules.ChangesPopulation,
@@ -443,7 +454,7 @@ public sealed record IllnessSchedule
 
                 return;
             case DiseaseDrawRule.CategoryMtb:
-                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, facts.DaysSinceSettle);
+                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, now.Days);
                 foreach (var (incident, chance) in TradeArrivalRules.SelectRandomIncident([.. usable], populationIntent, table.PopulationChanceByIntent))
                 {
                     send(incident, comp.MinDaysPassed, chance / (comp.MtbDays * factor));

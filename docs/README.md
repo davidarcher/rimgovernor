@@ -120,3 +120,5 @@ Food/shelter investment and unified construction adoption: [essential-service co
 - [Food storage, refrigeration and freezer value](developers/contracts/food-storage.md): food censuses, reserve reads and cooling geometry.
 
 Workshop and laboratory productivity: [bench room credits](developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits).
+
+Disease incident timing and conditional future comp inputs: [illness forecast](developers/contracts/forecast-contracts.md#illness-term-3824).

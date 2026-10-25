@@ -465,7 +465,7 @@ public sealed class IllnessForecastTests
         var schedule = Schedule(table, Facts());
 
         Assert.True(schedule.Assessed);
-        Assert.Empty(schedule.Findings);
+        Assert.Equal(["disease_future_state_unprojected"], schedule.Findings);
         // Cassandra's comp starts on day 9, four days from now: over 30 days it runs 26.
         Assert.Equal(1 / 60.0 * 26 / 30, schedule.IncidentsPerDay(30), 12);
         Assert.Equal(1 / 120.0, Schedule(table, Facts(20) with { IntervalFactor = 2 }).IncidentsPerDay(30), 12);
