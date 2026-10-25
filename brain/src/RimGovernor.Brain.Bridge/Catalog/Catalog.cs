@@ -17,6 +17,8 @@ public sealed class CatalogException(string message) : DomainException(message);
 /// <summary>The three facts the game names or computes in code: the currency def, the wort def and the full rot rate.</summary>
 public sealed record CatalogDerived(string CurrencyDef, string WortDef, float FullRotRateC)
 {
+    /// <summary>Native samples of GenTemperature.RotRateAtTemperature at whole degrees.</summary>
+    public IReadOnlyDictionary<int, double> RotRates { get; init; } = new Dictionary<int, double>();
     /// <summary>Refuses an empty def name and a non-finite or non-positive rot rate.</summary>
     public void Validate()
     {

@@ -61,7 +61,11 @@ internal static class NativeConstructionActivity
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p), thing.Stuff, work,
                 constructible.TotalMaterialCost().Any(c => c.count > 0)));
         }
-        var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
+        var thermal = request.Thermal is { } asked ? NativeCoupledThermal.ReadPlanned(map, asked) : null;
+        var coolerSites = thermal?.Sources.Where(s => s.HeatPerTick < 0 && !s.Complete).Select(s =>
+            new RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite(s.Target, s.Definition, "", s.BuildRotation, [s.BuildCell]))
+            ?? Enumerable.Empty<RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite>();
+        var planned = request.Planned.Concat(coolerSites).DistinctBy(s => s.Id).Select(s => Prepare(map, s, findings)).ToArray();
         // The standing removal designations (#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior
         // ruin or a stale piece (or the player's own), the Uninstall it stood over a piece it packs and the Haul it stood over
         // a chunk it moves out, with the ordinary stacks it moves out under a haul-out record, no designation (#3625). Under
@@ -135,7 +139,8 @@ internal static class NativeConstructionActivity
         var paths = legs.SearchTicks - searched;
         Lap("rows", paths);
         GameThread.HopPart("paths", paths);
-        var thermal = request.Thermal is { } asked ? NativeCoupledThermal.ReadPlanned(map, asked) : null;
+        if (thermal is not null) thermal = thermal with { Sources = EquatableArray.From(thermal.Sources.Select(s => s.HeatPerTick < 0 && !s.Complete
+            ? s with { BuildEstimate = answers.Single(a => a.Site == s.Target) } : s)) };
         Lap("thermal");
         var predictions = NativeRoomPrediction.Predict(map, request.RoomPredictions);
         Lap("predictions");
@@ -177,7 +182,7 @@ internal static class NativeConstructionActivity
     // The leg-free half of a hypothetical site (Prepare): its resolved definition and cells, native blueprint legality
     // over every piece, the footprint things with their clearing kinds, what it owes and its work.
     private sealed record Prepared(string Id, BuildableDef Definition, IntVec3[] Cells, bool Illegal, bool Fogged,
-        (Thing Thing, Clear Kind)[] Things, HashSet<IntVec3> Footprint, (ThingDef Def, int Count)[] Owed, float Work, ThingDef? Stuff);
+        (Thing Thing, Clear Kind)[] Things, HashSet<IntVec3> Footprint, (ThingDef Def, int Count)[] Owed, float Work, ThingDef? Stuff, Thing? Existing = null);
 
     // A hypothetical site's leg-free half: native blueprint legality for every piece and its footprint. Anything native
     // cannot resolve leaves the site Unresolved (no rows, no clearing; Site null with the unresolved answer), never a default.
@@ -196,6 +201,13 @@ internal static class NativeConstructionActivity
         else if (!string.IsNullOrEmpty(request.Stuff)) { findings.Add("planned_site_stuff_unresolved"); return (unknown, null); }
         var cells = request.Positions.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
         if (cells.Any(c => !c.InBounds(map))) { findings.Add("planned_site_out_of_bounds"); return (unknown, null); }
+        if (cells.Length == 1 && cells[0].GetThingList(map).FirstOrDefault(t => t is IConstructible && t.Faction == Faction.OfPlayer
+                && t.def.entityDefToBuild == definition && t.Stuff == stuff) is { } existing && existing is IConstructible constructible)
+        {
+            var left = constructible.TotalMaterialCost().Select(c => (c.thingDef, Count: constructible.ThingCountNeeded(c.thingDef))).Where(c => c.Count > 0).ToArray();
+            var workLeft = existing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft) : definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff);
+            return (unknown, new Prepared(request.Id, definition, cells, false, false, [], existing.OccupiedRect().Cells.ToHashSet(), left, workLeft, stuff, existing));
+        }
         var costs = PlacementPreviewOperation.ReadCosts(definition, stuff);
         if (costs == null) { findings.Add("planned_site_costs_unreadable"); return (unknown, null); }
         var rotation = new Rot4((int)request.Rotation);
@@ -243,7 +255,7 @@ internal static class NativeConstructionActivity
         var cells = site.Cells;
         IntVec3 Nearest(IntVec3 origin) => cells.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
         var options = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
-        Rows(map, legs, roster, new Site(site.Id, site.Definition, cells[0], Nearest, null, site.Owed, site.Work, _ => true, _ => true, site.Stuff, site.Work / cells.Length, site.Owed.Length > 0), finishGiver, findings, options);
+        Rows(map, legs, roster, new Site(site.Id, site.Definition, cells[0], Nearest, site.Existing, site.Owed, site.Work, p => site.Existing is null || !site.Existing.IsForbidden(p), p => site.Existing is null || ConstructionSkillGuard.Allows(site.Existing, p), site.Stuff, site.Work / cells.Length, site.Owed.Length > 0), finishGiver, findings, options);
         return new(site.Id)
         {
             Options = EquatableArray.From(options),

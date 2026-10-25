@@ -15,7 +15,7 @@ public sealed class ForecastStockHandoffTests
     private static FoodStock Stock(string id, long count, long rot = 120000) => new FoodStock {
         Id = id, DefName = Meal.Value, Count = count, Nutrition = count * .5, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(),
         Rot = new FoodRot.Rots(rot), Eaters = [new("animal")],
-        IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), UnitMass = 0, TemperatureC = 0, Forbidden = false };
+        IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), UnitMass = 0, TemperatureC = 0, RotRate = 0, Forbidden = false };
     private static ColonyForecastRequest Request(params FoodStock[] stocks) => Request(new HashSet<string>(), stocks);
     private static ColonyForecastRequest Request(HashSet<string> reserved, params FoodStock[] stocks)
     {

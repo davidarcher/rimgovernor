@@ -141,8 +141,8 @@ public sealed class ObservedShelterTests
             { Thermal = facts.ForecastObserved.Coupled!.Thermal! with { Sources = [] } } } };
         generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var room = generated.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
-        Assert.IsType<ForecastShelterThermal.Unestimated>(room.Thermal);
-        Assert.Contains("unknown_heat_source", room.Findings);
+        Assert.IsType<ForecastShelterThermal.Estimated>(room.Thermal);
+        Assert.DoesNotContain("unknown_heat_source", room.Findings);
     }
 
     [Fact]

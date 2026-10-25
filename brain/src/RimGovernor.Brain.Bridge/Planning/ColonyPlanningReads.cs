@@ -187,6 +187,7 @@ public static partial class ColonyPlanningReads
         f = f with
         {
             FullRotRateC = RequireCatalog(catalog).Derived.FullRotRateC,
+            RotRates = RequireCatalog(catalog).Derived.RotRates,
         };
         AcquisitionReads.ApplyAcquisition(v, tables, catalog, ref f);
         f = ColonyProductionReads.ColonyProduction(v, f);

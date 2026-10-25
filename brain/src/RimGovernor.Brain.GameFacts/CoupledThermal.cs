@@ -34,7 +34,18 @@ public sealed record ThermalCell(Cell Cell, double Temperature, string Roof,
 /// Heater mechanics at current conditions: an electric heater's or a fueled heat pusher's (#3673: a campfire) heat a tick
 /// and the temperature it pushes toward, and where its energy comes from (<see cref="HeatSupply"/>).
 /// </summary>
-public sealed record ThermalSource(string Target, Cell Cell, bool Complete, double HeatPerTick, double TargetTemperature, HeatSupply Supply);
+public sealed record ThermalSource(string Target, Cell Cell, bool Complete, double HeatPerTick, double TargetTemperature, HeatSupply Supply)
+{
+    /// <summary>A cooler's observed hot-side temperature. Negative HeatPerTick identifies cooling.</summary>
+    [JsonRequired]
+    public double HotSideTemperature { get; init; }
+    [JsonRequired]
+    public double PowerWatts { get; init; }
+    public string Definition { get; init; } = "";
+    public Cell BuildCell { get; init; }
+    public Rotation BuildRotation { get; init; }
+    public PlannedSiteAnswer? BuildEstimate { get; init; }
+}
 
 /// <summary>
 /// Where a heat source's energy comes from now. Missing supply is never free energy: a source that is short of power,

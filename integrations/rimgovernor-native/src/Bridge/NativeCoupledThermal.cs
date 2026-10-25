@@ -19,8 +19,8 @@ internal static class NativeCoupledThermal
     internal static RimGovernor.Brain.GameFacts.Observations.CoupledThermalRead Read(Map map, Thing[] sites, NativePathLegs? legs = null)
     {
         legs ??= new(map);
-        var heaters = map.listerThings.AllThings.Where(t => t is Building_Heater
-            || t is IConstructible && t.def.entityDefToBuild is ThingDef d && d.thingClass == typeof(Building_Heater)
+        var heaters = map.listerThings.AllThings.Where(t => t is Building_Heater or Building_Cooler
+            || t is IConstructible && t.def.entityDefToBuild is ThingDef d && (d.thingClass == typeof(Building_Heater) || d.thingClass == typeof(Building_Cooler))
             || Fueled(t is IConstructible ? t.def.entityDefToBuild as ThingDef : t.def))
             .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var cells = new SortedSet<(int X, int Z)>();
@@ -32,7 +32,8 @@ internal static class NativeCoupledThermal
         var sources = heaters.Select(t =>
         {
             var definition = t is IConstructible ? (ThingDef)t.def.entityDefToBuild : t.def;
-            return Fueled(definition) ? FueledSource(t.GetUniqueLoadID(), t.Position, definition, t is not IConstructible)
+            return definition.thingClass == typeof(Building_Cooler) ? Cooler(map, t.GetUniqueLoadID(), t.Position, t.Rotation, definition, t is Building_Cooler, t.TryGetComp<CompPowerTrader>(), t.TryGetComp<CompTempControl>()?.targetTemperature)
+                : Fueled(definition) ? FueledSource(t.GetUniqueLoadID(), t.Position, definition, t is not IConstructible)
                 : Source(map, t.GetUniqueLoadID(), t.Position, definition, t is Building_Heater, t.TryGetComp<CompPowerTrader>(),
                     t.TryGetComp<CompTempControl>()?.targetTemperature);
         }).ToArray();
@@ -70,6 +71,48 @@ internal static class NativeCoupledThermal
             if (Fueled(definition)) sources.Add(FueledSource(heater.Site, cell, definition, false));
             else if (typeof(Building_Heater).IsAssignableFrom(definition.thingClass)) sources.Add(Source(map, heater.Site, cell, definition, false, null, null));
         }
+        foreach (var cooler in request.Coolers)
+        {
+            var room = request.Rooms.Single(r => r.Room == cooler.Room);
+            var existing = map.listerThings.AllThings.OfType<Building_Cooler>().OrderBy(c => c.GetUniqueLoadID(), StringComparer.Ordinal)
+                .FirstOrDefault(c => { var cold = c.Position + IntVec3.South.RotatedBy(c.Rotation);
+                    return cold.x >= room.Origin.X && cold.x < room.Origin.X + room.Width && cold.z >= room.Origin.Z && cold.z < room.Origin.Z + room.Height; });
+            if (existing is not null)
+            {
+                sources.Add(Cooler(map, existing.GetUniqueLoadID(), existing.Position, existing.Rotation, existing.def, true,
+                    existing.TryGetComp<CompPowerTrader>(), existing.TryGetComp<CompTempControl>()?.targetTemperature));
+                continue;
+            }
+            var inProgress = map.listerThings.AllThings.Where(t => t is IConstructible && t.def.entityDefToBuild is ThingDef d && d.thingClass == typeof(Building_Cooler))
+                .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).FirstOrDefault(t => { var cold = t.Position + IntVec3.South.RotatedBy(t.Rotation);
+                    return cold.x >= room.Origin.X && cold.x < room.Origin.X + room.Width && cold.z >= room.Origin.Z && cold.z < room.Origin.Z + room.Height; });
+            if (inProgress is not null)
+            {
+                sources.Add(Cooler(map, inProgress.GetUniqueLoadID(), inProgress.Position, inProgress.Rotation,
+                    (ThingDef)inProgress.def.entityDefToBuild, false, null, (float)cooler.TargetTemperature));
+                continue;
+            }
+            var definition = DefDatabase<ThingDef>.GetNamed(cooler.Definition);
+            if (definition.thingClass != typeof(Building_Cooler)) throw new InvalidOperationException("Planned cooler is not a Building_Cooler: " + cooler.Definition);
+            var options = new List<(IntVec3 Wall, Rot4 Rotation)>();
+            for (var x = room.Origin.X; x < room.Origin.X + room.Width; x++)
+            for (var z = room.Origin.Z; z < room.Origin.Z + room.Height; z++)
+            foreach (var rotation in new[] { Rot4.North, Rot4.East, Rot4.South, Rot4.West })
+            {
+                var inside = new IntVec3(x, 0, z);
+                var wall = inside + IntVec3.North.RotatedBy(rotation);
+                var hot = wall + IntVec3.North.RotatedBy(rotation);
+                bool Interior(IntVec3 c) => c.x >= room.Origin.X && c.x < room.Origin.X + room.Width && c.z >= room.Origin.Z && c.z < room.Origin.Z + room.Height;
+                // VentedWall against the completed planned ring: the wall is occupied, the hot side is open and outside.
+                if (Interior(wall) || Interior(hot) || !hot.InBounds(map) || !wall.InBounds(map)
+                    || wall.x == room.Door.X && wall.z == room.Door.Z || !hot.Walkable(map)
+                    || hot.Roofed(map) && hot.GetRoom(map) is { UsesOutdoorTemperature: false }) continue;
+                options.Add((wall, rotation));
+            }
+            if (options.Count == 0) continue; // A real geometry with no vented wall supports no cooler.
+            var chosen = options.OrderBy(o => o.Wall.x).ThenBy(o => o.Wall.z).ThenBy(o => o.Rotation.AsInt).First();
+            sources.Add(Cooler(map, "planned/freezer" + cooler.Room + "/cooler", chosen.Wall, chosen.Rotation, definition, false, null, (float)cooler.TargetTemperature));
+        }
         return Mechanics(map, EquatableArray.From(cells.Select(c => Row(map, c))), EquatableArray.From(sources), []);
     }
 
@@ -100,12 +143,13 @@ internal static class NativeCoupledThermal
     {
         var temperature = definition.GetCompProperties<CompProperties_TempControl>()
             ?? throw new InvalidOperationException($"heater def {definition.defName} has no CompProperties_TempControl");
+        if (ready && power is null) throw new InvalidOperationException("Built thermal source has no power comp: " + target);
+        var watts = (definition.GetCompProperties<CompProperties_Power>() ?? throw new InvalidOperationException("Thermal source has no power properties: " + definition.defName)).PowerConsumption;
         var transmitter = PowerConnectionMaker.BestTransmitterForConnector(position, map);
         var net = power?.PowerNet ?? transmitter?.PowerNet;
         var heat = temperature.energyPerSecond / 60.0;
         var goal = (double)(targetTemperature ?? temperature.defaultTargetTemperature);
-        if (net == null) return new(target, new(position.x, position.z), ready, heat, goal, new RimGovernor.Brain.GameFacts.Observations.HeatSupply.Unconnected());
-        var watts = definition.GetCompProperties<CompProperties_Power>()?.PowerConsumption ?? 0;
+        if (net == null) return new(target, new(position.x, position.z), ready, heat, goal, new RimGovernor.Brain.GameFacts.Observations.HeatSupply.Unconnected()) { PowerWatts = watts };
         // No future weather/fuel claim: supply is assessed only from the current network's observed surplus.
         double surplus = net.powerComps.Where(p => p.PowerOn).Sum(p => p.PowerOutput);
         double additional = Math.Max(0, watts + (ready ? power?.PowerOutput ?? 0 : 0));
@@ -113,7 +157,20 @@ internal static class NativeCoupledThermal
         RimGovernor.Brain.GameFacts.Observations.HeatSupply supply = (ready ? power is { PowerOn: true } && surplus >= additional : surplus >= additional)
             ? new RimGovernor.Brain.GameFacts.Observations.HeatSupply.Powered(network, additional, surplus, RimGovernor.Brain.Domain.GameTime.TicksPerDay)
             : new RimGovernor.Brain.GameFacts.Observations.HeatSupply.ShortOfPower(network, additional, surplus);
-        return new(target, new(position.x, position.z), ready, heat, goal, supply);
+        return new(target, new(position.x, position.z), ready, heat, goal, supply) { PowerWatts = watts };
+    }
+
+    private static RimGovernor.Brain.GameFacts.Observations.ThermalSource Cooler(Map map, string target, IntVec3 position, Rot4 rotation,
+        ThingDef definition, bool ready, CompPowerTrader? power, float? targetTemperature)
+    {
+        var cold = position + IntVec3.South.RotatedBy(rotation);
+        var hot = position + IntVec3.North.RotatedBy(rotation);
+        if (!cold.InBounds(map) || !hot.InBounds(map)) throw new InvalidOperationException("Cooler sides are off map: " + target);
+        return Source(map, target, position, definition, ready, power, targetTemperature) with
+        {
+            Cell = new(cold.x, cold.z), HotSideTemperature = hot.GetTemperature(map), Definition = definition.defName,
+            BuildCell = new(position.x, position.z), BuildRotation = (RimGovernor.Brain.Domain.Rotation)rotation.AsInt,
+        };
     }
 
     // A def that heats by burning fuel (#3673): a heat pusher with a positive push and a refuelable comp (a campfire).

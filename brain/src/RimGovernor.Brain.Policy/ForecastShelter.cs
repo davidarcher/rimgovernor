@@ -12,6 +12,7 @@ internal sealed record ForecastShelterGeometry(ForecastShelterId Id, EquatableAr
 {
     /// <summary>The planned room an observed room realizes (same interior), or 0.</summary>
     public int PlannedRoom { get; init; }
+    public bool Unbounded { get; init; }
 }
 /// <summary>A shelter and every heat source inside it (#3679): each source pushes its own heat while the room is below its
 /// own target, its electric draw shares its network, and a fueled one's burn (#3673) is charged from the shell's completion.</summary>
@@ -160,7 +161,7 @@ public static class ForecastShelterPolicy
         return complete;
     }
 
-    /// <summary>Conditional current-weather heat balance, bounded to the native heater's full-efficiency regime.
+    /// <summary>Conditional current-weather heat balance, with each heater's falloff and each cooler's cold/hot-side efficiency.
     /// Enclosure, roof and source completion are prerequisites; presence alone has no thermal credit.</summary>
     public static ForecastShelterOutcome ForecastShelter(ForecastShelterPlan room,
         ForecastActivityPlan schedule, double horizon) =>
@@ -170,21 +171,20 @@ public static class ForecastShelterPolicy
     private static ForecastShelterOutcome ShelterAt(ForecastShelterPlan room, double complete, double horizon)
     {
         var findings = new SortedSet<string>(room.Findings, StringComparer.Ordinal)
-        { "current_weather_and_power_constant", "closed_doors_thin_roof", "spatial_mean_exchange_estimate", "heater_full_efficiency_below_20C" };
+        { "current_weather_and_power_constant", "closed_doors_thin_roof", "spatial_mean_exchange_estimate" };
         if (double.IsNaN(complete))
             return new ForecastShelterOutcome.Incomplete(room.Room, [.. findings, "incomplete_shelter_prerequisites"]);
         if (complete > horizon) return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "shelter_beyond_horizon"]);
         if (room.Thermal is not ForecastShelterThermal.Estimated { InitialTemperature: var temperature, Outdoors: var outside, ExchangePerTick: var loss }
-            || room.Sources.Count == 0 || room.Interior.Count == 0)
+            || room.Interior.Count == 0)
             return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "unknown_shelter_thermal_estimate"]);
         // A source short of power, unconnected or burning unsteadily heats nothing the forecast can count on.
         if (room.Sources.Any(s => !HeatSupplies.Supplied(s.Supply, out _)))
             return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "unsupplied_shelter_heat_source"]);
-        // Each source's heat per interior cell and its thermostat, at most the full-efficiency bound.
-        var heats = room.Sources.Select(s => (Heat: s.HeatPerTick / room.Interior.Count, Target: Math.Min(20, s.TargetTemperature))).ToArray();
-        if (!double.IsFinite(loss) || loss <= 0 || heats.Any(h => !double.IsFinite(h.Heat) || h.Heat < 0 || !double.IsFinite(h.Target))
-            || temperature > 20 || outside > 20 || Math.Abs(outside - temperature) > 100)
-            return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "unsupported_shelter_temperature_regime"]);
+        var heats = room.Sources.Select(s => Source(s, room.Interior.Count)).ToArray();
+        if (!double.IsFinite(loss) || loss <= 0 || heats.Any(h => !double.IsFinite(h.Heat) || !double.IsFinite(h.Target) || !double.IsFinite(h.Hot))
+            || !double.IsFinite(temperature) || !double.IsFinite(outside))
+            throw new RequiredFactException("shelter temperature mechanics:" + room.Room);
         if (room.Sources.Any(s => HeatSupplies.Supplied(s.Supply, out var ticks) && ticks < horizon - complete))
             return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "shelter_energy_runs_out"]);
         // Until the shell completes the room is as it stands, else open air at the observed current outdoor temperature.
@@ -193,14 +193,25 @@ public static class ForecastShelterPolicy
         return new ForecastShelterOutcome.Projected(room.Room, complete, points[^1].Temperature, EquatableArray.From(points), EquatableArray.From(findings));
     }
 
+    /// <summary>The completed room's steady balance under its observed constant weather and supplied sources.</summary>
+    internal static double SteadyTemperature(ForecastShelterPlan room)
+    {
+        if (room.Thermal is not ForecastShelterThermal.Estimated { InitialTemperature: var temperature, Outdoors: var outside, ExchangePerTick: var loss }
+            || room.Interior.Count == 0 || !double.IsFinite(loss) || loss <= 0 || !double.IsFinite(temperature) || !double.IsFinite(outside)
+            || room.Sources.Any(s => !HeatSupplies.Supplied(s.Supply, out _)))
+            throw new RequiredFactException("shelter steady mechanics:" + room.Room);
+        var heats = room.Sources.Select(s => Source(s, room.Interior.Count)).ToArray();
+        if (heats.Any(h => !double.IsFinite(h.Heat) || !double.IsFinite(h.Target) || !double.IsFinite(h.Hot)))
+            throw new RequiredFactException("shelter source mechanics:" + room.Room);
+        return Advance(temperature, double.PositiveInfinity, outside, loss, heats, Breaks(heats));
+    }
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastShelterPlan,
         System.Collections.Concurrent.ConcurrentDictionary<double, EquatableArray<ForecastTemperaturePoint>>> Standings = new();
 
     /// <summary>
     /// The room as it stands from tick 0 to <paramref name="horizon"/> (#3534): its observed temperature relaxing to
     /// outdoors at its <see cref="ForecastShelterStanding.Enclosed"/> exchange, heated by its complete sources. Empty when
-    /// the room is unestimated or open air, a complete source is not supplied over the horizon, or outside the heater's
-    /// full-efficiency regime.
+    /// the room is unestimated or open air, a complete source is not supplied over the horizon, or its mechanics are invalid.
     /// </summary>
     internal static EquatableArray<ForecastTemperaturePoint> Standing(ForecastShelterPlan room, double horizon) =>
         Standings.GetValue(room, static _ => new()).GetOrAdd(horizon, h =>
@@ -208,14 +219,14 @@ public static class ForecastShelterPolicy
             if (room.Thermal is not ForecastShelterThermal.Estimated { InitialTemperature: var temperature, Outdoors: var outside,
                     Standing: ForecastShelterStanding.Enclosed { ExchangePerTick: var loss } }
                 || !double.IsFinite(loss) || loss <= 0 || room.Interior.Count == 0
-                || temperature > 20 || outside > 20 || Math.Abs(outside - temperature) > 100) return [];
-            var heats = new List<(double Heat, double Target)>();
+                || !double.IsFinite(temperature) || !double.IsFinite(outside)) return [];
+            var heats = new List<SourceHeat>();
             foreach (var s in room.Sources)
             {
                 if (!s.Complete) continue;
-                if (!HeatSupplies.Supplied(s.Supply, out var supply) || supply < h || !double.IsFinite(s.HeatPerTick) || s.HeatPerTick < 0
+                if (!HeatSupplies.Supplied(s.Supply, out var supply) || supply < h || !double.IsFinite(s.HeatPerTick)
                     || !double.IsFinite(s.TargetTemperature)) return [];
-                heats.Add((s.HeatPerTick / room.Interior.Count, Math.Min(20, s.TargetTemperature)));
+                heats.Add(Source(s, room.Interior.Count));
             }
             return EquatableArray.From(Project(temperature, 0, h, outside, loss, heats.ToArray()));
         });
@@ -232,12 +243,20 @@ public static class ForecastShelterPolicy
         return points[^1].Temperature;
     }
 
+    private readonly record struct SourceHeat(double Heat, double Target, double Hot, bool Fueled);
+
+    private static SourceHeat Source(ThermalSource source, int cells) => new(source.HeatPerTick / cells,
+        source.TargetTemperature, source.HotSideTemperature, source.Supply is HeatSupply.Burning or HeatSupply.UnsteadyBurn);
+
+    private static double[] Breaks(SourceHeat[] heats) => heats.Select(h => h.Target)
+        .Concat(heats.Where(h => h.Heat < 0).Select(h => h.Hot - 130)).Concat([20d, 40d, 120d]).Distinct().Order().ToArray();
+
     // The room's mean temperature every equalization interval (120 ticks) from start to horizon.
     private static List<ForecastTemperaturePoint> Project(double temperature, double start, double horizon, double outside, double loss,
-        (double Heat, double Target)[] heats)
+        SourceHeat[] heats)
     {
         var points = new List<ForecastTemperaturePoint> { new(start, temperature) };
-        var targets = heats.Select(h => h.Target).Distinct().Order().ToArray();
+        var targets = Breaks(heats);
         for (var time = start; time < horizon;)
         {
             var next = Math.Min(horizon, time + 120);
@@ -251,29 +270,47 @@ public static class ForecastShelterPolicy
     /// The room's mean temperature after <paramref name="duration"/> ticks. Each source pushes its heat while the room is
     /// below its own target (as CompHeatPusher does), so between consecutive targets the pushing set is fixed and the room
     /// relaxes exponentially toward that set's equilibrium; it stops at a target it reaches, and holds there when the set
-    /// just below it heats past it and the set just above it does not. Thermostats limit heating, never cool.
+    /// just below it heats past it and the set just above it does not. Cooler thermostats turn off below their own targets.
     /// </summary>
     private static double Advance(double temperature, double duration, double outside, double loss,
-        (double Heat, double Target)[] heats, double[] targets)
+        SourceHeat[] heats, double[] targets)
     {
-        // The equilibrium of the sources whose target is above t (or at least t, when inclusive).
-        double Equilibrium(double t, bool inclusive)
+        (double Temperature, double Rate) Equilibrium(double t, bool above)
         {
-            var heat = 0d;
-            foreach (var h in heats) if (h.Target > t || inclusive && h.Target == t) heat += h.Heat;
-            return outside + heat / loss;
+            var constant = outside * loss;
+            var slope = -loss;
+            foreach (var h in heats)
+            {
+                var cooling = h.Heat < 0;
+                if (cooling ? t < h.Target || t == h.Target && !above : t > h.Target || t == h.Target && above) continue;
+                if (cooling)
+                {
+                    // Building_Cooler: gap=max(hot-cold,hot-40), efficiency=max(0,1-gap/130).
+                    if (h.Hot - Math.Min(t, 40) >= 130) continue;
+                    constant += h.Heat * (1 - (h.Hot - (t < 40 || t == 40 && !above ? 0 : 40)) / 130);
+                    if (t < 40 || t == 40 && !above) slope += h.Heat / 130;
+                }
+                else if (!h.Fueled && (t > 20 || t == 20 && above))
+                {
+                    if (t >= 120) continue;
+                    constant += h.Heat * 1.2;
+                    slope -= h.Heat / 100;
+                }
+                else constant += h.Heat;
+            }
+            return (-constant / slope, -slope);
         }
         while (duration > 0)
         {
-            double equilibrium;
-            if (Array.IndexOf(targets, temperature) < 0) equilibrium = Equilibrium(temperature, false);
+            double equilibrium; double rate;
+            if (Array.IndexOf(targets, temperature) < 0) (equilibrium, rate) = Equilibrium(temperature, false);
             else
             {
                 // At a target: just above it only the higher targets push, just below it the target's own sources push too.
-                var above = Equilibrium(temperature, false);
-                var below = Equilibrium(temperature, true);
-                if (above > temperature) equilibrium = above;
-                else if (below < temperature) equilibrium = below;
+                var above = Equilibrium(temperature, true);
+                var below = Equilibrium(temperature, false);
+                if (above.Temperature > temperature) (equilibrium, rate) = above;
+                else if (below.Temperature < temperature) (equilibrium, rate) = below;
                 else return temperature;
             }
             // The pushing set holds until the room reaches the next target in its direction of travel, if it does.
@@ -281,8 +318,8 @@ public static class ForecastShelterPolicy
             foreach (var t in targets)
                 if (equilibrium > temperature ? t > temperature && t < equilibrium && !(t >= bound)
                     : t < temperature && t > equilibrium && !(t <= bound)) bound = t;
-            var crossing = double.IsNaN(bound) ? double.PositiveInfinity : Math.Log((equilibrium - temperature) / (equilibrium - bound)) / loss;
-            if (crossing >= duration) return equilibrium + (temperature - equilibrium) * Math.Exp(-loss * duration);
+            var crossing = double.IsNaN(bound) ? double.PositiveInfinity : Math.Log((equilibrium - temperature) / (equilibrium - bound)) / rate;
+            if (crossing >= duration) return equilibrium + (temperature - equilibrium) * Math.Exp(-rate * duration);
             temperature = bound; duration -= crossing;
         }
         return temperature;

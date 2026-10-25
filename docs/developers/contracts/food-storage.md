@@ -40,3 +40,40 @@ cook roster and observed expectations pressure. No eaters owe no meal tier.
 Malformed raw-food forecasts fail at the observation boundary. Food storage
 site reads must all succeed before capacity is compared; a failed read cannot
 make an incomplete list appear to prove a need for more production.
+
+## Freezer value
+
+A served planned freezer earns the value of the rot it prevents, in the shared
+Investment ledger from its service day. For a stock with remaining freshness D
+days, ambient native rot rate r and predicted freezer rate f, the daily credit
+is `count × unit value × (r - f) / (r × D)`. Stocks that keep, already have zero
+rot rate, or gain no lower rate earn nothing. `FoodStock.RotRate` is the native
+`GenTemperature.RotRateAtTemperature(AmbientTemperature)` value; the catalog
+samples the same function at whole degrees from −273 through 1000°C. Predicted
+rates interpolate adjacent native samples. Missing samples, thermal facts,
+construction estimates or material values raise `RequiredFactException`.
+
+The closed-room temperature is the shared shelter model's steady temperature.
+Each cooler uses its def's signed heat output, its thermostat and the game's
+cold/hot-side efficiency; heaters include their falloff above 20°C. A room with
+no source settles toward outdoors. Vented coolers exhaust to the outdoor thermal
+reservoir (the game's 1.25× rejected heat does not return to the closed interior).
+Current weather and the hot-side reservoir are held constant.
+
+Every planned freezer joins both the planned thermal read and shelter geometry,
+outside the ordinary four-room cap. Native chooses a vented ring cell, or reuses
+the standing cooler serving the interior, and reads the cooler's build estimate.
+With unfinished cooler research or no vented wall, the room earns no cooling
+credit. Missing or insufficient current power does not block an early freezer:
+its cooler, unbuilt conduit-link cells and next researched planned generator
+(turbine, then solar, then geothermal) are its own owed work and materials.
+One such generator is assumed to cover one cooler. Disconnected freezers allocate these planned generators in room-id order; a generator cannot be assumed again by another freezer. Without a planned generator
+there is no powered source and no cooling credit. These prerequisite sites use
+the ordinary per-site construction estimator and add no schedulable roots;
+refrigeration and power retain execution ownership. Shared sites cost work and
+materials once. Placed prerequisites retain their remaining work and materials.
+
+Among served freezers, lowest room id takes each stack first, highest daily
+credit first, up to one stack per interior storage cell. Each physical stack
+earns credit once. The credit retains the canonical food-stock rows, including
+barred stock; it creates no second food observation.

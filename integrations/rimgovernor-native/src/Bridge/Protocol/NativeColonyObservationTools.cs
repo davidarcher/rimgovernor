@@ -487,7 +487,7 @@ namespace RimGovernor.Native
                     Holder = new RimGovernor.Brain.Domain.PawnId(stock.holder ?? string.Empty), Nutrition = Finite(stock.nutrition),
                     Eaters = eaters.Select(id => new RimGovernor.Brain.Domain.PawnId(id)).ToArray(),
                     Rot = rot != null && rot.Active ? new RimGovernor.Brain.GameFacts.Observations.FoodRot.Rots(Math.Max(0, rot.TicksUntilRotAtCurrentTemp)) : new RimGovernor.Brain.GameFacts.Observations.FoodRot.Keeps(),
-                    Place = place, TemperatureC = Finite(thing.AmbientTemperature), Form = form,
+                    Place = place, TemperatureC = Finite(thing.AmbientTemperature), RotRate = NativeRotRates.At(thing.AmbientTemperature), Form = form,
                     Count = thing.stackCount, UnitMass = Finite(thing.GetStatValue(StatDefOf.Mass)), Forbidden = thing.IsForbidden(Faction.OfPlayer),
                 });
             }

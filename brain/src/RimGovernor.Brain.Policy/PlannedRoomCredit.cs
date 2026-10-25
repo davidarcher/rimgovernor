@@ -82,6 +82,7 @@ public static class PlannedRoomCredits
         [PlannedRole.Dining] = ForecastRoomThoughts.DiningCredit,
         [PlannedRole.Rec] = ForecastRoomThoughts.RecCredit,
         [PlannedRole.Nursery] = ForecastNursery.NurseryCredit,
+        [PlannedRole.Freezer] = ForecastFreezer.Credit,
     };
 
     /// <summary>
@@ -219,6 +220,7 @@ public static class PlannedRoomCredits
             list.Add(by);
         }
         foreach (var site in context.PlannedSites) Finished(site.Site, site.Finishes);
+        foreach (var site in context.RoomPrerequisites.Values.SelectMany(s => s)) Finished(site.Id, []);
         foreach (var piece in context.Closures.SelectMany(c => c.Placed).DistinctBy(p => p.Site)) Finished(piece.Site, piece.Finishes);
         foreach (var item in context.RoomItems) Finished(item.Item, item.Finishes);
         var sites = context.PlannedSites.ToLookup(s => s.Room);
@@ -232,7 +234,7 @@ public static class PlannedRoomCredits
             // A blocked piece (#3827) is owed nothing: the room serves once the rest is done.
             return [.. stuffs.Select(stuff => new Way(stuff, [.. sites[room].Where(s => s.Stuff.Length == 0 || s.Stuff == stuff).Select(s => s.Site)
                     .Concat(closures[room].Where(c => c.Stuff == stuff).SelectMany(c => c.Placed).Select(p => p.Site))
-                    .Concat(items[room]).Distinct(StringComparer.Ordinal).Where(i => !context.BlockedItems.Contains(i))]))];
+                    .Concat(items[room]).Concat(context.RoomPrerequisites.TryGetValue(room, out var prerequisites) ? prerequisites.Select(s => s.Id) : []).Distinct(StringComparer.Ordinal).Where(i => !context.BlockedItems.Contains(i))]))];
         }
         // A connector's work is part of each room it serves (#3815, P4): a room's ways are its own, each joined with each way
         // of every connector serving it, the room keeping its own ring stuff.
@@ -250,7 +252,7 @@ public static class PlannedRoomCredits
         }
         var rooms = new List<(int, Way[])>();
         foreach (var room in sites.Select(g => g.Key).Concat(closures.Select(g => g.Key)).Concat(items.Select(g => g.Key))
-            .Concat(context.Connectors.Values.SelectMany(s => s)).Distinct().Order())
+            .Concat(context.Connectors.Values.SelectMany(s => s)).Concat(context.RoomPrerequisites.Keys).Distinct().Order())
             if (WaysOf(room) is { Length: > 0 } ways) rooms.Add((room, ways));
         var planned = new HashSet<string>(context.PlannedSites.Where(s => s.Room > 0).Select(s => s.Site), StringComparer.Ordinal);
         foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom != 0)) planned.Add(ForecastPlannedSite.RoofUnit(shelter.PlannedRoom));

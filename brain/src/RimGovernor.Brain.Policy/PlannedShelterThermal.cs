@@ -17,14 +17,15 @@ public static partial class PlannedRules
     /// theirs, a Build site of one of the catalog heater defs (heaters: the electric heater and the fueled ones, #3673). Native
     /// samples each room's interior and ring cells and the heater def at its planned cell. Null when no room qualifies.
     /// </summary>
-    public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, IReadOnlyCollection<string> heaters)
+    public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, IReadOnlyCollection<string> heaters, string cooler = "", double freezerTarget = 0)
     {
         var owed = sites.Where(s => s.Zone.Length == 0).Select(s => s.Room).ToHashSet();
-        var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && owed.Contains(r.Id))
+        var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && (r.Role == PlannedRole.Freezer || owed.Contains(r.Id)))
             .Select(r => (Room: r, Bounds: r.Region.Bounds(), Cells: r.Region.Cells().Count))
             .Where(r => r.Cells > 0 && r.Bounds.Width * r.Bounds.Height == r.Cells
-                && r.Bounds.Width <= PlannedThermalSide && r.Bounds.Height <= PlannedThermalSide)
-            .OrderBy(r => r.Room.Id).Take(PlannedThermalRooms).ToList();
+                && (r.Room.Role == PlannedRole.Freezer || r.Bounds.Width <= PlannedThermalSide && r.Bounds.Height <= PlannedThermalSide))
+            .OrderBy(r => r.Room.Id).ToList();
+        chosen = chosen.Where(r => r.Room.Role == PlannedRole.Freezer).Concat(chosen.Where(r => r.Room.Role != PlannedRole.Freezer).Take(PlannedThermalRooms)).OrderBy(r => r.Room.Id).ToList();
         if (chosen.Count == 0)
         {
             return null;
@@ -37,8 +38,9 @@ public static partial class PlannedRules
         return new PlannedThermalRequest
         {
             Rooms = EquatableArray.From(chosen.Select(r => new PlannedThermalRoom(
-                new Cell(r.Bounds.X, r.Bounds.Z), r.Bounds.Width, r.Bounds.Height))),
+                new Cell(r.Bounds.X, r.Bounds.Z), r.Bounds.Width, r.Bounds.Height) { Room = r.Room.Id, Door = r.Room.Door })),
             Heaters = EquatableArray.From(planned),
+            Coolers = cooler.Length == 0 ? [] : EquatableArray.From(chosen.Where(r => r.Room.Role == PlannedRole.Freezer).Select(r => new PlannedThermalCooler(r.Room.Id, cooler, freezerTarget))),
         };
     }
 

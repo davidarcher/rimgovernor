@@ -102,6 +102,9 @@ public sealed record ForecastCoupledContext
     /// <summary>The connectors among the planned rooms (#3815, epic #3650 P4): each circulation corridor or airlock, by room, and
     /// the rooms it reaches or seals (PlannedRoomCredits.ConnectorsOf). Its owed work is part of each of those rooms'.</summary>
     public IReadOnlyDictionary<int, EquatableArray<int>> Connectors { get; init; } = new Dictionary<int, EquatableArray<int>>();
+    public IReadOnlyDictionary<int, EquatableArray<PlannedBuildSite>> RoomPrerequisites { get; init; } = new Dictionary<int, EquatableArray<PlannedBuildSite>>();
+    public IReadOnlyList<FoodStock> FreezerStock { get; init; } = [];
+    public IReadOnlyDictionary<int, double> RotRates { get; init; } = new Dictionary<int, double>();
     /// <summary>The open planned rooms (#3744, #3754): observed started (BuildingPlanner.PlannedRoomStartedOf) and not
     /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their owed work is done first in the service-day
     /// projection (#3796). Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>

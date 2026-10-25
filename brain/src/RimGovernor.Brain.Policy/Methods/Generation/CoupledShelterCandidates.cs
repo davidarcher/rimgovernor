@@ -41,16 +41,16 @@ internal static class CoupledShelterCandidates
                 // An observed room that realizes a planned room keeps the planned room's roof development (#3468 follow-up).
                 if (room.Id.Source == ForecastShelterSource.Planned && unique[same] is { Id.Source: ForecastShelterSource.Observed, PlannedRoom: 0 } match
                     && int.TryParse(room.Id.Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id))
-                    unique[same] = match with { PlannedRoom = id };
+                    unique[same] = match with { PlannedRoom = id, Unbounded = room.Unbounded };
                 continue;
             }
             if (unique.Any(r => r.Interior.Any(room.Interior.Contains)))
             { findings.Add("overlapping_shelter_geometry:" + room.Id); continue; }
             unique.Add(room);
         }
-        var truncated = unique.Count > 4;
+        var truncated = unique.Count(r => !r.Unbounded) > 4;
         if (truncated) findings.Add("shelter_geometry_truncated");
-        return (unique.Take(4).ToArray(), EquatableArray.From(findings), truncated);
+        return (unique.Where(r => r.Unbounded).Concat(unique.Where(r => !r.Unbounded).Take(4)).ToArray(), EquatableArray.From(findings), truncated);
     }
     /// <summary>
     /// Shelter alternatives over observed and planned rooms. A planned room's unbuilt shell and roof (#3277) and its
@@ -180,9 +180,10 @@ internal static class CoupledShelterCandidates
             }
             var sources = read?.Sources.Where(s => interior.Contains(s.Cell)).ToArray() ?? [];
             // Every source in the room heats it (#3679); each one still to be built gates the shelter on its own finish.
-            if (sources.Length == 0) notes.Add("unknown_heat_source");
+
             foreach (var source in sources)
-                if (!source.Complete && !RequireSite(source.Target))
+                if (!source.Complete && source.HeatPerTick < 0 && source.BuildEstimate is not null) groups.Add([]);
+                else if (!source.Complete && !RequireSite(source.Target))
                 {
                     // A planned heater (#3323) is its room's planned Build site: the shelter requires that site's finish.
                     if (made.ContainsKey(source.Target)) RequirePlanned("heater/" + source.Target, roomSites.Where(s => s.Id == source.Target));

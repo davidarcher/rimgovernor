@@ -16,7 +16,7 @@ public sealed class CanonicalFoodFactsTests
         Id = id, DefName = def, Count = 10, Nutrition = 9, UnitMass = .3,
         IsHumanMeat = human, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None,
         Holder = new PawnId(""), Eaters = [new("pawn")], Rot = new FoodRot.Keeps(),
-        Place = new FoodPlace.Stands(true, "dining"), TemperatureC = 20, Form = new FoodForm.Item(), Forbidden = forbidden,
+        Place = new FoodPlace.Stands(true, "dining"), TemperatureC = 20, RotRate = 1, Form = new FoodForm.Item(), Forbidden = forbidden,
     };
 
     [Fact]

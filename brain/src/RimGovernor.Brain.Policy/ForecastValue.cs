@@ -486,6 +486,18 @@ public static partial class ForecastValue
                 if (index.Fueled.TryGetValue(shelter.Room, out var fueled) && shelter is ForecastShelterOutcome.Scheduled { CompleteAt: var complete })
                     foreach (var source in fueled) Material(source.Target, "", new(source.Burn.Fuel), source.Burn.FuelPerTick * (horizon - complete));
 
+        // A prerequisite is part of its room's own build. Projected work consumes the same site materials once,
+        // even when several served freezers share the conduit or generator. It adds no schedulable activity.
+        var prerequisites = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var room in outcome.ServedRooms.Where(r => RingClosure.CreditDays(context.InvestmentHorizonDays, r.ServedAt) > 0))
+            if (context.RoomPrerequisites.TryGetValue(room.Room, out var sites))
+                foreach (var site in sites.Where(s => prerequisites.Add(s.Id)))
+                    foreach (var material in site.Material)
+                    {
+                        if (!context.MaterialValues.ContainsKey(material.Resource)) throw new RequiredFactException("prerequisite material:" + material.Resource);
+                        Material(site.Id, "", material.Resource, material.Count);
+                    }
+
         foreach (var allocation in outcome.Plan.Allocations)
         {
             var activity = index.Activities.GetValueOrDefault(allocation.Activity);

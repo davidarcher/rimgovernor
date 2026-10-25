@@ -38,7 +38,7 @@ internal static class PlannedRoomCandidates
     private enum Assessment { Valued, Unvalued, Infeasible }
 
     internal static PlannedRoomCandidatesResult Generate(EquatableArray<PlannedBuildSite> planned, IReadOnlyList<PlannedRoomAlternative> alternatives,
-        EquatableArray<CoupledRoute> between, CoupledThermalRead? thermal, WorkResourceView resources, IReadOnlySet<string> pawns, double horizon, long deadline)
+        EquatableArray<CoupledRoute> between, CoupledThermalRead? thermal, WorkResourceView resources, IReadOnlySet<string> pawns, double horizon, long deadline, bool schedulable = true)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var bindings = new Dictionary<(string Task, string Pawn), ActivityTaskCandidate>();
@@ -263,7 +263,7 @@ internal static class PlannedRoomCandidates
                 roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish)
                     { WorkGroups = [[finish], .. hauls, .. site.Clearing.Where(c => ids.Contains(c.Id)).Select(c => new[] { c.Id })] });
             }
-            if (operations.Count + roomOperations.Count > OperationBudget)
+            if (schedulable && operations.Count + roomOperations.Count > OperationBudget)
             {
                 findings.Add("planned_room_candidates_truncated:" + room.Key); truncated = true; continue;
             }
@@ -271,7 +271,7 @@ internal static class PlannedRoomCandidates
             foreach (var supply in roomObserved) observed.TryAdd(supply.Id, supply);
             sites.AddRange(roomSitesOps); rooms.AddRange(valued);
             foreach (var binding in roomBindings) bindings[binding.Key] = binding.Value;
-            foreach (var site in roomSitesOps)
+            foreach (var site in schedulable ? roomSitesOps : [])
                 roots.Add(new(site.Site, [])
                 {
                     ActivityCompletions = [site.Finish], ExclusiveOutcome = site.Site,
@@ -279,7 +279,7 @@ internal static class PlannedRoomCandidates
                     // gate (#3651); the unit itself is counted from the evaluated outcome, whichever root completes the site (#3334).
                     Outcome = new(site.Site, ForecastPlannedSite.DevelopmentNeed, site.Finish),
                 });
-            foreach (var alternative in valued)
+            foreach (var alternative in schedulable ? valued : [])
                 roots.Add(new(alternative.Id, [])
                 {
                     ActivityCompletions = EquatableArray.From(alternative.Sites.Select(id => finishes[id]).Order(StringComparer.Ordinal)),

@@ -116,4 +116,4 @@ Food/shelter investment and unified construction adoption: [essential-service co
 - [Failed snapshot reads](developers/contracts/clock-recovery.md#failed-snapshot-reads): explicit building-read failures, preserved diagnostics, finished frame labor and same-tick recovery.
 - [Acceptance harness lifecycle](developers/testing/acceptance-guide.md): warm games and request-based idle cleanup.
 
-- [Food storage and refrigeration](developers/contracts/food-storage.md): food censuses, reserve reads and cooling geometry.
+- [Food storage, refrigeration and freezer value](developers/contracts/food-storage.md): food censuses, reserve reads and cooling geometry.

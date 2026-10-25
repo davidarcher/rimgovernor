@@ -41,6 +41,8 @@
   <!-- ==== Dispatcher ==== -->
   <ItemGroup>
     <Compile Include="NativeContractProbes/Program.cs" />
+    <Compile Include="NativeContractProbes/native-rot-rates/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/NativeRotRates.cs" Link="Production/NativeRotRates.cs" />
     <Compile Include="NativeContractProbes/native-shutdown/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ShutdownDrain.cs" Link="Production/ShutdownDrain.cs" />
     <Compile Include="NativeContractProbes/native-roof-support/Program.cs" />

@@ -957,7 +957,7 @@ public static partial class LayoutClusterRules
     /// The catalog's cooling station that draws the least power per heat moved (the defs' energyPerSecond and
     /// power comp), by name when equal.
     /// </summary>
-    internal static (string Def, bool Ok) BestCooler(StationCatalog cat)
+    public static (string Def, bool Ok) BestCooler(StationCatalog cat)
     {
         var best = string.Empty;
         var bestRatio = 0.0;

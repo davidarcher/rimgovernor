@@ -28,7 +28,7 @@ public sealed class ForecastHandoffTests
                 Id = "meal", DefName = Food.Value, Count = 10L, Nutrition = 5d,
                 Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(),
                 IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None,
-                Holder = new PawnId(string.Empty), Eaters = [], UnitMass = .1, TemperatureC = 20, Forbidden = false,
+                Holder = new PawnId(string.Empty), Eaters = [], UnitMass = .1, TemperatureC = 20, RotRate = 1, Forbidden = false,
             }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview)),

@@ -124,7 +124,7 @@ internal static class ColonyModelFixtures
                     DefName = string.Empty,
                     Count = 0,
                     UnitMass = 0,
-                    TemperatureC = 0,
+                    TemperatureC = 0, RotRate = 0,
                     Forbidden = false
                 }
                 ]

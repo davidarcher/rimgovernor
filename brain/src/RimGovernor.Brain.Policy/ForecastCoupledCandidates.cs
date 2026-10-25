@@ -82,6 +82,10 @@ public sealed partial record ForecastCoupledCandidates
         var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
             plannedFacts is null ? [] : plannedFacts.Routes, read.Thermal, resources,
             needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline);
+        var prerequisiteSites = EquatableArray.From(facts.RoomPrerequisites.Values.SelectMany(s => s).DistinctBy(s => s.Id));
+        var prerequisiteWork = Methods.Generation.PlannedRoomCandidates.Generate(prerequisiteSites,
+            PlannedRules.PlannedRoomAlternatives(prerequisiteSites).Alternatives, [], read.Thermal, resources,
+            needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline, schedulable: false);
         ForecastMaterialLot Lot(string lot, string location, string resource, double count) => new(lot, location, new(resource), count);
 
         var lotGroups = read.FoodSources.Select(o => Lot(o.Target, Location(o.Location), o.Resource, o.Count) with { Freshness = o.FreshTicks })
@@ -130,7 +134,7 @@ public sealed partial record ForecastCoupledCandidates
         var physicalRooms = urgent.Count != 0
             ? facts.Upkeep.Rooms with { Rooms = [] } : facts.Upkeep.Rooms;
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate(shelterRooms.OrderBy(r => r.Id).Select(r =>
-            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
+            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor) { Unbounded = r.Role == PlannedRole.Freezer }),
             physicalRooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
         findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;
         foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
@@ -304,6 +308,12 @@ public sealed partial record ForecastCoupledCandidates
             var groups = site.WorkGroups.Select(g => LeastWork(g.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []))).ToArray();
             if (groups.All(double.IsFinite)) owedWork[site.Site] = groups.Sum();
         }
+        foreach (var site in prerequisiteWork.Sites.Where(s => s.WorkGroups.Length > 0))
+        {
+            var groups = site.WorkGroups.Select(g => Worked(prerequisiteWork.Options.Where(o => g.Contains(o.Activity)))
+                .Select(w => w.Ticks).DefaultIfEmpty(double.PositiveInfinity).Min()).ToArray();
+            if (groups.All(double.IsFinite)) owedWork[site.Site] = groups.Sum();
+        }
         // The room items (#3796, epic #3650 P4): each generated placed site's finish and standing removal, by its site or
         // designation id, owed by the planned rooms whose interior or ring cells hold its cell or set cells.
         var footprints = (shelterEnabled ? facts.PlannedShelters : []).Where(r => r.Id > 0).GroupBy(r => r.Id)
@@ -364,6 +374,9 @@ public sealed partial record ForecastCoupledCandidates
             PrisonerPopulation = facts.Population,
             StoreStock = facts.PlannedStoreStock,
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
+            RoomPrerequisites = facts.RoomPrerequisites,
+            FreezerStock = facts.PlannedShelters.Any(r => r.Role == PlannedRole.Freezer) ? facts.CombinedFoodSupply.Stocks.Concat(facts.CombinedFoodSupply.Barred).ToArray() : [],
+            RotRates = facts.RotRates,
             Closures = closures,
             PlannedBuilders = builders,
             OwedWork = owedWork,

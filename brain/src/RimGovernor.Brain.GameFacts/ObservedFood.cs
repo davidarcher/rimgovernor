@@ -113,6 +113,9 @@ public sealed record FoodStock
     /// <summary>The ambient temperature where the stock is.</summary>
     public required double TemperatureC { get; init; }
 
+    /// <summary>GenTemperature.RotRateAtTemperature at the stack's ambient temperature.</summary>
+    public required double RotRate { get; init; }
+
     /// <summary>An item stack or a corpse. Forbidden corpses remain observable reserves but do not extend the food runway.</summary>
     public required FoodForm Form { get; init; }
 

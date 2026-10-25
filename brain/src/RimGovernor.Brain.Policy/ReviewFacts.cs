@@ -244,6 +244,8 @@ public sealed partial record ReviewFacts
     /// heaters, joined into the coupled thermal read (WithPlannedThermal); null when nothing was asked or native did not answer.
     /// </summary>
     public RimGovernor.Brain.GameFacts.Observations.CoupledThermalRead? PlannedThermal { get; init; }
+    public IReadOnlyDictionary<int, double> RotRates { get; init; } = new Dictionary<int, double>();
+    public IReadOnlyDictionary<int, EquatableArray<PlannedBuildSite>> RoomPrerequisites { get; init; } = new Dictionary<int, EquatableArray<PlannedBuildSite>>();
 
     /// <summary>
     /// The native closed-room predictions of the planned shelters (PlannedRoomPredictionRequestOf, #3339): per room and ring

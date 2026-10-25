@@ -533,8 +533,8 @@ public sealed partial class ColonyReview
         var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Reading, plannedOwed, shelfCandidates, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
         fine.Lap("d_planned/sites");
-        var (vPlannedThermal, vRoomPredictions) = await PlannedShelterReadsAsync(state.Snapshot, reading.Reading, reading.Reading.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal, PlannedRoomPredictions = vRoomPredictions });
+        var (vPlannedThermal, vRoomPredictions, vRoomPrerequisites) = await PlannedShelterReadsAsync(state.Snapshot, reading.Reading, reading.Reading.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal, PlannedRoomPredictions = vRoomPredictions, RoomPrerequisites = vRoomPrerequisites });
         fine.Lap("d_planned/shelter");
         if (firebreak is not null)
         {

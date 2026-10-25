@@ -23,7 +23,7 @@ public sealed class FoodStoresFamilyTests
         Nutrition = nutrition,
         Rot = new FoodRot.Rots((long)GameTime.TicksPerDay),
         Place = new FoodPlace.Stands(roofed, ""),
-        TemperatureC = roofed ? 0.0 : 20.0,
+        TemperatureC = roofed ? 0.0 : 20.0, RotRate = roofed ? 0 : 1,
         Form = new FoodForm.Item(),
         IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), Eaters = [], Count = 0, UnitMass = 0, Forbidden = false });
 
@@ -34,7 +34,7 @@ public sealed class FoodStoresFamilyTests
         Nutrition = 10.0,
         Rot = new FoodRot.Rots((long)GameTime.TicksPerDay),
         Place = new FoodPlace.Stands(false, ""),
-        TemperatureC = 20.0,
+        TemperatureC = 20.0, RotRate = 1,
         Forbidden = true,
         Form = new FoodForm.Corpse(100.0, 1.0),
         IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), Eaters = [], Count = 0, UnitMass = 0 });
@@ -59,7 +59,7 @@ public sealed class FoodStoresFamilyTests
         Nutrition = nutrition,
         Rot = new FoodRot.Rots(2L * GameTime.TicksPerDay),
         Place = new FoodPlace.Stands(true, "r1"),
-        TemperatureC = celsius,
+        TemperatureC = celsius, RotRate = celsius <= 0 ? 0 : 1,
         Form = new FoodForm.Item(),
         IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), Eaters = [], Count = 0, UnitMass = 0, Forbidden = false });
 

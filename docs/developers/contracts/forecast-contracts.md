@@ -1185,7 +1185,7 @@ tick (a rate of zero is `CannotFinish`).
 The coupled capture samples `ThermalCell` rows only within six cells of placed sites
 and heaters, so an unplaced planned shelter has none. `ConstructionActivityRequest.Thermal`
 (a `PlannedThermalRequest`) asks for them (#3323): each `PlannedThermalRoom` is a
-room's interior bounds, and each `PlannedThermalHeater` is a planned heater
+room's id, door and interior bounds, and each `PlannedThermalHeater` is a planned heater
 site id, definition and cell. `ConstructionActivityRead.Thermal` answers with a
 `CoupledThermalRead`:
 
@@ -1211,7 +1211,7 @@ unreachable colonist gets no roof option for that cell, never a free approach. T
 roof exchange rates are `RoomTempTracker`'s private constants, and the read throws
 when a game version lacks one.
 
-The caps are 4 rooms, 16 heaters and 1,024 cells; anything past them sets `Truncated`.
+Ordinary planned shelters have a four-room geometry/read cap and a ten-cell side bound. Freezers bypass both bounds and all join the read. Planned coolers name the room, catalog cooler and setpoint; native returns their `ThermalSource`, including hot-side temperature, power draw, placement and build estimate. See [food storage and refrigeration](food-storage.md#freezer-value) for owed power work and credit.
 Colony review ask once per round
 ([planned shelter](../architecture/colony-forecast.md#planned-shelter-and-occupancy)).
 

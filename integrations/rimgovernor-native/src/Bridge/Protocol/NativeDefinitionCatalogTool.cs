@@ -53,7 +53,8 @@ namespace RimGovernor.Native
             ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
             // Building_FermentingBarrel adds ThingDefOf.Wort and takes out ThingDefOf.Beer.
             ThingDefOf.Wort?.defName ?? throw new InvalidOperationException("ThingDefOf.Wort is not loaded."),
-            FullRotRateC());
+            FullRotRateC())
+            { RotRates = NativeRotRates.Sample() };
 
         // The game keeps its rot curve as literals inside
         // GenTemperature.RotRateAtTemperature, so evaluate that function: bisect the

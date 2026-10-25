@@ -17,8 +17,15 @@ public sealed record PlannedThermalRequest
     public required EquatableArray<PlannedThermalRoom> Rooms { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedThermalHeater>))]
     public required EquatableArray<PlannedThermalHeater> Heaters { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedThermalCooler>))]
+    public EquatableArray<PlannedThermalCooler> Coolers { get; init; }
 }
 /// <summary>A planned room's interior bounds; the read adds the one-cell ring around them.</summary>
-public sealed record PlannedThermalRoom(Cell Origin, int Width, int Height);
+public sealed record PlannedThermalRoom(Cell Origin, int Width, int Height)
+{
+    public int Room { get; init; }
+    public Cell Door { get; init; }
+}
+public sealed record PlannedThermalCooler(int Room, string Definition, double TargetTemperature);
 /// <summary>A planned heater site (its id is the source's Target) of Definition at Cell.</summary>
 public sealed record PlannedThermalHeater(string Site, string Definition, Cell Cell);

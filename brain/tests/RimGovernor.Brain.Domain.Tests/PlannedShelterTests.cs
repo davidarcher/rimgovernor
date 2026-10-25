@@ -424,7 +424,7 @@ public sealed class PlannedShelterTests
         var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true) with { PlannedThermal = null };
         var plan = Assert.Single(ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Context.Shelters);
         Assert.Contains("missing_shelter_geometry", plan.Findings);
-        Assert.Contains("unknown_heat_source", plan.Findings);
+        Assert.DoesNotContain("unknown_heat_source", plan.Findings);
     }
 
     [Fact]
@@ -449,7 +449,7 @@ public sealed class PlannedShelterTests
             new() { Id = 3, Region = RegionRules.RectRegion(new(20, 20, 2, 2)) },  // nothing owed: already built
             new() { Id = 4, Region = RegionRules.RectRegion(new(30, 30, 2, 2)), Outdoor = true }];
         var request = PlannedRules.PlannedThermalRequestOf(rooms, sites, ["Heater"])!;
-        Assert.Equal([new PlannedThermalRoom(Inside, 1, 1)], request.Rooms);
+        Assert.Equal([new PlannedThermalRoom(Inside, 1, 1) { Room = 1, Door = DoorCell }], request.Rooms);
         Assert.Equal([new PlannedThermalHeater(HeaterSite, "Heater", Inside)], request.Heaters);
         // A fueled heater (#3673) is asked for beside the electric one.
         Assert.Equal([new PlannedThermalHeater("planned/room1/build/Campfire/1/1", "Campfire", Inside), new PlannedThermalHeater(HeaterSite, "Heater", Inside)],

@@ -48,6 +48,7 @@ internal static class WorkResourceTestFacts
 
         Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
+        CombinedFoodSupply = new() { Stocks = [], Consumers = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } },
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with
         { Observed = PawnFixtures.Row(p) with { Settings = PawnFixtures.Row(p).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } }))) },
         WorkAdmission = new()
