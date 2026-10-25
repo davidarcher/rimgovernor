@@ -186,6 +186,77 @@ public sealed class IllnessForecastTests
 
     private static double Mean(HarmDistribution d) => d.Points.Sum(p => p.Loss * p.Probability);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SelectedRequestsHaveTheirOwnStockAndLaterInvestmentWithNoHarmCacheLeak(bool selectedFirst)
+    {
+        var lung = new Resource("Lung");
+        var option = Assert.Single(ForecastTradeRequests.Options(ForecastTradeRequestTests.Catalog(lung),
+            new TradeVisitFacts { Requests = [ForecastTradeRequestTests.Request()] }, 100));
+        var pawn = Decaying(Body(Part("Lung", .1), Part("Lung", .1)),
+            Replacement("Lung", "InstallNaturalLung", stocked: false, chance: 1) with { MedicineOnMap = true }) with
+        {
+            Needs = ForecastValueTests.Pawn().Needs, Mood = ForecastValueTests.Pawn().Mood,
+        };
+        // An already advanced disease loses the lung within the horizon; its replacement waits for the selected visit.
+        var course = DecayCourse(0, Organ("Lung", "Breathing", recipes: "InstallNaturalLung")) with { PerDayMin = 1, PerDayMax = 1 };
+        var context = ForecastValueTests.Context(pawn, harm: new HarmInputs
+        {
+            Schedule = new() { Assessed = true, MajorThreatsPerDay = 0, RaidFraction = 1 },
+            Illness = Schedule(course, Decay, perDay: .1),
+        }) with { Stock = new StockArrival { Requests = [option] }, InvestmentHorizonDays = 10 };
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true,
+            new Dictionary<string, ForecastNeedsResult> { [pawn.Pawn] = ForecastValueTests.Timeline(pawn) }, []);
+        ForecastValueResult Value(bool selected) => ForecastValue.Of(outcome, context, Day, outcome, selected ? [option.Commitment()] : []);
+        var first = Value(selectedFirst);
+        var second = Value(!selectedFirst);
+        var selected = selectedFirst ? first : second;
+        var unselected = selectedFirst ? second : first;
+        Assert.Equal(unselected.Harm, selected.Harm); // day two cannot change the one-day immediate term
+        Assert.Empty(unselected.InvestmentContributions);
+        Assert.True(selected.Investment < 0);
+        Assert.Equal(option.Id, Assert.Single(selected.InvestmentContributions).Key);
+        Assert.Equal(selected.Investment, Value(true).Investment);
+        Assert.Equal(unselected.Harm, Value(false).Harm);
+        var longContext = context with { InvestmentHorizonDays = 0 };
+        ForecastValueResult Long(bool take) => ForecastValue.Of(outcome, longContext, 10 * Day, outcome, take ? [option.Commitment()] : []);
+        var longFirst = Long(selectedFirst);
+        var longSecond = Long(!selectedFirst);
+        var longSelected = selectedFirst ? longFirst : longSecond;
+        var longBaseline = selectedFirst ? longSecond : longFirst;
+        Assert.True(Assert.IsType<LedgerTerm.Priced>(longSelected.Harm).Loss < Assert.IsType<LedgerTerm.Priced>(longBaseline.Harm).Loss);
+        Assert.Equal(longSelected.Harm, Long(true).Harm);
+        Assert.Equal(longBaseline.Harm, Long(false).Harm);
+        var retained = Assert.IsType<HarmDetail>(ForecastValue.ReferenceHarm(outcome, longContext, 10 * Day, [option.Commitment()]));
+        Assert.Equal(Assert.IsType<LedgerTerm.Priced>(longSelected.Harm).Loss, retained.Illness!.Loss);
+        Assert.Empty(context.Stock.Trade);
+        var derived = ForecastTradeRequests.Context(outcome, [option.Commitment()], context, Day);
+        Assert.Same(context.Needs, derived.Needs);
+        Assert.Same(context.Stock, derived.StockBeforeRequests);
+        Assert.Single(derived.Stock.Trade);
+        Assert.Equal(0, ForecastValue.Of(outcome, context with { InvestmentHorizonDays = 2 }, Day, outcome, [option.Commitment()]).Investment);
+
+        // Through the real portfolio search: two roots schedule the same empty work, but only a selected request has stock.
+        var empty = option with { Native = option.Native with { TraderKind = "empty" }, Sources = [] };
+        var observed = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: Day)
+            with { StockArrival = context.Stock with { Requests = [empty, option] } };
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(observed));
+        generated = generated with { Context = generated.Context with
+        {
+            Needs = generated.Context.Needs with { Pawns = [pawn] }, Harm = context.Harm,
+            CapacityPenalties = context.CapacityPenalties, InvestmentHorizonDays = 10,
+        } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1, observed with { CoupledAlternatives = generated },
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(observed) }, []);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        Assert.Contains(option.Id, selection.Selection.Selected);
+        Assert.DoesNotContain(empty.Id, selection.Selection.Selected);
+        Assert.True(selection.SelectedVector.Value.Ledger.Investment < 0);
+        Assert.Equal(selection.BaselineVector.Value.Ledger.Harm, selection.SelectedVector.Value.Ledger.Harm);
+        Assert.Equal(1, selection.SearchPhases.Sum(p => p.ScheduleSearches));
+    }
+
     [Fact]
     public void ADestroyedOrganTheAutopilotCannotReplaceCostsItsCapacityToTheHorizonAndBooksNoSurgery()
     {

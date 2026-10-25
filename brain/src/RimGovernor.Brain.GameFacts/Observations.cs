@@ -5893,6 +5893,10 @@ public sealed record ThreatIncidentRead(string Incident, double Weight, bool Can
 /// </summary>
 public sealed record TradeVisitFacts
 {
+    /// <summary>Native request options, read on every frame independently of demand.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TradeRequestOption>))]
+    public EquatableArray<TradeRequestOption> Requests { get; init; }
+
     public StoryDangerLevel Danger { get; init; }
 
     public double PopulationIntent { get; init; }

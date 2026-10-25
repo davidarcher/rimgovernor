@@ -40,6 +40,13 @@ The comparison horizon is one game day. The order (see
    unsupplied demand and first-care time.
 4. **True ties** retain the feasible incumbent, then prefer less total participant labor among new plans.
 
+Eligible comms caravan requests also enter the portfolio independently of demand
+([trade contract](../contracts/controllable-trade.md#request-evidence-and-mission-intent)).
+They change only the selected outcome's stock. Their roots remain in the
+evaluation key, while subsets with the same physical work share one schedule.
+A caravan's day-two benefit enters the existing Investment term through the
+investment horizon, without extending the immediate one-day comparison.
+
 Thermal relief is measured over the known stationary occupancy against the observed environment without that work.
 It is compared only between portfolios with the same nonempty need-use
 occupancy (pawn, location and interval). Adding an otherwise unneeded activity

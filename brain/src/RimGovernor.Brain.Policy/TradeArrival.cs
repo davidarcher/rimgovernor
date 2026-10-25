@@ -394,6 +394,9 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
 
     public long Silver { get; init; }
 
+    /// <summary>A selected request sends one visit at From, rather than a recurring incident stream.</summary>
+    public bool Once { get; init; }
+
     /// <summary>The buy price of one unit at <paramref name="unitValue"/>.</summary>
     public double UnitPrice(double unitValue)
     {
@@ -444,10 +447,10 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     }
 
     /// <summary>The rate a day at which visits supply <paramref name="count"/> units.</summary>
-    public double Rate(long count) => VisitsPerDay * Supplies(count);
+    public double Rate(long count) => Once ? 0 : VisitsPerDay * Supplies(count);
 
     /// <summary>The chance <paramref name="count"/> units have not arrived <paramref name="t"/> days after the want: 1 until From, then exponential.</summary>
-    public double NotArrived(long count, double t) => count <= 0 ? 0 : t <= From ? 1 : Math.Exp(-Rate(count) * (t - From));
+    public double NotArrived(long count, double t) => count <= 0 ? 0 : Once ? t < From ? 1 : 1 - Supplies(count) : t <= From ? 1 : Math.Exp(-Rate(count) * (t - From));
 }
 
 public static class TradeArrivalRules

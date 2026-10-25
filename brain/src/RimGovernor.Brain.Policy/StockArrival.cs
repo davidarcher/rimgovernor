@@ -67,8 +67,8 @@ public sealed record MedicineTrade(Resource Kind, EquatableArray<MedicineTradeSo
 }
 
 /// <summary>
-/// The stock-arrival model of one review (#3868), built once at the read boundary (<see cref="StockArrivalRules.Craft"/>) and carried on
-/// <see cref="ForecastCoupledContext.Stock"/>. A craft source's not-arrived chance is a step: 1 until its arrival day, 0 after (crafting
+/// The stock-arrival model (#3868), built at the read boundary (<see cref="StockArrivalRules.Craft"/>); each outcome adds only its
+/// selected requests (#3917) on <see cref="ForecastCoupledContext.Stock"/>. A craft source's not-arrived chance is a step: 1 until its arrival day, 0 after (crafting
 /// is a fixed delay once the bill and its inputs exist); a trade source's is 1 until its comp starts and exponential after (#3869); a
 /// resource no source makes never arrives. <see cref="Unread"/> names the fact the boundary could not read; a rule that then waits on
 /// stock raises <see cref="RequiredFactException"/>.
@@ -79,6 +79,9 @@ public sealed record StockArrival
 
     /// <summary>The trader-visit sources (#3869), one per comp and resource.</summary>
     public EquatableArray<TradeSource> Trade { get; init; }
+
+    /// <summary>Available comms alternatives; their sources enter Trade only in an outcome selecting them.</summary>
+    public EquatableArray<ForecastTradeRequest> Requests { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
 
@@ -233,6 +236,7 @@ public sealed record StockArrival
         return this with
         {
             Trade = EquatableArray.From(parts),
+            Requests = EquatableArray.From(Requests.Select(r => r with { Sources = EquatableArray.From(r.Sources.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) })) })),
             MedicineTrade = visits.Count == 0 || !(units > 0)
                 ? null
                 : new MedicineTrade(kind, EquatableArray.From(visits), units, replenish, items.BestMedicine(), colonists, reserve, review.Active, EquatableArray.From(tiers.Take(tiers.IndexOf(kind)))),

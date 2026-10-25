@@ -259,9 +259,11 @@ public static partial class ForecastValue
     public static ForecastValueResult Of(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ForecastCoupledOutcome? baseline = null, IEnumerable<ForecastCommitment>? commitments = null)
     {
+        var chosen = commitments?.ToArray() ?? [];
+        context = ForecastTradeRequests.Context(outcome, chosen, context, horizon);
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
-        return Ledger(outcome, context, index, horizon, baseline, HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments, index.Illness),
-            GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []), commitments);
+        return Ledger(outcome, context, index, horizon, baseline, HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, chosen, index.Illness),
+            GoalContributionsOf(ProgressOf(outcome, context, index), context, chosen), chosen);
     }
 
     /// <summary>
@@ -374,6 +376,7 @@ public static partial class ForecastValue
         var goals = -earned;
         var chosen = commitments?.ToArray() ?? [];
         var investmentRows = InvestmentOf(outcome, chosen, context, index, horizon, findings);
+        ForecastTradeRequests.Credit(outcome, chosen, context, horizon, investmentRows, findings);
         PlannedRoomCredits.Credit(outcome, chosen, context, horizon, investmentRows, findings);
         ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
@@ -557,10 +560,13 @@ public static partial class ForecastValue
 
     /// <summary>The reference outcome's harm detail the death floor is measured from (worn outfits, its own care; #3546); null when its
     /// harm is unknown. A search prices every outcome against one reference, so it reads this once (#3723).</summary>
-    internal static HarmDetail? ReferenceHarm(ForecastCoupledOutcome reference, ForecastCoupledContext context, double horizon)
+    internal static HarmDetail? ReferenceHarm(ForecastCoupledOutcome reference, ForecastCoupledContext context, double horizon,
+        IEnumerable<ForecastCommitment>? commitments = null)
     {
+        var chosen = commitments?.ToArray() ?? [];
+        context = ForecastTradeRequests.Context(reference, chosen, context, horizon);
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
-        return HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, null, index.Illness).Detail;
+        return HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, chosen, index.Illness).Detail;
     }
 
     /// <summary>One outcome's value in the comparison's order (#3723): the floors and what they need now, the rest of the ledger when it is read.</summary>
@@ -591,7 +597,9 @@ public static partial class ForecastValue
         internal Staged(ForecastCoupledOutcome outcome, ForecastTerm urgentZeroTicks, ForecastCoupledContext context, double horizon,
             ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
         {
-            this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference; this.commitments = commitments;
+            var chosen = commitments?.ToArray() ?? [];
+            context = ForecastTradeRequests.Context(outcome, chosen, context, horizon);
+            this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference; this.commitments = chosen;
             index = Indexes.GetValue(context, static c => new LedgerIndex(c));
             var policy = context.Value;
             var days = horizon / GameTime.TicksPerDay;

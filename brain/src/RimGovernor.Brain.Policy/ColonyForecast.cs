@@ -13,6 +13,8 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
 {
     public EquatableArray<string> ActivityCompletions { get; init; }
     public string ExclusiveOutcome { get; init; } = "";
+    /// <summary>The comms-request option selected by this root; empty for other work.</summary>
+    public string TradeRequest { get; init; } = "";
     public ForecastActivityOutcome? Outcome { get; init; }
     public EquatableArray<ForecastMaterialClaim> MaterialClaims { get; init; }
     public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }

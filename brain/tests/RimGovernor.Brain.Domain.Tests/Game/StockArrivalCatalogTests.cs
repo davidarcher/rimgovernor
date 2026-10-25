@@ -276,6 +276,34 @@ public sealed class StockArrivalCatalogTests
     }
 
     [Fact]
+    public void AFreshColonysNativeFrameBuildsARequestPortfolioRootWithoutAnyUnmetDemand()
+    {
+        var native = ForecastTradeRequestTests.Request(kind: "Caravan_Outlander_Exotic");
+        var stock = FreshStock(TradeCatalog(), "Cassandra", 2000, facts: Visits() with { CommsConsole = true, Requests = [native] });
+        var option = Assert.Single(stock.Requests);
+        var arm = new Resource("BionicArm");
+        var arrival = Assert.Single(option.Sources, s => s.Resource == arm);
+        Assert.Equal(1700, arrival.Silver); // native census less the routine reserve for three colonists
+        Assert.Equal(0, arrival.NotArrived(1, 2));
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: GameTime.TicksPerDay)
+            with { StockArrival = stock };
+        var candidates = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
+        var root = Assert.Single(candidates.Alternatives, c => c.TradeRequest.Length != 0);
+        Assert.Equal(option.Id, root.TradeRequest);
+        Assert.Equal("trade/request/ally", root.ExclusiveOutcome);
+        Assert.Empty(root.StockChanges); // the arrival is availability, never secured yield
+        Assert.Same(stock, candidates.Context.Stock);
+        Assert.DoesNotContain(stock.Trade, s => s.Once);
+        var items = ItemFactsFixtureRules.CoreItemFacts();
+        var reserve = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
+        {
+            Catalog = items, Items = [], Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [] },
+        }, false, MedicalReservePolicy.Default());
+        var claimed = stock.WithMedicineClaim(items, reserve, 3, MedicalReservePolicy.Default());
+        Assert.Equal(1538, Assert.Single(Assert.Single(claimed.Requests).Sources, s => s.Resource == arm).Silver);
+    }
+
+    [Fact]
     public void AFreshColonyWithoutAFabricationBenchHasAFiniteTradeWaitForABionicArm()
     {
         // The production way (#3822): the catalog's decoded comps and stock, the census as the read boundary fills it with the

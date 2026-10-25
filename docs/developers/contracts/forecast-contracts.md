@@ -554,6 +554,26 @@ ceil(n / Batch) × Batch / PerDay (never past `Units`). Independent sources of o
 replacement's needs (its part when none is on the map, `MedicineCount` of any medicine kind when the map holds too little) are
 ready when all are, and a consumer prices E[min(W, cap)], the exact integral of the not-ready chance to the days it has left.
 
+Comms-request options are independent of demand (#3917): the frame's native
+eligibility and the catalog's stock produce one root per requestable caravan
+kind. `StockArrival.Requests` holds those alternatives, without adding arrivals.
+`PerOutcome<ForecastCoupledContext>` derives one context for the selected roots;
+only their sources enter that context's `StockArrival.Trade`. Its other canonical
+facts retain their references. Harm, illness, hospital and practice caches belong
+to that context, so outcomes with different stock cannot reuse distributions.
+The colony model retains the review's baseline recurring medicine income; a
+request is a discrete availability source, never another recurring income rate.
+
+A request source has `Rate = 0` and not-arrived chance 1 before the native
+arrival day, then `1 - Supplies(n)` forever: a failed one-visit draw never repeats.
+Generator counts and prices, today's spendable silver and medicine's prior claim
+use the same rules as recurring trade. The request's later avoided harm is an
+Investment contribution through `InvestmentHorizonDays`; the difference already
+priced in immediate harm is subtracted. Each comparison uses stock and horizon
+specific harm distributions. Requests of the same faction exclude one another
+through the native shared cooldown. [Controllable trade](controllable-trade.md)
+owns native gates and the execution boundary.
+
 Crafting is the first source (`StockArrivalRules.Craft`): each catalog recipe making a medicine or an install recipe's fixed part
 (`DefinitionCatalog.StockRecipes`, research finished, not ideology-gated, every slot fillable) at the best usable bench of the bills
 census hosting it and the best eligible crafter (the bench's DoBill work type enabled, every `skillRequirements` level met) runs at

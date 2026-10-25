@@ -303,7 +303,7 @@ public sealed partial record ForecastCoupledSelection
         var reference = baseline;
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
         // The death floor of every outcome is measured from this one reference (#3723): priced once, not per outcome.
-        var referenceHarm = ForecastValue.ReferenceHarm(reference, candidates.Context, horizonTicks);
+        var referenceHarm = ForecastValue.ReferenceHarm(reference, candidates.Context, horizonTicks, baselineCommitments);
         // An outcome's consequences are staged (#3723): the floors and the cheap terms at once, the ledger when a comparison reaches
         // it or a consumer needs the complete vector. The eager test control prices the ledger here instead.
         StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
@@ -419,7 +419,7 @@ public sealed partial record ForecastCoupledSelection
         {
             graphOnly[i] = GraphOnly(alternatives[i]);
             var plannedSite = PlannedSiteRoot(alternatives[i]);
-            keyed[i] = !graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id);
+            keyed[i] = alternatives[i].TradeRequest.Length == 0 && (!graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id));
             exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 } || alternatives[i].OutfitChanges.Count > 0
                 || alternatives[i].ExclusiveOutcome is { } exclusive && (placedRing.Contains(exclusive) || pricedRoom.Contains(exclusive));
         }
@@ -568,8 +568,9 @@ public sealed partial record ForecastCoupledSelection
         // schedule search that finished within its bound is complete at any larger bound; a truncated one is redone
         // at a larger bound.
         // A subset's schedule key is its closure union over the tasks then its keyed roots; its evaluation key adds the
-        // closure union of its exempting roots. The words are built in one scratch and copied only when first seen.
-        var scheduleWords = taskWords + rootWords; var keyWords = scheduleWords + taskWords;
+        // closure union of its exempting roots and its ledger-only trade requests. Requests change stock, not the schedule.
+        // The words are built in one scratch and copied only when first seen.
+        var scheduleWords = taskWords + rootWords; var keyWords = scheduleWords + taskWords + rootWords;
         var keyScratch = new ulong[keyWords]; var memberScratch = new ulong[rootWords];
         var evaluatedByKey = new Dictionary<ulong[], int>(WordsComparer.Instance);
         var evaluated = evaluatedByKey.GetAlternateLookup<ReadOnlySpan<ulong>>();
@@ -587,6 +588,7 @@ public sealed partial record ForecastCoupledSelection
                 Bits.Set(memberScratch, at);
                 Bits.Or(keyScratch.AsSpan(0, taskWords), closures[at]);
                 if (keyed[at]) Bits.Set(keyScratch.AsSpan(taskWords, rootWords), at);
+                if (c.TradeRequest.Length != 0) Bits.Set(keyScratch.AsSpan(scheduleWords + taskWords, rootWords), at);
                 if (exempting[at]) Bits.Or(keyScratch.AsSpan(scheduleWords, taskWords), closures[at]);
             }
             ReadOnlySpan<ulong> key = keyScratch, schedule = keyScratch.AsSpan(0, scheduleWords);

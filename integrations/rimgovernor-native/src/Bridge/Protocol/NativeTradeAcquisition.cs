@@ -45,35 +45,14 @@ namespace RimGovernor.Native
             return "Neutral";
         }
 
-        internal static RimGovernor.Brain.GameFacts.Observations.TradeAcquisition Read(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, RimGovernor.Brain.GameFacts.Observations.TradePackEstimate? pack)
+        internal static List<RimGovernor.Brain.GameFacts.Observations.TradeRequestOption> RequestOptions(Map map)
         {
             var now = Find.TickManager.TicksGame;
-            var arrivals = new List<RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival>();
-            foreach (QueuedIncident queued in Find.Storyteller.incidentQueue)
-            {
-                var incident = queued.FiringIncident;
-                if (incident.parms.target != map || incident.parms.faction == null || incident.parms.traderKind == null) continue;
-                RimGovernor.Brain.GameFacts.Common.TradeRequestKind kind;
-                if (incident.def == IncidentDefOf.TraderCaravanArrival) kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan;
-                else if (incident.def == IncidentDefOf.OrbitalTraderArrival) kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital;
-                else continue;
-                arrivals.Add(new RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival { FactionId = incident.parms.faction.GetUniqueLoadID(), Kind = kind,
-                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick });
-            }
-            var work = new List<RimGovernor.Brain.GameFacts.Observations.TradeCommsWork>();
-            foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
-            {
-                foreach (var job in pawn.jobs.jobQueue.Select(q => q.job).Concat(new[] { pawn.CurJob })) {
-                    if (job?.def != JobDefOf.UseCommsConsole || !(job.commTarget is Faction faction) || !(job.targetA.Thing is Building_CommsConsole console)) continue;
-                    work.Add(new RimGovernor.Brain.GameFacts.Observations.TradeCommsWork { NegotiatorId = pawn.GetUniqueLoadID(), ConsoleId = console.GetUniqueLoadID(), FactionId = faction.GetUniqueLoadID() });
-                }
-            }
             var consoles = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>()
-                .Where(c => c.CanUseCommsNow).OrderBy(c => c.GetUniqueLoadID()).ToList();
+                .Where(c => c.CanUseCommsNow).ToList();
             var eligible = map.mapPawns.FreeColonistsSpawned.Where(p => consoles.Any(c => ConsoleNegotiator(c, p)))
                 .OrderBy(p => p.GetUniqueLoadID()).ToList();
-            var ships = map.passingShipManager.passingShips.OrderBy(s => s.GetUniqueLoadID())
-                .Select(s => new RimGovernor.Brain.GameFacts.Observations.PassingTradeShip { TraderKind = (s as TradeShip)?.TraderKind.defName ?? "" }).ToList();
+            var ships = map.passingShipManager.passingShips;
             var requests = new List<RimGovernor.Brain.GameFacts.Observations.TradeRequestOption>();
             foreach (var faction in Find.FactionManager.AllFactionsVisible.Where(f => !f.IsPlayer && !f.temporary)
                 .OrderBy(f => f.GetUniqueLoadID()))
@@ -103,6 +82,38 @@ namespace RimGovernor.Native
                     }
                 }
             }
+            return requests;
+        }
+
+        internal static RimGovernor.Brain.GameFacts.Observations.TradeAcquisition Read(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, RimGovernor.Brain.GameFacts.Observations.TradePackEstimate? pack)
+        {
+            var arrivals = new List<RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival>();
+            foreach (QueuedIncident queued in Find.Storyteller.incidentQueue)
+            {
+                var incident = queued.FiringIncident;
+                if (incident.parms.target != map || incident.parms.faction == null || incident.parms.traderKind == null) continue;
+                RimGovernor.Brain.GameFacts.Common.TradeRequestKind kind;
+                if (incident.def == IncidentDefOf.TraderCaravanArrival) kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan;
+                else if (incident.def == IncidentDefOf.OrbitalTraderArrival) kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital;
+                else continue;
+                arrivals.Add(new RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival { FactionId = incident.parms.faction.GetUniqueLoadID(), Kind = kind,
+                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick });
+            }
+            var work = new List<RimGovernor.Brain.GameFacts.Observations.TradeCommsWork>();
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
+            {
+                foreach (var job in pawn.jobs.jobQueue.Select(q => q.job).Concat(new[] { pawn.CurJob })) {
+                    if (job?.def != JobDefOf.UseCommsConsole || !(job.commTarget is Faction faction) || !(job.targetA.Thing is Building_CommsConsole console)) continue;
+                    work.Add(new RimGovernor.Brain.GameFacts.Observations.TradeCommsWork { NegotiatorId = pawn.GetUniqueLoadID(), ConsoleId = console.GetUniqueLoadID(), FactionId = faction.GetUniqueLoadID() });
+                }
+            }
+            var consoles = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>()
+                .Where(c => c.CanUseCommsNow).OrderBy(c => c.GetUniqueLoadID()).ToList();
+            var eligible = map.mapPawns.FreeColonistsSpawned.Where(p => consoles.Any(c => ConsoleNegotiator(c, p)))
+                .OrderBy(p => p.GetUniqueLoadID()).ToList();
+            var ships = map.passingShipManager.passingShips.OrderBy(s => s.GetUniqueLoadID())
+                .Select(s => new RimGovernor.Brain.GameFacts.Observations.PassingTradeShip { TraderKind = (s as TradeShip)?.TraderKind.defName ?? "" }).ToList();
+            var requests = RequestOptions(map);
             return new RimGovernor.Brain.GameFacts.Observations.TradeAcquisition
             {
                 Context = context,

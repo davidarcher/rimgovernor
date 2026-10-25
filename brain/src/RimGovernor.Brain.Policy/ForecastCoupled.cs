@@ -170,8 +170,10 @@ public sealed record ForecastCoupledContext
     /// <summary>The tending a wound gets over the horizon, which tier 2 averages off its trajectory (<see cref="ColonyValue.TendingOverHorizon"/>,
     /// #3804, #3868); null before tier 2 ran or unread.</summary>
     public ForecastTending? Tending { get; init; }
-    /// <summary>When a part, an organ or a medicine a rule waits on arrives (#3868, <see cref="StockArrival"/>); built once a review at the read boundary.</summary>
+    /// <summary>When a part, organ or medicine arrives (#3868): the review's sources plus only this outcome's selected requests (#3917).</summary>
     public StockArrival Stock { get; init; } = new();
+    /// <summary>The review's stock before the selected requests; a reference, not a second read or store.</summary>
+    internal StockArrival? StockBeforeRequests { get; init; }
     /// <summary>The bed a planned hospital is furnished with (#3804): the first of RoomFurniture.HospitalBeds, with its def's stats; no def without a catalog.</summary>
     public FurnitureBed HospitalBed { get; init; } = new();
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }

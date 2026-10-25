@@ -48,6 +48,8 @@ public static class StockArrivalReads
             : craft with
             {
                 Trade = EquatableArray.From(trade),
+                Requests = ForecastTradeRequests.Options(catalog.TraderStock(), colony.Threat.Observed.Trade ?? throw new RequiredFactException("trader visit observation"),
+                    TradePolicyRules.SpendableSilver(stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef)), colony.ColonistCount)),
                 Findings = EquatableArray.From(craft.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)),
                 Medicines = EquatableArray.From(medicines),
             };

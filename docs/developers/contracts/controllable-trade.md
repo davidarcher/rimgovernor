@@ -91,6 +91,28 @@ the native queue shows it.
 
 ## Request evidence and mission intent
 
+Every routine native frame carries `TradeVisitFacts.Requests`, from the same
+native request-prerequisite read as `ReadTradeAcquisition`, independently of
+unmet demand. Eligible caravan kinds become portfolio alternatives. A root
+selects one faction/kind; kinds of a faction exclude one another because they
+share `lastTraderRequestTick`. The native adjusted goodwill payment must retain
+the alliance, and the native cooldown, title, console and temperature gates must
+be satisfied. Caravan requests charge goodwill and no silver fee; purchases use
+today's silver above the routine reserve, with medicine's claim first. Goodwill
+has no invented capability-days exchange rate.
+
+Selection adds that one visit to that outcome's stock availability, with the
+catalog kind's generator probabilities and native arrival delay. Unselected
+requests add nothing. Stock is never a secured delivery. The one-day immediate
+horizon stays unchanged; avoided later harm is booked in the existing Investment
+term only through `InvestmentHorizonDays`, subtracting any benefit already in
+the immediate harm term. See [stock arrival](forecast-contracts.md#stock-arrival-3868).
+
+This is the portfolio comparison path. Selection-to-request execution and the
+authorization of purchases from the selected waits remain the explicit work of
+[#3919](https://github.com/davidarcher/rimgovernor/issues/3919); current supply
+request proposals retain their hold until that hand-off exists.
+
 `CommsTradeRequestIntent` is closed to caravan/orbital requests and names faction,
 kind, console, negotiator and expected last request tick. Its effect distinguishes
 queued pawn work from a changed native request tick and observed goodwill. Hands

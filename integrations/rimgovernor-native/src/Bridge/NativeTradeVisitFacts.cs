@@ -41,6 +41,7 @@ internal static class NativeTradeVisitFacts
             Negotiator = negotiators.Count != 0,
             NegotiatorPriceImprovement = negotiators.Count == 0 ? 0 : negotiators.Max(p => p.GetStatValue(StatDefOf.TradePriceImprovement)),
             PriceFactorLoss = difficulty.tradePriceFactorLoss,
+            Requests = [.. NativeTradeAcquisition.RequestOptions(map)],
             Incidents = [.. incidents.Select(def => Incident(map, def, difficulty))],
         };
     }
