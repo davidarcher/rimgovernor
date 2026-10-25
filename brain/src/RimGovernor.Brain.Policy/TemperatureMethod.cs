@@ -214,7 +214,7 @@ public abstract record ClimatePower
 
     public sealed record Census(PowerTopology Topology) : ClimatePower;
 
-    public static ClimatePower Of(Fact<PowerTopology> power) => power.TryGetValue(out var topology) ? new Census(topology) : new NoCensus();
+    public static ClimatePower Of(PowerTopology power) => new Census(power);
 }
 
 public static partial class TemperatureMethodRules

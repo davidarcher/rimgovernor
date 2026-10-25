@@ -41,7 +41,7 @@ public sealed class PortfolioAllocationTests
         var experienced = read.FoodConversions.Single(c => c.Pawn == "helper");
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 16)]),
+            Resources = [new(new("Rice"), 16)],
             WorkResources = roster.WorkResources,
             ForecastObserved = facts.ForecastObserved with
             {

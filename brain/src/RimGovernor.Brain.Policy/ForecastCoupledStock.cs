@@ -10,7 +10,6 @@ public static partial class ForecastCoupled
         private FoodConsumer[] otherConsumers = [];
         private double consumedUntil;
         private readonly HashSet<string> outsidePhysical = new(StringComparer.Ordinal);
-        private bool physicalCensusComplete;
         /// <summary>Whether every medicine row's freshness was read; a row whose was not is left out of the census.</summary>
         private bool medicineRead;
 
@@ -49,8 +48,7 @@ public static partial class ForecastCoupled
         private void InitializeCensus(ColonyForecastRequest request)
         {
             census.Clear(); outsidePhysical.Clear(); food = request.Facts.Food; items = request.Facts.Items; consumedUntil = 0;
-            var physical = request.Facts.ResourceThings.TryGetValue(out var identities) ? identities.ToHashSet(StringComparer.Ordinal) : null;
-            physicalCensusComplete = physical is not null;
+            var physical = request.Facts.ResourceThings.ToHashSet(StringComparer.Ordinal);
             medicineRead = true;
             // A consumer whose nutrition rate is not a finite non-negative number cannot be drawn against; the outcome is refused.
             foreach (var consumer in food.Consumers)
@@ -68,7 +66,7 @@ public static partial class ForecastCoupled
                     EquatableArray.From(row.Eaters.Where(e => (row.Holder.IsEmpty || row.Holder == e)
                         && (!(row.IsHumanMeat || row.IsHumanlike) || food.Consumers.Any(c => c.Id == e && c.HumanMeatAcceptable)))), false);
                 Include(row.Id, row.DefName, count, fresh);
-                if (physical is null || !physical.Contains(row.Id)) outsidePhysical.Add(row.Id);
+                if (!physical.Contains(row.Id)) outsidePhysical.Add(row.Id);
             }
             if (request.Facts.Medicine.Items.TryGetValue(out var medicine))
                 foreach (var row in medicine)

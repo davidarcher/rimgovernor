@@ -148,7 +148,7 @@ public sealed class MaterialChoiceTests
         var facts = new RoundsFacts { Tick = new Tick(100),
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
-            Resources = Known<EquatableArray<Amount>>([new(Metal, 10), new(Timber, 10)]),
+            Resources = [new(Metal, 10), new(Timber, 10)],
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             BillReservations = [],
             WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };

@@ -51,8 +51,8 @@ public sealed class ResourceRunwayRecordConverter : ObjectCodec<ResourceRunwayRe
             Tick = e.Get<Tick>("Tick", o),
             WindowDays = e.Dbl("WindowDays"),
             Reserve = e.I64("Reserve"),
-            Stock = e.GetNullable<long>("Stock", o),
-            SurfaceOre = e.GetNullable<long>("SurfaceOre", o),
+            Stock = e.I64("Stock"),
+            SurfaceOre = e.I64("SurfaceOre"),
             ConsumptionPerDay = e.GetNullable<double>("ConsumptionPerDay", o),
             StockDays = e.GetNullable<double>("StockDays", o),
             DaysLeft = e.GetNullable<double>("DaysLeft", o),
@@ -66,8 +66,8 @@ public sealed class ResourceRunwayRecordConverter : ObjectCodec<ResourceRunwayRe
         w.Put("Tick", v.Tick, o);
         w.WriteNum("WindowDays", v.WindowDays);
         w.WriteNum("Reserve", v.Reserve);
-        w.PutNullable("Stock", v.Stock, o);
-        w.PutNullable("SurfaceOre", v.SurfaceOre, o);
+        w.WriteNum("Stock", v.Stock);
+        w.WriteNum("SurfaceOre", v.SurfaceOre);
         w.PutNullable("ConsumptionPerDay", v.ConsumptionPerDay, o);
         w.PutNullable("StockDays", v.StockDays, o);
         w.PutNullable("DaysLeft", v.DaysLeft, o);

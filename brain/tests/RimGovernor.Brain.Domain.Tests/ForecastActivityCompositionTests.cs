@@ -220,7 +220,7 @@ public sealed class ForecastActivityCompositionTests
             with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4)]),
+            Resources = [new(new("Rice"), 4)],
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
@@ -305,7 +305,7 @@ public sealed class ForecastActivityCompositionTests
             Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(1d), SiteApproachTicks = Known(0d) };
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 2)]),
+            Resources = [new(new("Rice"), 2)],
             PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {

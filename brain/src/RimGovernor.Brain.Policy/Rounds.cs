@@ -219,8 +219,8 @@ public sealed record RoundsFacts
     /// <summary>The construction census (#3879); null only on a projection that no routine frame read built.</summary>
     public CurrentConstruction? CurrentConstruction { get; init; }
 
-    /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); null while the plan or the construction census is unread.</summary>
-    public Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstruction { get; init; }
+    /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); null while there is no plan or no construction census to owe against: nothing planned is then owed.</summary>
+    public IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>? PlannedConstruction { get; init; }
 
     /// <summary>
     /// The same owed operations as hypothetical sites, one per op x stuff, plus the unplaced shelf candidates, each joined to
@@ -525,7 +525,7 @@ public sealed record RoundsFacts
 
     public double OutdoorTemperature { get; init; }
 
-    public Fact<double> PowerHeadroom { get; init; }
+    public double PowerHeadroom { get; init; }
 
     /// <summary>Observed ColonyForecast diagnostics not carried by the facts above.</summary>
     public ColonyForecastObserved ForecastObserved { get; init; } = new();
@@ -553,10 +553,10 @@ public sealed record RoundsFacts
     public EquatableArray<PawnValue> PreviousPawnValues { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
-    public Fact<long> Wood { get; init; }
+    public long Wood { get; init; }
 
     /// <summary>The refuelable buildings of the power census (FuelRunway).</summary>
-    public Fact<EquatableArray<FuelConsumer>> Fuel { get; init; }
+    public EquatableArray<FuelConsumer> Fuel { get; init; }
 
     /// <summary>The open costs of admitted methods, from the last review's live records: an open shortfall raises an economy/resource floor for the bounded difference.</summary>
     public EquatableArray<AdmittedCost> Admitted { get; init; }
@@ -565,13 +565,14 @@ public sealed record RoundsFacts
     public EquatableArray<OpenBill> OpenBills { get; init; }
 
     /// <summary>The generic reachable, unforbidden player item census (the same colony facts rows Wood is taken from), so the economy/resource Need's deficit is measured at review time instead of assumed from config.</summary>
-    public Fact<EquatableArray<Amount>> Resources { get; init; }
-    public Fact<EquatableArray<string>> ResourceThings { get; init; }
+    public EquatableArray<Amount> Resources { get; init; }
+    public EquatableArray<string> ResourceThings { get; init; }
 
-    public IReadOnlyDictionary<Resource, Fact<long>>? ResourceSurfaceOre { get; init; }
+    /// <summary>The safe surface ore per material the consumption ring names; a material without an entry (its source read failed, or none was read) has none.</summary>
+    public IReadOnlyDictionary<Resource, long> ResourceSurfaceOre { get; init; } = new Dictionary<Resource, long>();
 
-    /// <summary>The recurring spend over the rate window, from native's realized-consumption ring; unknown when the read failed.</summary>
-    public Fact<ResourceConsumption> ResourceConsumption { get; init; }
+    /// <summary>The recurring spend over the rate window, from native's realized-consumption ring; null while the ring is unread (no page merged, or the read failed).</summary>
+    public ResourceConsumption? ResourceConsumption { get; init; }
 
     public EquatableArray<ResourceRunway> ResourceRunways { get; init; }
 
@@ -658,11 +659,11 @@ public sealed record RoundsFacts
 
     public WorkCoverageState WorkCoverage { get; init; }
 
-    public Fact<bool> PowerRequired { get; init; }
+    public bool PowerRequired { get; init; }
 
-    public Fact<bool> DisabledConsumers { get; init; }
+    public bool DisabledConsumers { get; init; }
 
-    public Fact<bool> PowerWeatherSafe { get; init; }
+    public bool PowerWeatherSafe { get; init; }
 
     public DisasterShortCircuit ShortCircuit { get; init; } = new DisasterShortCircuit.NoneSeen();
 }
@@ -769,23 +770,8 @@ public static partial class RoundsRules
 
     internal static Fact<bool> FootholdPower(RoundsFacts f)
     {
-        if (f.PowerWeatherSafe.TryGetValue(out var safe) && !safe)
-        {
-            return Known(false);
-        }
-        var power = Measured(f.PowerHeadroom, v => v >= 0);
-        if (f.PowerRequired.TryGetValue(out var required))
-        {
-            if (!required)
-            {
-                power = Known(true);
-            }
-        }
-        else
-        {
-            power = Unknown<bool>();
-        }
-        return AllFacts(power, Measured(f.DisabledConsumers, v => !v));
+        var powered = !f.PowerRequired || f.PowerHeadroom >= 0;
+        return Known(f.PowerWeatherSafe && powered && !f.DisabledConsumers);
     }
 
     /// <summary>The armed fighters a colony of n colonists owes: two, every colonist when fewer, never below one. The only place the number lives.</summary>
@@ -909,14 +895,22 @@ public static partial class RoundsRules
         var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         // The colonist and capacity counts are native unsigned counts and need no check.
-        foreach (var fact in new[] { f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
+        foreach (var fact in new[] { f.GrowingCells, f.Armed, f.Unarmed, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
             if (fact.TryGetValue(out var v) && (v < 0 || v > long.MaxValue / 10))
             {
                 throw new DomainException("invalid routine count");
             }
         }
-        foreach (var fact in new[] { f.FieldCoverage, f.PowerHeadroom })
+        if (f.Wood < 0 || f.Wood > long.MaxValue / 10)
+        {
+            throw new DomainException("invalid routine count");
+        }
+        if (double.IsNaN(f.PowerHeadroom) || double.IsInfinity(f.PowerHeadroom))
+        {
+            throw new DomainException("nonfinite routine fact");
+        }
+        foreach (var fact in new[] { f.FieldCoverage })
         {
             if (fact.TryGetValue(out var v) && (double.IsNaN(v) || double.IsInfinity(v)))
             {

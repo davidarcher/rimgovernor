@@ -415,7 +415,7 @@ public sealed class BedMergePriceTests
         var colony = ColonyFactsCoreTests.Projection() with
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
-            Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 600 }),
+            Resources = new Dictionary<Resource, long> { [wood] = 600 },
         };
 
         // The blocks are cheaper but the colony holds none: the planned ring is read in wood, and the merge prices wood.
@@ -424,7 +424,7 @@ public sealed class BedMergePriceTests
         Assert.Equal((850 * 0.7, wood, 25L), (door!.Value.Work, door.Value.Costs.Single().Resource, door.Value.Costs.Single().Count));
 
         // With blocks in stock too, the cheaper blocks are the base ring's stuff.
-        var stocked = colony with { Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 }) };
+        var stocked = colony with { Resources = new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 } };
         Assert.Equal(granite, Rounder.BedMergeShell(stocked).Wall!.Value.Costs.Single().Resource);
     }
 
@@ -441,7 +441,7 @@ public sealed class BedMergePriceTests
         Obs.ColonyProjection Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Projection() with
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
-            Resources = Known<IReadOnlyDictionary<Resource, long>>(stocked.ToDictionary(r => r, _ => 300L)),
+            Resources = stocked.ToDictionary(r => r, _ => 300L),
             RingSources = map,
         };
         Resource WallStuff(Obs.ColonyProjection colony) => Rounder.BedMergeShell(colony).Wall!.Value.Costs.Single().Resource;
@@ -476,7 +476,7 @@ public sealed class BedMergePriceTests
         var colony = ColonyFactsCoreTests.Projection() with
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
-            Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 30 }),
+            Resources = new Dictionary<Resource, long> { [wood] = 30 },
             Acquisition = [],
         };
 

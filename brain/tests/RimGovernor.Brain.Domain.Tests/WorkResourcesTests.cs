@@ -45,7 +45,7 @@ internal static class WorkResourceTestFacts
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
-        Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 10)]),
+        Resources = [new(new("Rice"), 10)],
         CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
@@ -84,7 +84,7 @@ public sealed class WorkResourcesTests
             [new("helper", "helper-assignment", "harvest-method", 0, 1, false,
                 [new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Task = "deliver", Preparing = true }]) { Tasks = [task] });
         var facts = WorkResourceTestFacts.Create("helper", "eater") with
-        { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 7)]) };
+        { Resources = [new(new("Rice"), 7)] };
         var held = View(facts, Pending(action));
         Assert.Equal(1, held.Materials.Value[new("Rice")].Value);
         Assert.False(WorkRules.WorkResourcesFit(held, Plan("hungry", Eat(7))));
@@ -93,7 +93,7 @@ public sealed class WorkResourcesTests
             new(PawnActivityKind.Work, "plant", "Harvest", "Harvest", 0, 500), new(1, 1), 100);
         var beforeHarvest = DomainAction.NewPawnActivitiesAction(action.Id, action.PawnActivities! with { Tasks = [producer, task] });
         Assert.Equal(7, View(facts, Pending(beforeHarvest)).Materials.Value[new("Rice")].Value);
-        var noStock = facts with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 0)]) };
+        var noStock = facts with { Resources = [new(new("Rice"), 0)] };
         Assert.True(View(noStock, Pending(action)).Materials.Value[new("Rice")].Value <= 0);
 
         static DomainAction Eat(int count)
@@ -121,7 +121,7 @@ public sealed class WorkResourcesTests
                  new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = task.Id, Preparing = true }]) { Tasks = [task] });
         var facts = WorkResourceTestFacts.Create("helper", "eater") with
         {
-            Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 19)]),
+            Resources = [new(new("Rice"), 19)],
             WorkResources = Known<EquatableArray<WorkResourcePawn>>([
                 new("helper", "helper-assignment", 2, "holding", "", "", 0) { LocalHour = 12 },
                 new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }])
@@ -129,7 +129,7 @@ public sealed class WorkResourcesTests
         var row = Pending(heldAction) with { Progress = new() { Action = heldAction.Id, Stage = Stage.Completed,
             Attempt = new(1), Receipt = new ReceiptState.Received(Receipt.Accepted), Tick = new(99) } };
         var held = View(facts, row);
-        Assert.Equal(19, Assert.Single(held.Evidence.Stock.Value).Count);
+        Assert.Equal(19, Assert.Single(held.Evidence.Stock).Count);
         Assert.Equal(4d, held.Materials.Value[new("Rice")].Value);
         Assert.Contains("shared-rice", held.Claims.Targets);
         var eat = step with { Count = 4 };
@@ -182,13 +182,13 @@ public sealed class WorkResourcesTests
     {
         // A naked start owns no wood: the shelter and the storage room blueprints were refused materials_short, so
         // nothing was ever placed for the colony to gather toward. A blueprint spends nothing until delivery.
-        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 0)]) };
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = [new(new("Rice"), 0)] };
         Assert.Null(WorkRules.WorkResourcesRefusal(View(facts), Plan("build", Building("wall"))));
         var held = View(facts, Pending(Building("wall")));
         var other = DomainAction.NewBuildingAction(new("other"), new("TestWall", new(7, 7), Rotation.North, "Rice"), ConstructionTier.Survive);
         Assert.Null(WorkRules.WorkResourcesRefusal(held, Plan("other", other)));
         Assert.StartsWith("materials_short:Rice", WorkRules.WorkResourcesRefusal(
-            View(facts with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 6)]) }, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
+            View(facts with { Resources = [new(new("Rice"), 6)] }, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public sealed class WorkResourcesTests
         Assert.True(WorkRules.WorkResourcesFit(held, Plan("build", Building("wall"))));
         Assert.False(WorkRules.WorkResourcesFit(held, Plan("craft", Craft("bill"))));
         Assert.Equal(4, held.Materials.Value[new("Rice")].Value);
-        Assert.Equal(10, held.Evidence.Stock.Value.Single().Count);
+        Assert.Equal(10, held.Evidence.Stock.Single().Count);
     }
 
     // #3187: a coupled batch stages several pawns at one location. A shared cell is not a shared thing, so the
@@ -328,7 +328,7 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder") with
         {
-            Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 10), new(new("Steel"), 10)]),
+            Resources = [new(new("Rice"), 10), new(new("Steel"), 10)],
             BillReservations = 
                 [new() { Pawn = new("player"), Bill = "player-bill", Items = [new(new("Rice"), 2)] }],
             WorkAdmission = WorkResourceTestFacts.Create().WorkAdmission with
@@ -350,7 +350,7 @@ public sealed class WorkResourcesTests
     [Fact]
     public void SameBenchCannotBeHiddenInsideOnePlanOrUsedThroughPlayerWork()
     {
-        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 100)]) };
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = [new(new("Rice"), 100)] };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("double-bench", Craft("first"), Craft("second"))));
         var busy = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns[0] with
         { Job = new PawnJob { Def = "DoBill", Target = new JobTarget.Spawned("bench", new Cell(1, 1)) } };

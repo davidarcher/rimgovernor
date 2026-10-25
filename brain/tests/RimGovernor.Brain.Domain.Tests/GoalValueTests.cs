@@ -13,7 +13,7 @@ public sealed class GoalValueTests
     private static WorkResourceView Resources()
     {
         var facts = WorkResourceTestFacts.Create("pawn") with
-        { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([]) };
+        { Resources = [] };
         return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))),
             Known(default(EquatableArray<ProductionBatch>)), []);
     }

@@ -371,10 +371,6 @@ public sealed partial class RoundsTradePlanner
             }
             foodGap = food.GapPerDay;
         }
-        if (!projection.Facts.Resources.TryGetValue(out var stock))
-        {
-            throw new Pol.RequiredFactException("resource census");
-        }
         var rows = new List<Pol.MissionPurchaseRow>();
         foreach (var row in sheet.Lines)
         {
@@ -404,7 +400,7 @@ public sealed partial class RoundsTradePlanner
         {
             Mission = m,
             Targets = targets,
-            Stock = stock,
+            Stock = projection.Facts.Resources,
             FoodGapPerDay = foodGap,
             FoodTargetDays = Reviewer.Policy.FoodTargetDays,
             Nutrition = nutrition,

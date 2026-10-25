@@ -78,7 +78,7 @@ public sealed record FuelConsumer
     {
         foreach (var r in Fuels)
         {
-            if (stock.Count(r).TryGetValue(out var n) && n > 0)
+            if (stock.Count(r) > 0)
             {
                 return (r, true);
             }
@@ -90,7 +90,7 @@ public sealed record FuelConsumer
 /// <summary>What the fuel runway is computed from.</summary>
 public sealed record FuelInputs
 {
-    public Fact<EquatableArray<FuelConsumer>> Consumers { get; init; }
+    public EquatableArray<FuelConsumer> Consumers { get; init; }
 
     public StockReader Stock { get; init; }
 }
@@ -138,7 +138,7 @@ public static class RoundsFactsFuelExtensions
 {
     /// <summary><see cref="FuelRunwayRules.PlanFuelRunway"/> of the review's facts.</summary>
     public static FuelRunway FuelRunway(this RoundsFacts f) =>
-        FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader { Resources = f.Resources, Wood = f.Wood } });
+        FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader(f.Resources, f.Wood) });
 }
 
 public static class FuelRunwayRules
@@ -157,16 +157,13 @@ public static class FuelRunwayRules
     /// Rolls every refuelable building forward over MaintenanceHorizonDays. A building
     /// that burns at a known daily rate needs the horizon's burn less its tank; one already empty needs its refill
     /// (runway zero, whatever its rate). A building that burns per use and still holds fuel has no runway and is
-    /// listed in Gaps. An unread census or stock, or a building whose fuel, rate gate, fuel item or unit
+    /// listed in Gaps. A building whose fuel, rate gate, fuel item or unit
     /// conversion is unknown, makes the projection unknown: its demand is left out, never defaulted. The demand
     /// is an absolute stock level, counted only where the stock falls short of it.
     /// </summary>
     public static FuelRunway PlanFuelRunway(FuelInputs input)
     {
-        if (!input.Consumers.TryGetValue(out var consumers))
-        {
-            return new FuelRunway { Projection = Unknown<FuelProjection>() };
-        }
+        var consumers = input.Consumers;
         var accounts = new Dictionary<Resource, FuelAccount>();
         var units = new Dictionary<Resource, double>();
         var complete = true;
@@ -226,17 +223,12 @@ public static class FuelRunwayRules
             }
         }
         gaps.Sort(StringComparer.Ordinal);
-        var stockKnown = true;
         var needs = new Dictionary<Resource, long>();
         var rows = new List<FuelResourceRunway>();
         var shortfallDays = 0.0;
         foreach (var (item, a) in accounts)
         {
-            if (!input.Stock.Count(item).TryGetValue(out var have))
-            {
-                stockKnown = false;
-                continue;
-            }
+            var have = input.Stock.Count(item);
             var need = (long)Math.Ceiling(a.Continuous + a.Empty);
             var row = new FuelResourceRunway { Resource = item, Burn = a.Burn, Need = need, Stock = have };
             if (need > have)
@@ -254,7 +246,7 @@ public static class FuelRunwayRules
             rows.Add(row);
         }
         rows.Sort((x, y) => x.Resource.CompareTo(y.Resource));
-        if (!complete || !stockKnown)
+        if (!complete)
         {
             return new FuelRunway { Needs = needs, Projection = Unknown<FuelProjection>() };
         }

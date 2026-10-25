@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Store;
 
@@ -8,7 +7,8 @@ public sealed partial class Store
 {
     /// <summary>
     /// Forecasts every medicine, social drug and resource the recurring spend native observed
-    /// (<c>Facts.ResourceConsumption</c>) names, in resource order.
+    /// (<c>Facts.ResourceConsumption</c>) names, in resource order. A resource's stock is the census rows it appears in;
+    /// its surface ore is the entry the ore read left for it, none without one.
     /// </summary>
     internal static EquatableArray<ResourceRunway> ResourceRunways(RoundsRequest r)
     {
@@ -21,30 +21,20 @@ public sealed partial class Store
         var result = new List<ResourceRunway>();
         foreach (var resource in reserves.Keys.OrderBy(key => key.Value, StringComparer.Ordinal))
         {
-            var stock = Unknown<long>();
-            if (facts.Resources.TryGetValue(out var rows))
+            long stock = 0;
+            foreach (var row in facts.Resources)
             {
-                long total = 0;
-                var valid = true;
-                foreach (var row in rows)
+                if (row.Resource != resource)
                 {
-                    if (row.Resource != resource)
-                    {
-                        continue;
-                    }
-                    if (row.Count < 0 || row.Count > long.MaxValue - total)
-                    {
-                        valid = false;
-                        break;
-                    }
-                    total += row.Count;
+                    continue;
                 }
-                if (valid)
+                if (row.Count < 0 || row.Count > long.MaxValue - stock)
                 {
-                    stock = Known(total);
+                    throw new DomainException($"resource census row {resource.Value} is negative or overflows");
                 }
+                stock += row.Count;
             }
-            var ore = facts.ResourceSurfaceOre is { } surface && surface.TryGetValue(resource, out var known) ? known : default;
+            var ore = facts.ResourceSurfaceOre.GetValueOrDefault(resource);
             result.Add(ResourceRules.ForecastResourceRunway(resource, stock, ore, reserves[resource], r.Tick, facts.ResourceConsumption));
         }
         return EquatableArray.From(result);
@@ -63,12 +53,9 @@ public static class RoundsRunwayMembers
                 Tick = row.Tick,
                 WindowDays = row.WindowDays,
                 Reserve = row.Reserve,
-                Stock = PersistedFact.Of(row.Stock),
-                SurfaceOre = PersistedFact.Of(row.SurfaceOre),
-                ConsumptionPerDay = PersistedFact.Of(row.ConsumptionPerDay),
-                StockDays = PersistedFact.Of(row.StockDays),
-                DaysLeft = PersistedFact.Of(row.DaysLeft),
-                Deficit = PersistedFact.Of(row.Deficit),
+                Stock = row.Stock,
+                SurfaceOre = row.SurfaceOre,
+                Rating = Store.RunwayRatingOf(row),
                 Target = row.Target,
             })
         );

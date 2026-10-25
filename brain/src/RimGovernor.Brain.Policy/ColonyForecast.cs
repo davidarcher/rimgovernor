@@ -104,7 +104,7 @@ public static class ColonyForecastRules
 
     /// <summary>The scenario frame over the validated observed stock and commitments. The stock shortfalls are each coupled
     /// outcome's findings, walked by <see cref="InventoryWalk"/> against the schedule's own effects (#3468).</summary>
-    internal static ColonyForecastScenario ForecastInventory(Fact<EquatableArray<Amount>> observed,
+    internal static ColonyForecastScenario ForecastInventory(EquatableArray<Amount> observed,
         IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
         => new() { Commitments = EquatableArray.From(new InventoryBase(observed, commitments, horizon).Ordered) };
 
@@ -117,7 +117,6 @@ public static class ColonyForecastRules
     /// projection repeats. A coupled search builds one per commitment set and walks each schedule's effects against it.</summary>
     internal sealed class InventoryBase
     {
-        public readonly bool StockKnown;
         public readonly Dictionary<Resource, double> Stocks = [];
         public readonly HashSet<Resource> Resources = [];
         public readonly Resource[] Sorted;
@@ -126,11 +125,10 @@ public static class ColonyForecastRules
         public readonly ForecastFinding[] Constant;
         public readonly double Horizon;
 
-        public InventoryBase(Fact<EquatableArray<Amount>> observed, IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
+        public InventoryBase(EquatableArray<Amount> observed, IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
         {
             Horizon = horizon;
-            StockKnown = observed.TryGetValue(out var rows);
-            foreach (var row in rows)
+            foreach (var row in observed)
             {
                 if (!AdmissionRules.ValidResource(row.Resource) || row.Count < 0)
                 {
@@ -153,10 +151,6 @@ public static class ColonyForecastRules
             Sorted = [.. Resources];
             Array.Sort(Sorted, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
             var constant = new List<ForecastFinding>();
-            if (!StockKnown)
-            {
-                constant.Add(new ForecastFinding("unknown_initial_stock", ""));
-            }
             foreach (var commitment in Ordered)
             {
                 foreach (var effect in commitment.UnsupportedEffects)
@@ -215,7 +209,7 @@ public static class ColonyForecastRules
                             throw new DomainException("forecast stock balance overflow");
                         }
                         balance = after;
-                        if (stock.StockKnown && after < 0 && e.Units < 0)
+                        if (after < 0 && e.Units < 0)
                         {
                             findings.Add(new ForecastFinding("stock_shortfall", e.Id));
                         }
@@ -223,7 +217,7 @@ public static class ColonyForecastRules
                     start = end;
                 }
                 // With the observed stock unread (named by its own finding) there is no balance to hand on.
-                if (stock.StockKnown) Terminal[resource] = balance;
+                Terminal[resource] = balance;
             }
         }
 

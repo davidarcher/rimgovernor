@@ -17,7 +17,7 @@ public sealed record MedicalReserveObservation
     public Fact<EquatableArray<MedicineStackRow>> Items { get; init; }
 
     /// <summary>The complete usable native stock census, excluding inaccessible and forbidden stock. It is capped again against the actual medicine stacks.</summary>
-    public Fact<EquatableArray<Amount>> Resources { get; init; }
+    public EquatableArray<Amount> Resources { get; init; }
 
     /// <summary>Ranks the medicines: the best one is no reserve.</summary>
     public ItemFacts Catalog { get; init; } = new();
@@ -96,7 +96,6 @@ public static partial class MedicalRules
         }
         var people = v.Colonists;
         var ik = v.Items.TryGetValue(out var items);
-        var rk = v.Resources.TryGetValue(out var resources);
         if (people < 0 || (people > 0 && p.TargetPerColonist > long.MaxValue / people))
         {
             throw new DomainException(Invalid);
@@ -111,12 +110,12 @@ public static partial class MedicalRules
         {
             return r;
         }
-        if (!ik || !rk)
+        if (!ik)
         {
             return r;
         }
         var stockByDefinition = new Dictionary<Resource, long>();
-        foreach (var q in resources!)
+        foreach (var q in v.Resources)
         {
             if (!AdmissionRules.ValidResource(q.Resource) || q.Count < 0)
             {

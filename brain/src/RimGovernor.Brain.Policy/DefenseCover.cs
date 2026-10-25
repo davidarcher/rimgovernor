@@ -15,14 +15,14 @@ public static class DefenseCoverStock
     /// most of is used. An available Embrasure is named so the layout builds it on a firing line that runs along
     /// the perimeter wall. Anything unknown keeps base.
     /// </summary>
-    public static DefenseDefinitions DefenseCoverChoice(ItemFacts items, DefenseDefinitions baseDefinitions, IReadOnlyDictionary<Resource, long> stock, bool stockKnown, bool sandbags, bool embrasure, int positions)
+    public static DefenseDefinitions DefenseCoverChoice(ItemFacts items, DefenseDefinitions baseDefinitions, IReadOnlyDictionary<Resource, long> stock, bool sandbags, bool embrasure, int positions)
     {
         var output = baseDefinitions;
         if (embrasure)
         {
             output = output with { Embrasure = DefenseEmbrasure };
         }
-        if (!sandbags || !stockKnown || positions <= 0)
+        if (!sandbags || positions <= 0)
         {
             return output;
         }

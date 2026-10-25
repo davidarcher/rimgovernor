@@ -310,12 +310,9 @@ public static partial class OrganHarvestRules
             return false;
         }
         var stock = new Dictionary<Resource, long>();
-        if (f.Resources.TryGetValue(out var rows))
+        foreach (var row in f.Resources)
         {
-            foreach (var row in rows)
-            {
-                stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
-            }
+            stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
         return SelectOrganHarvest(f.Population, OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], true, stock, f.Recipes), null) is not null;
     }
@@ -327,17 +324,17 @@ public static partial class OrganHarvestRules
     public static Fact<TradeNeed> OrganSaleSurplus(
         ItemFacts items,
         Fact<TradeNeed> need,
-        Fact<EquatableArray<Amount>> resources,
+        EquatableArray<Amount> resources,
         long colonists,
         RecipeFacts facts)
     {
-        if (!need.TryGetValue(out var n) || !resources.TryGetValue(out var rows)
+        if (!need.TryGetValue(out var n)
             || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
         {
             return need;
         }
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in rows)
+        foreach (var row in resources)
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }

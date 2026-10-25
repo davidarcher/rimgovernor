@@ -166,32 +166,18 @@ public static partial class ResearchRules
     /// <summary>
     /// Measures the economy/resource Need against the generic resource census: the deficit is the worst-covered
     /// configured target's shortfall fraction, the same proportion SelectResourceTarget dispatches on. No
-    /// configured target is certain recovery; unknown stock stays unknown.
+    /// configured target is certain recovery. An invalid target or stock row throws <see cref="DomainException"/>.
     /// </summary>
-    public static (Fact<bool> Recovered, Fact<double> Deficit) ResourceTargetNeed(IReadOnlyDictionary<Resource, long>? targets, Fact<EquatableArray<Amount>> stock)
+    public static (bool Recovered, double Deficit) ResourceTargetNeed(IReadOnlyDictionary<Resource, long>? targets, EquatableArray<Amount> rows)
     {
         if (targets is null || targets.Count == 0)
         {
-            return (Known(true), Known(0.0));
+            return (true, 0.0);
         }
-        if (!stock.TryGetValue(out var rows))
-        {
-            return (Unknown<bool>(), Unknown<double>());
-        }
-        Resource resource;
-        long target;
-        bool ok;
-        try
-        {
-            (resource, target, ok) = ResourceRules.SelectResourceTarget(targets, stock);
-        }
-        catch (DomainException)
-        {
-            return (Unknown<bool>(), Unknown<double>());
-        }
+        var (resource, target, ok) = ResourceRules.SelectResourceTarget(targets, rows);
         if (!ok)
         {
-            return (Known(true), Known(0.0));
+            return (true, 0.0);
         }
         long have = 0;
         foreach (var q in rows)
@@ -201,6 +187,6 @@ public static partial class ResearchRules
                 have = q.Count;
             }
         }
-        return (Known(false), Known(Math.Min(1.0, Math.Max(0.0, (double)(target - have) / target))));
+        return (false, Math.Min(1.0, Math.Max(0.0, (double)(target - have) / target)));
     }
 }

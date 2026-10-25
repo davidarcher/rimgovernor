@@ -98,7 +98,7 @@ public sealed record GeneratorOption
 
     public Resource Fuel { get; init; }
 
-    public Fact<long> FuelStock { get; init; }
+    public long FuelStock { get; init; }
 
     public long MinimumFuel { get; init; }
 
@@ -277,7 +277,7 @@ public static partial class PowerRules
     /// </summary>
     public static IReadOnlyList<GeneratorOption> DefaultGeneratorOptions(
         Func<string, Fact<bool>> available,
-        Func<Resource, Fact<long>> stock,
+        Func<Resource, long> stock,
         Func<Resource, bool> renewable,
         IReadOnlyDictionary<string, PowerSourceProfile> sources,
         IReadOnlyDictionary<string, GeneratorRow> rows)
@@ -376,7 +376,7 @@ public static partial class PowerRules
             else
             {
                 tier = 1;
-                if (o.FuelStock.TryGetValue(out var stock) && stock < o.MinimumFuel)
+                if (o.FuelStock < o.MinimumFuel)
                 {
                     tier = 3;
                 }
@@ -401,12 +401,10 @@ public static partial class PowerRules
     /// repair are ordinary pawn work owned by other families. A powered network whose stored reserve runway
     /// falls under ReserveMinDays is a deficit too, sized by its 24 h budget (ComputePowerBudget): a
     /// generation shortfall adds a generator, a storage shortfall alone adds a battery, and a network the
-    /// budget already covers waits for its bank to charge. Throws DomainException on invalid input, and
-    /// RequiredFactException when the colony's topology was not read (no geometry or map conditions).
+    /// budget already covers waits for its bank to charge. Throws DomainException on invalid input.
     /// </summary>
-    public static PowerProposal SelectPowerMethod(Fact<PowerTopology> topology, Bounds bounds, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> protectedCells, PowerPlanning planning)
+    public static PowerProposal SelectPowerMethod(PowerTopology v, Bounds bounds, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> protectedCells, PowerPlanning planning)
     {
-        var v = topology.TryGetValue(out var read) ? read : throw new RequiredFactException("power topology");
         if (!FoodForecastRules.FoodNumber(planning.ReserveMinDays) || !FoodForecastRules.FoodNumber(planning.StorageMargin) || !FoodForecastRules.FoodNumber(planning.PendingDemandW)
             || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12)
         {

@@ -10,12 +10,9 @@ public sealed partial class JoinersRounds
         var cells = reviewer.FieldProtected(state, review, read.Projection, claims, call);
         var protectedRects = cells.Select(c => new Rectangle(c.X, c.Z, 1, 1)).ToList();
         var stock = new Dictionary<Resource, long>();
-        if (read.Projection.Facts.Resources.TryGetValue(out var rows))
+        foreach (var row in read.Projection.Facts.Resources)
         {
-            foreach (var row in rows)
-            {
-                stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
-            }
+            stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
 
         var choice = QuestMonumentPolicy.SelectQuestMonument(read.Projection.Facts.QuestOffers, read.Projection.Identity.Map, stock, protectedRects);

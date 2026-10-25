@@ -450,10 +450,7 @@ partial class RoundsBuildingPlanner
     /// </summary>
     internal static bool UnstockedUntilKitAllowed(Observation.ColonyProjection facts, params string[] stuffs)
     {
-        if (!facts.TryStock(out var stock))
-        {
-            return false;
-        }
+        var stock = facts.Resources;
         if (!facts.Facts.EventLoot.Any(row => row.IsSafe && row.Forbidden))
         {
             return false;

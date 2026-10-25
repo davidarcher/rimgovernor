@@ -144,7 +144,7 @@ partial class RoundsStockpilePlanner
         var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
         var fenced = rooms.Any(r => !r.Unfenced());
         var plannedOwed = fenced ? Rounder.PlannedOwedOf(projection, flooring) : null;
-        var owed = fenced ? Rounder.PlannedConstructionOf(projection, plannedOwed) : default;
+        var owed = fenced ? Rounder.PlannedConstructionOf(projection, plannedOwed) : null;
         var sites = fenced ? Rounder.PlannedRoomSitesOf(projection, plannedOwed) : null;
         var floors = sites is null ? null : RoundsBuildingPlanner.FlooringFactsOf(projection);
         var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
@@ -155,7 +155,7 @@ partial class RoundsStockpilePlanner
             {
                 material = Known<IReadOnlyDictionary<Pol.Resource, long>>(new Dictionary<Pol.Resource, long>());
             }
-            else if (owed.TryGetValue(out var byRoom))
+            else if (owed is { } byRoom)
             {
                 material = Known(byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>());
             }

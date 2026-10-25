@@ -13,7 +13,7 @@ public sealed record DefenseMortarRequest
 
     public bool Available { get; init; }
 
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
     public int Max { get; init; }
 }
@@ -69,7 +69,7 @@ public static class DefenseMortarsPolicy
                 }
                 mortars.Add(b);
             }
-            if (StockCovers(r.UnitCosts, q.Stock, mortars))
+            if (DefenseLayout.StockCovers(r.UnitCosts, q.Stock, mortars))
             {
                 break;
             }
@@ -77,10 +77,6 @@ public static class DefenseMortarsPolicy
         }
         return (n, gate);
     }
-
-    /// <summary>Reports whether the stock covers the buildings' summed unit costs; unpriced buildings or an unknown stock never cover anything.</summary>
-    internal static bool StockCovers(IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, Fact<IReadOnlyDictionary<Resource, long>> stock, IEnumerable<Building> buildings) =>
-        stock.TryGetValue(out var have) && DefenseLayout.StockCovers(unitCosts, have, buildings);
 
     /// <summary>
     /// Proposes the mortar tier for a layout: mortars behind the shooters' row (away from the corridor entry),

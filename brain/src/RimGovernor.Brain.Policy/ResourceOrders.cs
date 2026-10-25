@@ -23,7 +23,7 @@ public sealed record ResourceOrderRequest
 {
     public EquatableArray<ResourceFloor> Floors { get; init; }
 
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
     public EquatableArray<GearBench> Benches { get; init; }
 
@@ -39,17 +39,13 @@ public static partial class ResourceRules
     /// is declared as it stands, which keeps it, so a floor whose stock recovered does not churn its bill.
     /// Bench choice is the ledger's: the order names the bench kind only, none for a catalog recipe no bench
     /// stands for (#3659). A floor with no producing recipe declares nothing (the planner's mining and sourcing
-    /// methods take it). Abstain while the stock census is unread. Throws <see cref="DomainException"/> on an
+    /// methods take it). Throws <see cref="DomainException"/> on an
     /// invalid floor or bill id.
     /// </summary>
     public static Declared DeclareResourceOrders(ResourceOrderRequest r)
     {
-        var knownStock = r.Stock.TryGetValue(out var stock);
+        var stock = r.Stock;
         var benches = r.Benches;
-        if (!knownStock)
-        {
-            return WorkRules.Abstaining(Cause.UnreadStock);
-        }
         var floors = r.Floors.OrderBy(f => f.Resource).ToList();
         var output = new Declared();
         var orders = new List<OrderSpec>();
@@ -60,7 +56,7 @@ public static partial class ResourceRules
                 throw new DomainException($"invalid resource floor \"{f.Resource}\" x{f.Target}");
             }
             var (standing, active) = StandingResourceBills(benches, f.Resource);
-            if (active || (!f.Reserve && stock!.GetValueOrDefault(f.Resource) >= f.Target))
+            if (active || (!f.Reserve && stock.GetValueOrDefault(f.Resource) >= f.Target))
             {
                 orders.AddRange(standing);
                 continue;

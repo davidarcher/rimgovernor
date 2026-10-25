@@ -19,7 +19,7 @@ public sealed class ActivityGenerationClaimsTests
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-generation-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
-        { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
+        { Resources = [new(new("Rice"), 20)],
             Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L };
         var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -88,7 +88,7 @@ public sealed class ActivityGenerationClaimsTests
         var path = Path.Combine(Path.GetTempPath(), "rg-generation-claims-" + Guid.NewGuid().ToString("N") + ".db");
         var journal = Journal.Open(path, ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
-        { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
+        { Resources = [new(new("Rice"), 20)],
             Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L };
         journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);

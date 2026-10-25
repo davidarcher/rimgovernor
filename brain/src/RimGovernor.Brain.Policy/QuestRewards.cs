@@ -77,22 +77,18 @@ public static class QuestRewards
                 indices.Add(i);
             }
         }
-        var stockKnown = f.Resources.TryGetValue(out var stock);
         var need = new Dictionary<Resource, long>();
-        if (stockKnown)
+        foreach (var (def, floor) in f.ResourceNeeds)
         {
-            foreach (var (def, floor) in f.ResourceNeeds)
+            long have = 0;
+            foreach (var amount in f.Resources)
             {
-                long have = 0;
-                foreach (var amount in stock)
+                if (amount.Resource == def)
                 {
-                    if (amount.Resource == def)
-                    {
-                        have += amount.Count;
-                    }
+                    have += amount.Count;
                 }
-                need[def] = Math.Max(0L, floor - have);
             }
+            need[def] = Math.Max(0L, floor - have);
         }
         if (f.CurrentConstruction is { Deficit: var deficits })
         {

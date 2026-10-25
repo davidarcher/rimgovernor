@@ -68,8 +68,8 @@ public sealed class UnfinishedMaterialTests
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 40 },
             },
-            Resources = Known<EquatableArray<Amount>>([new(Material, loose)]),
-            ResourceConsumption = Known(new ResourceConsumption()),
+            Resources = [new(Material, loose)],
+            ResourceConsumption = new ResourceConsumption(),
         };
 
     [Fact]

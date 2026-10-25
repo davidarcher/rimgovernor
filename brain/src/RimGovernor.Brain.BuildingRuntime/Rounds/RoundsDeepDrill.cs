@@ -289,9 +289,7 @@ partial class RoundsResourcePlanner
         var needed = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in runways)
         {
-            var dk = row.Deficit.TryGetValue(out var deficit);
-            var sk = f.ResourceStock(row.Resource).TryGetValue(out var stock);
-            if (dk && deficit && sk && stock < row.Target && items.IsDeepResource(row.Resource))
+            if (row.InDeficit && row.Stock < row.Target && items.IsDeepResource(row.Resource))
             {
                 needed.Add(row.Resource.Value);
             }

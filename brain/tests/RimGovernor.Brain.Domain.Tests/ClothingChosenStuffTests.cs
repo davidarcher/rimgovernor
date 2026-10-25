@@ -33,7 +33,7 @@ public sealed class ClothingChosenStuffTests
                 },
             ],
         }),
-        Resources = Known<EquatableArray<Amount>>([]),
+        Resources = [],
         Garments = [new ClothingGarment { Definition = new(Parka), Groups = ["Torso"], Slots = [[new Amount(Plain, 80), new Amount(Bear, 80)]] }],
         ClothingStuff = chosen.ToDictionary(c => (new PawnId("p1"), c.Slot), c => c.Stuff),
     };

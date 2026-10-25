@@ -3,9 +3,9 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The facts one projection reads. Observed diagnostics are separate from proposed inventory changes.</summary>
 public sealed record ColonyForecastFacts
 {
-    /// <summary>Complete observed resource census. Known empty means zero stock, not unavailable.</summary>
-    public Fact<EquatableArray<Amount>> Stock { get; init; }
-    public Fact<EquatableArray<string>> ResourceThings { get; init; }
+    /// <summary>Complete observed resource census. An empty census means zero stock.</summary>
+    public EquatableArray<Amount> Stock { get; init; }
+    public EquatableArray<string> ResourceThings { get; init; }
 
     public FoodSupply Food { get; init; } = new() { Larder = new() };
 

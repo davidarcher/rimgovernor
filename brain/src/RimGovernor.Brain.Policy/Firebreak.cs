@@ -159,7 +159,7 @@ public static class FirebreakRules
             {
                 left[k] = v - r.Claimed.GetValueOrDefault(k);
             }
-            if (FlooringRules.AffordableCells(r.Floors[floor], Known<IReadOnlyDictionary<Resource, long>>(left), settled.Count) >= settled.Count)
+            if (FlooringRules.AffordableCells(r.Floors[floor], left, settled.Count) >= settled.Count)
             {
                 foreach (var i in settled)
                 {

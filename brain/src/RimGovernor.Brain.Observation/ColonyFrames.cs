@@ -170,15 +170,12 @@ public static class ColonyFramesReads
     public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
         var r = new MedicalReserveObservation { Colonists = v.ColonistCount };
-        if (!ColonyDecodeReads.HasIssue(v.Issues, "resources"))
+        var rows = new List<Amount>();
+        foreach (var q in v.Resources)
         {
-            var rows = new List<Amount>();
-            foreach (var q in v.Resources)
-            {
-                rows.Add(new Amount(new Resource(q.DefName), q.Units));
-            }
-            r = r with { Resources = Known(EquatableArray.From(rows)) };
+            rows.Add(new Amount(new Resource(q.DefName), q.Units));
         }
+        r = r with { Resources = EquatableArray.From(rows) };
         var stacks = new List<MedicineStackRow>();
         foreach (var item in v.Upkeep.Items)
         {

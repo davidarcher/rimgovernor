@@ -25,7 +25,7 @@ public sealed record DerivedDemand
 
     /// <summary>
     /// The stock a sale keeps of each resource (TradeRetained): the runways' protected lines plus Works.
-    /// Unknown while the consumption is.
+    /// Unknown while the consumption ring is unread or a production hold is.
     /// </summary>
     public Fact<IReadOnlyDictionary<Resource, long>> Retained { get; init; }
 }
@@ -83,8 +83,8 @@ public static partial class ResourceRules
             Needs = needs,
             Works = works,
             Clothing = clothing.Needs.Keys.ToHashSet(),
-            Retained = holds.TryGetValue(out var knownHolds) && knownHolds.Values.All(a => a.IsKnown)
-                ? TradePolicyRules.TradeRetained(f.ResourceConsumption, f.ResourceRunways, works) : default,
+            Retained = holds.TryGetValue(out var knownHolds) && knownHolds.Values.All(a => a.IsKnown) && f.ResourceConsumption is not null
+                ? TradePolicyRules.TradeRetained(f.ResourceRunways, works) : default,
         };
     }
 

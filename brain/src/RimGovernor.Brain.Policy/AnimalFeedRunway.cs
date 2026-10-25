@@ -389,11 +389,7 @@ public static class AnimalFeedRunwayRules
 
                 if (ok)
                 {
-                    if (!input.Stock.Count(item).TryGetValue(out var have))
-                    {
-                        return UnknownFeedRunway();
-                    }
-
+                    var have = input.Stock.Count(item);
                     var need = have + (long)Math.Ceiling(missing / perItem);
                     needs[item] = Math.Max(needs.GetValueOrDefault(item), need);
                 }

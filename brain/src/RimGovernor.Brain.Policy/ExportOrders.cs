@@ -143,11 +143,8 @@ internal sealed class HorizonGuard
                 {
                     continue;
                 }
-                if (row.Stock.TryGetValue(out var stock) && stock >= 0)
-                {
-                    have = Math.Min(have, stock);
-                }
-                if (!row.ConsumptionPerDay.TryGetValue(out var rate) || !TradePolicyRules.Finite(rate) || row.Reserve < 0)
+                have = Math.Min(have, row.Stock);
+                if (!row.Rating.TryRate(out var rate) || !TradePolicyRules.Finite(rate))
                 {
                     return (0, false);
                 }
@@ -263,19 +260,18 @@ public static class ExportOrdersRules
     public static Fact<TradeNeed> ExportSaleSurplus(
         ItemFacts items,
         Fact<TradeNeed> need,
-        Fact<EquatableArray<Amount>> resources,
+        EquatableArray<Amount> resources,
         long colonists,
         IReadOnlyList<Resource> products
     )
     {
         var nk = need.TryGetValue(out var n);
-        var rk = resources.TryGetValue(out var rows);
-        if (!nk || !rk || products.Count == 0 || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
+        if (!nk || products.Count == 0 || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
         {
             return need;
         }
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in rows!)
+        foreach (var row in resources)
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }

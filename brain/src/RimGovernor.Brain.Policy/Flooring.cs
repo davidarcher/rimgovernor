@@ -114,7 +114,7 @@ public sealed record FlooringObservation
     public IReadOnlyDictionary<string, FloorDefinition>? Floors { get; init; }
 
     /// <summary>The accessible colony stock.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
     /// <summary>The tier style's aisle floor (empty when none), as the selector reads it.</summary>
     public string TrafficStyle { get; init; } = "";
@@ -317,8 +317,8 @@ public sealed record FlooringFacts
     /// <summary>Maps floor definition names to their census row; a floor absent here is unknown.</summary>
     public IReadOnlyDictionary<string, FloorDefinition> Definitions { get; init; } = new Dictionary<string, FloorDefinition>();
 
-    /// <summary>The accessible colony stock by resource; unknown skips the affordability test and leaves it to admission.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    /// <summary>The accessible colony stock by resource; null skips the affordability test and leaves it to admission (a template's floors).</summary>
+    public IReadOnlyDictionary<Resource, long>? Stock { get; init; }
 
     /// <summary>
     /// The tier's floor rule per room role (FloorDef): a styled floor that is known available, meets the tier
@@ -703,12 +703,10 @@ public static class FlooringRules
         return ((w.Cleanliness * cleanliness) + (w.Beauty * beauty) - (w.PathCost * pathCost) - (w.Flammability * flammability) - (w.Cost * cost), true);
     }
 
-    /// <summary>How many cells of the floor the stock pays for; -1 when the stock is unknown.</summary>
-    internal static int AffordableCells(FloorDefinition d, Fact<IReadOnlyDictionary<Resource, long>> stock, int want)
+    /// <summary>How many cells of the floor the stock pays for; -1 when the floor's costs or the stock are unpriced.</summary>
+    internal static int AffordableCells(FloorDefinition d, IReadOnlyDictionary<Resource, long>? values, int want)
     {
-        var known = stock.TryGetValue(out var values);
-        var ck = d.Costs.TryGetValue(out var costs);
-        if (!known || !ck)
+        if (values is null || !d.Costs.TryGetValue(out var costs))
         {
             return -1;
         }
@@ -719,7 +717,7 @@ public static class FlooringRules
             {
                 continue;
             }
-            n = (int)Math.Min(n, values!.GetValueOrDefault(a.Resource) / a.Count);
+            n = (int)Math.Min(n, values.GetValueOrDefault(a.Resource) / a.Count);
         }
         return n;
     }

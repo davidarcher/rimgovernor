@@ -160,7 +160,7 @@ public sealed class CoupledActivityIntegrationTests
                 new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, "completed"))), unavailable, ct));
         // The ordinary observed review, not predicted harvest output, makes the two real units spendable.
         var active = Assert.Single(batch.Orders);
-        facts = facts with { Tick = new(completedAt), Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 2)]),
+        facts = facts with { Tick = new(completedAt), Resources = [new(new("Rice"), 2)],
             CoupledAlternatives = null, CoupledWorkActive = true,
             WorkResources = Known<EquatableArray<WorkResourcePawn>>([new(active.Pawn, active.Assignment, active.Revision,
                 "completed", "", "", 0) { LocalHour = 6 }]) };

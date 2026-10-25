@@ -310,7 +310,7 @@ public sealed class StockArrivalCatalogTests
         var items = ItemFactsFixtureRules.CoreItemFacts();
         var review = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
-            Colonists = 3, Catalog = items, Items = Known<EquatableArray<MedicineStackRow>>([]), Resources = Known<EquatableArray<Amount>>([]),
+            Colonists = 3, Catalog = items, Items = Known<EquatableArray<MedicineStackRow>>([]), Resources = [],
         }, false, MedicalReservePolicy.Default());
         Assert.Equal((true, 9L), (review.Active, review.Replenish.Value));
 

@@ -259,10 +259,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// <summary>The stone block resource with the most stock, when it covers the stone the buildings need.</summary>
     internal static (string Stuff, bool Ok) DefensePerimeterStone(ColonyProjection projection, IReadOnlyList<Building> buildings)
     {
-        if (!projection.Resources.TryGetValue(out var stock))
-        {
-            return ("", false);
-        }
+        var stock = projection.Resources;
         long need = 0;
         foreach (var b in buildings)
         {
@@ -402,7 +399,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static DefenseRequest DefenseIedRequest(RoundsReading read, DefenseRequest request)
     {
         var projection = read.Projection;
-        request = request with { IEDMax = DefenseIEDs.IEDBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets), IEDStock = DefenseStock(projection) };
+        request = request with { IEDMax = DefenseIEDs.IEDBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets), IEDStock = projection.Resources };
         var ieds = new List<DefenseIED>();
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
         foreach (var d in projection.Definitions)

@@ -35,13 +35,9 @@ public sealed partial class Rounder
                 FoodDays = f.RequireFoodRunway(),
                 FoodTargetDays = Seasonal(f).FoodTargetDays,
             };
-            var census = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood }.Census(levels.Targets);
-            if (census.TryGetValue(out var rows))
+            foreach (var row in new Pol.StockReader { Resources = f.Resources, Wood = f.Wood }.Census())
             {
-                foreach (var row in rows)
-                {
-                    stockByResource[row.Resource] = stockByResource.GetValueOrDefault(row.Resource) + row.Count;
-                }
+                stockByResource[row.Resource] = stockByResource.GetValueOrDefault(row.Resource) + row.Count;
             }
             layer = Pol.StockOverlayRules.StockOverlay(zones, levels, projection.Bounds);
         }

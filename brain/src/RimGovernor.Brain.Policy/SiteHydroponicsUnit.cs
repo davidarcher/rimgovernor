@@ -197,8 +197,7 @@ public static partial class SiteRules
                 return c with { Reason = "no free floor for a heater" };
             }
         }
-        var stockKnown = r.Stock.TryGetValue(out var stock);
-        stock ??= new Dictionary<Resource, long>();
+        var stock = r.Stock;
         Dictionary<Resource, long> UnitCosts(int count)
         {
             var need = new Dictionary<Resource, long>();
@@ -232,20 +231,17 @@ public static partial class SiteRules
                 powered = powered || (day && night);
             }
             var shortage = "";
-            if (stockKnown)
+            var cost = UnitCosts(k);
+            var names = cost.Keys.Select(x => x.Value).ToList();
+            names.Sort(StringComparer.Ordinal);
+            foreach (var name in names)
             {
-                var need = UnitCosts(k);
-                var names = need.Keys.Select(x => x.Value).ToList();
-                names.Sort(StringComparer.Ordinal);
-                foreach (var name in names)
+                var resource = new Resource(name);
+                var have = stock.GetValueOrDefault(resource);
+                if (have < cost[resource])
                 {
-                    var resource = new Resource(name);
-                    var have = stock.TryGetValue(resource, out var held) ? held : 0;
-                    if (have < need[resource])
-                    {
-                        shortage = $"not enough {name} for a hydroponics unit: need {need[resource]} have {have}";
-                        break;
-                    }
+                    shortage = $"not enough {name} for a hydroponics unit: need {cost[resource]} have {have}";
+                    break;
                 }
             }
             if (powered && shortage == "")

@@ -85,8 +85,8 @@ public sealed record SiteTypeRequest
     /// <summary>Items price the cost lists (market values).</summary>
     public ItemFacts Items { get; init; } = new();
 
-    /// <summary>The accessible colony stock a soil-free hydroponics unit must be able to pay for; unknown leaves the check to admission.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    /// <summary>The accessible colony stock a soil-free hydroponics unit must be able to pay for.</summary>
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 }
 
 /// <summary>One placement a construction kind needs before its cells can grow.</summary>

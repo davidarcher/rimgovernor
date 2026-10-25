@@ -347,15 +347,7 @@ internal static class RoundsColonyModel
             whole = false;
         }
 
-        if (colony.Resources.TryGetValue(out var held))
-        {
-            materials = EquatableArray.From(held.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
-        }
-        else
-        {
-            gaps.Add("stocks: the resource census is unknown");
-            whole = false;
-        }
+        materials = EquatableArray.From(colony.Resources.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
 
         if (!MedicineOf(colony.Facts.MedicalReserve, colony.Facts.ResourceThings, out medicine))
         {
@@ -371,12 +363,12 @@ internal static class RoundsColonyModel
 
     /// <summary>
     /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's
-    /// potency order, a kind it does not rank last), then by name. False while the census or the resource identities are unread.
+    /// potency order, a kind it does not rank last), then by name. False while the census is unread.
     /// </summary>
-    private static bool MedicineOf(MedicalReserveObservation reserve, Fact<EquatableArray<string>> resourceThings, out EquatableArray<Amount> medicine)
+    private static bool MedicineOf(MedicalReserveObservation reserve, EquatableArray<string> identities, out EquatableArray<Amount> medicine)
     {
         medicine = default;
-        if (!reserve.Items.TryGetValue(out var items) || !resourceThings.TryGetValue(out var identities))
+        if (!reserve.Items.TryGetValue(out var items))
         {
             return false;
         }

@@ -17,7 +17,7 @@ public sealed class ForecastObservedMealTests
                 { Location = new(1, 1), Stock = new NeedStock.Stacked(count, new FoodFreshness.Rots(expiry)) }] };
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Meal"), count)]),
+            Resources = [new(new("Meal"), count)],
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },

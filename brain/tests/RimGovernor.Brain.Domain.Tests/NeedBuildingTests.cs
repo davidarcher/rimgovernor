@@ -239,7 +239,7 @@ public sealed class NeedBuildingTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = Known<EquatableArray<Amount>>([new(new("WoodLog"), 1000)]),
+            Resources = [new(new("WoodLog"), 1000)],
             Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
             WorkAdmission = facts.WorkAdmission with
             {

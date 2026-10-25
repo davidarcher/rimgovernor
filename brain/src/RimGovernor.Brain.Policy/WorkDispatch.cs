@@ -175,11 +175,11 @@ public static partial class WorkRules
     /// (BenchesWanted.NoCapacity), wants one bench. widen is the calibration's extra benches. The workers are the pawns
     /// that can work the recipe (TryDispatchWorkers).
     /// </summary>
-    public static OrderDispatch DispatchOrder(OrderSpec order, Fact<IReadOnlyDictionary<Resource, long>> stock, IReadOnlyList<GearBench> benches, IReadOnlyList<WorkPawn> pawns, int widen)
+    public static OrderDispatch DispatchOrder(OrderSpec order, IReadOnlyDictionary<Resource, long> have, IReadOnlyList<GearBench> benches, IReadOnlyList<WorkPawn> pawns, int widen)
     {
         var eligible = EligibleBenches(order, benches);
         var d = new OrderDispatch { Copies = 1, Eligible = eligible.Count, Sizing = new DispatchSizing.Unsized(), NoBenchShort = 0 };
-        if (!order.Stocked() || eligible.Count == 0 || !stock.TryGetValue(out var have))
+        if (!order.Stocked() || eligible.Count == 0)
         {
             return d;
         }

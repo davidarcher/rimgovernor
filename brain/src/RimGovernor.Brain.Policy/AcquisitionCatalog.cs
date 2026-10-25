@@ -120,13 +120,10 @@ public static class AcquisitionCatalogRules
                     continue;
                 }
 
-                if (row.Stock.TryGetValue(out var stock) && stock >= 0)
-                {
-                    have = Math.Min(have, stock);
-                }
+                have = Math.Min(have, row.Stock);
 
-                line = Math.Max(0, row.Reserve);
-                if (row.ConsumptionPerDay.TryGetValue(out var rate) && TradePolicyRules.Finite(rate) && rate > 0)
+                line = row.Reserve;
+                if (row.Rating is RunwayRating.Burning { PerDay: var rate } && TradePolicyRules.Finite(rate))
                 {
                     line += Math.Ceiling(rate * ColonyDiagnosticsRules.MaintenanceHorizonDays);
                 }

@@ -15,7 +15,7 @@ public sealed class SupportMethodTests
         var basePawn = ForecastCoupledSelectionTests.Review(level: .1, fall: cooking ? .001 : 0).ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4), new(new("Chunk"), 20)]),
+            Resources = [new(new("Rice"), 4), new(new("Chunk"), 20)],
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [basePawn, basePawn with { Pawn = "helper", Needs =

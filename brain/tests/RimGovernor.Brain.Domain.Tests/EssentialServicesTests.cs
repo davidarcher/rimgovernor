@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]) };
+    private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = 2L, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
@@ -134,8 +134,8 @@ public sealed class EssentialServicesTests
     {
         PowerSite Site(string id, string network, double watts) => new() { Id = id, Network = network, BaseW = watts, Fuel = new RimGovernor.Contracts.Wire.Observations.BuildingFuel.NotRefuelable(),
             OutputW = watts, Connected = true, Powered = true, Forbidden = false, SwitchedOn = true };
-        var facts = Facts() with { PowerRequired = Known(true), EssentialInputs = new() { Power = Known(new PowerTopology {
-            Buildings = [Site("generator", "home", 100), Site("heater", "home", -80), Site("remote", "remote", 100)] }) } };
+        var facts = Facts() with { PowerRequired = true, EssentialInputs = new() { Power = new PowerTopology {
+            Buildings = [Site("generator", "home", 100), Site("heater", "home", -80), Site("remote", "remote", 100)] } } };
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "facility/generator" && s.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(review.Stress, s => s.Unavailable == "facility/remote" && s.Coverage == ServiceCoverage.Adequate);
@@ -158,9 +158,9 @@ public sealed class EssentialServicesTests
     [Fact]
     public void SharedFuelAndMaterialShortfallProducesOneOwnedProposal()
     {
-        var facts = Facts() with { Resources = Known<EquatableArray<Amount>>([]), Fuel = Known<EquatableArray<FuelConsumer>>([
+        var facts = Facts() with { Resources = [], Fuel = [
             new() { Id = "heater", Fuel = Known(0.0), Target = Known(10.0), OutOfFuel = Known(true), Fuels = [new("fuel")],
-                Burn = Known(new FuelBurn { PerDay = 1, UnitsPerItem = 1 }) }]) };
+                Burn = Known(new FuelBurn { PerDay = 1, UnitsPerItem = 1 }) }] };
         // The materials row is the economy/resource Need's, unmet while a derived target is short of stock (#3303).
         var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new()
         {

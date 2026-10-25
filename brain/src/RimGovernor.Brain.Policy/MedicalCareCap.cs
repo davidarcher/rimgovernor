@@ -88,9 +88,8 @@ public static partial class MedicalRules
     /// The colonists' standing cap: NormalOrWorse while stock of the normal-care medicine (potency rank 1) meets
     /// the per-colonist target, else HerbalOrWorse. Unknown without the catalog's medicines.
     /// </summary>
-    public static (MedicalCare Care, bool Ok) ColonistCareBase(ItemFacts items, Fact<EquatableArray<Amount>> resources, long colonists, MedicalReservePolicy p)
+    public static (MedicalCare Care, bool Ok) ColonistCareBase(ItemFacts items, EquatableArray<Amount> resources, long colonists, MedicalReservePolicy p)
     {
-        var known = resources.TryGetValue(out var rows);
         Resource normal;
         try
         {
@@ -100,12 +99,8 @@ public static partial class MedicalRules
         {
             return (MedicalCare.None, false);
         }
-        if (!known)
-        {
-            return (MedicalCare.None, false);
-        }
         long industrial = 0;
-        foreach (var row in rows!)
+        foreach (var row in resources)
         {
             if (row.Resource == normal)
             {

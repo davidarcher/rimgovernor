@@ -35,7 +35,7 @@ public sealed class ForecastCoupledSelectionTests
         if (reverse) Array.Reverse(sources);
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([]),
+            Resources = [],
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with
@@ -552,7 +552,7 @@ public sealed class ForecastCoupledSelectionTests
             Targets = [NeedsFixtures.Food("meal", "MealSimple", 1, 0d, 10d, .9) with
                 { Location = new(1, 1), Stock = new NeedStock.Stacked(1, new FoodFreshness.Rots(100000)), MaxPawns = 1 }]
         };
-        facts = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("MealSimple"), 1)]), ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Resources = [new(new("MealSimple"), 1)], ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
@@ -1000,7 +1000,7 @@ public sealed class ForecastCoupledSelectionTests
             [stack], 0.0, 20.0, 5.0, new(15, 15)) { RequiredCount = 10 };
         var facts = Review(level: 1, fall: 0, harvest: 200);
         var roster = WorkResourceTestFacts.Create("pawn", "tailor") with
-        { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Cloth"), 10)]) };
+        { Resources = [new(new("Cloth"), 10)] };
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {

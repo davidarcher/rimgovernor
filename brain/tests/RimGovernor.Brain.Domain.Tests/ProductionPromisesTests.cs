@@ -70,12 +70,12 @@ public sealed class ProductionPromisesTests
         {
             ProductionPromises = promises,
             BillReservations = EmptyReservations,
-            Resources = Known<EquatableArray<Amount>>([new(Material, 100), new(Other, 20)]),
+            Resources = [new(Material, 100), new(Other, 20)],
             CurrentConstruction = CurrentConstruction.Empty with
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 60 },
             },
-            ResourceConsumption = Known(new ResourceConsumption()),
+            ResourceConsumption = new ResourceConsumption(),
         };
 
     [Fact]
@@ -198,7 +198,7 @@ public sealed class ProductionPromisesTests
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
         {
-            Tick = new Tick(100), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
+            Tick = new Tick(100), Resources = [new(Material, 120)],
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Slots, false) { Products = [], WorkAmount = 0 }]),

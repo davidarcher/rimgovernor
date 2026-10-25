@@ -131,12 +131,12 @@ public static partial class ProductionRules
 
     /// <summary>Use the same reconciled holds as acquisition and trade, plus outstanding construction (null while the census is unread).</summary>
     public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> SharedMaterialBudgetOf(
-        Fact<EquatableArray<Amount>> stock, IReadOnlyDictionary<Resource, long>? construction,
+        EquatableArray<Amount> stock, IReadOnlyDictionary<Resource, long>? construction,
         Fact<IReadOnlyDictionary<Resource, Fact<double>>> holds)
     {
-        if (!stock.TryGetValue(out var items) || construction is not { } owed || !holds.TryGetValue(out var promised)) return default;
+        if (construction is not { } owed || !holds.TryGetValue(out var promised)) return default;
         var output = new Dictionary<Resource, Fact<double>>();
-        foreach (var item in items)
+        foreach (var item in stock)
             output[item.Resource] = Known(output.GetValueOrDefault(item.Resource, Known(0.0)).Value + item.Count);
         foreach (var (resource, units) in owed)
             output[resource] = Known(output.GetValueOrDefault(resource, Known(0.0)).Value - units);

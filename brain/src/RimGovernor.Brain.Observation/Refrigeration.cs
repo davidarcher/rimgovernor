@@ -17,7 +17,7 @@ public static class RefrigerationReads
     /// <summary>
     /// Assembles the method's observation from a rooms routine reading (rooms with cells, planning definitions, site cells),
     /// the power census's Cooler rows and a typed building read of those exact IDs. A reading without its room census,
-    /// power topology, solar-flare read or <paramref name="cooler"/> definition raises <see cref="RequiredFactException"/>; so does a cooler
+    /// solar-flare read or <paramref name="cooler"/> definition raises <see cref="RequiredFactException"/>; so does a cooler
     /// the building read does not return: the planner must not build a second cooler on a fact it cannot see.
     /// </summary>
     public static async Task<RefrigerationObservation> RefrigerationFacts(IRefrigerationSource source, ColonyProjection projection, string cooler, CancellationToken cancellationToken)
@@ -26,10 +26,7 @@ public static class RefrigerationReads
         {
             throw new RequiredFactException("refrigeration rooms");
         }
-        if (!projection.PowerPlanning.TryGetValue(out var topology))
-        {
-            throw new RequiredFactException("refrigeration power topology");
-        }
+        var topology = projection.PowerPlanning;
         if (!projection.DefinitionAvailable(cooler).TryGetValue(out var available))
         {
             throw new RequiredFactException("cooler definition");

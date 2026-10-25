@@ -67,7 +67,7 @@ public sealed partial class RoundsWorkPlanner
         }
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
-        var deficit = ResearchRules.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered.TryGetValue(out var recovered) && !recovered;
+        var deficit = !ResearchRules.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered;
         var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
         var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
         if (!benchWork.TryGetValue(out var benchRows))

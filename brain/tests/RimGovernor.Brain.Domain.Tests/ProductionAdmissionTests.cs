@@ -25,7 +25,7 @@ public sealed class ProductionAdmissionTests
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),
-        Resources = Known<EquatableArray<Amount>>([new(Wood, 60), new(Other, 100)]),
+        Resources = [new(Wood, 60), new(Other, 100)],
         CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
         BillReservations = [],
         WorkAdmission = new()
@@ -87,7 +87,7 @@ public sealed class ProductionAdmissionTests
         Assert.True(Fits(e, [], Batch("first")));
         Assert.False(Fits(e, [Batch("first")], Batch("second")));
         Assert.False(Fits(e, [], Batch("first"), Batch("second")));
-        Assert.True(Fits(Evidence(Facts with { Resources = Known<EquatableArray<Amount>>([new(Wood, 100), new(Other, 100)]) }), [], Batch("first"), Batch("second")));
+        Assert.True(Fits(Evidence(Facts with { Resources = [new(Wood, 100), new(Other, 100)] }), [], Batch("first"), Batch("second")));
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class ProductionAdmissionTests
         var request = new RoundsRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = Facts };
         var full = journal.ReviewRounds(request, ct);
         var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
-        Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
+        Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock[0].Count);
         var unread = journal.ReviewRounds(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = Facts with { Resources = default } }, ct);
         var refused = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("unread"), "", Plan("unread"), ct);
         Assert.Equal(RefusalKind.ProductionMaterial, refused.Refusal!.Kind);

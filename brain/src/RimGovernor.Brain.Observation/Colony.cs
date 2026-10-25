@@ -253,7 +253,7 @@ public sealed partial record ColonyProjection
     /// <summary>The cooking benches and the rooms they stand in.</summary>
     public required EquatableArray<CookingBench> CookingBenches { get; init; }
 
-    public Fact<PowerTopology> PowerPlanning { get; init; }
+    public PowerTopology PowerPlanning { get; init; } = new();
 
     /// <summary>The catalog's producer delivery profiles and the storage of its battery def (DefinitionCatalog.PowerSources, PowerBattery); the power planner refuses a projection without them.</summary>
     public IReadOnlyDictionary<string, PowerSourceProfile> PowerSources { get; init; } = new Dictionary<string, PowerSourceProfile>();
@@ -335,7 +335,7 @@ public sealed partial record ColonyProjection
     public required FoodSupply CombinedFoodSupply { get; init; }
 
     /// <summary>The accessible colony stock census by definition; a definition absent from a known census is known zero.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Resources { get; init; }
+    public IReadOnlyDictionary<Resource, long> Resources { get; init; } = new Dictionary<Resource, long>();
 
     /// <summary>The census's threat section: the wealth split, the raid points and the storyteller.</summary>
     public required O.ThreatFacts Threat { get; init; }
@@ -353,26 +353,13 @@ public sealed partial record ColonyProjection
         return Unknown<Cell>();
     }
 
-    /// <summary>The accessible stock of one definition, unknown when the census itself is unknown.</summary>
-    public Fact<long> ResourceStock(Resource name)
-    {
-        if (!Resources.TryGetValue(out var stock))
-        {
-            return Unknown<long>();
-        }
-        return Known(stock.GetValueOrDefault(name));
-    }
-
     /// <summary>
     /// The first of the definition's stuff options whose cost list the colony stock covers, and how many of the
-    /// definition that stock builds. None is null, as is an unknown stock census.
+    /// definition that stock builds. None is null.
     /// </summary>
     public (string Stuff, long Count)? StockedStuff(string name)
     {
-        if (!Resources.TryGetValue(out var stock))
-        {
-            return null;
-        }
+        var stock = Resources;
         foreach (var d in Definitions)
         {
             if (d.Name != name)
@@ -426,7 +413,7 @@ public sealed partial record ColonyProjection
         }
         return PowerRules.DefaultGeneratorOptions(
             name => available.TryGetValue(name, out var fact) ? fact : Unknown<bool>(),
-            ResourceStock,
+            name => Resources.GetValueOrDefault(name),
             renewable,
             PowerSources,
             GeneratorRows);

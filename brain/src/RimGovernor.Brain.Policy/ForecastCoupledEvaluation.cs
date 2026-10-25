@@ -978,8 +978,7 @@ public static partial class ForecastCoupled
                 ServedRooms = service,
             };
             return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, double>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds)
-                { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread, MedicineComplete = request.Facts.Medicine.Items.IsKnown && physicalCensusComplete && medicineRead,
-                    PhysicalCensusComplete = physicalCensusComplete } };
+                { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread, MedicineComplete = request.Facts.Medicine.Items.IsKnown && medicineRead } };
         }
 
         /// <summary>A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).

@@ -108,20 +108,15 @@ public static class QuestDecrees
     /// Funds a repeat-count batch from the outstanding crafted count. A stock-target bill would stop on
     /// inventory that the quest never counts.
     /// </summary>
-    public static (ProductionBill? Bill, string Reason) PlanDecreeProduction<TStock>(DecreeDue objective, IReadOnlyList<DecreeRecipe> recipes, Fact<TStock> stock)
-        where TStock : IReadOnlyList<Amount>
+    public static (ProductionBill? Bill, string Reason) PlanDecreeProduction(DecreeDue objective, IReadOnlyList<DecreeRecipe> recipes, IReadOnlyList<Amount> stock)
     {
         var remaining = objective.Remaining;
         if (remaining <= 0)
         {
             return (null, "complete");
         }
-        if (!stock.TryGetValue(out var rows))
-        {
-            return (null, "ingredients_unknown");
-        }
         var available = new Dictionary<Resource, long>();
-        foreach (var row in rows)
+        foreach (var row in stock)
         {
             available[row.Resource] = row.Count;
         }
@@ -318,9 +313,6 @@ public static class QuestDecrees
                             output.Orders.AddRange(recipe.Standing);
                         }
                     }
-                    break;
-                case "ingredients_unknown":
-                    output.Unread(Cause.UnreadRecipes);
                     break;
             }
         }

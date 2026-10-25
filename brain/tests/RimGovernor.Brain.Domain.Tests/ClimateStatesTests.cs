@@ -99,10 +99,9 @@ public sealed class ClimateStatesTests
     }
 
     [Fact]
-    public void ThePoweredMethodsNeedAPowerCensus()
+    public void ThePowerCensusIsTheTopology()
     {
-        Assert.IsType<ClimatePower.NoCensus>(ClimatePower.Of(default));
-        var census = Assert.IsType<ClimatePower.Census>(ClimatePower.Of(Known(new PowerTopology())));
+        var census = Assert.IsType<ClimatePower.Census>(ClimatePower.Of(new PowerTopology()));
         Assert.Empty(census.Topology.Buildings);
     }
 

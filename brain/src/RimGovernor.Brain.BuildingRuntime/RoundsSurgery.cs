@@ -95,12 +95,9 @@ public sealed partial class RoundsSurgeryPlanner
         // Organ harvest: at most one, from a prisoner the colony would not recruit, for a colonist's part-short
         // organ or a silver runway deficit, when its gain outweighs the mood and goodwill cost.
         var stock = new Dictionary<Pol.Resource, long>();
-        if (read.Projection.Facts.Resources.TryGetValue(out var resources))
+        foreach (var row in read.Projection.Facts.Resources)
         {
-            foreach (var row in resources)
-            {
-                stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
-            }
+            stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
         SilverGapRules.RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortfall);
         var needs = OrganHarvestRules.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);

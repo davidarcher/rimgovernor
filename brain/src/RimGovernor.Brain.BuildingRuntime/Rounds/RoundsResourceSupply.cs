@@ -260,12 +260,12 @@ public sealed partial class Rounder
         IReadOnlyList<ResourceRunway> runways = review.Enabled && review.Snapshot == state.Snapshot ? review.ResourceRunwayState() : [];
         var inputs = new List<ResourceSupplyInput>();
         var queued = new HashSet<Resource>(ranked.Select(t => t.Resource));
-        var reader = new StockReader(stock, Unknown<long>());
+        var reader = StockReader.Of(stock);
         for (var i = 0; i < ranked.Count; i++)
         {
             var target = ranked[i];
             var resource = target.Resource;
-            var deficit = target.Target - reader.Units(resource);
+            var deficit = target.Target - reader.Count(resource);
             if (resource.Value == "Beer" || deficit <= 0)
             {
                 continue;
@@ -316,7 +316,7 @@ public sealed partial class Rounder
                         if (known && shortfall > 0 && !queued.Contains(cost.Key.Def))
                         {
                             queued.Add(cost.Key.Def);
-                            output.Derived[cost.Key.Def] = reader.Units(cost.Key.Def) + shortfall;
+                            output.Derived[cost.Key.Def] = reader.Count(cost.Key.Def) + shortfall;
                             ranked.Add(new ResourceTarget { Resource = cost.Key.Def, Target = output.Derived[cost.Key.Def] });
                         }
                     }

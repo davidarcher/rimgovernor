@@ -8,7 +8,7 @@ internal sealed class ConsumptionMemory : IDisposable
     private LoadId load;
     private ConsumptionLedger ledger = new();
 
-    public async Task<Fact<ResourceConsumption>> WindowAsync(FacadeNativeClient reader, GenerationSnapshot snapshot, CancellationToken ct)
+    public async Task<ResourceConsumption?> WindowAsync(FacadeNativeClient reader, GenerationSnapshot snapshot, CancellationToken ct)
     {
         await mu.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -25,7 +25,7 @@ internal sealed class ConsumptionMemory : IDisposable
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return Unknown<ResourceConsumption>();
+                return null;
             }
 
             ledger.Merge(page);
@@ -47,36 +47,37 @@ public sealed partial class Rounder : IDisposable
     /// <summary>Releases the consumption ledger's lock.</summary>
     public void Dispose() => consumption.Dispose();
 
-    internal async Task<Fact<ResourceConsumption>> ResourceConsumptionAsync(GenerationSnapshot snapshot, CancellationToken ct) =>
-        Native is FacadeNativeClient reader ? await consumption.WindowAsync(reader, snapshot, ct).ConfigureAwait(false) : Unknown<ResourceConsumption>();
+    internal async Task<ResourceConsumption?> ResourceConsumptionAsync(GenerationSnapshot snapshot, CancellationToken ct) =>
+        Native is FacadeNativeClient reader ? await consumption.WindowAsync(reader, snapshot, ct).ConfigureAwait(false) : null;
 
-    internal async Task<IReadOnlyDictionary<Resource, Fact<long>>> ResourceSurfaceOreAsync(GenerationSnapshot snapshot, ItemFacts items, Fact<ResourceConsumption> consumptionFact, CancellationToken ct)
+    /// <summary>The safe surface ore of each material the ring names; a material whose sources could not be read has no entry, which counts as no ore.</summary>
+    internal async Task<IReadOnlyDictionary<Resource, long>> ResourceSurfaceOreAsync(GenerationSnapshot snapshot, ItemFacts items, ResourceConsumption? consumptionRead, CancellationToken ct)
     {
-        var output = new Dictionary<Resource, Fact<long>>();
+        var output = new Dictionary<Resource, long>();
         if (Native is not FacadeNativeClient reader)
         {
             return output;
         }
 
         // Every material's sources are read in one frame rather than one frame each.
-        var reads = ResourceRules.MaterialRunwayKeys(items, consumptionFact).Select(async Task<(Resource Key, Fact<long> Ore, bool Read)> (resource) =>
+        var reads = ResourceRules.MaterialRunwayKeys(items, consumptionRead).Select(async Task<(Resource Key, IReadOnlyList<ResourceSource>? Rows)> (resource) =>
         {
             try
             {
                 var (rows, _) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
-                return (resource, ResourceRules.SurfaceOre(rows), true);
+                return (resource, rows);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                // an unreadable source leaves the resource's surface ore unknown
-                return (resource, default, false);
+                // an unreadable source leaves the resource without surface ore
+                return (resource, null);
             }
         }).ToList();
-        foreach (var (resource, ore, read) in await Task.WhenAll(reads).ConfigureAwait(false))
+        foreach (var (resource, rows) in await Task.WhenAll(reads).ConfigureAwait(false))
         {
-            if (read)
+            if (rows is not null)
             {
-                output[resource] = ore;
+                output[resource] = ResourceRules.SurfaceOre(rows);
             }
         }
 

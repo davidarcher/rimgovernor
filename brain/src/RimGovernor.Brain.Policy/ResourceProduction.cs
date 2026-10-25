@@ -336,13 +336,13 @@ public static partial class ResourceRules
     /// fresh native stock census, it picks the single resource whose stock is furthest below its own target
     /// (by proportion, so a small target is not starved behind a large one merely stuck a few units short). A
     /// configured resource absent from the census is treated as fully unstocked rather than refused. Ok is
-    /// false when stock is not yet known, no resource is configured, or every configured resource already
+    /// false when no resource is configured or every configured resource already
     /// meets its target. Throws <see cref="DomainException"/> on invalid input.
     /// </summary>
     public static (Resource Resource, long Target, bool Ok) SelectResourceTarget(
-        IReadOnlyDictionary<Resource, long> targets, Fact<EquatableArray<Amount>> stock)
+        IReadOnlyDictionary<Resource, long> targets, EquatableArray<Amount> rows)
     {
-        var ranked = RankResourceTargets(targets, stock);
+        var ranked = RankResourceTargets(targets, rows);
         if (ranked.Count == 0)
         {
             return (default, 0, false);
@@ -353,11 +353,11 @@ public static partial class ResourceRules
     /// <summary>
     /// SelectResourceTarget's full order: every unmet configured floor, worst-covered first (proportional
     /// deficit descending, definition name ascending on a tie), so a caller whose first choice has no
-    /// dispatchable method can go on to the next demanded resource in the same step. Empty when stock is
-    /// unknown, nothing is configured, or every floor is met.
+    /// dispatchable method can go on to the next demanded resource in the same step. Empty when
+    /// nothing is configured or every floor is met.
     /// </summary>
     public static IReadOnlyList<ResourceTarget> RankResourceTargets(
-        IReadOnlyDictionary<Resource, long> targets, Fact<EquatableArray<Amount>> stock)
+        IReadOnlyDictionary<Resource, long> targets, EquatableArray<Amount> rows)
     {
         if (targets.Count == 0)
         {
@@ -373,10 +373,6 @@ public static partial class ResourceRules
             names.Add(name);
         }
         names.Sort();
-        if (!stock.TryGetValue(out var rows))
-        {
-            return [];
-        }
         var have = new Dictionary<Resource, long>();
         foreach (var q in rows)
         {

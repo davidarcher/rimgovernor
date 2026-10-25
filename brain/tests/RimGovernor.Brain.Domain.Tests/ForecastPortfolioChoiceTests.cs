@@ -33,7 +33,7 @@ public sealed class ForecastPortfolioChoiceTests
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with
         {
-            Resources = Known(EquatableArray.From(sources.GroupBy(s => s.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new(g.Key), g.Sum(s => s.Count))))),
+            Resources = EquatableArray.From(sources.GroupBy(s => s.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new(g.Key), g.Sum(s => s.Count)))),
             WorkResources = roster.WorkResources,
             ForecastObserved = facts.ForecastObserved with
             {

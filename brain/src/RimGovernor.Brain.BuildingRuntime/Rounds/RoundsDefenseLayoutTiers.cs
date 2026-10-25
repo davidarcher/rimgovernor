@@ -287,16 +287,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 census.Unbridging[cell.Cell] = seen.FoundationRemovalDesignated;
             }
         }
-        if (projection.PowerPlanning.TryGetValue(out var topology))
+        foreach (var c in projection.PowerPlanning.Conduits)
         {
-            foreach (var c in topology.Conduits)
-            {
-                census.Conduits[c] = true;
-            }
-            foreach (var b in topology.Buildings)
-            {
-                census.Consumers[b.Cell] = b;
-            }
+            census.Conduits[c] = true;
+        }
+        foreach (var b in projection.PowerPlanning.Buildings)
+        {
+            census.Consumers[b.Cell] = b;
         }
         return census;
     }

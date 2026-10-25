@@ -65,21 +65,17 @@ public static class ColonyDecodeReads
 
     /// <summary>
     /// The accessible colony stock census by definition, summed over the rows that carry units; a definition absent from
-    /// it is known zero. Unknown when the read reports a resources issue.
+    /// it is zero.
     /// </summary>
-    internal static Fact<IReadOnlyDictionary<Resource, long>> StockCensus(O.ColonyFactsSnapshot v)
+    internal static IReadOnlyDictionary<Resource, long> StockCensus(O.ColonyFactsSnapshot v)
     {
-        if (HasIssue(v.Issues, "resources"))
-        {
-            return Unknown<IReadOnlyDictionary<Resource, long>>();
-        }
         var stock = new Dictionary<Resource, long>();
         foreach (var q in v.Resources)
         {
             var key = new Resource(q.DefName);
             stock[key] = stock.GetValueOrDefault(key) + q.Units;
         }
-        return Known<IReadOnlyDictionary<Resource, long>>(stock);
+        return stock;
     }
 
     internal static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
@@ -240,16 +236,14 @@ public static class ColonyDecodeReads
         if (v.Development?.Outcome is { } development && Resolved(buildings, development.Power, row => row.Building))
         {
             var power = new List<PowerBuilding>(development.Power.Count);
-            var topology = new PowerTopology();
-            var geometryKnown = true;
-            var turrets = new List<DefenseTurretFacts>();
-            var fuel = new List<FuelConsumer>();
             // A solar flare holds every network off.
-            topology = topology with
+            var topology = new PowerTopology
             {
                 Blackout = conditions.Any(condition => condition.DisablesPower),
                 Eclipse = conditions.Any(condition => condition.Definition == DisasterRules.ConditionEclipse),
             };
+            var turrets = new List<DefenseTurretFacts>();
+            var fuel = new List<FuelConsumer>();
             var sites = new List<PowerSite>();
             var defs = RequireCatalog(catalog);
             foreach (var row in development.Power)
@@ -292,7 +286,10 @@ public static class ColonyDecodeReads
                 {
                     fuel.Add(consumer);
                 }
-                geometryKnown = geometryKnown && reference.Place is O.EntityPlace.OnMap && site.Occupied.Count > 0;
+                if (reference.Place is not O.EntityPlace.OnMap || site.Occupied.Count == 0)
+                {
+                    throw new ObservationContractException($"development power row {reference.Id} stands on no map cell");
+                }
                 sites.Add(site);
                 if (site.Turret is { } gun)
                 {
@@ -312,8 +309,7 @@ public static class ColonyDecodeReads
                 }
                 if (row.Building.Place is not O.EntityPlace.OnMap at)
                 {
-                    geometryKnown = false;
-                    continue;
+                    throw new ObservationContractException($"built conduit {row.Building.Id} stands on no map cell");
                 }
                 var cell = CellOf(at.Cell);
                 conduits.Add(cell);
@@ -339,8 +335,7 @@ public static class ColonyDecodeReads
                 var reference = tables.Entity(row.Geyser);
                 if (reference?.Place is not O.EntityPlace.OnMap at)
                 {
-                    geometryKnown = false;
-                    continue;
+                    throw new ObservationContractException("a steam geyser stands on no map cell");
                 }
                 var geyserCells = new List<Cell>();
                 foreach (var cell in row.Cells)
@@ -350,19 +345,15 @@ public static class ColonyDecodeReads
                 geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(at.Cell), Occupied = row.Occupied, Cells = geyserCells });
             }
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = networks, Geysers = geysers };
-            if (geometryKnown)
-            {
-                r = r with { PowerPlanning = Known(topology) };
-            }
-            r = r with { DefenseTurrets = Known(EquatableArray.From(turrets)) };
-            f = f with { Fuel = Known(EquatableArray.From(fuel)) };
+            r = r with { PowerPlanning = topology, DefenseTurrets = Known(EquatableArray.From(turrets)) };
             var coverage = PowerRules.PowerCoverageOf(power);
             f = f with
             {
-                PowerRequired = Known(coverage.Required),
-                PowerHeadroom = Known(coverage.HeadroomW),
-                DisabledConsumers = Known(coverage.Disabled),
-                PowerWeatherSafe = Known(unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power)),
+                Fuel = EquatableArray.From(fuel),
+                PowerRequired = coverage.Required,
+                PowerHeadroom = coverage.HeadroomW,
+                DisabledConsumers = coverage.Disabled,
+                PowerWeatherSafe = unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power),
             };
             f = f with { ShortCircuit = development.ShortCircuit is O.ObservedShortCircuit.Seen shorted ? new DisasterShortCircuit.Seen(new Tick(shorted.Tick)) : new DisasterShortCircuit.NoneSeen() };
         }
@@ -447,7 +438,6 @@ public static class ColonyDecodeReads
             }
         }
         f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = Known(combinedFoodSupply) } };
-        if (!HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>(v.Resources.Count);
             var wood = 0L;
@@ -459,7 +449,7 @@ public static class ColonyDecodeReads
                 }
                 rows.Add(new Amount(new Resource(q.DefName), q.Units));
             }
-            f = f with { Wood = Known(wood), Resources = Known(EquatableArray.From(rows)), ResourceThings = Known(v.ResourceThings) };
+            f = f with { Wood = wood, Resources = EquatableArray.From(rows), ResourceThings = v.ResourceThings };
         }
         r = r with { Resources = StockCensus(v) };
         var lootRows = new List<LootItem>(v.EventLoot.Count);

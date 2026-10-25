@@ -54,20 +54,15 @@ public sealed partial class RoundsResourcePlanner
         return new RoundsResourcePlanner(reviewer, native);
     }
 
-    internal static Fact<EquatableArray<Amount>> ResourceStockFacts(O.ColonyFactsSnapshot v)
+    internal static EquatableArray<Amount> ResourceStockFacts(O.ColonyFactsSnapshot v)
     {
-        if (RoundsMedicalPlanner.MedicalIssue(v.Issues, "resources"))
-        {
-            return Unknown<EquatableArray<Amount>>();
-        }
-
         var rows = new List<Amount>();
         foreach (var q in v.Resources)
         {
             rows.Add(new Amount(new Resource(q.DefName), q.Units));
         }
 
-        return Known<EquatableArray<Amount>>([.. rows]);
+        return [.. rows];
     }
 
     internal static Verdict NoResourceSource(Resource resource) => Verdict.AwaitingPlan(ResourceSourceSubject, resource.Value);
@@ -150,7 +145,7 @@ public sealed partial class RoundsResourcePlanner
         var targets = reviewer.ResourceTargets(state.Snapshot);
         var supply = await reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
         var ranked = ResourceRules.RankResourceTargets(ResourceRules.ResourceConcernTargets(targets, supply.Derived), stock);
-        var have = new StockReader(stock, Unknown<long>());
+        var have = StockReader.Of(stock);
         RoundsResourceResult? first = null;
         var sourceless = new List<Resource>();
         foreach (var row in ranked)
@@ -160,7 +155,7 @@ public sealed partial class RoundsResourcePlanner
             {
                 result = await DispatchResourceConcernAsync(state, goal, review.Tick, identity, row.Resource, row.Target, stock, started, call, epoch).ConfigureAwait(false);
             }
-            else if (have.Units(row.Resource) >= row.Target)
+            else if (have.Count(row.Resource) >= row.Target)
             {
                 continue;
             }
@@ -212,7 +207,7 @@ public sealed partial class RoundsResourcePlanner
         return (ResourceRules.SelectResourceMethod(request), supply);
     }
 
-    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, EquatableArray<Amount> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (resource.Value == "Beer")
         {
@@ -237,7 +232,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, EquatableArray<Amount> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!supply.Rows.TryGetValue(resource, out var row) || row is null)
         {
@@ -287,7 +282,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, EquatableArray<Amount> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
     {
         if (pre is null)
         {
@@ -333,15 +328,10 @@ public sealed partial class RoundsResourcePlanner
         return (new RoundsResourceResult { Verdict = NoResourceSource(resource), Sources = selected }, false);
     }
 
-    internal async Task<(SourceSelection Selection, bool Ok)> SourcesForDeficitAsync(C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, RemoteWorkRequest remote, CancellationToken ct)
+    internal async Task<(SourceSelection Selection, bool Ok)> SourcesForDeficitAsync(C.Identity identity, Resource resource, long target, EquatableArray<Amount> stock, RemoteWorkRequest remote, CancellationToken ct)
     {
-        if (!stock.TryGetValue(out var rows))
-        {
-            return (default, false);
-        }
-
         long have = 0;
-        foreach (var row in rows)
+        foreach (var row in stock)
         {
             if (row.Resource == resource)
             {

@@ -77,10 +77,7 @@ internal sealed class FirebreakMemory
         var footprint = FirebreakPlan.Footprint(projection);
         var cells = FirebreakRingRules.FirebreakRing(footprint);
         var flooring = projection.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census");
-        if (!projection.Resources.TryGetValue(out var stock))
-        {
-            throw new RequiredFactException("colony stock");
-        }
+        var stock = projection.Resources;
         var style = FloorStyle(projection);
         var floorName = style is null ? "" : style(RoomRole.None).Floor;
         var floors = new Dictionary<string, FloorDefinition>(StringComparer.Ordinal);

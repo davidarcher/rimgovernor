@@ -12,7 +12,7 @@ public sealed record PasteSiteRequest
 
     public Fact<Bounds> Size { get; init; }
 
-    public Fact<PowerTopology> Power { get; init; }
+    public PowerTopology Power { get; init; } = new();
 }
 
 public static partial class PasteSiteRules
@@ -34,7 +34,7 @@ public static partial class PasteSiteRules
         {
             return null;
         }
-        if (!v.Hopper.TryGetValue(out var hopper) || !v.Size.TryGetValue(out var size) || !v.Power.TryGetValue(out var power))
+        if (!v.Hopper.TryGetValue(out var hopper) || !v.Size.TryGetValue(out var size))
         {
             return null;
         }
@@ -60,7 +60,7 @@ public static partial class PasteSiteRules
         foreach (var c in r.Field.Site.Cells)
         {
             var connected = false;
-            foreach (var b in power.Buildings)
+            foreach (var b in v.Power.Buildings)
             {
                 connected = connected || (b.Connected && b.Network == review.PasteNetwork && EquipRules.DistanceSquared(c.Cell, b.Cell) <= 36);
             }

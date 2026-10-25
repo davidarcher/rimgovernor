@@ -186,7 +186,7 @@ public sealed record GoalsFacts
 
     public Fact<TechTier> Tier { get; init; }
 
-    public Fact<EquatableArray<Amount>> Stock { get; init; }
+    public EquatableArray<Amount> Stock { get; init; }
 
     public long Colonists { get; init; }
 
@@ -355,7 +355,7 @@ public static partial class GoalRules
                 owner = EconomyFamily.Research;
                 break;
             case GoalKind.StockCount:
-                standing = Shortfall(goal.Count, f.Stock.TryGetValue(out var stock) ? stock.Where(a => a.Resource == new Resource(goal.Target)).Sum(a => a.Count) : throw new RequiredFactException("stock census"));
+                standing = Shortfall(goal.Count, f.Stock.Where(a => a.Resource == new Resource(goal.Target)).Sum(a => a.Count));
                 owner = EconomyFamily.Resource;
                 break;
             case GoalKind.Colonists:

@@ -635,8 +635,7 @@ public sealed partial class Rounder
                 var nativeBench = (IRoundsWorkBenchSource)Native;
                 var benchSource = BenchSource(nativeBench, expected, true);
                 var recovered = ResearchRules.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources).Recovered;
-                var deficitKnown = recovered.TryGetValue(out var deficit);
-                var deficitTargets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficitKnown && !deficit, reading.Projection.Facts.Gear);
+                var deficitTargets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, !recovered, reading.Projection.Facts.Gear);
                 Fact<IReadOnlyList<WorkRequirement>> benchWork = default;
                 try
                 {
@@ -1026,18 +1025,18 @@ partial class Rounder
 
     /// <summary>
     /// What the whole plan still owes, per room id: the reconciler's owed operations over the plan (PlannedOwedCost), priced from the def catalog with
-    /// the stuff the shell chooser takes (ShellSharedStuff) for the ring and the bulk chooser's for pieces; unknown while the plan or the construction census is.
+    /// the stuff the shell chooser takes (ShellSharedStuff) for the ring and the bulk chooser's for pieces; null while the plan or the construction census is unread.
     /// A roofed-set cell still open to the sky is owed a roof (RoofIn) once the ring stands; a roof costs no material.
     /// </summary>
-    internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring) =>
+    internal static IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>? PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring) =>
         PlannedConstructionOf(colony, PlannedOwedOf(colony, flooring));
 
-    /// <summary>PlannedConstructionOf over an owed diff already taken (PlannedOwedOf), so one review's readers share it; unknown without one.</summary>
-    internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, PlannedOwed? owed)
+    /// <summary>PlannedConstructionOf over an owed diff already taken (PlannedOwedOf), so one review's readers share it; null without one.</summary>
+    internal static IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>? PlannedConstructionOf(ColonyProjection colony, PlannedOwed? owed)
     {
         if (owed is null)
         {
-            return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
+            return null;
         }
         var wall = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, ContainmentCellRules.ShellWallDefinition);
         var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, ContainmentCellRules.ShellDoorDefinition);
@@ -1064,9 +1063,8 @@ partial class Rounder
             return null;
         }
         IReadOnlyList<Amount>? PiecePrice(string name) => PlannedPiecePrice(colony, name)?.Costs;
-        return Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
-            PlannedRules.PlannedOwedCost(owed.Rooms, Price, PiecePrice, owed.FloorPrice, ClimateRules.ClimateDefs().VentDef, owed.Placed)
-                .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value));
+        return PlannedRules.PlannedOwedCost(owed.Rooms, Price, PiecePrice, owed.FloorPrice, ClimateRules.ClimateDefs().VentDef, owed.Placed)
+            .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value);
     }
 
     /// <summary>
@@ -1097,7 +1095,7 @@ partial class Rounder
         {
             return null;
         }
-        var flooringFacts = RoundsBuildingPlanner.FlooringFactsOf(colony) with { Stock = Unknown<IReadOnlyDictionary<Resource, long>>() };
+        var flooringFacts = RoundsBuildingPlanner.FlooringFactsOf(colony) with { Stock = null };
         IReadOnlyList<Amount>? FloorPrice(string name) =>
             flooringFacts.Definitions.TryGetValue(name, out var floor) && floor.Costs.TryGetValue(out var costs) ? costs : null;
         // The colony's standing buildings and floors stand in for the clearance census: the reconcile matches the

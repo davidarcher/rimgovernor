@@ -14,7 +14,7 @@ public static class DeepDrillRules
             {
                 continue;
             }
-            if (row.Deficit.TryGetValue(out var deficit) && deficit)
+            if (row.InDeficit)
             {
                 return [.. needs, "DeepDrilling", "GroundPenetratingScanner"];
             }

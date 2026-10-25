@@ -50,20 +50,8 @@ public static class ArmoryShellsRules
 
     /// <summary>
     /// Whether any target's stock is below half its count, the point a native stock-target bill resumes at:
-    /// above it a standing bill has nothing to add. Unknown stock with targets is unknown; no targets is known false.
+    /// above it a standing bill has nothing to add. No targets is false.
     /// </summary>
-    public static Fact<bool> ShellsShort(IReadOnlyList<Amount> targets, Fact<IReadOnlyDictionary<Resource, long>> stock)
-    {
-        if (targets.Count == 0)
-        {
-            return Known(false);
-        }
-
-        if (!stock.TryGetValue(out var have))
-        {
-            return Unknown<bool>();
-        }
-
-        return Known(targets.Any(t => have.GetValueOrDefault(t.Resource) * 2 < t.Count));
-    }
+    public static Fact<bool> ShellsShort(IReadOnlyList<Amount> targets, IReadOnlyDictionary<Resource, long> stock) =>
+        Known(targets.Any(t => stock.GetValueOrDefault(t.Resource) * 2 < t.Count));
 }

@@ -63,7 +63,7 @@ internal static class ColonyModelFixtures
     {
         Facts = new RoundsFacts
         {
-            ResourceThings = Known<EquatableArray<string>>(["m1"]),
+            ResourceThings = ["m1"],
             Gear = Known(NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] }),
             Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
             Research = new ResearchFacts
@@ -104,7 +104,7 @@ internal static class ColonyModelFixtures
             PlannedSites = new PlannedSiteFacts(),
         },
         CombinedFoodSupply = new FoodSupply { Larder = new(), Consumers = [new() { Id = new("Anna"), NutritionPerDay = 1d }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = 12.5, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(), Eaters = [new("Anna")] }] },
-        Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }),
+        Resources = new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 },
         Definitions = [CropRow()],
         Farms = [ZoneFixtures.Growing("zone1", Crop)],
         Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],

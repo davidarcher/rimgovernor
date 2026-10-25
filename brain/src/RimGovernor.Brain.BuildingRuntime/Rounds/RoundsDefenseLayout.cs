@@ -390,7 +390,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         verification.Update(world, v => v with { Complete = true, Tick = tick, Combat = combat });
         var workers = read.Projection.WorkPawns is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
-        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, DefenseStock(read.Projection), DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
+        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
         if (upkeep.Rearm)
         {
             return Rearm();
@@ -482,23 +482,15 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static (StuffPrice Price, bool Ok) DefenseUnitPrice(ColonyProjection projection, PlanningDefinition d)
     {
-        var stock = projection.Resources.TryGetValue(out var known) ? known : null;
         try
         {
-            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, stock), true);
+            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, projection.Resources), true);
         }
         catch (DomainException)
         {
             return (new StuffPrice("", []), false);
         }
     }
-
-    /// <summary>
-    /// The colony's stock census for a defense tier's pricing; an unread census stocks nothing, so no priced building is
-    /// afforded until it is read.
-    /// </summary>
-    internal static IReadOnlyDictionary<Resource, long> DefenseStock(ColonyProjection projection) =>
-        projection.Resources.TryGetValue(out var stock) ? stock : new Dictionary<Resource, long>();
 
     /// <summary>
     /// The powered turret tier's request: the turret is available when its definition is ready (read available, research
@@ -510,7 +502,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var projection = read.Projection;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = DefenseStock(projection), Max = DefenseBudget.TurretBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = DefenseBudget.TurretBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
         var drawRead = false;
         foreach (var d in projection.Definitions)
         {
@@ -543,20 +535,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var best = "";
         var spare = 0.0;
-        if (projection.PowerPlanning.TryGetValue(out var topology))
+        var topology = projection.PowerPlanning;
+        foreach (var net in topology.Networks)
         {
-            foreach (var net in topology.Networks)
+            if (net.GenerationW > 0 && (best == "" || net.GenerationW - net.ConsumptionW > spare))
             {
-                if (net.GenerationW > 0 && (best == "" || net.GenerationW - net.ConsumptionW > spare))
-                {
-                    best = net.Id;
-                    spare = net.GenerationW - net.ConsumptionW;
-                }
+                best = net.Id;
+                spare = net.GenerationW - net.ConsumptionW;
             }
-            if (best != "")
-            {
-                turret = turret with { SpareW = spare, Transmitters = [.. DefenseNetworkConduits(topology, best)] };
-            }
+        }
+        if (best != "")
+        {
+            turret = turret with { SpareW = spare, Transmitters = [.. DefenseNetworkConduits(topology, best)] };
         }
         var ready = DefinitionReadinessOf(projection, turret.Definition) == DefinitionReadiness.Available;
         turret = turret with { Available = ready && drawRead && best != "" };

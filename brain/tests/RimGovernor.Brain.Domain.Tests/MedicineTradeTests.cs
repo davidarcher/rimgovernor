@@ -22,7 +22,7 @@ public sealed class MedicineTradeTests
         {
             Colonists = 3, Catalog = items,
             Items = Known(EquatableArray.From(new[] { new MedicineStackRow { Id = "h", Definition = Herbal, Count = herbal, Perishable = Known(false) } })),
-            Resources = Known(EquatableArray.From(new[] { new Amount(Herbal, herbal) })),
+            Resources = EquatableArray.From(new[] { new Amount(Herbal, herbal) }),
         }, active, policy);
 
         Assert.True(Review(8, true).Active);

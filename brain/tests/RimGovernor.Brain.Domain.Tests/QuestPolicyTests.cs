@@ -99,14 +99,14 @@ public sealed class QuestPolicyTests
         Assert.Null(QuestDecrees.DecreeObjective(offer with { State = Receipts.QuestStatus.NotYetAccepted }, f));
         Assert.Null(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 3) }] }, f));
 
-        Fact<EquatableArray<Amount>> stock = Known<EquatableArray<Amount>>([new(new("Steel"), 100), new(new("ComponentIndustrial"), 10)]);
+        EquatableArray<Amount> stock = [new(new("Steel"), 100), new(new("ComponentIndustrial"), 10)];
         var (bill, reason) = QuestDecrees.PlanDecreeProduction(due!, [Revolver()], stock);
         Assert.Equal("", reason);
         Assert.Equal(("bench-1", "Make_Gun_Revolver", BillMode.GearBatch, 2), (bill!.Bench, bill.Recipe, bill.Mode, bill.Target));
         Assert.Equal(RevolverIngredients, bill.Ingredients);
 
         Assert.Equal("existing_work", QuestDecrees.PlanDecreeProduction(due!, [Revolver(existing: true)], stock).Reason);
-        Fact<EquatableArray<Amount>> scarce = Known<EquatableArray<Amount>>([new(new("Steel"), 40), new(new("ComponentIndustrial"), 10)]);
+        EquatableArray<Amount> scarce = [new(new("Steel"), 40), new(new("ComponentIndustrial"), 10)];
         Assert.Equal("production_infeasible", QuestDecrees.PlanDecreeProduction(due!, [Revolver()], scarce).Reason);
         Assert.Equal("complete", QuestDecrees.PlanDecreeProduction(due! with { Remaining = 0 }, [Revolver()], stock).Reason);
     }

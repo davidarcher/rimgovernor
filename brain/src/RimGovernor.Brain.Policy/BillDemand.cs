@@ -76,7 +76,7 @@ public static class BillDemandRules
         var output = new Dictionary<Resource, long>();
         foreach (var (resource, n) in need)
         {
-            if (stock.Count(resource).TryGetValue(out var have) && n > have)
+            if (n > stock.Count(resource))
             {
                 output[resource] = n;
             }

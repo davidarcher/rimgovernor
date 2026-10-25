@@ -40,7 +40,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         facts.TechTier.TryGetValue(out var tier);
         var cost = new Dictionary<Pol.Resource, long>();
-        var stock = facts.Resources.TryGetValue(out var known) ? known : new Dictionary<Pol.Resource, long>();
+        var stock = facts.Resources;
         var materials = new Pol.BedMaterials { Cost = cost, Items = facts.Facts.Items, Stock = stock };
         foreach (var d in facts.Definitions)
         {

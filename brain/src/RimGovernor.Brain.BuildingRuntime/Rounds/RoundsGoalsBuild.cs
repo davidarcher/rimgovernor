@@ -63,11 +63,7 @@ public sealed partial class GoalsRounds
         IEnumerable<Rectangle> sites;
         if (placer == BuiltPlacer.Geothermal)
         {
-            if (!f.PowerPlanning.TryGetValue(out var power))
-            {
-                return FieldUnavailable("power");
-            }
-            sites = GeyserSites(power.Geysers, f.Center(), size);
+            sites = GeyserSites(f.PowerPlanning.Geysers, f.Center(), size);
         }
         else
         {

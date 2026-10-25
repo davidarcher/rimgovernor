@@ -129,7 +129,7 @@ public sealed class ForecastWorkInputsTests
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Schedule = Pawn().Schedule } })) },
             BillReservations = [],
             ProductionPromises = Known(default(EquatableArray<ForecastCommitment>)),
-            Resources = Known(default(EquatableArray<Amount>)),
+            Resources = default(EquatableArray<Amount>),
         };
     }
 

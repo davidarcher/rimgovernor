@@ -8,12 +8,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ColonyForecastTests
 {
     private static readonly Resource Material = new("TestMaterial");
-    private static readonly Fact<EquatableArray<Amount>> Stock = Known(EquatableArray.From(new[] { new Amount(Material, 10) }));
+    private static readonly EquatableArray<Amount> Stock = EquatableArray.From(new[] { new Amount(Material, 10) });
     private static ForecastCommitment Change(string id, double day, double units) =>
         new(id, EquatableArray.From(new[] { new ForecastStockChange(Material, day, units) }));
 
     /// <summary>The stock findings of a three-day projection: what a coupled outcome carries of the inventory walk.</summary>
-    private static List<ForecastFinding> Findings(Fact<EquatableArray<Amount>> stock, params ForecastCommitment[] commitments)
+    private static List<ForecastFinding> Findings(EquatableArray<Amount> stock, params ForecastCommitment[] commitments)
     {
         var findings = new List<ForecastFinding>();
         new ColonyForecastRules.InventoryWalk().Run(new(stock, ColonyForecastRules.ForecastCommitmentsById(commitments), 3), default, findings);
@@ -34,15 +34,6 @@ public sealed class ColonyForecastTests
         var b = Change("delivery", 2, 2);
         Assert.Empty(Findings(Stock, a, b));
         Assert.Empty(Findings(Stock, b, a));
-    }
-
-    [Fact]
-    public void UnknownStockIsNotKnownEmpty()
-    {
-        var use = Change("use", 1, -4);
-        Assert.Contains(Findings(default, use), f => f.Reason == "unknown_initial_stock");
-        Assert.DoesNotContain(Findings(default, use), f => f.Reason == "stock_shortfall");
-        Assert.Equal("stock_shortfall", Assert.Single(Findings(Known(default(EquatableArray<Amount>)), use)).Reason);
     }
 
     [Fact]

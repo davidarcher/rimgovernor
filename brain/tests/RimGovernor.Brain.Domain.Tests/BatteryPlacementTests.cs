@@ -117,7 +117,7 @@ public sealed class BatteryPlacementTests
         var topology = new PowerTopology { Buildings = [battery], Blackout = false, Eclipse = false };
         var planning = new PowerPlanning { ComponentSteel = new InputCost.NoRecipe(), Battery = new PowerBattery(600, 0.5), Light = light };
 
-        var proposal = PowerRules.SelectPowerMethod(Known(topology), new Bounds(20, 20), cells, [], planning);
+        var proposal = PowerRules.SelectPowerMethod(topology, new Bounds(20, 20), cells, [], planning);
 
         Assert.Equal(PowerMethod.Shelter, proposal.Method);
         Assert.Equal(battery.Cell, proposal.Center);

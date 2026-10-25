@@ -22,10 +22,7 @@ public static class ColonyGearReads
         var gear = PlanningWindowReads.RequirePlanning(v).Gear;
         var catalog = defs.Catalog;
         var finished = defs.Finished;
-        if (!ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
-        {
-            return Unknown<GearObservation>();
-        }
+        var stock = ColonyDecodeReads.StockCensus(v);
         if ((uint)gear.Pawns.Count != v.ColonistCount)
         {
             throw new RequiredFactException("gear census of every colonist");

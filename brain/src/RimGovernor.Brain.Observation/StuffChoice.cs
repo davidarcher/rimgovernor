@@ -323,13 +323,10 @@ public sealed partial record ColonyProjection
         return false;
     }
 
-    /// <summary>The colony's resource census; false when it is unknown.</summary>
-    public bool TryStock(out IReadOnlyDictionary<Resource, long> stock) => Resources.TryGetValue(out stock!);
-
     /// <summary>
     /// The stuff an ordinary placement builds the def from: the best ranked allowed stuff the colony stocks
     /// (BuildCriteria), else the best ranked allowed stuff whatever the stock (RimWorld places the frame and holds it
-    /// natively for material). A def not made from stuff, an unknown stock and a def the rows cannot choose for yield
+    /// natively for material). A def not made from stuff and a def the rows cannot choose for yield
     /// the empty stuff.
     /// </summary>
     public string BuildStuff(string name)
@@ -357,8 +354,8 @@ public sealed partial record ColonyProjection
     {
         stuff = "";
         var ok = TryDefinition(name, out var d);
-        var known = TryStock(out var stock);
-        if (!ok || d.StuffOptions.Count == 0 || !known)
+        var stock = Resources;
+        if (!ok || d.StuffOptions.Count == 0)
         {
             return false;
         }
@@ -403,55 +400,53 @@ public sealed partial record ColonyProjection
         var criteria = d.BuildCriteria();
         var ordinary = d.OrdinaryStuff();
         bool Allowed(StuffOption o) => ordinary(o) && (excluded is null || !excluded(o.Stuff));
-        if (TryStock(out var stock))
+        var stock = Resources;
+        double Have(Resource resource)
         {
-            double Have(Resource resource)
+            double held = stock.TryGetValue(resource, out var n) ? n : 0;
+            if (resource.Value != "WoodLog")
             {
-                double held = stock.TryGetValue(resource, out var n) ? n : 0;
-                if (resource.Value != "WoodLog")
-                {
-                    return held;
-                }
-                foreach (var s in Acquisition)
-                {
-                    if (s.Tree && s.Resource == resource.Value)
-                    {
-                        held += s.Yield;
-                    }
-                }
                 return held;
             }
-
-            // The catalog prices a stuff with the def's fixed cost list too (a bench's 25 steel), which every option pays
-            // alike; what tells the options apart is the stuff itself, so that is what the stock must cover.
-            bool Covered(StuffOption o)
+            foreach (var s in Acquisition)
             {
-                foreach (var a in o.Costs)
+                if (s.Tree && s.Resource == resource.Value)
                 {
-                    if (a.Resource.Value == o.Stuff)
-                    {
-                        return Have(a.Resource) >= (double)(a.Count * units);
-                    }
+                    held += s.Yield;
                 }
-                return o.Costs.Count > 0 && !o.Costs.Any(a => Have(a.Resource) < (double)(a.Count * units));
             }
+            return held;
+        }
 
+        // The catalog prices a stuff with the def's fixed cost list too (a bench's 25 steel), which every option pays
+        // alike; what tells the options apart is the stuff itself, so that is what the stock must cover.
+        bool Covered(StuffOption o)
+        {
+            foreach (var a in o.Costs)
+            {
+                if (a.Resource.Value == o.Stuff)
+                {
+                    return Have(a.Resource) >= (double)(a.Count * units);
+                }
+            }
+            return o.Costs.Count > 0 && !o.Costs.Any(a => Have(a.Resource) < (double)(a.Count * units));
+        }
+
+        try
+        {
+            return d.ChooseStuff(criteria, o => Allowed(o) && Covered(o)).Stuff;
+        }
+        catch (DomainException)
+        {
+        }
+        if (excluded is not null)
+        {
             try
             {
-                return d.ChooseStuff(criteria, o => Allowed(o) && Covered(o)).Stuff;
+                return d.ChooseStuff(criteria, o => Allowed(o) && stock.TryGetValue(new Resource(o.Stuff), out var held) && held > 0).Stuff;
             }
             catch (DomainException)
             {
-            }
-            if (excluded is not null)
-            {
-                try
-                {
-                    return d.ChooseStuff(criteria, o => Allowed(o) && stock.TryGetValue(new Resource(o.Stuff), out var held) && held > 0).Stuff;
-                }
-                catch (DomainException)
-                {
-                }
             }
         }
         try

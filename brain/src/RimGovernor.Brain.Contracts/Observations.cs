@@ -6232,7 +6232,7 @@ public sealed record ChoiceDialog
 
 public sealed record DevelopmentSection
 {
-    public DevelopmentFacts Outcome { get; init; } = null!;
+    public required DevelopmentFacts Outcome { get; init; }
 }
 
 /// <summary>
@@ -7219,7 +7219,7 @@ public sealed record ColonyFactsSnapshot
     public required string Biome { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Resources { get; init; }
+    public required EquatableArray<Quantity> Resources { get; init; }
 
     public double FoodNutrition { get; init; }
 

@@ -256,13 +256,10 @@ partial class RoundsBuildingPlanner
         return false;
     }
 
-    /// <summary>Whether the stock covers the butcher table's build cost at its cheapest stuff choice; unknown without the definition or the stock.</summary>
+    /// <summary>Whether the stock covers the butcher table's build cost at its cheapest stuff choice; unknown without the definition.</summary>
     internal static Fact<bool> ButcherTableAffordable(ColonyProjection facts)
     {
-        if (!facts.Resources.TryGetValue(out var stock))
-        {
-            return Unknown<bool>();
-        }
+        var stock = facts.Resources;
         foreach (var d in facts.Definitions)
         {
             if (d.Name != KitchenSeparationRules.ButcherTableDefinition)

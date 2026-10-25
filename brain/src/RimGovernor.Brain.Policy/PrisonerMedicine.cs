@@ -62,12 +62,9 @@ public static partial class PrisonerMedicineRules
     public static IReadOnlyDictionary<Resource, long> PrisonerHerbalNeeds(IReadOnlyDictionary<Resource, long> needs, RoundsFacts f, Fact<bool> silverShort)
     {
         var stock = new Dictionary<Resource, long>();
-        if (f.Resources.TryGetValue(out var rows))
+        foreach (var row in f.Resources)
         {
-            foreach (var row in rows)
-            {
-                stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
-            }
+            stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
         var sale = OrganHarvestRules.OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], RoundsRules.Positive(silverShort), stock, f.Recipes);
         if (CareLimitedHarvest(f.Population, sale, [], null, f.Recipes) is null)

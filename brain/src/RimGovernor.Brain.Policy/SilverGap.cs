@@ -6,15 +6,15 @@ public static partial class SilverGapRules
     // TradeSilverReserve, does not cover. Sold goods leave colony wealth, so raid headroom does not gate this
     // work. SelectTrade sells the goods as surplus.
 
-    /// <summary>The colony's silver from the resource census; unknown while the census or the catalog's currency is.</summary>
-    public static Fact<long> SilverStock(ItemFacts items, Fact<EquatableArray<Amount>> resources)
+    /// <summary>The colony's silver from the resource census; unknown while the catalog's currency is.</summary>
+    public static Fact<long> SilverStock(ItemFacts items, EquatableArray<Amount> resources)
     {
-        if (!resources.TryGetValue(out var rows) || items.Currency.Value.Length == 0)
+        if (items.Currency.Value.Length == 0)
         {
             return Unknown<long>();
         }
         long n = 0;
-        foreach (var row in rows)
+        foreach (var row in resources)
         {
             if (row.Resource == items.Currency)
             {

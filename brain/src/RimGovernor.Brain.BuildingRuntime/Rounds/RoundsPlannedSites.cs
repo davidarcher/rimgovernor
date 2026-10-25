@@ -123,18 +123,18 @@ public sealed partial class Rounder
         var (stock, sources) = MapMaterialsOf(colony);
         var options = wall.StuffOptions
             .Where(o => (o.Common || !common) && (door is null || door.MakeableFrom(o.Stuff)))
-            .Select(o => new PlannedRingStuff(o.Stuff, o.Value, stock is not null && stock.TryGetValue(new Resource(o.Stuff), out var held) && held > 0))
+            .Select(o => new PlannedRingStuff(o.Stuff, o.Value, stock.GetValueOrDefault(new Resource(o.Stuff)) > 0))
             .ToList();
         if (wall.StuffOptions.Count > 0 && options.Count == 0)
         {
             return ([], true);
         }
-        return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || stock is not null && sources is not null);
+        return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || sources is not null);
     }
 
-    /// <summary>The colony's stock and the materials the planning window offers (ColonyProjection.RingSources, #3747, #3839); each null while unread.</summary>
-    private static (IReadOnlyDictionary<Resource, long>? Stock, RingStuffSources? Sources) MapMaterialsOf(ColonyProjection colony) =>
-        (colony.TryStock(out var stock) ? stock : null, colony.RingSources);
+    /// <summary>The colony's stock and the materials the planning window offers (ColonyProjection.RingSources, #3747, #3839); the sources are null while unread.</summary>
+    private static (IReadOnlyDictionary<Resource, long> Stock, RingStuffSources? Sources) MapMaterialsOf(ColonyProjection colony) =>
+        (colony.Resources, colony.RingSources);
 
     /// <summary>
     /// What the stock and the map say of obtaining the materials of a piece's cost list other than its stuff (#3839,

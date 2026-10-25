@@ -23,11 +23,6 @@ public static class StockArrivalReads
             return new StockArrival { Unread = "stock_arrival_pawns" };
         }
 
-        if (ColonyDecodeReads.HasIssue(colony.Issues, "resources"))
-        {
-            return new StockArrival { Unread = "stock_arrival_resources" };
-        }
-
         var stock = new Dictionary<Resource, long>();
         foreach (var q in colony.Resources)
         {

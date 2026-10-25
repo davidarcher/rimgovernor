@@ -40,7 +40,7 @@ public sealed record EssentialServiceReview(Tick Observed, EquatableArray<Servic
 public sealed record EssentialServiceInputs
 {
     public EquatableArray<ProductionBench> Benches { get; init; }
-    public Fact<PowerTopology> Power { get; init; }
+    public PowerTopology Power { get; init; } = new();
 }
 
 public static class EssentialServicesRules
@@ -134,10 +134,10 @@ public static class EssentialServicesRules
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
         var fuel = facts.FuelRunway().Projection;
         rows.Add(new(EssentialService.Fuel, ServiceTarget.ForNeed(EconomyFamily.Resource, "", "shared_resource_targets", Known(ColonyDiagnosticsRules.MaintenanceHorizonDays)),
-            facts.Fuel.TryGetValue(out var consumers) && consumers.Count == 0 ? ServiceCoverage.NotApplicable
+            facts.Fuel.Count == 0 ? ServiceCoverage.NotApplicable
                 : fuel.TryGetValue(out var runway) ? runway.Resources.Any(r => r.MissingItems > 0) ? ServiceCoverage.Shortfall
                     : runway.Gaps.Count > 0 ? ServiceCoverage.Unknown : ServiceCoverage.Adequate : ServiceCoverage.Unknown,
-            consumers.Select(c => c.Id).ToImmutableArray(), fuel.IsKnown ? fuel.Value.Gaps.ToImmutableArray() : ["fuel_burn_stock_or_gates"]));
+            facts.Fuel.Select(c => c.Id).ToImmutableArray(), fuel.IsKnown ? fuel.Value.Gaps.ToImmutableArray() : ["fuel_burn_stock_or_gates"]));
 
         if (!inactive)
         {
@@ -314,13 +314,8 @@ public static class EssentialServicesRules
     private static void AssessServicePower(RoundsFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
-        if (facts.PowerRequired.IsKnown && !facts.PowerRequired.Value) return;
-        if (!facts.EssentialInputs.Power.TryGetValue(out var power))
-        {
-            scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "unmapped_facility",
-                () => (ServiceCoverage.Unknown, ["power_topology"]));
-            return;
-        }
+        if (!facts.PowerRequired) return;
+        var power = facts.EssentialInputs.Power;
         foreach (var generator in power.Buildings.Where(b => b.BaseW > 0).OrderBy(b => b.Id, StringComparer.Ordinal))
         {
             scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "facility/" + generator.Id, () =>

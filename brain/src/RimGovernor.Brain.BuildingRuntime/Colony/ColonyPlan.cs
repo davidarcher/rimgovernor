@@ -303,8 +303,7 @@ public sealed partial class Rounder
         {
             if (await CheckSurveyAsync(snapshot, projection, ct).ConfigureAwait(false) is var (survey, catalog))
             {
-                projection.PowerPlanning.TryGetValue(out var knownTopology);
-                var topology = knownTopology ?? new PowerTopology();
+                var topology = projection.PowerPlanning;
                 var colonists = (int)pawns;
                 var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
                 var drift = LayoutPlanning.ReplanDrift(inputs, PlanInputs, tick, PlanReplanned);
@@ -384,8 +383,7 @@ public sealed partial class Rounder
         {
             return;
         }
-        projection.PowerPlanning.TryGetValue(out var knownTopology);
-        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, (knownTopology ?? new PowerTopology()).Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, projection.PowerPlanning.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
         var pawns = projection.Facts.Colonists;
         PlanGrownFor = LayoutPlanning.GrownFor(projection);
         PlanPawns = (int)pawns;

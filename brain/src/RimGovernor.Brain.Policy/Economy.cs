@@ -51,10 +51,10 @@ public sealed record ResourceFacts
     /// <summary>Whether the colony's own works (construction, open bills, clothing, fuel, feed) demand some stock: stock a chop or a mine provides.</summary>
     public bool Works { get; init; }
 
-    public Fact<EquatableArray<Amount>> Stock { get; init; }
+    public EquatableArray<Amount> Stock { get; init; }
 
-    /// <summary>The wood fact WoodLog is counted from; unknown counts WoodLog from the census.</summary>
-    public Fact<long> Wood { get; init; }
+    /// <summary>The wood count WoodLog is counted from.</summary>
+    public long Wood { get; init; }
 
     public EquatableArray<ResourceRunway> Runways { get; init; }
 
@@ -185,43 +185,33 @@ public static class EconomyRules
 
     /// <summary>
     /// The resource Need, a plain threshold with no latch: met with no target short and no runway short; unmet while
-    /// the worst-covered target is short or a runway is known short. An unread stock census, or a runway over a day's
-    /// window unread with nothing short, raises <see cref="RequiredFactException"/>. Its deficit is the worst target's shortfall fraction,
+    /// the worst-covered target is short or a runway is known short; a runway still unrated (an unread ring) is not
+    /// short. Its deficit is the worst target's shortfall fraction,
     /// raised to a short runway's missing share of the maintenance horizon.
     /// </summary>
     public static Need ResourceNeedOf(ResourceFacts f)
     {
-        var census = new StockReader(f.Stock, f.Wood).Census(f.Targets);
-        var (recovered, deficit) = ResearchRules.ResourceTargetNeed(f.Targets, census);
-        var shortRunways = new List<string>();
-        var runwayShare = 0.0;
+        var census = new StockReader(f.Stock, f.Wood).Census();
+        var (met, deficit) = ResearchRules.ResourceTargetNeed(f.Targets, census);
         foreach (var runway in f.Runways)
         {
-            var deficitKnown = runway.Deficit.TryGetValue(out var runwayDeficit);
-            if (!deficitKnown && runway.WindowDays >= 1 && RoundsRules.Positive(recovered))
+            switch (runway.Rating)
             {
-                recovered = Unknown<bool>();
+                case RunwayRating.Idle { Deficit: true }:
+                    met = false;
+                    break;
+                case RunwayRating.Burning { Deficit: true } burning:
+                    met = false;
+                    deficit = Math.Max(deficit, 1 - burning.DaysLeft / ColonyDiagnosticsRules.MaintenanceHorizonDays);
+                    break;
             }
-            if (deficitKnown && runwayDeficit)
-            {
-                shortRunways.Add(runway.Resource.Value);
-                recovered = Known(false);
-                if (runway.DaysLeft.TryGetValue(out var days))
-                {
-                    runwayShare = Math.Max(runwayShare, 1 - days / ColonyDiagnosticsRules.MaintenanceHorizonDays);
-                }
-            }
-        }
-        if (!recovered.TryGetValue(out var met))
-        {
-            throw new RequiredFactException("resource stock or runways");
         }
         return new Need
         {
             Id = EconomyFamily.Resource,
             Tier = NeedTier.Wellbeing,
             Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = met ? 0.0 : Math.Max(runwayShare, deficit.TryGetValue(out var owed) ? owed : 0.0),
+            Deficit = deficit,
         };
     }
 

@@ -110,10 +110,6 @@ public static class QuestCapacity
                 {
                     return result with { Reason = "off_map" };
                 }
-                if (!f.Resources.TryGetValue(out var stock))
-                {
-                    return result with { Reason = "stock_unknown" };
-                }
                 if (!DefTablesRules.QuestGiftDefs.Contains(request.DefName))
                 {
                     return result with { Reason = "gift_def_unsupported" };
@@ -128,7 +124,7 @@ public static class QuestCapacity
                     return result with { Reason = "gift_value_limit" };
                 }
                 long have = 0;
-                foreach (var amount in stock)
+                foreach (var amount in f.Resources)
                 {
                     if (amount.Resource == def)
                     {

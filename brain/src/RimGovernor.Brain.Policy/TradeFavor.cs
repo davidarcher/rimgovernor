@@ -42,7 +42,7 @@ public static partial class TradePolicyRules
     public static Fact<TradeNeed> FavorGoldNeed(
         Fact<TradeNeed> need,
         Fact<EquatableArray<Trader>> traders,
-        Fact<EquatableArray<Amount>> resources,
+        EquatableArray<Amount> stock,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
         Fact<IReadOnlyDictionary<Resource, long>> retained
@@ -50,8 +50,7 @@ public static partial class TradePolicyRules
     {
         var nk = need.TryGetValue(out var n);
         var tk = traders.TryGetValue(out var rows);
-        var sk = resources.TryGetValue(out var stock);
-        if (!nk || !tk || !sk)
+        if (!nk || !tk)
         {
             return need;
         }
@@ -65,7 +64,7 @@ public static partial class TradePolicyRules
             return need;
         }
         var gold = 0L;
-        foreach (var row in stock!)
+        foreach (var row in stock)
         {
             if (row.Resource == FavorSaleResource)
             {
@@ -103,8 +102,7 @@ public static partial class TradePolicyRules
             return new HashSet<PawnId>();
         }
         var stock = new Dictionary<Resource, long>();
-        f.Resources.TryGetValue(out var resources);
-        foreach (var row in resources)
+        foreach (var row in f.Resources)
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }

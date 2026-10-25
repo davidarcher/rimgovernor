@@ -49,7 +49,7 @@ public sealed class FoodFamilyTests
     public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
     {
         var policy = RoundsRules.DefaultRoundsPolicy();
-        var facts = new RoundsFacts { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]) };
+        var facts = new RoundsFacts { Tick = new(100), Colonists = 2L, Fuel = [] };
         var met = facts with
         {
             FoodDays = new FoodRunway.Days(1000.0), GrowingCells = Known(10_000L), FieldCoverage = Known(1.0),
@@ -109,7 +109,7 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastCookingRowReadsTheNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var facts = new RoundsFacts { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]) };
+        var facts = new RoundsFacts { Tick = new(100), Colonists = 2L, Fuel = [] };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
             EssentialServicesRules.ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;
@@ -196,7 +196,7 @@ public sealed class FoodFamilyTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = Known<EquatableArray<Amount>>([new(new("WoodLog"), 1000)]),
+            Resources = [new(new("WoodLog"), 1000)],
             Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
             WorkAdmission = facts.WorkAdmission with
             {

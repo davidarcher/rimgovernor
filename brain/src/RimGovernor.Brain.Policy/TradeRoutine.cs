@@ -134,20 +134,14 @@ public static partial class TradePolicyRules
     /// <summary>
     /// The stock the colony keeps of each resource before a sale: the runway's protected line (reserve plus the
     /// observed rate over the projection horizon) plus the construction demand. A resource nothing consumes or
-    /// builds with has no entry and is wholly surplus. Unknown while the consumption is: an unread rate is not an
-    /// absence of use.
+    /// builds with has no entry and is wholly surplus. A runway still unrated (an unread ring) keeps nothing.
     /// </summary>
-    public static Fact<IReadOnlyDictionary<Resource, long>> TradeRetained(Fact<ResourceConsumption> consumption, IReadOnlyList<ResourceRunway> runways, IReadOnlyDictionary<Resource, long> construction)
+    public static Fact<IReadOnlyDictionary<Resource, long>> TradeRetained(IReadOnlyList<ResourceRunway> runways, IReadOnlyDictionary<Resource, long> construction)
     {
-        if (!consumption.IsKnown)
-        {
-            return Unknown<IReadOnlyDictionary<Resource, long>>();
-        }
         var output = new Dictionary<Resource, long>();
         foreach (var row in runways)
         {
-            var (line, ok) = row.ProtectedLine();
-            if (ok)
+            if (row.TryProtectedLine(out var line))
             {
                 output[row.Resource] = output.GetValueOrDefault(row.Resource) + line;
             }
@@ -232,7 +226,7 @@ public static partial class TradePolicyRules
     public static Fact<TradeNeed> ReviewTradeNeed(
         ItemFacts items,
         MedicalReserveReview medicine,
-        Fact<EquatableArray<Amount>> resources,
+        EquatableArray<Amount> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
         Fact<WealthFacts> wealth,
@@ -240,14 +234,12 @@ public static partial class TradePolicyRules
         TradeFoodContext? food = null
     )
     {
-        var known = MedicineReplenish(medicine, out var replenish);
-        var rowsKnown = resources.TryGetValue(out var rows);
-        if (!known || !rowsKnown)
+        if (!MedicineReplenish(medicine, out var replenish))
         {
             return Unknown<TradeNeed>();
         }
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in rows!)
+        foreach (var row in resources)
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
@@ -282,7 +274,7 @@ public static partial class TradePolicyRules
                 keeps[resource] = keep;
             }
         }
-        foreach (var row in WealthSurplus(rows!, items, targets, floors, retained, wealth))
+        foreach (var row in WealthSurplus(resources, items, targets, floors, retained, wealth))
         {
             if (keeps.ContainsKey(row.Resource))
             {

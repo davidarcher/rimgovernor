@@ -14,7 +14,7 @@ public sealed class CoordinatedConstructionTests
     private static WorkResourceView Resources()
     {
         var facts = WorkResourceTestFacts.Create("producer", "helper") with
-        { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 20)]) };
+        { Resources = [new(new("WoodLog"), 20)] };
         return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))),
             Known(default(EquatableArray<ProductionBatch>)), []);
     }
@@ -375,7 +375,7 @@ public sealed class CoordinatedConstructionTests
                 : NeedsFixtures.Food("target-pawn", "MealSimple", 1, 10d, 10d, .9) with { Location = new(1, 1) }]
         };
         var helper = pawn with { Pawn = "helper", Targets = [pawn.Targets[0] with { Id = "target-helper" }] };
-        facts = facts with { WorkResources = roster.WorkResources, Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 20)]),
+        facts = facts with { WorkResources = roster.WorkResources, Resources = [new(new("WoodLog"), 20)],
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,

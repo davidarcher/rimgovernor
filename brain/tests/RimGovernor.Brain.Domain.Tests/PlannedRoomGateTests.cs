@@ -162,7 +162,7 @@ public sealed class PlannedRoomGateTests
         var facts = WorkResourceTestFacts.Create("a");
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 1000), new(new("BlocksGranite"), 1000)]),
+            Resources = [new(new("WoodLog"), 1000), new(new("BlocksGranite"), 1000)],
             Colonists = 1L, IndoorCapacity = 1L, BedCapacity = 1L, FieldCoverage = Known(1.0),
             WorkAdmission = facts.WorkAdmission with
             {
@@ -295,7 +295,7 @@ public sealed class PlannedRoomGateTests
                         StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
                     },
                 ],
-                Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
+                Resources = new Dictionary<Resource, long> { [new("WoodLog")] = wood },
                 RingSources = new RingStuffSources(),
             };
             projection = projection with
@@ -325,7 +325,7 @@ public sealed class PlannedRoomGateTests
                 },
                 new PlanningDefinition { Name = "FueledStove", Available = Known(true) },
             ],
-            Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
+            Resources = new Dictionary<Resource, long> { [new("WoodLog")] = wood },
             RingSources = new RingStuffSources(),
         };
         return projection with { Facts = projection.Facts with { Research = researchRead ? new ResearchFacts() : null } };
@@ -352,7 +352,6 @@ public sealed class PlannedRoomGateTests
         var read = BlockedFacts(Known(true), researchRead: true, wood: 0);
         var researched = read with { Facts = read.Facts with { Research = new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] } } };
         Assert.True(Done(researched));
-        Assert.False(Done(researched with { Resources = default }));
         Assert.False(Done(researched with { RingSources = null }));
         // A definition the census does not describe is unread, not blocked.
         Assert.False(Done(researched with { Definitions = [] }));
@@ -382,7 +381,7 @@ public sealed class PlannedRoomGateTests
     /// made of wood beside 50 Steel, none of them behind research, with <paramref name="steel"/> stocked and the map's
     /// <paramref name="sources"/> (none by default); a null stock or sources is unread.
     /// </summary>
-    internal static ColonyProjection StoveFacts(long steel = 0, RingStuffSources? sources = null, bool stockRead = true, bool sourcesRead = true)
+    internal static ColonyProjection StoveFacts(long steel = 0, RingStuffSources? sources = null, bool sourcesRead = true)
     {
         RimGovernor.Brain.Policy.Amount Of(string def, long count) => new(new(def), count);
         return ColonyFactsCoreTests.Projection() with
@@ -401,9 +400,7 @@ public sealed class PlannedRoomGateTests
                     StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 75), Of("Steel", 50)] }],
                 },
             ],
-            Resources = stockRead
-                ? Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel })
-                : default,
+            Resources = new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel },
             RingSources = sourcesRead ? sources ?? new RingStuffSources() : null,
         };
     }
@@ -430,7 +427,6 @@ public sealed class PlannedRoomGateTests
         Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Items = offered })));
         Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Mined = offered })));
         Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Salvage = offered })));
-        Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(stockRead: false)));
         Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sourcesRead: false)));
         Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sources: new RingStuffSources { Unsalvaged = MachineUnsalvaged })));
         var unread = StoveFacts();

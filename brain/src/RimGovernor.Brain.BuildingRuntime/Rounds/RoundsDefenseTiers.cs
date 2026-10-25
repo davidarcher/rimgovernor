@@ -47,13 +47,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new DefenseRequest(), NoWorker("ranged_defender"), false);
         }
-        var stockKnown = projection.Resources.TryGetValue(out var stock);
-        stock ??= new Dictionary<Resource, long>();
         request = request with
         {
             Defenders = defenders,
             MinRange = minRange,
-            Definitions = DefenseCoverStock.DefenseCoverChoice(projection.Facts.Items, request.Definitions, stock, stockKnown,
+            Definitions = DefenseCoverStock.DefenseCoverChoice(projection.Facts.Items, request.Definitions, projection.Resources,
                 DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseSandbags), DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseEmbrasure), defenders),
         };
         request = DefenseIedRequest(read, request);

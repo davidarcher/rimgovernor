@@ -20,7 +20,7 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
         Standing = e.Has("Standing") ? new(e.Get<EquatableArray<Building>>("Standing", o), e.Get<IReadOnlyDictionary<Resource, long>>("Construction", o)) : null,
         Pawns = e.Get<Fact<EquatableArray<WorkPawnAvailability>>>("Pawns", o),
         WorkResources = e.Get<Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>>>("WorkResources", o),
-        Stock = e.Get<Fact<EquatableArray<Amount>>>("Stock", o),
+        Stock = e.Get<EquatableArray<Amount>>("Stock", o),
         Reservations = e.Get<EquatableArray<IngredientReservation>>("Reservations", o),
         Recipes = e.Get<Fact<EquatableArray<ProductionRecipeInput>>>("Recipes", o),
         Promises = e.Get<Fact<EquatableArray<ProductionMaterialPromise>>>("Promises", o),

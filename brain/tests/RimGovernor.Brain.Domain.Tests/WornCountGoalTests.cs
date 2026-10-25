@@ -30,7 +30,7 @@ public sealed class WornCountGoalTests
     private static RoundsFacts Facts(params GearPawn[] pawns) => new()
     {
         Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = pawns }),
-        Resources = Known<EquatableArray<Amount>>([]),
+        Resources = [],
         Items = new ItemFacts { StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Devilstrand] = ["Fabric"] } },
         Garments = [new ClothingGarment { Definition = new(Duster), Groups = ["Torso"], Slots = [[new Amount(Devilstrand, 60)]] }],
     };

@@ -31,19 +31,16 @@ internal static class RoundsAnimalContainment
         {
             return want;
         }
-        if (facts.TryStock(out var stock))
+        try
         {
-            try
+            var price = a.StuffChoice(StuffCriterion.CheapestStuff, facts.Resources);
+            if (b.MakeableFrom(price.Stuff))
             {
-                var price = a.StuffChoice(StuffCriterion.CheapestStuff, stock);
-                if (b.MakeableFrom(price.Stuff))
-                {
-                    return price.Stuff;
-                }
+                return price.Stuff;
             }
-            catch (DomainException)
-            {
-            }
+        }
+        catch (DomainException)
+        {
         }
         return AnimalContainmentStuff(a, b);
     }

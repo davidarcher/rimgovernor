@@ -23,7 +23,7 @@ public sealed class ForecastStockHandoffTests
         EquatableArray<Amount> physical = [new(Meal, stocks.Where(s => !s.Reserve && s.Holder.IsEmpty).Sum(s => s.Count)), new(Medicine, 5)];
         var facts = new ColonyForecastFacts
         {
-            Stock = Known(physical), ResourceThings = Known(EquatableArray.From(stocks.Where(s => !s.Reserve && s.Holder.IsEmpty).Select(s => s.Id).Append("med"))),
+            Stock = physical, ResourceThings = EquatableArray.From(stocks.Where(s => !s.Reserve && s.Holder.IsEmpty).Select(s => s.Id).Append("med")),
             Food = new() { Larder = new(), Stocks = stocks, Consumers = [new() { Id = new("animal"), NutritionPerDay = 1d }] },
             Medicine = new() { Items = Known<EquatableArray<MedicineStackRow>>([new() { Id = "med", Definition = Medicine, Count = 5, Perishable = Known(false) }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Perishable = Known(false) }]) },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
@@ -33,7 +33,7 @@ public sealed class ForecastStockHandoffTests
         {
             Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
             FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],
-            Resources = new(new() { Stock = Known(physical), Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
+            Resources = new(new() { Stock = physical, Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
         } };
     }
     private static ForecastCoupledOutcome Evaluate(ColonyForecastRequest request, params ForecastCommitment[] changes) =>

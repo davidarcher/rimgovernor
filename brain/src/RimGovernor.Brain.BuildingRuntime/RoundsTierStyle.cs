@@ -11,23 +11,17 @@ internal static class RoundsTierStyle
     internal static Pol.TechTier StyleTier(Observation.ColonyProjection facts) =>
         facts.TechTier.TryGetValue(out var tier) ? tier : Pol.TechTier.Camp;
 
-    /// <summary>The stock census the rules read; an unknown census holds nothing, and the rules then fall back to their lowest rung.</summary>
+    /// <summary>The stock census the rules read.</summary>
     internal static Pol.TierStyleStock StyleStock(Observation.ColonyProjection facts) =>
-        facts.Resources.TryGetValue(out var stock) ? new Pol.TierStyleStock(stock) : new Pol.TierStyleStock(new Dictionary<Pol.Resource, long>());
+        new Pol.TierStyleStock(facts.Resources);
 
     /// <summary>Whether one ResearchProjectDef is finished; an unknown census reads as unfinished.</summary>
     internal static bool StyleResearchFinished(Observation.ColonyProjection facts, string project) =>
         ResearchRules.ResearchGate([project], facts.Facts.Research) == "";
 
-    /// <summary>Whether any observed power network generates: unknown without a power topology.</summary>
-    internal static Fact<bool> PoweredSource(Observation.ColonyProjection facts)
-    {
-        if (!facts.PowerPlanning.TryGetValue(out var topology))
-        {
-            return Unknown<bool>();
-        }
-        return Known(topology.Networks.Any(net => net.GenerationW > 0));
-    }
+    /// <summary>Whether any observed power network generates.</summary>
+    internal static Fact<bool> PoweredSource(Observation.ColonyProjection facts) =>
+        Known(facts.PowerPlanning.Networks.Any(net => net.GenerationW > 0));
 
     /// <summary>
     /// The wall stuff a pen's fence and a power room's walls are styled in: ranked by the Wall def's stats among the

@@ -1,8 +1,32 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Separates immediately usable stock from prospective ore. DaysLeft includes only known safe surface ore;
-/// unknown ore counts as none. A zero observed rate has no finite runway, rather than an invented infinity.
+/// What the consumption ring says of a resource's runway: Unrated while the ring is unread, Idle when nothing
+/// was spent in the window (no finite runway, rather than an invented infinity) with its Deficit against the
+/// reserve, or Burning at PerDay with the days the usable stock lasts (StockDays), the days it and the safe
+/// surface ore last (DaysLeft), and whether DaysLeft is under the maintenance horizon (Deficit).
+/// </summary>
+public abstract record RunwayRating
+{
+    private protected RunwayRating() { }
+
+    public sealed record Unrated : RunwayRating;
+
+    public sealed record Idle(bool Deficit) : RunwayRating;
+
+    public sealed record Burning(double PerDay, double StockDays, double DaysLeft, bool Deficit) : RunwayRating;
+
+    /// <summary>The observed use per day; false while the ring is unread. Idle uses nothing.</summary>
+    public bool TryRate(out double perDay)
+    {
+        perDay = this is Burning burning ? burning.PerDay : 0;
+        return this is Burning || this is Idle;
+    }
+}
+
+/// <summary>
+/// Separates immediately usable stock from prospective ore. DaysLeft includes only safe surface ore; a resource
+/// with no readable ore row has none.
 /// </summary>
 public sealed record ResourceRunway
 {
@@ -14,31 +38,30 @@ public sealed record ResourceRunway
 
     public long Reserve { get; init; }
 
-    public Fact<long> Stock { get; init; }
+    public long Stock { get; init; }
 
-    public Fact<long> SurfaceOre { get; init; }
+    public long SurfaceOre { get; init; }
 
-    public Fact<double> ConsumptionPerDay { get; init; }
-
-    public Fact<double> StockDays { get; init; }
-
-    public Fact<double> DaysLeft { get; init; }
-
-    public Fact<bool> Deficit { get; init; }
+    public RunwayRating Rating { get; init; } = new RunwayRating.Unrated();
 
     public long Target { get; init; }
+
+    /// <summary>Whether the rate is read and the usable stock falls short of the horizon (an Idle runway short of its reserve counts).</summary>
+    public bool InDeficit => Rating is RunwayRating.Idle { Deficit: true } or RunwayRating.Burning { Deficit: true };
 
     /// <summary>
     /// The stock the runway guards: the reserve plus the observed rate over the projection horizon. It is the
     /// target while the runway is in deficit and the trade's retained stock always. False while the rate is unread.
     /// </summary>
-    public (long Line, bool Ok) ProtectedLine()
+    public bool TryProtectedLine(out long line)
     {
-        if (!ConsumptionPerDay.TryGetValue(out var rate) || Reserve < 0)
+        if (!Rating.TryRate(out var rate))
         {
-            return (0, false);
+            line = 0;
+            return false;
         }
-        return (Reserve + (long)Math.Ceiling(rate * ColonyDiagnosticsRules.MaintenanceHorizonDays), true);
+        line = Reserve + (long)Math.Ceiling(rate * ColonyDiagnosticsRules.MaintenanceHorizonDays);
+        return true;
     }
 }
 
@@ -46,36 +69,34 @@ public static partial class ResourceRules
 {
     /// <summary>
     /// Reads the resource's recurring spend over the consumption window. A window
-    /// shorter than a day is read as a day, so a burst in the first hours is not a huge daily rate. Unknown
-    /// consumption leaves the rate, and so the runway, unknown; unknown ore is no prospective supply.
+    /// shorter than a day is read as a day, so a burst in the first hours is not a huge daily rate. An unread
+    /// ring leaves the runway Unrated; a negative reserve or stock throws <see cref="DomainException"/>.
     /// </summary>
     public static ResourceRunway ForecastResourceRunway(
-        Resource resource, Fact<long> stock, Fact<long> ore, long reserve, Tick tick, Fact<ResourceConsumption> consumption)
+        Resource resource, long stock, long ore, long reserve, Tick tick, ResourceConsumption? consumption)
     {
+        if (reserve < 0 || stock < 0 || ore < 0)
+        {
+            throw new DomainException($"resource runway {resource.Value} has a negative reserve, stock or ore");
+        }
         var output = new ResourceRunway { Resource = resource, Tick = tick, Reserve = reserve, Stock = stock, SurfaceOre = ore };
-        if (!consumption.TryGetValue(out var c) || reserve < 0)
+        if (consumption is not { } c)
         {
             return output;
         }
         output = output with { WindowDays = c.WindowDays };
         var rate = (double)c.Recurring.GetValueOrDefault(resource) / Math.Max(c.WindowDays, 1);
-        output = output with { ConsumptionPerDay = Known(rate) };
-        if (!stock.TryGetValue(out var n) || n < 0)
-        {
-            return output;
-        }
         if (rate == 0)
         {
-            return output with { Deficit = Known(n < reserve), Target = reserve };
+            return output with { Rating = new RunwayRating.Idle(stock < reserve), Target = reserve };
         }
-        var usable = Math.Max(0, n - reserve);
-        output = output with { StockDays = Known(usable / rate) };
-        ore.TryGetValue(out var remaining);
-        var days = (usable + (double)Math.Max(0, remaining)) / rate;
-        output = output with { DaysLeft = Known(days), Deficit = Known(days < ColonyDiagnosticsRules.MaintenanceHorizonDays) };
-        if (days < ColonyDiagnosticsRules.MaintenanceHorizonDays)
+        var usable = Math.Max(0, stock - reserve);
+        var days = (usable + (double)ore) / rate;
+        var deficit = days < ColonyDiagnosticsRules.MaintenanceHorizonDays;
+        output = output with { Rating = new RunwayRating.Burning(rate, usable / rate, days, deficit) };
+        if (deficit)
         {
-            output = output with { Target = output.ProtectedLine().Line };
+            output = output with { Target = reserve + (long)Math.Ceiling(rate * ColonyDiagnosticsRules.MaintenanceHorizonDays) };
         }
         return output;
     }
@@ -103,7 +124,7 @@ public static partial class ResourceRules
     /// observed rate over the horizon.
     /// </summary>
     public static Dictionary<Resource, long> RunwayReserves(
-        this RoundsPolicy p, ItemFacts items, long colonists, Fact<ResourceConsumption> consumption)
+        this RoundsPolicy p, ItemFacts items, long colonists, ResourceConsumption? consumption)
     {
         var materials = MaterialRunwayKeys(items, consumption);
         var output = new Dictionary<Resource, long>();
@@ -128,9 +149,9 @@ public static partial class ResourceRules
     /// The resources the consumption ring shows recurring spend on, sorted: the colony's own use names them,
     /// no list does. Food (a catalog nutrition value) is left to the food ledger, which plans it.
     /// </summary>
-    public static IReadOnlyList<Resource> MaterialRunwayKeys(ItemFacts items, Fact<ResourceConsumption> consumption)
+    public static IReadOnlyList<Resource> MaterialRunwayKeys(ItemFacts items, ResourceConsumption? consumption)
     {
-        if (!consumption.TryGetValue(out var c))
+        if (consumption is not { } c)
         {
             return [];
         }
@@ -146,7 +167,8 @@ public static partial class ResourceRules
         return output;
     }
 
-    public static Fact<long> SurfaceOre(IReadOnlyList<ResourceSource> sources)
+    /// <summary>The yield of the safe, reachable mine sources, each thing once; a negative or repeated source throws <see cref="DomainException"/>.</summary>
+    public static long SurfaceOre(IReadOnlyList<ResourceSource> sources)
     {
         long total = 0;
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -156,13 +178,12 @@ public static partial class ResourceRules
             {
                 continue;
             }
-            if (seen.Contains(source.ThingId) || source.Yield < 0 || source.Yield > long.MaxValue - total)
+            if (!seen.Add(source.ThingId) || source.Yield < 0 || source.Yield > long.MaxValue - total)
             {
-                return Unknown<long>();
+                throw new DomainException($"surface ore source {source.ThingId} is repeated, negative or overflows");
             }
-            seen.Add(source.ThingId);
             total += source.Yield;
         }
-        return Known(total);
+        return total;
     }
 }

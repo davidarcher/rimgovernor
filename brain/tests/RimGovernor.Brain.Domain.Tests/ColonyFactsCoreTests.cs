@@ -20,6 +20,7 @@ public sealed class ColonyFactsCoreTests
     /// <summary>A colony facts read with every section present and empty: no planning, no indoor bed, nothing pending.</summary>
     internal static ColonyFactsSnapshot Snapshot(C.ObservationContext? context = null) => new()
     {
+        Resources = [],
         Context = context ?? new C.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
         FoodRunway = new RimGovernor.Contracts.Wire.Observations.FoodRunway.NoDemand(),
@@ -38,7 +39,7 @@ public sealed class ColonyFactsCoreTests
         FoodSupply = new() { Larder = new() },
         Forecast = new() { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Larder = new() }, Patients = [] },
         Upkeep = UpkeepFactsTests.NoUpkeep,
-        Development = new(),
+        Development = new() { Outcome = new() { ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
         Planning = new Planning.NotRequested(),
         Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new(),

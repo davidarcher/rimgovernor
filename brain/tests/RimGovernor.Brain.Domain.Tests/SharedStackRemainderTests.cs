@@ -41,7 +41,7 @@ public sealed class SharedStackRemainderTests
         return facts with
         {
             Tick = new(tick),
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), (long)stock)]),
+            Resources = [new(new("Rice"), (long)stock)],
             WorkResources = native.Length == 0 ? roster.WorkResources : Known(EquatableArray.From(native)),
             CoupledAlternatives = null,
             ForecastObserved = facts.ForecastObserved with

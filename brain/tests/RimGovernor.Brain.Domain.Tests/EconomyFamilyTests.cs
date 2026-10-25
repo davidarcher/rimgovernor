@@ -146,12 +146,12 @@ public sealed class EconomyFamilyTests
     private static ResourceFacts Stock(long steel, params ResourceRunway[] runways) => new()
     {
         Targets = new Dictionary<Resource, long> { [Steel] = 100 },
-        Stock = Known<EquatableArray<Amount>>([new(Steel, steel)]),
+        Stock = [new(Steel, steel)],
         Runways = EquatableArray.From(runways),
     };
 
-    private static ResourceRunway Runway(Fact<bool> deficit, Fact<double> daysLeft) =>
-        new() { Resource = Steel, WindowDays = 2, Reserve = 10, Deficit = deficit, DaysLeft = daysLeft };
+    private static ResourceRunway Runway(RunwayRating rating) =>
+        new() { Resource = Steel, WindowDays = 2, Reserve = 10, Rating = rating };
 
     [Fact]
     public void TheResourceNeedIsMetUnmetOrUnknownByTheTargetsTheCensusAndTheRunways()
@@ -164,14 +164,13 @@ public sealed class EconomyFamilyTests
         Assert.True(unmet.Deficit > 0, unmet.Deficit.ToString());
 
         // A runway known short is unmet with targets covered; its missing horizon share is the deficit.
-        var runway = EconomyRules.ResourceNeedOf(Stock(150, Runway(Known(true), Known(1.0))));
+        var runway = EconomyRules.ResourceNeedOf(Stock(150, Runway(new RunwayRating.Burning(1, 1, 1.0, true))));
         Assert.Equal(Satisfaction.Unmet, runway.Satisfaction);
         Assert.True(runway.Deficit > 0, runway.Deficit.ToString());
 
-        // An unread census, or an unread runway with nothing short, is unknown: no latch holds the last answer.
-        Assert.Equal("resource stock or runways", Assert.Throws<RequiredFactException>(() => EconomyRules.ResourceNeedOf(Stock(150) with { Stock = Unknown<EquatableArray<Amount>>() })).Fact);
-        Assert.Equal("resource stock or runways", Assert.Throws<RequiredFactException>(() => EconomyRules.ResourceNeedOf(Stock(150, Runway(Unknown<bool>(), Unknown<double>())))).Fact);
-        Assert.Equal(Satisfaction.Unmet, EconomyRules.ResourceNeedOf(Stock(25, Runway(Unknown<bool>(), Unknown<double>()))).Satisfaction);
+        // An unrated runway with the targets covered is met; with them short, unmet: no latch holds the last answer.
+        Assert.Equal(Satisfaction.Met, EconomyRules.ResourceNeedOf(Stock(150, Runway(new RunwayRating.Unrated()))).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, EconomyRules.ResourceNeedOf(Stock(25, Runway(new RunwayRating.Unrated()))).Satisfaction);
     }
 
     [Fact]

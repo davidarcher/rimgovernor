@@ -31,7 +31,7 @@ public sealed class GoalsFamilyTests
         Goals = goals,
         Research = Research(),
         Tier = Known(TechTier.Camp),
-        Stock = Known<EquatableArray<Amount>>([new Amount(new Resource("Steel"), 40)]),
+        Stock = [new Amount(new Resource("Steel"), 40)],
         Colonists = 5L,
         Animals = EquatableArray.From<UpkeepAnimal>([new UpkeepAnimal { Definition = new Resource("Muffalo") }]),
     };
@@ -131,7 +131,7 @@ public sealed class GoalsFamilyTests
         var facts = Facts(goal);
         var need = Derive(facts, goal);
         Assert.Equal((Satisfaction.Unmet, 60.0), (need.Satisfaction, need.Deficit));
-        Assert.Equal(Satisfaction.Met, Derive(facts with { Stock = Known<EquatableArray<Amount>>([new Amount(new Resource("Steel"), 100)]) }, goal).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Derive(facts with { Stock = [new Amount(new Resource("Steel"), 100)] }, goal).Satisfaction);
 
         var demand = GoalRules.DemandOf(facts);
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Steel")] = 100 }, demand.Stock);

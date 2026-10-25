@@ -148,12 +148,12 @@ internal static class ReadProjections
         r.WindowDays,
         ColonyDiagnosticsRules.MaintenanceHorizonDays,
         r.Reserve,
-        Value(r.Stock),
-        Value(r.SurfaceOre),
-        Value(r.ConsumptionPerDay),
-        Value(r.StockDays),
-        Value(r.DaysLeft),
-        Value(r.Deficit),
+        r.Stock,
+        r.SurfaceOre,
+        r.Rating is RunwayRating.Burning burning ? burning.PerDay : r.Rating is RunwayRating.Idle ? 0 : null,
+        r.Rating is RunwayRating.Burning burningStock ? burningStock.StockDays : null,
+        r.Rating is RunwayRating.Burning burningLeft ? burningLeft.DaysLeft : null,
+        r.Rating is RunwayRating.Burning burningDeficit ? burningDeficit.Deficit : r.Rating is RunwayRating.Idle idle ? idle.Deficit : null,
         r.Target);
 
     private static ConcernProgressDto ConcernProgressRow(ConcernProgress p)

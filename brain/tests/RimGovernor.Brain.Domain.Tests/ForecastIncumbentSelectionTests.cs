@@ -11,7 +11,7 @@ public sealed class ForecastIncumbentSelectionTests
     private static (ColonyForecastRequest Request, ForecastCoupledCandidates Candidates) Problem(double food, double fall, bool meal = true)
     {
         var facts = ForecastCoupledSelectionTests.Review(food, fall);
-        facts = WorkRules.ReviewWorkResources(facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 1)]) },
+        facts = WorkRules.ReviewWorkResources(facts with { Resources = [new(new("Rice"), 1)] },
             Known<EquatableArray<ProductionBatch>>([]), new([]));
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with

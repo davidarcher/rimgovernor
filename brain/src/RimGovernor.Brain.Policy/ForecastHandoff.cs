@@ -37,7 +37,6 @@ public sealed class ForecastTerminalAccounting
     public EquatableArray<ForecastTerminalLot> Lots { get; init; }
     public bool FoodUnread { get; init; }
     public bool MedicineComplete { get; init; }
-    public bool PhysicalCensusComplete { get; init; }
 }
 
 public static class ForecastHandoffPolicy
@@ -70,7 +69,7 @@ public static class ForecastHandoffPolicy
         }
 
         var stocks = physical.Select(p => new ModelResourceStock(p.Key, p.Value)).ToArray();
-        var stockKnown = terminal.PhysicalCensusComplete && request.Facts.Stock.IsKnown && physical.All(p => p.Value >= 0);
+        var stockKnown = physical.All(p => p.Value >= 0);
         if (!SameStocks(request.Facts.Stock, basis.Input.Stocks.Materials))
         { stockKnown = false; gaps.Add("terminal_material_census_scope_mismatch"); }
         if (!stockKnown) gaps.Add("terminal_stock_unknown");
@@ -95,8 +94,9 @@ public static class ForecastHandoffPolicy
         dates.AddRange(projected.Completed);
         EquatableArray<ModelResourceStock>? external = null;
         var budget = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, holds, tasks, outcome.Plan);
-        if (holds is not null && budget is MaterialBudget.Read(var available) && request.Facts.Stock.TryGetValue(out var initial))
+        if (holds is not null && budget is MaterialBudget.Read(var available))
         {
+            var initial = request.Facts.Stock;
             var reserved = new List<ModelResourceStock>();
             foreach (var resource in initial.Select(s => s.Resource).Concat(available.Keys).Distinct())
             {
@@ -149,8 +149,8 @@ public static class ForecastHandoffPolicy
         { Graph = projected.Graph, ActiveEffects = active, Shelters = outcome.Shelters, ShelterPlans = shelterPlans, ServedRooms = outcome.ServedRooms };
     }
 
-    private static bool SameStocks(Fact<EquatableArray<Amount>> a, EquatableArray<Amount> b) => a.IsKnown
-        && a.Value.Concat(b).Select(s => s.Resource).Distinct().All(r => a.Value.Where(s => s.Resource == r).Sum(s => s.Count) == b.Where(s => s.Resource == r).Sum(s => s.Count));
+    private static bool SameStocks(EquatableArray<Amount> a, EquatableArray<Amount> b) =>
+        a.Concat(b).Select(s => s.Resource).Distinct().All(r => a.Where(s => s.Resource == r).Sum(s => s.Count) == b.Where(s => s.Resource == r).Sum(s => s.Count));
 
     private static double? Nutrition(ForecastTerminalAccounting terminal, SortedSet<string> gaps)
     {

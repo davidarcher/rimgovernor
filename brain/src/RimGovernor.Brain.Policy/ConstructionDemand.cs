@@ -1,55 +1,41 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The one reader of usable resource stock: the item census, with WoodLog taken from the wood fact the latch
+/// The one reader of usable resource stock: the item census, with WoodLog taken from the wood count the latch
 /// reads so a floor and the latch agree.
 /// </summary>
-public readonly record struct StockReader(Fact<EquatableArray<Amount>> Resources, Fact<long> Wood)
+public readonly record struct StockReader(EquatableArray<Amount> Resources, long Wood)
 {
-    /// <summary>Resource's usable units, unknown when the census (or, for WoodLog without a wood fact, the census) is unknown.</summary>
-    public Fact<long> Count(Resource resource)
+    /// <summary>A reader over a census whose WoodLog rows are the wood count.</summary>
+    public static StockReader Of(EquatableArray<Amount> census) =>
+        new(census, census.Where(row => row.Resource == ConstructionDemandRules.ConstructionWoodLog).Sum(row => row.Count));
+
+    /// <summary>Resource's usable units; WoodLog is the wood count.</summary>
+    public long Count(Resource resource)
     {
-        if (resource == ConstructionDemandRules.ConstructionWoodLog && Wood.TryGetValue(out var wood))
+        if (resource == ConstructionDemandRules.ConstructionWoodLog)
         {
-            return Known(wood);
-        }
-        if (!Resources.TryGetValue(out var rows))
-        {
-            return Unknown<long>();
+            return Wood;
         }
         long n = 0;
-        foreach (var a in rows)
+        foreach (var a in Resources)
         {
             if (a.Resource == resource)
             {
                 n += a.Count;
             }
         }
-        return Known(n);
+        return n;
     }
 
-    /// <summary>Count with an unknown census read as zero.</summary>
-    public long Units(Resource resource) => Count(resource).TryGetValue(out var n) ? n : 0;
-
-    /// <summary>The census with its WoodLog row taken from the wood fact. An unknown census stays unknown unless wood is the only target.</summary>
-    public Fact<EquatableArray<Amount>> Census(IReadOnlyDictionary<Resource, long> targets)
+    /// <summary>The census with its WoodLog row taken from the wood count.</summary>
+    public EquatableArray<Amount> Census()
     {
-        if (!Wood.TryGetValue(out var n))
+        var result = new List<Amount>(Resources.Where(row => row.Resource != ConstructionDemandRules.ConstructionWoodLog))
         {
-            return Resources;
-        }
-        var known = Resources.TryGetValue(out var rows);
-        if (!known && !(targets.ContainsKey(ConstructionDemandRules.ConstructionWoodLog) && targets.Count == 1))
-        {
-            return Resources;
-        }
-        var result = new List<Amount>();
-        if (known)
-        {
-            result.AddRange(rows.Where(row => row.Resource != ConstructionDemandRules.ConstructionWoodLog));
-        }
-        result.Add(new Amount { Resource = ConstructionDemandRules.ConstructionWoodLog, Count = n });
-        return Known(EquatableArray.From(result));
+            new Amount { Resource = ConstructionDemandRules.ConstructionWoodLog, Count = Wood },
+        };
+        return EquatableArray.From(result);
     }
 }
 
@@ -79,7 +65,7 @@ public sealed record ConstructionDemandInput
     public EquatableArray<AdmittedCost> Admitted { get; init; }
 
     /// <summary>The material the whole layout plan still owes (PlannedShellDemand), before any room is admitted.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Planned { get; init; }
+    public IReadOnlyDictionary<Resource, long>? Planned { get; init; }
 }
 
 public static class ConstructionDemandRules
@@ -102,7 +88,7 @@ public static class ConstructionDemandRules
             }
             result[resource] = need;
         }
-        bool Short(Resource resource, long need) => input.Stock.Count(resource).TryGetValue(out var have) && need > have;
+        bool Short(Resource resource, long need) => need > input.Stock.Count(resource);
         if (input.Owed is { } owed)
         {
             foreach (var (resource, n) in owed)
@@ -113,7 +99,7 @@ public static class ConstructionDemandRules
                 }
             }
         }
-        if (input.Planned.TryGetValue(out var planned))
+        if (input.Planned is { } planned)
         {
             foreach (var (resource, n) in planned)
             {
@@ -165,8 +151,6 @@ public static class ConstructionDemandRules
             Stock = new StockReader(f.Resources, f.Wood),
             Owed = f.CurrentConstruction?.Deficit,
             Admitted = f.Admitted,
-            Planned = f.PlannedConstruction.TryGetValue(out var rooms)
-                ? Known<IReadOnlyDictionary<Resource, long>>(PlannedRules.PlannedTotal(rooms.Values))
-                : Unknown<IReadOnlyDictionary<Resource, long>>(),
+            Planned = f.PlannedConstruction is { } rooms ? PlannedRules.PlannedTotal(rooms.Values) : null,
         });
 }

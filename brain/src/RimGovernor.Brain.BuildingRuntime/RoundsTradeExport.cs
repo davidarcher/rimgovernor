@@ -181,8 +181,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             request = request with { Profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Pol.PawnRules.Profiles(pawns)]) };
         }
-        var (stock, stockKnown) = ExportStock(f);
-        request = request with { Stock = stock ?? new Dictionary<Pol.Resource, long>() };
+        request = request with { Stock = ExportStock(f) };
         if (review.Enabled && review.Snapshot == snapshot)
         {
             request = request with { Runways = review.ResourceRunwayState() };
@@ -200,10 +199,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         // The sale path learns the rankable goods even when this Round abstains.
         var ranked = ExportOrdersRules.DeclareExportOrders(request);
         rd.Exports.SetPlan(snapshot, ExportOrdersRules.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown);
-        if (!stockKnown)
-        {
-            return Pol.WorkRules.Abstaining(Pol.Cause.UnreadStock);
-        }
         if (!gap.TryGetValue(out var g) || !(g > 0))
         {
             return ranked.Declared;
@@ -428,18 +423,14 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         (product, stuff) => catalog.WorkToMake(product.Value, stuff.Value);
 
     /// <summary>The colony stock by definition from the resource census.</summary>
-    internal static (Dictionary<Pol.Resource, long>? Stock, bool Known) ExportStock(Pol.RoundsFacts f)
+    internal static Dictionary<Pol.Resource, long> ExportStock(Pol.RoundsFacts f)
     {
-        if (!f.Resources.TryGetValue(out var rows))
-        {
-            return (null, false);
-        }
         var output = new Dictionary<Pol.Resource, long>();
-        foreach (var row in rows)
+        foreach (var row in f.Resources)
         {
             output[row.Resource] = output.GetValueOrDefault(row.Resource) + row.Count;
         }
-        return (output, true);
+        return output;
     }
 
     /// <summary>

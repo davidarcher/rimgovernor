@@ -45,12 +45,12 @@ public sealed class ConsumptionLedger
         }
     }
 
-    /// <summary>The recurring spend over the last days days the ring covers.</summary>
-    public Fact<ResourceConsumption> Window(int days)
+    /// <summary>The recurring spend over the last days days the ring covers; null while no read has been merged.</summary>
+    public ResourceConsumption? Window(int days)
     {
         if (!_have)
         {
-            return Unknown<ResourceConsumption>();
+            return null;
         }
         var start = Math.Max(_first, _through + 1 - (days * 24));
         var recurring = new Dictionary<Resource, long>();
@@ -78,7 +78,7 @@ public sealed class ConsumptionLedger
         {
             recurring[resource] = Math.Max(0, n);
         }
-        return Known(new ResourceConsumption { WindowDays = windowDays, Recurring = recurring });
+        return new ResourceConsumption { WindowDays = windowDays, Recurring = recurring };
     }
 }
 

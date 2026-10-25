@@ -104,8 +104,8 @@ public sealed class PlannedRoomActivitiesTests
         facts = facts with
         {
             // The colony holds what the stacks hold.
-            Resources = Known(EquatableArray.From(planned.SelectMany(s => s.Options).Where(o => o.Input.Length > 0).DistinctBy(o => o.Input)
-                .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput))))),
+            Resources = EquatableArray.From(planned.SelectMany(s => s.Options).Where(o => o.Input.Length > 0).DistinctBy(o => o.Input)
+                .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput)))),
             PlannedSites = PlannedFacts(planned, routes),
             ForecastObserved = facts.ForecastObserved with
             {
@@ -363,14 +363,12 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>#3838, #3839: with any source of Steel unread the stove is Unread, not blocked: the Full alternative keeps it and stays unvalued.</summary>
     [Theory]
-    [InlineData("stock")]
     [InlineData("sources")]
     [InlineData("salvage")]
     public void AStoveWhoseSteelIsUnreadKeepsTheBarracksUnvalued(string unread)
     {
         var colony = unread switch
         {
-            "stock" => PlannedRoomGateTests.StoveFacts(stockRead: false),
             "sources" => PlannedRoomGateTests.StoveFacts(sourcesRead: false),
             _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Unsalvaged = PlannedRoomGateTests.MachineUnsalvaged }),
         };
@@ -653,7 +651,7 @@ public sealed class PlannedRoomActivitiesTests
             { SiteApproachTicks = Known(0d), AvailableInput = Known(10d) };
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 10)]),
+            Resources = [new(new("WoodLog"), 10)],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
                 { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },
         };

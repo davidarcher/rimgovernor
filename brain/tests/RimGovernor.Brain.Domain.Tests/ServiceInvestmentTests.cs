@@ -130,7 +130,7 @@ public sealed class ServiceInvestmentTests
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Completed, Attempt = new(1), Tick = new(99) })]);
         Assert.Empty(displacedView.Claims.Materials);
         Assert.True(WorkRules.WorkResourcesFit(facts.WorkView, new(new("new-plan"), new(1), [action])));
-        var scarce = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 99)]) };
+        var scarce = facts with { Resources = [new(new("Rice"), 99)] };
         var poor = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(scarce, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []);
         Assert.False(WorkRules.WorkResourcesFit(poor, new(new("new-plan"), new(1), [action])));
     }

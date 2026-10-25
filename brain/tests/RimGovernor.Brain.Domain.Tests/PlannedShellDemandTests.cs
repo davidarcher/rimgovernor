@@ -96,8 +96,8 @@ public sealed class PlannedShellDemandTests
     public void ConstructionDemandRaisesTheWholePlanWhereStockFallsShort()
     {
         var planned = new Dictionary<Resource, long> { [Wood] = 135 };
-        var stock = new StockReader(Fact.Known(EquatableArray.From(new[] { new Amount(Wood, 40) })), Fact.Unknown<long>());
-        var demand = ConstructionDemandRules.ConstructionDemand(new ConstructionDemandInput { Stock = stock, Planned = Fact.Known<IReadOnlyDictionary<Resource, long>>(planned) });
+        var stock = new StockReader(EquatableArray.From(new[] { new Amount(Wood, 40) }), 0);
+        var demand = ConstructionDemandRules.ConstructionDemand(new ConstructionDemandInput { Stock = stock, Planned = planned });
         Assert.Equal(135, demand[Wood]);
     }
 

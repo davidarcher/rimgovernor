@@ -10,7 +10,7 @@ public sealed record DispatchInputs
 
     public IReadOnlyList<WorkPawn> Pawns { get; init; } = [];
 
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
     public long Tick { get; init; }
 }
@@ -153,11 +153,10 @@ public static partial class WorkRules
     }
 
     // Known false when some ingredient slot has every alternative at or below IngredientBoundStock, known true when
-    // every slot has one above it, unknown when the bench lists no such recipe or the stock is unread.
-    private static Fact<bool> IngredientsStocked(GearRecipe? r, Fact<IReadOnlyDictionary<Resource, long>> stock)
+    // every slot has one above it, unknown when the bench lists no such recipe.
+    private static Fact<bool> IngredientsStocked(GearRecipe? r, IReadOnlyDictionary<Resource, long> have)
     {
-        var haveOk = stock.TryGetValue(out var have);
-        if (r is null || !haveOk || r.Ingredients.Count == 0)
+        if (r is null || r.Ingredients.Count == 0)
         {
             return Unknown<bool>();
         }
@@ -166,7 +165,7 @@ public static partial class WorkRules
             var present = false;
             foreach (var a in alternatives)
             {
-                if (have!.GetValueOrDefault(a.Resource) > IngredientBoundStock)
+                if (have.GetValueOrDefault(a.Resource) > IngredientBoundStock)
                 {
                     present = true;
                 }

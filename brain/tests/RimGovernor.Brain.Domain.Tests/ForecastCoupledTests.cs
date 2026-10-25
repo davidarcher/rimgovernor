@@ -18,7 +18,7 @@ public sealed class ForecastCoupledTests
         var facts = WorkResourceTestFacts.Create("pawn");
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([]),
+            Resources = [],
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with
@@ -155,7 +155,7 @@ public sealed class ForecastCoupledTests
         var facts = Review(foodLevel: 1);
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), stock)]),
+            Resources = [new(new("Rice"), stock)],
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [new("Rice")] = sites * 100 } },
             BillReservations = reserved == 0 ? []
                 : [new() { Pawn = new("other-cook"), Bill = "other-bill", Items = [new(new("Rice"), reserved)] }],
@@ -326,7 +326,7 @@ public sealed class ForecastCoupledTests
         var facts = Review();
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 8)]),
+            Resources = [new(new("Rice"), 8)],
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with
@@ -528,7 +528,7 @@ public sealed class ForecastCoupledTests
             { RequiredCount = 10 };
             facts = facts with
             {
-                Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), rice), new(new("Cloth"), 10)]),
+                Resources = [new(new("Rice"), rice), new(new("Cloth"), 10)],
                 Gear = Known(ColonyModelFixtures.NoGear() with
                 {
                     Stored = [],
@@ -569,7 +569,7 @@ public sealed class ForecastCoupledTests
         with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4)]),
+            Resources = [new(new("Rice"), 4)],
             WorkResources = roster.WorkResources,
             ForecastObserved = facts.ForecastObserved with
             {
@@ -677,7 +677,7 @@ public sealed class ForecastCoupledTests
         var facts = Review();
         facts = facts with
         {
-            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 10)]),
+            Resources = [new(new("Rice"), 10)],
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with

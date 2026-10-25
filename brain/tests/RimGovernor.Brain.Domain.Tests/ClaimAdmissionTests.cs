@@ -41,7 +41,7 @@ public sealed class ClaimAdmissionTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 100)]),
+            Resources = [new(new("Rice"), 100)],
             Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L, FieldCoverage = Known(0.0),
             WorkAdmission = facts.WorkAdmission with
             {
