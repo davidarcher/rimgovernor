@@ -406,6 +406,15 @@ private clones of `-root` (more is refused); the result records the workers and
 a RimWorld process count taken before dispatch, so a timing-dependent metric can
 be read against box load. `-timeout` bounds one seed (10 minutes by default).
 
+The served window ends at its existing tick limit, a `combat_summary`, or a typed
+native lab read that resolves the staged sides under the shared combat metrics
+rules. Outcome reads are spaced by at least 60 game ticks (one nominal second),
+alongside the lighter 50 ms clock poll. Every staged participant must have been
+observed in a pawn read or the cumulative damage ledger before native outcome
+reads can end the window; pending drop-pod passengers therefore cannot count as
+fled. The bundle still stores the initial and final paused reads, and collects
+the cumulative damage and shot ledgers after pausing.
+
 `<output>/<fixture>/sweep.json` is the sweep file (versioned): one row per seed (metrics, staging digest, reseed draws)
 plus a summary. The printed report leads with the seeds that saw a colonist
 death or down and the means of colonist deaths and downs with 95% t intervals,

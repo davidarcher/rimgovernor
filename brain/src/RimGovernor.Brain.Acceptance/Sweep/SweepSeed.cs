@@ -140,7 +140,7 @@ internal static class SweepSeed
         return error;
     }
 
-    // Stages the fixture, reseeds, serves the planner until the tick budget is nearly spent, reads the lab back and writes
+    // Stages the fixture, reseeds, serves the planner until resolution or the tick limit, reads the lab back and writes
     // the reads, shots, combat rows and metrics to the bundle.
     private static async Task<SimMetrics> BodyAsync(
         Session session,
@@ -162,7 +162,8 @@ internal static class SweepSeed
         update(r => r with { StagedDigest = staged.Digest });
         var first = await CombatServe.RawReadAsync(h, "read", cancellationToken).ConfigureAwait(false);
         CombatLabBundle.Stamp(staged, first);
-        var start = CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, first).Tick;
+        var initial = CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, first);
+        var start = initial.Tick;
         if (staged.Fixture.Layout is { } layout)
         {
             report["layout"] = await CombatLabLayout.StoreAsync(h, session.Identity, layout, cancellationToken).ConfigureAwait(false);
@@ -193,7 +194,8 @@ internal static class SweepSeed
         {
             _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
             service.KeepAuthority(cancellationToken);
-            await ServeUntilAsync(service, h, report, service.LogPath, start + Ticks - StopMargin, clock, cancellationToken).ConfigureAwait(false);
+            var fight = new SweepFightWatch(initial, CombatLabBundle.StagedSides(staged), start + Ticks - StopMargin);
+            await ServeUntilAsync(service, h, report, service.LogPath, fight, clock, cancellationToken).ConfigureAwait(false);
 
             // A quiet lab runs thousands of ticks a second: stop the clock first, then the service.
             await CombatServe.PauseAfterAsync(h, cancellationToken).ConfigureAwait(false);
@@ -272,10 +274,10 @@ internal static class SweepSeed
         internal int Tick { get; set; } = -1;
     }
 
-    // Watches the served game until its tick reaches `until`, until the service records the end of the combat (a
-    // combat_summary row at the log; the colony window after it would otherwise run the quiet lab to the budget), or
+    // Watches the served game until its tick budget, a typed native read resolves the staged fight, the service records
+    // the end of combat (a combat_summary; the colony window after it would otherwise run the quiet lab to the budget), or
     // until the served clock has sat still for Idle, which ends the run without failing it.
-    private static async Task ServeUntilAsync(ServiceProcess service, Harness h, Report report, string logPath, int until, ServedClock clock, CancellationToken cancellationToken)
+    private static async Task ServeUntilAsync(ServiceProcess service, Harness h, Report report, string logPath, SweepFightWatch fight, ServedClock clock, CancellationToken cancellationToken)
     {
         var tail = LogTail.Create(logPath);
         var ended = false;
@@ -287,7 +289,14 @@ internal static class SweepSeed
                 {
                     clock.Tick = await CombatServe.ServedTickAsync(h, clock.Tick, ct).ConfigureAwait(false);
                     ended = ended || tail.Next().Any(row => row.Kind == TelemetryKinds.CombatSummary.Name);
-                    return (SweepText.Tag(clock.Tick), ended || clock.Tick >= until);
+                    if (!fight.Finished(clock.Tick, ended) && fight.ReadDue(clock.Tick))
+                    {
+                        var read = await CombatServe.RawReadAsync(h, "read", ct).ConfigureAwait(false);
+                        var current = CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, read);
+                        clock.Tick = current.Tick;
+                        fight.Observe(current);
+                    }
+                    return (SweepText.Tag(clock.Tick), fight.Finished(clock.Tick, ended));
                 },
                 cancellationToken).ConfigureAwait(false);
         }
