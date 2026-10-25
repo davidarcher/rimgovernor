@@ -125,7 +125,7 @@ public static class ColonyGearReads
         IReadOnlyList<FoodField> fields, IReadOnlyList<PlanningDefinition> crops)
     {
         var supply = new List<SupplyCandidate>();
-        foreach (var s in AcquisitionReads.ColonyAcquisition(v, tables, catalog).ValueOrDefault)
+        foreach (var s in AcquisitionReads.ColonyAcquisition(v, tables, catalog))
         {
             if (ClothingDemandRules.HuntYieldCandidate(s) is { } hunt)
             {

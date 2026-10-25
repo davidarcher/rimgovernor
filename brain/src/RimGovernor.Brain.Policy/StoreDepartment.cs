@@ -96,26 +96,18 @@ public static partial class StoreRules
     /// </summary>
     private static List<LootItem>? StrandedRows(StockpileRequest request, HashSet<string> groups, bool reachedOnly = false)
     {
-        if (!request.Loot.TryGetValue(out var rows))
-        {
-            return null;
-        }
         var stranded = new List<LootItem>();
-        foreach (var row in rows)
+        foreach (var row in request.Loot)
         {
             if (row.Forbidden)
             {
                 continue;
             }
-            if (!row.StorageHeadroom.TryGetValue(out var room))
-            {
-                return null;
-            }
-            if (room > 0 || (row.SafetyKnown && !row.SafeToHaul) || !row.AcceptedBy.Any(groups.Contains))
+            if (row.StorageHeadroom > 0 || row.IsExposed || !row.AcceptedBy.Any(groups.Contains))
             {
                 continue;
             }
-            if (!row.SafetyKnown)
+            if (row.IsUnreached)
             {
                 if (reachedOnly)
                 {

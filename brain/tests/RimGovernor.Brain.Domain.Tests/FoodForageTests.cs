@@ -46,7 +46,7 @@ public sealed class FoodForageTests
 
     private static IReadOnlyList<AcquisitionSource> Select(bool huntOnly, int slots)
     {
-        var (sources, deficit) = RoundsAcquisitionPlanner.FoodPlanAcquisition(Plan, Known(EquatableArray.From([Berries, Deer])));
+        var (sources, deficit) = RoundsAcquisitionPlanner.FoodPlanAcquisition(Plan, EquatableArray.From([Berries, Deer]));
         return RoundsAcquisitionPlanner.GoalSelection(sources, huntOnly, deficit, Known(0.0), food: true, new Dictionary<string, bool>(), Known(slots));
     }
 

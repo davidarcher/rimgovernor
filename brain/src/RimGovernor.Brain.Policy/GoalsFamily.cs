@@ -448,11 +448,9 @@ public static partial class GoalRules
     /// <summary>Whether the goals family itself places the goal's building (its Need has a work step instead of a held Method).</summary>
     public static bool OwnStep(GoalRecord goal) => goal.Kind == GoalKind.BuiltCount && PlacerOf(goal.Target) is BuiltPlacer.Beacon or BuiltPlacer.Geothermal;
 
-    /// <summary>How many finished buildings of <paramref name="definition"/> stand; an unread building table raises <see cref="RequiredFactException"/>.</summary>
+    /// <summary>How many finished buildings of <paramref name="definition"/> stand.</summary>
     public static long BuiltOf(RoundsFacts f, string definition) =>
-        f.BuiltBuildings.TryGetValue(out var built)
-            ? built.Where(a => a.Resource == new Resource(definition)).Sum(a => a.Count)
-            : throw new RequiredFactException("built buildings");
+        f.BuiltBuildings.Where(a => a.Resource == new Resource(definition)).Sum(a => a.Count);
 
     /// <summary>
     /// A built-count goal (#3496): met once <c>Count</c> finished buildings of the definition stand. A turret is built by the
@@ -464,11 +462,7 @@ public static partial class GoalRules
         var placer = PlacerOf(goal.Target);
         if (placer == BuiltPlacer.None)
         {
-            // A definition nothing places has no method whether or not the building table was read; one already standing is still met.
-            if (!f.Rounds.BuiltBuildings.TryGetValue(out _))
-            {
-                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPlacerFor(goal), default, GoalDeficit.Unmeasured);
-            }
+            // A definition nothing places has no method; one already standing is still met.
             var counted = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
             return counted.Met
                 ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, GoalDeficit.Of(counted.Deficit))

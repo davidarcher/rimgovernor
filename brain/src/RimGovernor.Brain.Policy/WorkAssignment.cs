@@ -1014,19 +1014,15 @@ public static partial class WorkRules
             demand = demand with { GrowingCells = cells };
         }
         demand = demand with { Prisoners = facts.Population.Prisoners.Count };
-        if (facts.EventLoot.TryGetValue(out var loot))
+        var stacks = 0;
+        foreach (var row in facts.EventLoot)
         {
-            var stacks = 0;
-            foreach (var row in loot)
+            if (!row.Forbidden && row.IsSafe && row.StorageHeadroom > 0)
             {
-                if (!row.Forbidden && row.SafetyKnown && row.SafeToHaul && row.StorageHeadroom.TryGetValue(out var room) && room > 0)
-                {
-                    stacks++;
-                }
+                stacks++;
             }
-            demand = demand with { HaulBacklog = stacks >= HaulBacklogStacks };
         }
-        return demand;
+        return demand with { HaulBacklog = stacks >= HaulBacklogStacks };
     }
 
     /// <summary>

@@ -100,7 +100,7 @@ public static class AcquisitionRules
     /// count as recovered stock.
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectAcquisition(
-        Fact<EquatableArray<AcquisitionSource>> sources,
+        EquatableArray<AcquisitionSource> sources,
         Fact<double> deficit,
         Fact<double> pending,
         bool food,
@@ -118,7 +118,7 @@ public static class AcquisitionRules
     /// source yielding exactly that resource counts by its unit yield.
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectResourceAcquisition(
-        Fact<EquatableArray<AcquisitionSource>> sources,
+        EquatableArray<AcquisitionSource> sources,
         Fact<double> deficit,
         Fact<double> pending,
         Resource resource,
@@ -131,7 +131,7 @@ public static class AcquisitionRules
     }
 
     internal static List<AcquisitionSource> SelectAcquisitionCore(
-        Fact<EquatableArray<AcquisitionSource>> sources,
+        EquatableArray<AcquisitionSource> sources,
         Fact<double> deficit,
         Fact<double> pending,
         Func<AcquisitionSource, (double Amount, bool Ok)> accept,
@@ -139,10 +139,9 @@ public static class AcquisitionRules
         params Fact<int>[] huntSlots
     )
     {
-        var known = sources.TryGetValue(out var rowsFact);
         var nk = deficit.TryGetValue(out var need);
         var pk = pending.TryGetValue(out var outstanding);
-        DomainException.Require(known && nk && pk && FoodForecastRules.FoodNumber(need) && FoodForecastRules.FoodNumber(outstanding), "acquisition facts unavailable");
+        DomainException.Require(nk && pk && FoodForecastRules.FoodNumber(need) && FoodForecastRules.FoodNumber(outstanding), "acquisition facts unavailable");
         var slots = 0;
         DomainException.Require(huntSlots.Length <= 1, "multiple hunting budgets");
         if (huntSlots.Length == 1 && huntSlots[0].TryGetValue(out var n))
@@ -152,7 +151,7 @@ public static class AcquisitionRules
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in rowsFact)
+        foreach (var row in sources)
         {
             DomainException.Require(
                 !(
@@ -179,7 +178,7 @@ public static class AcquisitionRules
         }
 
         var rows = PolicySort.ByLess(
-            rowsFact,
+            sources,
             (a, b) =>
             {
                 if (a.Hunt != b.Hunt)

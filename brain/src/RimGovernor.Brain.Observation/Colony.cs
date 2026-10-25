@@ -227,7 +227,8 @@ public sealed partial record ColonyProjection
     /// <summary>Native's cumulative delivery counters.</summary>
     public required O.DeliveryLedger DeliveryLedger { get; init; }
 
-    public Fact<EquatableArray<AcquisitionSource>> Acquisition { get; init; }
+    /// <summary>The harvest and hunt sources native approved, the hunts the gate holds left out.</summary>
+    public EquatableArray<AcquisitionSource> Acquisition { get; init; }
 
     /// <summary>The hunt rows HuntGate holds, with the gate that failed.</summary>
     public IReadOnlyList<HuntHold> HuntHolds { get; init; } = [];

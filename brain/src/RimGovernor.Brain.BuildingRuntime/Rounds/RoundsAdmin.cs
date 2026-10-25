@@ -102,9 +102,7 @@ public sealed partial class AdminRounds
         {
             facts = facts with
             {
-                SupplySafety = reading.Projection.Facts.EventLoot.IsKnown
-                    ? Known(EquatableArray.From(review.EventLoot.Pending))
-                    : Unknown<EquatableArray<StartingSupply>>(),
+                SupplySafety = EquatableArray.From(review.EventLoot.Pending),
             };
         }
         if (_needs.Burial)
@@ -135,9 +133,9 @@ public sealed partial class AdminRounds
         {
             return await Task.Run(() => CreepJoinerStep(_reviewer.Player.Journal, work, creep, ct), ct).ConfigureAwait(false);
         }
-        if (work.Need.Id == AdminFamily.SupplySafety && facts.SupplySafety is { } loot && loot.TryGetValue(out var cohort) && _supplies is not null)
+        if (work.Need.Id == AdminFamily.SupplySafety && _supplies is not null)
         {
-            return await SupplyStepAsync(work, cohort, ct).ConfigureAwait(false);
+            return await SupplyStepAsync(work, facts.SupplySafety, ct).ConfigureAwait(false);
         }
         if (work.Need.Id == AdminFamily.Burial && _needs.Burial)
         {

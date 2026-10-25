@@ -25,7 +25,7 @@ public sealed class StorageCreditTests
     private static LootItem Row(string thing, string def, long count, LootDeterioration? deterioration) => new()
     {
         Supply = new StartingSupply { Thing = thing, Definition = def, Cell = new(20, 20) },
-        Count = count, SafeToHaul = true, SafetyKnown = true, StorageHeadroom = Known(0L), Deterioration = deterioration,
+        Count = count, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, StorageHeadroom = 0L, Deterioration = deterioration,
     };
 
     /// <summary>The cloth's credit a served day: its rate (2 a day, StatPart factor 1 now, 0 roofed indoors) over 36 a visit, the visits a tick and the ticks a day, at its value per hit point.</summary>

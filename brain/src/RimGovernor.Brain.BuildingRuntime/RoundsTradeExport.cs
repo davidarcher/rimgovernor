@@ -254,7 +254,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             request = request with { Supply = supply };
         }
         var centered = projection.Center().TryGetValue(out var center);
-        projection.Acquisition.TryGetValue(out var acquisition);
         for (var i = 0; i < names.Count; i++)
         {
             var name = names[i];
@@ -275,7 +274,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             if (centered)
             {
                 var hand = new List<Pol.AcquisitionSource>();
-                foreach (var s in acquisition)
+                foreach (var s in projection.Acquisition)
                 {
                     if (new Pol.Resource(s.Resource) == name)
                     {

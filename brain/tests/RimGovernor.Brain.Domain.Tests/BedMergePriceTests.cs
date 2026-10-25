@@ -474,7 +474,7 @@ public sealed class BedMergePriceTests
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
             Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 30 }),
-            Acquisition = Known(default(EquatableArray<AcquisitionSource>)),
+            Acquisition = [],
         };
 
         var (wall, door, _, ok) = RoundsBuildingPlanner.ShellMaterials(colony, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null);

@@ -15,7 +15,7 @@ public sealed class BuiltCountGoalTests
 
     private static RoundsFacts Standing(params (string Thing, long Count)[] built) => new()
     {
-        BuiltBuildings = Known(EquatableArray.From(built.Select(b => new Amount(new Resource(b.Thing), b.Count)))),
+        BuiltBuildings = EquatableArray.From(built.Select(b => new Amount(new Resource(b.Thing), b.Count))),
     };
 
     private static GoalsFacts Facts(GoalRecord goal, RoundsFacts rounds) => new() { Goals = [goal], Rounds = rounds };
@@ -51,8 +51,6 @@ public sealed class BuiltCountGoalTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, Facts(goal, Standing((DefenseTurretsPolicy.TurretMini, 3)))).State);
         // A met goal keeps its floor, or the budget would drop below the turrets standing.
         Assert.Equal(3, GoalRules.DemandOf(Facts(goal, Standing((DefenseTurretsPolicy.TurretMini, 3)))).Build.Turrets);
-
-        Assert.Equal("built buildings", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, Facts(goal, new RoundsFacts()))).Fact);
     }
 
     [Fact]
@@ -64,7 +62,7 @@ public sealed class BuiltCountGoalTests
         Assert.Equal(default, status.Owner);
         Assert.Equal(0, GoalRules.DemandOf(Facts(goal, new RoundsFacts())).Build.Turrets);
 
-        // The report holds even while the building table is unread; a definition already standing is still Met.
+        // A definition already standing is still Met.
         Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, Facts(goal, new RoundsFacts())).State);
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, Facts(goal, Standing(("Turret_Mortar", 2)))).State);
 

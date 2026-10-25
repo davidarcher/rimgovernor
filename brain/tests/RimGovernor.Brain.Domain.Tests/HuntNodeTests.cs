@@ -118,13 +118,12 @@ public sealed class HuntNodeTests
     [Fact]
     public void TheReviewFrameCarriesTheWildlifeCensusAndAnUnarmedPawnIsNoHunter()
     {
-        var projection = ColonyModelFixtures.Projection() with { Acquisition = Known(EquatableArray.From(Herd(2))) };
+        var projection = ColonyModelFixtures.Projection() with { Acquisition = EquatableArray.From(Herd(2)) };
 
         var input = ColonyModelFixtures.ReadyOf(projection);
 
         var herd = Assert.Single(input.Wildlife);
         Assert.Equal((Deer.Def, 2, 2 * FoodPlanRules.FoodHuntWorkTicks), (herd.Race, herd.Animals, herd.Work));
         Assert.False(Assert.Single(input.Pawns).Hunts);
-        Assert.StartsWith("wildlife:", Assert.Single(ColonyModelFixtures.GapsOf(projection with { Acquisition = default })));
     }
 }

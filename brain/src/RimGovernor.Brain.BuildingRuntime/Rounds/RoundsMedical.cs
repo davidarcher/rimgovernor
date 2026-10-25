@@ -201,13 +201,8 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var sources = AcquisitionReads.ColonyAcquisition(observed, tables, await CatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
-        if (!sources.TryGetValue(out var rows))
-        {
-            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("acquisition_sources") };
-        }
-
         var pending = 0.0;
-        foreach (var row in rows)
+        foreach (var row in sources)
         {
             if (row.Designated && !row.Hunt && !stalledSources.Contains(row.Id) && new Resource(row.Resource) == medicineResource)
             {

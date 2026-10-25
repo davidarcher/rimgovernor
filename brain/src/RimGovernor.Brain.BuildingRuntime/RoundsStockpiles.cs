@@ -210,13 +210,12 @@ public sealed partial class Rounder
     /// <summary>Files the owned zones per role kind on the projection, whether or not the stockpile method is served.</summary>
     internal static Observation.ColonyProjection CensusStockpileZones(Observation.ColonyProjection projection, StockpileZoneReads zones)
     {
-        projection = projection with { Facts = projection.Facts with { StockpileZones = Unknown<EquatableArray<Pol.StockpileRoleCount>>() } };
-        if (!zones.Claims.TryGetValue(out var owned) || projection.Cells.Count == 0)
+        if (!zones.Claims.TryGetValue(out var owned))
         {
-            return projection;
+            throw new RequiredFactException("zone claims");
         }
         var ownedZones = StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), owned, null, zones.Shelves);
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.StockpileRules.StockpileRoleCounts(ownedZones)]) } };
+        return projection with { Facts = projection.Facts with { StockpileZones = [.. Pol.StockpileRules.StockpileRoleCounts(ownedZones)] } };
     }
 
     /// <summary>

@@ -763,14 +763,14 @@ public sealed class PlannedRoomActivitiesTests
         var zone = new StockpileZone { Id = "Zone_w", Role = StockpileRolesConstants.GeneralRole, Cells = [.. region.Cells()], Filter = StockpileFilter.GeneralFilter() };
         static RimGovernor.Brain.Policy.LootItem Loose(string thing, string def, LootDeterioration? deterioration) => new()
         {
-            Supply = new StartingSupply { Thing = thing, Definition = def, Cell = new(20, 20) }, Count = 50, SafeToHaul = true, SafetyKnown = true,
-            StorageHeadroom = Known(0L), AcceptedBy = ["Zone_w"], Deterioration = deterioration,
+            Supply = new StartingSupply { Thing = thing, Definition = def, Cell = new(20, 20) }, Count = 50, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
+            StorageHeadroom = 0L, AcceptedBy = ["Zone_w"], Deterioration = deterioration,
         };
         var cloth = new LootDeterioration { MaxHitPoints = 100, RatePerDay = 2, Environmental = true, Outdoors = true };
         var request = new StockpileRequest
         {
             Stores = stores, Zones = [zone],
-            Loot = Known(EquatableArray.From(new[] { Loose("Thing_Steel1", "Steel", null), Loose("Thing_Cloth1", "Cloth", cloth) })),
+            Loot = EquatableArray.From(new[] { Loose("Thing_Steel1", "Steel", null), Loose("Thing_Cloth1", "Cloth", cloth) }),
         };
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200)]);
         facts = facts with

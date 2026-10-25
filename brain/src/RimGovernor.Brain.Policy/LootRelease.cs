@@ -20,19 +20,15 @@ public static class LootReleaseRules
     /// item a live hostile can see. Forbidding an unsafe stack and allowed stacks are untouched. The returned rows
     /// are the census the safety review acts on.
     /// </summary>
-    public static (Fact<EquatableArray<LootItem>> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(Fact<EquatableArray<LootItem>> observed, Fact<EquatableArray<Cell>> seeds)
+    public static (EquatableArray<LootItem> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(EquatableArray<LootItem> rows, Fact<EquatableArray<Cell>> seeds)
     {
-        if (!observed.TryGetValue(out var rows))
-        {
-            return (observed, []);
-        }
         seeds.TryGetValue(out var danger);
 
         var kept = new List<LootItem>();
         var holds = new List<LootHold>();
         foreach (var row in rows)
         {
-            if (!row.SafetyKnown || !row.SafeToHaul || !row.Forbidden)
+            if (!row.IsSafe || !row.Forbidden)
             {
                 kept.Add(row);
                 continue;
@@ -53,6 +49,6 @@ public static class LootReleaseRules
             }
             holds.Add(new LootHold { Thing = row.Supply.Thing, Definition = row.Supply.Definition, Cell = row.Supply.Cell, Reason = reason });
         }
-        return (Known(EquatableArray.From(kept)), [.. holds.OrderBy(h => h.Thing)]);
+        return (EquatableArray.From(kept), [.. holds.OrderBy(h => h.Thing)]);
     }
 }

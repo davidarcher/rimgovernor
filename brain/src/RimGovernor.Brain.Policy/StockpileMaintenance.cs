@@ -141,7 +141,7 @@ public sealed record StockpileRequest
     public bool ShelfAvailable { get; init; }
 
     /// <summary>The loot census (projection EventLoot), read for each store's stranded stacks (StrandedStacks).</summary>
-    public Fact<EquatableArray<LootItem>> Loot { get; init; }
+    public EquatableArray<LootItem> Loot { get; init; }
 
     /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
     public Fact<Obs.StorageOccupancySnapshot> Occupancy { get; init; }
@@ -317,23 +317,10 @@ public static partial class StockpileRules
 
     /// <summary>
     /// "Food storage exists": at least one standing owned zone of a food role kind (a zone the player flagged as
-    /// food storage does not count). Unknown until the zone claims are read, never "missing".
+    /// food storage does not count).
     /// </summary>
-    public static Fact<bool> FoodStorageStanding(RoundsFacts f)
-    {
-        if (!f.StockpileZones.TryGetValue(out var counts))
-        {
-            return Unknown<bool>();
-        }
-        foreach (var c in counts)
-        {
-            if (FoodStorageRoles.Contains(c.Role) && c.Zones > 0)
-            {
-                return Known(true);
-            }
-        }
-        return Known(false);
-    }
+    public static bool FoodStorageStanding(RoundsFacts f) =>
+        f.StockpileZones.Any(c => FoodStorageRoles.Contains(c.Role) && c.Zones > 0);
 
     /// <summary>Counts the owned zones by role kind, sorted by role.</summary>
     public static List<StockpileRoleCount> StockpileRoleCounts(IReadOnlyList<StockpileZone> zones)

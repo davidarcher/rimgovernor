@@ -424,8 +424,8 @@ public sealed record RoundsFacts
     /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
     public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
 
-    /// <summary>Counts the owned stockpile zones by role kind for the colony status census; unknown until the zone claims are read.</summary>
-    public Fact<EquatableArray<StockpileRoleCount>> StockpileZones { get; init; }
+    /// <summary>Counts the owned stockpile zones by role kind for the colony status census; empty without an owned zone.</summary>
+    public EquatableArray<StockpileRoleCount> StockpileZones { get; init; }
 
     /// <summary>The migrated families' Needs the runtime composes; supplied by the configured runtime, never native facts.</summary>
     public Fact<EquatableArray<NeedId>> AvailableNeeds { get; init; }
@@ -434,8 +434,8 @@ public sealed record RoundsFacts
 
     public Fact<GearObservation> Gear { get; init; }
 
-    /// <summary>The finished buildings counted by definition: what a built-count goal is judged by (#3496); unknown until the building table is read.</summary>
-    public Fact<EquatableArray<Amount>> BuiltBuildings { get; init; }
+    /// <summary>The finished buildings counted by definition: what a built-count goal is judged by (#3496).</summary>
+    public EquatableArray<Amount> BuiltBuildings { get; init; }
 
     /// <summary>The allowed garments covering a core group with their recipes (ClothingRunway); empty until the gear census and catalog are read.</summary>
     public EquatableArray<ClothingGarment> Garments { get; init; }
@@ -449,7 +449,8 @@ public sealed record RoundsFacts
     /// </summary>
     public Fact<ComfortObservation> BasicComfort { get; init; }
 
-    public Fact<EquatableArray<LootItem>> EventLoot { get; init; }
+    /// <summary>The loot census: every visible haulable stack with its forbid state, hauling verdict and storage headroom.</summary>
+    public EquatableArray<LootItem> EventLoot { get; init; }
 
     public Fact<Bounds> MapBounds { get; init; }
 
@@ -800,7 +801,7 @@ public static partial class RoundsRules
         [DisasterService.Temperature] = FootholdTemperature(f, p),
         [DisasterService.Cooking] = Known(f.Cooking),
         [DisasterService.Power] = FootholdPower(f),
-        [DisasterService.Storage] = StockpileRules.FoodStorageStanding(f),
+        [DisasterService.Storage] = Known(StockpileRules.FoodStorageStanding(f)),
     };
 
     /// <summary>

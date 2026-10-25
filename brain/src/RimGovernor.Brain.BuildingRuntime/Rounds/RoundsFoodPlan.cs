@@ -44,7 +44,7 @@ public sealed partial class Rounder
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
             if (s.FoodPlanHeld is { } held && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
                 && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
-                && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources, HuntHungry(p)).Length == 0))
+                && HuntAdmission.Release(huntRead, p.Acquisition, HuntHungry(p)).Length == 0)
             {
                 return held;
             }
@@ -127,10 +127,7 @@ partial class Rounder
     {
         var supply = p.CombinedFoodSupply;
 
-        if (!p.Acquisition.TryGetValue(out var sources))
-        {
-            throw new RequiredFactException("food acquisition");
-        }
+        var sources = p.Acquisition;
 
         var workers = p.WorkPawns.TryGetValue(out var workPawns) ? ResearchRules.RoundsWorkers(workPawns) : p.Workers;
 

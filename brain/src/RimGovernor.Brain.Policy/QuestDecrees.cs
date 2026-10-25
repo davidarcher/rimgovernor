@@ -234,17 +234,12 @@ public static class QuestDecrees
         return (plan, "");
     }
 
-    public static (IReadOnlyList<AcquisitionSource> Prey, string Reason) PlanDecreeHunt<TSources>(DecreeDue objective, bool allowed, Fact<TSources> sources)
-        where TSources : IReadOnlyList<AcquisitionSource>
+    public static (IReadOnlyList<AcquisitionSource> Prey, string Reason) PlanDecreeHunt(DecreeDue objective, bool allowed, EquatableArray<AcquisitionSource> rows)
     {
         var remaining = objective.Remaining;
         if (!allowed)
         {
             return ([], "violent_quests_off");
-        }
-        if (!sources.TryGetValue(out var rows))
-        {
-            return ([], "prey_unknown");
         }
         long pending = 0;
         var prey = new List<AcquisitionSource>();

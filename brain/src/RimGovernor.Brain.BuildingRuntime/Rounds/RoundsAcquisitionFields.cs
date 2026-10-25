@@ -8,16 +8,12 @@ internal static class RoundsAcquisitionFields
     /// plant acquisition inside a growing zone, and the census can predate a zone the fields plan just created.
     /// Hunts move and are kept.
     /// </summary>
-    internal static Fact<EquatableArray<AcquisitionSource>> WithoutFieldSources(Fact<EquatableArray<AcquisitionSource>> sources, ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
+    internal static EquatableArray<AcquisitionSource> WithoutFieldSources(EquatableArray<AcquisitionSource> rows, ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
     {
-        if (!sources.TryGetValue(out var rows))
-        {
-            return sources;
-        }
         var fields = FieldCells(projection, plans, current);
         if (fields.Count == 0)
         {
-            return sources;
+            return rows;
         }
         var kept = new List<AcquisitionSource>(rows.Count);
         foreach (var row in rows)
@@ -28,7 +24,7 @@ internal static class RoundsAcquisitionFields
             }
             kept.Add(row);
         }
-        return Known<EquatableArray<AcquisitionSource>>([.. kept]);
+        return [.. kept];
     }
 
     internal static HashSet<Cell> FieldCells(ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)

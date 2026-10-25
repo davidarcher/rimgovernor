@@ -646,9 +646,7 @@ Kept, reason recorded:
 | UpkeepFacts | message | 1629 | 20 | state | Upkeep bundle: items, beds, structures, fires, filth, people, animals, sections, home area |  |  |
 | ThreatFacts | message | 1657 | 9 | code | Colony wealth and raid points computed by the storyteller |  |  |
 | ThreatSection | message | 1658 | 1 | state | Section wrapper (observed; a failed threat read fails the census) |  |  |
-| LootItem | message | 1665 | 6 | code | Haul safety verdict, path length and storage headroom for an item |  |  |
-| LootCensus | message | 1666 | 3 | state | Loot items with free hauler count and storyteller quiet flag |  |  |
-| LootSection | message | 1667 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
+| LootItem | message | 1665 | 7 | code | Forbid flag, haul verdict (safe with route length, exposed or unreached), storage headroom and accepting storage for an item |  |  |
 | FishableCell | message | 1679 | 3 | excluded | Fishable water cell reachability (Odyssey fishing) |  |  excluded #2632 (FishableWater absent without Odyssey); state or code |
 | FishingZoneFacts | message | 1680 | 4 | excluded | Fishing zone settings (Odyssey) |  |  excluded #2632; state |
 | FishableRegion | message | 1681 | 14 | excluded | Water body fishing facts (Odyssey) | nutrition_per_fish; fish_per_batch (curve part) | nutrition_per_fish = nutrition stat of the fish ThingDefs; yield curve is a FishingUtility constant (GameConstants #2626) excluded #2632; flagged for the owner |

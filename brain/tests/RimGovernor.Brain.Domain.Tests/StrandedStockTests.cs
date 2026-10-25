@@ -21,16 +21,15 @@ public sealed class StrandedStockTests
     {
         Zones = [Zone("Zone_yard", "yard", YardRoom), Zone("Zone_warehouse", "general", WarehouseRoom)],
         Shelves = [new StockpileShelf { Building = "Shelf_7", Zone = "Zone_warehouse" }],
-        Loot = Known(EquatableArray.From(rows)),
+        Loot = EquatableArray.From(rows),
     };
 
     private static LootItem Row(string thing, long headroom, params string[] acceptedBy) => new()
     {
         Supply = new StartingSupply { Thing = thing, Definition = "Steel", Cell = new Cell(50, 50) },
-        SafeToHaul = true,
-        SafetyKnown = true,
+        Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
         Count = 10,
-        StorageHeadroom = Known(headroom),
+        StorageHeadroom = headroom,
         AcceptedBy = EquatableArray.From(acceptedBy),
     };
 
@@ -64,30 +63,16 @@ public sealed class StrandedStockTests
         var request = Request(
             Row("Thing_1", 75, "Zone_yard"),
             Row("Thing_2", 0, "Zone_yard") with { Forbidden = true },
-            Row("Thing_3", 0, "Zone_yard") with { SafeToHaul = false });
+            Row("Thing_3", 0, "Zone_yard") with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() });
         Assert.Equal(Known(0L), StoreRules.StrandedStacks(request, Yard));
     }
 
     [Fact]
-    public void UnknownHeadroomReadsUnknownNotZero()
+    public void AnUnreachedStackReadsUnknownAtTheAcceptingStoreOnly()
     {
-        var request = Request(Row("Thing_1", 0, "Zone_yard"), Row("Thing_2", 0) with { StorageHeadroom = Unknown<long>() });
-        Assert.False(StoreRules.StrandedStacks(request, Yard).IsKnown);
-        Assert.False(StoreRules.StrandedStacks(request, Warehouse).IsKnown);
-    }
-
-    [Fact]
-    public void UnknownSafetyReadsUnknownAtTheAcceptingStoreOnly()
-    {
-        var request = Request(Row("Thing_1", 0, "Zone_yard") with { SafeToHaul = false, SafetyKnown = false });
+        var request = Request(Row("Thing_1", 0, "Zone_yard") with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached() });
         Assert.False(StoreRules.StrandedStacks(request, Yard).IsKnown);
         Assert.Equal(Known(0L), StoreRules.StrandedStacks(request, Warehouse));
     }
 
-    [Fact]
-    public void AnUnreadCensusReadsUnknown()
-    {
-        var request = Request() with { Loot = Unknown<EquatableArray<LootItem>>() };
-        Assert.False(StoreRules.StrandedStacks(request, Yard).IsKnown);
-    }
 }

@@ -6,9 +6,24 @@ public sealed record LootItem
 
     public bool Forbidden { get; init; }
 
-    public bool SafeToHaul { get; init; }
+    /// <summary>The colonist route verdict: safe with its measured path, exposed to a hazard, or reached by no colonist.</summary>
+    public RimGovernor.Contracts.Wire.Observations.HaulSafety Haul { get; init; } = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached();
 
-    public bool SafetyKnown { get; init; }
+    /// <summary>Whether some colonist has a hazard-free route to the stack and back.</summary>
+    public bool IsSafe => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe;
+
+    /// <summary>Whether colonists reach the stack but every route meets a hazard.</summary>
+    public bool IsExposed => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe;
+
+    /// <summary>Whether no colonist reaches the stack, so its safety is not measured.</summary>
+    public bool IsUnreached => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached;
+
+    /// <summary>The shortest safe route in cells; false unless the stack is safe to haul.</summary>
+    public bool SafePath(out double pathLength)
+    {
+        pathLength = Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength: var path } ? path : 0;
+        return IsSafe;
+    }
 
     /// <summary>
     /// Marks a def a native spawner makes forbidden on purpose (a hive's insect jelly:
@@ -17,18 +32,15 @@ public sealed record LootItem
     /// </summary>
     public bool SpawnForbidden { get; init; }
 
-    /// <summary>Feeds remote loot's reach and demand filter; unknown cost or storage holds a remote stack.</summary>
+    /// <summary>The stack size; feeds remote loot's reach and demand filter.</summary>
     public long Count { get; init; }
 
-    /// <summary>Feeds remote loot's reach and demand filter; unknown cost or storage holds a remote stack.</summary>
-    public Fact<double> PathLength { get; init; }
-
-    /// <summary>Feeds remote loot's reach and demand filter; unknown cost or storage holds a remote stack.</summary>
-    public Fact<long> StorageHeadroom { get; init; }
+    /// <summary>The item units the player's accepting storage can still take for the stack's def.</summary>
+    public long StorageHeadroom { get; init; }
 
     /// <summary>
     /// The storage groups (owned zones and storage buildings, by id) whose filter accepts the stack, ignoring
-    /// space. Native fills it only on an unforbidden row with zero headroom whose safety is not false
+    /// space. Native fills it only on an unforbidden row with zero headroom that is not exposed
     /// (<see cref="StoreRules.StrandedStacks"/>); empty elsewhere.
     /// </summary>
     public EquatableArray<string> AcceptedBy { get; init; }
@@ -94,26 +106,22 @@ public static class EventLootRules
     /// Throws <see cref="DomainException"/> (the caller
     /// keeps <paramref name="previous"/>).
     /// </summary>
-    public static (EventLootHistory History, Fact<bool> Any) ReviewEventLoot(Fact<EquatableArray<LootItem>> observed, EventLootHistory previous)
+    public static (EventLootHistory History, bool Any) ReviewEventLoot(EquatableArray<LootItem> rows, EventLootHistory previous)
     {
         previous.Validate();
-        if (!observed.TryGetValue(out var rows))
-        {
-            return (previous, Unknown<bool>());
-        }
         var pending = new List<StartingSupply>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
             row.Supply.Validate();
             DomainException.Require(seen.Add(row.Supply.Thing), "duplicate event loot item");
-            if (row.SafetyKnown && row.Forbidden == row.SafeToHaul)
+            if ((row.IsSafe && row.Forbidden) || (row.IsExposed && !row.Forbidden))
             {
-                pending.Add(row.Supply with { Forbid = !row.SafeToHaul });
+                pending.Add(row.Supply with { Forbid = !row.IsSafe });
             }
         }
         var sorted = pending.OrderBy(s => s.Thing, StringComparer.Ordinal).ToList();
-        return (new EventLootHistory { Pending = sorted }, Known(sorted.Count > 0));
+        return (new EventLootHistory { Pending = sorted }, sorted.Count > 0);
     }
 
 }

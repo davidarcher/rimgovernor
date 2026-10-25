@@ -6731,7 +6731,7 @@ public abstract record HaulSafety
 /// </summary>
 public sealed record LootItem
 {
-    public Common.Ref? Item { get; init; }
+    public required Common.Ref Item { get; init; }
 
     public required bool Forbidden { get; init; }
 
@@ -6742,10 +6742,16 @@ public sealed record LootItem
     public required long StorageHeadroom { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> AcceptedBy { get; init; }
+    public required EquatableArray<Common.Ref> AcceptedBy { get; init; }
 
     public LootDeterioration? Deterioration { get; init; }
 }
+
+/// <summary>
+/// A loot stack's hauling verdict. <see cref="Safe"/>: some colonist who can reach the stack has a hazard-free route
+/// there and back, PathLength the shortest such route in cells. <see cref="Exposed"/>: colonists reach it but every
+/// route meets a hazard (or the stack itself lies in one). <see cref="Unreached"/>: no colonist reaches it.
+/// </summary>
 
 /// <summary>
 /// A stack's deterioration where it lies (#3798): its MaxHitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now
@@ -6769,17 +6775,6 @@ public sealed record LootDeterioration
     public bool Roofed { get; init; }
 
     public bool Outdoors { get; init; }
-}
-
-public sealed record LootCensus
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<LootItem>))]
-    public EquatableArray<LootItem> Items { get; init; }
-}
-
-public sealed record LootSection
-{
-    public LootCensus Outcome { get; init; } = null!;
 }
 
 /// <summary>
@@ -7292,7 +7287,8 @@ public sealed record ColonyFactsSnapshot
     /// </summary>
     public required ThreatSection Threat { get; init; }
 
-    public required LootSection EventLoot { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<LootItem>))]
+    public required EquatableArray<LootItem> EventLoot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<JoinerLetter>))]
     public required EquatableArray<JoinerLetter> JoinerLetters { get; init; }

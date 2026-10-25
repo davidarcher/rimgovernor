@@ -106,16 +106,16 @@ public sealed class FoodStoresFamilyTests
     public void TheStorageNeedIsAPlainThresholdAtTheTargetShareAndAMalformedCensusIsUnreadable()
     {
         // 85% stored: met under the old entry share, unmet now that the latch is gone.
-        var short85 = Derive(new() { Storage = Census(Stock("a", 85, roofed: true), Stock("b", 15, roofed: false)), Stockpile = Known(true) });
+        var short85 = Derive(new() { Storage = Census(Stock("a", 85, roofed: true), Stock("b", 15, roofed: false)), Stockpile = true });
         Assert.Equal((FoodStoresRules.FoodStorageNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (short85.Id, short85.Tier, short85.Satisfaction));
         Assert.True(short85.Deficit > 0 && short85.Deficit <= 1);
 
-        var stored = Derive(new() { Storage = Census(Stock("a", 95, roofed: true), Stock("b", 5, roofed: false)), Stockpile = Known(true) });
+        var stored = Derive(new() { Storage = Census(Stock("a", 95, roofed: true), Stock("b", 5, roofed: false)), Stockpile = true });
         Assert.Equal(Satisfaction.Met, stored.Satisfaction);
         Assert.Equal(0.0, stored.Deficit);
 
         // An empty census is whole and met; malformed rows are an unreadable census.
-        Assert.Equal(Satisfaction.Met, Derive(new() { Stockpile = Known(true) }).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Derive(new() { Stockpile = true }).Satisfaction);
         Assert.Equal("food storage census", Assert.Throws<RequiredFactException>(() => Derive(new() { Storage = Census(Stock("a", 5, roofed: true), Stock("a", 5, roofed: true)) })).Fact);
     }
 
@@ -123,13 +123,13 @@ public sealed class FoodStoresFamilyTests
     public void PendingReserveAccessAMissingStockpileOrAShortReserveLeaveTheNeedUnmet()
     {
         var census = Census(Stock("a", 100, roofed: true));
-        Assert.Equal(1.0, Derive(new() { Storage = census, Stockpile = Known(true), Reserve = new FoodReserveState.Reviewed(Reserve("pem-1")) }).Deficit);
-        Assert.Equal(Satisfaction.Unmet, Derive(new() { Storage = census, Stockpile = Known(false) }).Satisfaction);
-        var refill = Derive(new() { Storage = census, Stockpile = Known(true), Reserve = new FoodReserveState.Reviewed(new FoodReserveReview { TargetNutrition = 10, DeficitNutrition = 4 }) });
+        Assert.Equal(1.0, Derive(new() { Storage = census, Stockpile = true, Reserve = new FoodReserveState.Reviewed(Reserve("pem-1")) }).Deficit);
+        Assert.Equal(Satisfaction.Unmet, Derive(new() { Storage = census, Stockpile = false }).Satisfaction);
+        var refill = Derive(new() { Storage = census, Stockpile = true, Reserve = new FoodReserveState.Reviewed(new FoodReserveReview { TargetNutrition = 10, DeficitNutrition = 4 }) });
         Assert.Equal((Satisfaction.Unmet, 0.4), (refill.Satisfaction, refill.Deficit));
-        // An unread stockpile is not missing, and pending access is unmet even with the census unread.
-        Assert.Equal(Satisfaction.Met, Derive(new() { Storage = census }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Derive(new() { Reserve = new FoodReserveState.Reviewed(Reserve("pem-1")) }).Satisfaction);
+        // A present stockpile is not missing, and pending access is unmet even with the census unread.
+        Assert.Equal(Satisfaction.Met, Derive(new() { Storage = census, Stockpile = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Derive(new() { Stockpile = true, Reserve = new FoodReserveState.Reviewed(Reserve("pem-1")) }).Satisfaction);
     }
 
     private sealed class Colony : IDisposable
@@ -170,7 +170,7 @@ public sealed class FoodStoresFamilyTests
             {
                 Storage = census,
                 Reserve = new FoodReserveState.Reviewed(Reserve("pem-1")),
-                Stockpile = Known(true),
+                Stockpile = true,
                 StockProtection = true,
                 ReserveTargets = Known<EquatableArray<SupplyAllow>>([SupplyAllow.NewSupplyForbid("pem-1", "Pemmican", new(1, 1)), new SupplyAllow("pem-2", "Pemmican", new(1, 2))]),
             },

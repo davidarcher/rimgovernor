@@ -39,8 +39,7 @@ public sealed partial class Rounder
         var layer = new Pol.LayoutOverlay();
         if (LayoutOverlay)
         {
-            projection.Facts.EventLoot.TryGetValue(out var loot);
-            layer = Pol.SafetyOverlayRules.SafetyOverlay(emergency.Threats, loot, projection.Bounds);
+            layer = Pol.SafetyOverlayRules.SafetyOverlay(emergency.Threats, projection.Facts.EventLoot, projection.Bounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)

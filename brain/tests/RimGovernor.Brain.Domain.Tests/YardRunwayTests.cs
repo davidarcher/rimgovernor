@@ -34,7 +34,7 @@ public sealed class YardRunwayTests
                 Filter = new StockpileFilter(FilterBase.Nothing),
             },
         ],
-        Loot = Known(EquatableArray.From(loot)),
+        Loot = EquatableArray.From(loot),
         Occupancy = perDay is { } rate
             ? Known(new Obs.StorageOccupancySnapshot
             {
@@ -54,10 +54,9 @@ public sealed class YardRunwayTests
     private static LootItem Stranded() => new()
     {
         Supply = new StartingSupply { Thing = "Thing_1", Definition = "Steel", Cell = new Cell(50, 50) },
-        SafeToHaul = true,
-        SafetyKnown = true,
+        Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
         Count = 10,
-        StorageHeadroom = Known(0L),
+        StorageHeadroom = 0L,
         AcceptedBy = EquatableArray.From<string>(["Zone_yard"]),
     };
 

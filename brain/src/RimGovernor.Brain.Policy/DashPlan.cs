@@ -198,20 +198,15 @@ public static class DashPlanRules
     /// <summary>The pickups the loot census offers: safe stacks with a known path and a known market value.</summary>
     public static IReadOnlyList<DashCandidate> DashCandidates(RoundsFacts f)
     {
-        if (!f.EventLoot.TryGetValue(out var loot))
-        {
-            return [];
-        }
         var result = new List<DashCandidate>();
-        foreach (var row in loot)
+        foreach (var row in f.EventLoot)
         {
-            if (!row.SafetyKnown || !row.SafeToHaul || row.SpawnForbidden)
+            if (!row.SafePath(out var path) || row.SpawnForbidden)
             {
                 continue;
             }
-            var pk = row.PathLength.TryGetValue(out var path);
             var mk = f.Items.Market.TryGetValue(new Resource(row.Supply.Definition), out var unit);
-            if (!pk || !mk || row.Count <= 0 || path < 0)
+            if (!mk || row.Count <= 0 || path < 0)
             {
                 continue;
             }

@@ -159,15 +159,7 @@ internal static class RoundsColonyModel
             gaps.Add("recipes: the review carries no bench recipe census");
         }
 
-        var wildlife = default(EquatableArray<ModelHerd>);
-        if (colony.Acquisition.TryGetValue(out var sources))
-        {
-            wildlife = HuntSquadRules.Herds(sources);
-        }
-        else
-        {
-            gaps.Add("wildlife: the review frame carries no acquisition census");
-        }
+        var wildlife = HuntSquadRules.Herds(colony.Acquisition);
 
         var otherDemand = 0d;
         if (!ForecastStockScope.OtherDemand(colony.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []).TryGetValue(out otherDemand))

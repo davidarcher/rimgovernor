@@ -3,42 +3,27 @@ namespace RimGovernor.Brain.Observation;
 public static class AcquisitionReads
 {
     /// <summary>
-    /// Decodes the native-approved harvest/hunt source census of one colony facts read; unknown when the
-    /// acquisition section failed. Hunt rows <c>HuntGate</c> holds are left out (<c>ColonyProjection.HuntHolds</c>).
+    /// Decodes the native-approved harvest/hunt source census of one colony facts read; a source the tables or the
+    /// catalog cannot head fails the read. Hunt rows <c>HuntGate</c> holds are left out (<c>ColonyProjection.HuntHolds</c>).
     /// </summary>
-    public static Fact<EquatableArray<AcquisitionSource>> ColonyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog) =>
+    public static EquatableArray<AcquisitionSource> ColonyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog) =>
         DecodeAcquisition(v, tables, catalog).Sources;
 
     /// <summary>
     /// Maps the census rows. A native read carries the raw hunt census, and every hunt row passes the hunt gate:
     /// a held row is not a source but a hold.
     /// </summary>
-    internal static (Fact<EquatableArray<AcquisitionSource>> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
+    internal static (EquatableArray<AcquisitionSource> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
     {
-        var unknown = (Unknown<EquatableArray<AcquisitionSource>>(), (IReadOnlyList<HuntHold>)[]);
-        if (!ColonyDecodeReads.Headed(tables, v.Acquisition, row => row.Source))
-        {
-            return unknown;
-        }
-        AnimalRaceCatalog races;
-        HuntCensus census;
-        DefinitionCatalog catalog;
-        try
-        {
-            catalog = ColonyDecodeReads.RequireCatalog(definitions);
-            races = catalog.AnimalRaces();
-            census = HuntCensusOf(v.HuntCensus, catalog);
-        }
-        catch (DomainException)
-        {
-            return unknown;
-        }
+        var catalog = ColonyDecodeReads.RequireCatalog(definitions);
+        var races = catalog.AnimalRaces();
+        var census = HuntCensusOf(v.HuntCensus, catalog);
         var rows = new List<AcquisitionSource>();
         var holds = new List<HuntHold>();
         foreach (var row in v.Acquisition)
         {
-            var source = tables.Entity(row.Source);
-            var raceKnown = races.Race(new Resource(source?.DefName ?? ""), out var race);
+            var source = tables.Entity(row.Source) ?? throw new BridgeContractException($"acquisition source {row.Source.Id} has no entity head in the tables");
+            var raceKnown = races.Race(new Resource(source.DefName), out var race);
             var hunt = row.Kind as O.AcquisitionKind.Hunt;
             var plant = row.Kind as O.AcquisitionKind.Plant;
             var offered = new AcquisitionSource
@@ -46,8 +31,8 @@ public static class AcquisitionReads
                 Id = row.Source.Id ?? "",
                 Resource = row.Resource,
                 Token = row.Token,
-                Definition = source?.DefName ?? "",
-                Cell = source is null ? default : ColonyDecodeReads.MapCellOf(source),
+                Definition = source.DefName,
+                Cell = ColonyDecodeReads.MapCellOf(source),
                 Hunt = hunt is not null,
                 Food = plant?.Food ?? false,
                 Designated = row.Designation is O.AcquisitionDesignation.Designated,
@@ -68,7 +53,7 @@ public static class AcquisitionReads
                 offered = offered with { Food = !race.Pest, Predator = race.Predator };
                 if (!raceKnown)
                 {
-                    return unknown;
+                    throw new BridgeContractException($"hunt source {source.DefName} has no race row in the catalog");
                 }
                 offered = offered with { RevengeChance = race.ManhunterOnDamage };
                 if (!race.Pest)
@@ -81,19 +66,10 @@ public static class AcquisitionReads
             }
             else
             {
-                offered = offered with { Tree = catalog.PlantIsTree(source?.DefName ?? "") };
+                offered = offered with { Tree = catalog.PlantIsTree(source.DefName) };
                 if (offered.Food)
                 {
-                    double nutrition;
-                    bool shown;
-                    try
-                    {
-                        (nutrition, shown) = catalog.ShownStatValue(row.Resource, "", CatalogStats.Nutrition);
-                    }
-                    catch (DomainException)
-                    {
-                        return unknown;
-                    }
+                    var (nutrition, shown) = catalog.ShownStatValue(row.Resource, "", CatalogStats.Nutrition);
                     if (shown)
                     {
                         offered = offered with { NutritionYield = row.Yield * (float)nutrition };
@@ -113,7 +89,7 @@ public static class AcquisitionReads
             }
             rows.Add(offered);
         }
-        return (Known(EquatableArray.From(rows)), holds);
+        return (EquatableArray.From(rows), holds);
     }
 
     /// <summary>

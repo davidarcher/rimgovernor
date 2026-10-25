@@ -233,7 +233,7 @@ public sealed partial class Rounder
         slots.TryGetValue(out var hunts);
         output.Hunts = hunts;
         var centered = projection.Center().TryGetValue(out var center);
-        projection.Acquisition.TryGetValue(out var rows);
+        var rows = projection.Acquisition;
         IReadOnlyList<TradeOffers> offers = [];
         long spendable = 0;
         long reserve = 0;

@@ -349,7 +349,7 @@ public static partial class RecoveryRules
             Cell = row.Supply.Cell,
             Evidenced = true,
             Candidate = LootCandidate(row),
-            Route = !row.SafetyKnown ? RouteSafety.Unread : row.SafeToHaul ? RouteSafety.Safe : RouteSafety.Unsafe,
+            Route = row.IsUnreached ? RouteSafety.Unread : row.IsSafe ? RouteSafety.Safe : RouteSafety.Unsafe,
         };
         return (t, true);
     }
@@ -360,8 +360,8 @@ public static partial class RecoveryRules
     /// </summary>
     private static SupplyCandidate LootCandidate(LootItem row)
     {
-        CandidatePath path = row.PathLength.TryGetValue(out var walk) ? new CandidatePath.Walk(walk) : new CandidatePath.Unwalked();
-        YieldStorage storage = row.StorageHeadroom.TryGetValue(out var room) ? new YieldStorage.Accepts(room) : new YieldStorage.Unread();
+        CandidatePath path = row.SafePath(out var walk) ? new CandidatePath.Walk(walk) : new CandidatePath.Unwalked();
+        YieldStorage storage = new YieldStorage.Accepts(row.StorageHeadroom);
         return CandidateRules.SourceCandidate(CandidateKind.Loot, row.Supply.Thing, 0, path, true, RemoteRules.LootUnitsPerTrip,
             CandidateRules.SourceYield(new ResourceKey { Def = new Resource(row.Supply.Definition) }, row.Count, 0, storage));
     }
@@ -475,15 +475,12 @@ public static partial class RecoveryRules
                 things.Add(t);
             }
         }
-        if (f.EventLoot.TryGetValue(out var loot))
+        foreach (var row in f.EventLoot)
         {
-            foreach (var row in loot)
+            var (t, ok) = RecoveryLootThing(row);
+            if (ok)
             {
-                var (t, ok) = RecoveryLootThing(row);
-                if (ok)
-                {
-                    things.Add(t);
-                }
+                things.Add(t);
             }
         }
         return new RecoveryRequest

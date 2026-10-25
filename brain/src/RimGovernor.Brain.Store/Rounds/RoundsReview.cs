@@ -284,14 +284,7 @@ public sealed partial class Store
             r = r with { OrdinaryTick = request.Tick };
         }
         r = r with { MedicalCare = medical, BrewingFinished = SocialCropsRules.BrewingFinished(request.Facts.Research), EventLoot = loot };
-        if (request.Facts.EventLoot.TryGetValue(out var lootRows))
-        {
-            r = r with { Unsafe = EquatableArray.From(ActionRules.UnsafeLoot(lootRows)) };
-        }
-        else if (!reset)
-        {
-            r = r with { Unsafe = previous.Unsafe };
-        }
+        r = r with { Unsafe = EquatableArray.From(ActionRules.UnsafeLoot(request.Facts.EventLoot)) };
         if (!reset)
         {
             r = r with { Built = previous.Built, WallCells = previous.WallCells };

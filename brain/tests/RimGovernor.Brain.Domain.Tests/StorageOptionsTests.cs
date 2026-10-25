@@ -36,9 +36,8 @@ public sealed class StorageOptionsTests
     private static LootItem Stranded(string thing, Resource def, Cell at) => new()
     {
         Supply = new StartingSupply { Thing = thing, Definition = def.Value, Cell = at },
-        SafeToHaul = true,
-        SafetyKnown = true,
-        StorageHeadroom = Known(0L),
+        Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
+        StorageHeadroom = 0L,
         AcceptedBy = EquatableArray.From(new List<string> { "Zone_w" }),
     };
 
@@ -91,12 +90,12 @@ public sealed class StorageOptionsTests
                 new PlannedStoreRoom { Room = 4, Role = PlannedRole.Yard, Cells = PlannedRules.RectCells(Yard), Outdoor = true, Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
                 new PlannedStoreRoom { Room = 8, Role = PlannedRole.Yard, Cells = PlannedRules.RectCells(NextYard), Outdoor = true, Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) },
             ]),
-            Loot = Known(EquatableArray.From(new List<LootItem>
+            Loot = EquatableArray.From(new List<LootItem>
             {
                 Stranded("Thing_cloth", Cloth, new Cell(20, 0)),
                 Stranded("Thing_steel", Steel, new Cell(21, 0)),
                 Stranded("Thing_chunk", Granite, new Cell(22, 0)),
-            })),
+            }),
             Items = Items(),
         };
     }
@@ -209,14 +208,11 @@ public sealed class StorageOptionsTests
     }
 
     [Fact]
-    public void DeteriorationIsUnknownNeverZeroWhenARateOrTheCensusIsUnknown()
+    public void DeteriorationIsUnknownNeverZeroWhenARateIsUnknown()
     {
         var noRate = Store(Report(Request() with { Items = Items(clothRate: false) }), StockpileRolesConstants.GeneralRole);
         Assert.All(noRate.Options, o => Assert.False(o.DeteriorationAvoided.IsKnown));
         Assert.Contains(StorageRules.FindingDeteriorationUnknown, noRate.Options.First(o => o.Kind == StorageOptionKind.Shelf).Findings);
-
-        var noCensus = Store(Report(Request() with { Loot = Unknown<EquatableArray<LootItem>>() }), StockpileRolesConstants.GeneralRole);
-        Assert.All(noCensus.Options, o => Assert.False(o.DeteriorationAvoided.IsKnown));
     }
 
     [Fact]

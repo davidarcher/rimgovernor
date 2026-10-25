@@ -811,7 +811,7 @@ public sealed partial class Rounder
             attrs.Add(("laps_compare_ms", LapInputs.CompareMs));
         }
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
-        attrs.Add(("hunt_sources", reading.Projection.Acquisition.TryGetValue(out var offered) ? offered.Count(s => s.Hunt && s.Food) : -1));
+        attrs.Add(("hunt_sources", reading.Projection.Acquisition.Count(s => s.Hunt && s.Food)));
         if (reading.Projection.HuntHolds.Count > 0)
         {
             attrs.Add(("hunt_holds", reading.Projection.HuntHolds.Select(h => h.ID + ":" + h.Reason + (h.Detail.Count == 0 ? "" : "(" + string.Join(";", h.Detail) + ")")).ToArray()));

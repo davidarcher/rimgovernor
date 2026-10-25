@@ -24,7 +24,7 @@ public static partial class PestRules
     /// pest census is unavailable.
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectPestAcquisition(
-        Fact<EquatableArray<AcquisitionSource>> sources,
+        EquatableArray<AcquisitionSource> sources,
         Fact<int> pests,
         IReadOnlyDictionary<string, bool>? held,
         Fact<int> huntSlots)

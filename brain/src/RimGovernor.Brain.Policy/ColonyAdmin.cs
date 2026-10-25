@@ -43,9 +43,9 @@ public sealed record AdminFacts
 
     /// <summary>
     /// The event loot whose forbid state the latest safety census found wrong (the review's cohort): unsafe stacks to
-    /// forbid and safe forbidden stacks to allow. Unknown while the census cannot be read.
+    /// forbid and safe forbidden stacks to allow.
     /// </summary>
-    public Fact<EquatableArray<StartingSupply>>? SupplySafety { get; init; }
+    public EquatableArray<StartingSupply> SupplySafety { get; init; }
 
     /// <summary>Whether a tomb, grave or morgue step is due; unknown while the rooms, plan or corpses cannot be read.</summary>
     public Fact<bool>? Burial { get; init; }
@@ -145,7 +145,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         }
         if (composed.SupplySafety)
         {
-            needs.Add(SupplySafetyNeed(facts.SupplySafety ?? Fact.Unknown<EquatableArray<StartingSupply>>()));
+            needs.Add(SupplySafetyNeed(facts.SupplySafety));
         }
         if (composed.Burial)
         {
@@ -196,22 +196,17 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     }
 
     /// <summary>
-    /// Unmet while the safety census leaves any event-loot stack to forbid or allow; raises <see cref="RequiredFactException"/> while it cannot be
-    /// read, met otherwise. The deficit is the number of stacks.
+    /// Unmet while the safety census leaves any event-loot stack to forbid or allow, met otherwise. The deficit is
+    /// the number of stacks.
     /// </summary>
-    public static Need SupplySafetyNeed(Fact<EquatableArray<StartingSupply>> pending)
+    public static Need SupplySafetyNeed(EquatableArray<StartingSupply> pending)
     {
-        if (!pending.TryGetValue(out var rows))
-        {
-            throw new RequiredFactException("supply safety census");
-        }
-        var forbid = rows.Count(r => r.Forbid);
         return new Need
         {
             Id = SupplySafety,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = rows.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = (double)rows.Count,
+            Satisfaction = pending.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = (double)pending.Count,
         };
     }
 

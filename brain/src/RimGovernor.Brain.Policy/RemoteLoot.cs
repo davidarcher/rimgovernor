@@ -28,19 +28,15 @@ public static partial class RemoteRules
     /// pawn, so the storage and urgent-work holds of dispatched remote work do not apply. A safety hold is
     /// reported with an explicit reason. The returned rows are the census the safety review should act on.
     /// </summary>
-    public static (Fact<EquatableArray<LootItem>> Kept, IReadOnlyList<LootHold> Holds) FilterLootReach(
-        Fact<EquatableArray<LootItem>> observed, RemoteWorkRequest r)
+    public static (EquatableArray<LootItem> Kept, IReadOnlyList<LootHold> Holds) FilterLootReach(
+        EquatableArray<LootItem> rows, RemoteWorkRequest r)
     {
-        if (!observed.TryGetValue(out var rows))
-        {
-            return (observed, []);
-        }
         var reasons = new string[rows.Count];
         Array.Fill(reasons, "");
         for (var i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
-            if (!row.SafetyKnown || !row.SafeToHaul || !row.Forbidden || LootInsideExtent(r.Extent, row.Supply.Cell))
+            if (!row.IsSafe || !row.Forbidden || LootInsideExtent(r.Extent, row.Supply.Cell))
             {
                 continue;
             }
@@ -58,7 +54,7 @@ public static partial class RemoteRules
             }
             holds.Add(new LootHold { Thing = row.Supply.Thing, Definition = row.Supply.Definition, Cell = row.Supply.Cell, Reason = reasons[i] });
         }
-        return (Known(EquatableArray.From(kept)), holds.OrderBy(h => h.Thing, StringComparer.Ordinal).ToList());
+        return (EquatableArray.From(kept), holds.OrderBy(h => h.Thing, StringComparer.Ordinal).ToList());
     }
 
     internal static bool LootInsideExtent(ExtentDerivation extent, Cell cell)
@@ -82,7 +78,7 @@ public static partial class RemoteRules
 
     /// <summary>
     /// Returns the empty string when no safety hold applies. The native safety verdict is this candidate's
-    /// eligibility and route evidence: the census only reports SafeToHaul after walking a colonist's route.
+    /// eligibility and route evidence: the census only reports a Safe haul after walking a colonist's route.
     /// Distance is the supply planner's price, not a hold.
     /// </summary>
     internal static string RemoteLootReachHold(RemoteWorkRequest r) => RemoteThreatHold(r.Safety);

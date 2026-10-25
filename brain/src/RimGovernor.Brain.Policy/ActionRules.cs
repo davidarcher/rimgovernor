@@ -8,7 +8,7 @@ public static class ActionRules
         var output = new List<string>();
         foreach (var row in rows)
         {
-            if (row.SafetyKnown && !row.SafeToHaul)
+            if (row.IsExposed)
             {
                 output.Add(row.Supply.Thing);
             }

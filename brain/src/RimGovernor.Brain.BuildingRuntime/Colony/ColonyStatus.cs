@@ -160,8 +160,8 @@ public sealed class ColonyStatus
                 {
                     TechTier = held.Value.TechTier,
                     FoodPlan = held.Value.Facts.FoodPlan,
-                    ForbiddenSupplies = ForbiddenSupplies(held.Value.Facts.EventLoot),
-                    Stockpiles = held.Value.Facts.StockpileZones,
+                    ForbiddenSupplies = Known(ForbiddenSupplies(held.Value.Facts.EventLoot)),
+                    Stockpiles = Known(held.Value.Facts.StockpileZones),
                     MoodLedger = held.Value.Facts.MoodLedger,
                     PetLabels = labels,
                 };
@@ -196,12 +196,5 @@ public sealed class ColonyStatus
     private static Fact<bool> OptionalFact(bool has, bool value) => has ? Known(value) : Unknown<bool>();
 
     /// <summary>Whether the loot census lists a safe stack still forbidden, the stack the admin/supply-safety Need releases.</summary>
-    internal static Fact<bool> ForbiddenSupplies(Fact<EquatableArray<LootItem>> census)
-    {
-        if (!census.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        return Known(rows.Any(row => row.SafetyKnown && row.SafeToHaul && row.Forbidden));
-    }
+    internal static bool ForbiddenSupplies(EquatableArray<LootItem> census) => census.Any(row => row.IsSafe && row.Forbidden);
 }

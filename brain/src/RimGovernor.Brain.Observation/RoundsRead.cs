@@ -373,13 +373,9 @@ public static class RoundsReads
     }
 
     /// <summary>The research census; unknown when the frame carries none.</summary>
-    /// <summary>The finished buildings of the frame's building table counted by definition (what a built-count goal is judged by); unknown without the table.</summary>
-    internal static Fact<EquatableArray<Amount>> BuiltBuildingsOf(BuildingCensus? census)
+    /// <summary>The finished buildings of the frame's building table counted by definition (what a built-count goal is judged by).</summary>
+    internal static EquatableArray<Amount> BuiltBuildingsOf(BuildingCensus census)
     {
-        if (census is null)
-        {
-            return Unknown<EquatableArray<Amount>>();
-        }
         var counts = new SortedDictionary<string, long>(StringComparer.Ordinal);
         foreach (var row in census.Rows.Table.Values())
         {
@@ -388,7 +384,7 @@ public static class RoundsReads
                 counts[row.Building.DefName] = counts.GetValueOrDefault(row.Building.DefName) + 1;
             }
         }
-        return Known(EquatableArray.From(counts.Select(c => new Amount(new Resource(c.Key), c.Value))));
+        return EquatableArray.From(counts.Select(c => new Amount(new Resource(c.Key), c.Value)));
     }
 
     /// <summary>The research section of a frame read from the source; the empty carrier frame has none.</summary>

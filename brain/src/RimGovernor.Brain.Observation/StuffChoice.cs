@@ -412,11 +412,7 @@ public sealed partial record ColonyProjection
                 {
                     return held;
                 }
-                if (!Acquisition.TryGetValue(out var sources))
-                {
-                    return double.PositiveInfinity;
-                }
-                foreach (var s in sources)
+                foreach (var s in Acquisition)
                 {
                     if (s.Tree && s.Resource == resource.Value)
                     {

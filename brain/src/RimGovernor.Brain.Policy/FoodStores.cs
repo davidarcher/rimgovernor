@@ -14,8 +14,8 @@ public sealed record FoodStoresFacts
 
     public FoodReserveState Reserve { get; init; } = new FoodReserveState.Disabled();
 
-    /// <summary>Whether an owned zone of a food role stands (<see cref="StockpileRules.FoodStorageStanding"/>); unknown until zone claims are read.</summary>
-    public Fact<bool> Stockpile { get; init; }
+    /// <summary>Whether an owned zone of a food role stands (<see cref="StockpileRules.FoodStorageStanding"/>).</summary>
+    public bool Stockpile { get; init; }
 
     /// <summary>Whether the food plan opened or holds the reserve's stock-protection channel; without it the family proposes nothing.</summary>
     public bool StockProtection { get; init; }
@@ -158,7 +158,7 @@ public static class FoodStoresRules
         var reserve = (f.Reserve as FoodReserveState.Reviewed)?.Review;
         var access = ReserveAccessPending(f.Reserve);
         var refill = reserve is { Emergency: false, DeficitNutrition: > 0 };
-        var stockpileMissing = RoundsRules.Negative(f.Stockpile);
+        var stockpileMissing = !f.Stockpile;
         FoodStorageReview storage;
         try
         {

@@ -15,14 +15,15 @@ namespace HomeBridge.BridgeTools
     // state through the same authority and receipt path as starting supplies.
     internal static class EventLootFacts
     {
-        internal static Obs.LootSection Read(Map map, List<Thing> things, Func<Thing, bool> reachable)
+        internal static RimGovernor.Brain.Domain.EquatableArray<Obs.LootItem> Read(Map map, List<Thing> things, Func<Thing, bool> reachable)
         {
             // Fresh animal corpses have a separate storage/forbid owner.
             var items = things.Where(t => NativeSupplyAllow.Eligible(t) && !FoodSupplyFacts.FreshAnimalCorpse(t)).OrderBy(t => t.thingIDNumber).ToList();
             var safety = new HaulingSafety(map);
-            var census = new Obs.LootCensus();
+            var census = new List<Obs.LootItem>(items.Count);
             var headroom = new Dictionary<ThingDef, long>();
             foreach (var t in items) {
+                var forbidden = t.IsForbidden(Faction.OfPlayer);
                 var safe = safety.Safe(t);
                 // A safe verdict always carries the measured route (Safe returns true only after a found path).
                 Obs.HaulSafety verdict = safe switch
@@ -32,20 +33,17 @@ namespace HomeBridge.BridgeTools
                     null => new Obs.HaulSafety.Unreached(),
                 };
                 if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
-                var row = new Obs.LootItem {
-                    Item = NativeRef.Thing(t),
-                    Forbidden = t.IsForbidden(Faction.OfPlayer), Count = t.stackCount,
-                    Safety = verdict, StorageHeadroom = units
-                };
                 // A stack no storage has room for names the stores whose
-                // filter would take it. Unknown safety is listed too, so the
-                // brain can read that store's stranded count as unknown.
-                if (units == 0 && !row.Forbidden && safe != false) row = row with { AcceptedBy = [.. AcceptingGroups(map, t)] };
-                row = row with { Deterioration = DeteriorationOf(map, t) };
-                census = census with { Items = [.. census.Items, row] };
+                // filter would take it. A stack no colonist reaches is listed too, so the
+                // brain can leave that store's stranded count to the reached ones.
+                census.Add(new Obs.LootItem {
+                    Item = NativeRef.Thing(t), Forbidden = forbidden, Count = t.stackCount, Safety = verdict, StorageHeadroom = units,
+                    AcceptedBy = units == 0 && !forbidden && safe != false ? [.. AcceptingGroups(map, t)] : [],
+                    Deterioration = DeteriorationOf(map, t)
+                });
             }
             safety.Dispose();
-            return new Obs.LootSection { Outcome = census };
+            return [.. census];
         }
 
         // The stack's deterioration where it lies (#3798): the game's own rate now

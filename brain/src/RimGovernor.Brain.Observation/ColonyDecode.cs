@@ -465,33 +465,24 @@ public static class ColonyDecodeReads
             f = f with { Wood = Known(wood), Resources = Known(EquatableArray.From(rows)), ResourceThings = Known(v.ResourceThings) };
         }
         r = r with { Resources = StockCensus(v) };
-        if (v.EventLoot?.Outcome is { } loot && Headed(tables, loot.Items, row => row.Item))
+        var lootRows = new List<LootItem>(v.EventLoot.Count);
+        var spawnForbidden = RequireCatalog(catalog).SpawnForbiddenProducts();
+        foreach (var row in v.EventLoot)
         {
-            var rows = new List<LootItem>(loot.Items.Count);
-            var spawnForbidden = RequireCatalog(catalog).SpawnForbiddenProducts();
-            foreach (var row in loot.Items)
+            var head = tables.Entity(row.Item) ?? throw new BridgeContractException($"loot stack {row.Item.Id} has no entity head in the tables");
+            lootRows.Add(new LootItem
             {
-                var head = tables.Entity(row.Item);
-                var item = new LootItem
-                {
-                    Supply = new StartingSupply { Thing = row.Item?.Id ?? "", Definition = head?.DefName ?? "", Cell = MapCellOf(head!) },
-                    Forbidden = row.Forbidden,
-                    SafeToHaul = row.Safety is O.HaulSafety.Safe,
-                    SafetyKnown = row.Safety is not O.HaulSafety.Unreached,
-                    Count = row.Count,
-                    StorageHeadroom = Present(row.StorageHeadroom),
-                    SpawnForbidden = spawnForbidden.Contains(head?.DefName ?? ""),
-                    AcceptedBy = EquatableArray.From(row.AcceptedBy.Select(r => r.Id ?? "")),
-                    Deterioration = row.Deterioration,
-                };
-                if (row.Safety is O.HaulSafety.Safe safe)
-                {
-                    item = item with { PathLength = Present(safe.PathLength) };
-                }
-                rows.Add(item);
-            }
-            f = f with { EventLoot = Known(EquatableArray.From(rows)) };
+                Supply = new StartingSupply { Thing = row.Item.Id ?? "", Definition = head.DefName, Cell = MapCellOf(head) },
+                Forbidden = row.Forbidden,
+                Haul = row.Safety,
+                Count = row.Count,
+                StorageHeadroom = row.StorageHeadroom,
+                SpawnForbidden = spawnForbidden.Contains(head.DefName),
+                AcceptedBy = EquatableArray.From(row.AcceptedBy.Select(r => r.Id ?? "")),
+                Deterioration = row.Deterioration,
+            });
         }
+        f = f with { EventLoot = EquatableArray.From(lootRows) };
         if (v.Planning is O.Planning.Requested { Facts: var planningObserved }
             && Headed(buildings, planningObserved.Environment.Lights, l => l.Building) && Headed(buildings, planningObserved.Environment.Growers, g => g.Building))
         {

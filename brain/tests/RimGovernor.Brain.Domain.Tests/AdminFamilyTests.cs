@@ -50,19 +50,15 @@ public sealed class AdminFamilyTests
     private static StartingSupply Stack(string thing, int x, bool forbid) => new() { Thing = thing, Definition = "Steel", Cell = new(x, 1), Forbid = forbid };
 
     [Fact]
-    public void SupplySafetyIsMetUnmetOrUnknownByTheCohort()
+    public void SupplySafetyIsMetOrUnmetByTheCohort()
     {
         Need Supply(AdminFacts facts) => Assert.Single(new AdminFamily(new AdminNeeds { SupplySafety = true }).Derive(facts));
 
-        var met = Supply(new AdminFacts { SupplySafety = Known(EquatableArray.From(Array.Empty<StartingSupply>())) });
+        var met = Supply(new AdminFacts { SupplySafety = [] });
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/supply-safety"), (met.Satisfaction, met.Deficit, met.Tier, met.Id.Value));
 
-        var unmet = Supply(new AdminFacts { SupplySafety = Known(EquatableArray.From([Stack("s1", 1, true), Stack("s2", 2, false), Stack("s3", 3, false)])) });
+        var unmet = Supply(new AdminFacts { SupplySafety = EquatableArray.From([Stack("s1", 1, true), Stack("s2", 2, false), Stack("s3", 3, false)]) });
         Assert.Equal((Satisfaction.Unmet, 3.0), (unmet.Satisfaction, unmet.Deficit));
-
-        // An unread census (or a read that never ran) is Unknown, never met.
-        Assert.Equal("supply safety census", Assert.Throws<RequiredFactException>(() => Supply(new AdminFacts())).Fact);
-        Assert.Equal("supply safety census", Assert.Throws<RequiredFactException>(() => Supply(new AdminFacts { SupplySafety = Unknown<EquatableArray<StartingSupply>>() })).Fact);
     }
 
     [Fact]
@@ -76,7 +72,7 @@ public sealed class AdminFamilyTests
         Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts { Burial = Unknown<bool>() })).Fact);
         Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts())).Fact);
         // Only the composed Needs are derived, and any one unread raises for the family.
-        var both = new AdminFacts { SupplySafety = Known(EquatableArray.From(Array.Empty<StartingSupply>())), Burial = Known(false) };
+        var both = new AdminFacts { SupplySafety = [], Burial = Known(false) };
         Assert.Equal([AdminFamily.SupplySafety, AdminFamily.Burial], Composed.Derive(both).Select(n => n.Id));
         Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Composed.Derive(both with { Burial = null })).Fact);
     }
@@ -93,9 +89,9 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-supply-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        LootItem Unsafe(StartingSupply s) => new() { Supply = s with { Forbid = false }, Forbidden = false, SafeToHaul = false, SafetyKnown = true };
+        LootItem Unsafe(StartingSupply s) => new() { Supply = s with { Forbid = false }, Forbidden = false, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() };
         var stacks = new[] { Stack("s1", 1, true), Stack("s2", 2, true), Stack("s3", 3, true) };
-        var facts = WorkResourceTestFacts.Create("a", "b", "c") with { EventLoot = Known(EquatableArray.From(stacks.Select(Unsafe))) };
+        var facts = WorkResourceTestFacts.Create("a", "b", "c") with { EventLoot = EquatableArray.From(stacks.Select(Unsafe)) };
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.Equal(["s1", "s2", "s3"], journal.LoadRounds(ct).EventLoot.Pending.Select(p => p.Thing));
 

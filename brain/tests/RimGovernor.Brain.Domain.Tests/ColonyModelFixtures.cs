@@ -109,7 +109,7 @@ internal static class ColonyModelFixtures
         Farms = [ZoneFixtures.Growing("zone1", Crop)],
         Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],
         WorkPawns = Known(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
-        Acquisition = Known(EquatableArray.From(Array.Empty<AcquisitionSource>())),
+        Acquisition = [],
     };
 
     /// <summary>The model input of the worked case.</summary>

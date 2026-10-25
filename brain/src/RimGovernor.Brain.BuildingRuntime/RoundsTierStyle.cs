@@ -41,9 +41,9 @@ internal static class RoundsTierStyle
         return bulk != "" ? bulk : "WoodLog";
     }
 
-    /// <summary>An observed source of steel (a deposit or salvage); an unread acquisition census reads as none, so steel stays guarded.</summary>
+    /// <summary>An observed source of steel (a deposit or salvage).</summary>
     internal static bool SteelResupplied(Observation.ColonyProjection facts) =>
-        facts.Acquisition.TryGetValue(out var sources) && sources.Any(s => s.Resource == TierStyleRules.GuardedWallStuff && !s.Tree);
+        facts.Acquisition.Any(s => s.Resource == TierStyleRules.GuardedWallStuff && !s.Tree);
 
     /// <summary>The floor rule the flooring planner prefers per room role before it scores the census: null at Camp, where no floor is styled.</summary>
     internal static Func<RoomRole, (string Def, bool Ok)>? FloorStyle(Observation.ColonyProjection facts)

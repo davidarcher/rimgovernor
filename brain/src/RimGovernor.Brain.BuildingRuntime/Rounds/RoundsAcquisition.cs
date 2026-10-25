@@ -179,7 +179,7 @@ public sealed partial class RoundsAcquisitionPlanner
         }
         catch (DomainException)
         {
-            return new RoundsAcquisitionResult { Verdict = FieldUnavailable(UnreadAcquisitionFact(projection.Acquisition, deficit, pending, stockGoal)) };
+            return new RoundsAcquisitionResult { Verdict = FieldUnavailable(UnreadAcquisitionFact(deficit, pending, stockGoal)) };
         }
         if (selected.Count == 0 && existing)
         {
@@ -255,12 +255,8 @@ partial class RoundsAcquisitionPlanner
     /// Only admitted sources can start new work. Pending designations retain their native credit in
     /// SelectAcquisition; the ledger never calls them delivered.
     /// </summary>
-    internal static (Fact<EquatableArray<AcquisitionSource>> Sources, Fact<double> Deficit) FoodPlanAcquisition(FoodPlan plan, Fact<EquatableArray<AcquisitionSource>> sources)
+    internal static (EquatableArray<AcquisitionSource> Sources, Fact<double> Deficit) FoodPlanAcquisition(FoodPlan plan, EquatableArray<AcquisitionSource> rows)
     {
-        if (!sources.TryGetValue(out var rows))
-        {
-            return (Unknown<EquatableArray<AcquisitionSource>>(), Unknown<double>());
-        }
         var open = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in plan.Portfolio)
         {
@@ -280,7 +276,7 @@ partial class RoundsAcquisitionPlanner
                 nutrition += row.NutritionYield;
             }
         }
-        return (Known<EquatableArray<AcquisitionSource>>([.. selected]), Known(nutrition));
+        return ([.. selected], Known(nutrition));
     }
 
     /// <summary>
@@ -309,11 +305,10 @@ partial class RoundsAcquisitionPlanner
     /// ones: block when a designated row is one the goal would plan, except that for food a designated plant
     /// harvest only restricts the goal to hunts (plants). The wood goal counts designated trees yielding wood.
     /// </summary>
-    internal static (bool Block, bool Plants) CensusBlocking(Fact<EquatableArray<AcquisitionSource>> sources, bool food, Dictionary<string, bool> held, HashSet<string> undispatched)
+    internal static (bool Block, bool Plants) CensusBlocking(EquatableArray<AcquisitionSource> sources, bool food, Dictionary<string, bool> held, HashSet<string> undispatched)
     {
-        sources.TryGetValue(out var rows);
         var plants = false;
-        foreach (var row in rows)
+        foreach (var row in sources)
         {
             if (!(row.Designated || undispatched.Contains(row.Id)) || held.ContainsKey(row.Id))
             {
@@ -355,18 +350,15 @@ partial class RoundsAcquisitionPlanner
     /// The census rows cooled reports: passed over like held ones, the cooldown lifting by itself at its bound,
     /// never a permanent ban.
     /// </summary>
-    internal static Dictionary<string, bool> CooledSources(Fact<EquatableArray<AcquisitionSource>> sources, double minGrowth, Func<string, bool> cooled)
+    internal static Dictionary<string, bool> CooledSources(EquatableArray<AcquisitionSource> sources, double minGrowth, Func<string, bool> cooled)
     {
         var held = new Dictionary<string, bool>(StringComparer.Ordinal);
-        if (sources.TryGetValue(out var rows))
+        foreach (var row in sources)
         {
-            foreach (var row in rows)
+            // An undesignated plantation tree under the chop gate is not offered.
+            if (cooled(row.Id) || (!row.Designated && row.BelowChopGate(minGrowth)))
             {
-                // An undesignated plantation tree under the chop gate is not offered.
-                if (cooled(row.Id) || (!row.Designated && row.BelowChopGate(minGrowth)))
-                {
-                    held[row.Id] = true;
-                }
+                held[row.Id] = true;
             }
         }
         return held;
@@ -376,18 +368,15 @@ partial class RoundsAcquisitionPlanner
     /// Holds, in held, every designated or undispatched source, and returns the resources with such work not on
     /// cooldown: those are busy.
     /// </summary>
-    internal static HashSet<string> HoldWorked(Fact<EquatableArray<AcquisitionSource>> sources, HashSet<string> undispatched, Dictionary<string, bool> held)
+    internal static HashSet<string> HoldWorked(EquatableArray<AcquisitionSource> sources, HashSet<string> undispatched, Dictionary<string, bool> held)
     {
         var busyState = new Dictionary<string, bool>(StringComparer.Ordinal);
-        if (sources.TryGetValue(out var rows))
+        foreach (var row in sources)
         {
-            foreach (var row in rows)
+            if (row.Designated || undispatched.Contains(row.Id))
             {
-                if (row.Designated || undispatched.Contains(row.Id))
-                {
-                    busyState[row.Resource] = (busyState.TryGetValue(row.Resource, out var b) && b) || !held.ContainsKey(row.Id);
-                    held[row.Id] = true;
-                }
+                busyState[row.Resource] = (busyState.TryGetValue(row.Resource, out var b) && b) || !held.ContainsKey(row.Id);
+                held[row.Id] = true;
             }
         }
         foreach (var thing in undispatched)
@@ -403,11 +392,11 @@ partial class RoundsAcquisitionPlanner
     /// designates wild food plants for vanilla to harvest and eat (#3668). huntOnly (a forage batch already designated)
     /// keeps only the hunt rows.
     /// </summary>
-    internal static IReadOnlyList<AcquisitionSource> GoalSelection(Fact<EquatableArray<AcquisitionSource>> sources, bool huntOnly, Fact<double> deficit, Fact<double> pending, bool food, IReadOnlyDictionary<string, bool> held, Fact<int> slots)
+    internal static IReadOnlyList<AcquisitionSource> GoalSelection(EquatableArray<AcquisitionSource> sources, bool huntOnly, Fact<double> deficit, Fact<double> pending, bool food, IReadOnlyDictionary<string, bool> held, Fact<int> slots)
     {
-        if (huntOnly && sources.TryGetValue(out var rows))
+        if (huntOnly)
         {
-            sources = Known<EquatableArray<AcquisitionSource>>([.. rows.Where(row => row.Hunt)]);
+            sources = [.. sources.Where(row => row.Hunt)];
         }
         return AcquisitionRules.SelectAcquisition(sources, deficit, pending, food, held, slots);
     }
@@ -418,20 +407,16 @@ partial class RoundsAcquisitionPlanner
     /// No action pairing: a player's designation of the goal's kind stalls too. The planner withdraws each so
     /// the goal re-plans from another source. A taken row (reserved, or a colonist's job targets it) is never
     /// stalled. Harvests run on RoundsPolicy.AcquisitionProgress, hunts on HuntProgress. A contract without a
-    /// deadline, or an unknown census, stalls nothing.
+    /// deadline stalls nothing.
     /// </summary>
-    internal static List<AcquisitionSource> StalledDesignations(Fact<EquatableArray<AcquisitionSource>> sources, bool hunt, Tick now, ProgressContract contract, Func<AcquisitionSource, bool> mine)
+    internal static List<AcquisitionSource> StalledDesignations(EquatableArray<AcquisitionSource> sources, bool hunt, Tick now, ProgressContract contract, Func<AcquisitionSource, bool> mine)
     {
         var stalled = new List<AcquisitionSource>();
         if (contract.Deadline.Value <= 0)
         {
             return stalled;
         }
-        if (!sources.TryGetValue(out var rows))
-        {
-            return stalled;
-        }
-        foreach (var row in rows)
+        foreach (var row in sources)
         {
             if (row.Designated && !row.Taken && row.Hunt == hunt && mine(row) && contract.Expired(row.DesignatedTick, now))
             {
@@ -460,15 +445,14 @@ partial class RoundsAcquisitionPlanner
     /// yield otherwise): a designation nobody took still counts there, and without this the re-plan would see
     /// its own stalled yield as covering the deficit and propose nothing.
     /// </summary>
-    internal static Fact<double> WithoutStalled(double pending, Fact<EquatableArray<AcquisitionSource>> sources, HashSet<string> stalled, bool food)
+    internal static Fact<double> WithoutStalled(double pending, EquatableArray<AcquisitionSource> sources, HashSet<string> stalled, bool food)
     {
-        var known = sources.TryGetValue(out var rows);
         var outstanding = pending;
-        if (!known || stalled.Count == 0)
+        if (stalled.Count == 0)
         {
             return Known(pending);
         }
-        foreach (var row in rows!)
+        foreach (var row in sources)
         {
             if (!stalled.Contains(row.Id) || !row.Designated)
             {
@@ -510,16 +494,11 @@ partial class RoundsAcquisitionPlanner
     }
 
     /// <summary>
-    /// Names what the source selection lacked when it could not choose: the source census, then (for goals sized
-    /// by a deficit) the deficit and the pending yield. A census that is read but holds an unusable row reads as
-    /// the census.
+    /// Names what the source selection lacked when it could not choose: (for goals sized by a deficit) the deficit
+    /// and the pending yield, else the source census holding an unusable row.
     /// </summary>
-    internal static string UnreadAcquisitionFact(Fact<EquatableArray<AcquisitionSource>> sources, Fact<double> deficit, Fact<double> pending, bool withoutDeficit)
+    internal static string UnreadAcquisitionFact(Fact<double> deficit, Fact<double> pending, bool withoutDeficit)
     {
-        if (!sources.IsKnown)
-        {
-            return "acquisition_sources";
-        }
         if (!withoutDeficit)
         {
             if (!deficit.IsKnown)

@@ -73,10 +73,10 @@ public sealed class RecoveryQueueTests
     [Fact]
     public void ALootStackWhoseSafetyWasNotReadHasAnUnreadRoute()
     {
-        var row = new LootItem { Supply = new StartingSupply { Thing = "Thing_Steel7", Definition = "Steel", Cell = new Cell(30, 30) }, Forbidden = true, SafetyKnown = false, SafeToHaul = true, Count = 50 };
+        var row = new LootItem { Supply = new StartingSupply { Thing = "Thing_Steel7", Definition = "Steel", Cell = new Cell(30, 30) }, Forbidden = true, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached(), Count = 50 };
         Assert.Equal(RouteSafety.Unread, RecoveryRules.RecoveryLootThing(row).Thing.Route);
-        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { SafetyKnown = true }).Thing.Route);
-        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { SafetyKnown = true, SafeToHaul = false }).Thing.Route);
+        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 } }).Thing.Route);
+        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() }).Thing.Route);
     }
 
     [Fact]
@@ -86,11 +86,9 @@ public sealed class RecoveryQueueTests
         {
             Supply = new StartingSupply { Thing = "Thing_Steel7", Definition = "Steel", Cell = new Cell(30, 30) },
             Forbidden = true,
-            SafetyKnown = true,
-            SafeToHaul = true,
+            Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 40.0 },
             Count = 50,
-            PathLength = Known(40.0),
-            StorageHeadroom = Known(200L),
+            StorageHeadroom = 200L,
         };
         var (thing, ok) = RecoveryRules.RecoveryLootThing(row);
         Assert.True(ok);

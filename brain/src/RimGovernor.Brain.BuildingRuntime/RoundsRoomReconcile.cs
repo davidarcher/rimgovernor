@@ -454,7 +454,7 @@ partial class RoundsBuildingPlanner
         {
             return false;
         }
-        if (!facts.Facts.EventLoot.TryGetValue(out var loot) || !loot.Any(row => row.SafetyKnown && row.SafeToHaul && row.Forbidden))
+        if (!facts.Facts.EventLoot.Any(row => row.IsSafe && row.Forbidden))
         {
             return false;
         }

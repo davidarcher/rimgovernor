@@ -90,7 +90,7 @@ public static partial class SafetyOverlayRules
         foreach (var row in loot)
         {
             var at = row.Supply.Cell;
-            if (!row.SafetyKnown || row.SafeToHaul || !InBounds(at, bounds) || vetoed.Contains(at))
+            if (!row.IsExposed || !InBounds(at, bounds) || vetoed.Contains(at))
             {
                 continue;
             }
