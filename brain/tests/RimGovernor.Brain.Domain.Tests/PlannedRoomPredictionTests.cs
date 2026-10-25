@@ -31,7 +31,7 @@ public sealed class PlannedRoomPredictionTests
         var json = OrdersJson.Serialize(prediction);
 
         Assert.Equal(
-            """{"room":"3","stuff":"WoodLog","role":"Bedroom","impressiveness":32.5,"stage":3,"cells":9,"openRoofCells":2,"touchesMapEdge":false,"routes":[],"services":{"seats":[],"recreation":[]},"workBenches":[],"readingBonus":1,"terrains":[{"tags":["Floor"]}],"cleanliness":-0.25,"beds":["Thing_Bed4"],"benches":[{"bench":"Thing_Table5","psychologicallyOutdoors":true}],"desks":[{"learningRate":1.4}]}""",
+            """{"room":"3","stuff":"WoodLog","role":"Bedroom","impressiveness":32.5,"stage":3,"cells":9,"openRoofCells":2,"touchesMapEdge":false,"perceptibleBeauty":[],"sleepingSurfaces":[],"maximumComfort":0,"routes":[],"services":{"seats":[],"recreation":[]},"workBenches":[],"readingBonus":1,"terrains":[{"tags":["Floor"]}],"cleanliness":-0.25,"beds":["Thing_Bed4"],"benches":[{"bench":"Thing_Table5","psychologicallyOutdoors":true}],"desks":[{"learningRate":1.4}]}""",
             json);
         Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(json));
     }

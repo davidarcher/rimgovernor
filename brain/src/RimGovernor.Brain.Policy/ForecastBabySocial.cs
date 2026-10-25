@@ -34,6 +34,8 @@ internal static class ForecastBabySocial
             var adults = read.Pawns.ToDictionary(p => p.Pawn, p => new Actor(p, read));
             var canonical = context.Needs.Pawns.Where(p => read.Pawns.Any(a => a.Pawn == p.Pawn) || babies.Any(b => b.Baby.Pawn == p.Pawn))
                 .ToDictionary(p => p.Pawn, p => p.Mood?.Memories ?? throw new RequiredFactException("social pawn mood:" + p.Pawn));
+            foreach (var recipient in context.Needs.Babies.OtherRecipients.Where(p => read.Pawns.Any(a => a.Pawn == p.Pawn)))
+                canonical.Add(recipient.Pawn, EquatableArray.From(recipient.Mood.Memories.SelectMany(g => g.Members)));
             var socialDefs = context.Needs.Babies.Fits.Select(f => f.OpinionThought).Where(d => d.Length != 0).ToHashSet(StringComparer.Ordinal);
             var moodDefs = read.MoodDefs.ToHashSet(StringComparer.Ordinal);
             var social = read.Pawns.ToDictionary(p => p.Pawn, p => new ForecastSocialMemories(ForecastSocialMemories.Observed(canonical[p.Pawn], socialDefs)));

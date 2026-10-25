@@ -21,7 +21,7 @@ internal sealed class ForecastNurseryExposure
     internal ForecastNurseryGeometry Geometry { get; }
     internal double[] Cuts { get; }
 
-    internal ForecastNurseryExposure(ForecastCoupledContext context, ForecastCoupledOutcome outcome, double horizon, ISet<string> findings)
+    internal ForecastNurseryExposure(ForecastCoupledContext context, ForecastCoupledOutcome outcome, double horizon, ISet<string> findings, IReadOnlyList<ForecastCommitment>? commitments = null)
     {
         this.context = context;
         nursery = context.PlannedRoomRoles.Where(r => r.Value == PlannedRole.Nursery)
@@ -119,6 +119,53 @@ internal sealed class ForecastNurseryExposure
             }
             pawns.Add(pawn.Pawn, result.ToArray());
             cuts.UnionWith(ownCuts);
+        }
+        var placements = ForecastPrison.Placements(outcome, commitments ?? [], context, horizon).ToDictionary(p => p.Pawn);
+        foreach (var recipient in context.Needs.Babies.OtherRecipients)
+        {
+            if (pawns.ContainsKey(recipient.Pawn)) throw new RequiredFactException("duplicate nursery recipient:" + recipient.Pawn);
+            var result = new List<Presence>();
+            var rest = recipient.Mood.Rest;
+            var level = rest?.Level ?? 1;
+            var asleep = !recipient.Awake && rest is { Blocked: false };
+            var firstSleep = asleep;
+            var placement = placements.GetValueOrDefault(recipient.Pawn);
+            for (var at = 0d; at < horizon;)
+            {
+                var placed = placement is not null && at >= placement.ServedAt;
+                var end = placement is not null && at < placement.ServedAt ? Math.Min(horizon, placement.ServedAt) : horizon;
+                ServicePositionRead awake = placed ? new ServicePositionRead.Possible(EquatableArray.From(
+                    (context.Closures.SingleOrDefault(c => c.Room == placement!.Room && c.Stuff == placement.Stuff)
+                        ?? throw new RequiredFactException("nursery prisoner cell interior:" + recipient.Pawn)).Interior)) : recipient.AwakePositions;
+                var selected = firstSleep ? recipient.ObservedSleep ?? throw new RequiredFactException("nursery recipient observed sleep:" + recipient.Pawn) : recipient.Sleep;
+                var position = asleep && !placed && selected is { } surface && (firstSleep || surface.Bed.Length > 0)
+                    ? Located(surface, recipient.Pawn) : awake;
+                if (rest is { Blocked: false })
+                {
+                    var gain = placed ? rest.GainPerEffectiveness * (placement!.Surface
+                        ?? throw new RequiredFactException("nursery prisoner planned sleep:" + recipient.Pawn)).RestEffectiveness
+                        : selected?.GainPerTick ?? rest.GroundGainPerTick;
+                    var rate = asleep ? gain : rest.FallPerTick;
+                    if (!(rate > 0) || rest.WakeThreshold <= rest.SleepThreshold)
+                        throw new RequiredFactException("nursery recipient rest rates:" + recipient.Pawn);
+                    var next = Math.Max(0, asleep ? (rest.WakeThreshold - level) / rate : (level - rest.SleepThreshold) / rate);
+                    if (next == 0 || at + next == at) { level = asleep ? rest.WakeThreshold : rest.SleepThreshold; if (asleep) firstSleep = false; asleep = !asleep; continue; }
+                    end = Math.Min(end, at + next);
+                    level += (asleep ? 1 : -1) * rate * (end - at);
+                }
+                result.Add(new(at, end, position, 1, asleep, new ForecastSocialService.Unprojected(), ""));
+                cuts.Add(at); cuts.Add(end);
+                at = end;
+                if (rest is { Blocked: false } && (asleep ? level >= rest.WakeThreshold : level <= rest.SleepThreshold))
+                { if (asleep) firstSleep = false; asleep = !asleep; }
+            }
+            pawns.Add(recipient.Pawn, result.ToArray());
+            findings.Add("nursery_recipient_" + recipient.Kind.ToString().ToLowerInvariant());
+            findings.Add("nursery_nonworker_movement_bounded:" + recipient.Pawn);
+            findings.Add("nursery_nonworker_observed_conditional_mood:" + recipient.Pawn);
+            if (rest is null) findings.Add("nursery_nonworker_no_rest_need:" + recipient.Pawn);
+            else if (rest.Blocked) findings.Add("nursery_nonworker_sleep_blocked:" + recipient.Pawn);
+            if (recipient.Kind == NurseryRecipientKind.Prisoner) findings.Add("nursery_prison_room_occupancy_conditional");
         }
         careWith = ForecastBabyCare.Of(context, true, horizon, findings);
         careWithout = ForecastBabyCare.Of(context, false, horizon, findings);

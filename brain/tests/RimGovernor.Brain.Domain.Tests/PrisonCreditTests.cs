@@ -28,7 +28,7 @@ public sealed class PrisonCreditTests
         Pawn = "prisoner", Recruitable = recruitable, Resistance = 10, PrisonBed = false, WildMan = false,
         // Its prison thought now none, the decent cell's +4 brings its instant mood to 0.5: the mood curve is 1 there, and the
         // opinion curve 1 at opinion 0.
-        Mood = new(0.5 - 0.04, 0) { CellStages = [DecentCell], Memories = [] },
+        Mood = new(0.5 - 0.04, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [DecentCell], Memories = [] },
         Opinions = [Opinion()], Conversion = null,
         Joiner = new()
         {
@@ -167,6 +167,167 @@ public sealed class PrisonCreditTests
         var row = Assert.Single(rows);
         Assert.Equal(("prison/1/prisoner", Horizon - 1), (row.Key, row.Units));
         Assert.Equal(-((value * (Horizon - 1 - days)) - (lost * 11)), row.Value, 9);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NurseryCreditsTheSharedRecruitmentLedgerForNewAndAlreadyHousedPrisoners(bool housed)
+    {
+        var review = Of(c => [Prisoner(c) with { PrisonBed = housed, OwnedPrisonBedPosition = housed ? new(new(0, 0)) : null,
+            Mood = Prisoner(c).Mood! with { Rest = new(.1, .28, .8, 1e-5, 1e-9, false, 1e-9, true) } }], prisonBed: new(0, 0));
+        var nursery = NurseryCreditTests.Nonworker(NurseryRecipientKind.Prisoner, "Crying");
+        var prisoner = review.Context.Needs.Prison.Prisoners[0];
+        var recipient = nursery.Needs.Babies.OtherRecipients[0] with { Pawn = prisoner.Pawn, Mood = prisoner.Mood! };
+        var baby = nursery.Needs.Babies.Babies[0] with
+        { Hearers = [new() { Pawn = prisoner.Pawn, Hearing = 1, Memories = nursery.Needs.Babies.Babies[0].Hearers[0].Memories }] };
+        var context = review.Context with
+        {
+            Needs = review.Context.Needs with
+            {
+                Pawns = [.. review.Context.Needs.Pawns.Select(p => p with
+                { Sleep = new("warden-bed", false, false, 3e-5, .5, 21) { Position = new ServicePositionRead.Located(new(10, 0)) } }),
+                    nursery.Needs.Pawns.Single(p => p.Pawn == "baby")],
+                Babies = nursery.Needs.Babies with { Babies = [baby], OtherRecipients = [recipient] },
+            },
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Prison, [2] = PlannedRole.Nursery },
+            ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>>(review.Context.ColonistThoughts) { ["baby"] = [] },
+            PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [2] = nursery.PlannedBeds[1] },
+            NurserySites = [.. nursery.NurserySites.Select(s => s with { Room = 2 })],
+            Closures = [.. review.Context.Closures.Select(c => c with { Interior = [new(0, 0)], Prediction = c.Prediction with { SleepingSurfaces = [new(new(0, 0), .5, 1)] } }),
+                .. nursery.Closures.Select(c => c with { Room = 2, Prediction = c.Prediction with { Room = "2" } })],
+        };
+        var outcome = review.Outcome with
+        {
+            Needs = review.Outcome.Needs.Concat(new[] { new KeyValuePair<string, ForecastNeedsResult>("baby",
+                new([], new ForecastTerm.Unassessed("fixture"), new ForecastTerm.Unassessed("fixture"),
+                    new(new("baby", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+                { Mood = MoodResults.Flat(.2, [0, 0, 0]) with { Response = new(.2, 1, 1, .3, [new(0, Day, .2, .2, false)]) } }) }).ToDictionary(),
+            ServedRooms = [new(1, "", 0), new(2, "", 0)],
+        };
+        Assert.Same(prisoner.Mood, context.Needs.Babies.OtherRecipients[0].Mood);
+        var gains = ForecastNursery.NurseryCredit(new(2, "", 0), outcome, [], context, Day);
+        var recruitment = Assert.Single(gains, g => g.Subject == "recruit/prisoner");
+        Assert.True(recruitment.Once > 0);
+        Assert.DoesNotContain(context.Needs.Pawns, p => p.Pawn == prisoner.Pawn);
+        var disconnected = context with { Needs = context.Needs with { Babies = context.Needs.Babies with
+        { Babies = [baby with { Hearers = [baby.Hearers[0] with { Hearing = 0 }] }] } } };
+        Assert.DoesNotContain(ForecastNursery.NurseryCredit(new(2, "", 0), outcome, [], disconnected, Day), g => g.Subject == "recruit/prisoner");
+        Assert.DoesNotContain(ForecastNursery.NurseryCredit(new(2, "", 100 * Day), outcome, [], context, Day), g => g.Subject == "recruit/prisoner");
+    }
+
+    [Fact]
+    public void TheProductionPrisonCreditIncludesMealsGainedInTheCellAtEachRecruitAttempt()
+    {
+        var baseline = Of(c => [Prisoner(c)]);
+        var fed = Of(c =>
+        {
+            var prisoner = Prisoner(c);
+            return [prisoner with { Mood = prisoner.Mood! with { Meals = [new("pawn", 500, Day / 2, false, false)
+            {
+                Thoughts = [new("GoodMeal", "meal", 0, 40, new ThoughtLasting.Memory(2 * Day, false, 1, 1, false))], RoomStages = [],
+            }] } }];
+        });
+        var gain = Assert.Single(fed.Gains());
+        // Mood .9 lowers resistance by 1.4 each attempt: eight attempts reach zero, the ninth recruits, against eleven
+        // without the meal. Renewal keeps one native stack; no daily fixed job or fixture-only projection supplies it.
+        var days = (8 * Day / 2 + 1750) / Day;
+        Assert.Equal(-(gain.PerDay * days) - LostPerJob(fed) * 9, gain.Once, 9);
+        Assert.True(gain.Once > Assert.Single(baseline.Gains()).Once);
+    }
+
+    [Fact]
+    public void CellMealMemoriesExpireAndRenewTheirOldestNativeGroupMember()
+    {
+        var fresh = NeedsFixtures.Memory("Meal", 20, Day, fades: true);
+        var held = fresh with { Offset = 10, Life = new MemoryLife.Expires(Day / 2) };
+        var mood = new PrisonerMoodRead(.5, 0)
+        {
+            Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [], Memories = [new(.5) { Stage = 0, BedlessRenewal = null, Members = [held], FreshMembers = [fresh] }],
+        };
+        var meal = new PrisonMealRead("pawn", Day / 4, 2 * Day, false, false)
+        {
+            Thoughts = [new("Meal", "meal", 0, 40, new ThoughtLasting.Memory(Day, true, 1, .5, false))], RoomStages = [],
+        };
+        var exposure = new PrisonCellForecast(mood, meal, 0, false, 0);
+        Assert.Equal(0, exposure.At(Day / 8));
+        // The old native member is renewed, preserving +20 rather than taking the new meal's +40.
+        Assert.Equal(15, exposure.At(Day / 4));
+        Assert.Equal(0, exposure.At(1.5 * Day));
+    }
+
+    [Fact]
+    public void CellBeautyBoundsChangeProductionRecruitmentWithoutAnInventedWanderSchedule()
+    {
+        Review InBeauty(double beauty)
+        {
+            var review = Of(c =>
+            {
+            var prisoner = Prisoner(c);
+            return [prisoner with { Mood = prisoner.Mood! with
+            {
+                Beauty = new(.4, .4, .32, .08, true, 0, false)
+                { Stages = [new("NeedBeauty", "need_beauty", 0, -15, NeedsFixtures.Situational),
+                    new("NeedBeauty", "need_beauty", 1, -10, NeedsFixtures.Situational), new("NeedBeauty", "need_beauty", 2, -5, NeedsFixtures.Situational),
+                    new("NeedBeauty", "need_beauty", 3, 5, NeedsFixtures.Situational), new("NeedBeauty", "need_beauty", 4, 10, NeedsFixtures.Situational),
+                    new("NeedBeauty", "need_beauty", 5, 15, NeedsFixtures.Situational)] },
+            } }];
+            });
+            return review with { Context = review.Context with { Closures = [.. review.Context.Closures.Select(c => c with
+            { Prediction = c.Prediction with { PerceptibleBeauty = [new(new(90, 90), beauty)] } })] } };
+        }
+        var ugly = InBeauty(-10);
+        var beautiful = InBeauty(10);
+        Assert.True(Assert.Single(beautiful.Gains()).Once > Assert.Single(ugly.Gains()).Once);
+        Assert.Contains("prison_cell_exposure_bounded", beautiful.Findings());
+    }
+
+    [Fact]
+    public void CellComfortFollowsThePrisonersRestCycleAndChangesItsProductionCredit()
+    {
+        Review WithComfort(double comfort)
+        {
+            var review = Of(c =>
+            {
+                var prisoner = Prisoner(c);
+                return [prisoner with { Mood = prisoner.Mood! with
+                {
+                    Rest = new(.1, .3, 1, 1 / Day, 3 / Day, false, 3 / Day, false),
+                    Comfort = new(.1, .5, .6, .04, false, 0, false)
+                    { Stages = [new("NeedComfort", "need_comfort", 0, -3, NeedsFixtures.Situational),
+                        new("NeedComfort", "need_comfort", 1, 4, NeedsFixtures.Situational), new("NeedComfort", "need_comfort", 2, 6, NeedsFixtures.Situational),
+                        new("NeedComfort", "need_comfort", 3, 8, NeedsFixtures.Situational), new("NeedComfort", "need_comfort", 4, 10, NeedsFixtures.Situational)] },
+                } }];
+            });
+            return review with { Context = review.Context with { Closures = [.. review.Context.Closures.Select(c => c with
+            { Prediction = c.Prediction with { SleepingSurfaces = [new(new(90, 90), comfort, 1)], MaximumComfort = comfort } })] } };
+        }
+        Assert.True(Assert.Single(WithComfort(1).Gains()).Once > Assert.Single(WithComfort(.05).Gains()).Once);
+    }
+
+    [Fact]
+    public void GroundRestBeforeCellServiceCarriesTheActualSleepPhaseIntoComfort()
+    {
+        var comfort = new PrisonSeekerRead(.1, .5, .6, .6, false, 0, false)
+        {
+            Stages = [new("NeedComfort", "need_comfort", 0, -3, NeedsFixtures.Situational),
+                new("NeedComfort", "need_comfort", 1, 4, NeedsFixtures.Situational), new("NeedComfort", "need_comfort", 2, 6, NeedsFixtures.Situational),
+                new("NeedComfort", "need_comfort", 3, 8, NeedsFixtures.Situational), new("NeedComfort", "need_comfort", 4, 10, NeedsFixtures.Situational)],
+        };
+        var mood = new PrisonerMoodRead(.5, 0)
+        {
+            Comfort = comfort, Beauty = null, Meals = [], CellStages = [], Memories = [],
+            Rest = new(.1, .3, 1, 1 / Day, 3 / Day, false, 3 / Day, true),
+        };
+        var bed = new PlannedSleepingSurface(new(90, 90), 1, 1);
+        var delayed = new PrisonCellForecast(mood, null, 3, false, Day, bed);
+        // Ground sleep reaches 1 at day .3, then waking fall reaches .3 at day 1. At service the next sleep
+        // starts from .3. Treating the entire pre-service day as waking instead would start at zero.
+        var atService = mood with { Rest = mood.Rest with { Level = .3, Asleep = true } };
+        var immediate = new PrisonCellForecast(atService, null, 3, false, 0, bed);
+        var exhausted = new PrisonCellForecast(mood with { Rest = mood.Rest with { Level = 0 } }, null, 3, false, 0, bed);
+        Assert.Equal(immediate.At(.28 * Day), delayed.At(1.28 * Day), 8);
+        Assert.NotEqual(exhausted.At(.28 * Day), delayed.At(1.28 * Day));
     }
 
     [Fact]
@@ -321,7 +482,7 @@ public sealed class PrisonCreditTests
         Assert.Equal(-7 * 1.5, ForecastPrison.MoodGroupAt(group, 0), 12);
         Assert.Equal(-4.5 * 1.5, ForecastPrison.MoodGroupAt(group, 15000), 12);
         Assert.Equal(-4, ForecastPrison.MoodGroupAt(group, 40000), 12);
-        var mood = new PrisonerMoodRead(0.4, 0) { CellStages = [], Memories = [group] };
+        var mood = new PrisonerMoodRead(0.4, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [], Memories = [group] };
         Assert.Equal(0.4 + ((10.5 - 4) / 100), ForecastPrison.Mood(mood, 0, 40000)!.Value, 12);
     }
 
@@ -338,7 +499,7 @@ public sealed class PrisonCreditTests
             Members = [NeedsFixtures.Memory(thought, -10, Day / 4, fades: true)],
             BedlessRenewal = NeedsFixtures.Memory(thought, -20, Day, fades: true),
         };
-        var mood = new PrisonerMoodRead(0.4, 0) { CellStages = [DecentCell], Memories = [group] };
+        var mood = new PrisonerMoodRead(0.4, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [DecentCell], Memories = [group] };
         // The observed memory would have expired before service. Its daily renewal holds the fresh -20 there, then
         // fades over its full native day, rather than its observed quarter day. Unrelated memories still expire now.
         Assert.Equal(0.34, ForecastPrison.Mood(mood, 4, Day, Day)!.Value, 12);
@@ -365,7 +526,7 @@ public sealed class PrisonCreditTests
         var prisoner = Bare(0) with
         {
             Conversion = Conversion(),
-            Mood = new(0.1, 0) { CellStages = [], Memories = [group] },
+            Mood = new(0.1, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [], Memories = [group] },
         };
         var read = NeedsFixtures.NoPrison with { CertaintyDrift = [new(0, 0), new(1, 0.2)] };
         var converter = new ConversionReductionRead("pawn", 0.25);
@@ -563,7 +724,7 @@ public sealed class PrisonCreditTests
     {
         var read = NeedsFixtures.NoPrison;
         var converter = new ConversionReductionRead("pawn", 0.25);
-        var moody = Bare(0) with { Mood = new(0.5 - 0.04, 0) { CellStages = [DecentCell], Memories = [] } };
+        var moody = Bare(0) with { Mood = new(0.5 - 0.04, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [DecentCell], Memories = [] } };
         // Certainty 0.5 falls to 0 in two attempts undrifted; the mood drifts it up (0.02 a day at mood 0.5), so a third is needed.
         Assert.Equal((2, 2d), ForecastPrison.Converted(read, Bare(0) with { Conversion = Conversion() }, converter, null, Day, 31 * Day, 0.5));
         Assert.Equal((3, 3d), ForecastPrison.Converted(read, moody with { Conversion = Conversion() }, converter, 4, Day, 31 * Day, 0.5));
@@ -665,7 +826,7 @@ public sealed class PrisonCreditTests
     [Fact]
     public void ThePrisonersPrisonThoughtStageMissingIsAnUnreadFact()
     {
-        var review = Of(c => [Prisoner(c) with { Mood = new(0.5, 0) { CellStages = [], Memories = [] } }]);
+        var review = Of(c => [Prisoner(c) with { Mood = new(0.5, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [], Memories = [] } }]);
         Assert.Throws<RequiredFactException>(() => review.Gains());
     }
 

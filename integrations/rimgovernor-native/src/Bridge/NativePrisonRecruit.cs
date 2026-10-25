@@ -81,13 +81,15 @@ internal static class NativePrisonRecruit
     private static RimGovernor.Brain.GameFacts.Observations.PrisonerRecruitRead PrisonerOf(Pawn pawn, Pawn[] wardens, ThoughtDef rapport, ThoughtDef chitchat, Map map, Func<NativeRecreation.OutdoorClimate> climate)
     {
         var guest = pawn.guest ?? throw new InvalidOperationException("prisoner without a guest tracker: " + pawn.GetUniqueLoadID());
+        var joiner = JoinerOf(pawn, map, climate);
         return new()
         {
             Pawn = pawn.GetUniqueLoadID(), Recruitable = guest.Recruitable, Resistance = F(guest.Resistance, "resistance"),
-            PrisonBed = pawn.ownership?.OwnedBed?.ForPrisoners == true, WildMan = pawn.IsWildMan(), Mood = MoodOf(pawn),
+            OwnedPrisonBedPosition = pawn.ownership?.OwnedBed is { ForPrisoners: true } bed ? new(new(bed.Position.x, bed.Position.z)) : null,
+            PrisonBed = pawn.ownership?.OwnedBed?.ForPrisoners == true, WildMan = pawn.IsWildMan(), Mood = MoodOf(pawn, wardens, joiner),
             Opinions = EquatableArray.From(wardens.Select(w => OpinionOf(pawn, w, rapport, chitchat))),
             Conversion = ConversionOf(pawn, wardens),
-            Joiner = JoinerOf(pawn, map, climate),
+            Joiner = joiner,
         };
     }
 
@@ -118,7 +120,7 @@ internal static class NativePrisonRecruit
         (typeof(ThoughtWorker_PrisonCellImpressiveness), "prison_cell"), (typeof(ThoughtWorker_PrisonBarracksImpressiveness), "prison_barracks"),
     ];
 
-    private static RimGovernor.Brain.GameFacts.Observations.PrisonerMoodRead? MoodOf(Pawn pawn)
+    internal static RimGovernor.Brain.GameFacts.Observations.PrisonerMoodRead? MoodOf(Pawn pawn, Pawn[] wardens, RimGovernor.Brain.GameFacts.Observations.JoinerRead? joiner = null)
     {
         if (pawn.needs?.mood is not { } mood) return null;
         var groups = new List<Thought>();
@@ -145,12 +147,83 @@ internal static class NativePrisonRecruit
         foreach (var head in Heads(mood.thoughts.memories.Memories))
             memories.Add(new(head.def.stackedEffectMultiplier)
             {
+                Stage = head.CurStageIndex,
+                FreshMembers = EquatableArray.From(mood.thoughts.memories.Memories.Where(m => m.GroupsWith(head)).Select(FreshMemory)),
                 BedlessRenewal = BedlessRenewalOf(pawn, head),
                 Members = EquatableArray.From(mood.thoughts.memories.Memories.Where(m => m.GroupsWith(head)).Select(m => new RimGovernor.Brain.GameFacts.Observations.NeedMemory(m.def.defName,
                     F(m.MoodOffset(), "memory offset"), m.permanent ? new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Permanent() : new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
-                    m.def.lerpMoodToZero) { StackLimit = m.def.stackLimit })),
+                    m.def.lerpMoodToZero) { StackLimit = m.def.stackLimit, Group = NativeNeedsForecast.MemoryGroup(pawn, m) })),
             });
-        return new(F(unclamped, "prisoner unclamped mood"), F(cell, "prison cell thought")) { CellStages = EquatableArray.From(rows), Memories = EquatableArray.From(memories) };
+        return new(F(unclamped, "prisoner unclamped mood"), F(cell, "prison cell thought"))
+        {
+            Comfort = SeekerOf(pawn, pawn.needs.comfort, typeof(ThoughtWorker_NeedComfort), "need_comfort", groups),
+            Beauty = SeekerOf(pawn, pawn.needs.beauty, typeof(ThoughtWorker_NeedBeauty), "need_beauty", groups),
+            Rest = RestOf(pawn, joiner?.Needs ?? EquatableArray.From(NativeNeedsForecast.NeedRatesOf(pawn, pawn.MapHeld, () => new NativeRecreation.OutdoorClimate(pawn.MapHeld), null))),
+            CellStages = EquatableArray.From(rows), Memories = EquatableArray.From(memories),
+            Meals = EquatableArray.From(wardens.Select(w => MealOf(pawn, w)).Where(m => m != null).Select(m => m!)),
+        };
+    }
+
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonRestRead? RestOf(Pawn pawn, EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedRate> needs)
+    {
+        if (pawn.needs.rest is not { } rest) return null;
+        var rate = needs.Single(n => n.Kind == "rest");
+        var sleep = NativeConditionalMood.ReadSleep(pawn);
+        return new(rest.CurLevelPercentage, sleep.SleepThreshold, sleep.WakeThreshold, rate.FallPerTick, rate.GainPerTickPerEffectiveness, sleep.Blocked,
+            rate.UnservedGainPerTick, !pawn.Awake());
+    }
+
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonSeekerRead? SeekerOf(Pawn pawn, Need_Seeker? need, Type worker, string role, List<Thought> groups)
+    {
+        if (need is null) return null;
+        var stages = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker))
+            NativeNeedsForecast.StageRows(stages, pawn, def, role, false);
+        return new(need.CurLevelPercentage, need.def.baseLevel, need.def.seekerRisePerHour, need.def.seekerFallPerHour, need.def.freezeWhileSleeping,
+            groups.Where(t => t.def.workerClass == worker).Sum(t => (double)pawn.needs.mood.thoughts.MoodOffsetOfGroup(t)),
+            worker == typeof(ThoughtWorker_NeedBeauty) && PawnUtility.IsBiologicallyOrArtificiallyBlind(pawn))
+        { Stages = EquatableArray.From(stages) };
+    }
+
+    private static RimGovernor.Brain.GameFacts.Observations.NeedMemory FreshMemory(Thought_Memory memory)
+    {
+        var fade = memory.def.lerpMoodToZero ? 1d - (double)memory.age / memory.DurationTicks : 1;
+        // Expired memories are discarded before renewal; their raw offset is immaterial.
+        var offset = fade > 0 ? memory.MoodOffset() / fade : 0;
+        return new(memory.def.defName, F(offset, "unfaded memory offset"), memory.permanent
+            ? new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Permanent()
+            : new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(memory.DurationTicks), memory.def.lerpMoodToZero)
+        { StackLimit = memory.def.stackLimit };
+    }
+
+    // The same food selection as WorkGiver_Warden_DeliverFood. Inspect the source; never create a meal or mutate a food policy.
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonMealRead? MealOf(Pawn pawn, Pawn warden)
+    {
+        if (pawn.needs?.food is not { } food || !FoodUtility.TryFindBestFoodSourceFor(warden, pawn,
+            food.CurCategory == HungerCategory.Starving, out var source, out var def,
+            canRefillDispenser: false, canUseInventory: true, canUsePackAnimalInventory: false, allowForbidden: false, allowCorpse: false,
+            allowSociallyImproper: false, allowHarvest: false, forceScanWholeMap: false, ignoreReservations: false, calculateWantedStackCount: true)) return null;
+        var fall = food.FoodFallPerTickAssumingCategory(HungerCategory.Fed) / food.MaxLevel;
+        if (!(fall > 0)) throw new InvalidOperationException("prisoner food fall is not positive");
+        var nutrition = FoodUtility.GetNutrition(pawn, source, def);
+        var count = FoodUtility.WillIngestStackCountOf(pawn, def, nutrition);
+        var gain = Math.Min(1 - food.PercentageThreshHungry, nutrition * count / food.MaxLevel);
+        var service = def.ingestible.baseIngestTicks / (def.ingestible.useEatingSpeedStat ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1);
+        var thoughts = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
+        foreach (var thought in FoodUtility.ThoughtsFromIngesting(pawn, source, def))
+        {
+            var memory = NativeNeedsForecast.MealMemory(pawn, thought);
+            thoughts.Add(new(memory.Id, "meal", 0, memory.Offset,
+                new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Memory(
+                    ((RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires)memory.Life).RemainingTicks,
+                    memory.Fades, memory.StackLimit, thought.thought.stackedEffectMultiplier, thought.thought.stagesStack)));
+        }
+        var stages = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
+        NativeNeedsForecast.StageRows(stages, pawn, ThoughtDefOf.AteInImpressiveDiningRoom, "ate_in_dining_room", true);
+        NativeNeedsForecast.StageRows(stages, pawn, ThoughtDefOf.AteWithoutTable, "ate_without_table", false);
+        return new(warden.GetUniqueLoadID(), Math.Max(0, (food.CurLevelPercentage - food.PercentageThreshHungry) / fall) + service,
+            Math.Max(service, gain / fall), def.ingestible.tableDesired && !pawn.IsWildMan(), def.ingestible.chairSearchRadius > 10)
+        { Thoughts = EquatableArray.From(thoughts), RoomStages = EquatableArray.From(stages) };
     }
 
     // These are ApplyBedThoughts' recurring ground/exposure memories and FinalizeIngest's no-table memory. Use the same

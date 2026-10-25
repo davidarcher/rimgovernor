@@ -140,10 +140,11 @@ internal static class NativeNeedsForecast
             .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal)
             .Select(b => new RimGovernor.Brain.GameFacts.Observations.ResearchBenchRead(b.GetUniqueLoadID(), b.def.defName, new(b.Position.x, b.Position.z), b.GetStatValue(StatDefOf.ResearchSpeedFactor))).ToArray();
         var weather = map.weatherManager.CurWeatherLerped;
+        var prison = NativePrisonRecruit.Read(map, people, Climate);
         return new() { Tick = new(Find.TickManager.TicksGame), Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
             RainRate = F(map.weatherManager.RainRate, "rain rate"), MapArea = map.Area, Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
-            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people, rows) };
+            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = prison, School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people, rows, prison) };
     }
     private static RimGovernor.Brain.GameFacts.Observations.NeedRoomStage StageAt(IntVec3 cell, Map map) => cell.GetRoom(map) is { } room
         ? new RimGovernor.Brain.GameFacts.Observations.NeedRoomStage.Staged(RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)))
@@ -372,7 +373,7 @@ internal static class NativeNeedsForecast
     /// bed RestUtility.FindBedFor picks, else the ground at its cell. Null for a wild man (it never rests in a bed and gets no
     /// SleptOutside), a pawn without a rest need or one absent from this map. Carried babies retain their future rest surface.
     /// </summary>
-    private static RimGovernor.Brain.GameFacts.Observations.NeedSleep? SleepOf(Pawn pawn, Map map)
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedSleep? SleepOf(Pawn pawn, Map map)
     {
         if (pawn.needs?.rest == null || pawn.MapHeld != map || pawn.IsWildMan()) return null;
         var traveler = SleepTraveler(pawn);
@@ -442,7 +443,7 @@ internal static class NativeNeedsForecast
     /// and the two facts besides its rest level RestUtility.ShouldWakeUp reads: a hediff that blocks sleeping and its deathrest
     /// (#3883). Null when it is not laying (GetPosture), has no rest need or is not spawned.
     /// </summary>
-    private static RimGovernor.Brain.GameFacts.Observations.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
         : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), DeathrestOf(pawn, map))
         { DeathrestWakeStage = pawn.Deathresting ? DeathrestWakeStageOf(pawn) : -1, Cell = CellAt(map, pawn.Position) };
 
@@ -862,7 +863,7 @@ internal static class NativeNeedsForecast
             }
         return EquatableArray.From(blockers);
     }
-    private static RimGovernor.Brain.GameFacts.Observations.NeedMemoryGroupRead MemoryGroup(Pawn pawn, Thought_Memory memory)
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedMemoryGroupRead MemoryGroup(Pawn pawn, Thought_Memory memory)
     {
         var def = memory.def;
         var kind = RimGovernor.Brain.GameFacts.Observations.MemoryGroupKind.Mood;

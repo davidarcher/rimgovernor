@@ -101,6 +101,62 @@ public sealed class NurseryCreditTests
     [Fact]
     public void ANurseryIsPriced() => Assert.True(Context(Read(Baby())).Priced(1));
 
+    internal static ForecastCoupledContext Nonworker(NurseryRecipientKind kind, string fit, double hearing = 1, int cell = 0)
+    {
+        var baby = Baby() with { Fits = [fit], Hearers = [new() { Pawn = "recipient", Hearing = hearing, Memories = [.. Memories()] }] };
+        var surface = new NeedSleep("recipient-bed", false, false, 1e-9, .5, 21)
+        { Position = new ServicePositionRead.Located(new(cell, 0)) };
+        var mood = new PrisonerMoodRead(.36, 0)
+        {
+            Comfort = null, Beauty = null, Meals = [], Memories = [], CellStages = [],
+            Rest = new(.1, .28, .8, 1e-5, 1e-9, false, 1e-9, true),
+        };
+        var recipient = new NurseryRecipientRead("recipient", kind, mood, .36, 1e-5, 1e-5, .35, false, false, surface,
+            new ServicePositionRead.PassableMap()) { ObservedSleep = surface };
+        var context = Context(Read(baby));
+        return context with { Needs = context.Needs with { Babies = context.Needs.Babies with { OtherRecipients = [recipient] } } };
+    }
+
+    [Theory]
+    [InlineData(NurseryRecipientKind.Prisoner)]
+    [InlineData(NurseryRecipientKind.Guest)]
+    [InlineData(NurseryRecipientKind.Slave)]
+    [InlineData(NurseryRecipientKind.Other)]
+    public void FreshNonworkerRecipientsReachProductionWellbeingAndBreakCostsWithoutJoiningTheWorkerCensus(NurseryRecipientKind kind)
+    {
+        var context = Nonworker(kind, "Crying");
+        var workerIds = context.Needs.Pawns.Select(p => p.Pawn).ToArray();
+        var gain = Assert.Single(Gains(context));
+        Assert.Equal("recipient", gain.Pawn);
+        Assert.True(gain.PerDay > 0);
+        var noBreakCosts = context with { MoodBreaks = context.MoodBreaks with { Tiers = [new(1, 1e-9), new(1, 1e-9), new(1, 1e-9)] } };
+        Assert.True(gain.PerDay > Assert.Single(Gains(noBreakCosts)).PerDay);
+        Assert.Equal(workerIds, context.Needs.Pawns.Select(p => p.Pawn));
+        Assert.DoesNotContain(context.Needs.Pawns, p => p.Pawn == "recipient");
+        Assert.Contains("nursery_recipient_" + kind.ToString().ToLowerInvariant(), Findings(context));
+        Assert.DoesNotContain("nursery_other_hearers", Findings(context));
+
+        // A new capture with no hearing loses the gain; neither presence nor admission is cached across reads.
+        Assert.Empty(Gains(Nonworker(kind, "Crying", hearing: 0)));
+        Assert.Empty(Gains(Nonworker(kind, "Crying", cell: 19)));
+        Assert.True(Assert.Single(Gains(Nonworker(kind, "Giggling"))).PerDay < 0);
+    }
+
+    [Fact]
+    public void NonworkerFutureWakeDoesNotFreezeTheObservedSleepingCell()
+    {
+        var context = Nonworker(NurseryRecipientKind.Guest, "Crying");
+        var recipient = context.Needs.Babies.OtherRecipients[0];
+        recipient = recipient with { Mood = recipient.Mood with { Rest = recipient.Mood.Rest! with { Level = .799, GroundGainPerTick = 1e-5 } },
+            Sleep = recipient.Sleep! with { GainPerTick = 1e-5 }, ObservedSleep = recipient.ObservedSleep! with { GainPerTick = 1e-5 } };
+        context = context with { Needs = context.Needs with { Babies = context.Needs.Babies with { OtherRecipients = [recipient] } } };
+        var exposure = new ForecastNurseryExposure(context, Outcome(context), Day, new HashSet<string>());
+        Assert.IsType<ServicePositionRead.Located>(Assert.Single(exposure.At("recipient", 0)).Position);
+        var awake = Assert.Single(exposure.At("recipient", 200));
+        Assert.False(awake.Asleep);
+        Assert.IsType<ServicePositionRead.PassableMap>(awake.Position);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

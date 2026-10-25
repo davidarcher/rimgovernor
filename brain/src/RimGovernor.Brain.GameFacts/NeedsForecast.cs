@@ -96,6 +96,10 @@ public sealed record TaughtSkillRead(string Skill, SkillLearning Learning);
 /// </summary>
 public sealed record BabyFitsRead
 {
+    /// <summary>Spawned mood recipients outside the voluntary worker census. A prisoner's Mood is the same record
+    /// captured in Prison.Prisoners; this cohort grants no work authority.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NurseryRecipientRead>))]
+    public EquatableArray<NurseryRecipientRead> OtherRecipients { get; init; }
     public required NurseryGeometryRead? Geometry { get; init; }
     public required BabySocialRead Social { get; init; }
     /// <summary>Pawn.CheckForDisturbedSleep's minimum interval between gains, in ticks.</summary>
@@ -112,6 +116,17 @@ public sealed record BabyFitsRead
     /// <summary>Every colonist given whose developmental stage a <see cref="Fits"/> def admits, in pawn id order. Empty means no baby.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<BabyRead>))]
     public required EquatableArray<BabyRead> Babies { get; init; }
+}
+
+public enum NurseryRecipientKind { Prisoner, Slave, Guest, Other }
+
+/// <summary>Observed nonworker recipient. AwakePositions encloses native movement, never a frozen standing cell.</summary>
+public sealed record NurseryRecipientRead(string Pawn, NurseryRecipientKind Kind, PrisonerMoodRead Mood,
+    double InitialMood, double RisePerTick, double FallPerTick, double BreakThreshold, bool MoodFreezesAsleep,
+    bool Awake, NeedSleep? Sleep, ServicePositionRead AwakePositions)
+{
+    /// <summary>Actual native lie-down surface; null when not lying. Distinct from the next selected resting surface.</summary>
+    public NeedSleep? ObservedSleep { get; init; }
 }
 /// <summary>
 /// A baby fit def: its <c>mtbDaysMoodCurve</c> over <c>Need_Mood.CurLevelPercentage</c>, its mental state's
@@ -339,6 +354,8 @@ public sealed record PrisonerRecruitRead
     public required bool Recruitable { get; init; }
     public required double Resistance { get; init; }
     public required bool PrisonBed { get; init; }
+    /// <summary>Owned prison-bed anchor, null when no prison bed is owned. Used to keep a housed prisoner in its actual cell.</summary>
+    public ServicePositionRead.Located? OwnedPrisonBedPosition { get; init; }
     public required bool WildMan { get; init; }
     public required PrisonerMoodRead? Mood { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<WardenOpinionRead>))]
@@ -372,10 +389,33 @@ public sealed record ConversionReductionRead(string Warden, double Reduction);
 /// </summary>
 public sealed record PrisonerMoodRead(double UnclampedLevel, double CellThought)
 {
+    public required PrisonSeekerRead? Comfort { get; init; }
+    public required PrisonSeekerRead? Beauty { get; init; }
+    public required PrisonRestRead? Rest { get; init; }
+    /// <summary>The observed meal a warden can feed this prisoner, and its hunger-driven renewal mechanics.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PrisonMealRead>))]
+    public required EquatableArray<PrisonMealRead> Meals { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
     public required EquatableArray<NeedThoughtStage> CellStages { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<MemoryGroupRead>))]
     public required EquatableArray<MemoryGroupRead> Memories { get; init; }
+}
+/// <summary>A held pawn's own seeker need and native thought stages; Blind keeps beauty neutral as Need_Beauty does.</summary>
+public sealed record PrisonSeekerRead(double Level, double Base, double RisePerHour, double FallPerHour, bool FreezeAsleep, double ThoughtNow, bool Blind)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
+    public required EquatableArray<NeedThoughtStage> Stages { get; init; }
+}
+public sealed record PrisonRestRead(double Level, double SleepThreshold, double WakeThreshold, double FallPerTick, double GainPerEffectiveness, bool Blocked,
+    double GroundGainPerTick, bool Asleep);
+/// <summary>Native food selection for one warden; no source is represented by no row. FirstTicks is the first hungry
+/// meal's completion, PeriodTicks its nutrition divided by the prisoner's food fall, including ingest service.</summary>
+public sealed record PrisonMealRead(string Warden, double FirstTicks, double PeriodTicks, bool TableDesired, bool RoomThought)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
+    public required EquatableArray<NeedThoughtStage> Thoughts { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
+    public required EquatableArray<NeedThoughtStage> RoomStages { get; init; }
 }
 /// <summary>
 /// One mood memory group (#3899, <c>Thought.GroupsWith</c>): its def's <c>stackedEffectMultiplier</c> and its memories
@@ -384,6 +424,10 @@ public sealed record PrisonerMoodRead(double UnclampedLevel, double CellThought)
 /// </summary>
 public sealed record MemoryGroupRead(double StackedMultiplier)
 {
+    public int Stage { get; init; }
+    /// <summary>The same members at age zero, for native oldest-member renewal. Read beside Members.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
+    public EquatableArray<NeedMemory> FreshMembers { get; init; }
     /// <summary>
     /// The fresh memory this bedless prisoner keeps renewing until bedded (#3966), from the same stage and lasting facts
     /// as roof and bedroom forecasts. Null for a group not renewed by ground sleep or eating without a table.

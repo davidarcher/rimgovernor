@@ -908,8 +908,13 @@ required-fact failure. Standing and planned bed anchors share the sleeping censu
 (`prison_joiner_costs_more`). Named states, each earning nothing: no prisoner (`prison_no_prisoner`), no recruitable prisoner
 without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
 no bed (`prison_no_bed`), a prisoner to convert that no warden can convert (`prison_no_converter`) and the review before the first
-layout plan (`prison_awaiting:layout_plan`). Named as not modelled: any applicable trait thought outside the supported native worker families
-(`joiner_situational_trait_thoughts`, #3965), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every
+layout plan (`prison_awaiting:layout_plan`). Cell meals recur from native nutrition, hunger fall and ingest time; each chat
+reads their native memory groups with expiry, fading and oldest-member renewal. The prisoner's comfort and beauty needs
+follow native seeker rates under the furnished room's exposure bounds: per-cell perceptible beauty and bed/facility comfort,
+with rest intervals derived from its rest need. Recruitment uses lower exposure and conversion drift upper exposure;
+`prison_cell_exposure_bounded` names the spatial uncertainty rather than assigning a fabricated wander schedule.
+Named as not modelled: any applicable trait thought outside the supported native worker families
+(`joiner_situational_trait_thoughts`), future fellow-prisoner mortality memories (`prisoner_mortality_not_modelled`, #4014) and one inspiration counted for every
 prisoner (`prison_inspiration_shared`, #3968).
 
 *Classroom credit (#3809).* A planned classroom the outcome serves is credited (`ForecastClassroom.ClassroomCredit`) the lessons

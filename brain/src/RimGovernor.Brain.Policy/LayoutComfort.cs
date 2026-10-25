@@ -177,13 +177,16 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
     /// Need_Seeker.NeedInterval: one 150-tick interval toward the instant level, up at the rise rate and down
     /// at the fall rate, never past it, and not at all while the need is frozen asleep.
     /// </summary>
-    private double Advance(double level, double target, bool asleep)
+    private double Advance(double level, double target, bool asleep) => Advance(level, target, asleep, LayoutComfortRules.SeekerGame().IntervalTicks);
+
+    /// <summary>The same seeker chase over a bounded interval, shared with held-prisoner exposure.</summary>
+    internal double Advance(double level, double target, bool asleep, double ticks)
     {
         if (Curve.FreezeAsleep && asleep)
         {
             return level;
         }
-        var perStep = LayoutComfortRules.SeekerGame().IntervalTicks / GameTime.TicksPerHour;
+        var perStep = ticks / GameTime.TicksPerHour;
         if (target > level)
         {
             level = Math.Min(level + (Curve.RisePerHour * perStep), target);

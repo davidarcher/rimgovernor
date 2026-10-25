@@ -17,6 +17,13 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, int Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
+    /// <summary>BeautyUtility's radius and adjacent-room-cell visibility over the furnished closed shape, per interior cell.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedCellBeauty>))]
+    public EquatableArray<PlannedCellBeauty> PerceptibleBeauty { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSleepingSurface>))]
+    public EquatableArray<PlannedSleepingSurface> SleepingSurfaces { get; init; }
+    /// <summary>Largest native comfort among the furnished room's usable buildings, an exposure upper bound.</summary>
+    public double MaximumComfort { get; init; }
     /// <summary>Native routes to its prison beds and back, under this shape. The construction route reader owns their computation.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CoupledRoute>))]
     public EquatableArray<CoupledRoute> Routes { get; init; }
@@ -54,6 +61,8 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomDesk>))]
     public required EquatableArray<PlannedRoomDesk> Desks { get; init; }
 }
+public sealed record PlannedCellBeauty(Cell Cell, double Beauty);
+public sealed record PlannedSleepingSurface(Cell Cell, double Comfort, double RestEffectiveness);
 public sealed record PlannedRoomServices(
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Seats,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<PlannedJoySource>))] EquatableArray<PlannedJoySource> Recreation);

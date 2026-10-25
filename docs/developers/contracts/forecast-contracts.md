@@ -431,7 +431,23 @@ unknown. What the game does not have is a case, never an unknown:
   pawn-specific stage offset and full duration/fading/stack limit from the same native stage reader used by roof and
   bedroom forecasts; other groups and prisoners owning a prison bed carry null. Recruitment and conversion retain this
   recurring group's fresh contribution until room service, then fade and expire it from service. This is a daily-renewal
-  projection of the held group, not a schedule of native prisoner jobs; service at tick zero grants no renewal. Its opinion of each warden by its parts
+  projection of the held group, not a schedule of native prisoner jobs; service at tick zero grants no renewal.
+  The cell exposure read adds each warden's native `WorkGiver_Warden_DeliverFood` meal source, its pawn-specific ingest
+  thoughts and full native memory mechanics, and food-fall/ingest-derived first completion and recurrence. Cell meals
+  grant the selected food thoughts and the room's dining memory at each completion. The replay ages the observed groups,
+  renews their oldest member at the group limit (preserving its own offset), and applies native expiry, fading and mean
+  stacked offsets before each recruitment attempt and certainty-drift step. No food source produces no meal gain.
+  Comfort and beauty carry the prisoner's initial need levels, native seeker rates and thought stages. The hypothetical
+  room supplies sleeping surfaces with native facility offsets, maximum available comfort, and perceptible beauty at
+  each interior cell using `BeautyUtility.SampleNumCells_Beauty`, its radial cells and room/adjacency visibility;
+  room-stat beauty is not a substitute. Rest carries the observed sleep state and follows the pawn's threshold and wake
+  level at its own fall. Before planned service it recovers at the native ground-rest rate; service switches recovery to
+  the planned bed's gain while preserving the resulting rest level and sleep phase. Awake comfort spans zero to the room's maximum, and beauty spans the cell-perception extrema, without inventing
+  a wander schedule. Recruitment uses the lower exposure, conversion drift the upper (`prison_cell_exposure_bounded`);
+  native mood curves must be monotone. Uncertain seat availability retains no-table memories in the lower bound.
+  Existing death memories keep aging. Future fellow-prisoner mortality events have no cohort/timing projection yet;
+  `prisoner_mortality_not_modelled` names this remaining limitation, tracked separately in #4014.
+  Its opinion of each warden by its parts
   (`WardenOpinionRead`: relations, situational social thoughts each rounded away from 0, the hediffs' opinionOfOthersFactor,
   hostility, its social memory groups of the warden, fading or cumulative, the rapport and conversion chitchat one toil gives
   (stage-0 opinionOffset times that warden's SocialImpact, 0 without a mood need or when CanGetThought, the social target's
@@ -477,7 +493,11 @@ unknown. What the game does not have is a case, never an unknown:
   teacher's lessons teach it (`JobDriver_Lessongiving.ChooseSkill`: not totally disabled for either, a
   `lessonInteraction`, best first, the private `TopTeachableSkillCount`), each with its `SkillLearning`.
 - `NeedsForecastRead.Babies` carries native fit admission, mood curves, fit duration,
-  memory definitions and actual Hearing capacity for every eligible colony recipient.
+  memory definitions and actual Hearing capacity for every eligible spawned mood recipient,
+  including prisoners, slaves, hosted guests and other factions. Native `GenClamor`
+  and the cry/giggle aura have no faction filter; `ThoughtUtility.CanGetThought`
+  still owns admission for each memory. This census never adds recipients to the
+  voluntary worker census or grants them labor capacity.
   Its canonical rest surface determines nursery housing, including a carried baby
   whose rest traveler is its holder. Sleep targets expose their actual sleeping slot,
   using the assigned/occupied/free-slot order; a bed anchor is never substituted.
@@ -515,6 +535,30 @@ spans use native recipient competition. Bounded membership retains an adverse
 interaction envelope limited by native check/retry opportunities; it never earns
 benefit by dropping a possible insult or a competing recipient. Tracker uncertainty
 persists after such a span. Outcome findings disclose the envelope and approximation.
+
+`BabyFitsRead.OtherRecipients` owns nonworker presence and response inputs. A held
+prisoner's `Mood` references the same `PrisonerMoodRead` captured by the prison read;
+its groups are not read again for the nursery. Other recipients use that same group
+reader. Their `NeedMemory.Group` metadata also feeds the existing social interaction
+projection; opinion has no separate value currency. The actual initial lie-down
+surface is distinct from a subsequent selected sleeping surface. Rest mechanics
+advance sleep/wake spans. Waking free recipients retain a passable-map enclosure;
+ordinary prisoner movement retains its native cell-room enclosure, conditional on
+remaining in custody. Neither uses its observed standing cell as a future itinerary.
+The prison allocator supplies a selected future cell and its service time to the
+same exposure owner. Sleeping positions inside a future cell retain its interior
+enclosure rather than inventing a bed slot. Findings name these movement bounds and
+the observed conditional-mood approximation.
+
+The nursery prices nonworker wellbeing and break-tier changes through the same
+capability-days terms used for colonists, using the canonical memory groups' expiry
+and fading. Selected prison-cell meal, comfort, beauty and cell-thought projections
+also enter that response. Its marginal recruitment value reruns the existing prison
+ledger under each side's mean heard-mood shift, including conversion, inspirations,
+warden walks and chat opportunity costs. Housed prisoners stay at their owned
+prison-bed anchor; ordinary prison construction credit still concerns unbedded
+prisoners. These mean shifts inherit the nursery's disclosed Poisson/mean-field
+approximation and conditional acoustic bounds; they are not an error certificate.
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).
 

@@ -19,17 +19,18 @@ namespace RimGovernor.Native;
 internal static class NativeBabyFits
 {
 
-    internal static RimGovernor.Brain.GameFacts.Observations.BabyFitsRead Read(Map map, List<Pawn> people, IReadOnlyList<NeedsForecastPawn> rows)
+    internal static RimGovernor.Brain.GameFacts.Observations.BabyFitsRead Read(Map map, List<Pawn> people, IReadOnlyList<NeedsForecastPawn> rows, PrisonRecruitRead prison)
     {
         var fits = DefDatabase<MentalFitDef>.AllDefsListForReading.Where(f => f.developmentalStageFilter.Has(DevelopmentalStage.Baby)).ToArray();
-        var colonists = new HashSet<Pawn>(people);
+        var recipients = new HashSet<Pawn>(map.mapPawns.AllPawnsSpawned.Where(p => p.needs?.mood != null));
         var babies = people.Where(p => fits.Any(f => f.developmentalStageFilter.Has(p.DevelopmentalStage)))
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
-            .Select(p => Baby(p, map, fits, colonists, rows.Single(r => r.Pawn == p.GetUniqueLoadID()))).ToArray();
+            .Select(p => Baby(p, map, fits, recipients, rows.Single(r => r.Pawn == p.GetUniqueLoadID()))).ToArray();
         return new()
         {
             Geometry = babies.Length == 0 ? null : NativeNurseryGeometry.Read(map),
-            Social = NativeBabySocial.Read(map, people, people.Where(p => fits.Any(f => f.developmentalStageFilter.Has(p.DevelopmentalStage))).ToArray()),
+            OtherRecipients = babies.Length == 0 ? [] : EquatableArray.From(recipients.Where(p => !people.Contains(p)).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p => Recipient(p, map, prison))),
+            Social = NativeBabySocial.Read(map, recipients.Where(p => p.RaceProps.Humanlike).ToList(), people.Where(p => fits.Any(f => f.developmentalStageFilter.Has(p.DevelopmentalStage))).ToArray()),
             Play = NativeBabyPlay.Mechanics(),
             SleepDisturbanceIntervalTicks = BridgeCommon.PrivateStaticField(typeof(Pawn), "SleepDisturbanceMinInterval")?.GetRawConstantValue() is int interval && interval > 0
                 ? interval : throw new RequiredFactException("Pawn.SleepDisturbanceMinInterval"),
@@ -47,7 +48,7 @@ internal static class NativeBabyFits
         };
     }
 
-    private static RimGovernor.Brain.GameFacts.Observations.BabyRead Baby(Pawn baby, Map map, MentalFitDef[] fits, HashSet<Pawn> colonists, NeedsForecastPawn row)
+    private static RimGovernor.Brain.GameFacts.Observations.BabyRead Baby(Pawn baby, Map map, MentalFitDef[] fits, HashSet<Pawn> recipients, NeedsForecastPawn row)
     {
         // A fit starts only for a humanlike pawn with a mood (MentalFitGenerator.CanDoRandomMentalFits, MentalFitDef.CalculateMTBDays)
         // whose stage the def admits and whose state its worker lets occur (MentalStateHandler.TryStartMentalState).
@@ -83,7 +84,7 @@ internal static class NativeBabyFits
         }
         var sleepers = new List<BabySleepHearerRead>();
         // Pawn.HearClamor / CheckForDisturbedSleep: sleep is projected, every other admission predicate is observed.
-        foreach (var pawn in colonists.Where(p => p != baby && !p.Dead && !p.Downed && !p.Deathresting && !p.IsSelfShutdown()
+        foreach (var pawn in recipients.Where(p => p != baby && !p.Dead && !p.Downed && !p.Deathresting && !p.IsSelfShutdown()
             && p.Faction == Faction.OfPlayer && !p.IsWildMan() && p.needs?.rest != null && p.needs.mood != null
             && !LovePartnerRelationUtility.LovePartnerRelationExists(p, baby) && !(baby.RaceProps.petness > 0f)
             && (baby.relations == null || !baby.relations.DirectRelations.Any(r => r.def == PawnRelationDefOf.Bond))
@@ -97,7 +98,7 @@ internal static class NativeBabyFits
                     ThoughtDefOf.SleepDisturbed.stackLimit, ThoughtDefOf.SleepDisturbed.stackedEffectMultiplier)));
             }
         }
-        var hearers = colonists.Where(p => p != baby && p.needs?.mood != null)
+        var hearers = recipients.Where(p => p != baby && p.needs?.mood != null)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
             .Select(p => new RimGovernor.Brain.GameFacts.Observations.BabyHearerRead
             {
@@ -119,6 +120,27 @@ internal static class NativeBabyFits
             Hearers = EquatableArray.From(hearers),
             SleepHearers = EquatableArray.From(sleepers),
         };
+    }
+
+    private static NurseryRecipientRead Recipient(Pawn pawn, Map map, PrisonRecruitRead prison)
+    {
+        var id = pawn.GetUniqueLoadID();
+        var mood = pawn.needs.mood ?? throw new RequiredFactException("nursery recipient mood:" + id);
+        var breaker = pawn.mindState?.mentalBreaker ?? throw new RequiredFactException("nursery recipient breaker:" + id);
+        var prisoner = prison.Prisoners.SingleOrDefault(p => p.Pawn == id);
+        var captured = prisoner is not null ? prisoner.Mood : NativePrisonRecruit.MoodOf(pawn, []);
+        if (captured is null) throw new RequiredFactException("nursery recipient mood capture:" + id);
+        // Prisoner movement stays in its native prison room; freely moving cohorts have the full map enclosure.
+        // No current standing cell is assumed to remain its future destination.
+        var room = pawn.GetRoom();
+        ServicePositionRead awake = pawn.IsPrisonerOfColony && !pawn.InMentalState && room is { IsPrisonCell: true }
+            ? new ServicePositionRead.Possible(EquatableArray.From(room.Cells.Select(c => new Cell(c.x, c.z))))
+            : new ServicePositionRead.PassableMap();
+        return new(id, pawn.IsPrisonerOfColony ? NurseryRecipientKind.Prisoner : pawn.IsSlaveOfColony ? NurseryRecipientKind.Slave
+            : pawn.HostFaction == Faction.OfPlayer ? NurseryRecipientKind.Guest : NurseryRecipientKind.Other,
+            captured, mood.CurLevelPercentage, (double)mood.def.seekerRisePerHour / GenDate.TicksPerHour,
+            (double)mood.def.seekerFallPerHour / GenDate.TicksPerHour, breaker.BreakThresholdMinor,
+            mood.def.freezeWhileSleeping, pawn.Awake(), NativeNeedsForecast.SleepOf(pawn, map), awake) { ObservedSleep = NativeNeedsForecast.LyingInOf(pawn, map)?.Place };
     }
 
     // The memory a fit's AuraEffect gives the hearer: the parent's def for the baby's mother or father, else anyone's. None when the

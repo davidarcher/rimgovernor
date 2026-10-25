@@ -186,7 +186,60 @@ internal static class NativeRoomPrediction
             new(shape.Room, shape.Stuff, role, score, RoomStatDefOf.Impressiveness.GetScoreStageIndex(score), cells.Count, openRoof, edge)
                 { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains), Desks = desks,
                     WorkBenches = speedBenches, ReadingBonus = readingBonus,
-                    Services = new(EquatableArray.From(seats), EquatableArray.From(joy)) };
+                    Services = new(EquatableArray.From(seats), EquatableArray.From(joy)),
+                    MaximumComfort = servicePieces.Select(p => SurfaceStat(p, StatDefOf.Comfort)).DefaultIfEmpty(0).Max(),
+                    SleepingSurfaces = EquatableArray.From(servicePieces.Where(p => cellSet.Contains(p.Anchor) && typeof(Building_Bed).IsAssignableFrom(p.Def.thingClass)).Select(p =>
+                        new RimGovernor.Brain.GameFacts.Observations.PlannedSleepingSurface(new(p.Anchor.x, p.Anchor.z),
+                            SurfaceStat(p, StatDefOf.Comfort), SurfaceStat(p, StatDefOf.BedRestEffectiveness)))),
+                    PerceptibleBeauty = EquatableArray.From(cells.Select(root => new RimGovernor.Brain.GameFacts.Observations.PlannedCellBeauty(
+                        new(root.x, root.z), PerceptibleBeauty(root)))) };
+
+        double SurfaceStat((ThingDef Def, IntVec3 Anchor, Rot4 Rot) surface, StatDef stat)
+        {
+            var standing = things.FirstOrDefault(t => t.def == surface.Def && t.Position == surface.Anchor);
+            var own = standing is not null ? standing.GetStatValue(stat) : surface.Def.GetStatValueAbstract(stat,
+                furniture.First(f => f.Def == surface.Def && f.Cell == surface.Anchor).Stuff);
+            var before = standing?.TryGetComp<CompAffectedByFacilities>()?.GetStatOffset(stat) ?? 0;
+            return own - before + FacilityOffset(map, surface, stat, servicePieces, things);
+        }
+
+        // BeautyUtility.FillBeautyRelevantCells for this one closed room, followed by its CellBeauty accounting.
+        // A non-doorway root sees its room and cells adjacent to it, inside the game's public radial sample count.
+        double PerceptibleBeauty(IntVec3 root)
+        {
+            var counted = new HashSet<Thing>();
+            var countedFurniture = new HashSet<Piece>();
+            double total = 0;
+            var count = 0;
+            for (var i = 0; i < BeautyUtility.SampleNumCells_Beauty; i++)
+            {
+                var c = root + GenRadial.RadialPattern[i];
+                if (!c.InBounds(map) || c.Fogged(map) || !cellSet.Contains(c) && !GenAdj.AdjacentCells.Any(d => cellSet.Contains(c + d))) continue;
+                count++;
+                var planned = pieces.TryGetValue(c, out var piece) ? piece : null;
+                if (planned is { Def.Fillage: FillCategory.Full })
+                {
+                    total += planned.Def.GetStatValueAbstract(psychOutdoors && planned.Def.StatBaseDefined(StatDefOf.BeautyOutdoors)
+                        ? StatDefOf.BeautyOutdoors : StatDefOf.Beauty, planned.Stuff);
+                    continue;
+                }
+                var value = CellBeauty(map, c, cellSet.Contains(c) ? psychOutdoors : c.GetRoom(map)?.PsychologicallyOutdoors ?? true, counted);
+                if (floors.TryGetValue(c, out var floor))
+                    value += floor.GetStatValueAbstract(StatDefOf.Beauty) - c.GetTerrain(map).GetStatValueAbstract(StatDefOf.Beauty);
+                foreach (var f in furniture.Where(f => !countedFurniture.Contains(f)))
+                {
+                    var placement = placed.First(p => p.Def == f.Def && p.Anchor == f.Cell);
+                    if (!GenAdj.OccupiedRect(f.Cell, placement.Rot, f.Def.size).Contains(c)) continue;
+                    countedFurniture.Add(f);
+                    var beauty = f.Def.GetStatValueAbstract(psychOutdoors && f.Def.StatBaseDefined(StatDefOf.BeautyOutdoors)
+                        ? StatDefOf.BeautyOutdoors : StatDefOf.Beauty, f.Stuff);
+                    if (f.Def.Fillage == FillCategory.Full) value = beauty;
+                    else value += beauty;
+                }
+                total += value;
+            }
+            return count == 0 ? 0 : total / count;
+        }
 
         // No passable interior cell: closing the ring forms no room.
         if (cells.Count == 0) return null;
@@ -232,7 +285,18 @@ internal static class NativeRoomPrediction
     {
         var pieces = planned.Concat(contained.OfType<Verse.Building>().Select(b => (Def: b.def, Anchor: b.Position, Rot: b.Rotation)))
             .DistinctBy(p => (p.Def, p.Anchor)).ToArray();
-        double Offset((ThingDef Def, IntVec3 Anchor, Rot4 Rot) bench, StatDef stat)
+        return EquatableArray.From(pieces.Where(p => typeof(Building_WorkTable).IsAssignableFrom(p.Def.thingClass)
+                || typeof(Building_ResearchBench).IsAssignableFrom(p.Def.thingClass))
+            .Select(p => new RimGovernor.Brain.GameFacts.Observations.PlannedBenchSpeed(p.Def.defName, new(p.Anchor.x, p.Anchor.z),
+                FacilityOffset(map, p, StatDefOf.WorkTableWorkSpeedFactor, pieces, contained), FacilityOffset(map, p, StatDefOf.ResearchSpeedFactor, pieces, contained),
+                p.Def.GetCompProperties<CompProperties_Power>() is null || contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)?.TryGetComp<CompPowerTrader>()?.PowerOn == true,
+                contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor) is { } existing
+                    ? new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Standing(WorkbenchFactor(existing))
+                    : new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned())));
+    }
+
+    private static double FacilityOffset(Map map, (ThingDef Def, IntVec3 Anchor, Rot4 Rot) bench, StatDef stat,
+        (ThingDef Def, IntVec3 Anchor, Rot4 Rot)[] pieces, List<Thing> contained)
         {
             var links = bench.Def.GetCompProperties<CompProperties_AffectedByFacilities>()?.linkableFacilities;
             if (links == null) return 0;
@@ -251,15 +315,6 @@ internal static class NativeRoomPrediction
             }
             return total;
         }
-        return EquatableArray.From(pieces.Where(p => typeof(Building_WorkTable).IsAssignableFrom(p.Def.thingClass)
-                || typeof(Building_ResearchBench).IsAssignableFrom(p.Def.thingClass))
-            .Select(p => new RimGovernor.Brain.GameFacts.Observations.PlannedBenchSpeed(p.Def.defName, new(p.Anchor.x, p.Anchor.z),
-                Offset(p, StatDefOf.WorkTableWorkSpeedFactor), Offset(p, StatDefOf.ResearchSpeedFactor),
-                p.Def.GetCompProperties<CompProperties_Power>() is null || contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)?.TryGetComp<CompPowerTrader>()?.PowerOn == true,
-                contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor) is { } existing
-                    ? new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Standing(WorkbenchFactor(existing))
-                    : new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned())));
-    }
 
     /// <summary>
     /// The planned school desks among the shape's furniture (#3809), each at LearningUtility.SchoolDeskLearningRate's rate once
