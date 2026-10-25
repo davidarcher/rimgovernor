@@ -9,7 +9,13 @@ public sealed record PartySpotInput
 
     public ImpressivenessLevels Levels { get; init; } = new();
 
-    public CurrentConstruction? Census { get; init; }
+    private CurrentConstruction? _construction;
+
+    public CurrentConstruction Census
+    {
+        get => _construction ?? throw new RequiredFactException("construction census");
+        init => _construction = value;
+    }
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
@@ -65,7 +71,7 @@ public static partial class PartySpotRules
     {
         var rooms = input.Rooms;
         var qualities = input.Qualities;
-        var census = input.Census ?? throw new RequiredFactException("construction census");
+        var census = input.Census;
         foreach (var site in census.Sites)
         {
             if (site.Building!.Definition == PartySpotRules.PartySpotDefinition)

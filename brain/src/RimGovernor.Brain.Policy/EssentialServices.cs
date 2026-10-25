@@ -2,21 +2,21 @@ using System.Collections.Immutable;
 namespace RimGovernor.Brain.Policy;
 
 public enum EssentialService { Food, Cooking, Medical, Shelter, Temperature, Power, Materials, Fuel, Logistics }
-public enum ServiceCoverage { Unknown, Adequate, Shortfall, NotApplicable }
+public enum ServiceCoverage { EvidenceGap, Adequate, Shortfall, NotApplicable }
 public enum DevelopmentAlternative { Continue, Defer, AlternateChain, DevelopCapability, RestoreFacility, AcquireResources }
-public enum DevelopmentReviewState { Active, Satisfied, Obsolete, Unknown }
+public enum DevelopmentReviewState { Active, Satisfied, Obsolete, RetirementUnproven }
 
 /// <summary>
 /// A reference to an existing owner predicate, not an independent stock target or skill floor. The owner is a
 /// NeedId under its <see cref="NeedId.FilingKey"/> (#3250).
 /// </summary>
-public sealed record ServiceTarget(ConcernId Owner, string Subject, string Predicate, Fact<double> HorizonDays)
+public sealed record ServiceTarget(ConcernId Owner, string Subject, string Predicate)
 {
     /// <summary>The target of a Need's own predicate.</summary>
-    public static ServiceTarget ForNeed(NeedId need, string subject = "", string predicate = "need_satisfied", Fact<double> horizonDays = default)
+    public static ServiceTarget ForNeed(NeedId need, string subject = "", string predicate = "need_satisfied")
     {
         need.Validate();
-        return new(need.FilingKey, subject, predicate, horizonDays);
+        return new(need.FilingKey, subject, predicate);
     }
 
     /// <summary>The NeedId that owns the target; default for a Concern owner.</summary>
@@ -47,34 +47,34 @@ public static class EssentialServicesRules
 {
     /// <summary>
     /// A Need owner's service coverage (#3250): met is adequate, unmet a shortfall. A family slice that moves a
-    /// service row onto its Need reads coverage from here, so the move does not turn a measured row into Unknown.
+    /// service row onto its Need reads coverage from here, so the move preserves the measured row.
     /// </summary>
     public static ServiceCoverage NeedCoverage(Need need) => need.Satisfaction == Satisfaction.Met ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall;
 
     /// <summary>Disappearance or a truncated search is not observed satisfaction. No state is retained here.</summary>
     public static DevelopmentReviewState ReassessDevelopment(DevelopmentProposal previous, EssentialServiceReview current)
     {
-        if (current.Observed < previous.Observed) return DevelopmentReviewState.Unknown;
+        if (current.Observed < previous.Observed) return DevelopmentReviewState.RetirementUnproven;
         if (current.Proposals.Any(p => p.Id == previous.Id)) return DevelopmentReviewState.Active;
         var requirements = previous.Requirements.Select(t => current.Coverage.FirstOrDefault(c => c.Target.Owner == t.Owner
             && c.Target.Subject == t.Subject && c.Target.Predicate == t.Predicate)).ToArray();
-        if (requirements.Any(r => r is null || r.Coverage == ServiceCoverage.Unknown)) return DevelopmentReviewState.Unknown;
+        if (requirements.Any(r => r is null || r.Coverage == ServiceCoverage.EvidenceGap)) return DevelopmentReviewState.RetirementUnproven;
         if (requirements.All(r => r!.Coverage == ServiceCoverage.NotApplicable)) return DevelopmentReviewState.Obsolete;
-        if (requirements.Any(r => r!.Coverage != ServiceCoverage.Adequate)) return DevelopmentReviewState.Unknown;
+        if (requirements.Any(r => r!.Coverage != ServiceCoverage.Adequate)) return DevelopmentReviewState.RetirementUnproven;
         // Portfolio delivery is a projection. Only the owning observed service recovery can retire its goal.
         if (previous.Requirements.Any(t => t.Predicate == "food_plan_gap") && !current.Coverage.Any(c =>
             c.Target.Owner == FoodRules.FoodSupplyNeed.FilingKey && c.Target.Predicate == "need_satisfied" && c.Coverage == ServiceCoverage.Adequate))
-            return DevelopmentReviewState.Unknown;
+            return DevelopmentReviewState.RetirementUnproven;
         foreach (var old in previous.StressEvidence)
         {
             var check = current.Stress.FirstOrDefault(s => s.Target.Owner == old.Target.Owner && s.Target.Subject == old.Target.Subject
                 && s.Target.Predicate == old.Target.Predicate && s.Unavailable == old.Unavailable);
-            if (check?.Coverage != ServiceCoverage.Adequate) return DevelopmentReviewState.Unknown;
+            if (check?.Coverage != ServiceCoverage.Adequate) return DevelopmentReviewState.RetirementUnproven;
         }
         return DevelopmentReviewState.Satisfied;
     }
 
-    /// <summary>Full-review assessment only. Unknown stress evidence never erases baseline evidence.
+    /// <summary>Full-review assessment only. A counterfactual evidence gap never erases baseline evidence.
     /// Proposals reference owner satisfaction predicates; they grant neither practice nor spending.</summary>
     public static EssentialServiceReview ReviewEssentialServices(RoundsFacts facts, RoundsPolicy policy,
         DerivedDemand demand, int scenarioBudget = 128, bool medicineActive = false)
@@ -88,7 +88,7 @@ public static class EssentialServicesRules
         var beneficiaries = facts.ForecastObserved.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
             ? EquatableArray.From(pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal)) : default;
         var inactive = facts.Colonists == 0;
-        // An owner whose Need raises on an unread fact is coverage the review cannot see: Unknown, never adequate,
+        // An owner whose Need raises on an unread fact is an explicit evidence gap, never adequate,
         // with the owner named as the missing evidence. The review itself still commits.
         void NeedOwner(EssentialService service, NeedId id, Func<Need> need)
         {
@@ -100,10 +100,10 @@ public static class EssentialServicesRules
             }
             catch (RequiredFactException)
             {
-                coverage = ServiceCoverage.Unknown;
+                coverage = ServiceCoverage.EvidenceGap;
             }
             rows.Add(new(service, target, coverage, beneficiaries,
-                coverage == ServiceCoverage.Unknown ? ["owner_evidence:" + target.Owner.Value] : []));
+                coverage == ServiceCoverage.EvidenceGap ? ["owner_evidence:" + target.Owner.Value] : []));
         }
         void Scenario(ServiceTarget target, string unavailable, Func<(ServiceCoverage Coverage, EquatableArray<string> Missing)> assess)
         {
@@ -132,21 +132,32 @@ public static class EssentialServicesRules
         NeedOwner(EssentialService.Materials, EconomyFamily.Resource, () => EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
-        var fuel = facts.FuelRunway().Projection;
-        rows.Add(new(EssentialService.Fuel, ServiceTarget.ForNeed(EconomyFamily.Resource, "", "shared_resource_targets", Known(ColonyDiagnosticsRules.MaintenanceHorizonDays)),
-            facts.Fuel.Count == 0 ? ServiceCoverage.NotApplicable
-                : fuel.TryGetValue(out var runway) ? runway.Resources.Any(r => r.MissingItems > 0) ? ServiceCoverage.Shortfall
-                    : runway.Gaps.Count > 0 ? ServiceCoverage.Unknown : ServiceCoverage.Adequate : ServiceCoverage.Unknown,
-            facts.Fuel.Select(c => c.Id).ToImmutableArray(), fuel.IsKnown ? fuel.Value.Gaps.ToImmutableArray() : ["fuel_burn_stock_or_gates"]));
+        var fuel = facts.FuelRunway();
+        static (ServiceCoverage Coverage, ImmutableArray<string> Gaps) FuelCoverage(FuelRunway fuel)
+        {
+            switch (fuel.Projection)
+            {
+                case FuelProjection.Projected runway:
+                    return (fuel.Needs.Count > 0 ? ServiceCoverage.Shortfall
+                        : runway.Gaps.Count > 0 ? ServiceCoverage.EvidenceGap : ServiceCoverage.Adequate, runway.Gaps.ToImmutableArray());
+                case FuelProjection.RainDependent weather:
+                    return (ServiceCoverage.EvidenceGap, weather.Consumers.ToImmutableArray());
+            }
+            throw new DomainException("undefined fuel projection");
+        }
+        var (fuelCoverage, fuelGaps) = FuelCoverage(fuel);
+        rows.Add(new(EssentialService.Fuel, ServiceTarget.ForNeed(EconomyFamily.Resource, "", "shared_resource_targets"),
+            facts.Fuel.Count == 0 ? ServiceCoverage.NotApplicable : fuelCoverage,
+            facts.Fuel.Select(c => c.Id).ToImmutableArray(), fuelGaps));
 
         if (!inactive)
         {
             // Inventory-level food adequacy and alternative channels belong to FoodPlan, not an invented source ranking.
             if (facts.FoodPlan is { } plan)
-                rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap", Known(plan.HorizonDays)),
+                rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap"),
                     plan.DemandPerDay == 0 ? ServiceCoverage.NotApplicable : plan.GapPerDay > 0 ? ServiceCoverage.Shortfall : ServiceCoverage.Adequate,
                     plan.Forecast.Consumers.Select(c => c.Id.Value).ToImmutableArray(), []));
-            else rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap"), ServiceCoverage.Unknown, beneficiaries, ["food_plan"]));
+            else rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap"), ServiceCoverage.EvidenceGap, beneficiaries, ["food_plan"]));
 
             AssessServiceMedical(facts, rows, Scenario);
             AssessServiceCooking(facts, demand, rows, Scenario);
@@ -155,7 +166,7 @@ public static class EssentialServicesRules
             foreach (var service in new[] { EssentialService.Food, EssentialService.Shelter, EssentialService.Temperature })
             {
                 var target = rows.First(r => r.Service == service).Target;
-                Scenario(target, "unmapped_dependency", () => (ServiceCoverage.Unknown,
+                Scenario(target, "unmapped_dependency", () => (ServiceCoverage.EvidenceGap,
                     new EquatableArray<string>(["owner_counterfactual_dependencies:" + service])));
             }
             AssessServicePower(facts, rows, Scenario);
@@ -192,14 +203,14 @@ public static class EssentialServicesRules
         var target = ServiceTarget.ForNeed(FoodRules.CookingNeed, "recipe-capability", "recipe_eligibility_and_inputs");
         if (facts.FoodPlan is not { } plan || !FoodOrdersRules.FoodPlanSupport(plan, CandidateKind.Cook, "cooking-capacity"))
         {
-            rows.Add(new(EssentialService.Cooking, target, facts.FoodPlan is not null ? ServiceCoverage.NotApplicable : ServiceCoverage.Unknown,
+            rows.Add(new(EssentialService.Cooking, target, facts.FoodPlan is not null ? ServiceCoverage.NotApplicable : ServiceCoverage.EvidenceGap,
                 [], facts.FoodPlan is not null ? [] : ["food_plan_cooking_dependency"]));
             return;
         }
         var benches = facts.EssentialInputs.Benches;
         if (facts.ForecastObserved.WorkPawns is not WorkPawnsRead.Read { Pawns: var workers })
         {
-            rows.Add(new(EssentialService.Cooking, target, ServiceCoverage.Unknown, [], ["work_pawns"]));
+            rows.Add(new(EssentialService.Cooking, target, ServiceCoverage.EvidenceGap, [], ["work_pawns"]));
             return;
         }
         // This is feasibility of one useful meal iteration, not a throughput or future-food claim.
@@ -229,12 +240,12 @@ public static class EssentialServicesRules
                         new(facts.WorkAdmission.Recipes, demand.MaterialAvailability));
                     if (material.Selected.Count > 0) return excluded.Length == 0
                         ? (ServiceCoverage.Adequate, [])
-                        : (ServiceCoverage.Unknown, ["replacement_throughput_not_established_by_recipe_eligibility"]);
+                        : (ServiceCoverage.EvidenceGap, ["replacement_throughput_not_established_by_recipe_eligibility"]);
                     if (material.GenerationTruncated || material.Comparison.SearchTruncated || material.Comparison.Findings.Count > 0
                         || !demand.MaterialAvailability.IsKnown) unknown = true;
                 }
             }
-            return unknown ? (ServiceCoverage.Unknown, ["recipe_skill_material_or_worker_evidence"]) : (ServiceCoverage.Shortfall, []);
+            return unknown ? (ServiceCoverage.EvidenceGap, ["recipe_skill_material_or_worker_evidence"]) : (ServiceCoverage.Shortfall, []);
         }
         var baseline = Assess("");
         rows.Add(new(EssentialService.Cooking, target, baseline.Item1, workers.Select(w => w.Id.Value).ToImmutableArray(), baseline.Item2));
@@ -256,7 +267,7 @@ public static class EssentialServicesRules
                 .GroupBy(o => o.Part is { } part ? part.Index.ToString(System.Globalization.CultureInfo.InvariantCulture) : "whole")
                 .OrderBy(g => g.Key, StringComparer.Ordinal))
             {
-                var target = new ServiceTarget(MedicalRules.SurgeryNeed.FilingKey, patient.Id.Value + "/" + group.Key, "served_procedure_feasible", default);
+                var target = new ServiceTarget(MedicalRules.SurgeryNeed.FilingKey, patient.Id.Value + "/" + group.Key, "served_procedure_feasible");
                 var options = group.ToArray();
                 (ServiceCoverage, EquatableArray<string>) Assess(string excluded)
                 {
@@ -276,7 +287,7 @@ public static class EssentialServicesRules
                         }
                         if (SurgeryRules.SurgeryAcceptable(current, SurgeryRules.RestoreFailureCap)) return (ServiceCoverage.Adequate, []);
                     }
-                    return unknown ? (ServiceCoverage.Unknown, ["procedure_eligibility_ingredients_or_doctor_chances"]) : (ServiceCoverage.Shortfall, []);
+                    return unknown ? (ServiceCoverage.EvidenceGap, ["procedure_eligibility_ingredients_or_doctor_chances"]) : (ServiceCoverage.Shortfall, []);
                 }
                 var baseline = Assess("");
                 rows.Add(new(EssentialService.Medical, target, baseline.Item1, [patient.Id.Value], baseline.Item2));
@@ -284,7 +295,7 @@ public static class EssentialServicesRules
                     .Distinct().Order(StringComparer.Ordinal))
                     scenario(target, "pawn/" + doctor, () => Assess(doctor));
                 if (options.Any(o => o.Chance is SurgeryChance.NoOutcomeEffect && o.EligibleDoctors > 0))
-                    scenario(target, "unmapped_doctor", () => (ServiceCoverage.Unknown, ["procedure_doctor_identities"]));
+                    scenario(target, "unmapped_doctor", () => (ServiceCoverage.EvidenceGap, ["procedure_doctor_identities"]));
             }
         }
     }
@@ -301,7 +312,7 @@ public static class EssentialServicesRules
                 var remaining = routes.Pawns.Where(p => p != excluded).ToArray();
                 if (remaining.Any(p => facility.Travel.Any(t => t.Pawn == p && t.Reachable))) return (ServiceCoverage.Adequate, []);
                 if (routes.Pawns.Count == 0 || remaining.Any(p => !facility.Travel.Any(t => t.Pawn == p)))
-                    return (ServiceCoverage.Unknown, ["facility_reachability"]);
+                    return (ServiceCoverage.EvidenceGap, ["facility_reachability"]);
                 return (ServiceCoverage.Shortfall, []);
             }
             var baseline = Assess("");
@@ -326,7 +337,7 @@ public static class EssentialServicesRules
         }
         // Network service membership is not inferred from the sign of watts: decorative consumers are not essential services.
         scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "essential_consumer_membership"), "unmapped_service",
-            () => (ServiceCoverage.Unknown, ["power_consumer_service_membership"]));
+            () => (ServiceCoverage.EvidenceGap, ["power_consumer_service_membership"]));
     }
 }
 

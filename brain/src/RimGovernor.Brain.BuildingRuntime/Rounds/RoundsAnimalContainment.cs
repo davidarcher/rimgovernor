@@ -70,8 +70,8 @@ internal static class RoundsAnimalContainment
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var census = facts.Facts.CurrentConstruction;
-        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!pk || census is null || !gk)
+        var ground = RoundsBuildingPlanner.ColonyGround(facts);
+        if (!pk)
         {
             return false;
         }

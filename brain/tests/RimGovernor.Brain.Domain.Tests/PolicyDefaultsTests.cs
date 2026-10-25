@@ -7,15 +7,16 @@ using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>Policy reads of facts the in-proc host leaves at their defaults must not throw (#3139, #3140).</summary>
+/// <summary>Policy defaults and refusal of missing required census inputs.</summary>
 public sealed class PolicyDefaultsTests
 {
     [Fact]
-    public void ResourceDemandOfDefaultFactsHasEmptyNeeds()
+    public void ResourceDemandRequiresConstructionCensus()
     {
         var f = new RoundsFacts();
         Assert.NotNull(f.ResourceNeeds);
-        var demand = ResourceRules.ResourceDemandOf(f, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches());
+        Assert.Throws<RequiredFactException>(() => ResourceRules.ResourceDemandOf(f, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches()));
+        var demand = ResourceRules.ResourceDemandOf(f with { CurrentConstruction = CurrentConstruction.Empty }, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches());
         Assert.NotNull(demand.Needs);
     }
 

@@ -149,7 +149,7 @@ public static class ConstructionDemandRules
         ConstructionDemand(new ConstructionDemandInput
         {
             Stock = new StockReader(f.Resources, f.Wood),
-            Owed = f.CurrentConstruction?.Deficit,
+            Owed = f.CurrentConstruction.Deficit,
             Admitted = f.Admitted,
             Planned = f.PlannedConstruction is { } rooms ? PlannedRules.PlannedTotal(rooms.Values) : null,
         });

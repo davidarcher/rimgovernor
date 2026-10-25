@@ -158,7 +158,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>The colony's standing buildings, as the room furnishing counts them; none while the census is unknown.</summary>
     internal static IReadOnlyList<Pol.CurrentBuilding> StandingBuildings(Observation.ColonyProjection facts) =>
-        facts.Facts.CurrentConstruction is { } census ? census.Buildings : [];
+        facts.Facts.CurrentConstruction.Buildings;
 
     /// <summary>
     /// Places one lever piece (title furniture, companion bed, room upgrade, plant pot) through the room's one

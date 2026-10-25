@@ -12,7 +12,7 @@ public static class ConstructionSkillRules
     {
         if (census is null)
         {
-            return [];
+            throw new RequiredFactException("construction census");
         }
         var best = 0;
         var found = false;
@@ -62,11 +62,11 @@ public static class ConstructionSkillRules
     /// Augments action progress with native site facts. A placed blueprint is not a finished building, but a
     /// filled frame is work vanilla can offer now. Unknown/material-blocked sites never invent readiness.
     /// </summary>
-    public static ReadyWorkReport? ConstructionHelperView(ReadyWorkReport? previous, CurrentConstruction? census, GenerationSnapshot current)
+    public static ReadyWorkReport ConstructionHelperView(ReadyWorkReport? previous, CurrentConstruction? census, GenerationSnapshot current)
     {
         if (census is null)
         {
-            return previous;
+            throw new RequiredFactException("construction census");
         }
         var report = new ReadyWorkReport { Colony = current.Colony, Map = current.Map, Load = current.Load };
         var candidates = new List<ReadyWork>();

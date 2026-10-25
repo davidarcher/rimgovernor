@@ -15,10 +15,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
-        if (read.Projection.Facts.CurrentConstruction is not { } census)
-        {
-            return (new RoundsDefenseLayoutResult(), false);
-        }
+        var census = read.Projection.Facts.CurrentConstruction;
         var layout = new List<Building>();
         foreach (var tier in record.Tiers)
         {

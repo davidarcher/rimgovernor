@@ -87,7 +87,7 @@ public sealed class ShelterFamilyTests
     {
         var memory = new SafeAreaMemory();
         Assert.False(memory.Owed("w").IsKnown);
-        var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = RoomObservation.NoRooms });
+        var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = RoomTestFacts.NoRooms });
         Assert.True(reviewed.IsKnown);
         Assert.Equal(reviewed, memory.Owed("w"));
         Assert.False(memory.Owed("other").IsKnown);
@@ -100,14 +100,14 @@ public sealed class ShelterFamilyTests
     public void PowerIsAPlainThresholdAndAFlareHoldsIt()
     {
         var family = new PowerFamily();
-        Assert.Equal(Satisfaction.Met, Assert.Single(family.Derive(new PowerFacts { Standing = Known(true) })).Satisfaction);
-        var unmet = Assert.Single(family.Derive(new PowerFacts { Standing = Known(false) }));
+        Assert.Equal(Satisfaction.Met, Assert.Single(family.Derive(new PowerFacts { Standing = true })).Satisfaction);
+        var unmet = Assert.Single(family.Derive(new PowerFacts { Standing = false }));
         Assert.Equal(Satisfaction.Unmet, unmet.Satisfaction);
         Assert.Equal(1.0, unmet.Deficit);
-        Assert.Equal("power standing", Assert.Throws<RequiredFactException>(() => Assert.Single(family.Derive(new PowerFacts()))).Fact);
+        Assert.Equal(Satisfaction.Unmet, Assert.Single(family.Derive(new PowerFacts { Standing = false })).Satisfaction);
         Assert.Empty(family.SeriousHarmReads);
-        Assert.Empty(family.Propose([unmet], new PowerFacts { Standing = Known(false) }));
-        var held = Assert.Single(family.Propose([unmet], new PowerFacts { Standing = Known(false), OutageHeld = true }));
+        Assert.Empty(family.Propose([unmet], new PowerFacts { Standing = false }));
+        var held = Assert.Single(family.Propose([unmet], new PowerFacts { Standing = false, OutageHeld = true }));
         Assert.Equal(PowerFamily.Basic, held.Need);
     }
 }

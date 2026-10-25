@@ -196,9 +196,10 @@ observed per-definition fact.
 
 A work-type priority enables every native construction job, not one wall.
 Native still refuses a frame above the pawn's `constructionSkillPrerequisite`.
-Unknown or other-world ready work with no census authorizes nothing
-(`construction_demand_unknown`). A frame placed between two reviews follows
-vanilla rules until the brain adopts it.
+The complete construction census supplies a ready-work count even without a
+previous report. A report from another world contributes no actions. A missing
+census fails helper planning. A frame placed between two reviews follows vanilla
+rules until the brain adopts it.
 
 ## Quality construction
 

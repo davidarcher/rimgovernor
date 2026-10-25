@@ -85,7 +85,7 @@ public sealed class ClimateStatesTests
     public void NoRoomsOweNoTemperatureWork()
     {
         var sleeping = new SleepingObservation();
-        Assert.False(TemperatureMethodRules.TemperatureOwed(RoomObservation.NoRooms, sleeping, []));
+        Assert.False(TemperatureMethodRules.TemperatureOwed(RoomTestFacts.NoRooms, sleeping, []));
         Assert.False(TemperatureMethodRules.TemperatureOwed(Rooms(21, true, "bed"), sleeping, []));
     }
 

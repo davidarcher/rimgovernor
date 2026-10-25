@@ -189,12 +189,11 @@ public sealed partial class DefinitionCatalog
         return new P.FuelBurn
         {
             PerDay = fuel.fuelConsumptionRate,
-            UnitsPerItem = GameMembers.FuelMultiplier(fuel),
+            UnitsPerItem = fuel.FuelMultiplierCurrentDifficulty,
             UseDriven = fuel.consumeFuelOnlyWhenUsed || fuel.externalTicking,
             InRain = fuel.fuelConsumptionPerTickInRain > 0,
             WhenPowered = fuel.consumeFuelOnlyWhenPowered,
             Flickable = HasComp<CompProperties_Flickable>(row),
-            Difficulty = fuel.factorByDifficulty,
         };
     }
 

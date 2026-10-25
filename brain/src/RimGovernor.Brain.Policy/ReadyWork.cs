@@ -128,7 +128,13 @@ public sealed record ReadyRequest
     public ReadyBounds Bounds { get; init; }
 
     /// <summary>The building census: an applied building intent stays open, and its dependents wait, until a built row carries its key.</summary>
-    public CurrentConstruction? Construction { get; init; }
+    private CurrentConstruction? _construction;
+
+    public CurrentConstruction Construction
+    {
+        get => _construction ?? throw new RequiredFactException("construction census");
+        init => _construction = value;
+    }
 
     /// <summary>Place a bill's recipe at a work type; a bill with a recipe it does not know reports eligibility_unknown.</summary>
     public RecipeFacts Recipes { get; init; } = new();

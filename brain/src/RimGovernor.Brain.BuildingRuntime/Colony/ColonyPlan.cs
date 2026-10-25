@@ -432,18 +432,16 @@ public sealed partial class Rounder
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         // A room whose need has ended and that is in use stays.
-        if (projection.Facts.CurrentConstruction is { } construction)
+        var construction = projection.Facts.CurrentConstruction;
+        var ended = LayoutRoomsRules.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
+        if (LayoutPlan.RoomsOfRoles(plan, ended) > 0)
         {
-            var ended = LayoutRoomsRules.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
-            if (LayoutPlan.RoomsOfRoles(plan, ended) > 0)
-            {
-                growth = growth with { InUse = LayoutPlan.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
-            }
+            growth = growth with { InUse = LayoutPlan.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
         }
         var occupancy = await LayoutOccupiedAsync(projection, plan, ct).ConfigureAwait(false);
         if (occupancy is { } found)
         {
-            var (ground, _) = RoundsBuildingPlanner.ColonyGround(projection);
+            var ground = RoundsBuildingPlanner.ColonyGround(projection);
             growth = growth with
             {
                 Fixed = LayoutPlan.FixedRooms(plan, ground, found.Cells),

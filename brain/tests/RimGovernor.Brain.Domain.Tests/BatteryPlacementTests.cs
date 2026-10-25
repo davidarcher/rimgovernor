@@ -69,7 +69,7 @@ public sealed class BatteryPlacementTests
         var facts = ColonyFactsCoreTests.Projection() with
         {
             Identity = new() { Tick = new(100) }, Bounds = new(20, 20), Cells = cells,
-            Facts = new() { Comfort = ComfortTests.NoComfortObservation, Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() }, BasicComfort = ComfortTests.NoComfortObservation },
+            Facts = new() { Comfort = ComfortTests.NoComfortObservation, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, BasicComfort = ComfortTests.NoComfortObservation },
         };
         var native = DispatchProxy.Create<IRoundsBuildingSource, Native>();
         var planner = new RoundsBuildingPlanner

@@ -153,7 +153,7 @@ public sealed class PlannedRoomSelectionTests
             Doors = [.. doors.Where(c => !missing.Contains(c))],
         };
         IReadOnlyList<WantedPiece> furniture = bed ? [Plan.Pieces[1][0].Wanted()] : [];
-        return ReconcileRules.Reconcile(new ReconcileInput { Rooms = RoomObservation.NoRooms, Plan = plan, Room = room, Ground = ground, Furniture = furniture }).Owed;
+        return ReconcileRules.Reconcile(new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = plan, Room = room, Ground = ground, Furniture = furniture }).Owed;
     }
 
     /// <summary>

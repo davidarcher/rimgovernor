@@ -19,7 +19,7 @@ public sealed class ProductionAdmissionTests
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
     private static RoundsFacts Facts => new()
     {
-        Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() },
+        Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new Tick(100),
@@ -63,7 +63,7 @@ public sealed class ProductionAdmissionTests
         Assert.Empty(standing.Buildings);
         Assert.Equal(3, standing.Owed[Wood]);
         Assert.NotNull(Evidence().Standing);
-        Assert.Null(Evidence(Facts with { CurrentConstruction = null }).Standing);
+        Assert.Throws<RequiredFactException>(() => Evidence(new RoundsFacts()));
         Assert.Null(RoundTrip(new WorkAdmissionEvidence()).Standing);
     }
 

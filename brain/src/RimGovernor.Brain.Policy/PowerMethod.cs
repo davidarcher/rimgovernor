@@ -154,7 +154,7 @@ public sealed record PowerPlanning
     public required InputCost ComponentSteel { get; init; }
 
     /// <summary>The current twelfth's daylight hours at the map's latitude (GearClimate.DaylightHoursIn); RankGenerators ranks solar last at none.</summary>
-    public Fact<double> DaylightHours { get; init; }
+    public double DaylightHours { get; init; }
 
     public double ReserveMinDays { get; init; }
 
@@ -192,7 +192,7 @@ public sealed record GeneratorRanking
 
     public required InputCost ComponentSteel { get; init; }
 
-    public Fact<double> DaylightHours { get; init; }
+    public double DaylightHours { get; init; }
 }
 
 /// <summary>
@@ -351,7 +351,7 @@ public static partial class PowerRules
     {
         var rows = new List<RankedGenerator>();
         ranking.BatteryAvailable.TryGetValue(out var battery);
-        var polarNight = ranking.DaylightHours.TryGetValue(out var daylight) && daylight == 0;
+        var polarNight = ranking.DaylightHours == 0;
         for (var i = 0; i < options.Count; i++)
         {
             var o = options[i];

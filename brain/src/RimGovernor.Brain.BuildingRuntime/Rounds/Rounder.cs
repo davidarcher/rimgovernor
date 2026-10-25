@@ -1011,11 +1011,7 @@ partial class Rounder
         {
             return [];
         }
-        var (ground, groundKnown) = RoundsBuildingPlanner.ColonyGround(colony);
-        if (!groundKnown)
-        {
-            return [];
-        }
+        var ground = RoundsBuildingPlanner.ColonyGround(colony);
         // The native census takes rectangles: a non-rect ground is asked for by its bounds.
         return [.. ClearanceGroundRules.PlannedGround(plan, ground).Select(g => g.Bounds())];
     }
@@ -1087,11 +1083,7 @@ partial class Rounder
         {
             return null;
         }
-        var (colonyGround, groundKnown) = RoundsBuildingPlanner.ColonyGround(colony);
-        if (!groundKnown)
-        {
-            return null;
-        }
+        var colonyGround = RoundsBuildingPlanner.ColonyGround(colony);
         var flooringFacts = RoundsBuildingPlanner.FlooringFactsOf(colony) with { Stock = null };
         IReadOnlyList<Amount>? FloorPrice(string name) =>
             flooringFacts.Definitions.TryGetValue(name, out var floor) && floor.Costs.TryGetValue(out var costs) ? costs : null;
@@ -1100,23 +1092,21 @@ partial class Rounder
         // template piece is a build.
         var rows = new List<ClearanceTarget>();
         var placed = new HashSet<(string, Cell)>();
-        if (colony.Facts.CurrentConstruction is { } census)
+        var census = colony.Facts.CurrentConstruction;
+        foreach (var site in census.Sites.Where(s => s.Building is not null))
         {
-            foreach (var site in census.Sites.Where(s => s.Building is not null))
+            _ = placed.Add((site.Building!.Definition, site.Building.Cell));
+        }
+        foreach (var b in census.Buildings.Where(b => b.Cells.Count > 0))
+        {
+            rows.Add(new ClearanceTarget
             {
-                _ = placed.Add((site.Building!.Definition, site.Building.Cell));
-            }
-            foreach (var b in census.Buildings.Where(b => b.Cells.Count > 0))
-            {
-                rows.Add(new ClearanceTarget
-                {
-                    EntityId = b.Id,
-                    DefName = b.Building?.Definition ?? "",
-                    Minimum = new Cell(b.Cells.Min(c => c.X), b.Cells.Min(c => c.Z)),
-                    Maximum = new Cell(b.Cells.Max(c => c.X), b.Cells.Max(c => c.Z)),
-                    Player = true,
-                });
-            }
+                EntityId = b.Id,
+                DefName = b.Building?.Definition ?? "",
+                Minimum = new Cell(b.Cells.Min(c => c.X), b.Cells.Min(c => c.Z)),
+                Maximum = new Cell(b.Cells.Max(c => c.X), b.Cells.Max(c => c.Z)),
+                Player = true,
+            });
         }
         var floors = new List<ClearanceFloor>();
         if (flooringFacts.Observation is { } observed)
@@ -1130,11 +1120,7 @@ partial class Rounder
         var sited = new List<(PlannedRoom, IReadOnlyList<Operation>)>();
         foreach (var room in PlannedRules.PlannedBuiltRooms(plan))
         {
-            var (input, known) = RoundsBuildingPlanner.RoomRingInput(colony, plan, room);
-            if (!known)
-            {
-                return null;
-            }
+            var input = RoundsBuildingPlanner.RoomRingInput(colony, plan, room);
             // The ring input's open-sky cells stay, so the roof is owed (#3275).
             input = input with
             {

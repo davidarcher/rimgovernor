@@ -21,7 +21,7 @@ public static class GearClimateExtensions
     }
 
     /// <summary>The hours of daylight on the given twelfth's sampled day.</summary>
-    public static Fact<double> DaylightHoursIn(this GearClimate c, int twelfth) => Fact.Known(c.DaylightHours[twelfth]);
+    public static double DaylightHoursIn(this GearClimate c, int twelfth) => c.DaylightHours[twelfth];
 }
 
 public static class GearClimateRules

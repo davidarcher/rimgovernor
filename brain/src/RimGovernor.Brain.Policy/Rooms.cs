@@ -11,9 +11,6 @@ public sealed record RoomObservation
     /// <summary>Each room's cells in the frame cell grid, by room id. A room whose every cell is fogged has none.</summary>
     public required IReadOnlyDictionary<string, IReadOnlyList<Cell>> Cells { get; init; }
 
-    /// <summary>A census of a map with no rooms.</summary>
-    public static RoomObservation NoRooms { get; } = new() { Rooms = [], Cells = new Dictionary<string, IReadOnlyList<Cell>>(StringComparer.Ordinal) };
-
     public EquatableArray<string> EligibleBeds { get; init; }
 
     /// <summary>The dining and recreation furniture the catalog rows name; it rides with the rooms because the interior plans read it per room.</summary>

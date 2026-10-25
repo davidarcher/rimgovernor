@@ -102,7 +102,7 @@ public static class ColonyExtentRules
     {
         if (construction is null)
         {
-            return new ExtentDerivation.Incomplete("construction census");
+            throw new RequiredFactException("construction census");
         }
 
         if (home is null)

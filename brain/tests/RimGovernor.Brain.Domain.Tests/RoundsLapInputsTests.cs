@@ -73,6 +73,7 @@ public sealed class RoundsLapInputsTests
         Assert.Empty(RoundsLapInputs.Differences(ColonyFactsCoreTests.Projection(), ColonyFactsCoreTests.Projection()));
         Assert.Contains("Shapes", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.Items", RoundsLapInputs.Uncompared);
+        Assert.Contains("Facts.CurrentConstruction", RoundsLapInputs.Uncompared);
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(Fact<EquatableArray<MoodPawn>>)));
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(Identity)));
         Assert.False(RoundsLapInputs.HasValueEquality(typeof(List<string>)));

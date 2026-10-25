@@ -10,7 +10,8 @@ public sealed record StockZone
 
     public string Role { get; init; } = "";
 
-    public Fact<StockpileFilter> Filter { get; init; }
+    /// <summary>The journal settings, absent when no completed settings intent names this zone.</summary>
+    public StockpileFilter? Filter { get; init; }
 
     public bool FoodStorage { get; init; }
 
@@ -24,7 +25,7 @@ public sealed record StockZone
         var prefix = Role.Split(':', 2)[0];
         var food = FoodStorage || prefix == "meals" || prefix == "rawfood" || prefix == "ingredients";
         var general = StockpileRules.IsWarehouseRole(Role);
-        if (!Filter.TryGetValue(out var filter))
+        if (Filter is not { } filter)
         {
             return (food, general, null);
         }

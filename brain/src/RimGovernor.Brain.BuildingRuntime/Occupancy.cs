@@ -92,12 +92,9 @@ partial class Rounder
     /// projection read it, else the anchor), and every player edifice and doorway (a door blueprint or frame
     /// included) the planning cells report. RoomGrowth.Fixed reads it. Null without a complete census.
     /// </summary>
-    public static HashSet<Cell>? OccupiedCells(ColonyProjection projection)
+    public static HashSet<Cell> OccupiedCells(ColonyProjection projection)
     {
-        if (projection.Facts.CurrentConstruction is not { } census)
-        {
-            return null;
-        }
+        var census = projection.Facts.CurrentConstruction;
         var sizes = DefinitionSizes(projection);
         IEnumerable<Cell> Footprint(Building b) => LayoutUtilityRules.RectangleCells(SiteRect(sizes, b));
         var built = new HashSet<Cell>();
@@ -151,10 +148,6 @@ public sealed partial class Rounder
     internal async Task<LayoutOccupancy?> LayoutOccupiedAsync(ColonyProjection projection, LayoutPlan plan, CancellationToken ct)
     {
         var cells = Rounder.OccupiedCells(projection);
-        if (cells is null)
-        {
-            return null;
-        }
         IReadOnlyList<PlanState> plans;
         try
         {

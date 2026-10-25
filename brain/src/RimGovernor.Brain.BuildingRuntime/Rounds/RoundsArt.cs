@@ -79,7 +79,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     {
         var stock = facts.Resources;
         var rooms = facts.Rooms;
-        var census = facts.Facts.CurrentConstruction ?? throw new RequiredFactException("construction census");
+        var census = facts.Facts.CurrentConstruction;
         var obs = facts.Facts.Sleeping;
         var traits = RoundsSleepingUpkeepPlanner.SleepingTraits(facts) ?? throw new RequiredFactException("sleeping traits");
         facts.TechTier.TryGetValue(out var tier);

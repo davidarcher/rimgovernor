@@ -146,7 +146,7 @@ public sealed class MaterialChoiceTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = new RoundsFacts { Tick = new Tick(100),
-            Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() },
+            Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },

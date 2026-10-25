@@ -13,9 +13,6 @@ public static class GameMembers
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "basePowerConsumption")]
     public static extern ref float BasePowerConsumption(CompProperties_Power comp);
 
-    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "fuelMultiplier")]
-    public static extern ref float FuelMultiplier(CompProperties_Refuelable comp);
-
     [UnsafeAccessor(UnsafeAccessorKind.StaticField, Name = "WindSpeedRange")]
     public static extern ref FloatRange WindSpeedRange(WindManager? instance);
 

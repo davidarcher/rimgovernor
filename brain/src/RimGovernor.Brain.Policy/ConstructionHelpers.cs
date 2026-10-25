@@ -30,8 +30,8 @@ public sealed record ConstructionHelp
     /// <summary>The highest observed skill prerequisite among the quality-free definitions in play; a helper must reach it.</summary>
     public int Floor { get; init; }
 
-    /// <summary>The runnable helper-eligible construction parallelism; an unreported count never authorizes help.</summary>
-    public HelpReady Ready { get; init; } = new HelpReady.Unreported();
+    /// <summary>The runnable helper-eligible construction parallelism from the complete census.</summary>
+    public int Ready { get; init; }
 
     /// <summary>The definitions whose prerequisite or quality is unobserved or unconfigured.</summary>
     public EquatableArray<string> Withheld { get; init; }
@@ -41,18 +41,6 @@ public sealed record ConstructionHelp
 
     /// <summary>The last review's record in the same world, empty when none.</summary>
     public ConstructionHelpRecord Previous { get; init; } = new();
-}
-
-/// <summary>The helper-eligible ready construction: unreported when no ready-work report of this world reads it, else counted.</summary>
-public abstract record HelpReady
-{
-    private protected HelpReady() { }
-
-    /// <summary>No current ready-work report: the demand is not read, so no helper is authorized.</summary>
-    public sealed record Unreported : HelpReady;
-
-    /// <summary>The runnable parallelism of the helper-eligible candidates the current report lists.</summary>
-    public sealed record Counted(int Parallelism) : HelpReady;
 }
 
 /// <summary>
@@ -90,7 +78,6 @@ public static class ConstructionHelpersRules
     public const string HelpAssigned = "helping";
     public const string HelpHeld = "held_after_demand";
     public const string HelpNoDemand = "no_unmet_suitable_construction";
-    public const string HelpDemandUnknown = "construction_demand_unknown";
     public const string HelpNoSpare = "no_sustained_idle_pawn";
 
     // Withholding reasons name the unobserved or unconfigured fact.
@@ -120,7 +107,8 @@ public static class ConstructionHelpersRules
     /// observed facts: quality-free definitions with an observed prerequisite are helper work, their runnable
     /// candidates count their parallelism and their highest prerequisite becomes the helper floor; protected
     /// quality definitions are left to native per-target enforcement; anything else is withheld under the
-    /// reason naming the missing fact. A report from another world is unknown.
+    /// reason naming the missing fact. A previous report from another world contributes no actions;
+    /// the current census remains authoritative.
     /// </summary>
     public static ConstructionHelp ConstructionHelpDemand(
         ReadyWorkReport? report,
@@ -145,20 +133,17 @@ public static class ConstructionHelpersRules
                 withheld[name] = reason;
             }
         }
-        // Quality per definition: absent (no observed site, or no census) is unknown.
+        // Quality per definition: a definition with no observed site has no native quality evidence.
         var quality = new Dictionary<string, HelpQuality>(StringComparer.Ordinal);
         var siteSkill = new Dictionary<string, int>(StringComparer.Ordinal);
-        if (census is not null)
+        foreach (var site in census!.Sites)
         {
-            foreach (var site in census.Sites)
-            {
-                var name = site.Building!.Definition;
-                var q = !site.QualitySensitive ? HelpQuality.Free
-                    : site.Minimum is not null ? HelpQuality.Protected
-                    : HelpQuality.Unprotected;
-                quality[name] = (HelpQuality)Math.Max((int)quality.GetValueOrDefault(name), (int)q);
-                siteSkill[name] = Math.Max(siteSkill.GetValueOrDefault(name), site.NativeFinishingSkill);
-            }
+            var name = site.Building!.Definition;
+            var q = !site.QualitySensitive ? HelpQuality.Free
+                : site.Minimum is not null ? HelpQuality.Protected
+                : HelpQuality.Unprotected;
+            quality[name] = (HelpQuality)Math.Max((int)quality.GetValueOrDefault(name), (int)q);
+            siteSkill[name] = Math.Max(siteSkill.GetValueOrDefault(name), site.NativeFinishingSkill);
         }
         var skills = new Dictionary<string, Fact<int>>(StringComparer.Ordinal);
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -172,24 +157,21 @@ public static class ConstructionHelpersRules
             names.Add(name);
         }
         var candidateDefs = new Dictionary<string, string>(StringComparer.Ordinal); // stage -> definition
-        if (report is not null && report.Current(current))
+        foreach (var c in report.Candidates)
         {
-            foreach (var c in report.Candidates)
+            if (!c.Work.Contains(WorkType.Construction))
             {
-                if (!c.Work.Contains(WorkType.Construction))
-                {
-                    continue;
-                }
-                const string Prefix = "building:";
-                if (!c.Stage.StartsWith(Prefix, StringComparison.Ordinal))
-                {
-                    Withhold(c.Stage, HelpPrerequisiteUnknown);
-                    continue;
-                }
-                var def = c.Stage[Prefix.Length..];
-                candidateDefs[c.Stage] = def;
-                names.Add(def);
+                continue;
             }
+            const string Prefix = "building:";
+            if (!c.Stage.StartsWith(Prefix, StringComparison.Ordinal))
+            {
+                Withhold(c.Stage, HelpPrerequisiteUnknown);
+                continue;
+            }
+            var def = c.Stage[Prefix.Length..];
+            candidateDefs[c.Stage] = def;
+            names.Add(def);
         }
         var helperWork = new HashSet<string>(StringComparer.Ordinal);
         var floor = 0;
@@ -225,18 +207,15 @@ public static class ConstructionHelpersRules
             }
         }
         help = help with { Floor = floor };
-        if (report is not null && report.Current(current))
+        var ready = 0;
+        foreach (var c in report.Candidates)
         {
-            var ready = 0;
-            foreach (var c in report.Candidates)
+            if (candidateDefs.TryGetValue(c.Stage, out var def) && helperWork.Contains(def) && c.State == ReadyState.Runnable)
             {
-                if (candidateDefs.TryGetValue(c.Stage, out var def) && helperWork.Contains(def) && c.State == ReadyState.Runnable)
-                {
-                    ready += c.Parallelism;
-                }
+                ready += c.Parallelism;
             }
-            help = help with { Ready = new HelpReady.Counted(ready) };
         }
+        help = help with { Ready = ready };
         var reason = "";
         foreach (var (_, why) in withheld)
         {
@@ -283,10 +262,7 @@ public static class ConstructionHelpersRules
             }
         }
         rec = rec with { Idle = EquatableArray.From(idleList) };
-        if (h.Ready is not HelpReady.Counted { Parallelism: var ready })
-        {
-            return rec with { Reason = HelpDemandUnknown };
-        }
+        var ready = h.Ready;
         if (h.Withheld.Count > 0)
         {
             return rec with { Reason = h.Reason };

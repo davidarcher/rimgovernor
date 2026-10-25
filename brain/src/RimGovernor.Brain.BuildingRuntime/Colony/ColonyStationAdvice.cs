@@ -505,10 +505,8 @@ internal static class StationFactsBuilder
         {
             f = f with { Dining = rooms.Dining };
         }
-        if (RoundsBuildingPlanner.ColonyGround(projection) is (var ground, true))
-        {
-            f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
-        }
+        var ground = RoundsBuildingPlanner.ColonyGround(projection);
+        f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
         return f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(projection.Facts.Population.Prisoners)) };
     }
 

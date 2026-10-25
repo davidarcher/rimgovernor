@@ -304,7 +304,7 @@ public sealed partial class Store
     /// returned; the layout tidy reads a zone's kind and crop from these when it has one. A Need-owned plan's zones
     /// are filed under the Need's key (decision 20).
     /// </summary>
-    internal static Fact<EquatableArray<OwnedZone>> ZoneClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
+    internal static EquatableArray<OwnedZone> ZoneClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
         var result = new List<OwnedZone>();
         void Add(PlanId plan, ConcernId owner)
@@ -352,11 +352,11 @@ public sealed partial class Store
         {
             Add(link.Plan, new NeedId(link.Owner).FilingKey);
         }
-        return Fact.Known(EquatableArray.From(result));
+        return EquatableArray.From(result);
     }
 
     /// <summary>Every zone this colony created in the current world scope.</summary>
-    public Fact<EquatableArray<OwnedZone>> ZoneClaims(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken)
+    public EquatableArray<OwnedZone> ZoneClaims(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken)
     {
         if (!current.IsValid || tick.Value < 0)
         {
@@ -364,9 +364,6 @@ public sealed partial class Store
         }
         return Run(tx => ZoneClaimsIn(tx, current, tick), cancellationToken);
     }
-
-    public Task<Fact<EquatableArray<OwnedZone>>> ZoneClaimsAsync(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken) =>
-        Task.Run(() => ZoneClaims(current, tick, cancellationToken), cancellationToken);
 
     /// <summary>
     /// The latest completed autopilot stockpile_patch of the current world scope at or before <paramref name="tick"/>,

@@ -129,12 +129,8 @@ partial class HomeUpkeepReader
         {
             return (new GroundStep(), false);
         }
-        var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
+        var ground = RoundsBuildingPlanner.ColonyGround(colony);
         var rooms = colony.Rooms;
-        if (!known)
-        {
-            return (new GroundStep(), false);
-        }
         var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
         return planned is null ? (new GroundStep(), false) : (planned, true);
     }
@@ -145,12 +141,8 @@ partial class HomeUpkeepReader
         {
             return [];
         }
-        var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
+        var ground = RoundsBuildingPlanner.ColonyGround(colony);
         var rooms = colony.Rooms;
-        if (!known)
-        {
-            return [];
-        }
         return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
     }
 
@@ -161,10 +153,7 @@ partial class HomeUpkeepReader
     /// </summary>
     internal static List<ClearanceTarget>? GroundBlueprints(ColonyProjection colony)
     {
-        if (colony.Facts.CurrentConstruction is not { } census)
-        {
-            return null;
-        }
+        var census = colony.Facts.CurrentConstruction;
         var sizes = Rounder.DefinitionSizes(colony);
         var output = new List<ClearanceTarget>();
         foreach (var site in census.Sites)

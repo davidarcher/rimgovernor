@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+    private static RoundsFacts Facts() => new() { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
@@ -19,13 +19,13 @@ public sealed class EssentialServicesTests
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
-        var normal = RoundsRules.InspectRounds(new() { Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
+        var normal = RoundsRules.InspectRounds(new() { CurrentConstruction = CurrentConstruction.Empty, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
         Assert.Contains(known.Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Adequate);
         Assert.Contains(Review(Facts()).Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
-        Assert.Contains(known.Stress, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Unknown);
+        Assert.Contains(known.Stress, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.EvidenceGap);
         Assert.DoesNotContain(known.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey);
     }
 
@@ -71,7 +71,7 @@ public sealed class EssentialServicesTests
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.Shortfall);
         var proposal = Assert.Single(review.Proposals, p => p.Target.Subject == "patient/2");
         Assert.Single(proposal.StressEvidence);
-        Assert.Equal(DevelopmentReviewState.Unknown, EssentialServicesRules.ReassessDevelopment(proposal, Review(facts, 0)));
+        Assert.Equal(DevelopmentReviewState.RetirementUnproven, EssentialServicesRules.ReassessDevelopment(proposal, Review(facts, 0)));
         Assert.Contains("stress_shortfall:served_procedure_feasible", proposal.Evidence);
         var recovered = Review(facts with { MedicalPawns = Known<EquatableArray<CarePawn>>([Patient(("expert", .98), ("novice", .90))]) });
         Assert.DoesNotContain(recovered.Proposals, p => p.Id == proposal.Id);
@@ -108,7 +108,7 @@ public sealed class EssentialServicesTests
         var fragile = Review(Kitchen());
         Assert.Contains(fragile.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.Shortfall);
         var alternate = Review(Kitchen(true));
-        Assert.Contains(alternate.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.Unknown
+        Assert.Contains(alternate.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.EvidenceGap
             && s.MissingEvidence.Contains("replacement_throughput_not_established_by_recipe_eligibility"));
         Assert.DoesNotContain(alternate.Proposals.SelectMany(p => p.StressEvidence), s => s.Unavailable == "pawn/expert");
         Assert.Contains(alternate.Stress, s => s.Unavailable == "facility/stove" && s.Coverage == ServiceCoverage.Shortfall);
@@ -145,7 +145,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void LogisticsUsesObservedReachabilityAndAlternatePawns()
     {
-        var facts = Facts() with { Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = (new RoutesObservation { Pawns = ["a", "b"],
+        var facts = Facts() with { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = (new RoutesObservation { Pawns = ["a", "b"],
             Facilities = [new() { Id = "medicine-store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 }, new RouteTravel.Unreachable { Pawn = "b" }], Breaches = [] }] }) } };
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/a" && s.Coverage == ServiceCoverage.Shortfall);
@@ -159,8 +159,8 @@ public sealed class EssentialServicesTests
     public void SharedFuelAndMaterialShortfallProducesOneOwnedProposal()
     {
         var facts = Facts() with { Resources = [], Fuel = [
-            new() { Id = "heater", Fuel = Known(0.0), Target = Known(10.0), OutOfFuel = Known(true), Fuels = [new("fuel")],
-                Burn = Known(new FuelBurn { PerDay = 1, UnitsPerItem = 1 }) }] };
+            new() { Id = "heater", Fuel = 0.0, Target = 10.0, OutOfFuel = true, Fuels = [new("fuel")],
+                Burn = new FuelBurn { PerDay = 1, UnitsPerItem = 1 } }] };
         // The materials row is the economy/resource Need's, unmet while a derived target is short of stock (#3303).
         var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new()
         {

@@ -253,7 +253,7 @@ public sealed class GoalsFamilyTests
         QuestStateTests.Root("MechanoidSignal_" + cost, new QuestProfile { Family = QuestFamily.OdysseyGround, Cost = cost, Disposition = QuestDisposition.Decide });
 
     private static GoalsFacts QuestFacts(params RimGovernor.Contracts.Wire.Observations.QuestState[] offers) =>
-        new() { Rounds = QuestStateTests.WithQuests(new RoundsFacts(), offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
+        new() { Rounds = QuestStateTests.WithQuests(new RoundsFacts { CurrentConstruction = CurrentConstruction.Empty }, offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
 
     [Fact]
     public void ANamedQuestIsConsideredFirstAndAcceptedWhenFeasible()

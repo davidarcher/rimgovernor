@@ -85,12 +85,9 @@ public sealed partial class Rounder
         var claims = Player.Journal.ZoneClaims(snapshot, tick, ct);
         var patches = Player.Journal.StockpilePatches(snapshot, tick, ct);
         var owned = new Dictionary<string, Sto.OwnedZone>(StringComparer.Ordinal);
-        if (claims.TryGetValue(out var claimRows))
+        foreach (var z in claims)
         {
-            foreach (var z in claimRows)
-            {
-                owned[z.Id] = z;
-            }
+            owned[z.Id] = z;
         }
         var cells = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
         foreach (var cell in projection.Cells)
@@ -118,11 +115,11 @@ public sealed partial class Rounder
                 z = z with { Role = claim.Role };
                 if (claim.Filter is { } claimFilter)
                 {
-                    z = z with { Filter = Fact.Known(claimFilter) };
+                    z = z with { Filter = claimFilter };
                 }
                 if (patches.TryGetValue(z.Id, out var patch) && patch.Kind == StorageTargetKind.Zone)
                 {
-                    z = z with { Filter = Fact.Known(patch.Filter) };
+                    z = z with { Filter = patch.Filter };
                     if (patch.Role.Length > 0)
                     {
                         z = z with { Role = patch.Role };

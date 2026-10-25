@@ -23,7 +23,7 @@ operation is created by assessment.
 
 Baseline coverage and stress coverage are separate. Known baseline adequacy or
 shortfall survives missing counterfactual evidence. A family with absent evidence
-is explicitly unknown; no colonists makes colony services inapplicable. Fuel
+has `EvidenceGap` coverage with `MissingEvidence` naming the dependency; no colonists makes colony services inapplicable. Fuel
 consumers retain their own evidence even when no colonists are present.
 
 Single-dependency checks remove one procedure doctor, cooking worker/bench,
@@ -50,9 +50,9 @@ chains, capability development, facility restoration and acquisition are classes
 of alternatives to consider, not approved actions or ranked winners.
 
 The target is a named owner recovery or mechanical feasibility predicate, never
-an arbitrary skill level, historical maximum or unlocked training ceiling.
+an arbitrary skill level, historical maximum or unlocked training ceiling. A target carries no separate horizon; a selected service investment owns its comparison horizon.
 Proposals are recomputed from fresh facts. `ReassessDevelopment` distinguishes
-active, satisfied, obsolete and unknown using the current coverage. Missing
+active, satisfied, obsolete and `RetirementUnproven` using the current coverage. Missing
 evidence, older reviews and missing stress results cannot establish satisfaction.
 Native observations establish eligibility and owner recovery; projected learning
 or accepted orders cannot do so. Live consumers must still compare consequences,

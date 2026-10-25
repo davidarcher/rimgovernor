@@ -61,10 +61,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (null, FieldUnavailable("layout_plan"));
         }
-        if (facts.Facts.CurrentConstruction is not { } census)
-        {
-            return (null, FieldUnavailable("current_construction"));
-        }
+        var census = facts.Facts.CurrentConstruction;
         var seats = WorkChairRules.OwedSeats(plan, census, facts.Shapes);
         if (seats.Count == 0)
         {

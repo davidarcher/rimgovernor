@@ -89,10 +89,10 @@ public sealed class PowerMethodTests
             new() { Definition = "SolarGenerator", Available = Known(true), Profile = PowerRules.SolarPowerProfile, NominalW = 1700 },
             new() { Definition = PowerRules.WindTurbineDefinition, Available = Known(true), Profile = PowerRules.WindProfile(0.04, 2, 1), NominalW = 2300 },
         ];
-        var ranking = new GeneratorRanking { ComponentSteel = new InputCost.NoRecipe(), BatteryAvailable = Known(true) };
+        var ranking = new GeneratorRanking { ComponentSteel = new InputCost.NoRecipe(), BatteryAvailable = Known(true), DaylightHours = 12 };
 
         Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking));
-        Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking with { DaylightHours = Known(12.0) }));
-        Assert.Equal([PowerRules.WindTurbineDefinition, "SolarGenerator"], PowerRules.RankGenerators(options, ranking with { DaylightHours = Known(0.0) }));
+        Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking with { DaylightHours = 12.0 }));
+        Assert.Equal([PowerRules.WindTurbineDefinition, "SolarGenerator"], PowerRules.RankGenerators(options, ranking with { DaylightHours = 0.0 }));
     }
 }

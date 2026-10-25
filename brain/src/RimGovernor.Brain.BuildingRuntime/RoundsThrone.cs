@@ -103,11 +103,7 @@ partial class RoundsSleepingUpkeepPlanner
                 defs.Add(new Pol.FurnitureDefinition { Name = d.Name, Available = d.Available, Size = d.Size });
             }
         }
-        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!gk)
-        {
-            return new Pol.ThroneStep();
-        }
+        var ground = RoundsBuildingPlanner.ColonyGround(facts);
         // ThroneNeed owes a room only with Royalty active.
         var thrones = facts.Facts.Royalty is Pol.RoyaltyState.Active { Facts: var royalty } ? royalty.Thrones : [];
         var step = ThroneRules.NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, thrones);

@@ -28,10 +28,7 @@ public sealed partial class FacadeNativeClient
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var view = await FrameReadAsync(RoundsFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
         var routine = DecodeRoundsFrame(view.Snapshot, catalog, view.Prepared);
-        if (routine.Buildings is { } census)
-        {
-            routine = routine with { Buildings = census with { Memo = _frameCensus } };
-        }
+        routine = routine with { Tables = routine.Tables with { ConstructionMemo = _frameCensus } };
         var cells = RoomCellsOf(routine.Rooms, view.Grid);
         routine = routine with { RoomCells = cells, Tables = routine.Tables with { RoomCells = cells } };
         return routine;

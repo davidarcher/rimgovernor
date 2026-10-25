@@ -158,9 +158,9 @@ The family says what stands by passing the construction census of its read;
 `BuildingWorkRules.PlanProductGone` judges the attempt's applied buildings
 against it: gone when every one is neither built nor a blueprint or frame.
 A gone product admits the same MethodId again as the next `need_methods`
-attempt; nothing new is stored. An unknown census, a census not passed (the
-default), or an attempt that applied no building (a roof, a removal, a dig,
-a cancelled wave) holds the MethodId, so unknown never reads as gone. The
+attempt; nothing new is stored. A missing census for an applied building fails
+the read. An attempt that applied no building (a roof, a removal, a dig,
+a cancelled wave) holds the MethodId. The
 building waves of a room reconcile, the generic building step (the
 laboratory bench) and the refrigeration cooler pass their census.
 

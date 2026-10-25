@@ -92,16 +92,12 @@ partial class RoundsBuildingPlanner
 
     /// <summary>
     /// The ring-only diff input for room: the plan, the colony's walls and doors with natural rock counted as
-    /// wall, and obstructions on the ring alone; false while the construction census is unknown. Stored goods
+    /// wall, and obstructions on the ring alone. Stored goods
     /// and furniture inside the room do not obstruct its shell.
     /// </summary>
-    internal static (Pol.ReconcileInput Input, bool Known) RoomRingInput(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    internal static Pol.ReconcileInput RoomRingInput(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
-        var (buildings, known) = ColonyGround(facts);
-        if (!known)
-        {
-            return (new Pol.ReconcileInput { Rooms = Pol.RoomObservation.NoRooms }, false);
-        }
+        var buildings = ColonyGround(facts);
         var cells = CellsOn(facts.Cells, room.RoomGround());
         // The cells open to the sky: the room's ground and its airlocks' vestibules.
         var unroofed = new HashSet<Cell>();
@@ -133,7 +129,7 @@ partial class RoundsBuildingPlanner
         var inside = room.Region.Bounds();
         cells = [.. cells.Where(c => !(c.Cell.X >= inside.X && c.Cell.X < inside.X + inside.Width && c.Cell.Z >= inside.Z && c.Cell.Z < inside.Z + inside.Height))];
         var vent = facts.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef).TryGetValue(out var ventAvailable);
-        return (new Pol.ReconcileInput
+        return new Pol.ReconcileInput
         {
             Plan = plan,
             Room = room,
@@ -142,20 +138,17 @@ partial class RoundsBuildingPlanner
             Cells = cells,
             VentAvailable = vent && ventAvailable,
             Unroofed = unroofed,
-        }, true);
+        };
     }
 
     /// <summary>
     /// Whether room is started (PlannedRoomStarted, #3278) against the colony's construction census: its own ring
-    /// built, a blueprint or frame on its ground, or a template piece at its anchor; null while the census is unknown.
+    /// built, a blueprint or frame on its ground, or a template piece at its anchor.
     /// </summary>
-    internal static bool? PlannedRoomStartedOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    internal static bool PlannedRoomStartedOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
-        var (ground, known) = ColonyGround(facts);
-        if (!known || facts.Facts.CurrentConstruction is not { } census)
-        {
-            return null;
-        }
+        var ground = ColonyGround(facts);
+        var census = facts.Facts.CurrentConstruction;
         var sites = census.Sites.Where(s => s.Building is not null).Select(s => s.Building!.Cell);
         var standing = census.Buildings.Where(b => b.Building is not null).Select(b => (b.Building!.Definition, b.Building.Cell)).ToHashSet();
         return PlannedRules.PlannedRoomStarted(plan, room, ground, sites, standing);
@@ -232,11 +225,7 @@ partial class RoundsBuildingPlanner
     /// <summary>True while room's ring has a wall or door still to raise.</summary>
     internal static bool RoomRingOwed(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
-        var (input, known) = RoomRingInput(facts, plan, room);
-        if (!known)
-        {
-            return false;
-        }
+        var input = RoomRingInput(facts, plan, room);
         foreach (var op in ReconcileRules.Reconcile(input).Owed)
         {
             if (op.Kind == Pol.OpKind.WallIn || op.Kind == Pol.OpKind.DoorIn)
@@ -518,13 +507,9 @@ public sealed partial class RoundsBuildingPlanner
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
         }
         Dictionary<string, int>? left = null;
-        var (input, ground) = RoomRingInput(facts, plan, rr.Room);
-        if (!ground)
-        {
-            return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
-        }
-        // An unstarted ringed planned room opens its ring only as the portfolio selected it (#3278, #3754): an unknown
-        // census counts as started, and a room no comparison assessed waits for one.
+        var input = RoomRingInput(facts, plan, rr.Room);
+        // An unstarted ringed planned room opens its ring only as the portfolio selected it (#3278, #3754);
+        // a room no comparison assessed waits for one.
         var record = Reviewer.RoomSelection.Get(review.Snapshot);
         var (gate, selected) = PlannedRules.PlannedRoomGateOf(record, rr.Room, PlannedRoomStartedOf(facts, plan, rr.Room) != false);
         if (gate == Pol.PlannedRoomGate.Hold)
@@ -590,10 +575,8 @@ public sealed partial class RoundsBuildingPlanner
             holds = [];
         }
         IReadOnlyList<Pol.ConstructionSite> standing = [];
-        if (facts.Facts.CurrentConstruction is { } census2)
-        {
-            standing = RoomStall.RoomSites(census2.Sites, rr.Room.RoomGround());
-        }
+        var census2 = facts.Facts.CurrentConstruction;
+        standing = RoomStall.RoomSites(census2.Sites, rr.Room.RoomGround());
         var obstructed = RoomStall.RoomObstructions(ops);
         Reviewer.NoteStall(rr.Name, facts.Identity.Tick, standing, obstructed);
         var w = new RoomWork { Rr = rr, Ops = ops, Holds = holds, Awaiting = RoomStall.AwaitingKey(standing), Obstructed = obstructed };

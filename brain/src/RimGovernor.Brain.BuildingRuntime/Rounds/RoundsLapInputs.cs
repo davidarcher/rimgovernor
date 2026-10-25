@@ -150,10 +150,16 @@ internal sealed class RoundsLapInputs
         {
             return false;
         }
-        var a = Activator.CreateInstance(record);
-        var b = Activator.CreateInstance(record);
+        var a = ProbeRecord(record);
+        var b = ProbeRecord(record);
         return Equals(property.GetValue(a), property.GetValue(b));
     }
+
+    // A diagnostic equality probe must compose required getters before reading them. Each probe owns its
+    // dictionary so construction's reference-comparing material table is correctly left out of the digest.
+    private static object? ProbeRecord(Type record) => record == typeof(RoundsFacts)
+        ? new RoundsFacts { CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() } }
+        : Activator.CreateInstance(record);
 
     private static IEnumerable<PropertyInfo> StoredAll(Type type, string? except) =>
         type.GetProperties(BindingFlags.Public | BindingFlags.Instance)

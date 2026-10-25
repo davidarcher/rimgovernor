@@ -166,10 +166,6 @@ partial class RoundsBuildingPlanner
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {
         var claims = facts.Facts.ConstructionClaims;
-        if (facts.Facts.CurrentConstruction is null)
-        {
-            return Unknown<bool>();
-        }
         return Known(CampfireRetirement(facts, claims).Retire);
     }
 }

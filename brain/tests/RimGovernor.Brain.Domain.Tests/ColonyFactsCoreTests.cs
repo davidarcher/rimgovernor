@@ -64,8 +64,9 @@ public sealed class ColonyFactsCoreTests
     /// <summary>A projection with its total core set: the given identity, an empty map, no workers, no deliveries and nothing pending.</summary>
     internal static ColonyProjection Projection(Identity? identity = null) => new()
     {
-        Rooms = RoomObservation.NoRooms,
+        Rooms = RoomTestFacts.NoRooms,
         Identity = identity ?? new Identity(),
+        Facts = new() { CurrentConstruction = CurrentConstruction.Empty },
         Bounds = default,
         PlayerTechLevel = Defs.TechLevel.Neolithic,
         Workers = 0,

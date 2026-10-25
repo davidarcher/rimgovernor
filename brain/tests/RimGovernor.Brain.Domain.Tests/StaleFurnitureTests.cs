@@ -41,7 +41,7 @@ public sealed class StaleFurnitureTests
     {
         var input = new ReconcileInput
         {
-            Rooms = RoomObservation.NoRooms,
+            Rooms = RoomTestFacts.NoRooms,
             Plan = new LayoutPlan { Rooms = [room] },
             Room = room,
             Ground = new GroundCensus(),
@@ -342,7 +342,7 @@ public sealed class StaleFurnitureTests
         };
         // The ring is unfinished (an empty ground census): the clear side runs.
         var plan = new LayoutPlan { Rooms = [room] };
-        var clear = ClearanceReconcileRules.PlannedGroundStep(plan, new GroundCensus(), rows, [], RoomObservation.NoRooms, new RetiredGround(), null);
+        var clear = ClearanceReconcileRules.PlannedGroundStep(plan, new GroundCensus(), rows, [], RoomTestFacts.NoRooms, new RetiredGround(), null);
         var clearIds = clear?.Targets.Items.Select(t => t.EntityId).ToHashSet() ?? [];
         var ownerIds = OwnerRemovals(room, rows, template, NothingCarried).ToHashSet();
 

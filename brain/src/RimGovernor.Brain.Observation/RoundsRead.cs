@@ -149,7 +149,6 @@ public static class RoundsReads
         var sleeping = p.Facts.Sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()).TryGetValue(out var buildable) && buildable };
         p = p with { Facts = p.Facts with { Sleeping = sleeping, VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
         var census = frame.Buildings ?? throw new ObservationContractException("a routine frame carries no building census");
-        p = p with { Facts = p.Facts with { CurrentConstruction = ConstructionReads.ConstructionFromCensus(census) } };
         p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
         var pawns = RoundsPawnsOf(frame, id);
         p = p with
@@ -198,7 +197,7 @@ public static class RoundsReads
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = FrameResearch(ResearchSection(frame), catalog),
-                BuiltBuildings = BuiltBuildingsOf(frame.Buildings),
+                BuiltBuildings = BuiltBuildingsOf(census),
             },
         };
         p = p with { TechTier = TechTierRules.SelectTechTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel) };
@@ -230,7 +229,7 @@ public static class RoundsReads
             },
         };
         p = p with { Facts = DlcSectionReads.Installed(p.Facts, colony) };
-        p = p with { Facts = p.Facts with { RitualSites = RitualSitesReads.RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
+        p = p with { Facts = p.Facts with { RitualSites = RitualSitesReads.RitualSitesOf(census, p.Facts.Ideology) } };
         p = p with
         {
             Facts = p.Facts with

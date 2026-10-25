@@ -59,7 +59,7 @@ public sealed class RetiredWallsTests
         // over the ring: its step is the walls step, with the roof of the whole hut ground (#3681).
         var door = new ClearanceTarget { EntityId = "Thing_Door12_10", DefName = "Door", Minimum = new Cell(12, 10), Maximum = new Cell(12, 10), Player = true, Deconstructible = true, Designated = true, RoofBlocker = "roof would collapse" };
 
-        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(RoomObservation.NoRooms), [door], [], null!);
+        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(RoomTestFacts.NoRooms), [door], [], null!);
 
         Assert.True(ok);
         Assert.Equal(GroundPhase.Walls, step.Phase);

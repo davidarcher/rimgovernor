@@ -124,7 +124,7 @@ public sealed class PlannedRoomGateTests
         public required FamilyRunner<bool> Runner { get; init; }
 
         /// <summary>The construction census the reconcile reads: an empty colony census until a test places something.</summary>
-        public CurrentConstruction? Census { get; set; } = CurrentConstruction.Empty;
+        public CurrentConstruction Census { get; set; } = CurrentConstruction.Empty;
 
         /// <summary>The verdict the reconcile itself returned to its step, unset when it threw past the step.</summary>
         public Verdict? Reconciled { get; set; }
@@ -187,7 +187,7 @@ public sealed class PlannedRoomGateTests
             Identity = new() { Tick = new(100) },
             Bounds = new(50, 50),
             LayoutPlan = Plan,
-            Rooms = RoomObservation.NoRooms,
+            Rooms = RoomTestFacts.NoRooms,
             Definitions =
             [
                 new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = Known(true) },

@@ -215,10 +215,7 @@ public static class QuestMonumentPolicy
         {
             return "deadline_unknown";
         }
-        if (f.CurrentConstruction is not { Deficit: var deficits })
-        {
-            return "materials_unknown";
-        }
+        var deficits = f.CurrentConstruction.Deficit;
         var available = new Dictionary<Resource, long>();
         foreach (var a in marker.AvailableResources)
         {

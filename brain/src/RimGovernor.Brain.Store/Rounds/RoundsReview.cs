@@ -285,15 +285,13 @@ public sealed partial class Store
         {
             r = r with { Built = previous.Built, WallCells = previous.WallCells };
         }
-        if (!request.Immediate && request.Facts.CurrentConstruction is { } census)
+        if (request.Enabled && !request.Immediate)
         {
+            var census = request.Facts.CurrentConstruction;
             var cells = EquatableArray.From(WallCellsIn(tx, census));
             r = r with { WallCells = cells };
             AbandonStuckWallRemovals(tx, cells, request.Tick);
-        }
-        if (!request.Immediate && request.Facts.CurrentConstruction is { } builtCensus)
-        {
-            r = r with { Built = EquatableArray.From(BuiltActions(tx, builtCensus)) };
+            r = r with { Built = EquatableArray.From(BuiltActions(tx, census)) };
         }
         if (request.Enabled && !request.Immediate)
         {

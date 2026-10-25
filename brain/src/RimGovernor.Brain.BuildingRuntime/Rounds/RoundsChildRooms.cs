@@ -117,8 +117,8 @@ partial class RoundsSleepingUpkeepPlanner
         var pk = plan is not null;
         var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!pk || census is null || !gk)
+        var ground = RoundsBuildingPlanner.ColonyGround(facts);
+        if (!pk)
         {
             return new ChildRoomStep();
         }

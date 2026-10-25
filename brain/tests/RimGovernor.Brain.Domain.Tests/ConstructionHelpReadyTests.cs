@@ -19,17 +19,21 @@ public sealed class ConstructionHelpReadyTests
         report, World, new Tick(10), [new HelpDefinition { Name = "Wall", Skill = Known(0) }], null, census);
 
     [Fact]
-    public void NoReportAndNoCensusLeaveTheReadyCountUnreportedAndAuthorizeNoHelp()
+    public void AMissingCensusRefusesHelperPlanning()
     {
-        var help = Demand(null, null);
-        Assert.IsType<HelpReady.Unreported>(help.Ready);
-        Assert.Equal(ConstructionHelpersRules.HelpDemandUnknown, ConstructionHelpersRules.PlanConstructionHelp(help, [], [], _ => true).Reason);
+        Assert.Throws<RequiredFactException>(() => Demand(null, null));
+    }
+
+    [Fact]
+    public void ACompleteEmptyCensusCountsNoReadyWork()
+    {
+        Assert.Equal(0, Demand(null, CurrentConstruction.Empty).Ready);
     }
 
     [Fact]
     public void TheCensusCountsTheRunnableHelperWork()
     {
         var census = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { FilledWall }) };
-        Assert.Equal(new HelpReady.Counted(1), Demand(null, census).Ready);
+        Assert.Equal(1, Demand(null, census).Ready);
     }
 }

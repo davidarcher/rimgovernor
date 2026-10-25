@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static class BuildingWorkRules
 {
-    /// <summary>An applied building intent whose blueprint or frame still stands (or whose census no routine frame read).</summary>
+    /// <summary>An applied building intent whose blueprint or frame still stands.</summary>
     public static bool AppliedBuildingOpen(Progress p, CurrentConstruction? census) =>
         p.Action.Kind == ActionKind.Building
         && p.Action.ConstructionTarget.Length == 0
@@ -48,16 +48,11 @@ public static class BuildingWorkRules
 
     /// <summary>
     /// What the plan built is gone (#3301): it applied at least one building, and the known colony census shows
-    /// none of them built, as a blueprint or as a frame. An unread census, or a plan that applied no building,
-    /// is never gone.
+    /// none of them built, as a blueprint or as a frame. A missing census fails a building read; a plan that
+    /// applied no building is never gone.
     /// </summary>
     public static bool PlanProductGone(IReadOnlyList<Progress> progress, CurrentConstruction? census)
     {
-        if (census is null)
-        {
-            return false;
-        }
-
         var applied = false;
         foreach (var p in progress)
         {

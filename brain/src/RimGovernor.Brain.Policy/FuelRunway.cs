@@ -11,9 +11,8 @@ namespace RimGovernor.Brain.Policy;
 /// tick) and UnitsPerItem the fuel units one item loads (fuelMultiplier). UseDriven (consumeFuelOnlyWhenUsed or
 /// externalTicking) is a comp that burns per use, a turret's per shot: it has no daily rate. InRain is a comp
 /// that also burns in rain. WhenPowered and Flickable gate the continuous burn: native ticks it only while the
-/// building is powered (WhenPowered) and switched on (Flickable). Difficulty scales UnitsPerItem for a comp with
-/// factorByDifficulty (the storyteller's maintenance cost factor, which no observation carries): UnitsPerItem is
-/// then the def's own multiplier.
+/// building is powered (WhenPowered) and switched on (Flickable). UnitsPerItem uses the game's current-difficulty
+/// multiplier, including its maintenance cost factor.
 /// </summary>
 public sealed record FuelBurn
 {
@@ -28,8 +27,6 @@ public sealed record FuelBurn
     public bool WhenPowered { get; init; }
 
     public bool Flickable { get; init; }
-
-    public bool Difficulty { get; init; }
 }
 
 /// <summary>
@@ -42,36 +39,19 @@ public sealed record FuelConsumer
 
     public string Definition { get; init; } = "";
 
-    public Fact<double> Fuel { get; init; }
+    public double Fuel { get; init; }
 
-    public Fact<double> Target { get; init; }
+    public double Target { get; init; }
 
-    public Fact<bool> OutOfFuel { get; init; }
+    public bool OutOfFuel { get; init; }
 
     public bool SwitchedOn { get; init; }
 
     public bool Powered { get; init; }
 
-    public Fact<FuelBurn> Burn { get; init; }
+    public required FuelBurn Burn { get; init; }
 
     public IReadOnlyList<Resource> Fuels { get; init; } = [];
-
-    /// <summary>
-    /// The fuel units a day the building burns now, unknown for a comp that burns
-    /// per use or in rain and when its burn is unknown.
-    /// </summary>
-    internal Fact<double> PerDay()
-    {
-        if (!Burn.TryGetValue(out var burn) || burn.UseDriven || burn.InRain || !TradePolicyRules.Finite(burn.PerDay) || burn.PerDay < 0)
-        {
-            return Unknown<double>();
-        }
-        if ((burn.Flickable && !SwitchedOn) || (burn.WhenPowered && !Powered))
-        {
-            return Known(0.0);
-        }
-        return Known(burn.PerDay);
-    }
 
     /// <summary>The fuel definition the consumer's demand is named for: the first it accepts that is in stock, else its first (the rearm's choice).</summary>
     internal (Resource Item, bool Ok) FuelItem(StockReader stock)
@@ -95,35 +75,16 @@ public sealed record FuelInputs
     public StockReader Stock { get; init; }
 }
 
-/// <summary>
-/// One fuel item's runway. Burn is the fuel units a day the continuous consumers burn, Need the items to hold
-/// ahead of them (the horizon's burn less what their tanks hold, plus the refill of the barrels already empty)
-/// and MissingItems the items missing from stock.
-/// </summary>
-public sealed record FuelResourceRunway
+/// <summary>The fuel domain of the forward projection.</summary>
+public abstract record FuelProjection
 {
-    public Resource Resource { get; init; }
+    private protected FuelProjection() { }
 
-    public double Burn { get; init; }
+    /// <summary>Continuous demand is projected; per-use consumers with fuel are explicitly listed as gaps.</summary>
+    public sealed record Projected(IReadOnlyList<string> Gaps) : FuelProjection;
 
-    public long Need { get; init; }
-
-    public long Stock { get; init; }
-
-    public long MissingItems { get; init; }
-
-    public double ShortfallDays { get; init; }
-}
-
-/// <summary>The fuel domain of the forward projection. ShortfallDays is the largest per-resource shortfall.</summary>
-public sealed record FuelProjection
-{
-    public IReadOnlyList<FuelResourceRunway> Resources { get; init; } = [];
-
-    public double ShortfallDays { get; init; }
-
-    /// <summary>The consumers that burn per use and so have no runway until their barrel is empty.</summary>
-    public IReadOnlyList<string> Gaps { get; init; } = [];
+    /// <summary>The nonempty rain-driven consumers have no fixed daily burn to project.</summary>
+    public sealed record RainDependent(IReadOnlyList<string> Consumers) : FuelProjection;
 }
 
 /// <summary>The review's fuel runway: Needs the stock levels the economy/resource Need must reach, the projection beside them.</summary>
@@ -131,7 +92,7 @@ public sealed record FuelRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
-    public Fact<FuelProjection> Projection { get; init; }
+    public required FuelProjection Projection { get; init; }
 }
 
 public static class RoundsFactsFuelExtensions
@@ -143,57 +104,40 @@ public static class RoundsFactsFuelExtensions
 
 public static class FuelRunwayRules
 {
-    private sealed class FuelAccount
-    {
-        public double Burn;
-        public double Tanks;
-
-        /// <summary>The items the two kinds of consumer need.</summary>
-        public double Continuous;
-        public double Empty;
-    }
-
     /// <summary>
     /// Rolls every refuelable building forward over MaintenanceHorizonDays. A building
     /// that burns at a known daily rate needs the horizon's burn less its tank; one already empty needs its refill
     /// (runway zero, whatever its rate). A building that burns per use and still holds fuel has no runway and is
-    /// listed in Gaps. A building whose fuel, rate gate, fuel item or unit
-    /// conversion is unknown, makes the projection unknown: its demand is left out, never defaulted. The demand
+    /// listed in Gaps. Rain-driven consumers with fuel name the weather dependence of the projection.
+    /// A malformed consumer fails the calculation. The demand
     /// is an absolute stock level, counted only where the stock falls short of it.
     /// </summary>
     public static FuelRunway PlanFuelRunway(FuelInputs input)
     {
         var consumers = input.Consumers;
-        var accounts = new Dictionary<Resource, FuelAccount>();
-        var units = new Dictionary<Resource, double>();
-        var complete = true;
+        var accounts = new Dictionary<Resource, double>();
+        var rainDependent = new List<string>();
         var gaps = new List<string>();
         foreach (var c in consumers)
         {
-            var bk = c.Burn.TryGetValue(out var burn);
-            var fk = c.Fuel.TryGetValue(out var fuel);
+            var burn = c.Burn;
+            var fuel = c.Fuel;
             var (item, ik) = c.FuelItem(input.Stock);
-            if (!bk || !fk || !ik || !TradePolicyRules.Finite(fuel) || !(burn!.UnitsPerItem > 0))
+            if (!ik || !double.IsFinite(fuel) || fuel < 0 || !double.IsFinite(c.Target) || c.Target < 0
+                || !double.IsFinite(burn.UnitsPerItem) || burn.UnitsPerItem <= 0 || !double.IsFinite(burn.PerDay) || burn.PerDay < 0)
             {
-                complete = false;
-                continue;
+                throw new DomainException($"invalid fuel consumer {c.Id}");
             }
-            var ek = c.OutOfFuel.TryGetValue(out var empty);
-            var rk = c.PerDay().TryGetValue(out var rate);
+            var continuous = !burn.UseDriven && !burn.InRain;
+            var rate = (burn.Flickable && !c.SwitchedOn) || (burn.WhenPowered && !c.Powered) ? 0 : burn.PerDay;
             double need;
-            if (rk)
+            if (continuous)
             {
                 need = Math.Max(0, (rate * ColonyDiagnosticsRules.MaintenanceHorizonDays) - fuel);
             }
-            else if (ek && empty)
+            else if (c.OutOfFuel)
             {
-                var tk = c.Target.TryGetValue(out var target);
-                if (!tk || !TradePolicyRules.Finite(target))
-                {
-                    complete = false;
-                    continue;
-                }
-                need = Math.Max(0, target - fuel);
+                need = Math.Max(0, c.Target - fuel);
             }
             else if (burn.UseDriven)
             {
@@ -202,58 +146,27 @@ public static class FuelRunwayRules
             }
             else
             {
-                complete = false;
+                rainDependent.Add(c.Id);
                 continue;
             }
-            if (!accounts.TryGetValue(item, out var a))
-            {
-                a = new FuelAccount();
-                accounts[item] = a;
-            }
-            units[item] = burn.UnitsPerItem;
-            if (rk)
-            {
-                a.Burn += rate;
-                a.Tanks += fuel;
-                a.Continuous += need / burn.UnitsPerItem;
-            }
-            else
-            {
-                a.Empty += need / burn.UnitsPerItem;
-            }
+            accounts[item] = accounts.GetValueOrDefault(item) + need / burn.UnitsPerItem;
         }
         gaps.Sort(StringComparer.Ordinal);
         var needs = new Dictionary<Resource, long>();
-        var rows = new List<FuelResourceRunway>();
-        var shortfallDays = 0.0;
-        foreach (var (item, a) in accounts)
+        foreach (var (item, amount) in accounts)
         {
-            var have = input.Stock.Count(item);
-            var need = (long)Math.Ceiling(a.Continuous + a.Empty);
-            var row = new FuelResourceRunway { Resource = item, Burn = a.Burn, Need = need, Stock = have };
-            if (need > have)
-            {
-                var shortItems = need - have;
-                var days = ColonyDiagnosticsRules.MaintenanceHorizonDays;
-                if (a.Empty == 0 && a.Burn > 0)
-                {
-                    days = Math.Min(ColonyDiagnosticsRules.MaintenanceHorizonDays, shortItems * units[item] / a.Burn);
-                }
-                row = row with { MissingItems = shortItems, ShortfallDays = days };
-                needs[item] = row.Need;
-            }
-            shortfallDays = Math.Max(shortfallDays, row.ShortfallDays);
-            rows.Add(row);
+            var need = (long)Math.Ceiling(amount);
+            if (need > input.Stock.Count(item)) needs[item] = need;
         }
-        rows.Sort((x, y) => x.Resource.CompareTo(y.Resource));
-        if (!complete)
+        if (rainDependent.Count > 0)
         {
-            return new FuelRunway { Needs = needs, Projection = Unknown<FuelProjection>() };
+            rainDependent.Sort(StringComparer.Ordinal);
+            return new FuelRunway { Needs = needs, Projection = new FuelProjection.RainDependent(rainDependent) };
         }
         return new FuelRunway
         {
             Needs = needs,
-            Projection = Known(new FuelProjection { Resources = rows, ShortfallDays = shortfallDays, Gaps = gaps }),
+            Projection = new FuelProjection.Projected(gaps),
         };
     }
 }

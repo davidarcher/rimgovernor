@@ -30,12 +30,6 @@ public record PowerBuilding
     /// <summary>The building's refuelable comp: its fuel, target and whether it is out of fuel, or not refuelable.</summary>
     public required O.BuildingFuel Fuel { get; init; }
 
-    /// <summary>
-    /// <see cref="Fuel"/>'s out-of-fuel flag, unknown on a building that is not refuelable. Only the fuel consumer
-    /// rows (Observation's Fuel) read it; the defense turret facts read <see cref="Unfueled"/>.
-    /// </summary>
-    public Fact<bool> OutOfFuel { get; init; }
-
     public bool BrokenDown { get; init; }
 
     public IReadOnlyList<string> FuelDefinitions { get; init; } = [];

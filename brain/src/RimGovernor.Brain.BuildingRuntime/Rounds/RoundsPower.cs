@@ -29,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
         planning = planning with
         {
             Generators = generators,
-            DaylightHours = facts.Facts.Gear.TryGetValue(out var gear) ? gear.Climate.DaylightHoursIn(gear.Climate.CurrentTwelfth) : default,
+            DaylightHours = facts.Facts.Gear.TryGetValue(out var gear) ? gear.Climate.DaylightHoursIn(gear.Climate.CurrentTwelfth) : throw new RequiredFactException("gear climate"),
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
             Light = facts.LightTerrains,
@@ -216,14 +216,12 @@ public sealed partial class RoundsBuildingPlanner
 
         var blocked = protectedCells.ToHashSet();
         var built = new HashSet<Cell>();
-        if (facts.Facts.CurrentConstruction is { } census)
+        var census = facts.Facts.CurrentConstruction;
+        foreach (var b in census.Buildings)
         {
-            foreach (var b in census.Buildings)
+            foreach (var c in b.Cells)
             {
-                foreach (var c in b.Cells)
-                {
-                    built.Add(c);
-                }
+                built.Add(c);
             }
         }
 

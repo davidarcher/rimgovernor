@@ -91,7 +91,7 @@ public sealed record ConstructionSite
 /// <summary>Where an applied building intent stands.</summary>
 public enum BuildingWork
 {
-    /// <summary>Its blueprint or frame stands, or the census is unknown.</summary>
+    /// <summary>Its blueprint or frame stands.</summary>
     BuildingOpen = 0,
 
     /// <summary>A built row stands where it built.</summary>
@@ -112,7 +112,7 @@ public static class ConstructionOwnershipRules
     {
         if (census is null)
         {
-            return BuildingWork.BuildingOpen;
+            throw new RequiredFactException("construction census");
         }
         if (census.Built(building) is not null)
         {

@@ -50,7 +50,7 @@ public sealed class ComfortTests
             Recreation = [new("horseshoes", "gaming", new ComfortHost.Outdoors(), [pawn], [])],
             Joy = new(["gaming"], [new(pawn, [false])]),
         } };
-        var hosted = ComfortRules.HostedComfort(basic, RoomObservation.NoRooms);
+        var hosted = ComfortRules.HostedComfort(basic, RoomTestFacts.NoRooms);
 
         Assert.True(BasicComfortRules.ReviewBasicComfort(basic).Recovered());
         Assert.False(ComfortRules.ReviewComfort(hosted, default, new(0)).Recovered());

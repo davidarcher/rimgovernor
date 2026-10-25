@@ -113,7 +113,7 @@ public sealed class PlannedSitesTests
         // Bare ground: Reconcile owes the ring but no roof yet, since nothing encloses the room.
         var room = Room(1, 0);
         var plan = new LayoutPlan { Rooms = [room], Roofed = room.Region };
-        var input = new ReconcileInput { Rooms = RoomObservation.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [], Unroofed = room.Region.Cells().ToHashSet() };
+        var input = new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [], Unroofed = room.Region.Cells().ToHashSet() };
         var now = ReconcileRules.Reconcile(input).Owed;
         Assert.DoesNotContain(now, o => o.Kind == OpKind.RoofIn);
         var stood = PlannedRules.RingStandsGround(input.Ground, now);
@@ -134,7 +134,7 @@ public sealed class PlannedSitesTests
     public void AStandingRingOwesSwapsOnlyWhenAskedAndEachOtherRingStuffIsOneUpgradeSite()
     {
         var room = Room(1, 0);
-        var input = new ReconcileInput { Rooms = RoomObservation.NoRooms, Plan = new LayoutPlan { Rooms = [room] }, Room = room, Ground = new GroundCensus(), Rows = [] };
+        var input = new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [room] }, Room = room, Ground = new GroundCensus(), Rows = [] };
         var ground = PlannedRules.RingStandsGround(input.Ground, ReconcileRules.Reconcile(input).Owed);
         foreach (var c in ground.Walls)
         {
@@ -162,7 +162,7 @@ public sealed class PlannedSitesTests
     public void ASharedWallBelongsToTheLowerRoomOnly()
     {
         var plan = new LayoutPlan { Rooms = [Room(2, 4), Room(1, 0)] };
-        var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput { Rooms = RoomObservation.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [] }).Owed));
+        var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [] }).Owed));
         var sites = PlannedRules.PlannedSitesOf(owed, _ => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced, new Dictionary<Cell, string>());
         var ring = sites.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn).ToList();
         // Two 3x3 rooms with a wall between: 16 + 16 - 5 shared ring cells, as PlannedOwedCost counts them.

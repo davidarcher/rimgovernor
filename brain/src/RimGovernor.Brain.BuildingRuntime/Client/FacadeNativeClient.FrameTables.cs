@@ -23,7 +23,13 @@ public sealed partial class FacadeNativeClient
             view.Prepared.Held.Buildings,
             view.Prepared.Held.Pawns,
             view.Prepared.Held.Things,
-            [.. (view.Snapshot.Research ?? throw BridgeContractException.Contract("frame with a pawn table and no research section")).Finished]) { Rooms = view.Snapshot.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"), RoomCells = RoomCellsOf(view.Snapshot.Rooms, view.Grid) }, cancellationToken);
+            [.. (view.Snapshot.Research ?? throw BridgeContractException.Contract("frame with a pawn table and no research section")).Finished])
+            {
+                Rooms = view.Snapshot.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"),
+                RoomCells = RoomCellsOf(view.Snapshot.Rooms, view.Grid),
+                ConstructionMemo = view.Prepared.Held.BuildMeta is not null ? _frameCensus
+                    : throw BridgeContractException.Contract("frame with a pawn table and no building census"),
+            }, cancellationToken);
 
     /// <summary>The pawn table of the newest frame.</summary>
     internal async Task<Pawns> FramePawnsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)

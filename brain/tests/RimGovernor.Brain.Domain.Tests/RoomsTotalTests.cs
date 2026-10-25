@@ -26,7 +26,7 @@ public sealed class RoomsTotalTests
 
     private static TitleClaimFacts Claim(RoyalRung rung, int favor = 6) => new()
     {
-        Rooms = RoomObservation.NoRooms,
+        Rooms = RoomTestFacts.NoRooms,
         Royalty = new RoyaltyFacts
         {
             Ladder = [rung],
@@ -40,7 +40,7 @@ public sealed class RoomsTotalTests
     [Fact]
     public void EmptyLadderAndInsufficientFavorHaveNoClaim()
     {
-        Assert.Equal(TitleClaimReason.NoFavor, TitleClaimRules.NextTitleClaim(new() { Rooms = RoomObservation.NoRooms }).Reason);
+        Assert.Equal(TitleClaimReason.NoFavor, TitleClaimRules.NextTitleClaim(new() { Rooms = RoomTestFacts.NoRooms }).Reason);
         Assert.Equal(TitleClaimReason.NoFavor, TitleClaimRules.NextTitleClaim(Claim(Rung, 5)).Reason);
     }
 

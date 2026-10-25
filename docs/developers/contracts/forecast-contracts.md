@@ -21,6 +21,22 @@ rather than request-gated. Field production and capacity crops come from the
 required zones snapshot before the projection reaches planners; an unavailable
 zones read fails the observation instead of certifying empty fields.
 
+Construction is projected from the same keyed building table on every colony
+read, including standalone reads. The client keeps its existing incremental
+projection memo with those tables; routine readers do not maintain a second
+projection. Missing construction facts fail before planning. Material budgets
+use the total stock and standing-site deficit plus other pawns' live bill holds.
+Construction helper demand counts ready work from that census even when no
+previous ready-work report exists; a missing census refuses planning.
+
+Fuel consumers carry the observed tank, target, empty flag and catalog burn
+directly. Continuous burns project the maintenance horizon; per-use consumers
+with fuel name a runway gap, while empty barrels have an exact refill demand.
+Nonempty rain-driven consumers name `RainDependent`, since weather does not
+provide a fixed daily burn. Invalid consumer facts fail the calculation rather
+than silently dropping demand. Native/catalog disagreement about a refuelable
+comp fails the read.
+
 Forecasts are read-only and use native definitions and rates. One forecast
 implementation serves deterministic facts and player fact inspection.
 

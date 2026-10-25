@@ -135,6 +135,7 @@ public sealed class QuestStateTests
 
     private static RoundsFacts Calm(params QuestState[] offers) => WithQuests(new RoundsFacts
     {
+        CurrentConstruction = CurrentConstruction.Empty,
         QuestCalm = QuestCalm.Settled,
         DefenseCapacity = Known(500.0),
     }, offers);

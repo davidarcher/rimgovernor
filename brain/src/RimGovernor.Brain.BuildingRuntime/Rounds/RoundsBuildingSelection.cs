@@ -236,7 +236,7 @@ partial class RoundsBuildingPlanner
     {
         if (observed is not { } census)
         {
-            return false;
+            throw new RequiredFactException("construction census");
         }
         var heat = HeatCampfireCells(claims);
         foreach (var b in census.Buildings)
@@ -297,10 +297,7 @@ partial class RoundsBuildingPlanner
     internal static (CurrentBuilding Building, bool Retire) StandingButcherSpot(ColonyProjection facts)
     {
         var benches = facts.ButcheringBenches;
-        if (facts.Facts.CurrentConstruction is not { } census)
-        {
-            return (new CurrentBuilding(), false);
-        }
+        var census = facts.Facts.CurrentConstruction;
         var table = false;
         foreach (var bench in benches)
         {

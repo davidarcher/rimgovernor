@@ -13,7 +13,7 @@ internal static class RoundsBurialFacts
         SarcophagusAvailable(facts).TryGetValue(out var available);
         var plan = facts.LayoutPlan;
         var waste = facts.Facts.Waste;
-        return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction?.Buildings ?? [], facts.Shapes, available);
+        return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction.Buildings, facts.Shapes, available);
     }
 
     internal static bool TombOwed(ColonyProjection facts) =>
@@ -41,8 +41,8 @@ internal static class RoundsBurialFacts
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var waste = facts.Facts.Waste;
-        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!pk || !gk)
+        var ground = RoundsBuildingPlanner.ColonyGround(facts);
+        if (!pk)
         {
             return (new PlannedRoom(), false);
         }

@@ -44,7 +44,8 @@ public static class ForecastClaims
                 totals[amount.Resource] = total + amount.Count;
             }
         }
-        if (stock.TryGetValue(out var observed)) ValidateAmounts(observed);
+        if (!stock.TryGetValue(out var observed)) return default;
+        ValidateAmounts(observed);
         ValidateAmounts(native.SelectMany(r => r.Items));
         foreach (var row in native)
         {
@@ -56,8 +57,7 @@ public static class ForecastClaims
                 nativeAmounts[key] = nativeAmounts.GetValueOrDefault(key) + amount.Count;
             }
         }
-        if (!MaterialBudgetRules.MaterialBudget(stock, Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), reservations, default)
-            .TryGetValue(out var free)) return default;
+        var free = MaterialBudgetRules.MaterialBudget(observed, new Dictionary<Resource, long>(), reservations, default);
         var result = free.ToDictionary(p => p.Key, p => Known((double)p.Value));
         void Hold(Resource resource, Fact<double> units)
         {

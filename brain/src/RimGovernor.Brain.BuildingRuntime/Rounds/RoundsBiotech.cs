@@ -450,7 +450,7 @@ partial class BiotechRounds
     {
         if (observed is null)
         {
-            return false;
+            throw new RequiredFactException("construction census");
         }
 
         var names = defs.Select(d => d.Name).ToHashSet();

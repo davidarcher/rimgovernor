@@ -321,7 +321,7 @@ public sealed partial record ForecastCoupledCandidates
         var buildersRead = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
             pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders);
         var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(allPlannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions,
-            facts.CurrentConstruction is { } placedSites ? placedSites.Sites : [], placedFinishes) : [];
+            facts.CurrentConstruction.Sites, placedFinishes) : [];
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
             planned.Sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
                 .Concat(planned.Rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))

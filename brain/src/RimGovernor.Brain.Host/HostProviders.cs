@@ -56,8 +56,9 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                     cancellationToken).ConfigureAwait(false);
                 var extent = new ColonyExtent { Regions = EquatableArray.From(history.Select(row => row.Region)) };
                 FacilityCensus facilities = new FacilityCensus.Unread();
-                if (f.CurrentConstruction is { } buildings && f.HomeCoverage is { } home)
+                if (f.HomeCoverage is { } home)
                 {
+                    var buildings = f.CurrentConstruction;
                     var ids = new List<string>(buildings.Buildings.Select(b => b.Id));
 
                     // Every census stockpile: a target with zone geometry.

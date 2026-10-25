@@ -119,7 +119,10 @@ public static class ColonyDecodeReads
     {
         var climate = v.FoodClimate ?? throw new BridgeContractException("missing total food climate census");
         var environment = v.ControlledEnvironment ?? throw new BridgeContractException("missing total controlled environment census");
+        var development = v.Development?.Outcome ?? throw new BridgeContractException("missing total development census");
         var buildings = tables.Buildings;
+        if (!Resolved(buildings, development.Power, row => row.Building))
+            throw new BridgeContractException("unresolved development power building");
         expected.Validate();
         var identity = DecodeReads.ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
@@ -195,6 +198,7 @@ public static class ColonyDecodeReads
         var f = new RoundsFacts
         {
             Tick = identity.Tick,
+            CurrentConstruction = ConstructionReads.ConstructionFromTables(tables),
             WorkResources = Known(v.WorkResources),
             Colonists = v.ColonistCount,
             BedCapacity = v.BedCapacity,
@@ -218,7 +222,6 @@ public static class ColonyDecodeReads
         };
         r = r with { Raids = r.Threat.Raids };
         f = f with { PenGrazing = r.FoodChannels.Grazing, Pasture = r.FoodChannels.Pasture };
-        if (v.Development?.Outcome is { } development && Resolved(buildings, development.Power, row => row.Building))
         {
             var power = new List<PowerBuilding>(development.Power.Count);
             // A solar flare holds every network off.
@@ -256,7 +259,6 @@ public static class ColonyDecodeReads
                     Forbidden = b.Settings.Forbidden,
                     SwitchedOn = s.SwitchedOn,
                     Fuel = s.Fuel,
-                    OutOfFuel = Optional(s.Fuel is O.BuildingFuel.Refuelable, s.Fuel is O.BuildingFuel.Refuelable { OutOfFuel: true }),
                     BrokenDown = s.BrokenDown,
                     FuelDefinitions = defs.RefuelFuels(def),
                     StorageWD = defs.BatteryCapacityWd(def),
@@ -266,8 +268,7 @@ public static class ColonyDecodeReads
                     Turret = row.Turret is O.PowerTurret.Gun shot ? new TurretGun(shot.Dps) : null,
                 };
                 power.Add(site);
-                var consumer = FuelReads.FuelConsumerOf(catalog, site.Id, site.Definition, site, out var refuelable);
-                if (refuelable)
+                if (FuelReads.FuelConsumerOf(defs, site.Id, site.Definition, site) is { } consumer)
                 {
                     fuel.Add(consumer);
                 }

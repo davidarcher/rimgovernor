@@ -13,18 +13,15 @@ public static partial class MaterialBudgetRules
 {
     /// <summary>
     /// What free stock already owes elsewhere: every standing blueprint's and frame's undelivered material, and
-    /// every other pawn's live bill-job ingredients (worker's own job excluded; the empty id excludes none). An
-    /// unknown census contributes nothing.
+    /// every other pawn's live bill-job ingredients (worker's own job excluded; the empty id excludes none). A
+    /// missing census fails at the observation boundary before this calculation.
     /// </summary>
-    public static List<Amount> MaterialHolds(Fact<IReadOnlyDictionary<Resource, long>> deficit, EquatableArray<IngredientReservation> reservations, PawnId worker)
+    public static List<Amount> MaterialHolds(IReadOnlyDictionary<Resource, long> deficit, EquatableArray<IngredientReservation> reservations, PawnId worker)
     {
         var total = new Dictionary<Resource, long>();
-        if (deficit.TryGetValue(out var deficitRows))
+        foreach (var (resource, n) in deficit)
         {
-            foreach (var (resource, n) in deficitRows)
-            {
-                total[resource] = total.GetValueOrDefault(resource) + n;
-            }
+            total[resource] = total.GetValueOrDefault(resource) + n;
         }
         foreach (var r in reservations)
         {
@@ -42,21 +39,17 @@ public static partial class MaterialBudgetRules
 
     /// <summary>
     /// Free stock per definition: the reachable, unforbidden item census less MaterialHolds. A held definition
-    /// absent from the census goes negative: it is owed more than exists. Unknown while the stock census is.
+    /// absent from the census goes negative: it is owed more than exists.
     /// </summary>
-    public static Fact<IReadOnlyDictionary<Resource, long>> MaterialBudget(
-        Fact<EquatableArray<Amount>> stock,
-        Fact<IReadOnlyDictionary<Resource, long>> deficit,
+    public static IReadOnlyDictionary<Resource, long> MaterialBudget(
+        EquatableArray<Amount> stock,
+        IReadOnlyDictionary<Resource, long> deficit,
         EquatableArray<IngredientReservation> reservations,
         PawnId worker
     )
     {
-        if (!stock.TryGetValue(out var rows))
-        {
-            return Unknown<IReadOnlyDictionary<Resource, long>>();
-        }
         var budget = new Dictionary<Resource, long>();
-        foreach (var row in rows)
+        foreach (var row in stock)
         {
             budget[row.Resource] = budget.GetValueOrDefault(row.Resource) + row.Count;
         }
@@ -64,6 +57,6 @@ public static partial class MaterialBudgetRules
         {
             budget[hold.Resource] = budget.GetValueOrDefault(hold.Resource) - hold.Count;
         }
-        return Known<IReadOnlyDictionary<Resource, long>>(budget);
+        return budget;
     }
 }

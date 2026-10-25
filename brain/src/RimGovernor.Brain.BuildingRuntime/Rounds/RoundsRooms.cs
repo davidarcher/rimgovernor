@@ -178,5 +178,5 @@ public sealed class RoomsRounds
 
     /// <summary>Whether a standing bench's chosen work chair is missing; unknown while the plan or the census is unread.</summary>
     internal static bool WorkChairsOwed(ColonyProjection projection) =>
-        WorkChairRules.OwedSeats(projection.LayoutPlan ?? throw new RequiredFactException("layout plan"), projection.Facts.CurrentConstruction ?? throw new RequiredFactException("construction census"), projection.Shapes).Count > 0;
+        WorkChairRules.OwedSeats(projection.LayoutPlan ?? throw new RequiredFactException("layout plan"), projection.Facts.CurrentConstruction, projection.Shapes).Count > 0;
 }

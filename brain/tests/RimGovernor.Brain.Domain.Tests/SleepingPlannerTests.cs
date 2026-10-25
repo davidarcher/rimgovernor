@@ -195,7 +195,7 @@ public sealed class SleepingPlannerTests
         }).ToList();
         return ReconcileRules.Reconcile(new ReconcileInput
         {
-            Rooms = RoomObservation.NoRooms,
+            Rooms = RoomTestFacts.NoRooms,
             Plan = new LayoutPlan { Rooms = [Ringed], NextRoomId = 6 },
             Room = Ringed,
             Ground = ground,
@@ -213,7 +213,7 @@ public sealed class SleepingPlannerTests
         var bed = StandingPiece(Assert.Single(fresh.Pieces));
         var furnished = SleepingRules.BedroomFurnishing(Ringed, BedShapes, BedDef, [bed], null);
         Assert.False(furnished.Absent);
-        Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, RoomObservation.NoRooms, furnished));
+        Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, RoomTestFacts.NoRooms, furnished));
 
         Cell[] missing = [new(29, 1), new(29, 2)];
         var diff = Diff(furnished, RingBut(missing), bed);

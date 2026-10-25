@@ -142,8 +142,8 @@ public sealed class NeedBuildingTests
         public required FamilyRunner<bool> Runner { get; init; }
         public bool Overlap { get; set; }
 
-        /// <summary>The construction census the work step reads; unknown until a test observes one.</summary>
-        public CurrentConstruction? Census { get; set; }
+        /// <summary>The complete construction census the work step reads.</summary>
+        public CurrentConstruction Census { get; set; } = CurrentConstruction.Empty;
 
         /// <summary>Applies every action of <paramref name="plan"/>: each building is placed (its blueprint accepted).</summary>
         public void Apply(PlanId plan)
@@ -164,7 +164,7 @@ public sealed class NeedBuildingTests
         }
 
         /// <summary>A colony census in which every building of <paramref name="plans"/> stands built.</summary>
-        public CurrentConstruction? Standing(params PlanId[] plans)
+        public CurrentConstruction Standing(params PlanId[] plans)
         {
             var ct = TestContext.Current.CancellationToken;
             var built = plans.SelectMany(p => Journal.LoadPlan(p, ct).Progress).Where(p => p.Action.Building is not null)
@@ -173,7 +173,7 @@ public sealed class NeedBuildingTests
         }
 
         /// <summary>A colony census in which nothing stands.</summary>
-        public static CurrentConstruction? Empty => CurrentConstruction.Empty;
+        public static CurrentConstruction Empty => CurrentConstruction.Empty;
 
         public void Dispose()
         {
@@ -420,9 +420,9 @@ public sealed class NeedBuildingTests
         Assert.DoesNotContain(standing.Methods, m => m.Need == need);
         Assert.True(Colony.Report(standing, need).Is(Cause.MethodUsed));
 
-        // An unread census never counts the building gone.
-        colony.Census = default;
-        Assert.DoesNotContain((await colony.RunAsync()).Methods, m => m.Need == need);
+        // A missing census refuses planning rather than counting the building gone.
+        colony.Census = null!;
+        await Assert.ThrowsAsync<RequiredFactException>(() => colony.RunAsync());
 
         colony.Census = Colony.Empty;
         var rebuilt = await colony.RunAsync();
@@ -452,7 +452,7 @@ public sealed class NeedBuildingTests
         IReadOnlyList<Progress> applied = [Applied(new("p-0")), Applied(new("p-1"))];
 
         Assert.True(BuildingWorkRules.PlanProductGone(applied, Colony.Empty));
-        Assert.False(BuildingWorkRules.PlanProductGone(applied, default));
+        Assert.Throws<RequiredFactException>(() => BuildingWorkRules.PlanProductGone(applied, default));
         // One piece standing, built or as a site, keeps the product standing.
         Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Buildings = [new CurrentBuilding { Id = "w", Building = wall }] }));
         Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Sites = [new ConstructionSite { Building = door }] }));

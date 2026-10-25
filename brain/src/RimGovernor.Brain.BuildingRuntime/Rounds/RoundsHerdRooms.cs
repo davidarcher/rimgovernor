@@ -76,11 +76,7 @@ internal static class RoundsHerdRooms
         }
 
         var (furniture, _) = HerdFurnitureOf(facts);
-        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!gk)
-        {
-            return (default!, false);
-        }
+        var ground = RoundsBuildingPlanner.ColonyGround(facts);
 
         return (HerdRoomsRules.NextPenStep(plan, plan.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, furniture), true);
     }

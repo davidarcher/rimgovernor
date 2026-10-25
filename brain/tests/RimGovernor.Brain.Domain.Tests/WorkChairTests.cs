@@ -83,7 +83,7 @@ public sealed class WorkChairTests
     private static ColonyProjection Projection(PlannedRoom room, CurrentConstruction? census)
     {
         var projection = ColonyFactsCoreTests.Projection() with { LayoutPlan = new LayoutPlan { Rooms = [room], NextRoomId = 2 }, Shapes = Shapes };
-        return projection with { Facts = projection.Facts with { CurrentConstruction = census, Colonists = 1L } };
+        return projection with { Facts = projection.Facts with { CurrentConstruction = census!, Colonists = 1L } };
     }
 
     private static RoundsBuildingPlanner Planner() => new() { Concern = RoomsFamily.WorkChairs.FilingKey, Need = RoomsFamily.WorkChairs, Phase = Phase.ComfortWorkChair };
@@ -114,10 +114,10 @@ public sealed class WorkChairTests
     }
 
     [Fact]
-    public void AnUnreadCensusOwesNoKnownChair()
+    public void AnUnreadCensusRefusesChairPlanning()
     {
         var facts = Projection(Workshop(Chosen), null);
         Assert.Throws<RequiredFactException>(() => RoomsRounds.WorkChairsOwed(facts));
-        Assert.Null(Planner().SelectWorkChair(facts).Planner);
+        Assert.Throws<RequiredFactException>(() => Planner().SelectWorkChair(facts));
     }
 }

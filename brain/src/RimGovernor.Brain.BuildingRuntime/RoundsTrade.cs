@@ -469,8 +469,7 @@ public sealed partial class RoundsTradePlanner
         // Warehouse gear below the keep floors sells.
         var claims = Reviewer.Player.Journal.ZoneClaims(state.Snapshot, projection.Identity.Tick, call);
         var warehouses = new HashSet<string>();
-        claims.TryGetValue(out var owned);
-        foreach (var z in owned)
+        foreach (var z in claims)
         {
             if (z.Role == StockpileRolesConstants.GeneralRole || z.Role.StartsWith(StockpileRolesConstants.GeneralRole + ":", StringComparison.Ordinal))
             {

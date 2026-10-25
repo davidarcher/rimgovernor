@@ -40,7 +40,7 @@ public sealed class ConstructionCensusTests
             Anomaly = null,
             Door = null,
         };
-        var observed = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(row)));
+        var observed = ConstructionReads.ConstructionFromTables(new(Buildings.Of(row), Pawns.Of(), Things.Of(), []));
         Assert.Equal("TestBuilding", observed.Sites[0].Building!.Definition);
         Assert.Equal(7, observed.Deficit[Material]);
         Assert.False(observed.Sites[0].ResourcesComplete);
@@ -54,10 +54,18 @@ public sealed class ConstructionCensusTests
                 Gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Sustain },
             },
         };
-        var gatedSite = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(gated))).Sites[0];
+        var gatedSite = ConstructionReads.ConstructionFromTables(new(Buildings.Of(gated), Pawns.Of(), Things.Of(), [])).Sites[0];
         Assert.Equal(new O.FinishingMinimum { Skill = 6, EligibleFinishers = 2 }, gatedSite.Minimum);
         Assert.Equal(ConstructionTier.Sustain, Assert.IsType<O.ConstructionGate.Tiered>(gatedSite.Gate).Tier);
         var missing = row with { Construction = null };
-        Assert.Throws<ObservationContractException>(() => ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(missing))));
+        Assert.Throws<ObservationContractException>(() => ConstructionReads.ConstructionFromTables(new(Buildings.Of(missing), Pawns.Of(), Things.Of(), [])));
+
+        var tables = new Tables(Buildings.Of(row), Pawns.Of(), Things.Of(), []) { ConstructionMemo = new() };
+        Assert.Equal(7, ConstructionReads.ConstructionFromTables(tables).Deficit[Material]);
+        var supplied = row with { Construction = ((O.ConstructionState.Build)row.Construction) with
+            { Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 0 }] } };
+        var updated = ConstructionReads.ConstructionFromTables(tables with { Buildings = Buildings.Of(supplied) });
+        Assert.Empty(updated.Deficit);
+        Assert.True(Assert.Single(updated.Sites).ResourcesComplete);
     }
 }

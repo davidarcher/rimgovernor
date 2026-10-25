@@ -85,8 +85,8 @@ partial class RoundsBuildingPlanner
     {
         var plan = facts.LayoutPlan;
         var known = plan is not null;
-        var (ground, groundKnown) = ColonyGround(facts);
-        if (!known || !groundKnown)
+        var ground = ColonyGround(facts);
+        if (!known)
         {
             return (default!, false);
         }
@@ -94,15 +94,8 @@ partial class RoundsBuildingPlanner
         return plan!.NextPlannedRoom(module, ground) is { } next ? (next, true) : (default!, false);
     }
 
-    internal static (GroundCensus Ground, bool Known) ColonyGround(ColonyProjection facts)
-    {
-        if (facts.Facts.CurrentConstruction is not { } construction)
-        {
-            return (default!, false);
-        }
-
-        return (LayoutGroundRules.GroundOf(construction.Buildings), true);
-    }
+    internal static GroundCensus ColonyGround(ColonyProjection facts) =>
+        LayoutGroundRules.GroundOf(facts.Facts.CurrentConstruction.Buildings);
 
     internal static IReadOnlyList<Cell>? PlannedRoomCells(ColonyProjection facts, PlannedRole module)
     {

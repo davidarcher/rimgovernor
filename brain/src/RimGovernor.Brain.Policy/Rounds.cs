@@ -216,8 +216,14 @@ public sealed record RoundsFacts
 
     public EquatableArray<ConstructionClaim> ConstructionClaims { get; init; }
 
-    /// <summary>The construction census (#3879); null only on a projection that no routine frame read built.</summary>
-    public CurrentConstruction? CurrentConstruction { get; init; }
+    private CurrentConstruction? _currentConstruction;
+
+    /// <summary>The total construction census. A synthetic projection must supply it before planning construction.</summary>
+    public CurrentConstruction CurrentConstruction
+    {
+        get => _currentConstruction ?? throw new RequiredFactException("construction census");
+        init => _currentConstruction = value;
+    }
 
     /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); null while there is no plan or no construction census to owe against: nothing planned is then owed.</summary>
     public IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>? PlannedConstruction { get; init; }
@@ -774,10 +780,10 @@ public static partial class RoundsRules
         return AllFacts(Measured(cold, v => v >= p.ColdEnter), Measured(hot, v => v <= p.HotEnter));
     }
 
-    internal static Fact<bool> FootholdPower(RoundsFacts f)
+    internal static bool FootholdPower(RoundsFacts f)
     {
         var powered = !f.PowerRequired || f.PowerHeadroom >= 0;
-        return Known(f.PowerWeatherSafe && powered && !f.DisabledConsumers);
+        return f.PowerWeatherSafe && powered && !f.DisabledConsumers;
     }
 
     /// <summary>The armed fighters a colony of n colonists owes: two, every colonist when fewer, never below one. The only place the number lives.</summary>
@@ -792,7 +798,7 @@ public static partial class RoundsRules
         [DisasterService.Shelter] = FootholdShelter(f),
         [DisasterService.Temperature] = FootholdTemperature(f, p),
         [DisasterService.Cooking] = Known(f.Cooking),
-        [DisasterService.Power] = FootholdPower(f),
+        [DisasterService.Power] = Known(FootholdPower(f)),
         [DisasterService.Storage] = Known(StockpileRules.FoodStorageStanding(f)),
     };
 

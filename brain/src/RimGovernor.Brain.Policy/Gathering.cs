@@ -15,7 +15,13 @@ public sealed record GatheringInput
     public Fact<bool> Calm { get; init; }
 
     /// <summary>Holds the built PartySpot.</summary>
-    public CurrentConstruction? Census { get; init; }
+    private CurrentConstruction? _construction;
+
+    public CurrentConstruction Census
+    {
+        get => _construction ?? throw new RequiredFactException("construction census");
+        init => _construction = value;
+    }
 }
 
 /// <summary>One party ready to start: the organizer to name.</summary>
@@ -95,11 +101,11 @@ public static class GatheringRules
                 return none;
             }
         }
-        if (census is not null && !HasPartySpot(census))
+        if (!HasPartySpot(census))
         {
             return none;
         }
-        if (!pk || !lk || !ck || census is null)
+        if (!pk || !lk || !ck)
         {
             return Unknown<GatheringPlan>();
         }

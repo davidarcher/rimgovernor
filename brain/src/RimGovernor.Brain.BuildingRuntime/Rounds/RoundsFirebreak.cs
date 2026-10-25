@@ -328,7 +328,7 @@ partial class FirebreakPlan
         return new FirebreakFootprint
         {
             Bounds = projection.Bounds,
-            Construction = f.CurrentConstruction ?? throw new RequiredFactException("construction census"),
+            Construction = f.CurrentConstruction,
             Claims = f.ConstructionClaims,
             Home = f.HomeCoverage ?? throw new RequiredFactException("home coverage"),
             GrowingZones = EquatableArray.From(zones),

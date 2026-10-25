@@ -41,7 +41,7 @@ internal static class WorkResourceTestFacts
 
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() },
+        Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new(100),

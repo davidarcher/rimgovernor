@@ -194,26 +194,19 @@ public sealed partial class Rounder
     /// review (#3566): the zone claims and, when known, each owned stockpile zone's shelf plans and whether its shelf
     /// attempts are used up.
     /// </summary>
-    internal readonly record struct StockpileZoneReads(Fact<EquatableArray<Sto.OwnedZone>> Claims, Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent);
+    internal readonly record struct StockpileZoneReads(EquatableArray<Sto.OwnedZone> Claims, Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent);
 
     internal StockpileZoneReads ReadStockpileZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
         var claims = Player.Journal.ZoneClaims(snapshot, projection.Identity.Tick, ct);
-        if (!claims.TryGetValue(out var owned))
-        {
-            return new StockpileZoneReads(claims, [], []);
-        }
-        var (shelves, spent) = ShelfPlans(snapshot, owned, projection, ct);
+        var (shelves, spent) = ShelfPlans(snapshot, claims, projection, ct);
         return new StockpileZoneReads(claims, shelves, spent);
     }
 
     /// <summary>Files the owned zones per role kind on the projection, whether or not the stockpile method is served.</summary>
     internal static Observation.ColonyProjection CensusStockpileZones(Observation.ColonyProjection projection, StockpileZoneReads zones)
     {
-        if (!zones.Claims.TryGetValue(out var owned))
-        {
-            throw new RequiredFactException("zone claims");
-        }
+        var owned = zones.Claims;
         var ownedZones = StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), owned, null, zones.Shelves);
         return projection with { Facts = projection.Facts with { StockpileZones = [.. Pol.StockpileRules.StockpileRoleCounts(ownedZones)] } };
     }
@@ -275,10 +268,7 @@ public sealed partial class Rounder
     {
         var tick = projection.Identity.Tick;
         var reads = zones ?? ReadStockpileZones(snapshot, projection, ct);
-        if (!reads.Claims.TryGetValue(out var owned))
-        {
-            return (new Pol.StockpileRequest(), "zone_claims");
-        }
+        var owned = reads.Claims;
         if (projection.Cells.Count == 0)
         {
             return (new Pol.StockpileRequest(), "site_cells");

@@ -301,10 +301,10 @@ public static class ConstructionReads
     /// table. With the stream's memo it applies only the rows changed since the last frame; without one (a
     /// recording) it projects the whole table. A row the domain refuses fails the census with its error.
     /// </summary>
-    public static CurrentConstruction ConstructionFromCensus(BuildingCensus census)
+    public static CurrentConstruction ConstructionFromTables(Tables tables)
     {
-        object? Update(object? last) => ConstructionState.Next(last as ConstructionState, census.Rows);
-        var state = (ConstructionState)(census.Memo is { } memo ? memo.Update(Update) : Update(null))!;
+        object? Update(object? last) => ConstructionState.Next(last as ConstructionState, tables.Buildings);
+        var state = (ConstructionState)(tables.ConstructionMemo is { } memo ? memo.Update(Update) : Update(null))!;
         if (state.Error is { } error)
         {
             throw error;

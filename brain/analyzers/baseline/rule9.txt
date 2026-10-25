@@ -40,7 +40,6 @@ BuildingRuntime/Rounds/RoundsCensus.cs|Fact|5
 BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|7
 BuildingRuntime/Rounds/RoundsComfort.cs|Fact|1
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|3
-BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|3
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|1
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Unknown|1
@@ -105,12 +104,12 @@ BuildingRuntime/RoundsSleepingStandIn.cs|Fact|1
 BuildingRuntime/RoundsSleepingUpgrade.cs|Fact|6
 BuildingRuntime/RoundsSleepingUpkeep.cs|Discard|1
 BuildingRuntime/RoundsSleepingUpkeep.cs|Fact|1
-BuildingRuntime/RoundsStockpiles.cs|Fact|26
+BuildingRuntime/RoundsStockpiles.cs|Fact|22
 BuildingRuntime/RoundsStockpiles.cs|Unknown|15
 BuildingRuntime/RoundsStoneShell.cs|Fact|1
 BuildingRuntime/RoundsSurgery.cs|Fact|2
 BuildingRuntime/RoundsTierStyle.cs|Fact|2
-BuildingRuntime/RoundsTrade.cs|Fact|9
+BuildingRuntime/RoundsTrade.cs|Fact|8
 BuildingRuntime/RoundsTrade.cs|Unknown|1
 BuildingRuntime/RoundsTradeAcquisition.cs|Fact|2
 BuildingRuntime/RoundsTradeExport.cs|Fact|15
@@ -119,7 +118,6 @@ BuildingRuntime/RoundsWorkProjects.cs|Fact|15
 BuildingRuntime/RoundsWorkProjects.cs|Unknown|5
 BuildingRuntime/RoundsWorkshop.cs|Fact|8
 BuildingRuntime/RoundsWorkshop.cs|Unknown|1
-BuildingRuntime/StockOverlay.cs|Fact|3
 BuildingRuntime/TradeMission.cs|Fact|2
 BuildingRuntime/TradeMissionOptions.cs|Fact|2
 BuildingRuntime/TradeTarget.cs|Discard|1
@@ -147,7 +145,6 @@ Observation/ColonyRead.cs|Fact|2
 Observation/Construction.cs|Fact|2
 Observation/Decode.cs|Fact|3
 Observation/Definitions.cs|Fact|8
-Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
 Observation/MealTier.cs|Fact|5
 Observation/Observation.cs|Fact|4
@@ -221,8 +218,7 @@ Policy/EconomyTrade.cs|Fact|6
 Policy/EffectSources.cs|Fact|2
 Policy/EmergencyNeeds.cs|Fact|22
 Policy/EmergencyNeeds.cs|Unknown|4
-Policy/EssentialServices.cs|Fact|9
-Policy/EssentialServices.cs|UnknownMember|2
+Policy/EssentialServices.cs|Fact|2
 Policy/ExportOrders.cs|Fact|17
 Policy/FieldCapacity.cs|Fact|17
 Policy/FieldCapacity.cs|Unknown|7
@@ -240,7 +236,7 @@ Policy/FoodPlan.cs|Unknown|4
 Policy/FoodStorageStuck.cs|Fact|2
 Policy/FoodStores.cs|Fact|4
 Policy/ForecastCapacity.cs|Fact|4
-Policy/ForecastClaims.cs|Fact|27
+Policy/ForecastClaims.cs|Fact|25
 Policy/ForecastCoupledCandidates.cs|Fact|10
 Policy/ForecastCoupledEvaluation.cs|Fact|2
 Policy/ForecastCoupledMaterials.cs|Fact|18
@@ -253,12 +249,9 @@ Policy/ForecastMaterialChoices.cs|Fact|5
 Policy/ForecastServiceInvestments.cs|Fact|2
 Policy/ForecastSurvivalNeeds.cs|Fact|10
 Policy/ForecastTerminalStock.cs|Fact|6
-Policy/FuelRunway.cs|Fact|15
-Policy/FuelRunway.cs|Unknown|2
 Policy/Gathering.cs|Fact|13
 Policy/Gathering.cs|Unknown|2
 Policy/Gear.cs|Fact|6
-Policy/GearClimate.cs|Fact|2
 Policy/GearSurplus.cs|Fact|1
 Policy/GoalValues.cs|Fact|2
 Policy/GoalsFamily.cs|Fact|9
@@ -291,8 +284,6 @@ Policy/LedgerMaterialChoices.cs|Fact|8
 Policy/Lighting.cs|Fact|4
 Policy/Lighting.cs|UnknownMember|1
 Policy/LootRelease.cs|Fact|2
-Policy/MaterialBudget.cs|Fact|7
-Policy/MaterialBudget.cs|Unknown|1
 Policy/MealStock.cs|Discard|1
 Policy/MealTier.cs|Fact|8
 Policy/MechChargerConcern.cs|Fact|2
@@ -328,9 +319,7 @@ Policy/PlannedRoomAlternatives.cs|Unknown|1
 Policy/PopulationJoiner.cs|Fact|8
 Policy/PopulationJoiner.cs|Unknown|1
 Policy/PopulationLance.cs|Fact|2
-Policy/Power.cs|Fact|1
-Policy/PowerFamily.cs|Fact|2
-Policy/PowerMethod.cs|Fact|12
+Policy/PowerMethod.cs|Fact|9
 Policy/Preferences.cs|Fact|2
 Policy/PrisonerMedicine.cs|Fact|1
 Policy/PrisonerMedicine.cs|Unknown|1
@@ -362,7 +351,7 @@ Policy/Ritual.cs|Unknown|1
 Policy/RoomQualityBeauty.cs|Fact|3
 Policy/RoomsFamily.cs|Fact|5
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|87
+Policy/Rounds.cs|Fact|86
 Policy/Rounds.cs|Unknown|4
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7
@@ -377,7 +366,6 @@ Policy/SiteType.cs|Discard|2
 Policy/SiteType.cs|Fact|27
 Policy/SleepingMethod.cs|Fact|1
 Policy/SocialCrops.cs|Fact|6
-Policy/StockOverlay.cs|Fact|2
 Policy/StockpileMaintenance.cs|Fact|28
 Policy/StockpileMaintenance.cs|Unknown|3
 Policy/StorageOptions.cs|Fact|45
@@ -422,7 +410,6 @@ Store/Codec/JsonKit.cs|Fact|7
 Store/Codec/PolicyConverters.cs|Fact|5
 Store/Codec/ProductionAdmissionCodecs.cs|Fact|15
 Store/Owners/MethodOwner.cs|Fact|2
-Store/Plans/Ownership.cs|Fact|4
 Store/Plans/ProductionPromises.cs|Fact|4
 Store/Plans/ProductionPromises.cs|Unknown|3
 Store/Plans/WorkResources.cs|Fact|1

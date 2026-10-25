@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record PowerFacts
 {
     /// <summary>Whether the grid covers its required draw with no consumer disabled and no weather outage owed (<see cref="RoundsRules.FootholdPower"/>).</summary>
-    public Fact<bool> Standing { get; init; }
+    public bool Standing { get; init; }
 
     /// <summary>A solar flare with a known remaining duration switches every powered building off (<see cref="DisasterRules.PowerOutageHold"/>).</summary>
     public bool OutageHeld { get; init; }
@@ -50,7 +50,7 @@ public sealed class PowerFamily : IFamily<PowerFacts>
 
 public static partial class PowerRules
 {
-    /// <summary>The colony's power, a plain threshold: met while the grid stands, unmet while it is short; an unread grid raises <see cref="RequiredFactException"/>. Its deficit is whole.</summary>
+    /// <summary>The colony's power, a plain threshold: met while the grid stands, unmet while it is short. Its deficit is whole.</summary>
     public static Need PowerNeedOf(PowerFacts f) =>
-        FoodRules.WholeNeed(PowerFamily.Basic, NeedTier.Wellbeing, f.Standing.TryGetValue(out var v) ? v : throw new RequiredFactException("power standing"));
+        FoodRules.WholeNeed(PowerFamily.Basic, NeedTier.Wellbeing, f.Standing);
 }

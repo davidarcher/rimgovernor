@@ -67,14 +67,14 @@ public static partial class ProductionRules
     {
         var priced = PriceProductionBatches(batches, facts.WorkAdmission.Recipes);
         var promises = WorkRules.CreditCarriedBillInputs(ProductionPromisesOf(priced, facts.WorkAdmission.Bills), facts.WorkResources);
+        var construction = facts.CurrentConstruction;
         return new()
         {
             Tick = facts.Tick, Buildings = facts.WorkAdmission.Buildings, WorkResources = facts.WorkResources,
-            Standing = facts.CurrentConstruction is { } construction
-                ? new(EquatableArray.From(construction.Sites.Where(s => s.Building is not null).Select(s => s.Building!)
+            Standing = new(EquatableArray.From(construction.Sites.Where(s => s.Building is not null).Select(s => s.Building!)
                     .Concat(construction.Buildings.Where(b => b.Building is not null).Select(b => b.Building!))),
                     // Standing blueprints are optional work, not reservations: admitted actions below own stock.
-                    new Dictionary<Resource, long>()) : null,
+                    new Dictionary<Resource, long>()),
             Pawns = facts.ForecastObserved.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
                 ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, Known(p.Available), Known(p.Applies),
                     ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, Known(p.Job.Target.Thing))

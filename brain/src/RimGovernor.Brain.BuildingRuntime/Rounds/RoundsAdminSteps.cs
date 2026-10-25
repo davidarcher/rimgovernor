@@ -164,10 +164,7 @@ public sealed partial class AdminRounds
     {
         var p = _reviewer.Player;
         var state = work.State;
-        if (f.Facts.CurrentConstruction is not { } census)
-        {
-            return FieldUnavailable("construction");
-        }
+        var census = f.Facts.CurrentConstruction;
         if (census.Sites.Any(s => s.Building?.Definition == TombRules.GraveDefinition))
         {
             return BuildingReasonExistingWork;

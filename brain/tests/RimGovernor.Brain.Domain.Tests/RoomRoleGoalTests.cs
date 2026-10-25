@@ -161,7 +161,7 @@ public sealed class RoomRoleGoalTests
         var sleeping = new SleepingObservation { Beds = [Bed("b1", true)] };
         Assert.True(HospitalRules.BedsShort(2, rooms, sleeping, false));
         Assert.False(HospitalRules.BedsShort(1, rooms, sleeping, false));
-        Assert.False(HospitalRules.BedsShort(0, RoomObservation.NoRooms, new SleepingObservation(), false));
+        Assert.False(HospitalRules.BedsShort(0, RoomTestFacts.NoRooms, new SleepingObservation(), false));
 
         var recovered = new MedicalFacts { CareRecovered = Known(true) };
         Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered).Satisfaction);

@@ -62,20 +62,11 @@ partial class LayoutRounds
             {
                 continue; // an airlock rides its parent's ring and roof
             }
-            var (input, ground) = RoundsBuildingPlanner.RoomRingInput(facts, plan, room);
-            if (!ground)
-            {
-                return ([], false);
-            }
+            var input = RoundsBuildingPlanner.RoomRingInput(facts, plan, room);
             if (ClimateEnvelopeRules.EnvelopeOps(ReconcileRules.ReconcileRoom(input)).Count > 0)
             {
                 rooms.Add(room);
             }
-        }
-        var (_, colonyGround) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!colonyGround)
-        {
-            return ([], false);
         }
         return (rooms, true);
     }

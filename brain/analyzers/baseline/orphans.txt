@@ -60,11 +60,7 @@ Policy|ForecastSurvivalNeeds.Findings
 Policy|ForecastSurvivalNeeds.Needs
 Policy|ForecastWorkInputs.IngredientReservations
 Policy|ForecastWorkInputs.Pawns
-Policy|FuelBurn.Difficulty
 Policy|FuelConsumer.Definition
-Policy|FuelProjection.ShortfallDays
-Policy|FuelResourceRunway.Burn
-Policy|FuelResourceRunway.Stock
 Policy|MechanicCardField.Field
 Policy|MechanicCardField.Follows
 Policy|MechanicCardField.Writers
@@ -82,7 +78,6 @@ Policy|RoundsFindings.EssentialServices
 Policy|ServiceAssessment.MissingEvidence
 Policy|ServiceStressAssessment.MissingEvidence
 Policy|ServiceStressAssessment.Unavailable
-Policy|ServiceTarget.HorizonDays
 Policy|ServiceTarget.OwnerNeed
 Policy|StockpileReview.Options
 Policy|StockpileShelf.Capacity

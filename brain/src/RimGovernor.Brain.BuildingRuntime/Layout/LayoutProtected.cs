@@ -46,14 +46,12 @@ internal static class LayoutProtected
             cells[c.Cell] = c;
         }
         var built = new HashSet<Cell>();
-        if (facts.Facts.CurrentConstruction is { } census)
+        var census = facts.Facts.CurrentConstruction;
+        foreach (var b in census.Buildings)
         {
-            foreach (var b in census.Buildings)
+            foreach (var c in b.Cells)
             {
-                foreach (var c in b.Cells)
-                {
-                    built.Add(c);
-                }
+                built.Add(c);
             }
         }
         bool Open(Cell p)

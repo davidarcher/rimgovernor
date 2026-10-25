@@ -68,13 +68,13 @@ public static class ForecastServiceInvestments
         var foodTasks = Dependencies(context.NeedTasks.Where(n => n.Kind == "food" && food.Contains(n.Pawn)
             && selected.Plan.Allocations.Any(a => a.Activity == n.Task)).Select(n => n.Task));
         if (food.Length != 0 && foodTasks.Count != 0)
-            result.Add(new(ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, horizonDays: Known(horizon / GameTime.TicksPerDay)),
+            result.Add(new(ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed),
                 EquatableArray.From(food), foodTasks, horizon, "food_threshold_ticks",
                 food.Sum(p => ((ForecastTerm.Assessed)baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks).Value
                     - ((ForecastTerm.Assessed)selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks).Value),
                 "fresh_food_trajectory_has_no_shortfall_or_chain_is_no_longer_feasible"));
         if (selected.CompletedDevelopmentSites.Count != 0 && selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 } relief)
-            result.Add(new(ServiceTarget.ForNeed(ShelterFamily.Temperature, "", "owner_observed_recovery", Known(horizon / GameTime.TicksPerDay)),
+            result.Add(new(ServiceTarget.ForNeed(ShelterFamily.Temperature, "", "owner_observed_recovery"),
                 EquatableArray.From(selected.ThermalExposure.Where(t => t.AssessedTicks > 0).Select(t => t.Pawn).Distinct().Order(StringComparer.Ordinal)),
                 Dependencies(selected.Plan.Allocations.Where(a => context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b)
                     && b.Kind == PawnActivityKind.Work && b.Job is "FinishFrame" or "BuildRoof").Select(a => a.Activity)),

@@ -90,12 +90,9 @@ public static class QuestRewards
             }
             need[def] = Math.Max(0L, floor - have);
         }
-        if (f.CurrentConstruction is { Deficit: var deficits })
+        foreach (var (def, count) in f.CurrentConstruction.Deficit)
         {
-            foreach (var (def, count) in deficits)
-            {
-                need[def] = Math.Max(need.GetValueOrDefault(def), count);
-            }
+            need[def] = Math.Max(need.GetValueOrDefault(def), count);
         }
         var titles = QuestWantsTitles(f);
         var hosted = Math.Max(1L, f.Colonists);

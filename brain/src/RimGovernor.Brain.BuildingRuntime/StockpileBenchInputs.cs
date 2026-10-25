@@ -9,10 +9,7 @@ internal static class StockpileBenchInputs
     /// </summary>
     internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<GearBenchRead> census, Observation.ColonyProjection projection)
     {
-        if (projection.Facts.CurrentConstruction is not { } built)
-        {
-            return [];
-        }
+        var built = projection.Facts.CurrentConstruction;
         var at = new Dictionary<string, Cell>(built.Buildings.Count, StringComparer.Ordinal);
         foreach (var b in built.Buildings)
         {
