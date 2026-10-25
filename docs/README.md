@@ -5,8 +5,8 @@
 Start with the [player guide](players/README.md).
 
 For recovered player outcomes and their implementation/evidence limits, see the
-[product requirements pilot](requirements/README.md) (capability map and autonomous food
-provision; awaiting review before further expansion).
+[product requirements](requirements/README.md): colony outcomes, representative
+code and test evidence, and a prioritized review queue.
 
 | Task | Guide |
 | --- | --- |

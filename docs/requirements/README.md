@@ -6,46 +6,59 @@ This collection describes the outcomes RimGovernor should deliver, the behavior
 found in the code and the evidence available from tests. Use it to choose useful
 improvements and protect intended behavior during implementation changes.
 
-The governor has full autonomy. Food is the first capability being worked through
-in detail. Review this pilot before expanding the collection.
+The governor has full autonomy. This collection covers the main colony outcomes
+with representative implementation and test inspection. Detailed requirements
+remain proposals where their intent has only been inferred from code.
 
-**Revision examined:** `06db87fb4deb9df2626e1dfbc7059e0655379463`, on 2026-10-24.
-The evidence records source inspection and test registration. No game test was run
-or current result bundle examined during this work.
+**Expansion revision examined:** `39c9a3bd29e8bbb38730d784e0d322f8405aa2d5`,
+on 2026-10-24. Food evidence F1–F6 retains its earlier inspection provenance.
+All evidence on these pages is source inspection and catalog registration unless
+an entry gives an executed run and result location. No game test was run or current
+result bundle examined during this documentation work. The repository's docs-only
+check does not supply gameplay evidence.
 
-## Proposed capability map
+## Capability map
 
-The map organizes the remaining investigation around player and colony outcomes.
-The food page contains the current detailed requirements.
+Each page contains stable requirements, normal and disrupted examples, intent and
+implementation status, evidence, and the remaining inspection scope.
 
-| Player or colony outcome | Proposed capability file | Where the expectation is described | What we examined |
+| Outcome | Requirements | Inspection coverage | Main remaining limit |
 | --- | --- | --- | --- |
-| Start a playable colony with supported settings and understand launch failures | `start-and-control.md` | [Setup](../players/setup.md), [launch](../players/launch.md) | Guides read; Stop button connection checked; generation implementation/tests unexamined |
-| Delegate colony control, take it back, and stop safely when control is unavailable | `start-and-control.md` | [Controls](../players/controls.md), [voluntary control](../developers/contracts/voluntary-control.md) | Guide read; speed, manual control, threat detection and permission to issue orders unexamined |
-| Keep colonists fed and preserve usable food | [Food security](food-security.md) | [Controller contracts](../developers/contracts/controller-contracts.md), [architecture](../developers/architecture/overview.md) | Active pilot: forage-to-eating path, cooking and recovery sampled; farming, storage and sustained feeding unassessed |
-| Provide habitable shelter, power and maintained facilities | `habitat.md` | [Spatial](../developers/contracts/spatial-contracts.md), [power](../developers/contracts/power-contracts.md), [upkeep](../developers/contracts/upkeep-contracts.md) | Bench requests sampled; construction completion and other paths unexamined |
-| Keep people healthy, rested, equipped and able to work | `colonist-wellbeing.md` | [Medical](../developers/contracts/medical-care.md), [mood](../developers/contracts/mood-control.md), [equipment](../developers/contracts/equipment-upkeep.md) | Map only; implementation/tests unexamined |
-| Acquire resources and develop useful capabilities without starving essential work | `development-and-supply.md` | [Research](../developers/contracts/research.md), [trade](../developers/contracts/controllable-trade.md), [mining](../developers/contracts/mining-contracts.md) | Supply documentation sampled; detailed development/resource/trade/mining inspection pending |
-| Protect the colony from threats and recover from disruption | `protection-and-recovery.md` | [Disasters](../developers/contracts/disaster-planning.md), [controller](../developers/contracts/controller-contracts.md) | Map only; combat, hazards and recovery unexamined |
-| Sustain people, animals and chosen social/ideological commitments | `colony-commitments.md` | [Population](../developers/contracts/population-contracts.md), [husbandry](../developers/contracts/husbandry-contracts.md), [ideology](../developers/contracts/ideology-contracts.md), [quests](../developers/contracts/quests.md) | Map only; execution/tests unexamined |
-| Resume a saved colony without repeating outdated orders or orders whose effects are unclear | `continuity.md` | [Save/resume](../players/save-and-resume.md), [persistence](../developers/contracts/persistence-contracts.md), [continuation](../developers/contracts/method-continuation.md) | Save guide and persistence ownership table read; game save/load and recovery after an unconfirmed order unexamined |
-| Understand actions, blockers, missing facts and limits of predictions | `explanations.md` | [Controls](../players/controls.md), [glossary](../developers/glossary.md), [signals](../developers/contracts/otel-signals.md) | Food failure handling sampled; player-visible explanations and diagnostic readers unexamined |
+| Start a colony and hand control over predictably | [Start and control](start-and-control.md), RG-CONTROL-001–002 | Load-service test, authority boundary, native work under Auto | Generation, launcher interactions, speed transitions |
+| Keep colonists fed and preserve food | [Food](food-security.md), RG-FOOD-001–008 | Forage, cooking, continuation, seasonal targets, fields, storage, hunt choices, baby-food assessment | Assisted feeding, preservation effects and sustained sufficiency |
+| Provide habitable shelter and working facilities | [Habitat](habitat.md), RG-HABITAT-001–002 | Shelter routing, completed-room case, fuel decision and powered-stove case | Extreme climates, growth, loss recovery and maintenance |
+| Keep people healthy and able to work | [Wellbeing](colonist-wellbeing.md), RG-HEALTH-001–002 | Medical needs, exclusive pairing, native tend dispatch and eligibility case | Treatment completion, chronic recovery, recreation and equipment |
+| Supply useful work and trade affordably | [Supply](development-and-supply.md), RG-SUPPLY-001–002 | Production declaration, exact mining case, native trade exchange | Autonomous source/deal choice through delivery |
+| Protect people and restore disrupted services | [Protection](protection-and-recovery.md), RG-PROTECT-001–002 | Disaster read/work path, recovery decisions, native fire-response interruption | Combat, evacuation, survival and restored native services |
+| Sustain new people, animals and accepted work | [Commitments](colony-commitments.md), RG-COMMIT-001–002 | Capacity contracts, herd routing, native quest and animal settings cases | Capacity-to-outcome chain, ideology and quest fulfilment |
+| Resume safely after saves and interruptions | [Continuity](continuity.md), RG-CONTINUITY-001–002 | Checkpoint boundary, world rebuild, journal continuation guards | Native save/load round trip and uncertain-write recovery |
+| Explain actions and blockers | [Explanations](explanations.md), RG-EXPLAIN-001–002 | Cause changes, transition storage contract, live audit assertions | Rendered player view and prediction wording |
 
 ## Shared concerns
 
-Each capability should account for control authority, RimWorld's rules, safety,
-saved state, recovery, explanations and unsupported situations. Cross-link these
-requirements as the collection develops.
+Control and continuity apply to every capability. RimWorld determines legal
+operations and physical outcomes. Each capability's examples identify normal
+progress, blockers and reassessment; explanations should expose those states.
+The governor may revise existing colony construction and settings within its
+supported control path. A stale observation requires a fresh read.
 
 ## Inspection coverage
 
 - **Read:** working agreement, documentation map, player guides, architecture
   overview, glossary, test-selection guide and acceptance charter.
-- **Sampled for food:** supply and pawn-activity contracts; food assessment,
-  forage selection, cooking, eating and continuation code; the test assertions
-  listed in the [food evidence inventory](food-security.md#evidence-and-inspection-coverage).
-- **Pending:** other food sources, storage, seasonal sufficiency, special feeding,
-  save/reload, the running UI, campaign results and the remaining capabilities.
+- **Sampled:** the named contracts, runtime paths and test assertions on each
+  capability page. Food remains the deepest trace, from shortage through native
+  eating. Other pages use narrower representative paths and state where those stop.
+- **Pending:** the final-column limits above and each page's remaining inspection
+  scope. In particular, no running UI, save/reload experiment or campaign result
+  was examined. Source-file presence alone supplies no implementation verdict.
+
+## What to do next
+
+Use the [review queue](review-queue.md) to choose a bounded improvement. Resolve
+the tracked control-description disagreements, then obtain current evidence for
+the central food path and its recovery. Later checks build outward to care,
+shelter, preservation and continuity. Broad campaign work remains parked.
 
 ## Reading evidence and status
 

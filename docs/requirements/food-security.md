@@ -6,9 +6,11 @@ The governor handles the colony's food supply: finding food, preparing it when
 useful, feeding colonists and replacing what they consume. It makes these decisions
 from the colony's condition and the options available in the game.
 
-This pilot follows an unarmed colonist obtaining and eating wild berries, with
-cooking and recovery as supporting examples. Code revision examined:
+The initial trace follows an unarmed colonist obtaining and eating wild berries,
+with cooking and recovery as supporting examples. Its code revision was:
 `06db87fb4deb9df2626e1dfbc7059e0655379463`, on 2026-10-24.
+Growing, preservation, hunting choices and special feeding were sampled at the
+[expansion revision](README.md). Evidence F7–F10 records that added inspection.
 
 ## Requirements
 
@@ -158,6 +160,75 @@ replacement remains the main evidence gap.
 [T4](review-queue.md#t4--recover-from-missing-information) checks reporting after
 missing data.
 
+### RG-FOOD-005 — Grow food for the coming shortage
+
+The governor should size and revise food growing work using expected consumption,
+seasonal availability and the time until harvest. The purpose is a dependable
+replacement supply as current stock is eaten or spoils. Planting should leave the
+immediate shortage visible until food can actually arrive.
+
+For example, reserve targets should build before the growing season ends. A crop
+that matures too late should leave demand for an earlier food source. Lost field
+capacity or a changed colony population should prompt a new assessment. A missing
+layout or unusable growing site should explain why field work cannot proceed.
+
+**Intent:** Inferred candidate from the food/supply path and seasonal policy.
+**Implementation:** Supported for sampled
+seasonal target adjustment and field-work routing. Sowing-to-harvest completion,
+crop failure and winter sufficiency remain unassessed. Evidence F7; proposed T3/T5.
+
+### RG-FOOD-006 — Preserve food that the colony will need
+
+The governor should arrange suitable storage and cooling for food at risk, while
+keeping food accessible when it is needed. The purpose is to turn acquired food
+into usable reserves. Actual storage and temperature should determine whether
+preservation needs remain open.
+
+Warm perishable stock above the policy threshold should create cooling work.
+Food left exposed should create storage demand. If power fails or a storage route
+becomes unusable, reassessment should retain the threatened supply and seek useful
+work. A planned cooler alone should leave the temperature outcome pending.
+
+**Intent:** Documented in the storage family and
+[spatial contract](../developers/contracts/spatial-contracts.md).
+**Implementation:** Supported for sampled storage/cooling need derivation and
+work routing. Completed hauling, freezer construction and reduced spoilage in
+game remain unassessed. Evidence F8; proposed T5/T12.
+
+### RG-FOOD-007 — Account for the cost and danger of hunting
+
+When hunting is considered, the governor should account for eligible hunters,
+expected harm, usable yield and retrieval. The purpose is to obtain food without
+discarding the risks and work required to bring it home. Missing estimates or
+routes should prevent that option from being treated as ready.
+
+An unarmed or busy pawn should be excluded from the inspected hunting choices.
+Lower expected harm should take precedence over extra meat in those choices.
+After a target or route changes, the governor should reassess. A successful kill
+still leaves butchery, retrieval and eating to complete where required.
+
+**Intent:** Inferred candidate from hunting policy and its tests; full autonomy
+is approved, while these detailed tradeoffs have not received separate approval.
+**Implementation:** Supported for inspected alternative selection. Native hunting
+safety and completion across changing conditions remain unassessed. Evidence F9
+and the additional tribal case below.
+
+### RG-FOOD-008 — Feed people who need suitable food or help
+
+Food adequacy should account for who can eat the available food and who needs
+another pawn to feed them. The purpose is to avoid overlooking a hungry baby or
+patient in a colony that has plenty of unsuitable or inaccessible food.
+
+With babies and no breastfeeder, the colony should provide enough baby-edible
+nutrition and complete feeding. A downed patient should receive usable food.
+Changed diet eligibility or an unavailable caregiver should keep the affected
+need visible and trigger reassessment when conditions improve.
+
+**Intent:** Inferred candidate, with baby-food provisioning documented in the
+inspected code. **Implementation:** Partial: baby-food stock assessment is present;
+completed assisted feeding, individual dietary coverage and patient feeding remain
+unassessed. Evidence F10; proposed T12 and [care](colonist-wellbeing.md).
+
 ## From hunger to food eaten
 
 1. **Assess the colony.** The regular review reads stocks, consumers and available
@@ -261,7 +332,45 @@ is registered Nightly as `food/starving-tribal-recovery`. It asserts crafted ran
 weapon, wild kill, chained hunt job, butchery and meat eaten on a prepared tribal
 start. Its wider chain makes it a less focused first check than F5.
 
-**Not yet examined:** all food-source alternatives, seasonal farming, animal feed,
-babies/patients, dietary restrictions, nutritional edge cases, storage/freezer
-construction, spoilage prevention in game, trading for food, detailed hunting
-safety, visible blocker reporting, save/reload and sustained colony results.
+**F7 — Seasons and fields.**
+[SeasonalFoodThresholdTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SeasonalFoodThresholdTests.cs)
+checks that reserve targets increase toward winter and stay continuous across the
+last growing day. [RoundsFieldPlanner](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsField.cs)
+reads crops and current colony facts, verifies control and review identity, and
+routes food fields under the food supply need. It reports a missing layout anchor.
+These samples cover target policy and work preparation; no harvest result was examined.
+
+**F8 — Storage and refrigeration.**
+[FoodStoresFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FoodStoresFamilyTests.cs)
+checks exposure and temperature thresholds, pending reserve access, missing facts
+and conflicting stack claims. [FoodStoresRounds](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFoodStores.cs)
+reads storage and cooling rooms, proposes reserve changes and routes refrigeration
+building work. Registered OnDemand
+[lab/food-storage-routes](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Lab/FoodStorageRoutes.cs)
+checks that native food-path options exist and path-search counts stay bounded
+as stockpile size changes. It performs no preservation work.
+
+**F9 — Hunting alternatives.**
+[HuntAlternativesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HuntAlternativesTests.cs)
+checks eligible rosters, harm-before-yield ordering, absence of surplus reward and
+refusal of missing estimates/routes. The estimates are supplied by the test.
+Their accuracy and the native response to a failed hunt need separate evidence.
+
+**F10 — Special food and source observations.**
+[ReviewBabyFeeding](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsBabyFeeding.cs)
+feeds the active Biotech baby census into
+[BabyFeedingRules](../../brain/src/RimGovernor.Brain.Policy/BabyFeeding.cs).
+The rule counts stock with baby eater eligibility, derives a target from demand
+and rejects missing consumer rows. Its model treats a present breastfeeder as
+covering breastfeeding; caregiver availability over time was not traced.
+Registered OnDemand
+[tools/foodchannels](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Tools/ToolsFoodChannels.cs)
+checks berry sources, absence of Odyssey fishing water in a core-only setup and
+a cow's native milk-fullness row. It checks observations, with feeding and milk
+collection outside the assertions.
+
+**Remaining inspection:** sowing and harvest completion, individual diets and
+assisted feeding, animal feed, freezer construction, spoilage prevention in game,
+trading for food, hunting prediction accuracy, visible blockers, save/reload and
+sustained colony results. See [the review queue](review-queue.md) for prioritized
+evidence work. No gameplay defect is inferred solely from these unexamined paths.
