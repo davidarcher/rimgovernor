@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,9 +39,9 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.")); }
         }
 
-        internal static bool Validate(Obs.SpatialAccessRequest request, out Common.Failure failure)
+        internal static bool Validate(Obs.SpatialAccessRequest request, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Common.Failure? failure)
         {
-            failure = null!;
+            failure = null;
             if (request.BlockedCells.Concat(request.TargetCells).Any(c => c == null || c.X < 0 || c.Z < 0))
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every cell needs nonnegative x and z.");
             else if (request.BlockedCells.Select(Native).Distinct().Count() != request.BlockedCells.Count || request.TargetCells.Select(Native).Distinct().Count() != request.TargetCells.Count)

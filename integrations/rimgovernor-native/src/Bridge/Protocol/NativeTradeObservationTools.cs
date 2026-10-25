@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -135,12 +134,12 @@ namespace HomeBridge.BridgeTools
             {
                 Context = context,
                 Engagement = engaged
-                    ? new Obs.TradeEngagement.Engaged(target!, new PawnId(negotiator!.GetUniqueLoadID()), open)
+                    ? new Obs.TradeEngagement.Engaged((target ?? throw new System.InvalidOperationException("Required native value is unavailable: target.")), new PawnId((negotiator ?? throw new System.InvalidOperationException("Required native value is unavailable: negotiator.")).GetUniqueLoadID()), open)
                     : new Obs.TradeEngagement.Idle(),
             };
         }
 
-        internal static bool Sheet(Common.ObservationContext context, string? sessionId, out Obs.TradeSheet? sheet, out Common.Failure failure)
+        internal static bool Sheet(Common.ObservationContext context, string? sessionId, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Obs.TradeSheet? sheet, out Common.Failure failure)
         {
             sheet = null;
             if (!NativeTradeOperations.SessionSheet(context.Identity, out var session, out failure)) return false;
@@ -178,7 +177,7 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeTradeObservationTools
     {
-        private static void RequireIdentity(Obs.ReadScope? scope)
+        private static void RequireIdentity([System.Diagnostics.CodeAnalysis.NotNull] Obs.ReadScope? scope)
         {
             if (scope?.ExpectedIdentity == null) throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required."));
         }
@@ -197,23 +196,23 @@ namespace HomeBridge.BridgeTools
         internal static Obs.TradersSnapshot HandleListTraders(Obs.TradersRequest request)
         {
             RequireIdentity(request.Scope);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope!.ExpectedIdentity, out var map, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure)) throw NativeFaults.Refused(failure);
             return Complete("trader census", () => NativeTradeObservation.Traders(map, context));
         }
 
         internal static Obs.TradeSession HandleReadTradeSession(Obs.TradeSessionRequest request)
         {
             RequireIdentity(request.Scope);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope!.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
             return Complete("trade session", () => NativeTradeObservation.Session(context));
         }
 
         internal static Obs.TradeSheet HandleReadTradeSheet(Obs.TradeSheetRequest request)
         {
             RequireIdentity(request.Scope);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope!.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
             return Complete("trade sheet", () => NativeTradeObservation.Sheet(context, request.SessionId, out var sheet, out var refused)
-                ? sheet!
+                ? sheet
                 : throw NativeFaults.Refused(refused));
         }
     }

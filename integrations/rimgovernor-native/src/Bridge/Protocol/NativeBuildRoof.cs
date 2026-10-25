@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using RimWorld;
@@ -49,7 +48,7 @@ namespace HomeBridge.BridgeTools
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Build roof prerequisites changed before apply: " + refusal);
             var roofedCount = 0;
-            var buildRoof = map!.areaManager.BuildRoof;
+            var buildRoof = (map ?? throw new System.InvalidOperationException("Required native value is unavailable: map.")).areaManager.BuildRoof;
             var designator = new Designator_AreaBuildRoof();
             foreach (var cell in cells)
             {

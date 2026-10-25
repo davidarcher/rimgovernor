@@ -104,8 +104,8 @@ internal static class NativeObservationWorkProbe
         {
             var frame = error.Frame();
             Check(frame.Buildings == null && frame.Failure != null, "failure frame never invents an empty census");
-            Check(frame.Failure.Detail.Contains("Buildings"), "failure names the required section");
-            Check(frame.Failure.Detail.Contains("building 42"), "failure retains native detail");
+            Check((frame.Failure ?? throw new Exception("failure frame has no failure")).Detail?.Contains("Buildings") == true, "failure names the required section");
+            Check((frame.Failure ?? throw new Exception("failure frame has no failure")).Detail?.Contains("building 42") == true, "failure retains native detail");
         }
     }
 

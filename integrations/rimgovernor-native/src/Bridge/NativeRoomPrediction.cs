@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -189,10 +188,10 @@ internal static class NativeRoomPrediction
         var stats = new DefMap<RoomStatDef, float>();
         stats[RoomStatDefOf.Wealth] = wealth; stats[RoomStatDefOf.Beauty] = beauty;
         stats[RoomStatDefOf.Space] = space; stats[RoomStatDefOf.Cleanliness] = cleanliness;
-        RoomStats!.SetValue(room, stats); RoomDirty!.SetValue(room, false);
+        (RoomStats ?? throw new InvalidOperationException("The room stats field is unavailable.")).SetValue(room, stats); (RoomDirty ?? throw new InvalidOperationException("The room dirty field is unavailable.")).SetValue(room, false);
         var role = DefDatabase<RoomRoleDef>.AllDefs.MaxBy(d => d.Worker.GetScore(room))
             ?? throw new InvalidOperationException("no RoomRoleDef is loaded");
-        RoomRole!.SetValue(room, role);
+        (RoomRole ?? throw new InvalidOperationException("The room role field is unavailable.")).SetValue(room, role);
         return Row(role.defName, RoomStatDefOf.Impressiveness.Worker.GetScore(room), floored);
     }
 
@@ -227,18 +226,18 @@ internal static class NativeRoomPrediction
     {
         if (RoomDistricts == null || RoomStats == null || RoomRole == null || RoomDirty == null || DistrictRegions == null
             || DistrictRoom == null || DistrictEdge == null || RegionDistrict == null) return null;
-        var room = (Room)Activator.CreateInstance(typeof(Room), true)!;
-        var district = (District)Activator.CreateInstance(typeof(District), true)!;
-        var region = (Region)Activator.CreateInstance(typeof(Region), true)!;
+        var room = (Room)(Activator.CreateInstance(typeof(Room), true) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
+        var district = (District)(Activator.CreateInstance(typeof(District), true) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
+        var region = (Region)(Activator.CreateInstance(typeof(Region), true) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
         district.mapIndex = (sbyte)map.Index;
         region.mapIndex = (sbyte)map.Index;
         region.type = RegionType.Normal;
         region.touchesMapEdge = edge;
-        ((List<Region>)DistrictRegions.GetValue(district)!).Add(region);
+        ((List<Region>)(DistrictRegions.GetValue(district) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).Add(region);
         DistrictEdge.SetValue(district, edge ? 1 : 0);
         DistrictRoom.SetValue(district, room);
         RegionDistrict.SetValue(region, district);
-        ((List<District>)RoomDistricts.GetValue(room)!).Add(district);
+        ((List<District>)(RoomDistricts.GetValue(room) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).Add(district);
         foreach (var t in things) region.ListerThings.Add(t);
         return room;
     }

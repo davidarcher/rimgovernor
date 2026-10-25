@@ -1,4 +1,3 @@
-#nullable enable
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -56,11 +55,11 @@ namespace HomeBridge.BridgeTools
                 .Require(() => facts.PlayerControlled && facts.Drafter != null, "the pawn is not a player-controlled colonist")
                 .Require(() => !observed.Drafted, "the pawn is drafted")
                 .Present(() => foundThing != null && !foundThing.Destroyed, "the exact item no longer exists on this map")
-                .Require(() => foundThing!.def.EverHaulable && foundThing.def.category == ThingCategory.Item, "the target is not a haulable item");
-            if (!rules.Holds) return rules.Failure();
+                .Require(() => foundThing != null && (foundThing.def.EverHaulable && foundThing.def.category == ThingCategory.Item), "the target is not a haulable item");
+            if (!rules.Holds || foundThing == null) return rules.Failure();
             pawn = foundPawn; thing = foundThing;
-            if (Hauling(pawn, thing!)) return null;
-            if (!thing!.Spawned || !ProtoBoundary.IsLoaded(thing.Map))
+            if (Hauling(pawn, thing)) return null;
+            if (!thing.Spawned || !ProtoBoundary.IsLoaded(thing.Map))
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the item is not spawned on this map"));
             if (thing.Position.Fogged(thing.Map))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "the item's cell is fogged"));
@@ -85,10 +84,10 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.HaulIntent? intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var thing);
-            if (failure != null) throw new System.InvalidOperationException(failure.Detail);
-            if (Hauling(pawn!, thing!)) return Evidence(pawn!, thing!, pawn!.CurJob, false);
-            var result = Job(pawn!, thing!, out _) ?? throw new System.InvalidOperationException("No hauling job is available.");
-            if (!pawn!.jobs.TryTakeOrderedJobPrioritizedWork(result.Job, result.Scanner, thing!.Position) || !ReferenceEquals(pawn.CurJob, result.Job))
+            if (failure != null || pawn == null || thing == null) throw new System.InvalidOperationException(failure?.Detail);
+            if (Hauling(pawn, thing)) return Evidence(pawn, thing, pawn.CurJob, false);
+            var result = Job(pawn, thing, out _) ?? throw new System.InvalidOperationException("No hauling job is available.");
+            if (!pawn.jobs.TryTakeOrderedJobPrioritizedWork(result.Job, result.Scanner, thing.Position) || !ReferenceEquals(pawn.CurJob, result.Job))
                 throw new System.InvalidOperationException("The pawn did not take the hauling job.");
             return Evidence(pawn, thing, result.Job, true);
         }

@@ -12,11 +12,11 @@ internal static class NativeRefIndexProbe
 
     private sealed class FakeThing
     {
-        public string Id; public bool Spawned = true; public FakeThing Inner; public FakeThing Holder;
+        public required string Id; public bool Spawned = true; public FakeThing? Inner; public FakeThing? Holder;
         public List<FakeBill> Bills = new List<FakeBill>();
     }
-    private sealed class FakeZone { public string Id; }
-    private sealed class FakeBill { public string Id; public FakeThing Giver; }
+    private sealed class FakeZone { public required string Id; }
+    private sealed class FakeBill { public required string Id; public required FakeThing Giver; }
 
     private static KeyValuePair<string, T> Pair<T>(string id, T value) => new KeyValuePair<string, T>(id, value);
 
@@ -32,7 +32,7 @@ internal static class NativeRefIndexProbe
         var zones = new List<FakeZone>();
         var thingIndex = new LoadIdIndex<FakeThing>(() => things.Select(t => Pair(t.Id, t)), t => t.Id, t => t.Spawned && things.Contains(t));
         var minifiedIndex = new LoadIdIndex<FakeThing>(
-            () => things.Where(m => m.Inner != null).Select(m => Pair(m.Inner.Id, m.Inner)),
+            () => things.Select(m => m.Inner).OfType<FakeThing>().Select(inner => Pair(inner.Id, inner)),
             t => t.Id, t => t.Holder != null && t.Holder.Inner == t && t.Holder.Spawned && things.Contains(t.Holder));
         var zoneIndex = new LoadIdIndex<FakeZone>(() => zones.Select(z => Pair(z.Id, z)), z => z.Id, zones.Contains);
         var billIndex = new LoadIdIndex<FakeBill>(

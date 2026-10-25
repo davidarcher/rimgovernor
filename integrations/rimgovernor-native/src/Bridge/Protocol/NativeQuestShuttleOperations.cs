@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -35,7 +34,7 @@ namespace HomeBridge.BridgeTools
             var matches = map.listerThings.AllThings.Select(t => t.TryGetComp<CompShuttle>())
                 .Where(s => s != null && s.shipParent != null && quest.PartsListForReading.Any(p => p.QuestPartReserves(s.shipParent))).ToArray();
             if (matches.Length != 1) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "An exact single spawned quest shuttle is required.");
-            shuttle = matches[0]!;
+            shuttle = matches[0];
             if (!shuttle.ShowLoadingGizmos || shuttle.IsPlayerShuttle || shuttle.permitShuttle)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "This shuttle does not offer quest loading.");
             if (command.Loading is Operations.QuestShuttleIntentLoading.AutoloadCase)

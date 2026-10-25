@@ -50,7 +50,7 @@ namespace RimGovernor.Host.Sdk
         private static readonly long OriginTimestamp = Stopwatch.GetTimestamp();
         private static int lastId;
 
-        [ThreadStatic] private static Stack<int> open;
+        [ThreadStatic] private static Stack<int>? open;
 
         /// <summary>Phases dropped because the buffer was full.</summary>
         public static int Dropped { get; private set; }

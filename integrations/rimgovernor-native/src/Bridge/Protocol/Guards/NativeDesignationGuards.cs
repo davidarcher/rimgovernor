@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
@@ -15,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // building, or the rock at a Mine cell), plus the wall-upgrade site.
     internal sealed class GuardSubject
     {
-        internal Map Map = null!;
+        internal required Map Map;
         internal IntVec3 Cell;
         internal Thing? Target;
         internal WallRemovalRecord? Wall;
@@ -45,7 +44,7 @@ namespace HomeBridge.BridgeTools
         private static string? Wastepack(GuardSubject s)
         {
             var dissolution = (s.Target as ThingWithComps)?.GetComp<CompDissolution>();
-            if (dissolution == null || !s.Target!.Spawned) return "The wastepack guard holds a spawned thing with a dissolution comp.";
+            if (dissolution == null || !(s.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Target.")).Spawned) return "The wastepack guard holds a spawned thing with a dissolution comp.";
             if (dissolution.InAtomizer) return "The wastepack is already in an atomizer.";
             return dissolution.IsFrozen ? "The wastepack is already frozen." : null;
         }
@@ -77,7 +76,7 @@ namespace HomeBridge.BridgeTools
             : State().Records.Where(r => r.Open && r.Guard == GuardNames.HaulOut && r.MapId == map.uniqueID)
                 .Select(r => (Record: r, Thing: RefIndex.Thing(map, r.ThingId)))
                 .Where(h => h.Thing is { Spawned: true } t && t.Position.x == h.Record.X && t.Position.z == h.Record.Z)
-                .Select(h => h.Thing!).ToList();
+                .Select(h => h.Thing).OfType<Thing>().ToList();
 
         internal static void FinishHaulOut(Map map, Thing thing)
         {
@@ -222,7 +221,7 @@ namespace HomeBridge.BridgeTools
                 var designation = map == null ? null : Designation(r, map);
                 r.Cancelled = true;
                 if (designation == null) continue;
-                map!.designationManager.RemoveDesignation(designation); count++;
+                (map ?? throw new System.InvalidOperationException("Required native value is unavailable: map.")).designationManager.RemoveDesignation(designation); count++;
                 ModLog.Warn("guards", "" + r.Guard + " guard released " + r.Designation + " at (" + r.X + "," + r.Z + ") on map " + r.MapId + ": control authority ended");
             }
             return count;

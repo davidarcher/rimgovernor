@@ -1,4 +1,3 @@
-#nullable enable
 
 using System.Collections.Generic;
 using System.Linq;
@@ -101,9 +100,9 @@ namespace HomeBridge.BridgeTools
 
         // The same exact-drift test AnswerDialog's preview and execute apply:
         // the observed window, option position and label must all still match.
-        internal static bool Matches(Window dialog, int windowId, int optionIndex, string label, out DiaOption option)
+        internal static bool Matches(Window dialog, int windowId, int optionIndex, string label, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out DiaOption? option)
         {
-            option = null!;
+            option = null;
             if (dialog.ID != windowId || optionIndex < 0) return false;
             var options = Options(dialog);
             if (optionIndex >= options.Count) return false;

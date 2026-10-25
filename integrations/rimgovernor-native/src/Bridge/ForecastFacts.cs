@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +18,7 @@ namespace HomeBridge.BridgeTools
             // A colonist without a mood need has no mood target, so no row.
             var patients = people.Where(p => p.needs?.mood != null).Select(p => new Patient {
                 id = p.GetUniqueLoadID(),
-                moodTarget = p.needs.mood!.CurInstantLevel
+                moodTarget = p.needs.mood.CurInstantLevel
             }).ToList();
             return new Snapshot { readable = true, tick = Find.TickManager.TicksGame,
                 combinedFoodSupply = FoodSupplyFacts.Read(people.Concat(animals).ToList(), food),

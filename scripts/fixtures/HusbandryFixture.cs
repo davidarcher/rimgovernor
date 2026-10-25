@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     {
         // Per map, not per process: a kept game hosts one debug start after
         // another, and each new map may seed the fixture once.
-        private static readonly System.WeakReference<Map> createdOn = new System.WeakReference<Map>(null);
+        private static readonly System.WeakReference<Map?> createdOn = new System.WeakReference<Map?>(null);
         [Tool("test/husbandry_setup", Description = "Seed a disposable husbandry acceptance fixture; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
                 var wild = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named("Muffalo"), null,
                     fixedGender: Gender.Female, fixedBiologicalAge: 4));
                 GenSpawn.Spawn(wild, origin + new IntVec3(12, 0, 5), map);
-                var trainingSteps = (DefMap<TrainableDef, int>)AccessTools.Field(typeof(Pawn_TrainingTracker), "steps").GetValue(dog.training);
+                var trainingSteps = (AccessTools.Field(typeof(Pawn_TrainingTracker), "steps").GetValue(dog.training) as DefMap<TrainableDef, int> ?? throw new InvalidOperationException("Training steps unavailable."));
                 trainingSteps[TrainableDefOf.Obedience] = TrainableDefOf.Obedience.steps - 1;
                 // A second husky that already knows Obedience: the master and
                 // following writes require it (PlayerSettings.Master refuses

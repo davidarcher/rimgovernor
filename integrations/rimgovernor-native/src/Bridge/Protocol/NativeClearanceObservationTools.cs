@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -172,7 +171,7 @@ namespace HomeBridge.BridgeTools
         private static int salvageMaxAgeTicks;
         private static double salvageFrameBudgetMs, salvageInlineBudgetMs, salvageCensusBudgetMs;
         private const int salvageSignatureEveryTicks = 60;
-        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal Obs.SalvageEvidence Evidence = null!; }
+        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal required Obs.SalvageEvidence Evidence; }
         private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
         private static readonly Dictionary<int, Building> salvageTargets = new Dictionary<int, Building>();
         private static Game? salvageGame;

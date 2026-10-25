@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,7 +40,7 @@ namespace HomeBridge.BridgeTools
             if (!ValidateCells(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
                 throw NativeFaults.Refused(failure);
-            var min = parsed.Rectangle!.Minimum!; var max = parsed.Rectangle.Maximum!;
+            var min = ((parsed.Rectangle ?? throw new System.InvalidOperationException("Required native value is unavailable: parsed.Rectangle.")).Minimum ?? throw new System.InvalidOperationException("Required native value is unavailable: (parsed.Rectangle ?? throw new System.InvalidOperationException(\"Required native value is unavailable: parsed.Rectangle.\")).Minimum.")); var max = (parsed.Rectangle.Maximum ?? throw new System.InvalidOperationException("Required native value is unavailable: parsed.Rectangle.Maximum."));
             if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map))
                 throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map."));
             try
@@ -258,7 +257,7 @@ namespace HomeBridge.BridgeTools
                 place = new Obs.ThingPlace.Stands { Roofed = thing.Position.Roofed(thing.Map), Room = room != null ? NativeRef.Room(room) : null };
             }
             return new Obs.ThingFood.Edible {
-                Rot = rot != null && rot.Active ? new Obs.ThingRot.Rots { Ticks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp) } : new Obs.ThingRot.Keeps(),
+                Rot = rot != null && rot.Active ? new Obs.ThingRot.Rots { Ticks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp) } : new Obs.ThingRot.Keeps(),
                 TemperatureC = Finite(thing.AmbientTemperature),
                 Place = place,
                 IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing),
@@ -279,7 +278,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Common.Cell Cell(int x,int z)=>new Common.Cell { X=x,Z=z };
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);
         private static double Finite(double value)=>double.IsNaN(value)||double.IsInfinity(value)?throw new InvalidOperationException("Nonfinite native fact."):value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable { Reason=reason,Detail=detail };

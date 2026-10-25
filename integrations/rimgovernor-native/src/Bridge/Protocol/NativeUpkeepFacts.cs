@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -110,7 +109,7 @@ namespace HomeBridge.BridgeTools
             var room = cell.GetRoom(map);
             if (room == null || !room.ProperRoom) return Enumerable.Empty<string>();
             return room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
-                .Where(d => d?.plant != null).Select(d => d!.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal);
+                .Where(d => d?.plant != null).Select(d => (d ?? throw new System.InvalidOperationException("Required native value is unavailable: d.")).defName).Distinct().OrderBy(n => n, StringComparer.Ordinal);
         }
 
         private static DomainCell Spot(IntVec3 c) => new DomainCell(c.x, c.z);
@@ -326,7 +325,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                         if (pendingDoor == null && best == int.MaxValue) continue;
-                        var edifice = wall != null ? wall.def.defName : pendingDoor!.def.defName;
+                        var edifice = wall != null ? wall.def.defName : (pendingDoor ?? throw new System.InvalidOperationException("Required native value is unavailable: pendingDoor.")).def.defName;
                         candidates.Add((edge, edifice, pendingDoor?.def.entityDefToBuild.defName, best == int.MaxValue ? 0 : best));
                     }
                     foreach (var (bc, edifice, pending, distance) in candidates.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x))

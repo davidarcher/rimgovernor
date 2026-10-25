@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -36,7 +35,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var thing);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            var comp = Comp(thing!)!;
+            var comp = (Comp((thing ?? throw new System.InvalidOperationException("Required native value is unavailable: thing."))) ?? throw new System.InvalidOperationException("Required native value is unavailable: Comp((thing ?? throw new System.InvalidOperationException(\"Required native value is unavailable: thing.\")))."));
             if (intent.Change is not Operations.BuildingPatchIntentChange.AutoRefuelCase { Value: var wanted }) throw new InvalidOperationException("Auto-refuel setting missing");
             comp.allowAutoRefuel = wanted;
             if (comp.allowAutoRefuel != wanted) throw new InvalidOperationException("Native auto-refuel requires readback.");

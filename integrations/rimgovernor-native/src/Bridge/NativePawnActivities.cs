@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +19,10 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Entry
         {
-            internal Pawn Pawn = null!;
-            internal PawnActivityOrder Order = null!;
+            internal required Pawn Pawn;
+            internal required PawnActivityOrder Order;
             internal SelectedActivityTask? SelectedTask;
-            internal NativeControlIdentity Identity = null!;
+            internal required NativeControlIdentity Identity;
             internal ulong Generation;
             internal int Step;
             internal string State = "installed", Reason = "";
@@ -44,10 +43,10 @@ namespace HomeBridge.BridgeTools
         private static int installing;
         private const string HarmonyOwner = "rimgovernor.activity-execution";
         private static volatile bool installed;
-        private static JobDef holdDef = null!;
-        private static JobDef deliveryDef = null!;
-        private static JobDef recipeDef = null!;
-        private static JobDef tendDef = null!;
+        private static JobDef? holdDef;
+        private static JobDef? deliveryDef;
+        private static JobDef? recipeDef;
+        private static JobDef? tendDef;
         private static bool replacing;
         // Ephemeral native call context, never assignment ownership or a retained permission.
         [ThreadStatic] private static Pawn? imposedEffectPawn;
@@ -149,8 +148,8 @@ namespace HomeBridge.BridgeTools
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
                 var vacant = old == null || old.Order.Release;
-                if ((vacant ? 0 : old!.Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
-                if (!vacant && (old!.Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
+                if ((vacant ? 0 : (old ?? throw new System.InvalidOperationException("Required native value is unavailable: old.")).Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
+                if (!vacant && ((old ?? throw new System.InvalidOperationException("Required native value is unavailable: old.")).Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
                 if (vacant && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");
                 if (vacant && (order.OutputDelivery != null || batch.Tasks.Count != 0) && !NativeFoodActivity.Available(pawn)) return Refuse("Activity pawn is no longer idle.");
                 foreach (var step in order.Steps)
@@ -159,13 +158,13 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Hold) continue;
                     if (step.Kind == PawnActivityKind.Approach)
                     {
-                        var destination = step.Destination!.Value;
+                        var destination = (step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination."));
                         if (!pawn.CanReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) return Refuse("Approach unavailable.");
                         continue;
                     }
                     if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
                     {
-                        var cell = new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z);
+                        var cell = new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z);
                         var roofGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
                         if (roofGiver?.Worker is not WorkGiver_BuildRoof || !cell.InBounds(pawn.Map)
                             || !pawn.Map.areaManager.BuildRoof[cell] || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
@@ -213,7 +212,7 @@ namespace HomeBridge.BridgeTools
                 var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == task.Pawn);
                 var target = Thing(task.Step.Target);
                 if (pawn == null || target == null || !NativePracticeActivities.Legal(pawn, target, task.Step)) return Refuse("Selected practice task unavailable.");
-                if (task.Step.Practice!.Skill == "Melee")
+                if ((task.Step.Practice ?? throw new System.InvalidOperationException("Required native value is unavailable: task.Step.Practice.")).Skill == "Melee")
                 {
                     var partner = Find.CurrentMap.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == task.Step.Practice.Partner);
                     var partnerTarget = Thing(task.Step.Practice.PartnerTarget);
@@ -363,7 +362,7 @@ namespace HomeBridge.BridgeTools
         {
             var invalid = Validate(batch, context);
             if (invalid != null) throw new InvalidOperationException(invalid.Detail);
-            var identity = NativeControlAuthority.ForGame(Current.Game).Status().Identity!;
+            var identity = NativeControlAuthority.ForGame(Current.Game).Status().Identity ?? throw new InvalidOperationException("Native control identity is unavailable.");
             var changed = new List<Entry>();
             var oldJobs = new List<(Pawn Pawn, Job? Job)>();
             // Validate all first; install every table row before callbacks can select any new work.
@@ -416,9 +415,9 @@ namespace HomeBridge.BridgeTools
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.PawnActivitiesCase() };
         }
-        private static bool TryOwned(Pawn pawn, out Entry e)
+        private static bool TryOwned(Pawn pawn, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Entry? e)
         {
-            if (!Entries.TryGetValue(pawn, out e!) || e.Order.Release) return false;
+            if (!Entries.TryGetValue(pawn, out e) || e.Order.Release) return false;
             if (pawn.Downed || pawn.InMentalState || pawn.Drafted || pawn.IsBurning())
             { Fault(e, "involuntary_or_emergency_state"); Release(e); return false; }
             var s = NativeControlAuthority.ForGame(Current.Game).Status();
@@ -473,10 +472,10 @@ namespace HomeBridge.BridgeTools
             var p = e.Pawn;
             if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
             if (step.Kind == PawnActivityKind.Approach)
-                return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z));
+                return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z));
             if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
             {
-                var cell = new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z);
+                var cell = new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z);
                 if (cell.GetRoof(p.Map) != null)
                 {
                     e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
@@ -560,7 +559,7 @@ namespace HomeBridge.BridgeTools
             else if (step.Kind == PawnActivityKind.Deliver)
             {
                 if (!DeliveryAllowed(p, target, step)) throw new InvalidOperationException("delivery_unavailable");
-                var cell = new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z);
+                var cell = new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z);
                 Preempt(p, cell, PathEndMode.OnCell, Danger.Some);
                 job = JobMaker.MakeJob(deliveryDef, target, cell);
                 job.count = step.Count;
@@ -579,7 +578,7 @@ namespace HomeBridge.BridgeTools
             else if (step.Kind == PawnActivityKind.Supply)
             {
                 if (!SupplyAllowed(p, target, step)) throw new InvalidOperationException("supply_unavailable");
-                var site = Thing(step.Container)!;
+                var site = Thing(step.Container);
                 Preempt(p, site, PathEndMode.Touch, Danger.None);
                 job = JobMaker.MakeJob(JobDefOf.HaulToContainer, target, site, site);
                 job.count = step.Count; job.haulOpportunisticDuplicates = false;
@@ -588,8 +587,8 @@ namespace HomeBridge.BridgeTools
                     // A remote full load (#3046): the driver collects the queued stacks after the target, up to a full carry;
                     // the site takes its need and the surplus drops beside it when the job ends. A stack gone or not usable now
                     // is left out (the driver ends the job on a queued stack it cannot use).
-                    var queue = step.Collect.Select(Thing).Where(t => t != null && t.Spawned && t != target && t.def == target.def
-                        && GenAI.CanUseItemForWork(p, t) && p.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None)).Select(t => t!).ToList();
+                    var queue = step.Collect.Select(Thing).OfType<Thing>().Where(t => t.Spawned && t != target && t.def == target.def
+                        && GenAI.CanUseItemForWork(p, t) && p.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None)).Select(t => t).ToList();
                     job.targetQueueA = queue.Select(t => new LocalTargetInfo(t)).ToList();
                     job.count = RemotePickup.Load(step.Count, p.carryTracker.MaxStackSpaceEver(target.def), target.stackCount + queue.Sum(t => t.stackCount));
                 }
@@ -757,7 +756,7 @@ namespace HomeBridge.BridgeTools
             if (!status.Active || status.Identity?.Map is not { } map) return;
             var fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Where(f => ((Fire)f).parent is not Pawn && map.areaManager.Home[f.Position]).ToList();
             if (fires.Count == 0) return;
-            Thing Nearest(Pawn p) => fires.MinBy(f => p.Position.DistanceToSquared(f.Position))!;
+            Thing Nearest(Pawn p) => (fires.MinBy(f => p.Position.DistanceToSquared(f.Position)) ?? throw new System.InvalidOperationException("Required native value is unavailable: fires.MinBy(f => p.Position.DistanceToSquared(f.Position))."));
             var eligible = Entries.Values.Where(e => e.Pawn.Map == map && HomeFireReleasable(e)).ToArray();
             var near = eligible.Where(e => e.Pawn.Position.InHorDistOf(Nearest(e.Pawn).Position, HomeFireReach)).ToList();
             if (near.Count == 0 && !map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJobDef == JobDefOf.BeatFire)
@@ -851,6 +850,6 @@ namespace HomeBridge.BridgeTools
     internal sealed class PawnActivitiesActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePawnActivities.Validate(action.Intent?.PawnActivities?.Batch, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePawnActivities.Apply(action.Intent!.PawnActivities!.Batch!, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePawnActivities.Apply(action.Intent?.PawnActivities?.Batch ?? throw new InvalidOperationException("Pawn activities batch is missing."), context);
     }
 }

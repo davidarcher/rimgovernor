@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,9 +49,9 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(action.Intent?.IdeoligionReform, out var source, out var candidate);
             if (failure != null) throw new ApplyRefusedException(failure);
-            if (candidate != null) IdeoDevelopmentUtility.ApplyChangesToIdeo(source!, candidate);
+            if (candidate != null) IdeoDevelopmentUtility.ApplyChangesToIdeo(source, candidate);
             return new Receipts.EffectEvidence { Effect = new Receipts.IdeoligionEffect {
-                IdeoId = source!.GetUniqueLoadID(), Design = ReadDesign(source) } };
+                IdeoId = (source ?? throw new System.InvalidOperationException("Required native value is unavailable: source.")).GetUniqueLoadID(), Design = ReadDesign(source) } };
         }
     }
 }

@@ -12,11 +12,11 @@ public sealed class ToolAttribute : Attribute
 
     public string Name { get; }
 
-    public string Title { get; set; }
+    public string? Title { get; set; }
 
-    public string Description { get; set; }
+    public string? Description { get; set; }
 
-    public string ResultDescription { get; set; }
+    public string? ResultDescription { get; set; }
 
     public string[] Tags { get; set; } = [];
 
@@ -26,11 +26,11 @@ public sealed class ToolAttribute : Attribute
 [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
 public sealed class ToolParameterAttribute : Attribute
 {
-    public string Description { get; set; }
+    public string? Description { get; set; }
 
     public bool Required { get; set; }
 
-    public object DefaultValue { get; set; }
+    public object? DefaultValue { get; set; }
 }
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]

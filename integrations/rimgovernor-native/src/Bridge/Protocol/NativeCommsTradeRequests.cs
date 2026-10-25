@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,12 +18,12 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Contact
         {
-            internal Operations.CommsTradeRequestIntent Intent = null!;
-            internal Common.Identity Identity = null!;
-            internal Pawn Pawn = null!;
-            internal Faction Faction = null!;
-            internal Building_CommsConsole Console = null!;
-            internal Job Job = null!;
+            internal required Operations.CommsTradeRequestIntent Intent;
+            internal required Common.Identity Identity;
+            internal required Pawn Pawn;
+            internal required Faction Faction;
+            internal required Building_CommsConsole Console;
+            internal required Job Job;
             internal int JobId;
             internal bool Owns(Job? job) => ReferenceEquals(job, Job) && job != null && job.loadID == JobId
                 && job.def == JobDefOf.UseCommsConsole && ReferenceEquals(job.commTarget, Faction) && ReferenceEquals(job.targetA.Thing, Console);
@@ -71,7 +70,7 @@ namespace HomeBridge.BridgeTools
             if (!Resolve(intent, context.Identity, false, out _, out var pawn, out _, out _, out var reason))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason);
             if (Contacts.Any(c => c.Pawn == pawn || c.Console.GetUniqueLoadID() == intent.ConsoleId)
-                || pawn!.CurJob?.def == JobDefOf.UseCommsConsole)
+                || (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).CurJob?.def == JobDefOf.UseCommsConsole)
                 return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "comms_work_present");
             if (!InstallHook()) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "comms_hook_unavailable");
             return null;
@@ -94,10 +93,10 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.ValidateIdentity(contact.Identity, out _, out _) ||
                 !Resolve(contact.Intent, contact.Identity, true, out var map, out _, out var faction, out _, out _)) return false;
             var orbital = contact.Intent.Kind == Common.TradeRequestKind.Orbital;
-            var kinds = (orbital ? faction!.def.orbitalTraderKinds : faction!.def.caravanTraderKinds).Where(k => k.requestable).ToList();
+            var kinds = (orbital ? (faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction.")).def.orbitalTraderKinds : (faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction.")).def.caravanTraderKinds).Where(k => k.requestable).ToList();
             var index = kinds.FindIndex(k => k.defName == (contact.Intent.TraderKind ?? ""));
             var factory = AccessTools.Method(typeof(FactionDialogMaker), orbital ? "RequestOrbitalTraderOption" : "RequestTraderOption");
-            var option = factory?.Invoke(null, new object[] { map!, faction, negotiator }) as DiaOption;
+            var option = factory?.Invoke(null, new object[] { (map ?? throw new System.InvalidOperationException("Required native value is unavailable: map.")), faction, negotiator }) as DiaOption;
             if (option == null || option.disabled || option.link == null || index < 0 || index >= option.link.options.Count) return false;
             // Same def sequence the native factory enumerates, never a translated label.
             option.link.options[index].action?.Invoke();
@@ -112,9 +111,9 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException(reason);
             var job = JobMaker.MakeJob(JobDefOf.UseCommsConsole, console);
             job.commTarget = faction;
-            var contact = new Contact { Intent = intent, Identity = context.Identity, Pawn = pawn!, Faction = faction!, Console = console!, Job = job, JobId = job.loadID };
+            var contact = new Contact { Intent = intent, Identity = context.Identity, Pawn = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")), Faction = (faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction.")), Console = (console ?? throw new System.InvalidOperationException("Required native value is unavailable: console.")), Job = job, JobId = job.loadID };
             Contacts.Add(contact);
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc)) { Contacts.Remove(contact); throw new InvalidOperationException("comms_job_refused"); }
+            if (!(pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).jobs.TryTakeOrderedJob(job, JobTag.Misc)) { Contacts.Remove(contact); throw new InvalidOperationException("comms_job_refused"); }
             return new Receipts.EffectEvidence { Effect = new Receipts.CommsTradeRequestEffect {
                 FactionId = intent.FactionId, TraderKind = intent.TraderKind,
                 WorkQueued = true } };

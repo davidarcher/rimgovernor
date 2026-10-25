@@ -13,22 +13,22 @@ namespace Verse
 {
     public class Game
     {
-        public Map CurrentMap { get => Find.CurrentMap; set => Find.CurrentMap = value; }
+        public Map? CurrentMap { get => Find.CurrentMap; set => Find.CurrentMap = value; }
         public HomeBridge.BridgeTools.ColonyIdentity Identity = new HomeBridge.BridgeTools.ColonyIdentity();
-        public T GetComponent<T>() where T : class => Identity as T;
+        public T? GetComponent<T>() where T : class => Identity as T;
     }
     public class Map { public int uniqueID; public MapPawns mapPawns = new MapPawns(); }
     public class MapPawns { public List<Pawn> AllPawns = new List<Pawn>(); }
     public class Pawn { public int thingIDNumber; public string GetUniqueLoadID() => "Pawn_" + thingIDNumber; }
-    public class Letter { public string Label, Id; public LetterDef def; public string GetUniqueLoadID() => Id; }
-    public class LetterDef { public string defName; }
-    public static class Current { public static Game Game; }
+    public class Letter { public required string Label, Id; public required LetterDef def; public string GetUniqueLoadID() => Id; }
+    public class LetterDef { public required string defName; }
+    public static class Current { public static Game? Game; }
     public static class Find
     {
-        public static Map CurrentMap; public static TickManager TickManager;
-        public static List<Map> LoadedMaps;
+        public static Map? CurrentMap; public static TickManager? TickManager;
+        public static List<Map>? LoadedMaps;
         // Real Verse exposes the game's loaded maps; the fixtures load one map, the current one.
-        public static List<Map> Maps => LoadedMaps ?? (CurrentMap == null ? null : new List<Map> { CurrentMap });
+        public static List<Map>? Maps => LoadedMaps ?? (CurrentMap == null ? null : new List<Map> { CurrentMap });
     }
     public enum TimeSpeed { Paused, Normal, Fast, Superfast, Ultrafast }
     public class TickManager
@@ -56,13 +56,13 @@ namespace Verse
 {
     // The recipe shapes NativeRecipeRoles reads: products, special products, ingredient
     // filters over corpse defs, and the worker counter.
-    public class ThingDef { public string defName; public bool IsCorpse; }
-    public class ThingDefCountClass { public ThingDef thingDef; }
+    public class ThingDef { public required string defName; public bool IsCorpse; }
+    public class ThingDefCountClass { public required ThingDef thingDef; }
     public class ThingFilter { public List<ThingDef> AllowedThingDefs = new List<ThingDef>(); }
     public static class DefDatabase<T> where T : class
     {
         public static readonly Dictionary<string, T> Named = new Dictionary<string, T>();
-        public static T GetNamedSilentFail(string name) => Named.TryGetValue(name, out var def) ? def : null;
+        public static T? GetNamedSilentFail(string name) => Named.TryGetValue(name, out var def) ? def : null;
     }
 }
 namespace RimWorld
@@ -73,10 +73,10 @@ namespace RimWorld
     public class IngredientCount { public Verse.ThingFilter filter = new Verse.ThingFilter(); }
     public class RecipeDef
     {
-        public string defName;
-        public RecipeWorkerCounter WorkerCounter;
+        public required string defName;
+        public RecipeWorkerCounter? WorkerCounter;
         public List<Verse.ThingDefCountClass> products = new List<Verse.ThingDefCountClass>();
-        public List<SpecialProductType> specialProducts;
+        public List<SpecialProductType>? specialProducts;
         public bool mechResurrection;
         public int gestationCycles;
         public List<IngredientCount> ingredients = new List<IngredientCount>();

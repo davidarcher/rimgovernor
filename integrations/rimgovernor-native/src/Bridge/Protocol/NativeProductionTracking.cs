@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 using System;
 using System.Linq;

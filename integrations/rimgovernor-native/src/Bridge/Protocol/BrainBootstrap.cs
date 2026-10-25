@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -66,7 +65,7 @@ namespace HomeBridge.BridgeTools
                     Log.Warning($"[RimGovernor] The in-process brain did not start: {error}.");
                     return;
                 }
-                _ = Directory.CreateDirectory(Path.GetDirectoryName(inputs!.StatePath)!);
+                _ = Directory.CreateDirectory((Path.GetDirectoryName((inputs ?? throw new System.InvalidOperationException("Required native value is unavailable: inputs.")).StatePath) ?? throw new System.InvalidOperationException("Required native value is unavailable: Path.GetDirectoryName((inputs ?? throw new System.InvalidOperationException(\"Required native value is unavailable: inputs.\")).StatePath).")));
                 _ = Directory.CreateDirectory(inputs.OtlpDirectory);
 
                 var routesStart = LaunchPhases.UtcNow;

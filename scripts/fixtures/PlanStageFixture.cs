@@ -34,14 +34,14 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        private static IEnumerable<JObject> Rows(JToken token)
+        private static IEnumerable<JObject> Rows(JToken? token)
         {
             return (token as JArray ?? new JArray()).OfType<JObject>();
         }
 
         private static IntVec3 CellOf(Map map, JObject row)
         {
-            var cell = new IntVec3((int)row["x"], 0, (int)row["z"]);
+            var cell = new IntVec3((int)(row["x"] ?? throw new ArgumentException("x is required")), 0, (int)(row["z"] ?? throw new ArgumentException("z is required")));
             if (!cell.InBounds(map)) throw new ArgumentException("Cell " + cell + " is out of bounds.");
             return cell;
         }
@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
             return DefDatabase<ThingDef>.GetNamedSilentFail(name ?? "") ?? throw new ArgumentException("No ThingDef " + name);
         }
 
-        private static ThingDef StuffFor(ThingDef def, string name)
+        private static ThingDef? StuffFor(ThingDef def, string? name)
         {
             if (!def.MadeFromStuff) return null;
             if (string.IsNullOrEmpty(name)) return GenStuff.DefaultStuffFor(def);
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             foreach (var t in cell.GetThingList(map).Where(t => t is Plant || t is Filth || t is Blueprint || t is Frame).ToList()) t.Destroy(DestroyMode.Vanish);
         }
 
-        private static Thing Build(Map map, ThingDef def, ThingDef stuff, IntVec3 cell, Rot4 rot, bool foreign = false)
+        private static Thing Build(Map map, ThingDef def, ThingDef? stuff, IntVec3 cell, Rot4 rot, bool foreign = false)
         {
             var thing = ThingMaker.MakeThing(def, stuff);
             if (!foreign) thing.SetFaction(Faction.OfPlayer);
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
                 if (cell.GetEdifice(map) is Building held && held.Faction == Faction.OfPlayer && held.def == ThingDefOf.Wall) continue;
                 if (cell.GetEdifice(map) != null) throw new InvalidOperationException("Cell " + cell + " already holds " + cell.GetEdifice(map).def.defName);
                 Vacate(map, cell, avoid);
-                var wall = Build(map, ThingDefOf.Wall, StuffFor(ThingDefOf.Wall, (string)row["stuff"]), cell, Rot4.North);
+                var wall = Build(map, ThingDefOf.Wall, StuffFor(ThingDefOf.Wall, (string?)row["stuff"]), cell, Rot4.North);
                 spawned.Add(new { x = cell.x, z = cell.z, def = wall.def.defName, id = wall.GetUniqueLoadID() });
             }
             foreach (var row in doorRows) {
@@ -115,24 +115,24 @@ namespace HomeBridge.BridgeTools
                 if (cell.GetEdifice(map) is Building heldDoor && heldDoor.Faction == Faction.OfPlayer && heldDoor.def == ThingDefOf.Door) continue;
                 if (cell.GetEdifice(map) != null) throw new InvalidOperationException("Cell " + cell + " already holds " + cell.GetEdifice(map).def.defName);
                 Vacate(map, cell, avoid);
-                var door = Build(map, ThingDefOf.Door, StuffFor(ThingDefOf.Door, (string)row["stuff"]), cell, new Rot4((int?)row["rotation"] ?? 0));
+                var door = Build(map, ThingDefOf.Door, StuffFor(ThingDefOf.Door, (string?)row["stuff"]), cell, new Rot4((int?)row["rotation"] ?? 0));
                 spawned.Add(new { x = cell.x, z = cell.z, def = door.def.defName, id = door.GetUniqueLoadID() });
             }
             foreach (var row in Rows(spec["roof"])) {
-                foreach (var cell in CellRect.FromLimits((int)row["minX"], (int)row["minZ"], (int)row["maxX"], (int)row["maxZ"]))
+                foreach (var cell in CellRect.FromLimits((int)(row["minX"] ?? throw new ArgumentException("minX is required")), (int)(row["minZ"] ?? throw new ArgumentException("minZ is required")), (int)(row["maxX"] ?? throw new ArgumentException("maxX is required")), (int)(row["maxZ"] ?? throw new ArgumentException("maxZ is required"))))
                     if (cell.InBounds(map)) map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
             }
             foreach (var row in Rows(spec["floor"])) {
-                var terrain = DefDatabase<TerrainDef>.GetNamedSilentFail((string)row["def"]) ?? throw new ArgumentException("No TerrainDef " + row["def"]);
+                var terrain = DefDatabase<TerrainDef>.GetNamedSilentFail(((string?)row["def"] ?? throw new ArgumentException("def is required"))) ?? throw new ArgumentException("No TerrainDef " + row["def"]);
                 foreach (var c in Rows(row["cells"])) map.terrainGrid.SetTerrain(CellOf(map, c), terrain);
             }
             var things = new List<object>();
             foreach (var row in thingRows) {
-                var def = DefOf((string)row["def"]);
+                var def = DefOf(((string?)row["def"] ?? throw new ArgumentException("def is required")));
                 var cell = CellOf(map, row);
                 Vacate(map, cell, avoid);
                 var foreign = (bool?)row["foreign"] == true;
-                var thing = Build(map, def, StuffFor(def, (string)row["stuff"]), cell, new Rot4((int?)row["rotation"] ?? 0), foreign);
+                var thing = Build(map, def, StuffFor(def, (string?)row["stuff"]), cell, new Rot4((int?)row["rotation"] ?? 0), foreign);
                 if ((bool?)row["filled"] == true && thing is Building_AncientCryptosleepCasket casket) Fill(map, casket);
                 if ((int?)row["quality"] is int quality && thing.TryGetComp<CompQuality>() is CompQuality comp)
                     comp.SetQuality((QualityCategory)Math.Max(0, Math.Min(6, quality)), ArtGenerationContext.Colony);
@@ -141,7 +141,7 @@ namespace HomeBridge.BridgeTools
                 things.Add(Describe(thing, null));
             }
             foreach (var row in Rows(spec["drops"])) {
-                var def = DefOf((string)row["def"]);
+                var def = DefOf(((string?)row["def"] ?? throw new ArgumentException("def is required")));
                 var cell = CellOf(map, row);
                 var remaining = (int?)row["count"] ?? 1;
                 while (remaining > 0) {
@@ -153,9 +153,9 @@ namespace HomeBridge.BridgeTools
                     remaining -= placed;
                 }
             }
-            object zoneRect = null;
+            object? zoneRect = null;
             if (spec["stockpile"] is JObject pile) {
-                var rect = CellRect.FromLimits((int)pile["minX"], (int)pile["minZ"], (int)pile["maxX"], (int)pile["maxZ"]);
+                var rect = CellRect.FromLimits((int)(pile["minX"] ?? throw new ArgumentException("minX is required")), (int)(pile["minZ"] ?? throw new ArgumentException("minZ is required")), (int)(pile["maxX"] ?? throw new ArgumentException("maxX is required")), (int)(pile["maxZ"] ?? throw new ArgumentException("maxZ is required")));
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                 map.zoneManager.RegisterZone(zone);
                 foreach (var c in rect.Cells) zone.AddCell(c);
@@ -167,7 +167,7 @@ namespace HomeBridge.BridgeTools
 
         // Describe is one thing's audit row; packedIn is the minified item
         // holding it, when it is packed.
-        private static object Describe(Thing thing, MinifiedThing packedIn)
+        private static object Describe(Thing thing, MinifiedThing? packedIn)
         {
             var at = packedIn != null ? packedIn.PositionHeld : thing.PositionHeld;
             QualityCategory quality;
@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Audit(Map map, JObject spec)
         {
-            var wanted = new HashSet<string>((spec["ids"] as JArray ?? new JArray()).Select(t => (string)t));
+            var wanted = new HashSet<string>((spec["ids"] as JArray ?? new JArray()).Select(t => (string?)t ?? throw new ArgumentException("id must be a string")));
             var found = new Dictionary<string, object>();
             foreach (var t in map.listerThings.AllThings.ToList()) {
                 if (wanted.Contains(t.GetUniqueLoadID())) found[t.GetUniqueLoadID()] = Describe(t, null);
@@ -193,7 +193,7 @@ namespace HomeBridge.BridgeTools
                 if (!(p.carryTracker?.CarriedThing is MinifiedThing carried) || carried.InnerThing == null) continue;
                 if (wanted.Contains(carried.InnerThing.GetUniqueLoadID())) found[carried.InnerThing.GetUniqueLoadID()] = Describe(carried.InnerThing, carried);
             }
-            var things = wanted.OrderBy(id => id).Select(id => found.ContainsKey(id) ? found[id] : new { id, def = (string)null }).ToList();
+            var things = wanted.OrderBy(id => id).Select(id => found.ContainsKey(id) ? found[id] : new { id, def = (string?)null }).ToList();
             var cells = new List<object>();
             foreach (var row in Rows(spec["cells"])) {
                 var cell = CellOf(map, row);

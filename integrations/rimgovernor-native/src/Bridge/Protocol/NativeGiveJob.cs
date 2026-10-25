@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -69,7 +68,7 @@ namespace HomeBridge.BridgeTools
             {
                 var arrest = kind == JobOrderKind.Arrest;
                 if (targets.Count != (arrest ? 2 : 1)) { refusal = arrest ? "Arrest requires targets [target, prisoner bed]." : (intent.Job ?? "") + " requires one target."; return Arm.Invalid; }
-                order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = targets[0]!, BedId = arrest ? targets[1] : null };
+                order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = (targets[0] ?? throw new InvalidOperationException("The job target is unavailable.")), BedId = arrest ? targets[1] : null };
                 return Arm.Order;
             }
             if (options != null && options.Prioritized)
@@ -82,17 +81,32 @@ namespace HomeBridge.BridgeTools
         }
 
         // The spawned pawn the order names and its live control snapshot.
-        internal static Common.Failure? Pawn(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out NativePawnSnapshot? snapshot)
+        internal static bool TryPawn(JobOrder intent, Common.ObservationContext context,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Pawn? pawn,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out NativePawnSnapshot? snapshot,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Common.Failure? failure)
         {
-            pawn = null; snapshot = null;
-            if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            pawn = null; snapshot = null; failure = null;
+            if (!NativePawnControlState.IsReady)
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+                return false;
+            }
             var map = ProtoBoundary.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
-            if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
+            if (pawn == null)
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
+                return false;
+            }
             var control = NativePawnControlState.Observe(identity, pawn, out snapshot);
-            if (control != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(control, context);
-            return null;
+            if (control != NativePawnControlResult.Ready || snapshot == null)
+            {
+                failure = NativeDraftProtocol.Failure(control, context);
+                return false;
+            }
+            return true;
         }
 
         internal static Receipts.EffectEvidence Evidence(Pawn pawn, Thing target, Job job, bool issued) => new Receipts.EffectEvidence
@@ -185,8 +199,9 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var def, out var running);
             if (failure != null || running) return failure;
-            if (Build(pawn!, target!, def!, out var reason) == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No work giver the colonist may do builds " + def!.defName + " on the target" + (reason != null ? ": " + reason : "."));
+            if (pawn == null || target == null || def == null) return ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Prioritized job prerequisites are unavailable.");
+            if (Build(pawn, target, def, out var reason) == null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No work giver the colonist may do builds " + def.defName + " on the target" + (reason != null ? ": " + reason : "."));
             return null;
         }
 
@@ -208,10 +223,11 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var def, out var running);
             if (failure != null) throw new ApplyRefusedException(failure);
-            if (running) return NativeGiveJob.Evidence(pawn!, target!, pawn!.CurJob, false);
-            var job = TryTake(pawn!, target!, def!, out var reason);
+            if (pawn == null || target == null || def == null) throw new InvalidOperationException("Prioritized job prerequisites are unavailable.");
+            if (running) return NativeGiveJob.Evidence(pawn, target, pawn.CurJob, false);
+            var job = TryTake(pawn, target, def, out var reason);
             if (job == null) throw new InvalidOperationException(reason);
-            return NativeGiveJob.Evidence(pawn!, target!, job, true);
+            return NativeGiveJob.Evidence(pawn, target, job, true);
         }
     }
 
@@ -222,9 +238,9 @@ namespace HomeBridge.BridgeTools
             var intent = action.Intent?.GiveJob;
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
-                case NativeGiveJob.Arm.Order: return NativeGiveJob.ValidateOrder(order!, context);
-                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Validate(intent!.Pawn!.Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
-                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Validate(intent!, context);
+                case NativeGiveJob.Arm.Order: return NativeGiveJob.ValidateOrder((order ?? throw new System.InvalidOperationException("Required native value is unavailable: order.")), context);
+                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Validate(((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: (intent ?? throw new System.InvalidOperationException(\"Required native value is unavailable: intent.\")).Pawn.")).Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
+                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Validate((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")), context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal ?? "Invalid give job intent.");
             }
         }
@@ -234,9 +250,9 @@ namespace HomeBridge.BridgeTools
             var intent = action.Intent?.GiveJob;
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
-                case NativeGiveJob.Arm.Order: return NativeGiveJob.ApplyOrder(order!, context);
-                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Apply(intent!.Pawn!.Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
-                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Apply(intent!, context);
+                case NativeGiveJob.Arm.Order: return NativeGiveJob.ApplyOrder((order ?? throw new System.InvalidOperationException("Required native value is unavailable: order.")), context);
+                case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Apply(((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: (intent ?? throw new System.InvalidOperationException(\"Required native value is unavailable: intent.\")).Pawn.")).Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
+                case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Apply((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")), context);
                 default: throw new InvalidOperationException(refusal ?? "Invalid give job intent.");
             }
         }

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -15,9 +14,9 @@ namespace HomeBridge.BridgeTools
     // joiner letter token goes to NativeJoinerLetters instead.
     internal sealed class DialogActionHandler : IActionHandler
     {
-        private static Common.Failure? Resolve(Operations.DialogIntent? c, out Window dialog, out DiaOption option)
+        private static Common.Failure? Resolve(Operations.DialogIntent? c, out Window? dialog, out DiaOption? option)
         {
-            dialog = null!; option = null!;
+            dialog = null; option = null;
             if (c == null || c.OptionLabel is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A dialog answer needs a window, an option index and its label.");
             var pending = ChoiceDialogTools.Pending();
@@ -37,7 +36,7 @@ namespace HomeBridge.BridgeTools
             var c = action.Intent?.Dialog ?? throw new InvalidOperationException("Dialog intent missing");
             if (c.JoinerLetterToken is not null) return NativeJoinerLetters.Apply(c);
             var failure = Resolve(c, out var dialog, out var option);
-            if (failure != null) throw new InvalidOperationException("Dialog prerequisites changed before apply: " + (failure.Detail ?? ""));
+            if (failure != null || dialog == null || option == null) throw new InvalidOperationException("Dialog prerequisites changed before apply: " + (failure?.Detail ?? ""));
             var node = ChoiceDialogTools.Node(dialog);
             ChoiceDialogTools.Activate(dialog, option);
             var open = Find.WindowStack != null && Find.WindowStack.Windows.Contains(dialog);

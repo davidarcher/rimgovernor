@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
@@ -462,11 +461,11 @@ namespace HomeBridge.BridgeTools
             }
             var result = new Obs.FoodSupplyFacts { Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses] } };
             foreach (var consumer in source.consumers)
-                result = result with { Consumers = [.. result.Consumers, new Obs.FoodConsumer { PawnId = consumer.id!, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable }] };
+                result = result with { Consumers = [.. result.Consumers, new Obs.FoodConsumer { PawnId = consumer.id ?? throw new InvalidOperationException("Missing food consumer identity."), NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable }] };
             foreach (var stock in source.stocks) {
                 // The stock's thing is a things table row.
-                var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing!), Nutrition = Finite(stock.nutrition) };
-                row = row with { Eaters = [.. row.Eaters, .. NativeRef.All(stock.eaters!)] };
+                var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing ?? throw new InvalidOperationException("Missing food stock thing.")), Nutrition = Finite(stock.nutrition) };
+                row = row with { Eaters = [.. row.Eaters, .. NativeRef.All(stock.eaters ?? throw new InvalidOperationException("Missing food stock eaters."))] };
                 if (stock.holder != null) row = row with { Holder = NativeRef.Of(stock.holder) };
                 result = result with { Stocks = [.. result.Stocks, row] };
             }

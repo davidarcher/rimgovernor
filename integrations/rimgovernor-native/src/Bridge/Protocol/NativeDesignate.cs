@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,9 +30,9 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Plan
         {
-            internal Map Map = null!;
+            internal required Map Map;
             internal Operations.ThingDesignation Designation;
-            internal DesignationDef Def = null!;
+            internal required DesignationDef Def;
             internal Thing? Target;
             internal IntVec3 Cell;
             internal string ExpectedDef = "";
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Standing(Plan p)
         {
-            if (p.HaulOut) return NativeDesignationGuards.HaulOut(p.Map, p.Target!) != null;
+            if (p.HaulOut) return NativeDesignationGuards.HaulOut(p.Map, (p.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: p.Target."))) != null;
             var manager = p.Map.designationManager;
             if (p.Designation == Operations.ThingDesignation.Mine) return manager.DesignationAt(p.Cell, DesignationDefOf.Mine) != null;
             if (p.Designation == Operations.ThingDesignation.RemoveFoundation) return manager.DesignationAt(p.Cell, DesignationDefOf.RemoveFoundation) != null;
@@ -103,14 +102,13 @@ namespace HomeBridge.BridgeTools
         private static bool ValidCell(Common.Cell? c) => c != null && c.X >= 0 && c.Z >= 0;
 
         // Resolve is the apply-time precondition list; null admits.
-        private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan plan, out Common.FailureCode code)
+        private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan? plan, out Common.FailureCode code)
         {
-            plan = new Plan(); code = Common.FailureCode.InvalidRequest;
+            plan = null; code = Common.FailureCode.InvalidRequest;
             if (!Enum.IsDefined(intent.Guard)) return "the designation guard must be a named state";
             var def = DefOf(intent.Designation);
             if (def == null) return "the designation must be one of Deconstruct, Mine, CutPlant, Haul, RemoveFoundation or Cancel";
-            plan.Designation = intent.Designation; plan.Def = def;
-            plan.Map = ProtoBoundary.LoadedMap(context);
+            plan = new Plan { Designation = intent.Designation, Def = def, Map = ProtoBoundary.LoadedMap(context) };
             var map = plan.Map;
             // Guard: the one the designation needs, and only that one.
             plan.Guard = GuardFor(intent.Designation);
@@ -136,7 +134,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (intent.Designation != Operations.ThingDesignation.Mine && intent.Designation != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
                 if (intent.ExpectedDef is null || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
-                plan.Cell = new IntVec3(intent.Cell!.X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
+                plan.Cell = new IntVec3((intent.Cell ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.Cell.")).X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
                 if (!plan.Cell.InBounds(map)) return "the cell is off the map";
                 if (intent.Designation == Operations.ThingDesignation.Mine)
                 {
@@ -150,11 +148,11 @@ namespace HomeBridge.BridgeTools
             if (intent.ReplaceWithWall)
             {
                 if (intent.Designation != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
-                plan.WallStuff = WallStuff(plan.Target!);
+                plan.WallStuff = WallStuff((plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")));
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
             if (plan.Target != null && plan.Target.IsForbidden(Faction.OfPlayer)) return "the target is forbidden";
-            plan.HaulOut = plan.Designation == Operations.ThingDesignation.Haul && plan.Guard == null && NativeDesignationGuards.HaulOutStack(plan.Target!);
+            plan.HaulOut = plan.Designation == Operations.ThingDesignation.Haul && plan.Guard == null && NativeDesignationGuards.HaulOutStack((plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")));
             if (plan.Guard != null)
             {
                 var blocker = NativeDesignationGuards.Registry.Admit(plan.Guard, new GuardSubject { Map = map, Cell = plan.Cell, Target = plan.Target });
@@ -164,7 +162,7 @@ namespace HomeBridge.BridgeTools
             if (plan.Present) return null;
             if (OtherDesignation(plan)) return "the target carries another designation";
             if (plan.Designation == Operations.ThingDesignation.Haul
-                && !StoreUtility.TryFindBestBetterStoreCellFor(plan.Target!, null, map, StoreUtility.CurrentStoragePriorityOf(plan.Target!), Faction.OfPlayer, out _))
+                && !StoreUtility.TryFindBestBetterStoreCellFor(plan.Target, null, map, StoreUtility.CurrentStoragePriorityOf(plan.Target), Faction.OfPlayer, out _))
                 return "no stockpile accepts the thing";
             return plan.HaulOut ? null : DesignatorRefusal(plan);
         }
@@ -246,11 +244,11 @@ namespace HomeBridge.BridgeTools
                 return CancelEvidence(id);
             }
             var refusal = Resolve(intent, context, out var plan, out _);
-            if (refusal != null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
+            if (refusal != null || plan == null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
             if (plan.Cleared) return Evidence(plan, null);
             if (plan.HaulOut)
             {
-                if (!plan.Present) NativeDesignationGuards.StandHaulOut(plan.Map, plan.Target!);
+                if (!plan.Present) NativeDesignationGuards.StandHaulOut(plan.Map, (plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")));
                 return Evidence(plan, null);
             }
             var record = plan.Guard == null ? null : NativeDesignationGuards.Open(plan.Map, plan.Def, plan.Cell, plan.Target);
@@ -266,9 +264,9 @@ namespace HomeBridge.BridgeTools
                 // swap the game lets the blueprint replace in place is one
                 // build (the construct giver deconstructs the door).
                 var standing = plan.Cell.GetThingList(plan.Map).FirstOrDefault(t => t is Blueprint_Build b && b.def.entityDefToBuild == ThingDefOf.Wall);
-                if (standing != null) { record!.ReplacementId = standing.GetUniqueLoadID(); return Evidence(plan, record); }
+                if (standing != null) { (record ?? throw new System.InvalidOperationException("Required native value is unavailable: record.")).ReplacementId = standing.GetUniqueLoadID(); return Evidence(plan, record); }
                 if (GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, plan.Cell, Rot4.North, plan.Map, false, null, null, plan.WallStuff).Accepted)
-                { PlaceWall(record!, plan.Map, null, queued: false); return Evidence(plan, record); }
+                { PlaceWall((record ?? throw new System.InvalidOperationException("Required native value is unavailable: record.")), plan.Map, null, queued: false); return Evidence(plan, record); }
             }
             if (!plan.Present)
             {
@@ -279,9 +277,9 @@ namespace HomeBridge.BridgeTools
             }
             // Vanilla removes a zero-work target (a sleeping spot) or any
             // target in god mode at once: that is the observed demolition.
-            if (plan.Designation == Operations.ThingDesignation.Deconstruct && plan.Target!.Destroyed)
+            if (plan.Designation == Operations.ThingDesignation.Deconstruct && (plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")).Destroyed)
             {
-                record!.Finished = Find.TickManager.TicksGame;
+                (record ?? throw new System.InvalidOperationException("Required native value is unavailable: record.")).Finished = Find.TickManager.TicksGame;
                 if (record.WallStuff != null) PlaceWall(record, plan.Map, null, queued: false);
                 return Evidence(plan, record);
             }
@@ -289,7 +287,7 @@ namespace HomeBridge.BridgeTools
             if (record != null) NativeDesignationGuards.Add(record);
             // Swap: the nearest capable builder takes the deconstruction now;
             // the wall follows it.
-            if (plan.WallStuff != null) Order(plan.Target!, null, DeconstructGiver, queued: false);
+            if (plan.WallStuff != null) Order((plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")), null, DeconstructGiver, queued: false);
             return Evidence(plan, record);
         }
 
@@ -303,7 +301,7 @@ namespace HomeBridge.BridgeTools
             }
             if (p.Designation == Operations.ThingDesignation.Deconstruct)
             {
-                var target = (Building)p.Target!;
+                var target = (Building)(p.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: p.Target."));
                 var effect = new Receipts.DeconstructEffect { TargetId = target.GetUniqueLoadID(), DesignationId = record?.Id ?? "" };
                 if (record?.ReplacementId != null) effect = effect with { ReplacementId = record.ReplacementId };
                 return new Receipts.EffectEvidence { Effect = effect };

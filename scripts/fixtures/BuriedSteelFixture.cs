@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         private static Action<IntVec3> FogSetter(Map map)
         {
             var grid = map.fogGrid;
-            object storage = null;
+            object? storage = null;
             foreach (var name in new[] { "FogGrid_Unsafe", "fogGridDirect", "fogGrid" }) {
                 var prop = AccessTools.Property(typeof(FogGrid), name);
                 if (prop != null) { storage = prop.GetValue(grid); if (storage != null) break; }

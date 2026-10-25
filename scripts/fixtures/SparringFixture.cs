@@ -151,7 +151,7 @@ namespace HomeBridge.BridgeTools
                     Bouts = watcher.Records.Values.OrderBy(r => r.Id).Select(r => new Fx.SparringBout
                     {
                         Id = r.Id, Finished = r.Finished,
-                        Fighting = r.FightMembers == null ? null : new Fx.SparringFight { Members = r.FightMembers, Teams = r.FightTeams, Melee = r.FightMelee, Opponents = r.FightOpponents, Markers = r.FightMarkers },
+                        Fighting = r.Fighting,
                     }).ToList(),
                     Injected = watcher.Injected, Hit = watcher.HitId, Abandoned = watcher.Abandoned, AttackJobs = watcher.AttackJobs, Struck = watcher.Struck.Count,
                     Raid = watcher.RaidReport(), Pawns = watcher.Tracked.Select(watcher.Report).ToList(),
@@ -164,11 +164,7 @@ namespace HomeBridge.BridgeTools
     {
         public int Id;
         public bool Finished;
-        public string[] FightMembers;
-        public int[] FightTeams;
-        public int[] FightMelee;
-        public string[] FightOpponents;
-        public string[] FightMarkers;
+        public Fx.SparringFight? Fighting;
     }
 
     public sealed class SparringGear
@@ -202,8 +198,8 @@ namespace HomeBridge.BridgeTools
 
     public sealed class SparringWatcher : MapComponent
     {
-        private Pawn raider;
-        private Pawn raidVictim;
+        private Pawn? raider;
+        private Pawn? raidVictim;
         private int raidSpawnTick;
         private int raidVictimEndTick = -1;
         public bool DraftOnGather;
@@ -257,8 +253,8 @@ namespace HomeBridge.BridgeTools
         // The registry's no-show cooldowns (pawn id -> tick until which it sits out): private to the
         // registry, read here because a cooldown left by one stage must not outlast it.
         public static Dictionary<int, int> SitOut(Map map) =>
-            (Dictionary<int, int>)typeof(SparringBouts).GetField("sitOutUntil", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                .GetValue(SparringBouts.For(map));
+            ((BridgeCommon.PrivateInstanceField(typeof(SparringBouts), "sitOutUntil") ?? throw new MissingFieldException(typeof(SparringBouts).FullName, "sitOutUntil"))
+                .GetValue(SparringBouts.For(map)) as Dictionary<int, int> ?? throw new InvalidOperationException("Sparring sit-out state unavailable."));
 
         public Fx.SparringPawn Report(Pawn p)
         {
@@ -300,13 +296,16 @@ namespace HomeBridge.BridgeTools
                         victim.drafter.Drafted = true;
                     }
                 }
-                if (bout.State == BoutState.Fighting && record.FightMembers == null)
+                if (bout.State == BoutState.Fighting && record.Fighting == null)
                 {
-                    record.FightMembers = bout.Slots.Select(s => s.Pawn.GetUniqueLoadID()).ToArray();
-                    record.FightTeams = bout.Slots.Select(s => s.Team).ToArray();
-                    record.FightMelee = bout.Slots.Select(s => SparringBouts.Melee(s.Pawn)).ToArray();
-                    record.FightMarkers = bout.Slots.Select(s => s.Marker.GetUniqueLoadID()).ToArray();
-                    record.FightOpponents = bout.Slots.Select(s => registry.OpponentOf(s.Pawn)?.GetUniqueLoadID() ?? "").ToArray();
+                    record.Fighting = new Fx.SparringFight
+                    {
+                        Members = bout.Slots.Select(s => s.Pawn.GetUniqueLoadID()).ToArray(),
+                        Teams = bout.Slots.Select(s => s.Team).ToArray(),
+                        Melee = bout.Slots.Select(s => SparringBouts.Melee(s.Pawn)).ToArray(),
+                        Markers = bout.Slots.Select(s => s.Marker.GetUniqueLoadID()).ToArray(),
+                        Opponents = bout.Slots.Select(s => registry.OpponentOf(s.Pawn)?.GetUniqueLoadID() ?? "").ToArray(),
+                    };
                 }
                 if (bout.State == BoutState.Fighting) Fighting(bout);
             }
@@ -353,7 +352,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        public Fx.SparringRaid RaidReport() => raidVictim == null ? null : new Fx.SparringRaid
+        public Fx.SparringRaid? RaidReport() => raidVictim == null ? null : new Fx.SparringRaid
         {
             Victim = raidVictim.GetUniqueLoadID(), RaiderGone = raider == null || raider.Destroyed,
         };
@@ -480,7 +479,7 @@ namespace HomeBridge.BridgeTools
         private static float SocialTolerance(Pawn p) => p.needs?.joy == null ? 0f : p.needs.joy.tolerances[JoyKindDefOf.Social];
 
         // An original thing, wherever it now is: worn, held, wielded or on the ground.
-        private Thing FindThing(Pawn p, int id)
+        private Thing? FindThing(Pawn p, int id)
         {
             return p.apparel.WornApparel.Cast<Thing>().Concat(p.equipment.AllEquipmentListForReading).Concat(p.inventory.innerContainer)
                 .Concat(map.listerThings.AllThings).FirstOrDefault(t => t.thingIDNumber == id);

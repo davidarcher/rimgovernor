@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,10 +9,10 @@ namespace HomeBridge.BridgeTools
 {
     internal sealed class WorkGiverJobResult
     {
-        internal Job Job = null!;
-        internal WorkGiver_Scanner Scanner = null!;
-        internal WorkGiverDef Giver = null!;
-        internal WorkTypeDef WorkType = null!;
+        internal required Job Job;
+        internal required WorkGiver_Scanner Scanner;
+        internal required WorkGiverDef Giver;
+        internal required WorkTypeDef WorkType;
     }
 
     /// <summary>

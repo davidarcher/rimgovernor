@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
                     map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
                 }
                 var zone = new Zone_Growing(map.zoneManager) { label = "Blight fixture rice" };
-                BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").SetValue(zone, riceDef);
+                (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new System.MissingFieldException(typeof(Zone_Growing).FullName, "plantDefToGrow")).SetValue(zone, riceDef);
                 map.zoneManager.RegisterZone(zone);
                 var plants = new List<Plant>();
                 foreach (var c in new CellRect(origin.x, origin.z, size, size).Cells)

@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -163,8 +162,8 @@ namespace HomeBridge.BridgeTools
                 var center = new IntVec3(candidate.X, 0, candidate.Z);
                 if (!center.InBounds(map)) return new PlacementPreviewFailure("Requested cell is not on this map.", PlacementFailureKind.InvalidRequest);
                 if (!TryParseRotations(candidate.Rotation, out var rotations, out var error))
-                    return new PlacementPreviewFailure(error!, PlacementFailureKind.InvalidRequest);
-                DefinitionName(definition!.defName);
+                    return new PlacementPreviewFailure(error, PlacementFailureKind.InvalidRequest);
+                DefinitionName(definition.defName);
                 if (!definition.BuildableByPlayer || definition.blueprintDef == null)
                     return new PlacementPreviewFailure("The requested definition is not available for ordinary blueprint construction.", PlacementFailureKind.Unsupported);
                 var madeFromStuff = definition.MadeFromStuff;
@@ -173,7 +172,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!madeFromStuff)
                         return new PlacementPreviewFailure("The requested definition does not accept a stuff material.", PlacementFailureKind.InvalidRequest);
-                    material = ResolveThingDef(candidate.Stuff!);
+                    material = ResolveThingDef(candidate.Stuff);
                     if (material == null) return new PlacementPreviewFailure("No ThingDef matches the requested stuff.", PlacementFailureKind.NotFound);
                 }
                 else if (madeFromStuff) material = GenStuff.DefaultStuffFor(definition);

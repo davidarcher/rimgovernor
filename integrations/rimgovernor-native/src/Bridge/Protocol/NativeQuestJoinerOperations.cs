@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using RimWorld;
 using Verse;
@@ -15,9 +14,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder order, Common.ObservationContext context, out Pawn? actor, out Pawn? target, out bool running)
         {
             target = null; running = false;
-            var failure = NativeGiveJob.Pawn(order, context, out actor, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible || snapshot.Drafted || !actor!.IsColonistPlayerControlled || !actor.health.capacities.CapableOf(PawnCapacityDefOf.Moving))
+            if (!NativeGiveJob.TryPawn(order, context, out actor, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible || snapshot.Drafted || !actor.IsColonistPlayerControlled || !actor.health.capacities.CapableOf(PawnCapacityDefOf.Moving))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Helping requires an eligible undrafted mobile colonist.");
             target = RefIndex.Thing(ProtoBoundary.LoadedMap(context), order.TargetId) as Pawn;
             if (target == null || !target.Spawned || target.Dead || target == actor || !target.mindState.WillJoinColonyIfRescued)
@@ -31,12 +29,12 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder order, Common.ObservationContext context)
         {
             var failure = Resolve(order, context, out var actor, out var target, out var running);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (running) return NativeGiveJob.Evidence(actor!, target!, actor!.CurJob, false);
+            if (failure != null || actor == null || target == null) throw new InvalidOperationException(failure?.Detail);
+            if (running) return NativeGiveJob.Evidence(actor, target, actor.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.OfferHelp, target);
-            if (!actor!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(actor.CurJob, job))
+            if (!actor.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(actor.CurJob, job))
                 throw new InvalidOperationException("The colonist did not take the native help job.");
-            return NativeGiveJob.Evidence(actor, target!, job, true);
+            return NativeGiveJob.Evidence(actor, target, job, true);
         }
     }
 }

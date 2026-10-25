@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,9 +50,9 @@ namespace HomeBridge.BridgeTools
                 GleamingInteractionAvailable = monolith.GetComp<CompGleamingMonolith>()?.CanInteract().Accepted ?? false,
                 PendingVoidStructureIds = [.. structures.OrderBy(t => t.thingIDNumber)
                     .Where(t => t.TryGetComp<CompVoidStructure>()?.CanInteract().Accepted == true).Select(t => t.GetUniqueLoadID())],
-                VoidNodeId = touchable ? node!.GetUniqueLoadID() : null,
+                VoidNodeId = touchable ? (node ?? throw new System.InvalidOperationException("Required native value is unavailable: node.")).GetUniqueLoadID() : null,
                 VoidNodePawnIds = touchable
-                    ? [.. node!.Map!.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Where(p => nodeComp!.CanInteract(p).Accepted).Select(p => p.GetUniqueLoadID())]
+                    ? [.. ((node ?? throw new System.InvalidOperationException("Required native value is unavailable: node.")).Map ?? throw new System.InvalidOperationException("Required native value is unavailable: (node ?? throw new System.InvalidOperationException(\"Required native value is unavailable: node.\")).Map.")).mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Where(p => (nodeComp ?? throw new System.InvalidOperationException("Required native value is unavailable: nodeComp.")).CanInteract(p).Accepted).Select(p => p.GetUniqueLoadID())]
                     : [],
             };
         }

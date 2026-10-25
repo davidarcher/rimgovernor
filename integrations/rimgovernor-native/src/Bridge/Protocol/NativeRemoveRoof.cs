@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using HarmonyLib;
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
             int designatedCount = 0;
             foreach (var cell in cells)
             {
-                var unroofed = map!.roofGrid.RoofAt(cell) == null;
+                var unroofed = (map ?? throw new System.InvalidOperationException("Required native value is unavailable: map.")).roofGrid.RoofAt(cell) == null;
                 if (map.areaManager.NoRoof[cell]) continue;
                 // An unroofed cell joins the NoRoof area too: left out, it
                 // stays in the BuildRoof area auto-roof gave it (a room's

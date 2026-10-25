@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,7 +50,7 @@ internal static class NativeHuntActivity
             Body = Body(p),
             Melee = hunter ? null : Melee(p),
             Revenge = hunter ? [] : Revenge(p, hunters),
-            Apparel = EquatableArray.From((p.apparel?.WornApparel ?? []).Select(a => Gear(a)!).Where(g => g != null)),
+            Apparel = EquatableArray.From((p.apparel?.WornApparel ?? []).Select(a => (Gear(a) ?? throw new System.InvalidOperationException("Required native value is unavailable: Gear(a)."))).Where(g => g != null)),
             Skills = EquatableArray.From((p.skills?.skills ?? []).Select(s => new Obs.HuntSkillRead(s.def.defName, s.Level))),
             Traits = EquatableArray.From((p.story?.traits.allTraits ?? []).Select(t => new Obs.HuntTraitRead(t.def.defName, t.Degree))),
             Health = EquatableArray.From(p.health.hediffSet.hediffs.Where(h => h is not Hediff_MissingPart)

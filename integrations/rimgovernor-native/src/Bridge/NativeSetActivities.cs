@@ -1,4 +1,3 @@
-#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using RimGovernor.Brain.Domain;
@@ -38,7 +37,7 @@ internal static class NativeSetActivities
 
     /// <summary>The members standing on the pawn's map, nearest the pawn first (then by cell, as the sow cells order).</summary>
     internal static List<Thing> Members(Pawn pawn, PawnActivityStep step) => step.Targets.Select(id => RefIndex.Thing(pawn.Map, id))
-        .Where(t => t != null && t.Spawned && !t.Destroyed && t.Map == pawn.Map).Select(t => t!)
+        .OfType<Thing>().Where(t => t.Spawned && !t.Destroyed && t.Map == pawn.Map)
         .OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.Position.x).ThenBy(t => t.Position.z).ToList();
 
     /// <summary>The member cells still to work (in bounds, a RemoveFloor cell with a removable top layer, a RemoveRoof cell still

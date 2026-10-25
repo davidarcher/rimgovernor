@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -116,7 +115,7 @@ internal static class NativeSupportActivities
                     var recipe = new PawnActivityRecipe(bill.GetUniqueLoadID(), bill.recipe.defName, [new(source.GetUniqueLoadID(), count)]) { Resource = source.def.defName };
                     var step = new PawnActivityStep(PawnActivityKind.Work, patient.GetUniqueLoadID(), giver.defName, "DoBill", 0, Find.TickManager.TicksGame + 60000) { Recipe = recipe };
                     if (!NativeSupportSurgery.Resolve(pawn, patient, step, out var job)) continue;
-                    JobMaker.ReturnToPool(job!);
+                    JobMaker.ReturnToPool(job);
                     // A surgeon with no operation speed cannot operate.
                     var speed = bill.recipe.workSpeedStat == null ? 1 : pawn.GetStatValue(bill.recipe.workSpeedStat);
                     if (speed <= 0 || Add(Route(pawn, pawn.Position, source.Position, PathEndMode.Touch), Route(pawn, source.Position, patient.Position, PathEndMode.Touch)) is not { } walk) continue;

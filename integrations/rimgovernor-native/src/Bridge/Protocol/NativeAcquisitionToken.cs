@@ -1,4 +1,3 @@
-#nullable enable
 using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools

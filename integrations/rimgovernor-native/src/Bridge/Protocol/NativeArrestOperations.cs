@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -22,8 +21,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target, out Building_Bed? bed)
         {
             target = null; bed = null;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
             if (!intent.HasBedId || !ProtoBoundary.IsIdentifier(intent.BedId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Arrest requires the exact prisoner bed.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -31,12 +29,12 @@ namespace HomeBridge.BridgeTools
             bed = RefIndex.Thing<Building_Bed>(map, intent.BedId);
             if (target == null || bed == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact arrest target or bed is not spawned on this map.");
-            if (!NativeMovementOperations.Owns(snapshot!))
+            if (!NativeMovementOperations.Owns(snapshot))
                 return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Arrest requires an eligible drafted pawn.");
-            if (Running(pawn!, target, bed)) return null;
+            if (Running(pawn, target, bed)) return null;
             string? reason = null;
             if (target.Dead || !target.InMentalState && !(target.Faction == Faction.OfAncients && !target.HostileTo(pawn) && !target.Downed && target.RaceProps.Humanlike && !target.IsPrisonerOfColony)) reason = "target is not living in a mental state or a standing neutral ancient";
-            else if (pawn!.equipment?.Primary == null || !pawn.equipment.Primary.def.IsWeapon || pawn.WorkTagIsDisabled(WorkTags.Violent))
+            else if (pawn.equipment?.Primary == null || !pawn.equipment.Primary.def.IsWeapon || pawn.WorkTagIsDisabled(WorkTags.Violent))
                 reason = "arrester is unarmed or incapable of violence";
             else if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) reason = "arrester cannot manipulate";
             else if (!target.CanBeArrestedBy(pawn) || target.Downed && target.guilt.IsGuilty
@@ -56,12 +54,12 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var bed);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, target!, bed!)) return NativeGiveJob.Evidence(pawn!, target!, pawn!.CurJob, false);
+            if (failure != null || pawn == null || target == null || bed == null) throw new InvalidOperationException(failure?.Detail);
+            if (Running(pawn, target, bed)) return NativeGiveJob.Evidence(pawn, target, pawn.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.Arrest, target, bed); job.count = 1;
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The arrester did not take the arrest job.");
-            return NativeGiveJob.Evidence(pawn, target!, job, true);
+            return NativeGiveJob.Evidence(pawn, target, job, true);
         }
     }
 }

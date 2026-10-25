@@ -48,6 +48,11 @@ Policy's analyzer time. A port does not add `#pragma` or
 `SuppressMessage` to get green; fix the code. A rule that is wrong for the whole
 solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 
+The native Bridge project also enables nullable checking project-wide, with warnings
+treated as errors. Individual source files need no `#nullable` directive. Model
+optional game values as nullable; check required targets before constructing their
+records. Do not suppress a missing-value warning with `!`.
+
 ## Idiom map
 
 | Go | C# |

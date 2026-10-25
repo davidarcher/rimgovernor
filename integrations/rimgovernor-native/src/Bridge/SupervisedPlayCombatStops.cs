@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 
 using System;
@@ -143,7 +142,7 @@ namespace HomeBridge.BridgeTools
 
         private static void ScanCombatContact(State s)
         {
-            var range = s.Typed!.RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.EnteredRange);
+            var range = (s.Typed ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Typed.")).RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.EnteredRange);
             var melee = s.Typed.RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.MeleeContact);
             if (!range && !melee) return;
             var map = s.Map;
@@ -292,9 +291,9 @@ namespace HomeBridge.BridgeTools
                 if (radius <= 0f || launcher == null || !OnEpochMap(launcher) || !launcher.HostileTo(Faction.OfPlayer)) return;
                 if (!CombatArmed(Clock.CombatEvent.ExplosiveLaunched)) return;
                 var at = ___destination.ToIntVec3();
-                var near = radius + _state!.Policy!.ExplosiveNearMarginCells;
-                var colonist = _state!.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(c => (c.Position - at).LengthHorizontalSquared <= near * near);
-                if (colonist != null) NoteCombatEvent(Clock.CombatEvent.ExplosiveLaunched, launcher, __instance.def!.defName + " launched at " + SafeLoadId(colonist));
+                var near = radius + ((_state ?? throw new System.InvalidOperationException("Required native value is unavailable: _state.")).Policy ?? throw new System.InvalidOperationException("Required native value is unavailable: (_state ?? throw new System.InvalidOperationException(\"Required native value is unavailable: _state.\")).Policy.")).ExplosiveNearMarginCells;
+                var colonist = _state.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(c => (c.Position - at).LengthHorizontalSquared <= near * near);
+                if (colonist != null) NoteCombatEvent(Clock.CombatEvent.ExplosiveLaunched, launcher, (__instance.def ?? throw new System.InvalidOperationException("Required native value is unavailable: __instance.def.")).defName + " launched at " + SafeLoadId(colonist));
             }
             catch { }
         }
@@ -311,7 +310,7 @@ namespace HomeBridge.BridgeTools
                     var hostile = __instance.faction != null && __instance.faction.HostileTo(Faction.OfPlayer);
                     CombatMirror.Record(Mirror.CombatLogKind.LordToil, hostile ? Clock.CombatEvent.RaidPhase : null, __instance.ownedPawns.FirstOrDefault(), null, CombatMirror.Strategy(__instance));
                 }
-                if (__state == null || ReferenceEquals(__state, newLordToil) || s == null || !ReferenceEquals(__instance!.Map, s.Map)) return;
+                if (__state == null || ReferenceEquals(__state, newLordToil) || s == null || !ReferenceEquals((__instance ?? throw new System.InvalidOperationException("Required native value is unavailable: __instance.")).Map, s.Map)) return;
                 if (__instance.faction == null || !__instance.faction.HostileTo(Faction.OfPlayer)) return;
                 NoteCombatEvent(Clock.CombatEvent.RaidPhase, __instance.ownedPawns.FirstOrDefault(),
                     __state.GetType().Name + " -> " + newLordToil.GetType().Name);
@@ -344,7 +343,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (__result && ___pawn != null && ___pawn.Spawned)
                     CombatMirror.Record(Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? Clock.CombatEvent.MentalBreak : null, ___pawn, null);
-                if (!__result || !OnEpochMap(___pawn) || ___pawn!.RaceProps == null || !___pawn.RaceProps.Humanlike) return;
+                if (!__result || ___pawn == null || !OnEpochMap(___pawn) || ___pawn.RaceProps == null || !___pawn.RaceProps.Humanlike) return;
                 NoteCombatEvent(Clock.CombatEvent.MentalBreak, ___pawn, stateDef?.defName ?? "mental state");
             }
             catch { }

@@ -1,4 +1,3 @@
-#nullable enable
 using System.Threading;
 using System.Threading.Tasks;
 using Verse;
@@ -51,7 +50,7 @@ namespace HomeBridge.BridgeTools
             else
             {
                 NativeControlRevocationReason reason;
-                ExternalReason(revoke!.Reason, out reason);
+                ExternalReason((revoke ?? throw new System.InvalidOperationException("Required native value is unavailable: revoke.")).Reason, out reason);
                 result = state.Revoke(revoke.ExpectedGeneration, reason);
             }            context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(result.Snapshot.Generation) };
             if (!result.Success)
@@ -60,7 +59,7 @@ namespace HomeBridge.BridgeTools
                 return new Authority.ControlReply { Outcome = new Authority.Revoked
                 {
                     Context = context,
-                    Authority = new Authority.InactiveAuthority { Reason = revoke!.Reason }
+                    Authority = new Authority.InactiveAuthority { Reason = revoke.Reason }
                 } };
             if (!settingAuto)
             {

@@ -9,19 +9,19 @@ internal static class WireProbeAccessors
 {
     extension(Authority.ControlRequest r)
     {
-        public Authority.SetMode SetMode => (r.Operation as Authority.ControlRequestOperation.SetModeCase)?.Value;
-        public Authority.Revoke Revoke => (r.Operation as Authority.ControlRequestOperation.RevokeCase)?.Value;
+        public Authority.SetMode? SetMode => (r.Operation as Authority.ControlRequestOperation.SetModeCase)?.Value;
+        public Authority.Revoke? Revoke => (r.Operation as Authority.ControlRequestOperation.RevokeCase)?.Value;
     }
     extension(Authority.ControlReply r)
     {
-        public Authority.Granted Granted => r.Outcome?.Granted;
-        public Authority.Revoked Revoked => r.Outcome?.Revoked;
-        public Common.Failure Failure => r.Outcome?.Failure;
+        public Authority.Granted? Granted => r.Outcome?.Granted;
+        public Authority.Revoked? Revoked => r.Outcome?.Revoked;
+        public Common.Failure? Failure => r.Outcome?.Failure;
     }
     extension(Authority.Status s)
     {
-        public Common.Unavailable Unavailable => s.State?.Unavailable;
-        public Authority.InactiveAuthority Inactive => s.State?.Inactive;
-        public Authority.ActiveAuthority Active => s.State?.Active;
+        public Common.Unavailable? Unavailable => s.State?.Unavailable;
+        public Authority.InactiveAuthority? Inactive => s.State?.Inactive;
+        public Authority.ActiveAuthority? Active => s.State?.Active;
     }
 }

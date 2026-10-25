@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
                 faction.ideos.SetPrimary(ideo);
                 string[] Precepts() => faction.ideos.PrimaryIdeo.PreceptsListForReading.Select(p => p.def.defName + "/" + p.GetUniqueLoadID()).OrderBy(n => n, StringComparer.Ordinal).ToArray();
                 var before = Precepts();
-                var design = IdeoligionReformActionHandler.ReadDesign(IdeoGenerator.GenerateIdeo(new IdeoGenerationParms(player.def))) with { Fluid = false };
+                var design = IdeoligionReformActionHandler.ReadDesign(IdeoGenerator.GenerateIdeo(new IdeoGenerationParms((player ?? throw new InvalidOperationException("Player faction required.")).def))) with { Fluid = false };
                 try { NativeIdeoligionDesign.Create(design); }
                 catch (InvalidOperationException e) { return new { success = false, reason = "The design was refused: " + e.Message }; }
                 return new { success = true, faction = faction.def.defName, design = RimGovernor.Contracts.Wire.WireJson.Serialize(design), before, after = Precepts() };
@@ -132,10 +132,10 @@ namespace HomeBridge.BridgeTools
                 var tried = new List<string>();
                 var centre = map.Center;
 
-                Precept_Ritual Choose(out ThingDef buildingDef, out Building building, out string refusal)
+                Precept_Ritual? Choose(out ThingDef? buildingDef, out Building? building, out string? refusal)
                 {
                     buildingDef = null; building = null; refusal = null;
-                    foreach (var candidate in held.Cast<Precept_Ritual>().Concat(offered.Select(def => AddRitual(ideo, def))).Where(r => r != null))
+                    foreach (var candidate in held.Cast<Precept_Ritual>().Concat(offered.Select(def => AddRitual(ideo, def))).OfType<Precept_Ritual>())
                     {
                         foreach (var def in candidate.sourcePattern.ritualObligationTargetFilter.thingDefs
                             .Where(d => d != null && d.BuildableByPlayer).OrderBy(d => d.defName, StringComparer.Ordinal))
@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
                     return null;
                 }
                 var ritual = Choose(out var buildingDef, out var building, out var refusal);
-                if (ritual == null) return Refuse(refusal);
+                if (ritual == null || building == null || buildingDef == null) return Refuse(refusal ?? "Ritual building unavailable.");
 
                 // The pattern's own cooldown passed, with the repeat penalty off.
                 var pattern = ritual.sourcePattern;
@@ -225,7 +225,7 @@ namespace HomeBridge.BridgeTools
 
         // A ritual precept the game's def offers, added the way ideoligion
         // generation adds one; null when the game takes no pattern for it.
-        private static Precept_Ritual AddRitual(Ideo ideo, PreceptDef def)
+        private static Precept_Ritual? AddRitual(Ideo ideo, PreceptDef def)
         {
             var precept = PreceptMaker.MakePrecept(def) as Precept_Ritual;
             if (precept == null) return null;
@@ -235,7 +235,7 @@ namespace HomeBridge.BridgeTools
 
         // Researches def's prerequisites and places it finished, player-owned,
         // on the first cell near the centre where the game accepts it.
-        private static Building PlaceBuilding(Map map, ThingDef def, IntVec3 centre)
+        private static Building? PlaceBuilding(Map map, ThingDef def, IntVec3 centre)
         {
             foreach (var research in def.researchPrerequisites ?? new List<ResearchProjectDef>())
                 Find.ResearchManager.FinishProject(research, false);
@@ -252,7 +252,7 @@ namespace HomeBridge.BridgeTools
 
         // Why the game offers no enabled begin command at the building (null
         // when it does): the command NativeRitualBegin takes.
-        private static string BeginRefusal(Precept_Ritual ritual, Building building)
+        private static string? BeginRefusal(Precept_Ritual ritual, Building building)
         {
             var commands = ritual.GetGizmoFor(new TargetInfo(building))?.OfType<Command_Ritual>().ToList() ?? new List<Command_Ritual>();
             if (commands.Count == 0) return "the game offers no begin command";

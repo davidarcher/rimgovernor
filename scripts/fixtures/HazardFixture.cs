@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
             if (!hunting) { predator.Destroy(DestroyMode.Vanish); return Refuse("The predator did not take the PredatorHunt job."); }
             spawned.Add(predator);
             return new { success = true, predator = predator.GetUniqueLoadID(), pawnId = predator.thingIDNumber, kind = kindDef.defName,
-                prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, jobStartTick = predator.CurJob.startTick, tick = Find.TickManager.TicksGame };
+                prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, jobStartTick = (predator.CurJob ?? throw new InvalidOperationException("Predator did not start its job.")).startTick, tick = Find.TickManager.TicksGame };
         }
 
         // Kills every free colonist on the map, so the colony is lost

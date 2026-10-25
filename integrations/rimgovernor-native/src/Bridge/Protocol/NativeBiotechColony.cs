@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +15,7 @@ namespace HomeBridge.BridgeTools
     // without Biotech, and a failed read throws and fails the colony read.
     internal static class NativeBiotechColony
     {
-        private static string Id(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Id(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static RimGovernor.Brain.Domain.Cell Cell(IntVec3 c) => new RimGovernor.Brain.Domain.Cell(c.x, c.z);
         private static bool Owned(Thing t, Map map) => t.Spawned && t.Map == map && t.Faction == Faction.OfPlayer;
 
@@ -26,7 +25,7 @@ namespace HomeBridge.BridgeTools
             var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Owned(b, map)).OrderBy(b => b.thingIDNumber).ToList();
             var banks = buildings.Select(b => (Building: b, Container: b.TryGetComp<CompGenepackContainer>())).Where(x => x.Container != null).ToList();
             var haulables = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned).OrderBy(t => t.thingIDNumber).ToList();
-            var held = banks.SelectMany(x => x.Container!.ContainedGenepacks.OrderBy(p => p.thingIDNumber)
+            var held = banks.SelectMany(x => x.Container.ContainedGenepacks.OrderBy(p => p.thingIDNumber)
                 .Select(p => new Obs.GenepackState { BankId = Id(x.Building.GetUniqueLoadID()) }));
             var loose = haulables.OfType<Genepack>().Select(_ => new Obs.GenepackState { BankId = null });
             return new Obs.BiotechSection.Active(new Obs.BiotechColonyFacts
@@ -36,7 +35,7 @@ namespace HomeBridge.BridgeTools
                     .Where(x => x.Dissolution != null).Select(x => new Obs.Wastepack
                     {
                         ThingId = Id(x.Thing.GetUniqueLoadID()), DefName = x.Thing.def.defName, Position = Cell(x.Thing.Position), Count = x.Thing.stackCount,
-                        Frozen = x.Dissolution!.IsFrozen, InAtomizer = x.Dissolution.InAtomizer, Forbidden = x.Thing.IsForbidden(Faction.OfPlayer),
+                        Frozen = (x.Dissolution ?? throw new System.InvalidOperationException("Required native value is unavailable: x.Dissolution.")).IsFrozen, InAtomizer = x.Dissolution.InAtomizer, Forbidden = x.Thing.IsForbidden(Faction.OfPlayer),
                     })],
                 Atomizers = [.. buildings.OfType<Building_WastepackAtomizer>().Select(a => new Obs.WastepackAtomizer { Position = Cell(a.Position) })],
                 Gestators = [.. buildings.OfType<Building_MechGestator>().Select(g => new Obs.MechGestatorState
@@ -51,7 +50,7 @@ namespace HomeBridge.BridgeTools
                     })],
                 GeneBanks = [.. banks.Select(x => new Obs.GeneBankState
                     {
-                        Position = Cell(x.Building.Position), Capacity = x.Container!.Props.maxCapacity,
+                        Position = Cell(x.Building.Position), Capacity = x.Container.Props.maxCapacity,
                         PackIds = [.. x.Container.ContainedGenepacks.Select(p => Id(p.GetUniqueLoadID())).OrderBy(i => i, StringComparer.Ordinal)],
                     })],
                 GeneAssemblers = [.. buildings.OfType<Building_GeneAssembler>().Select(a => new Obs.GeneAssemblerState { Position = Cell(a.Position) })],

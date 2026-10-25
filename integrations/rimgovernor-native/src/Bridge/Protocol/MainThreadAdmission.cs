@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -66,10 +65,10 @@ namespace HomeBridge.BridgeTools
                 });
                 hop.Completion.Task.ContinueWith(_ => registration.Dispose(), TaskContinuationOptions.ExecuteSynchronously);
             }
-            Task<object> pump;
+            Task<object?> pump;
             try
             {
-                pump = mainThread.InvokeAsync<object>(Pump, CancellationToken.None);
+                pump = mainThread.InvokeAsync<object?>(Pump, CancellationToken.None);
             }
             catch (Exception e)
             {
@@ -115,12 +114,12 @@ namespace HomeBridge.BridgeTools
         // pending hop that is still wanted. While the clock runs and the
         // frame's allowance is spent, a non-control hop stays queued for the
         // frame boundary to drain.
-        private static object Pump()
+        private static object? Pump()
         {
-            if (Budgeted() && spent >= AllowanceTicks && !ControlPending()) return null!;
+            if (Budgeted() && spent >= AllowanceTicks && !ControlPending()) return null;
             var hop = Take();
             if (hop != null) Run(hop);
-            return null!;
+            return null;
         }
 
         // The per-frame main-thread allowance for bridge hops while the

@@ -7,7 +7,7 @@ internal static class NativeConstructionCausalityProbe
     private static void Check(bool value,string name) { checks++; if(!value)throw new Exception(name); }
     internal static void Invoke()
     {
-        object output;
+        object? output;
         var frame=new SameLookingThing(); var other=new SameLookingThing();
         Check(frame.Equals(other),"fixture has equal-looking objects");
         var scope=new NativeConstructionCausality();
@@ -34,7 +34,7 @@ internal static class NativeConstructionCausalityProbe
     }
     private sealed class SameLookingThing
     {
-        public override bool Equals(object obj) => obj is SameLookingThing;
+        public override bool Equals(object? obj) => obj is SameLookingThing;
         public override int GetHashCode() => 1;
     }
 }

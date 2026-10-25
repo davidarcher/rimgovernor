@@ -20,7 +20,7 @@ internal static class NativeRoofSupportProbe
         var pending = new HashSet<int>();
         Func<int, bool> inside = c => c % 100 > 0 && c % 100 < 99 && c / 100 > 0 && c / 100 < 99;
         int checkedRoofs = 0;
-        Func<string> check = () => RoofSupportGeometry.Blocker(removed, Radial, Cardinal, c => Cardinal(c).Concat(new[] {c}), Near, inside, fog.Contains, roofs.Contains, holders.Contains, pending.Contains, out checkedRoofs);
+        Func<string?> check = () => RoofSupportGeometry.Blocker(removed, Radial, Cardinal, c => Cardinal(c).Concat(new[] {c}), Near, inside, fog.Contains, roofs.Contains, holders.Contains, pending.Contains, out checkedRoofs);
         Require(check() == null, "no roof is safe");
         roofs.Add(Cell(22,21));
         Require(check() != null, "every occupied cell must be excluded as a holder");
@@ -48,7 +48,7 @@ internal static class NativeRoofSupportProbe
         // structural survey permits roof checks, not a blanket fog bypass.
         holders.Add(Cell(21,20)); fog.Add(Cell(20,20));
         var structure = new HashSet<int> { Cell(20,20) };
-        Func<string> shrineCheck = () => RoofSupportGeometry.Blocker(removed, Radial, Cardinal,
+        Func<string?> shrineCheck = () => RoofSupportGeometry.Blocker(removed, Radial, Cardinal,
             c => Cardinal(c).Concat(new[] { c }), Near, inside, fog.Contains, roofs.Contains,
             holders.Contains, pending.Contains, out checkedRoofs, structure);
         Require(check() != null, "ordinary removal still refuses the sealed interior");

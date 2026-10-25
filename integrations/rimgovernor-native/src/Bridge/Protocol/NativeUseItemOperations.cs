@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using HarmonyLib;
@@ -80,7 +79,8 @@ namespace HomeBridge.BridgeTools
             verb = self ? null : HeldVerb(pawn, itemId, out item);
             if (verb != null)
             {
-                if (Running(pawn, item!, target, verb)) return null;
+                if (item == null) return Fail(Common.FailureCode.NativeFailure, "The held item is unavailable.");
+                if (Running(pawn, item, target, verb)) return null;
                 if (verb.verbProps.violent && pawn.WorkTagIsDisabled(WorkTags.Violent))
                     return Fail(Common.FailureCode.InvalidRequest, "Colonist is incapable of violence.");
                 if (verb.caster != pawn) verb.caster = pawn;
@@ -100,7 +100,7 @@ namespace HomeBridge.BridgeTools
             if (Running(pawn, thing, target, null)) return null;
             var report = usable.CanBeUsedBy(pawn, usable.Props.ignoreOtherReservations);
             if (!report.Accepted) return Fail(Common.FailureCode.InvalidRequest, "Colonist cannot use the item: " + (report.Reason ?? ""));
-            if (!self && !targetable!.CanHitTarget(target)) return Fail(Common.FailureCode.InvalidRequest, "Item refuses this target.");
+            if (!self && !(targetable ?? throw new System.InvalidOperationException("Required native value is unavailable: targetable.")).CanHitTarget(target)) return Fail(Common.FailureCode.InvalidRequest, "Item refuses this target.");
             return null;
         }
 
@@ -119,19 +119,19 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(string pawnId, string itemId, string targetId, Common.ObservationContext context)
         {
             var failure = Resolve(pawnId, itemId, targetId, context, out var pawn, out var item, out var target, out var verb, out var usable);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            if (failure != null || pawn == null || item == null || target == null) throw new InvalidOperationException(failure?.Detail);
             // The job's targetA: the pawn for a verb, the item for a use job.
-            Thing TargetA() => verb != null ? target! : item!;
-            if (Running(pawn!, item!, target!, verb)) return Evidence(pawn!, TargetA(), pawn!.CurJob, false);
+            Thing TargetA() => verb != null ? target : item;
+            if (Running(pawn, item, target, verb)) return Evidence(pawn, TargetA(), pawn.CurJob, false);
             if (verb != null) verb.OrderForceTarget(target);
-            else if (pawn == target) usable!.TryStartUseJob(pawn!, LocalTargetInfo.Invalid, usable.Props.ignoreOtherReservations);
+            else if (pawn == target) (usable ?? throw new InvalidOperationException("The item use comp is unavailable.")).TryStartUseJob(pawn, LocalTargetInfo.Invalid, usable.Props.ignoreOtherReservations);
             else
             {
-                SelectedTarget((CompTargetable)((ThingWithComps)item!).GetComps<CompTargetable>().First()) = target!;
-                usable!.TryStartUseJob(pawn!, target, usable.Props.ignoreOtherReservations);
+                SelectedTarget((CompTargetable)((ThingWithComps)item).GetComps<CompTargetable>().First()) = target;
+                (usable ?? throw new InvalidOperationException("The item use comp is unavailable.")).TryStartUseJob(pawn, target, usable.Props.ignoreOtherReservations);
             }
-            if (!Running(pawn!, item!, target!, verb)) throw new InvalidOperationException("The colonist did not take the use job.");
-            return Evidence(pawn!, TargetA(), pawn!.CurJob, true);
+            if (!Running(pawn, item, target, verb)) throw new InvalidOperationException("The colonist did not take the use job.");
+            return Evidence(pawn, TargetA(), pawn.CurJob, true);
         }
     }
 }

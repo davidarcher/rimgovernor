@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -37,9 +36,9 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Cast
         {
-            internal Pawn Guide = null!;
-            internal Pawn Target = null!;
-            internal Ability Ability = null!;
+            internal required Pawn Guide;
+            internal required Pawn Target;
+            internal required Ability Ability;
         }
 
         private static Pawn? Colonist(string? id) =>

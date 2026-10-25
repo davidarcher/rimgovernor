@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,16 +76,16 @@ namespace HomeBridge.BridgeTools
                 case Operations.AreaOperation.Create:
                     if (area == null)
                     {
-                        area = new Area_Allowed(map!.areaManager, (intent.Key ?? ""));
+                        area = new Area_Allowed((map ?? throw new System.InvalidOperationException("Required native value is unavailable: map.")).areaManager, (intent.Key ?? ""));
                         map.areaManager.AllAreas.Add(area);
                     }
                     foreach (var cell in cells) area[cell] = true;
                     break;
                 case Operations.AreaOperation.SetCells:
-                    foreach (var cell in cells) area![cell] = true;
+                    foreach (var cell in cells) (area ?? throw new System.InvalidOperationException("Required native value is unavailable: area."))[cell] = true;
                     break;
                 case Operations.AreaOperation.ClearCells:
-                    foreach (var cell in cells) area![cell] = false;
+                    foreach (var cell in cells) (area ?? throw new System.InvalidOperationException("Required native value is unavailable: area."))[cell] = false;
                     break;
                 case Operations.AreaOperation.Delete:
                     area?.Delete();

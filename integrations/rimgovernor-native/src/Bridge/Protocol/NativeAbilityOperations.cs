@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -88,20 +87,20 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Call
         {
-            internal Pawn Pawn = null!;
-            internal Map Map = null!;
-            internal RoyalTitlePermitDef Def = null!;
-            internal FactionPermit Held = null!;
-            internal Faction Faction = null!;
-            internal RoyalTitlePermitWorker_Targeted Worker = null!;
-            internal Operations.AbilityIntent Intent = null!;
+            internal required Pawn Pawn;
+            internal required Map Map;
+            internal required RoyalTitlePermitDef Def;
+            internal required FactionPermit Held;
+            internal required Faction Faction;
+            internal required RoyalTitlePermitWorker_Targeted Worker;
+            internal required Operations.AbilityIntent Intent;
             internal IntVec3 Cell;
         }
 
         private sealed class Guard
         {
             internal string Name = "";
-            internal Func<Call, Common.Failure?> Check = null!;
+            internal required Func<Call, Common.Failure?> Check;
         }
 
         // The named guard registry of the permit source. Names lead the refusal
@@ -216,9 +215,9 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Cast
         {
-            internal Pawn Pawn = null!;
-            internal Ability Ability = null!;
-            internal Operations.AbilityIntent Intent = null!;
+            internal required Pawn Pawn;
+            internal required Ability Ability;
+            internal required Operations.AbilityIntent Intent;
             internal LocalTargetInfo Target;
             internal bool SelfTarget;
         }
@@ -226,7 +225,7 @@ namespace HomeBridge.BridgeTools
         private sealed class Guard
         {
             internal string Name = "";
-            internal Func<Cast, Common.Failure?> Check = null!;
+            internal required Func<Cast, Common.Failure?> Check;
         }
 
         private static Common.Failure Refuse(string guard, string detail, Common.FailureCode code = Common.FailureCode.InvalidRequest) => NativeAbilityOperations.Refuse(code, guard, detail);

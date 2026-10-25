@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -54,9 +53,9 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.BuildingPatchIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var building);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (!PlayerOwned(building!)) building!.SetFaction(Faction.OfPlayer);
-            if (!PlayerOwned(building!)) throw new InvalidOperationException("Native claim requires readback.");
+            if (failure != null || building == null) throw new InvalidOperationException(failure?.Detail);
+            if (!PlayerOwned(building)) building.SetFaction(Faction.OfPlayer);
+            if (!PlayerOwned(building)) throw new InvalidOperationException("Native claim requires readback.");
             return Evidence();
         }
     }

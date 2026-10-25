@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,7 +55,7 @@ namespace HomeBridge.BridgeTools
             if (step.Recipe is { Stuff.Length: > 0 }) return ResolveTailoring(pawn, target, step, out bill, out ingredients, out reason, create);
             if (step.Recipe is not { } choice || !ResolveRecipe(pawn, target, step.WorkGiver, choice.Bill, choice.Recipe, out bill, out reason)) return false;
             var bench = (Building_WorkTable)target;
-            var recipe = bill!.recipe;
+            var recipe = (bill ?? throw new System.InvalidOperationException("Required native value is unavailable: bill.")).recipe;
             ThingDef? ingredientDef = null;
             reason = "cooking_ingredient_unavailable";
             foreach (var selected in choice.Ingredients)
@@ -92,8 +91,8 @@ namespace HomeBridge.BridgeTools
             out Bill_Production? bill, out List<ThingCount> ingredients, out string reason, bool create)
         {
             bill = null; ingredients = new(); reason = "recipe_bench_unavailable";
-            var choice = step.Recipe!;
-            if (target is not Building_WorkTable bench || !NativeProductionBills.Usable(bench) || target.IsForbidden(pawn)
+            var choice = step.Recipe;
+            if (choice == null || target is not Building_WorkTable bench || !NativeProductionBills.Usable(bench) || target.IsForbidden(pawn)
                 || pawn.carryTracker.CarriedThing != null || !pawn.CanReserveAndReach(target, PathEndMode.InteractionCell, Danger.None)) return false;
             var recipe = DefDatabase<RecipeDef>.GetNamedSilentFail(choice.Recipe);
             var stuff = DefDatabase<ThingDef>.GetNamedSilentFail(choice.Stuff);

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -33,7 +32,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(c, context, out var hack, out var toggle);
             if (failure != null) throw new ApplyRefusedException(failure);
-            if (hack!.Autohack != c.Enabled) toggle!.toggleAction();
+            if ((hack ?? throw new System.InvalidOperationException("Required native value is unavailable: hack.")).Autohack != c.Enabled) (toggle ?? throw new System.InvalidOperationException("Required native value is unavailable: toggle.")).toggleAction();
             if (hack.Autohack != c.Enabled) throw new InvalidOperationException("Native autohack state did not change.");
             return new Receipts.EffectEvidence { Effect = new Receipts.HackDesignationEffect { TargetId = c.Target?.Id ?? "", Enabled = hack.Autohack } };
         }

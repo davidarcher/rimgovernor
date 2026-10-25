@@ -44,8 +44,8 @@ namespace HomeBridge.BridgeTools
             var prisoners = new List<Pawn>();
             var insects = new List<Pawn>();
             var mechs = new List<Pawn>();
-            Faction hostile = null;
-            Faction Owner(StageFaction f) => f switch
+            Faction? hostile = null;
+            Faction? Owner(StageFaction f) => f switch
             {
                 StageFaction.Player => Faction.OfPlayer,
                 StageFaction.Hostile => hostile ??= FixtureKit.HostileFaction(),
@@ -294,7 +294,7 @@ namespace HomeBridge.BridgeTools
 
         // Spawn pawn: generated from its kind, then traits, bad hediffs, skills and strip before it spawns (a raider
         // under an arrival mode is left for the arrival), then the prisoner, training and manhunter state.
-        private static Pawn Generate(Map map, StagePawn p, Faction faction, IntVec3 cell, bool arrival,
+        private static Pawn Generate(Map map, StagePawn p, Faction? faction, IntVec3 cell, bool arrival,
             List<Pawn> raiders, List<Pawn> prisoners, List<Pawn> insects, List<Pawn> mechs)
         {
             var kind = FixtureKit.Def<PawnKindDef>(p.Kind ?? throw new ArgumentException($"Pawn {p.Name} names neither a Kind nor a Colonist."));
@@ -408,7 +408,7 @@ namespace HomeBridge.BridgeTools
         // Claim bed: the pawn owns the first bed of the named staged building.
         private static void Claim(Pawn pawn, StagePawn p, Dictionary<string, List<Thing>> built)
         {
-            if (!built.TryGetValue(p.Bed, out var made) || !(made.FirstOrDefault() is Building_Bed bed)) throw new ArgumentException($"Pawn {p.Name}: {p.Bed} is not a staged bed.");
+            if (!built.TryGetValue(p.Bed ?? throw new ArgumentException($"Pawn {p.Name}: bed is required."), out var made) || !(made.FirstOrDefault() is Building_Bed bed)) throw new ArgumentException($"Pawn {p.Name}: {p.Bed} is not a staged bed.");
             if (pawn.ownership == null || !pawn.ownership.ClaimBedIfNonMedical(bed) || pawn.ownership.OwnedBed != bed)
                 throw new InvalidOperationException($"Pawn {p.Name} could not claim {p.Bed}.");
         }
@@ -456,7 +456,7 @@ namespace HomeBridge.BridgeTools
             .Where(b => b.Faction == Faction.OfPlayer && b.TryGetComp<CompPowerTrader>() != null)
             .Select(b => (Building: b, Dps: NativeDefenseStats.TurretDps(b)))
             .Where(g => g.Dps.HasValue)
-            .Select(g => new StagedGun(g.Building.GetUniqueLoadID(), g.Dps.Value, g.Building.TryGetComp<CompPowerTrader>().PowerOn))
+            .Select(g => new StagedGun(g.Building.GetUniqueLoadID(), (g.Dps ?? throw new InvalidOperationException("Gun DPS missing.")), g.Building.TryGetComp<CompPowerTrader>().PowerOn))
             .ToList();
 
         // The primary weapon's kind, as NativeDefenseStats.PawnRangedDps reads it.

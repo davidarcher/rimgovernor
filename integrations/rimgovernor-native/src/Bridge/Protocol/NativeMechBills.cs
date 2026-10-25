@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -59,7 +58,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !float.IsNaN(cost) && !float.IsInfinity(cost), "mech race has no bandwidth cost");
             if (rules.Holds)
             {
-                var found = colonists.FirstOrDefault(p => MechanitorUtility.IsMechanitor(p) && p.mechanitor != null && NativeProductionBills.Skilled(p, gestator, made, work!)
+                var found = colonists.FirstOrDefault(p => MechanitorUtility.IsMechanitor(p) && p.mechanitor != null && NativeProductionBills.Skilled(p, gestator, made, (work ?? throw new System.InvalidOperationException("Required native value is unavailable: work.")))
                     && p.mechanitor.TotalBandwidth - p.mechanitor.UsedBandwidth - p.mechanitor.UsedBandwidthFromGestation >= cost);
                 overseer = found;
                 rules.Require(() => found != null, "no free colonist mechanitor with the bandwidth (" + cost + ") and the work for " + (intent.RecipeDef ?? ""));
@@ -73,7 +72,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var bench, out var recipe, out var overseer);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var gestator = bench!; var made = recipe!; var pawn = overseer;
+            var gestator = bench ?? throw new InvalidOperationException("Mech bench is unavailable."); var made = recipe ?? throw new InvalidOperationException("Mech recipe is unavailable."); var pawn = overseer ?? throw new InvalidOperationException("Mech overseer is unavailable.");
             var standing = gestator.BillStack.Bills.OfType<Bill_Mech>().FirstOrDefault(b => b.recipe == made && !BillCommon.IsFinished(b));
             if (standing == null)
             {

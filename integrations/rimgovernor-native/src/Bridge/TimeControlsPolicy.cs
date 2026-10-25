@@ -1,4 +1,3 @@
-#nullable enable
 using Verse;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 

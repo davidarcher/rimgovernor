@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -56,7 +55,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var thing);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            var comp = thing!.TryGetComp<CompTempControl>();
+            var comp = thing.TryGetComp<CompTempControl>();
             if (intent.Change is not Operations.BuildingPatchIntentChange.TargetTemperatureCase { Value: var wanted }) throw new InvalidOperationException("A temperature patch requires a target temperature.");
             comp.targetTemperature = wanted;
             if (Math.Abs(comp.targetTemperature - wanted) >= 0.001f) throw new InvalidOperationException("Native building temperature requires readback.");

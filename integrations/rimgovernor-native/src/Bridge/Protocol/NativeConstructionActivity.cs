@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -78,7 +77,7 @@ internal static class NativeConstructionActivity
             .Where(d => d.Thing != null && d.Thing.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Thing is Verse.Building deconstructible && deconstructible.DeconstructibleBy(Faction.OfPlayer).Accepted
                 : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
                 : Haulable(d.Thing)))
-            .Select(d => (d.Kind, Thing: d.Thing!))
+            .Select(d => (d.Kind, Thing: d.Thing))
             .Concat(NativeDesignationGuards.HaulOuts(map).Where(Haulable).Select(t => (Kind: Obs.PlannedClearingKind.Haul, Thing: t))).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613), and the standing RemoveFloor
         // designations, one RemoveFloor op per contiguous wave of cells (#3615).
@@ -106,7 +105,7 @@ internal static class NativeConstructionActivity
                 if (kind == Obs.PlannedClearingKind.Haul)
                 {
                     // The stack leaves the planned room it stands in: storage inside any planned footprint covering it is no destination.
-                    var footprint = new HashSet<IntVec3>(planned.Where(p => p.Site != null && p.Site.Footprint.Contains(thing.Position)).SelectMany(p => p.Site!.Footprint));
+                    var footprint = new HashSet<IntVec3>(planned.Where(p => p.Site != null && p.Site.Footprint.Contains(thing.Position)).SelectMany(p => (p.Site ?? throw new System.InvalidOperationException("Required native value is unavailable: p.Site.")).Footprint));
                     if (Destination(map, thing, footprint) is not { } destination) { runFindings.Add("removal_haul_destination_unknown"); continue; }
                     removalOps.Add(new(id, kind) { Options = EquatableArray.From(HaulRows(legs, free, thing, id, thing.def.defName, haulGiver, destination)), Targets = [], Cells = [] });
                     continue;
@@ -381,7 +380,7 @@ internal static class NativeConstructionActivity
     private static List<Plant[]> CutWaves(Map map)
     {
         var plants = map.designationManager.SpawnedDesignationsOfDef(DesignationDefOf.CutPlant).Select(d => d.target.Thing as Plant)
-            .Where(p => p != null && p.Spawned).Select(p => p!).Distinct().OrderBy(p => p.thingIDNumber).ToList();
+            .Where(p => p != null && p.Spawned).Select(p => (p ?? throw new System.InvalidOperationException("Required native value is unavailable: p."))).Distinct().OrderBy(p => p.thingIDNumber).ToList();
         var byCell = plants.GroupBy(p => p.Position).ToDictionary(g => g.Key, g => g.ToArray());
         var seen = new HashSet<Plant>();
         var waves = new List<Plant[]>();
@@ -489,7 +488,7 @@ internal static class NativeConstructionActivity
         {
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
             var roofed = roofCells == null || roofCells.Count == 0;
-            var at = roofed ? building.Position : roofCells!.OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+            var at = roofed ? building.Position : (roofCells ?? throw new System.InvalidOperationException("Required native value is unavailable: roofCells.")).OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
             if (legs.Cost(pawn, pawn.Position, roofed ? building : (LocalTargetInfo)at, PathEndMode.Touch) is not { } route) continue;
             var cell = new Cell(at.x, at.z);
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;

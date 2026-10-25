@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -53,7 +52,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var grower, out var plant);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            grower!.SetPlantDefToGrow(plant!);
+            (grower ?? throw new System.InvalidOperationException("Required native value is unavailable: grower.")).SetPlantDefToGrow((plant ?? throw new System.InvalidOperationException("Required native value is unavailable: plant.")));
             if (grower.GetPlantDefToGrow()?.defName != intent.Change?.PlantDef) throw new InvalidOperationException("Native grower crop requires readback.");
             return Evidence();
         }

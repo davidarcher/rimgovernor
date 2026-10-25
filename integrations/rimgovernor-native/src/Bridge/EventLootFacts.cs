@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -86,8 +85,8 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<Common.Ref> AcceptingGroups(Map map, Thing item) =>
             map.haulDestinationManager.AllGroupsListInPriorityOrder
                 .Where(g => g.parent?.Accepts(item) == true)
-                .Select(g => g.parent as ILoadReferenceable).Where(p => p != null)
-                .Select(p => p!.GetUniqueLoadID()).Distinct().OrderBy(id => id, StringComparer.Ordinal)
+                .Select(g => g.parent as ILoadReferenceable).OfType<ILoadReferenceable>()
+                .Select(p => p.GetUniqueLoadID()).Distinct().OrderBy(id => id, StringComparer.Ordinal)
                 .Select(id => new Common.Ref { Id = id });
 
         internal static bool? Safe(Thing item)

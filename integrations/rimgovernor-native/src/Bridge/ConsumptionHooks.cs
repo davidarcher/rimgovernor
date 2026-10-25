@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -165,7 +164,7 @@ namespace HomeBridge.BridgeTools
             context = __state.Previous;
             if (__state.Before < 0 || __state.Thing == null) return;
             var left = __state.Thing.Destroyed ? 0 : __state.Thing.stackCount;
-            var reason = __state.Def!.IsDrug ? ConsumptionReason.DrugDose
+            var reason = (__state.Def ?? throw new InvalidOperationException("The consumed thing definition is unavailable.")).IsDrug ? ConsumptionReason.DrugDose
                 : ingester?.RaceProps.Humanlike == true ? ConsumptionReason.FoodEaten : ConsumptionReason.AnimalFeed;
             Count(__state.Def, __state.Before - left, reason);
         }

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -131,7 +130,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static float Q(float x) => (float)Math.Round(Math.Max(0f, Math.Min(1f, float.IsNaN(x) ? 0f : x)) * 100f) / 100f;
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
 
         private P.Thing Record(Thing thing, IntVec3 cell)
         {

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -24,18 +23,17 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
         {
             pawn = null; building = null; job = null;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (snapshot!.Drafted || !snapshot.Eligible)
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (snapshot.Drafted || !snapshot.Eligible)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Repair requires an eligible undrafted pawn.");
             var map = ProtoBoundary.LoadedMap(context);
             building = map.listerBuildings.allBuildingsColonist.ById(intent.TargetId);
             if (building == null || building.Destroyed || !building.Spawned || building.Map != map)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact spawned player building is unavailable.");
-            if (Running(pawn!, building)) return null;
+            if (Running(pawn, building)) return null;
             if (!building.def.useHitPoints || building.HitPoints >= building.MaxHitPoints)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Building is not damaged.");
-            if (!pawn!.CanReach(building, PathEndMode.Touch, NativeOrderDanger.OrderDanger))
+            if (!pawn.CanReach(building, PathEndMode.Touch, NativeOrderDanger.OrderDanger))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the building.");
             // WorkGiver_Repair's HasJobOnThing carries the remaining gates (home
             // area, reservation, burning, pending deconstruction/uninstall) and
@@ -51,10 +49,10 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var building, out var result);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, building!)) return NativeGiveJob.Evidence(pawn!, building!, pawn!.CurJob, false);
-            var job = result!.Job;
-            if (!pawn!.jobs.TryTakeOrderedJobPrioritizedWork(job, result.Scanner, building!.Position) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
+            if (failure != null || pawn == null || building == null) throw new InvalidOperationException(failure?.Detail);
+            if (Running(pawn, building)) return NativeGiveJob.Evidence(pawn, building, pawn.CurJob, false);
+            var job = (result ?? throw new InvalidOperationException("The repair job is unavailable.")).Job;
+            if (!pawn.jobs.TryTakeOrderedJobPrioritizedWork(job, result.Scanner, building.Position) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The pawn did not take the repair job.");
             return NativeGiveJob.Evidence(pawn, building, job, true);
         }

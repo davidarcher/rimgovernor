@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -143,7 +142,7 @@ namespace HomeBridge.BridgeTools
             }
             var refusal = Prepare(source, design, false, out var candidate);
             if (refusal != null) throw new InvalidOperationException(refusal.Detail);
-            candidate!.CopyTo(source);
+            (candidate ?? throw new System.InvalidOperationException("Required native value is unavailable: candidate.")).CopyTo(source);
         }
     }
 }

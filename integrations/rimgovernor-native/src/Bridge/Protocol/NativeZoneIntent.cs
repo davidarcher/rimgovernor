@@ -1,4 +1,3 @@
-#nullable enable
 using Common = RimGovernor.Contracts.Wire.Common;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
@@ -22,7 +21,7 @@ namespace HomeBridge.BridgeTools
 
         // DeleteOnly is a delete naming its zone and nothing else.
         internal static bool DeleteOnly(Operations.ZoneIntent? intent) =>
-            Id(intent) != null && intent!.Delete && intent.Kind == Operations.ZoneType.Existing && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
+            Id(intent) != null && (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Delete && intent.Kind == Operations.ZoneType.Existing && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
             && intent.Stockpile == null && intent.Growing == null && intent.Fishing == null && !intent.RequireCoveredEmpty;
     }
 

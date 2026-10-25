@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
@@ -95,10 +94,10 @@ namespace HomeBridge.BridgeTools
                         pawnId = orderPawn.EntityId;
                         var admitted = pawns[(orderPawn.EntityId ?? "")];
                         refusal = admitted.refusal;
-                        if (refusal.Length == 0) refusal = Drafted(identity, admitted.pawn!);
+                        if (refusal.Length == 0) refusal = Drafted(identity, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn.")));
                         if (refusal.Length == 0)
                         {
-                            try { refusal = PawnDoor(map, admitted.pawn!, doorOrder); }
+                            try { refusal = PawnDoor(map, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn.")), doorOrder); }
                             catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " door failed: " + error.GetType().Name); }
                         }
                     }
@@ -127,10 +126,10 @@ namespace HomeBridge.BridgeTools
                     var admitted = pawns[(orderPawn.EntityId ?? "")];
                     refusal = admitted.refusal;
                     bool draft = order.Order is Operations.CombatOrderOrder.DraftCase;
-                    if (refusal.Length == 0) refusal = draft ? Draft(identity, admitted.pawn!) : Drafted(identity, admitted.pawn!);
+                    if (refusal.Length == 0) refusal = draft ? Draft(identity, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn."))) : Drafted(identity, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn.")));
                     if (refusal.Length == 0 && !draft)
                     {
-                        try { refusal = Apply(identity, colony, map, admitted.pawn!, order, out job); }
+                        try { refusal = Apply(identity, colony, map, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn.")), order, out job); }
                         catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " failed: " + error.GetType().Name); }
                     }
                 }

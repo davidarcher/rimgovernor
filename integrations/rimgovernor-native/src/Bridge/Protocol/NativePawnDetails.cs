@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -152,12 +151,12 @@ namespace HomeBridge.BridgeTools
                 var targets=def.targetsBodyPart?def.Worker.GetPartsToApplyOn(pawn,def).ToList()
                     :new System.Collections.Generic.List<BodyPartRecord?>{null};
                 // Everything but the part is the recipe's: read once for all its parts.
-                var shared=false;
-                System.Collections.Generic.List<Pawn> doctors=null!; ThingDef? medicine=null; bool others=false, usesMedicine=false, careLimited=false;
+
+                System.Collections.Generic.List<Pawn>? doctors=null; ThingDef? medicine=null; bool others=false, usesMedicine=false, careLimited=false;
                 foreach(var part in targets) {
                     if(!def.AvailableOnNow(pawn,part)) continue;
-                    if(!shared) {
-                        shared=true;
+                    if(doctors==null) {
+
                         var recipe=facts.Recipe(def,map);
                         doctors=recipe.Doctors.Contains(pawn)?recipe.Doctors.Where(p => p!=pawn).ToList():recipe.Doctors;
                         medicine=facts.Medicine(pawn,def,true);
@@ -272,9 +271,9 @@ namespace HomeBridge.BridgeTools
 
         internal sealed class RecipeFacts
         {
-            internal System.Collections.Generic.List<Pawn> Doctors=null!;
+            internal required System.Collections.Generic.List<Pawn> Doctors;
             // The ingredients PotentiallyMissingIngredients names: a slot no thing on the map fills.
-            internal System.Collections.Generic.List<ThingDef> Missing=null!;
+            internal required System.Collections.Generic.List<ThingDef> Missing;
             internal bool Others, UsesMedicine;
         }
 

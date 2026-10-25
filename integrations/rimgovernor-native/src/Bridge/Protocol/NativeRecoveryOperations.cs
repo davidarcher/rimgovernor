@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -65,16 +64,16 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
         {
             building = null; job = null;
-            var giverType = WorkGiverType(intent.Kind)!;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
+            var giverType = WorkGiverType(intent.Kind);
+            if (giverType == null) { pawn = null; return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "The service job kind is unsupported."); }
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
             var map = ProtoBoundary.LoadedMap(context);
-            if (snapshot!.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
+            if (snapshot.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
             building = map.listerBuildings.allBuildingsColonist.ById(intent.TargetId);
             if (building == null || !Eligible(building)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact serviceable building is unavailable.");
-            if (Servicing(pawn!, building, giverType)) return null;
+            if (Servicing(pawn, building, giverType)) return null;
             if (Satisfied(building, intent.Kind)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Observed service no longer needs this method.");
-            job = WorkGiverDispatch.TryJob(pawn!, building, def => giverType.IsAssignableFrom(def.giverClass), out _);
+            job = WorkGiverDispatch.TryJob(pawn, building, def => giverType.IsAssignableFrom(def.giverClass), out _);
             if (job == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No native service job is available for this pawn and target.");
             return null;
         }
@@ -100,11 +99,11 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var building, out var job);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (job == null) return Evidence(pawn!, building!, pawn!.CurJob, false);
-            if (!pawn!.jobs.TryTakeOrderedJobPrioritizedWork(job.Job, job.Scanner, building!.Position) || !ReferenceEquals(pawn.CurJob, job.Job))
+            if (failure != null || pawn == null || building == null) throw new InvalidOperationException(failure?.Detail);
+            if (job == null) return Evidence(pawn, building, pawn.CurJob, false);
+            if (!pawn.jobs.TryTakeOrderedJobPrioritizedWork(job.Job, job.Scanner, building.Position) || !ReferenceEquals(pawn.CurJob, job.Job))
                 throw new InvalidOperationException("The pawn did not take the service job.");
-            return Evidence(pawn, building!, job.Job, true);
+            return Evidence(pawn, building, job.Job, true);
         }
     }
 }

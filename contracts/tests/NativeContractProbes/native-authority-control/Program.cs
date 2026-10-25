@@ -1,4 +1,3 @@
-#nullable disable
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -15,9 +14,10 @@ internal static class NativeAuthorityControlProbe
 {
     private static int checks;
     private static long time;
-    private static NativeControlAuthority state = null!;
+    private static NativeControlAuthority? state;
+    private static NativeControlAuthority State => state ?? throw new Exception("authority fixture has not been reset");
     private static readonly Common.Identity Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 };
-    private static void Check(bool condition, string text) { checks++; if (!condition) throw new Exception(text); }
+    private static void Check([System.Diagnostics.CodeAnalysis.DoesNotReturnIf(false)] bool condition, string text) { checks++; if (!condition) throw new Exception(text); }
     // The /native/{op} route decodes the request with WireJson before the core runs, so a
     // request goes through JSON exactly as it would over the route.
     private static Wire.ControlReply Call(Wire.ControlRequest request)
@@ -38,24 +38,24 @@ internal static class NativeAuthorityControlProbe
     }
     private static Wire.ControlRequest SetMode(Wire.Mode mode, ulong? generation = null) => new() { Operation = new Wire.SetMode
     {
-        Identity = Identity, ExpectedGeneration = generation ?? state.Status().Generation, Mode = mode
+        Identity = Identity, ExpectedGeneration = generation ?? State.Status().Generation, Mode = mode
     } };
     private static Wire.ControlRequest Revoke(Wire.RevocationReason reason, ulong? generation = null) => new() { Operation = new Wire.Revoke
     {
-        Identity = Identity, ExpectedGeneration = generation ?? state.Status().Generation, Reason = reason
+        Identity = Identity, ExpectedGeneration = generation ?? State.Status().Generation, Reason = reason
     } };
     // Requests are immutable records: a change builds a modified copy of the operation.
-    private static Wire.ControlRequest WithSetMode(Wire.ControlRequest request, Func<Wire.SetMode, Wire.SetMode> change) => new() { Operation = change(request.SetMode) };
-    private static Wire.ControlRequest WithRevoke(Wire.ControlRequest request, Func<Wire.Revoke, Wire.Revoke> change) => new() { Operation = change(request.Revoke) };
+    private static Wire.ControlRequest WithSetMode(Wire.ControlRequest request, Func<Wire.SetMode, Wire.SetMode> change) => new() { Operation = change(request.SetMode ?? throw new Exception("expected set-mode request")) };
+    private static Wire.ControlRequest WithRevoke(Wire.ControlRequest request, Func<Wire.Revoke, Wire.Revoke> change) => new() { Operation = change(request.Revoke ?? throw new Exception("expected revoke request")) };
     private static void Failure(Wire.ControlReply reply, Common.FailureCode code)
-    { Check(reply.Failure != null && reply.Failure.Code == code, "expected " + code + ": " + reply); }
+    { Check(reply.Failure != null && (reply.Failure ?? throw new Exception("expected Failure reply")).Code == code, "expected " + code + ": " + reply); }
     private static void Reset()
     {
         Current.Game = new Game(); Find.CurrentMap = new Map { uniqueID = 0 }; Find.TickManager = new TickManager();
         state = NativeControlAuthority.ForGame(Current.Game); time = 0;
         // Replace only the monotonic clock on the registered production state; no waits or GC.
-        typeof(NativeControlAuthority).GetField("clock", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(state, (Func<long>)(() => time));
-        NativeAuthorityHooks.Ready = true; state.SetHookHealth(true);
+        (typeof(NativeControlAuthority).GetField("clock", BindingFlags.Instance | BindingFlags.NonPublic) ?? throw new Exception("authority clock field missing")).SetValue(state, (Func<long>)(() => time));
+        NativeAuthorityHooks.Ready = true; State.SetHookHealth(true);
     }
     private static void Boundary()
     {
@@ -70,28 +70,28 @@ internal static class NativeAuthorityControlProbe
     }
     private static void InvalidFields()
     {
-        Reset(); var generation = state.Status().Generation;
+        Reset(); var generation = State.Status().Generation;
         foreach (Func<Wire.SetMode, Wire.SetMode> mutate in new Func<Wire.SetMode, Wire.SetMode>[] {
             s => s with { ExpectedGeneration = 0 },
             // An absent expected generation, mode or reason is not expressible: the record requires each.
             s => s with { Identity = null } })
         {
             var request = WithSetMode(SetMode(Wire.Mode.Auto), mutate); Failure(Call(request), Common.FailureCode.InvalidRequest);
-            Check(state.Status().Generation == generation && !state.Status().Active, "invalid set_mode mutated state");
+            Check(State.Status().Generation == generation && !State.Status().Active, "invalid set_mode mutated state");
         }
         Check(Undecodable(UndefinedEnum(SetMode(Wire.Mode.Auto), "mode")), "undefined set_mode mode refused before dispatch");
-        Check(state.Status().Generation == generation && !state.Status().Active, "undefined set_mode mode mutated state");
-        var stale = WithSetMode(SetMode(Wire.Mode.Auto), s => s with { Identity = s.Identity with { LoadToken = "old" } });
+        Check(State.Status().Generation == generation && !State.Status().Active, "undefined set_mode mode mutated state");
+        var stale = WithSetMode(SetMode(Wire.Mode.Auto), s => s with { Identity = (s.Identity ?? throw new Exception("set-mode fixture identity missing")) with { LoadToken = "old" } });
         Failure(Call(stale), Common.FailureCode.StaleIdentity);
         Failure(Call(SetMode(Wire.Mode.Auto, generation + 1)), Common.FailureCode.StaleGeneration);
-        Check(state.Status().Generation == generation && !state.Status().Active, "refused set_mode mutated state");
+        Check(State.Status().Generation == generation && !State.Status().Active, "refused set_mode mutated state");
     }
     private static void EagerInitialization()
     {
         Current.Game = new Game(); Find.CurrentMap = new Map(); Find.TickManager = new TickManager();
         NativeAuthorityHooks.Ready = true;
         var initializations = NativeAuthorityHooks.Initializations;
-        var request = WithSetMode(SetMode(Wire.Mode.Auto, 1), s => s with { Identity = s.Identity with { LoadToken = "stale" } });
+        var request = WithSetMode(SetMode(Wire.Mode.Auto, 1), s => s with { Identity = (s.Identity ?? throw new Exception("set-mode fixture identity missing")) with { LoadToken = "stale" } });
         Failure(Call(request), Common.FailureCode.StaleIdentity);
         Check(NativeAuthorityHooks.Initializations == initializations && !NativeControlAuthority.TryGetForGame(Current.Game, out _), "stale set_mode initialized hooks");
         request = SetMode(Wire.Mode.Auto, 1);
@@ -101,39 +101,39 @@ internal static class NativeAuthorityControlProbe
         Check(NativeAuthorityHooks.Initializations == initializations && !NativeControlAuthority.TryGetForGame(Current.Game, out _), "Manual/Revoke initialized hooks");
         var reply = Call(request);
         Check(reply.Granted != null && NativeAuthorityHooks.Initializations == initializations + 1, "validated Auto did not eagerly initialize hooks");
-        Check(NativeControlAuthority.TryGetForGame(Current.Game, out var existing) && existing!.Status().Active, "eager Auto missing registered authority");
+        Check(NativeControlAuthority.TryGetForGame(Current.Game, out var existing) && existing != null && existing.Status().Active, "eager Auto missing registered authority");
         Current.Game = new Game(); NativeAuthorityHooks.Ready = false;
         Failure(Call(request), Common.FailureCode.Unavailable);
-        Check(NativeControlAuthority.TryGetForGame(Current.Game, out existing) && !existing!.Status().Active && !existing.Status().Available, "unverified eager Auto granted authority");
+        Check(NativeControlAuthority.TryGetForGame(Current.Game, out existing) && existing != null && !existing.Status().Active && !existing.Status().Available, "unverified eager Auto granted authority");
     }
     private static void GrantsAndRevocations()
     {
-        Reset(); var before = state.Status().Generation; var granted = Call(SetMode(Wire.Mode.Auto));
-        Check(granted.Granted != null && granted.Granted.Context.NativeGeneration.IsAt(before + 1), "Auto exact increment");
-        var grant = granted.Granted!;
-        Check(grant.Authority.Mode == Wire.Mode.Auto, "grant reports Auto mode");
-        Check(state.Status().Active && state.Status().Generation == before + 1, "grant did not activate state");
+        Reset(); var before = State.Status().Generation; var granted = Call(SetMode(Wire.Mode.Auto));
+        Check(granted.Granted != null && (granted.Granted ?? throw new Exception("expected Granted reply")).Context?.NativeGeneration.IsAt(before + 1) == true, "Auto exact increment");
+        var grant = granted.Granted ?? throw new Exception("expected authority grant");
+        Check(grant.Authority?.Mode == Wire.Mode.Auto, "grant reports Auto mode");
+        Check(State.Status().Active && State.Status().Generation == before + 1, "grant did not activate state");
         // Repeating Auto is not a conflict: the single bot re-advances its own generation.
         var again = Call(SetMode(Wire.Mode.Auto));
-        Check(again.Granted != null && again.Granted.Context.NativeGeneration.IsAt(before + 2), "repeated Auto must advance");
+        Check(again.Granted != null && (again.Granted ?? throw new Exception("expected Granted reply")).Context?.NativeGeneration.IsAt(before + 2) == true, "repeated Auto must advance");
         Failure(Call(SetMode(Wire.Mode.Auto, before + 1)), Common.FailureCode.StaleGeneration);
-        Check(state.Status().Active && state.Status().Generation == before + 2, "stale Auto mutated authority");
+        Check(State.Status().Active && State.Status().Generation == before + 2, "stale Auto mutated authority");
         time = 1000;
-        Check(state.Status().Active && state.Status().Generation == before + 2, "time alone revoked: there is no lease");
+        Check(State.Status().Active && State.Status().Generation == before + 2, "time alone revoked: there is no lease");
         var manual = Call(SetMode(Wire.Mode.Manual));
-        Check(manual.Revoked != null && manual.Revoked.Context.NativeGeneration.IsAt(before + 3)
-            && manual.Revoked.Authority.Reason == Wire.RevocationReason.Manual, "Manual mode exact generation/reason");
-        Check(!state.Status().Active, "Manual mode left authority active");
+        Check(manual.Revoked != null && (manual.Revoked ?? throw new Exception("expected Revoked reply")).Context?.NativeGeneration.IsAt(before + 3) == true
+            && (manual.Revoked ?? throw new Exception("expected Revoked reply")).Authority?.Reason == Wire.RevocationReason.Manual, "Manual mode exact generation/reason");
+        Check(!State.Status().Active, "Manual mode left authority active");
         var manualAgain = Call(SetMode(Wire.Mode.Manual));
-        Check(manualAgain.Revoked != null && manualAgain.Revoked.Context.NativeGeneration.IsAt(before + 4), "repeated Manual must still advance");
+        Check(manualAgain.Revoked != null && (manualAgain.Revoked ?? throw new Exception("expected Revoked reply")).Context?.NativeGeneration.IsAt(before + 4) == true, "repeated Manual must still advance");
         foreach (var reason in new[] { Wire.RevocationReason.Manual, Wire.RevocationReason.Disconnect, Wire.RevocationReason.Shutdown })
         {
-            if (!state.Status().Active) Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "re-grant before revoke");
-            var generation = state.Status().Generation;
+            if (!State.Status().Active) Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "re-grant before revoke");
+            var generation = State.Status().Generation;
             var reply = Call(Revoke(reason));
-            Check(reply.Revoked != null && reply.Revoked.Context.NativeGeneration.IsAt(generation + 1) && reply.Revoked.Authority.Reason == reason, "revoke exact generation/reason");
+            Check(reply.Revoked != null && (reply.Revoked ?? throw new Exception("expected Revoked reply")).Context?.NativeGeneration.IsAt(generation + 1) == true && (reply.Revoked ?? throw new Exception("expected Revoked reply")).Authority?.Reason == reason, "revoke exact generation/reason");
             Failure(Call(SetMode(Wire.Mode.Auto, generation)), Common.FailureCode.StaleGeneration);
-            Check(!state.Status().Active, "stale Auto reacquired after revoke");
+            Check(!State.Status().Active, "stale Auto reacquired after revoke");
         }
         // Wire reasons the host may not assert itself: player detection, identity, hooks, exhaustion, terminal unavailability.
         foreach (var reason in new[] { Wire.RevocationReason.None, Wire.RevocationReason.PlayerControl,
@@ -147,16 +147,16 @@ internal static class NativeAuthorityControlProbe
             var invalid = WithRevoke(Revoke(Wire.RevocationReason.Manual), mutate);
             Failure(Call(invalid), Common.FailureCode.InvalidRequest);
         }
-        Failure(Call(Revoke(Wire.RevocationReason.Manual, state.Status().Generation + 1)), Common.FailureCode.StaleGeneration);
+        Failure(Call(Revoke(Wire.RevocationReason.Manual, State.Status().Generation + 1)), Common.FailureCode.StaleGeneration);
         Reset(); Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "grant");
-        NativeAuthorityHooks.Ready = false; state.SetHookHealth(false);
-        Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.HooksUnavailable, "hook loss did not revoke");
+        NativeAuthorityHooks.Ready = false; State.SetHookHealth(false);
+        Check(!State.Status().Active && State.Status().Reason == NativeControlRevocationReason.HooksUnavailable, "hook loss did not revoke");
         Failure(Call(SetMode(Wire.Mode.Auto)), Common.FailureCode.Unavailable);
-        Check(!state.Status().Active, "unverified hooks granted");
+        Check(!State.Status().Active, "unverified hooks granted");
         Reset(); Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "grant");
         time = -1;
         Failure(Call(SetMode(Wire.Mode.Auto)), Common.FailureCode.Unavailable);
-        Check(!state.Status().Active && !state.Status().Available, "clock fault granted");
+        Check(!State.Status().Active && !State.Status().Available, "clock fault granted");
     }
     internal static void Invoke()
     {

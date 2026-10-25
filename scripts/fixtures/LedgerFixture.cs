@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     // ledger hooks, so the ledger is compared with an independent tally.
     public sealed class LedgerFixture
     {
-        private static Map tracked;
+        private static Map? tracked;
         private static double catches, riceYield;
         private static int gathers;
         private static bool patched;

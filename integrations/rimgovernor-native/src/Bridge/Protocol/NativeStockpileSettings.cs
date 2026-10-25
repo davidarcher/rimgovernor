@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -75,7 +74,7 @@ namespace HomeBridge.BridgeTools
             if (filter.HitPoints is Operations.HitPointRange.Selected range && (double.IsNaN(range.Minimum) || double.IsNaN(range.Maximum)
                 || range.Minimum < 0 || range.Maximum > 1 || range.Minimum > range.Maximum)) return false;
             if (filter.QualityMin is not null && (ParseQuality((filter.QualityMin ?? "")) == null || ParseQuality((filter.QualityMax ?? "")) == null
-                || ParseQuality((filter.QualityMin ?? ""))!.Value > ParseQuality((filter.QualityMax ?? ""))!.Value)) return false;
+                || (ParseQuality((filter.QualityMin ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMin ?? \"\")).")) > (ParseQuality((filter.QualityMax ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMax ?? \"\")).")))) return false;
             return true;
         }
 
@@ -115,7 +114,7 @@ namespace HomeBridge.BridgeTools
             }
             if (!ResolveAll(filter.Allow, storable, result.Allow) || !ResolveAll(filter.Disallow, storable, result.Disallow)) return null;
             if (filter.HitPoints is Operations.HitPointRange.Selected range) result.HitPoints = new FloatRange((float)range.Minimum, (float)range.Maximum);
-            if (filter.QualityMin is not null) result.Quality = new QualityRange(ParseQuality((filter.QualityMin ?? ""))!.Value, ParseQuality((filter.QualityMax ?? ""))!.Value);
+            if (filter.QualityMin is not null) result.Quality = new QualityRange((ParseQuality((filter.QualityMin ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMin ?? \"\")).")), (ParseQuality((filter.QualityMax ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMax ?? \"\")).")));
             return result;
         }
 

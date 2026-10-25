@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -43,12 +42,11 @@ namespace HomeBridge.BridgeTools
             if (def == null)
             {
                 pawn = null;
-                return ProtoBoundary.Fail(Common.FailureCode.Unsupported, missing!);
+                return ProtoBoundary.Fail(Common.FailureCode.Unsupported, (missing ?? throw new System.InvalidOperationException("Required native value is unavailable: missing.")));
             }
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Drop requires an eligible pawn.");
-            if (pawn!.equipment == null)
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Drop requires an eligible pawn.");
+            if (pawn.equipment == null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and holds no weapon.");
             var map = ProtoBoundary.LoadedMap(context);
             weapon = RefIndex.Is(pawn.equipment.Primary, intent.TargetId) ? pawn.equipment.Primary : RefIndex.Thing(map, intent.TargetId);
@@ -64,15 +62,15 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var weapon, out var def);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, weapon!, def!)) return NativeGiveJob.Evidence(pawn!, weapon!, pawn!.CurJob, false);
-            var job = JobMaker.MakeJob(def!, weapon);
-            if (!Holds(pawn!, weapon!)) return NativeGiveJob.Evidence(pawn!, weapon!, job, false);
+            if (failure != null || pawn == null || weapon == null || def == null) throw new InvalidOperationException(failure?.Detail);
+            if (Running(pawn, weapon, def)) return NativeGiveJob.Evidence(pawn, weapon, pawn.CurJob, false);
+            var job = JobMaker.MakeJob(def, weapon);
+            if (!Holds(pawn, weapon)) return NativeGiveJob.Evidence(pawn, weapon, job, false);
             // Dropping can complete within the call; the weapon out of hand
             // counts as dropped.
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || Holds(pawn, weapon!) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || Holds(pawn, weapon) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
                 throw new InvalidOperationException("The pawn did not take the drop job.");
-            return NativeGiveJob.Evidence(pawn, weapon!, job, true);
+            return NativeGiveJob.Evidence(pawn, weapon, job, true);
         }
     }
 }

@@ -2,5 +2,6 @@
   <PropertyGroup>
     <RootNamespace>RimGovernor.Host.Sdk</RootNamespace>
     <AssemblyName>RimGovernor.Host.Sdk</AssemblyName>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 </Project>

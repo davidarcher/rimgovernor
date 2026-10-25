@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -25,7 +24,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var mental = patient.MentalState?.def?.defName;
-                if (!string.IsNullOrEmpty(mental) && mental!.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (!string.IsNullOrEmpty(mental) && mental.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0) return true;
                 var faction = patient.Faction;
                 if (faction == null) return false;
                 var player = Faction.OfPlayerSilentFail;
@@ -85,31 +84,30 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Building_Bed? bed, out Building_HoldingPlatform? platform)
         {
             patient = null; bed = null; platform = null;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody requires an eligible pawn.");
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody requires an eligible pawn.");
             patient = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
             if (intent.Kind == JobOrderKind.Capture && EntityTarget(patient) is CompHoldingPlatformTarget entity)
             {
-                if (EntityRunning(pawn!, patient)) return null;
-                if (!EntityCaptureEligible(pawn!, patient, entity))
+                if (EntityRunning(pawn, patient)) return null;
+                if (!EntityCaptureEligible(pawn, patient, entity))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Capture refused: the entity must be a downed, hostile, capturable entity the pawn can carry.");
-                platform = FindPlatform(pawn!, patient);
+                platform = FindPlatform(pawn, patient);
                 if (platform == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No available holding platform the pawn can reach.");
-                if (!pawn!.CanReserveAndReach(patient, PathEndMode.ClosestTouch, Danger.Deadly))
+                if (!pawn.CanReserveAndReach(patient, PathEndMode.ClosestTouch, Danger.Deadly))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the entity.");
                 return null;
             }
-            if (Running(intent.Kind, pawn!, patient)) return null;
+            if (Running(intent.Kind, pawn, patient)) return null;
             bool capture = intent.Kind == JobOrderKind.Capture;
-            if (capture ? !CaptureEligible(pawn!, patient) : !RescueEligible(pawn!, patient))
+            if (capture ? !CaptureEligible(pawn, patient) : !RescueEligible(pawn, patient))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, capture
                     ? "Capture refused: the patient must be a downed, capturable hostile the pawn can carry."
                     : "Rescue refused: the patient must be a downed, non-hostile pawn the rescuer can carry.");
-            if (!FindBed(intent.Kind, pawn!, patient, out bed) || bed == null)
+            if (!FindBed(intent.Kind, pawn, patient, out bed) || bed == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No native bed is available for this worker and patient.");
-            if (!pawn!.CanReserveAndReach(patient, PathEndMode.Touch, Danger.Deadly))
+            if (!pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.Deadly))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the patient.");
             return null;
         }
@@ -119,26 +117,26 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var patient, out var bed, out var platform);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (intent.Kind == JobOrderKind.Capture && EntityTarget(patient!) is CompHoldingPlatformTarget entity)
+            if (failure != null || pawn == null || patient == null) throw new InvalidOperationException(failure?.Detail);
+            if (intent.Kind == JobOrderKind.Capture && EntityTarget(patient) is CompHoldingPlatformTarget entity)
             {
-                if (EntityRunning(pawn!, patient!)) return NativeGiveJob.Evidence(pawn!, patient!, pawn!.CurJob, false);
+                if (EntityRunning(pawn, patient)) return NativeGiveJob.Evidence(pawn, patient, pawn.CurJob, false);
                 entity.targetHolder = platform;
                 var carry = JobMaker.MakeJob(JobDefOf.CarryToEntityHolder, platform, patient);
                 carry.count = 1;
-                if (!pawn!.jobs.TryTakeOrderedJob(carry, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != carry.loadID)
+                if (!pawn.jobs.TryTakeOrderedJob(carry, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != carry.loadID)
                 {
                     entity.targetHolder = null;
                     throw new InvalidOperationException("The pawn did not take the entity capture job.");
                 }
-                return NativeGiveJob.Evidence(pawn, patient!, carry, true);
+                return NativeGiveJob.Evidence(pawn, patient, carry, true);
             }
-            if (Running(intent.Kind, pawn!, patient!)) return NativeGiveJob.Evidence(pawn!, patient!, pawn!.CurJob, false);
+            if (Running(intent.Kind, pawn, patient)) return NativeGiveJob.Evidence(pawn, patient, pawn.CurJob, false);
             var job = JobMaker.MakeJob(Def(intent.Kind), patient, bed);
             job.count = 1;
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The pawn did not take the custody job.");
-            return NativeGiveJob.Evidence(pawn, patient!, job, true);
+            return NativeGiveJob.Evidence(pawn, patient, job, true);
         }
     }
 }

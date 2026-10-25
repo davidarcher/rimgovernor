@@ -38,13 +38,14 @@ namespace HomeBridge.BridgeTools
                     room = Seal(map, pawn);
                 }
 
-                var ideology = ModsConfig.IdeologyActive && pawn.Ideo != null;
+                var ideo = ModsConfig.IdeologyActive ? pawn.Ideo : null;
+                var ideology = ideo != null;
                 if (tough && !ideology) throw new System.InvalidOperationException("Temperature_Tough needs Ideology and a colony ideoligion.");
-                if (ideology)
+                if (ideo != null)
                 {
                     var issue = PreceptDefOf.Temperature_Tough.issue;
-                    foreach (var precept in pawn.Ideo.PreceptsListForReading.Where(p => p.def.issue == issue).ToList()) pawn.Ideo.RemovePrecept(precept);
-                    if (tough) pawn.Ideo.AddPrecept(PreceptMaker.MakePrecept(PreceptDefOf.Temperature_Tough), true);
+                    foreach (var precept in ideo.PreceptsListForReading.Where(p => p.def.issue == issue).ToList()) ideo.RemovePrecept(precept);
+                    if (tough) ideo.AddPrecept(PreceptMaker.MakePrecept(PreceptDefOf.Temperature_Tough), true);
                 }
 
                 // Hypothermia and heatstroke would down the colonist over the hottest and coldest steps; neither feeds the thought.
@@ -60,8 +61,8 @@ namespace HomeBridge.BridgeTools
                 room.Temperature = target;
                 pawn.needs?.mood?.thoughts?.situational?.Notify_SituationalThoughtsDirty();
                 return FixtureKit.Reply(new Fx.EnvironmentTemperatureHeld { Pawn = pawn.GetUniqueLoadID(), Ideology = ideology,
-                    Tough = ideology && pawn.Ideo.HasPrecept(PreceptDefOf.Temperature_Tough),
-                    Precepts = ideology ? pawn.Ideo.PreceptsListForReading.Select(p => p.def.defName).ToList() : new System.Collections.Generic.List<string>(),
+                    Tough = ideo != null && ideo.HasPrecept(PreceptDefOf.Temperature_Tough),
+                    Precepts = ideo != null ? ideo.PreceptsListForReading.Select(p => p.def.defName).ToList() : new System.Collections.Generic.List<string>(),
                     Traits = pawn.story.traits.allTraits.Select(t => t.def.defName).ToList() });
             }, cancellationToken);
 

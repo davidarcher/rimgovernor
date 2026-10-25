@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,9 +86,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // Resolves the intent's pawn and checks the filter; null when it applies.
-        internal static Common.Failure? Resolve(Operations.ApparelPolicyIntent? c, Common.ObservationContext context, out Pawn p)
+        internal static Common.Failure? Resolve(Operations.ApparelPolicyIntent? c, Common.ObservationContext context, out Pawn? p)
         {
-            p = null!;
+            p = null;
             if (c == null || c.PawnId is null || !ProtoBoundary.IsIdentifier(c.PawnId) || c.Name is null || string.IsNullOrWhiteSpace(c.Name) || (c.Name ?? "").Length > 80
                 || float.IsNaN(c.MinHitPoints) || float.IsNaN(c.MaxHitPoints)
                 || c.MinHitPoints < 0 || c.MaxHitPoints > 1 || c.MinHitPoints > c.MaxHitPoints
@@ -97,7 +96,7 @@ namespace HomeBridge.BridgeTools
                 || c.AllowedDefs.Count == 0 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
                 || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a name, apparel definitions and valid bounds.");
-            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId)!;
+            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId);
             if (p == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not a free colonist spawned on this map.");
             var unavailable = GearUpkeepTools.Available(p);
             if (unavailable != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot take an apparel policy: " + unavailable);
@@ -118,7 +117,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.ApparelPolicyIntent c, Common.ObservationContext context)
         {
             var failure = Resolve(c, context, out var p);
-            if (failure != null) throw new InvalidOperationException("Apparel policy prerequisites changed before apply: " + (failure.Detail ?? ""));
+            if (failure != null || p == null) throw new InvalidOperationException("Apparel policy prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (!Matches(p, c))
             {
                 var outfit = Own(p, (c.Name ?? ""));

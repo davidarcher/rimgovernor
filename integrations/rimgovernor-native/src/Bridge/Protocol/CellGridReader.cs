@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using RimWorld;
@@ -138,7 +137,7 @@ namespace HomeBridge.BridgeTools
             capacity = edifice == null ? 1 : edifice is Building_Storage ? edifice.def.building.maxItemsInCell : 0;
         }
 
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static float Finite(float value) => float.IsNaN(value) || float.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
     }
 }

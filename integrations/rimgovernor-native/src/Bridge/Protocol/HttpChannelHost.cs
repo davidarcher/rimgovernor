@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -80,7 +79,7 @@ namespace HomeBridge.BridgeTools
             if (!host.ToolNames.Contains(canonical, StringComparer.Ordinal)) throw new KeyNotFoundException(route);
             var parsed = JToken.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson);
             if (parsed is not JObject body) throw new ArgumentException($"{canonical} takes a JSON object of arguments.");
-            var arguments = (Dictionary<string, object>)Plain(body);
+            var arguments = Plain(body) as Dictionary<string, object?> ?? throw new ArgumentException("Tool arguments must be an object.");
             var result = await host.InvokeAsync(canonical, arguments, NativeRoutes.CallTimeout - TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
             var token = result == null ? new JObject() : JToken.FromObject(result);
             if (token is not JObject reply) reply = new JObject { ["result"] = token };
@@ -88,18 +87,18 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Newtonsoft tokens as the plain values the host binder reads: objects as dictionaries, arrays as lists, scalars as themselves.</summary>
-        private static object Plain(JToken token)
+        private static object? Plain(JToken token)
         {
             switch (token)
             {
                 case JObject obj:
-                    var map = new Dictionary<string, object>(StringComparer.Ordinal);
+                    var map = new Dictionary<string, object?>(StringComparer.Ordinal);
                     foreach (var property in obj.Properties()) map[property.Name] = Plain(property.Value);
                     return map;
                 case JArray array:
                     return array.Select(Plain).ToList();
                 case JValue value:
-                    return value.Value!;
+                    return value.Value;
                 default:
                     return token.ToString(Formatting.None);
             }
@@ -156,7 +155,7 @@ namespace HomeBridge.BridgeTools
                     if (prefixes > 1) Log.Warning($"[RimGovernor] The activity-execution installer ran {prefixes} times.");
                     NativeRoutes.RegisterToolList(routes, invoker);
                     NativeRoutes.Register(routes, invoker);
-                    var options = new HttpChannelOptions { EndpointDirectory = directory, RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId! };
+                    var options = new HttpChannelOptions { EndpointDirectory = directory, RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId };
                     var started = new HttpChannelServer(options, routes);
                     started.Start();
                     server = started;

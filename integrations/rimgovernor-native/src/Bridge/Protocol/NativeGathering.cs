@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using HarmonyLib;
@@ -22,8 +21,8 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Plan
         {
-            public GatheringDef Def = null!;
-            public Pawn Organizer = null!;
+            public required GatheringDef Def;
+            public required Pawn Organizer;
             public LordJob_Joinable_Gathering? Running;
         }
 

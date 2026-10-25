@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,8 +24,8 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class NativePawnFacts
     {
-        internal NativeControlIdentity Identity = null!;
-        internal Pawn Pawn = null!;
+        internal required NativeControlIdentity Identity;
+        internal required Pawn Pawn;
         internal string PawnId = "";
         internal Pawn_DraftController? Drafter;
         internal Faction? Faction;
@@ -188,6 +187,6 @@ namespace HomeBridge.BridgeTools
         }
         internal static NativePawnControlResult Observe(NativeControlIdentity identity, Pawn pawn, out NativePawnSnapshot? snapshot) => Read(identity,pawn,out snapshot);
         internal static NativePawnControlResult Check(NativeControlIdentity identity, Pawn pawn, string token, out NativePawnSnapshot? snapshot)
-        { var result = Read(identity,pawn,out snapshot); return result != NativePawnControlResult.Ready ? result : snapshot!.Token == token ? result : NativePawnControlResult.StaleSnapshot; }
+        { var result = Read(identity,pawn,out snapshot); return result != NativePawnControlResult.Ready ? result : (snapshot ?? throw new System.InvalidOperationException("Required native value is unavailable: snapshot.")).Token == token ? result : NativePawnControlResult.StaleSnapshot; }
     }
 }

@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
@@ -70,7 +69,7 @@ namespace HomeBridge.BridgeTools
         public static string? Sanitize(string? intent)
         {
             if (string.IsNullOrEmpty(intent)) return null;
-            var text = new StringBuilder(Math.Min(intent!.Length, MaxLength));
+            var text = new StringBuilder(Math.Min(intent.Length, MaxLength));
             foreach (var c in intent)
             {
                 if (text.Length >= MaxLength) break;

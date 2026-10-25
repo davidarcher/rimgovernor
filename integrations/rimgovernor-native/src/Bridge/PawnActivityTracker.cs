@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -116,12 +115,12 @@ namespace HomeBridge.BridgeTools
                 if (!Ready() || ___pawn == null) return;
                 if (!Included(___pawn))
                 {
-                    ledger!.Remove(___pawn.GetUniqueLoadID(), lastTick, Location(___pawn), "left_observation");
+                    (ledger ?? throw new System.InvalidOperationException("Required native value is unavailable: ledger.")).Remove(___pawn.GetUniqueLoadID(), lastTick, Location(___pawn), "left_observation");
                     return;
                 }
-                var refused = ledger!.RefusedPawns;
+                var refused = (ledger ?? throw new System.InvalidOperationException("Required native value is unavailable: ledger.")).RefusedPawns;
                 ledger.Observe(ReadSample(___pawn));
-                if (ledger.RefusedPawns != refused) emitter!.Event(TelemetryLevel.Warn, "pawn-activity", "pawn_activity_capacity", "Colonists beyond the open-interval cap are unobserved.", new Dictionary<string, object?> { ["refused_observations"] = ledger.RefusedPawns });
+                if (ledger.RefusedPawns != refused) (emitter ?? throw new System.InvalidOperationException("Required native value is unavailable: emitter.")).Event(TelemetryLevel.Warn, "pawn-activity", "pawn_activity_capacity", "Colonists beyond the open-interval cap are unobserved.", new Dictionary<string, object?> { ["refused_observations"] = ledger.RefusedPawns });
             }
             catch (Exception error) { Fail(error); }
         }
@@ -131,7 +130,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!Ready() || ___pawn == null) return;
-                ledger!.End(___pawn.GetUniqueLoadID(), ___pawn.CurJob?.loadID ?? -1,
+                (ledger ?? throw new System.InvalidOperationException("Required native value is unavailable: ledger.")).End(___pawn.GetUniqueLoadID(), ___pawn.CurJob?.loadID ?? -1,
                     Find.TickManager.TicksGame, Location(___pawn), condition.ToString());
             }
             catch (Exception error) { Fail(error); }
@@ -149,7 +148,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if (Ready()) ledger!.Remove(__instance.GetUniqueLoadID(), lastTick, Location(__instance), "despawn");
+                if (Ready()) (ledger ?? throw new System.InvalidOperationException("Required native value is unavailable: ledger.")).Remove(__instance.GetUniqueLoadID(), lastTick, Location(__instance), "despawn");
             }
             catch (Exception error) { Fail(error); }
         }
@@ -183,7 +182,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Ready()) return;
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
-                emitter!.EmitRow(PawnActivityTelemetry.OutputKind,
+                (emitter ?? throw new System.InvalidOperationException("Required native value is unavailable: emitter.")).EmitRow(PawnActivityTelemetry.OutputKind,
                     new RowContext { Component = "pawn-activity", Tick = lastTick },
                     new Dictionary<string, object?>
                     {

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -78,8 +77,8 @@ internal sealed class NativePathLegs
 
         internal static void Refresh(PathFinderMapData data)
         {
-            if (!Found || Tick!.GetValue(data) is not int tick || tick != GenTicks.TicksGame) return;
-            if (((List<IntVec3>)Cells!.GetValue(data)!).Count == 0 && ((List<CellRect>)Rects!.GetValue(data)!).Count == 0) return;
+            if (!Found || Tick == null || Cells == null || Rects == null || Tick.GetValue(data) is not int tick || tick != GenTicks.TicksGame) return;
+            if (((List<IntVec3>)(Cells.GetValue(data) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).Count == 0 && ((List<CellRect>)(Rects.GetValue(data) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).Count == 0) return;
             Tick.SetValue(data, GenTicks.TicksGame - 1);
         }
     }
@@ -477,16 +476,16 @@ internal sealed class NativePathLegs
             forceComplete.Invoke(finder, null);
             if (finder.MapData.GatherData(new[] { request })) recycleGrids.Invoke(finder, null);
             var key = PathFinder.MapGridRequest.For(request);
-            var lookup = (IDictionary)gridLookup.GetValue(finder)!;
-            var scheduled = lookup.Contains(key) ? lookup[key]! : scheduleGrid.Invoke(finder, new object[] { request, default(JobHandle) })!;
-            ((JobHandle)gridHandle.GetValue(scheduled)!).Complete();
-            return ((PathFinder.GridJobOutput)gridOutput.GetValue(scheduled)!).grid.AsReadOnly();
+            var lookup = (IDictionary)(gridLookup.GetValue(finder) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
+            var scheduled = lookup.Contains(key) ? (lookup[key] ?? throw new System.InvalidOperationException("Required native value is unavailable: lookup[key].")) : (scheduleGrid.Invoke(finder, new object[] { request, default(JobHandle) }) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
+            ((JobHandle)(gridHandle.GetValue(scheduled) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).Complete();
+            return ((PathFinder.GridJobOutput)(gridOutput.GetValue(scheduled) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).grid.AsReadOnly();
         }
 
         /// <summary>The finder's own doors-job parameterization, writing the job's providers and blocked cells into the arrays given.</summary>
         internal void ParameterizeDoors(PathFinder finder, PathGridDoorsBlockedJob job, PathRequest request, NativeArray<ushort> providers, NativeArray<bool> blocked)
         {
-            var state = Activator.CreateInstance(stateType)!;
+            var state = Activator.CreateInstance(stateType);
             stateProviders.SetValue(state, providers);
             stateBlocked.SetValue(state, blocked);
             parameterizeDoors.Invoke(finder, new[] { job, request, state });

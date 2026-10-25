@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -49,10 +48,10 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.MoveIntent move,Common.ObservationContext context)
         {
             var failure=Resolve(move,context,out var pawn,out var destination);
-            if(failure!=null)throw new InvalidOperationException("Move prerequisites changed before apply: "+(failure.Detail ?? ""));
-            if(Matches(pawn!,destination))return Evidence(pawn!,destination,false);
+            if(failure!=null || pawn==null)throw new InvalidOperationException("Move prerequisites changed before apply: "+(failure?.Detail ?? ""));
+            if(Matches(pawn,destination))return Evidence(pawn,destination,false);
             var job=JobMaker.MakeJob(JobDefOf.Goto,destination);
-            if(!pawn!.jobs.TryTakeOrderedJob(job,JobTag.Misc))throw new InvalidOperationException("Native Goto order was not taken.");
+            if(!pawn.jobs.TryTakeOrderedJob(job,JobTag.Misc))throw new InvalidOperationException("Native Goto order was not taken.");
             return Evidence(pawn,destination,true);
         }
     }

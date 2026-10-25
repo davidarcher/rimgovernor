@@ -127,7 +127,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Reads must not create a clock or authority owner merely to report identity.
-        public static bool TryGetForGame(Game game, out NativeControlAuthority? authority)
+        public static bool TryGetForGame(Game? game, out NativeControlAuthority? authority)
         {
             if (game == null) { authority = null; return false; }
             return States.TryGetValue(game, out authority);

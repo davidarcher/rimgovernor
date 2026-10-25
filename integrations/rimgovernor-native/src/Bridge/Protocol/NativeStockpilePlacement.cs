@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -99,7 +98,7 @@ namespace HomeBridge.BridgeTools
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                 map.zoneManager.RegisterZone(zone); zone.label = zoneIntent.Label;
                 foreach (var c in cells) zone.AddCell(c);
-                zone.settings.Priority = resolved.Priority!.Value;
+                zone.settings.Priority = (resolved.Priority ?? throw new System.InvalidOperationException("Required native value is unavailable: resolved.Priority."));
                 NativeStockpileSettings.Apply(zone.settings.filter, resolved, StockpileFilter.ParentFilter(zone), StockpileFilter.StorableDefs(zone));
                 zone.slotGroup.RemoveHaulDesignationOnStoredThings();
                 var created = new Receipts.CreatedZone { ZoneId = zone.GetUniqueLoadID() };

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -110,12 +109,12 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
-                .Require(() => !found!.Dead, "the animal is dead")
-                .Require(() => Pest(found!) || SafePrey(found!) && !found!.RaceProps.predator, "the animal is neither safe wild prey nor a recognised pest")
-                .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")
-                .Require(() => !found!.Position.Fogged(map), "the animal's cell is fogged")
-                .Require(() => !Designated(found!), "the animal is already designated for hunting")
-                .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal");
+                .Require(() => found != null && (!found.Dead), "the animal is dead")
+                .Require(() => found != null && (Pest(found) || SafePrey(found) && !found.RaceProps.predator), "the animal is neither safe wild prey nor a recognised pest")
+                .Require(() => found != null && (found.RaceProps.corpseDef.defName == command.ResourceDefName), "the animal's corpse is not the expected resource")
+                .Require(() => found != null && (!found.Position.Fogged(map)), "the animal's cell is fogged")
+                .Require(() => found != null && (!Designated(found)), "the animal is already designated for hunting")
+                .Require(() => new Designator_Hunt().CanDesignateThing(found).Accepted, "the native hunt designator refuses the animal");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             prey = found;
             return true;

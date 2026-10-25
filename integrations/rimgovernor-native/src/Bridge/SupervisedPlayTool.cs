@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -19,7 +18,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static partial class Supervisor
     {
-        private static readonly FieldInfo BoostField = typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic)!;
+        private static readonly FieldInfo BoostField = (typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
         // Wall-clock grace for a force pause with no window behind it.
         // An autosave takes about a second; 20 s is generous and still
         // far short of anything a person would sit through.
@@ -719,7 +718,7 @@ namespace HomeBridge.BridgeTools
             foreach (var identity in s.MedicalRest.ToList())
             {
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
-                if (patient != null && MedicalRestSafety.Eligible(patient, s.Policy!.SeriousSummaryHealthFloor)) continue;
+                if (patient != null && MedicalRestSafety.Eligible(patient, (s.Policy ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Policy.")).SeriousSummaryHealthFloor)) continue;
                 s.MedicalRest.Remove(identity);
                 InvalidateMedicalFacts(s, identity, "resting patient " + identity + " requires a fresh medical review", true);
             }
@@ -742,7 +741,7 @@ namespace HomeBridge.BridgeTools
                     && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
-                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor)))
+                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, (s.Policy ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Policy.")).SeriousSummaryHealthFloor)))
                     return PawnHit(Clock.HoldReason.ColonistDowned, p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 // A colony-mode run holds when an unacknowledged colonist's
                 // food reaches the brain's hunger category: the review that
@@ -826,7 +825,7 @@ namespace HomeBridge.BridgeTools
                         // what every stop bought anyway at the price of a
                         // stop-to-readmit pause. A combat threshold crossing
                         // still stops.
-                        var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks;
+                        var severityFloorTicks = (int)(s.Policy ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Policy.")).InjurySeverityFloorTicks;
                         var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening, severityFloorTicks);
                         var demoted = s.Mode == "colony" && newWound && !suppressed && !severe && !threshold;
                         if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
@@ -1004,7 +1003,7 @@ namespace HomeBridge.BridgeTools
         {
             var windows = Find.WindowStack == null ? null : Find.WindowStack.Windows;
             return windows == null ? new List<string>() : windows
-                .Where(w => w != null && w.forcePause).Select(w => w.GetType().FullName!).ToList();
+                .Where(w => w != null && w.forcePause).Select(w => w.GetType().FullName).OfType<string>().ToList();
         }
 
         private static string ClockState()

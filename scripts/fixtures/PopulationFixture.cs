@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // Prepared starting conditions only. Capture, care and recruitment run normally afterward.
     public sealed class PopulationFixture
     {
-        private static Pawn candidate;
+        private static Pawn? candidate;
 
         [Tool("test/population_setup", Description = "Disposable population fixture, excluded from production and model access. Prepares a downed hostile candidate, prison, spare housing and supplies. Does not capture or recruit.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)

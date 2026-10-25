@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -26,11 +25,10 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Thing? weapon)
         {
             weapon = null;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
             var map = ProtoBoundary.LoadedMap(context);
-            weapon = RefIndex.Is(pawn!.equipment?.Primary, intent.TargetId) ? pawn.equipment!.Primary
+            weapon = RefIndex.Is(pawn.equipment?.Primary, intent.TargetId) ? (pawn.equipment ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.equipment.")).Primary
                 : RefIndex.Thing(map, intent.TargetId);
             if (weapon != null && (Holds(pawn, weapon) || Running(pawn, weapon))) return null;
             if (weapon == null || !Eligible(weapon)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact equippable weapon is unavailable.");
@@ -55,15 +53,15 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var weapon);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, weapon!)) return NativeGiveJob.Evidence(pawn!, weapon!, pawn!.CurJob, false);
+            if (failure != null || pawn == null || weapon == null) throw new InvalidOperationException(failure?.Detail);
+            if (Running(pawn, weapon)) return NativeGiveJob.Evidence(pawn, weapon, pawn.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.Equip, weapon);
-            if (Holds(pawn!, weapon!)) return NativeGiveJob.Evidence(pawn!, weapon!, job, false);
+            if (Holds(pawn, weapon)) return NativeGiveJob.Evidence(pawn, weapon, job, false);
             // Equipping a weapon at the pawn's own feet can complete within
             // the call; the weapon in hand counts as taken.
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !Holds(pawn, weapon!) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !Holds(pawn, weapon) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
                 throw new InvalidOperationException("The pawn did not take the equip job.");
-            return NativeGiveJob.Evidence(pawn, weapon!, job, true);
+            return NativeGiveJob.Evidence(pawn, weapon, job, true);
         }
     }
 }

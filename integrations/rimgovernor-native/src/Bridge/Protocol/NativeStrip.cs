@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -30,9 +29,9 @@ namespace HomeBridge.BridgeTools
                 .Require(() => intent.ThingId is not null && ProtoBoundary.IsIdentifier(intent.ThingId), "Strip requires an exact pawn or corpse")
                 .Present(() => (found = RefIndex.Thing(map, intent.ThingId) is Thing t && (t is Pawn || t is Corpse) ? t : null) != null
                     && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn or corpse is not spawned on this map")
-                .Require(() => !Designated(found!), "the target is already designated for stripping")
+                .Require(() => found != null && (!Designated(found)), "the target is already designated for stripping")
                 .Require(() => found is IStrippable strippable && strippable.AnythingToStrip(), "the target has nothing to strip")
-                .Require(() => new Designator_Strip().CanDesignateThing(found!).Accepted, "the native strip designator refuses the target");
+                .Require(() => new Designator_Strip().CanDesignateThing(found).Accepted, "the native strip designator refuses the target");
             target = found;
             return rules;
         }
@@ -46,10 +45,10 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
             var rules = Rules(intent, ProtoBoundary.LoadedMap(context), out var target);
-            if (!rules.Holds) throw new InvalidOperationException("Strip prerequisites changed before apply: " + rules.Reason);
-            new Designator_Strip().DesignateThing(target!);
-            if (!Designated(target!)) throw new InvalidOperationException("Native Strip designation was not observed.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = target!.GetUniqueLoadID(), DesignationDef = DesignationDef,
+            if (!rules.Holds || target == null) throw new InvalidOperationException("Strip prerequisites changed before apply: " + rules.Reason);
+            new Designator_Strip().DesignateThing(target);
+            if (!Designated(target)) throw new InvalidOperationException("Native Strip designation was not observed.");
+            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = target.GetUniqueLoadID(), DesignationDef = DesignationDef,
                 Present = true } };
         }
     }

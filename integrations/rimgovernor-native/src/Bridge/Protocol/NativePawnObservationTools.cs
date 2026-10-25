@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -142,7 +141,7 @@ namespace HomeBridge.BridgeTools
                 // (assault/siege/stage-then-attack) and its current toil (the sapper
                 // and breach toils are distinct classes).
                 LordJobClass = lordJob == null ? null : Id(lordJob.GetType().Name),
-                LordToilClass = lordJob == null || lord!.CurLordToil == null ? null : Id(lord.CurLordToil.GetType().Name),
+                LordToilClass = lordJob == null || (lord ?? throw new System.InvalidOperationException("Required native value is unavailable: lord.")).CurLordToil == null ? null : Id(lord.CurLordToil.GetType().Name),
                 RaidArmor = facts.RaidArmor,
                 // Fog is the discovery fact, not a guess at reachability: a hostile
                 // the colony has never seen is no emergency.

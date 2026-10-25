@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,13 +66,13 @@ namespace HomeBridge.BridgeTools
 
         private sealed class ResolvedSpec
         {
-            public ScenarioDef Scenario = null!;
-            public DifficultyDef Difficulty = null!;
-            public StorytellerDef Storyteller = null!;
+            public required ScenarioDef Scenario;
+            public required DifficultyDef Difficulty;
+            public required StorytellerDef Storyteller;
             public OverallTemperature WorldTemperature;
             public float? MinTemperature, MaxTemperature;
             public List<BiomeDef> Biomes = new List<BiomeDef>();
-            public NativeNewColonyScenarioParts.Plan Parts = null!;
+            public required NativeNewColonyScenarioParts.Plan Parts;
         }
 
         private static Lifecycle.NewColonyReply Fail(Common.FailureCode code, string detail) =>
@@ -151,20 +150,21 @@ namespace HomeBridge.BridgeTools
         // The spec resolved to defs; an unknown name is refused (the mirror's def rows list the valid ones).
         private static ResolvedSpec Resolve(Lifecycle.NewColonySpec spec)
         {
-            var resolved = new ResolvedSpec();
             if (spec.ColonistCount < 1 || spec.ColonistCount > 10)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "colonist_count must be within 1..10.");
             if (spec.MapSize < 100 || spec.MapSize > 400)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "map_size must be within 100..400.");
             if (float.IsNaN(spec.PlanetCoverage) || spec.PlanetCoverage < 0.05f || spec.PlanetCoverage > 1f)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "planet_coverage must be within 0.05..1.");
-            resolved.Scenario = Named(DefDatabase<ScenarioDef>.AllDefsListForReading, (spec.Scenario ?? ""), "scenario");
-            resolved.Difficulty = Named(DefDatabase<DifficultyDef>.AllDefsListForReading, (spec.Difficulty ?? ""), "difficulty");
-            resolved.Storyteller = Named(DefDatabase<StorytellerDef>.AllDefsListForReading, (spec.Storyteller ?? ""), "storyteller");
-            if (resolved.Scenario.scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().SingleOrDefault() == null)
+            var scenario = Named(DefDatabase<ScenarioDef>.AllDefsListForReading, (spec.Scenario ?? ""), "scenario");
+            var difficulty = Named(DefDatabase<DifficultyDef>.AllDefsListForReading, (spec.Difficulty ?? ""), "difficulty");
+            var storyteller = Named(DefDatabase<StorytellerDef>.AllDefsListForReading, (spec.Storyteller ?? ""), "storyteller");
+            if (scenario.scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().SingleOrDefault() == null)
                 throw new Refusal(Common.FailureCode.InvalidRequest, "Scenario " + (spec.Scenario ?? "") + " has no editable starting-pawn count.");
-            try { resolved.Parts = NativeNewColonyScenarioParts.Build(spec, resolved.Scenario.scenario); }
+            NativeNewColonyScenarioParts.Plan parts;
+            try { parts = NativeNewColonyScenarioParts.Build(spec, scenario.scenario); }
             catch (NativeNewColonyScenarioParts.PartRefusal refusal) { throw new Refusal(Common.FailureCode.InvalidRequest, refusal.Message); }
+            var resolved = new ResolvedSpec { Scenario = scenario, Difficulty = difficulty, Storyteller = storyteller, Parts = parts };
             var settleable = DefDatabase<BiomeDef>.AllDefsListForReading.Where(b => b.canBuildBase).ToList();
             foreach (var name in spec.Biomes)
                 resolved.Biomes.Add(Named(settleable, name, "biome"));
@@ -245,7 +245,7 @@ namespace HomeBridge.BridgeTools
                     var chosen = band;
                     if (resolved.Biomes.Count > 0)
                     {
-                        chosen = resolved.Biomes.Select(b => band.Where(t => t.PrimaryBiome == b).ToList()).FirstOrDefault(c => c.Count > 0)!;
+                        chosen = resolved.Biomes.Select(b => band.Where(t => t.PrimaryBiome == b).ToList()).FirstOrDefault(c => c.Count > 0);
                         if (chosen == null)
                             throw new Refusal(Common.FailureCode.InvalidRequest, "No valid settlement tile in any requested biome ("
                                 + string.Join(", ", resolved.Biomes.Select(b => b.defName)) + ") meets " + bandText + " on this planet.");

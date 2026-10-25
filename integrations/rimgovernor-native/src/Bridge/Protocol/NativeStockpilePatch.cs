@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -46,13 +45,13 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool Valid(Operations.ZoneIntent? intent) =>
-            NativeZoneIntent.Id(intent) != null && intent!.Kind == Operations.ZoneType.Existing && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
+            NativeZoneIntent.Id(intent) != null && (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Kind == Operations.ZoneType.Existing && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
 
         private static Target Resolve(Operations.ZoneIntent? intent, Map map)
         {
             var target = new Target();
             if (!Valid(intent)) return target;
-            target.Parent = NativeStockpilePatch.Resolve(map, (intent!.Zone?.Id ?? ""));
+            target.Parent = NativeStockpilePatch.Resolve(map, ((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Zone?.Id ?? ""));
             if (target.Parent?.GetStoreSettings()?.filter != null)
                 target.Body = NativeStockpileSettings.Resolve(intent.Stockpile, StockpileFilter.StorableDefs(target.Parent));
             return target;
@@ -65,7 +64,7 @@ namespace HomeBridge.BridgeTools
         private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Target target) => new ApplyPreconditions(Kind)
             .Require(() => Valid(intent), "a patch requires a target id and a valid settings body")
             .Present(() => target.Parent != null, "the exact stockpile zone or storage building no longer exists on this map")
-            .Require(() => target.Parent!.GetStoreSettings()?.filter != null, "the target has no storage settings")
+            .Require(() => target.Parent != null && (target.Parent.GetStoreSettings()?.filter != null), "the target has no storage settings")
             .Require(() => target.Body != null, "the settings body does not resolve against the target's storable definitions");
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
@@ -84,9 +83,10 @@ namespace HomeBridge.BridgeTools
             {
                 var rules = Rules(action.Intent?.Zone, target);
                 if (!rules.Holds) throw new InvalidOperationException("Stockpile patch prerequisites changed before apply: " + rules.Reason);
-                var settings = target.Parent!.GetStoreSettings();
-                if (target.Body!.Priority.HasValue) settings.Priority = target.Body.Priority.Value;
-                NativeStockpileSettings.Apply(settings.filter, target.Body, StockpileFilter.ParentFilter(target.Parent), StockpileFilter.StorableDefs(target.Parent));
+                var settings = (target.Parent ?? throw new System.InvalidOperationException("Required native value is unavailable: target.Parent.")).GetStoreSettings();
+                var body = target.Body ?? throw new InvalidOperationException("The stockpile settings body is unavailable.");
+                if (body.Priority is {} priority) settings.Priority = priority;
+                NativeStockpileSettings.Apply(settings.filter, body, StockpileFilter.ParentFilter(target.Parent), StockpileFilter.StorableDefs(target.Parent));
                 if (!Standing(target)) throw new InvalidOperationException("Native stockpile settings readback did not apply.");
             }
             if (target.Parent is Building_Storage)

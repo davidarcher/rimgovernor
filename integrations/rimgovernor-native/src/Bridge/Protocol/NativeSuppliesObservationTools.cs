@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -58,7 +57,7 @@ namespace HomeBridge.BridgeTools
 
         internal sealed class StockEntry
         {
-            internal Thing Thing = null!;
+            internal required Thing Thing;
             internal Thing? Holder;
             internal string? HolderKind;
             internal IntVec3 Position;
@@ -66,7 +65,7 @@ namespace HomeBridge.BridgeTools
         }
         private sealed class Holder
         {
-            internal Thing Thing = null!;
+            internal required Thing Thing;
             internal string Kind = "container";
             internal bool Player, Other, Dead;
         }
@@ -201,7 +200,7 @@ namespace HomeBridge.BridgeTools
                 PlayerFaction = playerFaction,
                 Items = [.. entries.Select(entry => Item(entry, context))],
                 Holders = [.. entries.Where(entry => entry.Holder != null).Select(entry => new Obs.HeldStock
-                    { Holder = Id(entry.Holder!.GetUniqueLoadID()), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = entry.Thing.stackCount })],
+                    { Holder = Id((entry.Holder ?? throw new System.InvalidOperationException("Required native value is unavailable: entry.Holder.")).GetUniqueLoadID()), HolderKind = NativeEnums.Holder((entry.HolderKind ?? throw new System.InvalidOperationException("Required native value is unavailable: entry.HolderKind."))), Units = entry.Thing.stackCount })],
                 WeaponItems = [.. entries.Where(entry => entry.Thing.def.IsWeapon)
                     .Select(entry => NativeGearFacts.Gear(entry.Thing))],
             };

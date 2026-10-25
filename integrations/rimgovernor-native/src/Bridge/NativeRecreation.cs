@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +46,7 @@ internal static class NativeRecreation
     /// </summary>
     internal static double GainPerTick(Pawn pawn, Thing thing, JobDef job) =>
         job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * thing.GetStatValue(StatDefOf.JoyGainFactor)
-        * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
+        * pawn.needs.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
 
     /// <summary>
     /// The joy a pawn gains a tick with no recreation building (#3825): the best of the outdoor givers every colony has,
@@ -196,11 +195,11 @@ internal static class NativeRecreation
     private abstract class Access : JoyGiver_InteractBuilding
     {
         private static readonly MethodInfo CanInteractWithMethod =
-            typeof(JoyGiver_InteractBuilding).GetMethod(nameof(CanInteractWith), BindingFlags.Instance | BindingFlags.NonPublic)!;
+            (typeof(JoyGiver_InteractBuilding).GetMethod(nameof(CanInteractWith), BindingFlags.Instance | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
         private static readonly MethodInfo TryGivePlayJobMethod =
-            typeof(JoyGiver_InteractBuilding).GetMethod(nameof(TryGivePlayJob), BindingFlags.Instance | BindingFlags.NonPublic)!;
+            (typeof(JoyGiver_InteractBuilding).GetMethod(nameof(TryGivePlayJob), BindingFlags.Instance | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
         internal static bool CanInteract(JoyGiverDef giver, Pawn pawn, Thing thing) =>
-            (bool)CanInteractWithMethod.Invoke(giver.Worker, [pawn, thing, false])!;
+            (bool)(CanInteractWithMethod.Invoke(giver.Worker, [pawn, thing, false]) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
         internal static Job? PlayJob(JoyGiverDef giver, Pawn pawn, Thing thing) =>
             (Job?)TryGivePlayJobMethod.Invoke(giver.Worker, [pawn, thing]);
     }

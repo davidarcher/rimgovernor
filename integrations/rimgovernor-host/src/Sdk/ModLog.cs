@@ -40,10 +40,10 @@ namespace RimGovernor.Host.Sdk
         [ThreadStatic] private static bool inside;
 
         /// <summary>The game tick, or -1 when none. Set by the mod; read on whatever thread logs.</summary>
-        public static Func<long> TickSource;
+        public static Func<long>? TickSource;
 
         /// <summary>Receives each admitted line (level, component, tick or -1, message, lines the rate limit dropped).</summary>
-        public static Action<ModLogLevel, string, long, string, long> Sink;
+        public static Action<ModLogLevel, string, long, string, long>? Sink;
 
         /// <summary>Monotonic milliseconds for the rate limit. Replaceable so a probe needs no wall-clock wait.</summary>
         internal static Func<long> ClockMs = () => Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency;
@@ -51,19 +51,19 @@ namespace RimGovernor.Host.Sdk
         /// <summary>Lines dropped because the writing thread was already inside the helper.</summary>
         public static long ReentrantDrops;
 
-        public static void Debug(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+        public static void Debug(string? component, string? message, string? key = null, [CallerFilePath] string? file = null, [CallerLineNumber] int line = 0)
             => Write(ModLogLevel.Debug, component, message, key, file, line);
 
-        public static void Info(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+        public static void Info(string? component, string? message, string? key = null, [CallerFilePath] string? file = null, [CallerLineNumber] int line = 0)
             => Write(ModLogLevel.Info, component, message, key, file, line);
 
-        public static void Warn(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+        public static void Warn(string? component, string? message, string? key = null, [CallerFilePath] string? file = null, [CallerLineNumber] int line = 0)
             => Write(ModLogLevel.Warn, component, message, key, file, line);
 
-        public static void Error(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+        public static void Error(string? component, string? message, string? key = null, [CallerFilePath] string? file = null, [CallerLineNumber] int line = 0)
             => Write(ModLogLevel.Error, component, message, key, file, line);
 
-        public static void Write(ModLogLevel level, string component, string message, string key = null, string file = null, int line = 0)
+        public static void Write(ModLogLevel level, string? component, string? message, string? key = null, string? file = null, int line = 0)
         {
             if (inside)
             {

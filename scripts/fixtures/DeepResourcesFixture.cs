@@ -36,9 +36,9 @@ namespace HomeBridge.BridgeTools
                     var building = (Building)GenSpawn.Spawn(ThingMaker.MakeThing(def), cell, map);
                     building.SetFaction(Faction.OfPlayer);
                     var scanner = building.AllComps.OfType<CompScanner>().Single();
-                    typeof(CompScanner).GetField("daysWorkingSinceLastFinding", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(scanner, scanner.Props.scanFindGuaranteedDays / 2);
-                    typeof(CompScanner).GetField("lastUserSpeed", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(scanner, 2f);
-                    typeof(CompScanner).GetField("lastScanTick", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(scanner, -1f);
+                    (BridgeCommon.PrivateInstanceField(typeof(CompScanner), "daysWorkingSinceLastFinding") ?? throw new System.MissingFieldException(typeof(CompScanner).FullName, "daysWorkingSinceLastFinding")).SetValue(scanner, scanner.Props.scanFindGuaranteedDays / 2);
+                    (BridgeCommon.PrivateInstanceField(typeof(CompScanner), "lastUserSpeed") ?? throw new System.MissingFieldException(typeof(CompScanner).FullName, "lastUserSpeed")).SetValue(scanner, 2f);
+                    (BridgeCommon.PrivateInstanceField(typeof(CompScanner), "lastScanTick") ?? throw new System.MissingFieldException(typeof(CompScanner).FullName, "lastScanTick")).SetValue(scanner, -1f);
                 }
                 // Two unpowered colonist drills: one on the seeded lump that
                 // still reads its deposit, and one over cleared ground that reads

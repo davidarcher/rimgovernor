@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             DefDatabase<T>.GetNamedSilentFail(name ?? "") ?? throw new ArgumentException($"No {typeof(T).Name} named {name}.");
 
         // The stuff for def: the named one, or the def's default when name is empty; null for an unstuffed def.
-        public static ThingDef Stuff(ThingDef def, string name) =>
+        public static ThingDef? Stuff(ThingDef def, string? name) =>
             !def.MadeFromStuff ? null : string.IsNullOrEmpty(name) ? GenStuff.DefaultStuffFor(def) : Def<ThingDef>(name);
 
         // "x,z;x,z" (spaces allowed) as cells; an empty string is no cells and a malformed pair refuses.
@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // A finished building of def owned by faction (null: no one, or the def cannot have one) at cell.
-        public static Thing Spawn(Map map, ThingDef def, ThingDef stuff, IntVec3 cell, Faction faction, Rot4 rotation)
+        public static Thing Spawn(Map map, ThingDef def, ThingDef? stuff, IntVec3 cell, Faction? faction, Rot4 rotation)
         {
             var thing = ThingMaker.MakeThing(def, stuff);
             if (faction != null && def.CanHaveFaction) thing.SetFaction(faction);
@@ -208,7 +208,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The pawn's equipment becomes weapon (none when empty), of normal quality.
-        public static void Arm(Pawn pawn, string weapon, string stuffName)
+        public static void Arm(Pawn pawn, string? weapon, string? stuffName)
         {
             pawn.equipment.DestroyAllEquipment();
             if (string.IsNullOrEmpty(weapon)) return;
@@ -291,7 +291,7 @@ namespace HomeBridge.BridgeTools
 
         // Fire incident: def executed now through its own worker, forced, over the storyteller's default parms for its
         // category. A trader kind picks the first non-hostile faction carrying it. Returns the pawns that arrived.
-        public static List<Pawn> FireIncident(Map map, IncidentDef def, TraderKindDef traderKind)
+        public static List<Pawn> FireIncident(Map map, IncidentDef def, TraderKindDef? traderKind)
         {
             var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
             parms.forced = true;
@@ -449,9 +449,9 @@ namespace HomeBridge.BridgeTools
             public IntVec3 Door;
             // Outward is the step from the door away from the room.
             public IntVec3 Outward;
-            public Room Room;
-            public List<IntVec3> Interior;
-            public List<Pawn> People;
+            public required Room Room;
+            public required List<IntVec3> Interior;
+            public required List<Pawn> People;
             public int SleepingSpots;
 
             public object Summary() => new { origin = Origin.ToString(), door = Door.ToString(), room = Room.ID, cells = Room.CellCount, sleepingSpots = SleepingSpots };
@@ -467,7 +467,7 @@ namespace HomeBridge.BridgeTools
         // sleeping spots laid: negative is one per colonist, a smaller count
         // leaves the bed deficit a capacity goal then plans against. bed is
         // the bed laid (a sleeping spot when null). Throws when no site is given.
-        public static Result Build(Map map, int size, IntVec3? site, IntVec3? doorCell, int spots = -1, ThingDef bed = null)
+        public static Result Build(Map map, int size, IntVec3? site, IntVec3? doorCell, int spots = -1, ThingDef? bed = null)
         {
             var player = Faction.OfPlayerSilentFail;
             if (player == null) throw new InvalidOperationException("No player faction.");
@@ -567,7 +567,7 @@ namespace HomeBridge.BridgeTools
     public static class FrozenNeeds
     {
         private static bool patched;
-        private static Game game;
+        private static Game? game;
         private static HashSet<string> keep = new HashSet<string>();
 
         public static bool Active => game != null && ReferenceEquals(game, Current.Game);
@@ -642,7 +642,7 @@ namespace HomeBridge.BridgeTools
     public static class HeldMood
     {
         private static bool patched;
-        private static Game game;
+        private static Game? game;
         private static readonly Dictionary<Pawn, (Thought_Memory Memory, float Target)> held = new Dictionary<Pawn, (Thought_Memory, float)>();
 
         public static void Hold(Pawn pawn, float target)

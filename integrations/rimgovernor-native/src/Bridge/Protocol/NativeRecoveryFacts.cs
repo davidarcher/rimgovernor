@@ -1,4 +1,3 @@
-#nullable enable
 using System.Linq;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;

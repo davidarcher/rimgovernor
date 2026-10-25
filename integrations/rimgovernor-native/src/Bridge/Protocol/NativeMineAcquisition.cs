@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -33,14 +32,14 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact rock is no longer spawned on this map")
-                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the rock is not at the expected cell")
-                .Require(() => found!.def.building.mineableThing?.defName == command.ResourceDefName, "the rock no longer yields the expected resource")
-                .Require(() => !found!.Position.Fogged(map), "the rock's cell is fogged")
-                .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the rock is forbidden")
+                .Require(() => found != null && (found.Position.x == command.Cell.X && found.Position.z == command.Cell.Z), "the rock is not at the expected cell")
+                .Require(() => found != null && (found.def.building.mineableThing?.defName == command.ResourceDefName), "the rock no longer yields the expected resource")
+                .Require(() => found != null && (!found.Position.Fogged(map)), "the rock's cell is fogged")
+                .Require(() => !found.IsForbidden(Faction.OfPlayer), "the rock is forbidden")
                 .Require(() => blocker == null, "excavation geometry is unsafe: " + blocker)
-                .Require(() => !ResourceAcquisitionTools.Designated(found!), "the rock is already designated for mining")
-                .Require(() => new Designator_Mine().CanDesignateThing(found!).Accepted, "the native mine designator refuses the rock")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Miner(p, found!)), "no free colonist able to mine can reach the rock");
+                .Require(() => found != null && (!ResourceAcquisitionTools.Designated(found)), "the rock is already designated for mining")
+                .Require(() => new Designator_Mine().CanDesignateThing(found).Accepted, "the native mine designator refuses the rock")
+                .Require(() => found != null && (map.mapPawns.FreeColonistsSpawned.Any(p => Miner(p, found))), "no free colonist able to mine can reach the rock");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             rock = found;
             return true;

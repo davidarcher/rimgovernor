@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -132,8 +131,8 @@ namespace HomeBridge.BridgeTools
         {
             if (cells.Count == 0) return null;
             var backups = cells.Select(c => ColonistWall(map, c)).ToList();
-            if (backups.Any(b => b == null || !WallUpgradeSafety.Stone(b) || b.Stuff != backups[0]!.Stuff)) return null;
-            return backups.Select(b => b!).ToList();
+            if (backups.Any(b => b == null || !WallUpgradeSafety.Stone(b) || b.Stuff != (backups[0] ?? throw new System.InvalidOperationException("Required native value is unavailable: backups[0].")).Stuff)) return null;
+            return backups.Select(b => (b ?? throw new System.InvalidOperationException("Required native value is unavailable: b."))).ToList();
         }
 
         internal static Obs.WallUpgradeSite? Cleanup(Map map, Building permanent, IntVec3 normal, Common.ObservationContext context)
@@ -142,7 +141,7 @@ namespace HomeBridge.BridgeTools
             if (!Interior(map, origin - normal)) return null;
             if (ColonistWall(map, WallUpgradeSafety.LeftCell(origin, normal)) == null || ColonistWall(map, WallUpgradeSafety.RightCell(origin, normal)) == null) return null;
             var cells = WallUpgradeSafety.BackupCells(origin, normal).ToList();
-            var backups = cells.Select(c => ColonistWall(map, c)).Where(b => b != null && WallUpgradeSafety.Stone(b) && b.Stuff == permanent.Stuff).Select(b => b!).ToList();
+            var backups = cells.Select(c => ColonistWall(map, c)).OfType<Building>().Where(b => WallUpgradeSafety.Stone(b) && b.Stuff == permanent.Stuff).ToList();
             if (backups.Count == 0) return null;
             return Site(map, backups[0], permanent, normal, cells, context, backups, permanent, RoofSupportSafety.Blocker(backups[0], out _));
         }
@@ -157,8 +156,8 @@ namespace HomeBridge.BridgeTools
                 Designated = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null,
                 RemovalId = WallUpgradeSafety.Pending(target)?.Id,
                 Original = NativeBuildingObservationTools.Ref(original),
-                LeftSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))!),
-                RightSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!),
+                LeftSupport = NativeBuildingObservationTools.Ref((ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal)) ?? throw new System.InvalidOperationException("Required native value is unavailable: ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))."))),
+                RightSupport = NativeBuildingObservationTools.Ref((ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal)) ?? throw new System.InvalidOperationException("Required native value is unavailable: ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))."))),
                 CompletedBackups = [.. (backups ?? new List<Building>()).Select(NativeBuildingObservationTools.Ref)],
                 Replacement = replacement == null ? null : NativeBuildingObservationTools.Ref(replacement),
                 TargetSnapshot = NativeBuildingObservationTools.Token(target, context),

@@ -1,4 +1,3 @@
-#nullable enable
 using System.Reflection;
 using RimWorld;
 using Verse;
@@ -16,11 +15,11 @@ namespace HomeBridge.BridgeTools
         private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
         internal static object? Call(Dialog_FormCaravan dialog, string name, params object[] args) =>
-            typeof(Dialog_FormCaravan).GetMethod(name, Private)!.Invoke(dialog, args);
+            (typeof(Dialog_FormCaravan).GetMethod(name, Private) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).Invoke(dialog, args);
         internal static void Set(Dialog_FormCaravan dialog, string name, object value) =>
-            typeof(Dialog_FormCaravan).GetField(name, Private)!.SetValue(dialog, value);
+            (typeof(Dialog_FormCaravan).GetField(name, Private) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).SetValue(dialog, value);
         internal static (float days, float tillRot) FoodDays(Dialog_FormCaravan dialog) =>
-            ((float, float))typeof(Dialog_FormCaravan).GetProperty("DaysWorthOfFood", Private)!.GetValue(dialog)!;
+            ((float, float))((typeof(Dialog_FormCaravan).GetProperty("DaysWorthOfFood", Private) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).GetValue(dialog) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
 
         internal static Dialog_FormCaravan BuildDialog(Map map, bool reform = false)
         {

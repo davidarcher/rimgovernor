@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Text;
@@ -136,10 +135,10 @@ namespace HomeBridge.BridgeTools {
      else{
       // Shared colonist cooking never creates human-meat meals. Dedicated
       // destination bills must supply their own explicit routing contract.
-      bool trade=ingredients!=null&&recipe!.products.All(p=>p.thingDef==ThingDefOf.MealSurvivalPack);
+      bool trade=ingredients!=null&&recipe.products.All(p=>p.thingDef==ThingDefOf.MealSurvivalPack);
       bool eligible=ingredients!=null&&map.mapPawns.FreeColonistsSpawned.All(HumanFoodFacts.AcceptsMeat);
-      bool feed=recipe!.products.All(p=>p.thingDef.ingestible!=null && (p.thingDef.ingestible.foodType&FoodTypeFlags.Kibble)!=0);
-      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && (ingredients!.Replace?.Selectors ?? default).Any(x=>x.Definition?.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
+      bool feed=recipe.products.All(p=>p.thingDef.ingestible!=null && (p.thingDef.ingestible.foodType&FoodTypeFlags.Kibble)!=0);
+      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && ((ingredients ?? throw new System.InvalidOperationException("Required native value is unavailable: ingredients.")).Replace?.Selectors ?? default).Any(x=>x.Definition?.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
      }
   }
   internal static bool Valid(Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
@@ -188,39 +187,40 @@ namespace HomeBridge.BridgeTools {
  internal sealed class ProductionBillActionHandler : IActionHandler {
   internal const string Kind="Production bill";
   internal ProductionBillActionHandler(){NativeProductionTracking.Install();}
-  private sealed class Target {internal Thing Bench=null!;internal IBillGiver Giver=null!;internal RecipeDef Recipe=null!;internal Bill? Replaced;internal Bill? Standing;}
-  private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent,Common.ObservationContext context,out Target target){
-   target=new Target();
-   if(!NativeProductionBills.Valid(intent))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
-   var map=ProtoBoundary.LoadedMap(context);var t=target;var settings=intent!.Settings ?? throw new InvalidOperationException("Production bill settings missing");
-   var bench=RefIndex.Thing(map, intent!.BenchId);var giver=bench as IBillGiver;
-   var replaced=intent!.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill((intent.ReplaceOwnedBill.Id ?? ""),bench,(intent.RecipeDef ?? "")):null;
+  private sealed record Target(Thing Bench, IBillGiver Giver, RecipeDef Recipe, Bill? Replaced, Bill? Standing);
+  private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent,Common.ObservationContext context,out Target? target){
+   target=null;
+   if(intent==null||!NativeProductionBills.Valid(intent))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
+   var map=ProtoBoundary.LoadedMap(context);var settings=intent.Settings ?? throw new InvalidOperationException("Production bill settings missing");
+   var bench=RefIndex.Thing(map, intent.BenchId);var giver=bench as IBillGiver;
+   var replaced=intent.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill((intent.ReplaceOwnedBill.Id ?? ""),bench,(intent.RecipeDef ?? "")):null;
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? ""));
    Bill? twin=null;
-   if(giver!=null&&recipe!=null&&NativeProductionBills.Recipe(bench!,recipe)){
+   if(bench!=null&&giver!=null&&recipe!=null&&NativeProductionBills.Recipe(bench,recipe)){
     string? expected=null;try{expected=NativeProductionBills.ExpectedFilter(recipe,settings,map);}catch(Exception){}
     if(expected!=null)twin=NativeProductionBills.Standing(giver,replaced,intent,expected);
    }
-   if(twin!=null&&replaced==null){t.Bench=bench!;t.Giver=giver!;t.Standing=twin;return null;}
+   if(twin!=null&&replaced==null&&bench!=null&&giver!=null&&recipe!=null){target=new Target(bench,giver,recipe,null,twin);return null;}
    var work=bench!=null&&recipe!=null?NativeBillsObservationTools.WorkType(bench.def,recipe):null;
    var colonists=map.mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
    if(settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==settings.Worker.Value?.EntityId&&(!NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named((intent.RecipeDef ?? "")))||HumanFoodFacts.AcceptsButchery(p))).ToList();
    var rules=new ApplyPreconditions(Kind)
     .Present(()=>bench!=null&&giver!=null,"bench "+(intent.BenchId ?? "")+" is not a loaded bill giver")
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")
-    .Require(()=>NativeProductionBills.UsableForNewBill(bench!),"bench is not usable for bills")
+    .Require(()=>bench != null && (NativeProductionBills.UsableForNewBill(bench)),"bench is not usable for bills")
     .Require(()=>intent.ReplaceOwnedBill==null||replaced!=null,"replacement must be the same recipe on this bench or an ordinary meal tier on this map")
-    .Require(()=>giver!.BillStack.Count<BillStack.MaxCount||replaced?.billStack==giver.BillStack,"bench_bill_slots_full: the bench already carries "+BillStack.MaxCount+" bills")
+    .Require(()=>giver != null && (giver.BillStack.Count<BillStack.MaxCount||replaced?.billStack==giver.BillStack),"bench_bill_slots_full: the bench already carries "+BillStack.MaxCount+" bills")
     .Require(()=>twin==null,"bench already carries an identical "+(intent.RecipeDef ?? "")+" bill")
-    .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+(intent.RecipeDef ?? "")+" is not available on the bench")
-    .Require(()=>!settings.BeerReserve||recipe!.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort,"Beer reserve requires a wort recipe")
-    .Require(()=>NativeProductionBills.CorpseRecipe((intent.RecipeDef ?? ""))||recipe!.WorkerCounter.GetType()==typeof(RecipeWorkerCounter)&&recipe.specialProducts==null&&recipe.products.Count==1,"recipe "+(intent.RecipeDef ?? "")+" is not ordinary single-product work")
-    .Require(()=>replaced==null||replaced.recipe.defName==(intent.RecipeDef ?? "")||NativeProductionTracking.OrdinaryMeal(recipe!),"replacement requires an ordinary meal recipe")
-    .Require(()=>Funded(settings,recipe!),"ingredient filter does not fund the recipe's ingredient slots")
+    .Require(()=>bench != null && (recipe!=null&&NativeProductionBills.Recipe(bench,recipe)),"recipe "+(intent.RecipeDef ?? "")+" is not available on the bench")
+    .Require(()=>recipe != null && (!settings.BeerReserve||recipe.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort),"Beer reserve requires a wort recipe")
+    .Require(()=>recipe != null && (NativeProductionBills.CorpseRecipe((intent.RecipeDef ?? ""))||recipe.WorkerCounter.GetType()==typeof(RecipeWorkerCounter)&&recipe.specialProducts==null&&recipe.products.Count==1),"recipe "+(intent.RecipeDef ?? "")+" is not ordinary single-product work")
+    .Require(()=>recipe != null && (replaced==null||replaced.recipe.defName==(intent.RecipeDef ?? "")||NativeProductionTracking.OrdinaryMeal(recipe)),"replacement requires an ordinary meal recipe")
+    .Require(()=>recipe != null && (Funded(settings,recipe)),"ingredient filter does not fund the recipe's ingredient slots")
     .Require(()=>work!=null,"recipe "+(intent.RecipeDef ?? "")+" has no work type on "+bench?.def.defName);
-   if(rules.Holds)rules.Require(()=>colonists.Any(p=>NativeProductionBills.Skilled(p,bench!,recipe!,work!)),NativeProductionBills.NoWorker(map,bench!,recipe!,work!,colonists));
+   if(!rules.Holds||bench==null||giver==null||recipe==null||work==null)return rules.Failure();
+   rules.Require(()=>colonists.Any(p=>NativeProductionBills.Skilled(p,bench,recipe,work)),NativeProductionBills.NoWorker(map,bench,recipe,work,colonists));
    if(!rules.Holds)return rules.Failure();
-   t.Bench=bench!;t.Giver=giver!;t.Recipe=recipe!;t.Replaced=replaced;
+   target=new Target(bench,giver,recipe,replaced,null);
    return null;
   }
   private static bool Funded(Operations.BillSettings settings,RecipeDef recipe){
@@ -230,7 +230,7 @@ namespace HomeBridge.BridgeTools {
   }
   public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context){
    if(action.Intent?.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.Intent?.ProductionBill,context);
-   if(NativeMechBills.Handles(action.Intent?.ProductionBill))return NativeMechBills.Validate(action.Intent?.ProductionBill!,context);
+   if(action.Intent?.ProductionBill is {} mechIntent&&NativeMechBills.Handles(mechIntent))return NativeMechBills.Validate(mechIntent,context);
    var failure=Resolve(action.Intent?.ProductionBill,context,out _);
    return failure;
   }
@@ -239,7 +239,7 @@ namespace HomeBridge.BridgeTools {
    if(intent.Patient!=null)return NativeSurgery.Apply(intent,context);
    if(NativeMechBills.Handles(intent))return NativeMechBills.Apply(intent,context);
    var failure=Resolve(intent,context,out var t);
-   if(failure!=null)throw new InvalidOperationException("Production bill prerequisites changed before apply: "+(failure.Detail ?? ""));
+   if(failure!=null||t==null)throw new InvalidOperationException("Production bill prerequisites changed before apply: "+(failure?.Detail ?? ""));
    var standing=t.Standing;
    if(standing==null){
     var s=intent.Settings ?? throw new InvalidOperationException("Production bill settings missing");
@@ -269,19 +269,20 @@ namespace HomeBridge.BridgeTools {
  // mech (Bill_Mech) bills are not, since removing one destroys the mech forming.
  internal sealed class RemoveProductionBillActionHandler : IActionHandler {
   internal const string Kind="Remove production bill";
-  private sealed class Target {internal Thing Bench=null!;internal Bill Bill=null!;}
-  private static Common.Failure? Resolve(Operations.RemoveProductionBillIntent? intent,Common.ObservationContext context,out Target target){
-   target=new Target();
+  private sealed record Target(Bill Bill);
+  private static Common.Failure? Resolve(Operations.RemoveProductionBillIntent? intent,Common.ObservationContext context,out Target? target){
+   target=null;
    if(intent==null||intent.BenchId is null||!ProtoBoundary.IsIdentifier(intent.BenchId)||intent.Bill==null||!ProtoBoundary.IsIdentifier(intent.Bill.Id))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
-   var map=ProtoBoundary.LoadedMap(context);var t=target;
-   var bench=RefIndex.Thing(map, intent!.BenchId);var giver=bench as IBillGiver;
+   var map=ProtoBoundary.LoadedMap(context);
+   var bench=RefIndex.Thing(map, intent.BenchId);var giver=bench as IBillGiver;
    var bill=giver?.BillStack.Bills.FirstOrDefault(b=>b.GetUniqueLoadID()==(intent.Bill.Id ?? ""));
    var rules=new ApplyPreconditions(Kind)
     .Present(()=>bench!=null&&giver!=null,"bench "+(intent.BenchId ?? "")+" is not a loaded bill giver")
     .Present(()=>bill!=null,"bill "+(intent.Bill.Id ?? "")+" is not on bench "+(intent.BenchId ?? ""))
     .Require(()=>bill is Bill_Production,"bill "+(intent.Bill.Id ?? "")+" is not an ordinary production bill");
    if(!rules.Holds)return rules.Failure();
-   t.Bench=bench!;t.Bill=bill!;
+   if(bill==null)return rules.Failure();
+   target=new Target(bill);
    return null;
   }
   public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.Intent?.RemoveProductionBill,context,out _);
@@ -289,6 +290,7 @@ namespace HomeBridge.BridgeTools {
    var intent=action.Intent?.RemoveProductionBill ?? throw new InvalidOperationException("Remove production bill intent is missing");
    var failure=Resolve(intent,context,out var t);
    if(failure!=null)throw new ApplyRefusedException(failure);
+   if(t==null)throw new InvalidOperationException("The production bill is unavailable.");
    var id=t.Bill.GetUniqueLoadID();var recipe=t.Bill.recipe.defName;
    // Vanilla Delete never refuses and a pawn's job on the bill fails cleanly. The bound
    // unfinished item stays for a same-recipe bill to resume unless the caller asks for the

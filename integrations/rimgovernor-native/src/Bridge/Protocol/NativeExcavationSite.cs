@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,7 +52,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.ExcavationSiteSnapshot Read(Map map, Obs.ExcavationSiteRequest request, Common.ObservationContext context)
         {
             var cells = request.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToList();
-            var access = new IntVec3(request.AccessCell!.X, 0, request.AccessCell.Z);
+            var access = new IntVec3((request.AccessCell ?? throw new System.InvalidOperationException("Required native value is unavailable: request.AccessCell.")).X, 0, request.AccessCell.Z);
             var collapsePending = map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0;
             var rows = cells.Select(c => Row(c, map)).ToList();
             var known = cells.Where(c => c.InBounds(map)).ToList();

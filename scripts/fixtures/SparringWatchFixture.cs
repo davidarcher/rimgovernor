@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
                     p.Notify_Teleported(true, true);
                     for (var hour = 0; hour < 24; hour++) p.timetable.SetAssignment(hour, assignment);
                     foreach (var kind in boredKinds) p.needs.joy.tolerances.Notify_JoyGained(1f, kind);
-                    p.needs.joy.CurLevel = 0.1f;
+                    (p.needs?.joy ?? throw new InvalidOperationException("Watcher has no joy need.")).CurLevel = 0.1f;
                     p.drafter.Drafted = draft;
                     index++;
                     return p;
@@ -86,7 +86,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class SparringWatchRecord
     {
-        public string Id;
+        public required string Id;
         public int EndTick = -1;
         public float JoyStart;
         public float JoyMax;
@@ -109,9 +109,9 @@ namespace HomeBridge.BridgeTools
         public bool FightedEver;
         public int WatchJobTicks;
         public int FighterWatchTicks;
-        private readonly Pawn draftedPawn;
+        private readonly Pawn? draftedPawn;
 
-        public SparringWatchRecorder(Map map, List<Pawn> freePawns, Pawn draftedPawn) : base(map)
+        public SparringWatchRecorder(Map map, List<Pawn> freePawns, Pawn? draftedPawn) : base(map)
         {
             foreach (var p in freePawns) free.Add(p);
             this.draftedPawn = draftedPawn;
@@ -131,20 +131,20 @@ namespace HomeBridge.BridgeTools
             {
                 var watching = p.CurJobDef == watch;
                 Watches.TryGetValue(p.thingIDNumber, out var record);
-                if (watching)
+                if (watching && p.CurJob != null)
                 {
                     WatchJobTicks++;
                     if (registry.BoutOf(p) != null) FighterWatchTicks++;
                     if (record == null || record.EndTick >= 0)
                     {
-                        record = new SparringWatchRecord { Id = p.GetUniqueLoadID(), JoyStart = p.needs.joy.CurLevel };
+                        record = new SparringWatchRecord { Id = p.GetUniqueLoadID(), JoyStart = (p.needs?.joy ?? throw new InvalidOperationException("Watcher has no joy need.")).CurLevel };
                         record.Cell = p.CurJob.targetA.Cell;
                         Check(record, registry, p);
                         Watches[p.thingIDNumber] = record;
                         History.Add(record);
                         p.needs?.mood?.thoughts?.memories?.RemoveMemoriesOfDef(DefDatabase<ThoughtDef>.GetNamed(SparringWatch.ThoughtName));
                     }
-                    record.JoyMax = Math.Max(record.JoyMax, p.needs.joy.CurLevel);
+                    record.JoyMax = Math.Max(record.JoyMax, (p.needs?.joy ?? throw new InvalidOperationException("Watcher has no joy need.")).CurLevel);
                     if (registry.BoutOf(p) != null) record.WasFighter = true;
                     if (p.Position == record.Cell) record.AtCellTicks++;
                 }

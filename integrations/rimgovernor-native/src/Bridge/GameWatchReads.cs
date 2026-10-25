@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -117,7 +116,7 @@ namespace HomeBridge.BridgeTools
         {
             reason = "none";
             var mental = pawn.MentalStateDef?.defName;
-            if (!string.IsNullOrEmpty(mental) && mental!.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (!string.IsNullOrEmpty(mental) && mental.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 reason = "manhunter:" + mental;
                 return true;

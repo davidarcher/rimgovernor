@@ -16,7 +16,7 @@ public interface IRimBridgeContext
     /// declare (the binder drops those from the method call). The host's own
     /// control keys are removed. Empty outside a tool invocation.
     /// </summary>
-    IDictionary<string, object> Arguments { get; }
+    IDictionary<string, object?> Arguments { get; }
 
     IRimBridgeMainThread MainThread { get; }
 }
@@ -40,7 +40,7 @@ public interface IRimBridgeToolInvoker
     /// Runs <paramref name="tool"/> with the caller's named arguments and returns its result object. A tool failure,
     /// cancellation or timeout is thrown as an <see cref="InvalidOperationException"/> carrying the host's message.
     /// </summary>
-    Task<object> InvokeAsync(string tool, IDictionary<string, object> arguments, TimeSpan timeout, CancellationToken cancellationToken);
+    Task<object?> InvokeAsync(string tool, IDictionary<string, object?> arguments, TimeSpan timeout, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -50,9 +50,9 @@ public interface IRimBridgeToolInvoker
 public static class RimBridgeToolAccess
 {
     private static readonly TaskCompletionSource<bool> PublishedSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static IRimBridgeToolInvoker _current;
+    private static IRimBridgeToolInvoker? _current;
 
-    public static IRimBridgeToolInvoker Current => Volatile.Read(ref _current);
+    public static IRimBridgeToolInvoker? Current => Volatile.Read(ref _current);
 
     /// <summary>Completes once <see cref="Publish"/> has run and <see cref="Current"/> is set.</summary>
     public static Task Published => PublishedSource.Task;
@@ -70,9 +70,9 @@ public static class RimBridgeToolAccess
 /// </summary>
 public static class RimBridgeMainThreadAccess
 {
-    private static IRimBridgeMainThread _current;
+    private static IRimBridgeMainThread? _current;
 
-    public static IRimBridgeMainThread Current
+    public static IRimBridgeMainThread? Current
     {
         get => Volatile.Read(ref _current);
         set => Volatile.Write(ref _current, value);

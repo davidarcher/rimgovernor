@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using Operations = RimGovernor.Contracts.Wire.Operations;

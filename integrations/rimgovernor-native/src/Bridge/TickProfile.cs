@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -204,7 +203,7 @@ namespace HomeBridge.BridgeTools
 
         private static void EndList(TickList __instance, long __state)
         {
-            var type = Convert.ToInt32(_listType!.GetValue(__instance), CultureInfo.InvariantCulture);
+            var type = Convert.ToInt32((_listType ?? throw new InvalidOperationException("The tick-list type field is unavailable.")).GetValue(__instance), CultureInfo.InvariantCulture);
             Bucket? b;
             lock (Lists)
             {

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using System.Text;
@@ -39,13 +38,13 @@ namespace HomeBridge.BridgeTools
         // prisoner, wild men only take modes that allow them, and classic
         // ideology mode hides the Ideology-only modes.
         private static bool Supported(Pawn pawn, PrisonerInteractionModeDef def) => !def.isNonExclusiveInteraction
-            && !(def.hideIfNotRecruitable && !pawn.guest!.Recruitable)
+            && !(def.hideIfNotRecruitable && !pawn.guest.Recruitable)
             && !(pawn.IsWildMan() && !def.allowOnWildMan)
             && (def.allowInClassicIdeoMode || Find.IdeoManager == null || !Find.IdeoManager.classicMode);
 
-        private static Common.Failure? Resolve(Operations.PrisonerInteractionIntent? intent, Common.ObservationContext context, out Pawn pawn, out PrisonerInteractionModeDef def)
+        private static Common.Failure? Resolve(Operations.PrisonerInteractionIntent? intent, Common.ObservationContext context, out Pawn? pawn, out PrisonerInteractionModeDef? def)
         {
-            pawn = null!; def = null!;
+            pawn = null; def = null;
             if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires a pawn and an interaction.");
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
@@ -64,8 +63,8 @@ namespace HomeBridge.BridgeTools
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var failure = Resolve(action.Intent?.Prisoner, context, out var pawn, out var def);
-            if (failure != null) throw new InvalidOperationException("Prisoner interaction prerequisites changed before apply: " + (failure.Detail ?? ""));
-            if (pawn.guest!.ExclusiveInteractionMode != def)
+            if (failure != null || pawn == null || def == null) throw new InvalidOperationException("Prisoner interaction prerequisites changed before apply: " + (failure?.Detail ?? ""));
+            if (pawn.guest.ExclusiveInteractionMode != def)
             {
                 if (def.defName == "Convert" && pawn.guest.ideoForConversion == null)
                     pawn.guest.ideoForConversion = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo ?? throw new InvalidOperationException("Player ideo missing for conversion.");

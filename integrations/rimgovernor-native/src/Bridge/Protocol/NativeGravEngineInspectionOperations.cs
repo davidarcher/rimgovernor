@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using RimWorld;
 using Verse;
@@ -15,9 +14,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building_GravEngine? engine, out bool running)
         {
             engine = null; running = false;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible || snapshot.Drafted || !pawn!.IsColonistPlayerControlled || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Moving))
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible || snapshot.Drafted || !pawn.IsColonistPlayerControlled || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Moving))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Inspection requires an eligible undrafted mobile colonist.");
             var map = ProtoBoundary.LoadedMap(context);
             engine = RefIndex.Thing(map, intent.TargetId) as Building_GravEngine;
@@ -38,12 +36,12 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var engine, out var running);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (running) return NativeGiveJob.Evidence(pawn!, engine!, pawn!.CurJob, false);
+            if (failure != null || pawn == null || engine == null) throw new InvalidOperationException(failure?.Detail);
+            if (running) return NativeGiveJob.Evidence(pawn, engine, pawn.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.InspectGravEngine, engine);
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(pawn.CurJob, job))
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(pawn.CurJob, job))
                 throw new InvalidOperationException("The colonist did not take the grav engine inspection job.");
-            return NativeGiveJob.Evidence(pawn, engine!, job, true);
+            return NativeGiveJob.Evidence(pawn, engine, job, true);
         }
     }
 }

@@ -10,11 +10,11 @@ namespace HomeBridge.BridgeTools
     {
         public static bool Ready;
         public static int Initializations;
-        public static NativeControlSnapshot InitializeForCurrentGame()
+        public static NativeControlSnapshot? InitializeForCurrentGame()
         {
             Initializations++;
             return Verse.Current.Game == null ? null : NativeControlAuthority.ForGame(Verse.Current.Game).SetHookHealth(Ready);
         }
-        public static bool EnsureManualPriorities(Verse.Game game) => false;
+        public static bool EnsureManualPriorities(Verse.Game? game) => false;
     }
 }

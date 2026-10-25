@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +23,7 @@ namespace HomeBridge.BridgeTools
     // Cleared non-home maps use the vanilla reform dialog and its packing rules.
     internal static class NativeCaravanOperations
     {
-        private static bool Valid(Operations.FormCaravanIntent? command) => command != null
+        private static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.FormCaravanIntent? command) => command != null
             && Enum.IsDefined(typeof(Operations.CaravanMode), command.Mode)
             && command.PawnIds.Count > 0
             && command.PawnIds.All(ProtoBoundary.IsIdentifier)
@@ -51,7 +50,7 @@ namespace HomeBridge.BridgeTools
                 if (lord == null || !(lord.LordJob is LordJob_FormAndSendCaravan)) return false;
                 lords.Add(lord);
             }
-            return lords.Count == 1 && ((PlanetTile)typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lords.Single().LordJob)!).tileId == command.DestinationTile;
+            return lords.Count == 1 && ((PlanetTile)((typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).GetValue(lords.Single().LordJob) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))).tileId == command.DestinationTile;
         }
 
         private static Common.Failure? Arrival(Operations.FormCaravanIntent command, out CaravanArrivalAction? action)
@@ -103,7 +102,7 @@ namespace HomeBridge.BridgeTools
         private static float ShelfDays(TransferableOneWay group) => group.things
             .Select(t => t.TryGetComp<CompRottable>())
             .Where(r => r != null && r.Active)
-            .Select(r => GameTime.Days(Math.Max(0f, r!.PropsRot.TicksToRotStart - r.RotProgress)))
+            .Select(r => GameTime.Days(Math.Max(0f, r.PropsRot.TicksToRotStart - r.RotProgress)))
             .DefaultIfEmpty(float.MaxValue).Min();
 
         // Builds the dialog the game would show, selects the crew and fills
@@ -112,7 +111,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? PreparePacking(Operations.FormCaravanIntent command, Common.ObservationContext context, out Dialog_FormCaravan? dialog)
         {
             dialog = null;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.ResolveMap(context) ?? throw new InvalidOperationException("The caravan map is unavailable.");
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A loaded map is required.");
             var destinationFailure = Arrival(command, out _);
             if (destinationFailure != null) return destinationFailure;
@@ -162,7 +161,7 @@ namespace HomeBridge.BridgeTools
             var failure = PreparePacking(command, context, out dialog);
             if (failure != null || dialog == null) return failure;
             var selected = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
-            if (!(bool)NativeCaravanCatalog.Call(dialog, "CheckForErrors", selected)!)
+            if (!(bool)(NativeCaravanCatalog.Call(dialog, "CheckForErrors", selected) ?? throw new InvalidOperationException("The caravan error check returned no result.")))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native caravan eligibility refused; inspect game messages.");
             return null;
         }
@@ -177,7 +176,7 @@ namespace HomeBridge.BridgeTools
             var massUsage = Finite(dialog.MassUsage, "mass usage");
             var massCapacity = Finite(dialog.MassCapacity, "mass capacity");
             var food = NativeCaravanCatalog.FoodDays(dialog);
-            var map = ProtoBoundary.ResolveMap(context)!;
+            var map = ProtoBoundary.ResolveMap(context) ?? throw new InvalidOperationException("The caravan map is unavailable.");
             var destination = new PlanetTile(command.DestinationTile);
             var crew = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
             var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, massUsage, massCapacity);
@@ -207,11 +206,11 @@ namespace HomeBridge.BridgeTools
         {
             if (!Valid(command))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Formation requires a unique crew, unique cargo definitions and a valid destination.");
-            if (Formed(command!, out var caravan))
-                return caravan != null ? RouteFailure(command!, caravan)
-                    : command!.Mode == Operations.CaravanMode.Formation ? null
+            if (Formed(command, out var caravan))
+                return caravan != null ? RouteFailure(command, caravan)
+                    : command.Mode == Operations.CaravanMode.Formation ? null
                     : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Requested route requires a formed world caravan.");
-            return Prepare(command!, context, out _);
+            return Prepare(command, context, out _);
         }
 
         internal static Receipts.EffectEvidence Apply(Operations.FormCaravanIntent command, Common.ObservationContext context)
@@ -230,8 +229,8 @@ namespace HomeBridge.BridgeTools
             // Dialog_MessageBox whose confirm action forms the caravan, which
             // the player would click. There is no player, so accept it.
             var windowsBefore = Find.WindowStack.Windows.ToArray();
-            var reform = !ProtoBoundary.ResolveMap(context)!.IsPlayerHome;
-            var accepted = (bool)NativeCaravanCatalog.Call(dialog, reform ? "TryReformCaravan" : "TryFormAndSendCaravan")!;
+            var reform = !(ProtoBoundary.ResolveMap(context) ?? throw new InvalidOperationException("The caravan map is unavailable.")).IsPlayerHome;
+            var accepted = (bool)(NativeCaravanCatalog.Call(dialog, reform ? "TryReformCaravan" : "TryFormAndSendCaravan") ?? throw new InvalidOperationException("The caravan formation returned no result."));
             if (!accepted)
             {
                 var confirmation = Find.WindowStack.Windows.Where(w => !windowsBefore.Contains(w)).OfType<Dialog_MessageBox>().SingleOrDefault();

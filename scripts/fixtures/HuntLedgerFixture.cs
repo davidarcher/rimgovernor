@@ -18,11 +18,11 @@ namespace HomeBridge.BridgeTools
     // ledger is compared with an independent tally.
     public sealed class HuntLedgerFixture
     {
-        private static Map tracked;
+        private static Map? tracked;
         private static readonly HashSet<string> corpses = new HashSet<string>();
         private static int meatUnits, leatherUnits;
         private static bool patched;
-        private static Thing table;
+        private static Thing? table;
         private static WorkTypeDef CookingWork => ExtraWorkTypeDefOf.Cooking;
 
         [Tool("test/ledger_hunt_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a ranger with a bow, a wild deer designated for hunting and an empty butcher table, and start tallying deer corpses and butchered products.")]
@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
                 }
                 var bill = (Bill_Production)DefDatabase<RecipeDef>.GetNamed("ButcherCorpseFlesh").MakeNewBill();
                 bill.repeatMode = BillRepeatModeDefOf.Forever;
-                ((IBillGiver)table).BillStack.AddBill(bill);
+                (table as IBillGiver ?? throw new InvalidOperationException("Prepare the butcher table first.")).BillStack.AddBill(bill);
                 return FixtureKit.Reply(new HuntButchered { Success = true, Corpse = id });
             }, cancellationToken);
         }

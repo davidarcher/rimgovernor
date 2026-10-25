@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -32,14 +31,15 @@ namespace HomeBridge.BridgeTools
 
         internal T? Find(string? id)
         {
-            if (string.IsNullOrEmpty(id)) return null;
-            if (_byId != null && _byId.TryGetValue(id!, out var hit) && Valid(hit, id!)) return hit;
+            if (id == null || string.IsNullOrEmpty(id)) return null;
+            if (_byId != null && _byId.TryGetValue(id, out var hit) && Valid(hit, id)) return hit;
             Rebuild();
-            return _byId!.TryGetValue(id!, out var found) && Valid(found, id!) ? found : null;
+            return _byId.TryGetValue(id, out var found) && Valid(found, id) ? found : null;
         }
 
         private bool Valid(T value, string id) => _live(value) && _id(value) == id;
 
+        [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(_byId))]
         private void Rebuild()
         {
             Rebuilds++;

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,9 +24,9 @@ namespace HomeBridge.BridgeTools
         private const string Kind = "Zone cell edit";
         private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
 
-        private static bool Valid(Operations.ZoneIntent? intent)
+        private static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.ZoneIntent? intent)
         {
-            if (NativeZoneIntent.Id(intent) == null || intent!.Kind != Operations.ZoneType.Existing || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
+            if (intent == null || NativeZoneIntent.Id(intent) == null || intent.Kind != Operations.ZoneType.Existing || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
             var cells = NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells;
             if (cells is not { } list || list.Count == 0) return false;
             if (!list.All(c => c.X is >= 0 && c.Z is >= 0)) return false;
@@ -48,13 +47,13 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Zone? Resolve(Operations.ZoneIntent? intent, Map map) =>
-            Valid(intent) ? RefIndex.Zone(map, (intent!.Zone?.Id ?? "")) is Zone z && z.Cells.Count > 0 ? z : null : null;
+            Valid(intent) ? RefIndex.Zone(map, (intent.Zone?.Id ?? "")) is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static IntVec3[] Requested(Operations.ZoneIntent intent) =>
             NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray() ?? Array.Empty<IntVec3>();
 
         private static bool Standing(Operations.ZoneIntent? intent, Zone? zone) =>
-            zone != null && (NativeZoneIntent.Adding(intent!) ? Requested(intent!).All(zone.Cells.Contains) : !Requested(intent!).Any(zone.Cells.Contains));
+            intent != null && zone != null && (NativeZoneIntent.Adding(intent) ? Requested(intent).All(zone.Cells.Contains) : !Requested(intent).Any(zone.Cells.Contains));
 
         // The apply-time precondition list for expand/shrink
         // (action-contracts.md): the zone, its consistency, every requested
@@ -65,11 +64,11 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => Valid(intent), "an edit requires a zone id, add or remove cells, and distinct explicit cells")
                 .Present(() => zone != null, "the exact zone no longer exists on this map");
-            if (!rules.Holds) return rules;
-            var candidate = zone!;
+            if (!rules.Holds || intent == null || zone == null) return rules;
+            var candidate = zone;
             var slotGroup = (candidate as Zone_Stockpile)?.slotGroup;
-            var requested = Requested(intent!);
-            var adding = NativeZoneIntent.Adding(intent!);
+            var requested = Requested(intent);
+            var adding = NativeZoneIntent.Adding(intent);
             // Whole-zone consistency first: neither AddCell/RemoveCell may run
             // against a zone that already has a phantom cell or a haul grid
             // pointing away from it.
@@ -107,14 +106,14 @@ namespace HomeBridge.BridgeTools
             if (!Standing(intent, zone))
             {
                 var rules = Rules(intent, zone, map);
-                if (!rules.Holds) throw new InvalidOperationException("Zone cell edit prerequisites changed before apply: " + rules.Reason);
+                if (!rules.Holds || zone == null) throw new InvalidOperationException("Zone cell edit prerequisites changed before apply: " + rules.Reason);
                 foreach (var c in Requested(intent))
                 {
-                    if (NativeZoneIntent.Adding(intent!) && !zone!.Cells.Contains(c)) zone.AddCell(c);
-                    else if (!NativeZoneIntent.Adding(intent) && zone!.Cells.Contains(c)) zone.RemoveCell(c);
+                    if (NativeZoneIntent.Adding(intent) && !zone.Cells.Contains(c)) zone.AddCell(c);
+                    else if (!NativeZoneIntent.Adding(intent) && zone.Cells.Contains(c)) zone.RemoveCell(c);
                 }
                 // Removing a zone's last cell deregisters it (Zone.RemoveCell).
-                if (map.zoneManager.AllZones.Contains(zone!) && !Standing(intent, zone)) throw new InvalidOperationException("Native zone cell readback did not apply.");
+                if (map.zoneManager.AllZones.Contains(zone) && !Standing(intent, zone)) throw new InvalidOperationException("Native zone cell readback did not apply.");
             }
             return NativeZoneCreation.Evidence(intent.Zone?.Id ?? "", zone, map);
         }

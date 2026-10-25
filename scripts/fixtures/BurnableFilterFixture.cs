@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
                     return thing;
                 }
                 ThingDef Def(string name) => DefDatabase<ThingDef>.GetNamed(name);
-                Thing Make(string defName, string stuff = null, int count = 1)
+                Thing Make(string defName, string? stuff = null, int count = 1)
                 {
                     var def = Def(defName);
                     var thing = ThingMaker.MakeThing(def, stuff == null ? (def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null) : Def(stuff));
@@ -79,7 +78,7 @@ namespace HomeBridge.BridgeTools
                     var rot = thing.TryGetComp<CompRottable>() ?? throw new InvalidOperationException($"{thing.def.defName} is not rottable.");
                     rot.RotProgress = rotted ? rot.PropsRot.TicksToRotStart + 5000f : 0f;
                 }
-                Thing Corpse(string label, string kind, Faction faction, bool rotted)
+                Thing Corpse(string label, string kind, Faction? faction, bool rotted)
                 {
                     var cell = NextCell();
                     var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(DefDatabase<PawnKindDef>.GetNamed(kind), faction, forceGenerateNewPawn: true,
@@ -112,12 +111,7 @@ namespace HomeBridge.BridgeTools
                     var pants = Make("Apparel_Pants", "Cloth");
                     if (hitPoints.HasValue) pants.HitPoints = hitPoints.Value;
                     if (quality.HasValue) pants.TryGetComp<CompQuality>()?.SetQuality(quality.Value, ArtGenerationContext.Colony);
-                    if (tainted)
-                    {
-                        var field = typeof(Apparel).GetField("wornByCorpseInt", BindingFlags.Instance | BindingFlags.NonPublic)
-                            ?? throw new InvalidOperationException("Apparel.wornByCorpseInt not found.");
-                        field.SetValue(pants, true);
-                    }
+                    if (tainted) ((Apparel)pants).WornByCorpse = true;
                     return Spawn(label, pants);
                 }
                 Pants("pants_normal", quality: QualityCategory.Normal);
@@ -161,7 +155,6 @@ namespace HomeBridge.BridgeTools
                 var notBurnable = DefDatabase<SpecialThingFilterDef>.GetNamed("RimGovernorNotBurnable");
                 var zones = map.zoneManager.AllZones.OfType<Zone_Stockpile>().ToList();
                 var wanted = (ids ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                var wornByCorpse = typeof(Apparel).GetField("wornByCorpseInt", BindingFlags.Instance | BindingFlags.NonPublic);
                 var rows = new List<object>();
                 foreach (var id in wanted)
                 {
@@ -184,7 +177,7 @@ namespace HomeBridge.BridgeTools
                         hitPoints = thing.def.useHitPoints ? thing.HitPoints : -1,
                         maxHitPoints = thing.def.useHitPoints ? thing.MaxHitPoints : -1,
                         quality = hasQuality ? q.ToString() : "",
-                        tainted = thing is Apparel apparel && wornByCorpse != null && (bool)wornByCorpse.GetValue(apparel),
+                        tainted = thing is Apparel apparel && apparel.WornByCorpse,
                         rotStage = rot == null ? "" : rot.Stage.ToString(),
                         burnable = burnable.Worker.Matches(thing),
                         notBurnable = notBurnable.Worker.Matches(thing),

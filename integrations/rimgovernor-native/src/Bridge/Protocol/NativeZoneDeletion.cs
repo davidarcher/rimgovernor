@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -21,7 +20,7 @@ namespace HomeBridge.BridgeTools
 
         private static Zone? Resolve(Operations.ZoneIntent? intent, Map map) =>
             NativeZoneIntent.Id(intent) != null
-                ? RefIndex.Zone(map, intent!.Zone?.Id ?? "") is Zone z && z.Cells.Count > 0 ? z : null : null;
+                ? RefIndex.Zone(map, (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Zone?.Id ?? "") is Zone z && z.Cells.Count > 0 ? z : null : null;
 
         private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Zone? zone, Map map)
         {
@@ -29,7 +28,7 @@ namespace HomeBridge.BridgeTools
             return new ApplyPreconditions(Kind)
                 .Require(() => NativeZoneIntent.DeleteOnly(intent), "deletion requires a zone id and no other edit")
                 .Require(() => zone == null || zone.Cells.All(c => map.zoneManager.ZoneAt(c) == zone), "the zone holds a phantom cell the zone grid does not map to it")
-                .Require(() => slotGroup == null || zone!.Cells.All(c => map.haulDestinationManager?.SlotGroupAt(c) == slotGroup), "the stockpile's haul grid no longer matches its cells");
+                .Require(() => zone != null && (slotGroup == null || zone.Cells.All(c => map.haulDestinationManager?.SlotGroupAt(c) == slotGroup)), "the stockpile's haul grid no longer matches its cells");
         }
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
@@ -47,7 +46,7 @@ namespace HomeBridge.BridgeTools
             if (!rules.Holds) throw new InvalidOperationException("Zone deletion prerequisites changed before apply: " + rules.Reason);
             zone?.Delete(false);
             if (Resolve(action.Intent?.Zone, map) != null) throw new InvalidOperationException("Native zone deletion readback did not apply.");
-            return NativeZoneCreation.Evidence(NativeZoneIntent.Id(action.Intent?.Zone)!, null, map);
+            return NativeZoneCreation.Evidence((NativeZoneIntent.Id(action.Intent?.Zone) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeZoneIntent.Id(action.Intent?.Zone).")), null, map);
         }
     }
 }

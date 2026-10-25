@@ -1,4 +1,3 @@
-#nullable enable
 using RimWorld;
 using Verse;
 using Verse.AI;

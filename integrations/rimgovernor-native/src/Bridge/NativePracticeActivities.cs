@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -101,7 +100,7 @@ internal static class NativePracticeActivities
     internal static Job? Job(Pawn pawn, Thing target, PawnActivityStep step)
     {
         if (!Legal(pawn, target, step)) return null;
-        if (step.Practice!.Skill == "Shooting")
+        if ((step.Practice ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Practice.")).Skill == "Shooting")
         {
             var job = JobMaker.MakeJob(DefDatabase<JobDef>.GetNamed(RangeTraining.ShootingJob), target, RangeTraining.DummyFor(target));
             job.maxNumStaticAttacks = RangeTraining.SessionCycles; return job;

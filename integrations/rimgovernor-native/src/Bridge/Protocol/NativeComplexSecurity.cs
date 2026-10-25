@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,8 +10,8 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeComplexSecurity
     {
-        private static readonly FloatRange AttemptFactor = (FloatRange)typeof(LayoutWorkerComplex).GetField("ThreatPointsFactorRange", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-        private static readonly FloatRange FuelRadius = (FloatRange)typeof(ComplexThreatWorker_FuelNode).GetField("ExplosiveRadiusRandomRange", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+        private static readonly FloatRange AttemptFactor = (FloatRange)((typeof(LayoutWorkerComplex).GetField("ThreatPointsFactorRange", BindingFlags.Static | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).GetValue(null) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
+        private static readonly FloatRange FuelRadius = (FloatRange)((typeof(ComplexThreatWorker_FuelNode).GetField("ExplosiveRadiusRandomRange", BindingFlags.Static | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).GetValue(null) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
 
         internal static double? Bound(SitePart part)
         {

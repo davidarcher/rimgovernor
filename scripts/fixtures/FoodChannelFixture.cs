@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
                 // A rerun on a world that already holds the food room (a resumed
                 // checkpoint) reuses it and its stock instead of clearing ground again.
                 var room = CellRect.Empty;
-                Building_WorkTable stove = null;
+                Building_WorkTable? stove = null;
                 var existing = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Where(z => z.cells.Count > 0 && z.settings.Priority == StoragePriority.Important).Select(z => CellRect.FromLimits(z.cells.Min(c => c.x), z.cells.Min(c => c.z), z.cells.Max(c => c.x), z.cells.Max(c => c.z))).ToList();
                 foreach (var rect in existing) { stove = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>().FirstOrDefault(b => b.def.defName == "FueledStove" && rect.Contains(b.Position)); if (stove != null) { room = rect.ExpandedBy(1); break; } }
                 foreach (var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(ExtraWorkTypeDefOf.Cooking, 1); if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)) p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 2); p.skills.GetSkill(SkillDefOf.Cooking).Level = 8; }
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         // What the starving-tribal recovery case reads natively: meat the
         // colonists ingested, wild kills by a colonist, and the killer's job two
         // ticks after each (vanilla hauls the corpse; the hunt-chain rule leaves a Hunt).
-        private sealed class WildKill { internal int Tick; internal Pawn Killer; internal string Prey = ""; internal bool Recorded; }
+        private sealed class WildKill { internal int Tick; internal required Pawn Killer; internal string Prey = ""; internal bool Recorded; }
         private static float meatEaten;
         private static bool starvingPatched;
         private static readonly List<WildKill> wildKills = new List<WildKill>();
@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
                 var live = prey != null && !prey.Dead && prey.Spawned;
                 killJobs.Add(new Dictionary<string, object> {
                     { "killTick", kill.Tick }, { "killer", kill.Killer.LabelShort }, { "killed", kill.Prey }, { "jobDef", kill.Killer.CurJobDef?.defName ?? "" },
-                    { "targetLive", live }, { "targetDesignated", live && NativeHuntAcquisition.Designated(prey) },
+                    { "targetLive", live }, { "targetDesignated", prey != null && live && NativeHuntAcquisition.Designated(prey) },
                     { "targetIsKilled", target != null && (target.GetUniqueLoadID() == kill.Prey || (target is Corpse c && c.InnerPawn.GetUniqueLoadID() == kill.Prey)) },
                 });
             }

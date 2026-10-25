@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +46,7 @@ namespace HomeBridge.BridgeTools
                     return trader is Pawn seller && seller.Spawned && seller.Map == _sessionMap && !SafeBool(() => seller.mindState.traderDismissed)
                         && pawn.Spawned && pawn.Map == _sessionMap;
                 case Common.TradeTargetKind.OrbitalShipCase:
-                    return trader is TradeShip ship && pawn.Spawned && pawn.Map == _sessionMap && _sessionMap!.passingShipManager.passingShips.Contains(ship);
+                    return trader is TradeShip ship && pawn.Spawned && pawn.Map == _sessionMap && _sessionMap.passingShipManager.passingShips.Contains(ship);
                 case Common.TradeTargetKind.SettlementCase { Value: var visit }:
                     var caravan = ResolveCaravan(visit.CaravanId);
                     return caravan != null && ReferenceEquals(ResolveSettlement(visit.SettlementId), trader)
@@ -171,10 +170,10 @@ namespace HomeBridge.BridgeTools
             var contextIdentity = context.Identity ?? throw new InvalidOperationException("Observation context has no identity.");
             if (!PrepareWorldOpen(intent, contextIdentity, out var seller, out var pawn, out var console, out _) || seller == null || pawn == null) throw new InvalidOperationException("World trade prerequisites changed.");
             if (_sessionId == null && intent.Target?.Kind is Common.TradeTargetKind.SettlementCase)
-                BindWorldSession(seller, pawn, intent.Step?.Open?.GiftMode == true, contextIdentity, ProtoBoundary.ResolveMap(context)!, intent.Target);
+                BindWorldSession(seller, pawn, intent.Step?.Open?.GiftMode == true, contextIdentity, (ProtoBoundary.ResolveMap(context) ?? throw new System.InvalidOperationException("Required native value is unavailable: ProtoBoundary.ResolveMap(context).")), intent.Target);
             else if (_sessionId == null && !(_contact?.Live() ?? false))
             {
-                var contact = new OrbitalContact(intent, contextIdentity, (TradeShip)seller, console!, pawn);
+                var contact = new OrbitalContact(intent, contextIdentity, (TradeShip)seller, (console ?? throw new System.InvalidOperationException("Required native value is unavailable: console.")), pawn);
                 var job = JobMaker.MakeJob(JobDefOf.UseCommsConsole, console);
                 job.commTarget = (TradeShip)seller; contact.Job = job; contact.JobId = job.loadID;
                 _contact = contact;

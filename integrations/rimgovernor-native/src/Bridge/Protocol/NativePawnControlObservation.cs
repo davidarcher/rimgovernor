@@ -1,4 +1,3 @@
-#nullable enable
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;

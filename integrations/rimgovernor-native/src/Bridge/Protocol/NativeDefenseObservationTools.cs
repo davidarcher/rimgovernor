@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,7 +71,7 @@ namespace HomeBridge.BridgeTools
         internal static List<IntVec3>? Region(Obs.Rectangle? region, Map? map)
         {
             var min = region?.Minimum; var max = region?.Maximum;
-            if (!HasCell(min) || !HasCell(max) || max!.X < min!.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
+            if (!HasCell(min) || !HasCell(max) || (max ?? throw new System.InvalidOperationException("Required native value is unavailable: max.")).X < (min ?? throw new System.InvalidOperationException("Required native value is unavailable: min.")).X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
             if (map == null) return new List<IntVec3>();
             if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return null;
             var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;
@@ -106,7 +105,7 @@ namespace HomeBridge.BridgeTools
                     Walkable = cell.Walkable(map), Passable = passable,
                     Roofed = cell.Roofed(map),
                     CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0),
-                    Cover = kind is { } k ? new Obs.DefenseCover { ThingId = giver!.GetUniqueLoadID(), DefName = Identifier(giver.def.defName), Kind = k, Designated = NativeClearCover.Designated(giver) } : null,
+                    Cover = kind is { } k ? new Obs.DefenseCover { ThingId = (giver ?? throw new System.InvalidOperationException("Required native value is unavailable: giver.")).GetUniqueLoadID(), DefName = Identifier(giver.def.defName), Kind = k, Designated = NativeClearCover.Designated(giver) } : null,
                     Edifice = edifice == null ? null : new Obs.DefenseEdifice {
                         DefName = Identifier(edifice.def.defName),
                         Stuff = edifice.Stuff != null ? Identifier(edifice.Stuff.defName) : null,
@@ -150,7 +149,7 @@ namespace HomeBridge.BridgeTools
             return new Obs.LinesOfFireSnapshot { Context = context, Lines = [.. lines], Skipped = false };
         }
 
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }

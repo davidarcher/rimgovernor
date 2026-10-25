@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,9 +29,9 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Candidate
         {
-            internal WallRemovalRecord Record = null!;
-            internal Obs.WallUpgradeSite Site = null!;
-            internal Func<Obs.WallUpgradeSite?> Reread = null!;
+            internal required WallRemovalRecord Record;
+            internal required Obs.WallUpgradeSite Site;
+            internal required Func<Obs.WallUpgradeSite?> Reread;
         }
 
         [ThreadStatic] private static string? lastBlocker;
@@ -146,7 +145,7 @@ namespace HomeBridge.BridgeTools
             var id = wall.GetUniqueLoadID();
             if (pending != null)
                 return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id } };
-            var chosen = candidate!;
+            var chosen = candidate ?? throw new InvalidOperationException("The wall removal candidate is unavailable.");
             var before = NativeWallUpgradeObservationTools.SiteToken(chosen.Site, context);
             if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);

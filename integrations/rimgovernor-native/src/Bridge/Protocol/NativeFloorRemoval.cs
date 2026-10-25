@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using RimWorld;
 using Verse;
@@ -30,8 +29,8 @@ namespace HomeBridge.BridgeTools
 
         private static ApplyPreconditions Rules(Operations.RemoveFloorIntent? intent, Map map) => new ApplyPreconditions(Kind)
             .Require(() => Valid(intent), "removal requires a cell and a floor def")
-            .Require(() => Cell(intent!).InBounds(map) && !Cell(intent!).Fogged(map), "the cell is off the map or fogged")
-            .Require(() => Holds(intent!, map) || new Designator_RemoveFloor().CanDesignateCell(Cell(intent!)).Accepted,
+            .Require(() => intent != null && (Cell(intent).InBounds(map) && !Cell(intent).Fogged(map)), "the cell is off the map or fogged")
+            .Require(() => intent != null && (Holds(intent, map) || new Designator_RemoveFloor().CanDesignateCell(Cell(intent)).Accepted),
                 "the native designator refuses the cell (no removable floor, or a building blocks it)");
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)

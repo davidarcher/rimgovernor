@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -43,7 +42,7 @@ namespace HomeBridge.BridgeTools
             var current = pawn.CurJob;
             running = current != null && current.def == JobDefOf.InteractThing && current.targetA.Thing == target;
             if (running) return null;
-            var verdict = comp!.CanInteract(pawn);
+            var verdict = comp.CanInteract(pawn);
             if (!verdict.Accepted)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot interact now" + (verdict.Reason.NullOrEmpty() ? "." : ": " + verdict.Reason));
             return null;
@@ -55,11 +54,11 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var running);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (running) return NativeGiveJob.Evidence(pawn!, target!, pawn!.CurJob, false);
+            if (running) return NativeGiveJob.Evidence((pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")), (target ?? throw new System.InvalidOperationException("Required native value is unavailable: target.")), (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.InteractThing, target);
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(pawn.CurJob, job))
+            if (!(pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(pawn.CurJob, job))
                 throw new InvalidOperationException("The pawn did not take the interaction job.");
-            return NativeGiveJob.Evidence(pawn, target!, job, true);
+            return NativeGiveJob.Evidence(pawn, (target ?? throw new System.InvalidOperationException("Required native value is unavailable: target.")), job, true);
         }
     }
 }

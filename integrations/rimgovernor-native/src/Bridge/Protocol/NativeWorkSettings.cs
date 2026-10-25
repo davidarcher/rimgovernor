@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Globalization;
 using System.IO;
@@ -100,9 +99,9 @@ namespace HomeBridge.BridgeTools
         // Resolve finds the pawn and returns null when the intent applies:
         // either every field already holds, or each apply-time rule
         // (action-contracts.md) passes.
-        private static Common.Failure? Resolve(Operations.WorkSettingsIntent? intent, Common.ObservationContext context, out Pawn pawn, out bool holds)
+        private static Common.Failure? Resolve(Operations.WorkSettingsIntent? intent, Common.ObservationContext context, out Pawn? pawn, out bool holds)
         {
-            pawn = null!; holds = false;
+            pawn = null; holds = false;
             if (intent is null || !Valid(intent))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn and a supported settings change.");
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
@@ -111,19 +110,19 @@ namespace HomeBridge.BridgeTools
             var manual = PawnSettingsRead.ManualPriorities();
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
-                .Require(() => Target(found!), "the pawn is not a living free colonist");
-            rules.Require(() => !found!.Downed, "the pawn is downed")
-                    .Require(() => !found!.Drafted, "the pawn is drafted")
-                    .Require(() => !found!.InMentalState, "the pawn is in a mental state")
-                    .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
+                .Require(() => found != null && (Target(found)), "the pawn is not a living free colonist");
+            rules.Require(() => found != null && (!found.Downed), "the pawn is downed")
+                    .Require(() => found != null && (!found.Drafted), "the pawn is drafted")
+                    .Require(() => found != null && (!found.InMentalState), "the pawn is in a mental state")
+                    .Require(() => found != null && (found.workSettings?.Initialized == true && found.workSettings.EverWork), "the pawn has no work settings")
                     .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
                     .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? "")) != null), "a requested work type is not defined")
                     .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
-                    .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing or unreachable")
+                    .Require(() => found != null && (AreaResolves(intent, found, out _)), "the requested allowed area is missing or unreachable")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
-                    .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable");
-            if (!rules.Holds) return rules.Failure();
-            pawn = found!;
+                    .Require(() => found != null && (intent.Schedule == null || found.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours), "the pawn has no 24-hour timetable");
+            if (!rules.Holds || found == null) return rules.Failure();
+            pawn = found;
             return null;
         }
 
@@ -133,7 +132,7 @@ namespace HomeBridge.BridgeTools
         {
             var intent = action.Intent?.WorkSettings;
             var failure = Resolve(intent, context, out var pawn, out var holds);
-            if (failure != null || intent is null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + (failure?.Detail ?? ""));
+            if (failure != null || intent is null || pawn == null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + (failure?.Detail ?? ""));
             var disabled = Disabled(pawn);
             if (!holds)
             {

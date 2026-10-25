@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -53,7 +52,7 @@ namespace HomeBridge.BridgeTools
         {
             var thresholds = BridgeCommon.PrivateInstanceField(typeof(MechanitorControlGroup), "mechRechargeThresholds")
                 ?? throw new InvalidOperationException("MechanitorControlGroup.mechRechargeThresholds not found");
-            var band = (FloatRange)thresholds.GetValue(group)!;
+            var band = (FloatRange)(thresholds.GetValue(group) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
             return new Obs.PawnMechGroup { Index = group.Index, RechargeBelow = Finite(band.min, "recharge below"), RechargeAbove = Finite(band.max, "recharge above") };
         }
     }

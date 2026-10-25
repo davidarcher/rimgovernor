@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
                 }
                 Put("RimGovernor_TrainingBowStand", x, z);
                 var dummy = Put("RimGovernor_TrainingDummy", x, z + RangeDistance);
-                Thing secondDummy = null;
+                Thing? secondDummy = null;
                 if (neighbour)
                 {
                     Put("RimGovernor_TrainingBowStand", x + 1, z);
@@ -160,8 +160,8 @@ namespace HomeBridge.BridgeTools
         // TendPatient job without medicine. "surgery" takes a leg and adds the native peg-leg bill with its ingredients beside
         // the bed; "poll" hands the doctor the native DoBill job (built as WorkGiver_DoBill builds it) once the patient lies in bed.
         // Whoever then does the work, the verifier checks each Medicine callback.
-        private static Pawn medicalDoctor, medicalPatient;
-        private static Bill_Medical medicalBill;
+        private static Pawn? medicalDoctor, medicalPatient;
+        private static Bill_Medical? medicalBill;
         private static List<Thing> medicalInputs = new List<Thing>();
         private static bool medicalStarted;
 
@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (action == "poll")
                 {
-                    if (medicalBill != null && !medicalStarted && medicalPatient.InBed())
+                    if (medicalBill != null && medicalDoctor != null && medicalPatient != null && !medicalStarted && medicalPatient.InBed())
                     {
                         var job = JobMaker.MakeJob(JobDefOf.DoBill, medicalPatient);
                         job.bill = medicalBill;
@@ -344,7 +344,7 @@ namespace HomeBridge.BridgeTools
                                     // Disposable fixture mutation only: evaluate the actual native level without stat caching.
                                     skill.levelInt = level.StoredLevel;
                                     var actual = ranged ? (float)(NativeDefenseStats.PawnRangedDps(subject) * NativeDefenseStats.PawnRangedHitFactor(subject))
-                                        : stat.Worker.GetValue(StatRequest.For(subject));
+                                        : (stat ?? throw new InvalidOperationException("Training stat missing.")).Worker.GetValue(StatRequest.For(subject));
                                     samples++;
                                     if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
                                         failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");
@@ -390,10 +390,10 @@ namespace HomeBridge.BridgeTools
                 // An inspiration that changes the stat disqualifies it (#3912): it applies after the skill term, so the substituted value is not exact.
                 var frenzy = DefDatabase<InspirationDef>.AllDefs.First(d => d.statOffsets != null && d.statOffsets.GetStatOffsetFromList(StatDefOf.ShootingAccuracyPawn) != 0f);
                 var handler = qualified.mindState.inspirationHandler;
-                var state = (Inspiration)Activator.CreateInstance(frenzy.inspirationClass);
+                var state = (Activator.CreateInstance(frenzy.inspirationClass) as Inspiration ?? throw new InvalidOperationException("Inspiration construction failed."));
                 state.def = frenzy;
                 state.pawn = qualified;
-                typeof(InspirationHandler).GetField("curState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(handler, state);
+                (BridgeCommon.PrivateInstanceField(typeof(InspirationHandler), "curState") ?? throw new System.MissingFieldException(typeof(InspirationHandler).FullName, "curState")).SetValue(handler, state);
                 try
                 {
                     if (NativeSkillStat.Levels(qualified, StatDefOf.ShootingAccuracyPawn, SkillDefOf.Shooting, out var inspired) != null || inspired != "inspired")
@@ -413,7 +413,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var pawn = map.mapPawns.AllPawnsSpawned.Single(p => p.GetUniqueLoadID() == pawnId);
-                Pawn Optional(string id) => string.IsNullOrEmpty(id) ? null : map.mapPawns.AllPawnsSpawned.Single(p => p.GetUniqueLoadID() == id);
+                Pawn? Optional(string id) => string.IsNullOrEmpty(id) ? null : map.mapPawns.AllPawnsSpawned.Single(p => p.GetUniqueLoadID() == id);
                 var other = Optional(otherId);
                 var idle = Optional(bystanderId);
                 Thing[] Things(string csv)
@@ -472,8 +472,8 @@ namespace HomeBridge.BridgeTools
         internal static readonly List<string> Failures = new List<string>();
         internal sealed class Check
         {
-            internal RimGovernor.Brain.Policy.SkillForecast Prediction;
-            internal string Kind;
+            internal required RimGovernor.Brain.Policy.SkillForecast Prediction;
+            internal required string Kind;
         }
         internal static void Start()
         {
@@ -485,7 +485,7 @@ namespace HomeBridge.BridgeTools
             installed = true;
         }
         internal static void Stop() { enabled = false; }
-        private static void Before(SkillRecord __instance, float xp, bool direct, bool ignoreLearnRate, out Check __state)
+        private static void Before(SkillRecord __instance, float xp, bool direct, bool ignoreLearnRate, out Check? __state)
         {
             __state = null;
             if (!enabled || busy || xp <= 0 || direct || ignoreLearnRate) return;
@@ -531,7 +531,7 @@ namespace HomeBridge.BridgeTools
             }
             finally { busy = false; }
         }
-        private static void After(SkillRecord __instance, Check __state)
+        private static void After(SkillRecord __instance, Check? __state)
         {
             if (__state == null) return;
             switch (__state.Kind)

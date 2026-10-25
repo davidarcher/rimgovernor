@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
                     // Plants (trees included) are cleared below, so only
                     // edifices, zones, pawns and terrain disqualify a site;
                     // the radius covers a wooded or rocky landing.
-                    var site = GenRadial.RadialCellsAround(center, 45, true).Where(c => c.DistanceToSquared(center) >= 36).Cast<IntVec3?>().FirstOrDefault(c =>
+                    var site = GenRadial.RadialCellsAround(center, 45, true).Where(c => c.DistanceToSquared(center) >= 36).Cast<IntVec3?>().FirstOrDefault(c => c.HasValue &&
                         new CellRect(c.Value.x, c.Value.z, connectedRooms ? 19 : size, size).Cells.All(v => v.InBounds(map)
                             && !v.Fogged(map) && v.GetEdifice(map) == null
                             && v.GetThingList(map).All(t => t is Plant || t.def.category == ThingCategory.Item)
@@ -103,7 +103,7 @@ namespace HomeBridge.BridgeTools
                     // lovers a shared bed (BedUtility.WillingToShareBed,
                     // SharedBed_NonSpouse), and the controller then rightly
                     // never pairs them (#3434).
-                    string doubleBed = null;
+                    string? doubleBed = null;
                     if (couple) {
                         foreach (var relation in new[] { PawnRelationDefOf.Lover, PawnRelationDefOf.Fiance })
                             if (people[0].relations.DirectRelationExists(relation, people[1]))

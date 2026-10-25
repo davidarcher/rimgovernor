@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -23,9 +22,9 @@ namespace HomeBridge.BridgeTools
             var parts = new List<string> { Current.Game.GetComponent<ColonyIdentity>().LoadToken, p.Map.uniqueID.ToString(),
                 p.GetUniqueLoadID(), p.outfits?.CurrentApparelPolicy?.GetUniqueLoadID() ?? "none",
                 p.equipment?.Primary?.GetUniqueLoadID() ?? "none" };
-            var filter = p.outfits?.CurrentApparelPolicy?.filter;
-            if (filter != null) {
-                var policy = p.outfits!.CurrentApparelPolicy;
+            var policy = p.outfits?.CurrentApparelPolicy;
+            var filter = policy?.filter;
+            if (policy != null && filter != null) {
                 parts.Add(CensusMemo.Of(("allowed", (object?)policy), () => string.Join(",", filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d))));
                 parts.Add(CensusMemo.Of(("special", (object?)policy), () => string.Join(",", DefDatabase<SpecialThingFilterDef>.AllDefs.Where(d => !filter.Allows(d)).Select(d => d.defName).OrderBy(d => d))));
                 parts.Add(filter.AllowedHitPointsPercents.min.ToString("R", System.Globalization.CultureInfo.InvariantCulture));

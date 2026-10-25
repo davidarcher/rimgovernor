@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -125,7 +124,7 @@ namespace HomeBridge.BridgeTools
             if (intent is null) throw new InvalidOperationException("Pawn settings require an intent.");
             Receipts.FieldResult field;
             if (intent.Setting is PS.NicknameCase) {
-                field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename(pawn!, intent.Setting?.Nickname ?? "") };
+                field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename((pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")), intent.Setting?.Nickname ?? "") };
                 return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                     Fields = [field] } };
             }
@@ -143,7 +142,7 @@ namespace HomeBridge.BridgeTools
                 return ApplyPermit(intent);
             if (intent.Setting is PS.ExtractBioferriteCase)
                 return ApplyExtractBioferrite(intent, context);
-            var settings = pawn!.playerSettings;
+            var settings = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).playerSettings;
             if (intent.Setting is PS.MedicalCareCase) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
                 settings.medCare = care;
@@ -189,7 +188,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveCarry(intent, context, out var pawn, out var medicine);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var stock = pawn!.inventoryStock;
+            var stock = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).inventoryStock;
             if (intent.Setting is not PS.MedicineCarryCase { Value: var count }) throw new InvalidOperationException("Medicine carry setting missing");
             var group = InventoryStockGroupDefOf.Medicine;
             var unchanged = stock.GetDesiredCountForGroup(group) == count
@@ -225,7 +224,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveReading(intent, context, out var pawn, out var policy);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var unchanged = pawn!.reading.CurrentPolicy == policy;
+            var unchanged = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).reading.CurrentPolicy == policy;
             pawn.reading.CurrentPolicy = policy;
             if (pawn.reading.CurrentPolicy != policy) throw new InvalidOperationException("Native reading policy requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
@@ -256,7 +255,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveDrug(intent, context, out var pawn, out var policy);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var unchanged = pawn!.drugs.CurrentPolicy == policy;
+            var unchanged = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).drugs.CurrentPolicy == policy;
             pawn.drugs.CurrentPolicy = policy;
             if (pawn.drugs.CurrentPolicy != policy) throw new InvalidOperationException("Native drug policy requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
@@ -287,7 +286,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveFood(intent, context, out var pawn, out var policy);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var unchanged = pawn!.foodRestriction.CurrentFoodPolicy == policy;
+            var unchanged = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).foodRestriction.CurrentFoodPolicy == policy;
             pawn.foodRestriction.CurrentFoodPolicy = policy;
             if (pawn.foodRestriction.CurrentFoodPolicy != policy) throw new InvalidOperationException("Native food policy requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
@@ -346,20 +345,20 @@ namespace HomeBridge.BridgeTools
             Receipts.SettingsField field;
             if (mode != null)
             {
-                unchanged = group!.WorkMode == mode;
+                unchanged = (group ?? throw new System.InvalidOperationException("Required native value is unavailable: group.")).WorkMode == mode;
                 group.SetWorkMode(mode);
-                if (MechanitorUtility.GetMechWorkMode(pawn!) != mode) throw new InvalidOperationException("Native mech work mode requires readback.");
+                if (MechanitorUtility.GetMechWorkMode(pawn) != mode) throw new InvalidOperationException("Native mech work mode requires readback.");
                 field = Receipts.SettingsField.MechWorkMode;
             }
             else
             {
-                unchanged = tracker!.GetControlGroup(pawn!) == group;
+                unchanged = (tracker ?? throw new System.InvalidOperationException("Required native value is unavailable: tracker.")).GetControlGroup((pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn."))) == group;
                 if (!unchanged)
                 {
-                    tracker.UnassignPawnFromAnyControlGroup(pawn!);
-                    group!.Assign(pawn!);
+                    tracker.UnassignPawnFromAnyControlGroup(pawn);
+                    (group ?? throw new System.InvalidOperationException("Required native value is unavailable: group.")).Assign((pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")));
                 }
-                if (tracker.GetControlGroup(pawn!) != group) throw new InvalidOperationException("Native mech control group requires readback.");
+                if (tracker.GetControlGroup(pawn) != group) throw new InvalidOperationException("Native mech control group requires readback.");
                 field = Receipts.SettingsField.MechControlGroup;
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
@@ -408,12 +407,12 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolvePermit(intent, out var pawn, out var faction, out var permit);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var royalty = pawn!.royalty;
-            var before = royalty.GetPermitPoints(faction!);
-            var unchanged = royalty.HasPermit(permit!, faction!);
-            if (!unchanged) royalty.AddPermit(permit!, faction!);
-            if (!royalty.HasPermit(permit!, faction!)) throw new InvalidOperationException("Native permit requires readback.");
-            if (!unchanged && royalty.GetPermitPoints(faction!) != before - permit!.permitPointCost)
+            var royalty = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).royalty;
+            var before = royalty.GetPermitPoints(faction);
+            var unchanged = royalty.HasPermit(permit, faction);
+            if (!unchanged) royalty.AddPermit(permit, faction);
+            if (!royalty.HasPermit(permit, faction)) throw new InvalidOperationException("Native permit requires readback.");
+            if (!unchanged && royalty.GetPermitPoints((faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction."))) != before - (permit ?? throw new System.InvalidOperationException("Required native value is unavailable: permit.")).permitPointCost)
                 throw new InvalidOperationException("Native permit points did not drop by the permit's cost.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Permit,
@@ -454,7 +453,7 @@ namespace HomeBridge.BridgeTools
             var failure = ResolveExtractBioferrite(intent, context, out var pawn, out var target);
             if (failure != null) throw new ApplyRefusedException(failure);
             if (intent.Setting is not PS.ExtractBioferriteCase { Value: var want }) throw new InvalidOperationException("Bioferrite setting missing");
-            var unchanged = target!.extractBioferrite == want;
+            var unchanged = (target ?? throw new System.InvalidOperationException("Required native value is unavailable: target.")).extractBioferrite == want;
             target.extractBioferrite = want;
             if (target.extractBioferrite != want) throw new InvalidOperationException("Native extract bioferrite requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
@@ -472,7 +471,7 @@ namespace HomeBridge.BridgeTools
             for (var attempt = 0; attempt < 100; attempt++)
             {
                 var drawn = PawnBioAndNameGenerator.GeneratePawnName(pawn, NameStyle.Full)?.ToStringShort;
-                if (string.IsNullOrWhiteSpace(drawn) || drawn!.Any(char.IsDigit) || taken.Contains(drawn!)) continue;
+                if (string.IsNullOrWhiteSpace(drawn) || drawn.Any(char.IsDigit) || taken.Contains(drawn)) continue;
                 pawn.Name = pawn.Name is NameTriple triple ? new NameTriple(triple.First, drawn, triple.Last) : new NameSingle(drawn);
                 if (pawn.Name.ToStringShort != drawn) throw new InvalidOperationException("Native nickname requires readback.");
                 return Receipts.FieldOutcome.Applied;

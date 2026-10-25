@@ -14,7 +14,7 @@ internal static class NativeThreatClassifierProbe
     private static int checks;
     private static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
 
-    private sealed class P { internal string Id; internal ThreatFacts F; }
+    private sealed class P { internal required string Id; internal ThreatFacts F; }
     private static P Pawn(string id, ThreatFacts f) { return new P { Id = id, F = f }; }
 
     private static int projected;

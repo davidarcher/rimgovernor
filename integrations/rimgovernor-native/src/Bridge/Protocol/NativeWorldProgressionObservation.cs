@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -209,7 +208,7 @@ namespace HomeBridge.BridgeTools
                     var named = shuttle != null && shuttle.requiredPawns.Count > 0;
                     return new Obs.QuestObjective { Kind = named ? Obs.QuestObjectiveKind.LoadNamedPawns : Obs.QuestObjectiveKind.LoadPawns,
                         Goal = p.requiredColonistCount >= 0 ? new Obs.QuestObjectiveGoal.Pawns(p.requiredColonistCount) : Uncounted, Timing = Untimed,
-                        PawnIds = named ? [.. shuttle!.requiredPawns.Select(pawn => new PawnId(pawn.GetUniqueLoadID()))] : [],
+                        PawnIds = named ? [.. (shuttle ?? throw new System.InvalidOperationException("Required native value is unavailable: shuttle.")).requiredPawns.Select(pawn => new PawnId(pawn.GetUniqueLoadID()))] : [],
                         Active = active, MinimumMood = new Obs.QuestMoodFloor.NoFloor(), LodgerMoods = [] };
                 case QuestPart_DropMonumentMarkerCopy _:
                     var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Monument, Goal = Uncounted, Timing = Untimed,

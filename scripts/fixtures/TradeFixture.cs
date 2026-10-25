@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/trade_fixture", Description = "Disposable trade acceptance setup/readback; excluded from production builds and model execution.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action = "", string traderId = null, string pawnId = null, string channel = "", string caravanId = null)
+            string action = "", string? traderId = null, string? pawnId = null, string channel = "", string? caravanId = null)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
             return new TradeSessionPrepared { Success = true, Trader = ship.GetUniqueLoadID(), Negotiator = negotiator.GetUniqueLoadID() };
         }
 
-        private static TradeRequestPrepared RequestFixture(Map map, string action, string channel, string pawnId, string factionId)
+        private static TradeRequestPrepared RequestFixture(Map map, string action, string channel, string? pawnId, string? factionId)
         {
             var orbital = channel == "orbital";
             var faction = factionId == null ? Find.FactionManager.AllFactionsVisible.First(f => !f.IsPlayer && !f.defeated
@@ -149,13 +149,13 @@ namespace HomeBridge.BridgeTools
             else throw new ArgumentException("Unknown request fixture action.");
             var kind = (orbital ? faction.def.orbitalTraderKinds : faction.def.caravanTraderKinds).First(k => k.requestable && k.TitleRequiredToTrade == null);
             return new TradeRequestPrepared { Success = true, Faction = faction.GetUniqueLoadID(), Negotiator = pawn.GetUniqueLoadID(),
-                Console = console.GetUniqueLoadID(), TraderKind = kind.defName, Goodwill = faction.PlayerGoodwill,
+                Console = (console ?? throw new InvalidOperationException("Comms console required.")).GetUniqueLoadID(), TraderKind = kind.defName, Goodwill = faction.PlayerGoodwill,
                 Cost = -Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, orbital ? -30 : -15),
                 LastRequestTick = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick,
                 Ally = faction.PlayerRelationKind == FactionRelationKind.Ally };
         }
 
-        private static TradeInventory SessionInventory(Map map, string channel, string traderId, string caravanId)
+        private static TradeInventory SessionInventory(Map map, string channel, string? traderId, string? caravanId)
         {
             ITrader seller;
             System.Collections.Generic.IEnumerable<Thing> inventory;

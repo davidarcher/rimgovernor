@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -107,9 +106,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // Resolves the pending letter the intent names and its accept option.
-        private static Common.Failure? Resolve(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner letter, out Pawn pawn, out DiaOption option)
+        private static Common.Failure? Resolve(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner? letter, out Pawn? pawn, out DiaOption? option)
         {
-            letter = null!; pawn = null!; option = null!;
+            letter = null; pawn = null; option = null;
             if (c.OptionIndex != 0 || c.OptionLabel is null || string.IsNullOrEmpty(c.JoinerLetterToken))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A joiner answer needs the letter, option 0, its label and the letter token.");
             var found = Pending().SingleOrDefault(l => l.ID == c.WindowId);
@@ -126,10 +125,10 @@ namespace HomeBridge.BridgeTools
         // Accepted is the letter the intent names already archived with its
         // joiner a living spawned free colonist on the offered map: a resent
         // intent applies again as it stands.
-        private static bool Accepted(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner letter, out Pawn pawn)
+        private static bool Accepted(Operations.DialogIntent c, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ChoiceLetter_AcceptJoiner? letter, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Pawn? pawn)
         {
-            letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId)!;
-            pawn = letter == null ? null! : Joiner(letter)!;
+            letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId);
+            pawn = letter == null ? null : Joiner(letter);
             return letter != null && pawn != null && letter.ArchivedOnly && Joined(letter, pawn);
         }
 
@@ -144,7 +143,7 @@ namespace HomeBridge.BridgeTools
             if (!Accepted(c, out var letter, out var pawn))
             {
                 var failure = Resolve(c, out letter, out pawn, out var option);
-                if (failure != null) throw new InvalidOperationException("Joiner letter changed before apply: " + (failure.Detail ?? ""));
+                if (failure != null || letter == null || pawn == null || option == null) throw new InvalidOperationException("Joiner letter changed before apply: " + (failure?.Detail ?? ""));
                 // Letter choices have no owning Dialog_NodeTree until opened.
                 // Run the native button action, as the headless fixture does;
                 // DiaOption.Activate would dereference that absent window.

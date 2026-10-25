@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -32,19 +31,18 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Job? job)
         {
             patient = null; job = null;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an eligible doctor.");
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an eligible doctor.");
             var map = ProtoBoundary.LoadedMap(context);
             patient = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
             if (patient.Dead) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is dead and cannot be tended.");
-            if (Running(pawn!, patient)) return null;
+            if (Running(pawn, patient)) return null;
             if (!patient.health.HasHediffsNeedingTend())
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient has nothing that needs tending right now.");
             if (patient.InAggroMentalState)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is in an aggressive mental state and cannot be tended until it ends.");
-            if (pawn!.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
+            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The doctor has the Doctor work type disabled.");
             var giver = Giver();
             if (giver == null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "WorkGiver_Tend is unavailable in this game.");
@@ -78,11 +76,12 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var patient, out var job);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, patient!)) return NativeGiveJob.Evidence(pawn!, patient!, pawn!.CurJob, false);
-            if (!pawn!.jobs.TryTakeOrderedJob(job!, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job!.loadID)
+            if (failure != null || pawn == null || patient == null) throw new InvalidOperationException(failure?.Detail);
+            if (Running(pawn, patient)) return NativeGiveJob.Evidence(pawn, patient, pawn.CurJob, false);
+            if (job == null) throw new InvalidOperationException("The tending job is unavailable.");
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
                 throw new InvalidOperationException("The doctor did not take the tend job.");
-            return NativeGiveJob.Evidence(pawn, patient!, job, true);
+            return NativeGiveJob.Evidence(pawn, patient, job, true);
         }
     }
 }

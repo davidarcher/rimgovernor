@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var thingDef = DefDatabase<ThingDef>.GetNamedSilentFail(def ?? "") ?? throw new ArgumentException($"No PawnKindDef or ThingDef named {def}.");
                     if (thingDef.category != ThingCategory.Building && thingDef.category != ThingCategory.Item && thingDef.category != ThingCategory.Plant) throw new ArgumentException($"{def} is neither a building, an item nor a plant.");
-                    ThingDef stuffDef = null;
+                    ThingDef? stuffDef = null;
                     if (thingDef.MadeFromStuff)
                         stuffDef = stuff == "" ? GenStuff.DefaultStuffFor(thingDef) : DefDatabase<ThingDef>.GetNamedSilentFail(stuff) ?? throw new ArgumentException($"No stuff named {stuff}.");
                     if (!GenAdj.OccupiedRect(cell, rot, thingDef.size).InBounds(map)) throw new ArgumentException($"{def} at {x},{z} does not fit the map.");
@@ -181,7 +181,7 @@ namespace HomeBridge.BridgeTools
 
         public static List<object> Rows() => rows.ToList();
 
-        private static string Side(Thing t) => t == null ? "" : t.Faction == Faction.OfPlayer ? "colonist" : t.HostileTo(Faction.OfPlayer) ? "hostile" : "other";
+        private static string Side(Thing? t) => t == null ? "" : t.Faction == Faction.OfPlayer ? "colonist" : t.HostileTo(Faction.OfPlayer) ? "hostile" : "other";
 
         public static void Postfix(Thing __instance, DamageInfo dinfo, DamageWorker.DamageResult __result)
         {
@@ -248,7 +248,7 @@ namespace HomeBridge.BridgeTools
         private static bool On(Thing t) => !float.IsNaN(AcceptanceWorld.Lab) && t != null && t.Map != null && t.Map == Find.CurrentMap;
         private static int Now => Find.TickManager.TicksGame;
         private static string Id(Thing t) => t?.GetUniqueLoadID() ?? "";
-        private static string Side(Thing t) => t == null ? "" : t.Faction == Faction.OfPlayer ? "colonist" : t.HostileTo(Faction.OfPlayer) ? "hostile" : "other";
+        private static string Side(Thing? t) => t == null ? "" : t.Faction == Faction.OfPlayer ? "colonist" : t.HostileTo(Faction.OfPlayer) ? "hostile" : "other";
 
         private static void Add(object row)
         {
@@ -336,9 +336,9 @@ namespace HomeBridge.BridgeTools
                 if (action == "orphan-animal")
                 {
                     var setup = JObject.Parse(spec);
-                    var animal = map.mapPawns.AllPawnsSpawned.First(p => p.GetUniqueLoadID() == (string)setup["animal"]);
+                    var animal = map.mapPawns.AllPawnsSpawned.First(p => p.GetUniqueLoadID() == ((string?)setup["animal"] ?? throw new ArgumentException("animal is required")));
                     if (!animal.RaceProps.Animal || animal.Faction != Faction.OfPlayer) throw new ArgumentException("Expected a player animal.");
-                    switch ((string)setup["mode"])
+                    switch (((string?)setup["mode"] ?? throw new ArgumentException("mode is required")))
                     {
                         case "despawn": animal.DeSpawn(); break;
                         case "dead": animal.Kill(null); break;

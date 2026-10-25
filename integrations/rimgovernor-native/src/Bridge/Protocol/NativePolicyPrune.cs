@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -92,7 +91,7 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                var db = For(intent.Database)!;
+                var db = For(intent.Database) ?? throw new InvalidOperationException("The policy database is unavailable.");
                 foreach (var id in intent.DeleteIds)
                 {
                     var policy = db.All().ById(id);

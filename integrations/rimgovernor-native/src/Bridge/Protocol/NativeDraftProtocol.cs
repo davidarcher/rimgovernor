@@ -1,4 +1,3 @@
-#nullable enable
 using Common = RimGovernor.Contracts.Wire.Common;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 
@@ -15,7 +14,7 @@ namespace HomeBridge.BridgeTools
         // under a running clock omit it and rely on the apply-time
         // rules; a token that is sent must still be well formed.
         internal static bool ValidEntityTokenOptional(Operations.EntityPrecondition? entity) => ValidEntityId(entity)
-            && (!TokenSent(entity!) || ProtoBoundary.IsIdentifier(entity!.ExpectedSnapshotToken));
+            && (!TokenSent((entity ?? throw new System.InvalidOperationException("Required native value is unavailable: entity."))) || ProtoBoundary.IsIdentifier((entity ?? throw new System.InvalidOperationException("Required native value is unavailable: entity.")).ExpectedSnapshotToken));
 
         internal static bool TokenSent(Operations.EntityPrecondition entity) => entity.ExpectedSnapshotToken is not null && (entity.ExpectedSnapshotToken ?? "").Length > 0;
 

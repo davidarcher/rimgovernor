@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -44,8 +43,8 @@ namespace HomeBridge.BridgeTools
             var inner = mini.InnerThing;
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => inner != null && !mini.Destroyed && mini.Spawned && ProtoBoundary.IsLoaded(mini.Map), "the exact packed building is not on this map")
-                .Require(() => inner!.Faction == null || inner.Faction == Faction.OfPlayer, "the packed building is not the player's")
-                .Require(() => GenConstruct.CanPlaceBlueprintAt(inner!.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination");
+                .Require(() => inner.Faction == null || inner.Faction == Faction.OfPlayer, "the packed building is not the player's")
+                .Require(() => GenConstruct.CanPlaceBlueprintAt(inner.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination");
             failure = rules.Holds ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "") : rules.Failure();
             return rules.Holds;
         }
@@ -81,11 +80,11 @@ namespace HomeBridge.BridgeTools
             }
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
-                .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
-                .Require(() => found!.def.Minifiable, "the building cannot be uninstalled")
-                .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Uninstall) == null
-                    && map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for uninstall or deconstruction")
-                .Require(() => GenConstruct.CanPlaceBlueprintAt(found!.def, cell, rotation, map, false, found, found).Accepted, "the game refuses a reinstall blueprint at the destination");
+                .Require(() => found != null && (found.Faction == Faction.OfPlayer), "the building is not the player's")
+                .Require(() => found != null && (found.def.Minifiable), "the building cannot be uninstalled")
+                .Require(() => map.designationManager.DesignationOn(found, DesignationDefOf.Uninstall) == null
+                    && map.designationManager.DesignationOn(found, DesignationDefOf.Deconstruct) == null, "the building is designated for uninstall or deconstruction")
+                .Require(() => found != null && (GenConstruct.CanPlaceBlueprintAt(found.def, cell, rotation, map, false, found, found).Accepted), "the game refuses a reinstall blueprint at the destination");
             if (!rules.Holds) return rules.Failure();
             piece = building = found;
             return null;
@@ -104,7 +103,7 @@ namespace HomeBridge.BridgeTools
             var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
             var blueprint = queued ?? (piece is MinifiedThing mini
                 ? GenConstruct.PlaceBlueprintForInstall(mini, cell, mini.Map, Rotation(intent), Faction.OfPlayer)
-                : GenConstruct.PlaceBlueprintForReinstall((Building)building!, cell, building!.Map, Rotation(intent), Faction.OfPlayer));
+                : GenConstruct.PlaceBlueprintForReinstall((Building)(building ?? throw new System.InvalidOperationException("Required native value is unavailable: building.")), cell, (building ?? throw new System.InvalidOperationException("Required native value is unavailable: building.")).Map, Rotation(intent), Faction.OfPlayer));
             if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native install blueprint was not observed.");
             return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.InstallationCase() };
         }

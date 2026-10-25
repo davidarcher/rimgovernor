@@ -1,4 +1,3 @@
-#nullable enable
 using System.Linq;
 using System.Reflection;
 using RimWorld;
@@ -11,7 +10,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeSiteSecurity
     {
-        private static readonly SimpleCurve SleepingMechCurve = (SimpleCurve)typeof(QuestPart_SleepingMechs).GetField("ThreatPointsToMechPointsCurve", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+        private static readonly SimpleCurve SleepingMechCurve = (SimpleCurve)((typeof(QuestPart_SleepingMechs).GetField("ThreatPointsToMechPointsCurve", BindingFlags.Static | BindingFlags.NonPublic) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")).GetValue(null) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
         private static bool ClosedPart(SitePart part)
         {
             var type = part.def.workerClass;

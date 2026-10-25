@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
                 var terminal = RefIndex.Thing(map, terminalId);
                 var hack = terminal?.TryGetComp<CompHackable>();
                 if (hack == null) return Refuse("The exact terminal is unavailable.");
-                var hacker = (Pawn)typeof(CompHackable).GetField("lastUser", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(hack);
+                var hacker = (BridgeCommon.PrivateInstanceField(typeof(CompHackable), "lastUser") ?? throw new MissingFieldException(typeof(CompHackable).FullName, "lastUser")).GetValue(hack) as Pawn;
                 return FixtureKit.Reply(new QuestHackRead { Success = true, Autohack = hack.Autohack, Hacked = hack.IsHacked,
                     Progress = hack.ProgressPercent, HackerId = hacker?.GetUniqueLoadID() ?? "" });
             }, cancellationToken).ConfigureAwait(false);
@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
             for(var i=0;i<4;i++) { var food=ThingMaker.MakeThing(ThingDefOf.MealSurvivalPack);food.stackCount=food.def.stackLimit;GenSpawn.Spawn(food,map.Center+new IntVec3(i,0,4),map); }
         }
 
-        private static Thing Place(Map map, ThingDef def, ThingDef stuff, IntVec3 cell)
+        private static Thing Place(Map map, ThingDef def, ThingDef? stuff, IntVec3 cell)
         {
             var thing = ThingMaker.MakeThing(def, def.MadeFromStuff ? stuff ?? GenStuff.DefaultStuffFor(def) : null);
             thing.SetFaction(Faction.OfPlayer);

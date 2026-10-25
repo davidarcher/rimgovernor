@@ -12,10 +12,13 @@ namespace HomeBridge.BridgeTools
     // Disposable scenario setup only; default companion builds exclude this tool.
     public sealed class GearFixture
     {
-        private static Pawn subject;
-        private static Apparel replacement;
-        private static Apparel damaged;
-        private static ThingWithComps weapon;
+        private static Pawn? subjectState;
+        private static Pawn subject { get => subjectState ?? throw new System.InvalidOperationException("subject must be staged first."); set => subjectState = value; }
+        private static Apparel? replacementState;
+        private static Apparel replacement { get => replacementState ?? throw new System.InvalidOperationException("replacement must be staged first."); set => replacementState = value; }
+        private static Apparel? damagedState;
+        private static Apparel damaged { get => damagedState ?? throw new System.InvalidOperationException("damaged must be staged first."); set => damagedState = value; }
+        private static ThingWithComps? weapon;
         [Tool("test/gear_fixture", Description = "Set up disposable apparel acceptance conditions.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "setup, force, unforce, forbid, allow, policy or interrupt")] string mode = "setup",
@@ -78,7 +81,7 @@ namespace HomeBridge.BridgeTools
                 if (mode == "production_setup" || mode == "production_unstaged") {
                     var map = subject.Map;
                     foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).ToList()) item.Destroy();
-                    Thing bench = null;
+                    Thing? bench = null;
                     if (mode == "production_unstaged") {
                         foreach (var existing in map.listerBuildings.allBuildingsColonist
                             .Where(b => b.def.AllRecipes != null && b.def.AllRecipes.Any(r => r.products.Any(p => p.thingDef.defName == "Apparel_BasicShirt"))).ToList())

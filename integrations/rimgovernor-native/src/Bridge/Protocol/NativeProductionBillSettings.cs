@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using Operations=RimGovernor.Contracts.Wire.Operations;
 using Common=RimGovernor.Contracts.Wire.Common;
@@ -10,7 +9,7 @@ namespace HomeBridge.BridgeTools {
    if(!ValidIngredients(s.Ingredients))return false;
    bool worker=s.Worker==null||s.Worker.Value is Operations.AssignmentValue.EntityIdCase{Value:var id}&&ProtoBoundary.IsIdentifier(id);
    if(!worker)return false;
-   if(CorpseRecipe(command.RecipeDef!)){
+   if(CorpseRecipe(command.RecipeDef)){
     if(s.Corpses is not Operations.BillCorpseClass.Selected{Class:var of}||!Enum.IsDefined(of))return false;
     return s.Repetition is Operations.BillRepetition.Forever&&!s.BeerReserve&&s.Ingredients==null&&(of!=Common.CorpseClass.Animal)==(s.Worker!=null);
    }

@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Linq;
@@ -37,12 +36,12 @@ namespace HomeBridge.BridgeTools
             if (dialog == null) return;
             var faction = Name(dialog, "curName");
             var settlement = Name(dialog, "curSecondName");
-            if (string.IsNullOrEmpty(faction) || string.IsNullOrEmpty(settlement)) return;
+            if (faction == null || settlement == null || string.IsNullOrEmpty(faction) || string.IsNullOrEmpty(settlement)) return;
             var type = typeof(Dialog_NamePlayerFactionAndSettlement);
-            if (!(bool)AccessTools.Method(type, "IsValidName").Invoke(dialog, new object[] { faction! })!
-                || !(bool)AccessTools.Method(type, "IsValidSecondName").Invoke(dialog, new object[] { settlement! })!)
+            if (!(bool)(AccessTools.Method(type, "IsValidName").Invoke(dialog, new object[] { faction }) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."))
+                || !(bool)(AccessTools.Method(type, "IsValidSecondName").Invoke(dialog, new object[] { settlement }) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")))
                 return;
-            Confirm(dialog, faction!, settlement!);
+            Confirm(dialog, faction, settlement);
         }
 
         // Names the player faction and settlement through the dialog's own

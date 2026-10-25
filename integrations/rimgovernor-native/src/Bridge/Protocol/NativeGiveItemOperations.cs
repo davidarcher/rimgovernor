@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using RimWorld;
 using Verse;
@@ -24,7 +23,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Validate(c, context);
             if (failure != null) throw new ApplyRefusedException(failure);
-            return Apply((c!.Hauler!.Id ?? ""), (c.Recipient!.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining, context);
+            return Apply((((c ?? throw new System.InvalidOperationException("Required native value is unavailable: c.")).Hauler ?? throw new System.InvalidOperationException("Required native value is unavailable: (c ?? throw new System.InvalidOperationException(\"Required native value is unavailable: c.\")).Hauler.")).Id ?? ""), ((c.Recipient ?? throw new System.InvalidOperationException("Required native value is unavailable: c.Recipient.")).Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining, context);
         }
         private static Receipts.EffectEvidence Evidence(Pawn recipient, int remaining)
             => new Receipts.EffectEvidence { Effect = new Receipts.GiveItemEffect {
@@ -34,9 +33,8 @@ namespace HomeBridge.BridgeTools
             hauler = null; recipient = null; source = null; lord = null; running = false;
             if (!ProtoBoundary.IsIdentifier(haulerId) || !ProtoBoundary.IsIdentifier(recipientId) || haulerId == recipientId || expectedRemaining <= 0)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Giving requires distinct exact pawns, an exact item and a positive expected remaining request.");
-            var failure = NativeGiveJob.Pawn(new JobOrder { PawnId = haulerId, TargetId = recipientId }, context, out hauler, out var snapshot);
-            if (failure != null) return failure;
-            if (!snapshot!.Eligible || snapshot.Drafted || !hauler!.IsColonistPlayerControlled || !hauler.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+            if (!NativeGiveJob.TryPawn(new JobOrder { PawnId = haulerId, TargetId = recipientId }, context, out hauler, out var snapshot, out var failure)) return failure;
+            if (!snapshot.Eligible || snapshot.Drafted || !hauler.IsColonistPlayerControlled || !hauler.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Giving requires an eligible undrafted hauler.");
             var map = ProtoBoundary.LoadedMap(context);
             recipient = RefIndex.Thing(map, recipientId) as Pawn;
@@ -51,10 +49,10 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The native item request or expected remaining count changed.");
             var current = hauler.CurJob;
             running = current?.def == JobDefOf.GiveToPawn && current.targetB.Pawn == recipient && current.targetA.Thing?.def == requested && current.lord == lord;
-            if (running) { source = current!.targetA.Thing; return null; }
+            if (running) { source = (current ?? throw new System.InvalidOperationException("Required native value is unavailable: current.")).targetA.Thing; return null; }
             if (!hauler.CanReach(recipient, PathEndMode.Touch, Danger.Deadly))
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The hauler cannot reach the recipient.");
-            source = GiveItemsToPawnUtility.FindItemToGive(hauler, requested!);
+            source = GiveItemsToPawnUtility.FindItemToGive(hauler, requested);
             if (source == null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No native reachable item is available to give.");
             return null;
         }
@@ -63,14 +61,14 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(string haulerId, string recipientId, string defName, int expectedRemaining, Common.ObservationContext context)
         {
             var failure = Resolve(haulerId, recipientId, defName, expectedRemaining, context, out var hauler, out var recipient, out var source, out var lord, out var running);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (running) return Evidence(recipient!, expectedRemaining);
+            if (failure != null || hauler == null || recipient == null) throw new InvalidOperationException(failure?.Detail);
+            if (running) return Evidence(recipient, expectedRemaining);
             var job = JobMaker.MakeJob(JobDefOf.GiveToPawn, source, recipient);
             job.haulMode = HaulMode.ToContainer;
             job.lord = lord;
-            if (!hauler!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(hauler.CurJob, job))
+            if (!hauler.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(hauler.CurJob, job))
                 throw new InvalidOperationException("The hauler did not take the native giving job.");
-            return Evidence(recipient!, expectedRemaining);
+            return Evidence(recipient, expectedRemaining);
         }
     }
     internal sealed class GiveItemActionHandler : IActionHandler

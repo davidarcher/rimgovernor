@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,9 +28,9 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Target
         {
-            public Pawn Bestower = null!;
-            public Lord Lord = null!;
-            public LordJob_BestowingCeremony Job = null!;
+            public required Pawn Bestower;
+            public required Lord Lord;
+            public required LordJob_BestowingCeremony Job;
             public Command_BestowerCeremony? Command;
             public bool Started;
         }
@@ -121,8 +120,8 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Plan
         {
-            public Pawn Organizer = null!;
-            public Precept_Ritual Ritual = null!;
+            public required Pawn Organizer;
+            public required Precept_Ritual Ritual;
             public bool Running;
             public Dialog_BeginRitual? Dialog;
             public RitualRoleAssignments? Assignments;
@@ -209,7 +208,7 @@ namespace HomeBridge.BridgeTools
             }
             Traverse.Create(dialog).Field("assignments").SetValue(assignments);
             var issue = Traverse.Create(dialog).Method("BlockingIssues").GetValue<IEnumerable<string>>()?.FirstOrDefault();
-            if (!string.IsNullOrEmpty(issue)) return Invalid(issue!);
+            if (!string.IsNullOrEmpty(issue)) return Invalid(issue);
             found.Dialog = dialog;
             found.Assignments = assignments;
             return null;

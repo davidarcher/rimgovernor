@@ -16,7 +16,7 @@ internal static class NativeClockHoldSerialProbe
         public void Hold() { Serial.Entered(); Held = true; }
         // A step's read: the serial a Run planned from it quotes.
         public ulong Read() => Serial.Current;
-        public string Run(ulong planned)
+        public string? Run(ulong planned)
         {
             var refusal = Serial.Refuses(planned);
             if (refusal == null) { Held = false; Tick++; }

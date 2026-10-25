@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -91,7 +90,7 @@ internal static class NativeActivityTasks
                         }
                         else
                         {
-                            var destination = step.Destination!.Value;
+                            var destination = (step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination."));
                             if (!(step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationAllowed(pawn, item, new(destination.X, 0, destination.Z), count)
                                 : JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z), item, count))
                                 || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
@@ -177,7 +176,7 @@ internal static class NativeActivityTasks
                     if (step.Job == "DoBill")
                     {
                         if (target is not Pawn surgeryPatient || !NativeSupportSurgery.Resolve(pawn, surgeryPatient, step, out var surgery)) continue;
-                        JobMaker.ReturnToPool(surgery!);
+                        JobMaker.ReturnToPool(surgery);
                     }
                     else if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
                     bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));

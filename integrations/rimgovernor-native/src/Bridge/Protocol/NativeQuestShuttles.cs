@@ -1,4 +1,3 @@
-#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -40,7 +39,7 @@ namespace HomeBridge.BridgeTools
         {
             var thresholds = quest.PartsListForReading.OfType<QuestPart_MoodBelow>().Where(p => p.pawns.Any(guests.Contains)).ToArray();
             Obs.QuestMoodFloor floor = thresholds.Length > 0 ? new Obs.QuestMoodFloor.Floor(thresholds.Max(p => p.threshold)) : new Obs.QuestMoodFloor.NoFloor();
-            RimGovernor.Brain.Domain.EquatableArray<Obs.QuestLodgerMood> moods = [.. guests.Where(p => p.Spawned && !p.Dead && p.needs?.mood != null).Select(p => new Obs.QuestLodgerMood(p.needs!.mood!.CurLevel))];
+            RimGovernor.Brain.Domain.EquatableArray<Obs.QuestLodgerMood> moods = [.. guests.Where(p => p.Spawned && !p.Dead && p.needs?.mood != null).Select(p => new Obs.QuestLodgerMood(p.needs.mood.CurLevel))];
             return (floor, moods);
         }
     }

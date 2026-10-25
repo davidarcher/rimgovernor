@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -80,7 +79,7 @@ namespace HomeBridge.BridgeTools
                     var preset = book.Find(theme) ?? throw new InvalidOperationException("No theme preset is named " + theme + ".");
                     targets = GoalRules.IdeoTargets(PresetRules.Resolve(preset, catalog, new ThemeRecord { Name = preset.Name, Preset = preset.Id }).Goals());
                 }
-                var options = catalog.IdeoligionOptions(faction!);
+                var options = catalog.IdeoligionOptions(faction);
                 if (IdeoligionDesignRules.ChooseStartingIdeoligion(options, targets) is not { } choice)
                     throw new InvalidOperationException(theme == null
                         ? "No supported legal ideoligion design can be established."

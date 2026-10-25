@@ -1,4 +1,3 @@
-#nullable enable
 using System.Linq;
 using RimGovernor.Brain.Domain;
 using RimWorld;
@@ -34,7 +33,7 @@ internal static class NativeProductiveSkill
         if (record == null || record.TotallyDisabled || learning == null) return null;
         var table = recipe.workTableSpeedStat == null ? 1f : bench.GetStatValue(recipe.workTableSpeedStat);
         var values = recipe.workSpeedStat == null ? Enumerable.Repeat(1f, 21).ToArray()
-            : NativeSkillStat.Levels(pawn, recipe.workSpeedStat, skill!, out _);
+            : NativeSkillStat.Levels(pawn, recipe.workSpeedStat, (skill ?? throw new System.InvalidOperationException("Required native value is unavailable: skill.")), out _);
         var rates = values != null ? values.Select((value, level) => new Obs.SkillWorkRate(level, (double)value * table)).ToArray()
             : new[] { new Obs.SkillWorkRate(record.levelInt, (double)pawn.GetStatValue(recipe.workSpeedStat) * table) };
         return new(NativeSkillLearning.Read(pawn, record), learning, remaining ?? recipe.WorkAmountTotal(null), EquatableArray.From(rates),
@@ -50,7 +49,7 @@ internal static class NativeProductiveSkill
         var skill = recipe.workSkill == null ? null : pawn.skills?.GetSkill(recipe.workSkill);
         if (skill == null || skill.TotallyDisabled || learning == null) return null;
         double Rate(float speed) => !float.IsNaN(speed) && !float.IsInfinity(speed) ? speed : throw new System.InvalidOperationException("surgery speed " + pawn.GetUniqueLoadID() + " " + recipe.defName + " is not finite");
-        var values = recipe.workSpeedStat == null ? null : NativeSkillStat.Levels(pawn, recipe.workSpeedStat, recipe.workSkill!, out _);
+        var values = recipe.workSpeedStat == null ? null : NativeSkillStat.Levels(pawn, recipe.workSpeedStat, (recipe.workSkill ?? throw new System.InvalidOperationException("Required native value is unavailable: recipe.workSkill.")), out _);
         var rates = values != null ? values.Select((value, level) => new Obs.SkillWorkRate(level, Rate(value))).ToArray()
             : new[] { new Obs.SkillWorkRate(skill.levelInt, Rate(recipe.workSpeedStat == null ? 1f : pawn.GetStatValue(recipe.workSpeedStat))) };
         return new(NativeSkillLearning.Read(pawn, skill), learning, (double)recipe.WorkAmountTotal(null), EquatableArray.From(rates),

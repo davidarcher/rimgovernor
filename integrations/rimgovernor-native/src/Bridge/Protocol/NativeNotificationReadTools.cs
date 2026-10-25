@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,13 +50,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static bool Validate(Presentation.NotificationsRequest request, out Common.Failure failure)
+        internal static bool Validate(Presentation.NotificationsRequest request, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Common.Failure? failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact identity is required.");
             if (request?.Identity == null) return false;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Notification limits must be at least 1.");
             if (request.LetterLimit < 1 || request.MessageLimit < 1 || request.AlertLimit < 1) return false;
-            failure = null!;
+            failure = null;
             return true;
         }
 
@@ -93,7 +92,7 @@ namespace HomeBridge.BridgeTools
         private static Presentation.Letter ReadLetter(Verse.Letter letter) => new Presentation.Letter
         {
             Id = Id(letter.GetUniqueLoadID()),
-            NativeType = Id(letter.GetType().FullName!),
+            NativeType = Id((letter.GetType().FullName ?? throw new System.InvalidOperationException("Required native value is unavailable: letter.GetType().FullName."))),
             DefName = Id((letter.def ?? throw new InvalidOperationException("Native letter has no def.")).defName),
             Label = Diagnostic(letter.Label.ToString()),
             ArrivalTick = letter.arrivalTick,
@@ -120,7 +119,7 @@ namespace HomeBridge.BridgeTools
             var ordered = active.Select((alert, ordinal) => (alert, ordinal)).Where(a => a.alert != null)
                 .OrderByDescending(a => (int)a.alert.Priority).ThenBy(a => a.ordinal).Select(a => a.alert).ToList();
             return new Presentation.Alerts { Listing = Listing(ordered.Count, Math.Min(ordered.Count, limit)),
-                SnapshotFingerprint = Fingerprint(ordered.Select(a => a.GetType().FullName!)) };
+                SnapshotFingerprint = Fingerprint(ordered.Select(a => (a.GetType().FullName ?? throw new System.InvalidOperationException("Required native value is unavailable: a.GetType().FullName.")))) };
         }
 
         private static string Fingerprint(IEnumerable<string> ids)

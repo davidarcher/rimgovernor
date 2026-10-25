@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using System.Reflection;
@@ -98,11 +97,11 @@ internal static class NativeSkillStat
         }
         finding = Disqualified(pawn, stat, skill) ?? "";
         if (finding.Length > 0) return null;
-        var record = pawn.skills!.GetSkill(skill);
+        var record = pawn.skills.GetSkill(skill);
         var request = StatRequest.For(pawn);
         var original = stat.Worker.GetValueUnfinalized(request);
         var offset = stat.skillNeedOffsets?.Count == 1;
-        var need = offset ? stat.skillNeedOffsets![0] : stat.skillNeedFactors![0];
+        var need = offset ? (stat.skillNeedOffsets ?? throw new System.InvalidOperationException("Required native value is unavailable: stat.skillNeedOffsets."))[0] : (stat.skillNeedFactors ?? throw new System.InvalidOperationException("Required native value is unavailable: stat.skillNeedFactors."))[0];
         var current = need.ValueFor(pawn);
         if (!offset && (current <= 0 || float.IsNaN(current) || float.IsInfinity(current)))
         {
@@ -112,7 +111,7 @@ internal static class NativeSkillStat
         return Enumerable.Range(SkillRecord.MinLevel, SkillRecord.MaxLevel + 1).Select(level =>
         {
             var effective = Math.Clamp(level + record.Aptitude, SkillRecord.MinLevel, SkillRecord.MaxLevel);
-            var atLevel = need is SkillNeed_Direct direct ? direct.valuesPerLevel[effective] : (float)BaseBonusAtLevel!.Invoke(need, [effective])!;
+            var atLevel = need is SkillNeed_Direct direct ? direct.valuesPerLevel[effective] : (float)((BaseBonusAtLevel ?? throw new System.InvalidOperationException("Required native value is unavailable: BaseBonusAtLevel.")).Invoke(need, [effective]) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
             // An offset is additive with nothing multiplied after it (gated); a factor is followed only by linear
             // multipliers (statFactors before it, capacity lerps after it, inspiration gated), so the ratio is exact.
             var value = offset ? original - current + atLevel : (float)(original / (double)current * atLevel);
@@ -134,13 +133,13 @@ internal static class NativeSkillStat
         var factors = stat.skillNeedFactors?.Count ?? 0;
         if (offsets == 1 && factors == 0)
         {
-            if (stat.skillNeedOffsets![0].GetType() != typeof(SkillNeed_BaseBonus) || !Supported(stat.skillNeedOffsets[0]))
+            if ((stat.skillNeedOffsets ?? throw new System.InvalidOperationException("Required native value is unavailable: stat.skillNeedOffsets."))[0].GetType() != typeof(SkillNeed_BaseBonus) || !Supported(stat.skillNeedOffsets[0]))
                 return "unsupported skill offset";
             if (stat.statFactors?.Count > 0 || stat.capacityFactors?.Count > 0) return "multiplier after skill offset";
         }
         else if (offsets == 0 && factors == 1)
         {
-            if (!Supported(stat.skillNeedFactors![0])) return "unsupported skill factor";
+            if (!Supported((stat.skillNeedFactors ?? throw new System.InvalidOperationException("Required native value is unavailable: stat.skillNeedFactors."))[0])) return "unsupported skill factor";
             if (stat.statFactors?.Any(f => !Independent(pawn, f, skill)) == true) return "skill-dependent stat factor";
         }
         else return "not a single skill offset or factor";
@@ -218,7 +217,7 @@ internal static class NativeSkillStat
     {
         if (!DependsOn(stat, skill)) return null;
         if (stat.Worker.IsDisabledFor(pawn)) return 0f;
-        var record = pawn.skills!.GetSkill(skill);
+        var record = pawn.skills.GetSkill(skill);
         // A skill the pawn cannot learn (totally disabled) or has no level above (the top) moves nothing: the observed value.
         if (record.TotallyDisabled || record.levelInt >= SkillRecord.MaxLevel) return pawn.GetStatValue(stat);
         var stored = record.levelInt;

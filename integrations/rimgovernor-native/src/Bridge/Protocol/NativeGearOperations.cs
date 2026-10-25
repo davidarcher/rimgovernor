@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -23,9 +22,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Apparel? apparel)
         {
             apparel = null;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out _);
-            if (failure != null) return failure;
-            if (!pawn!.IsFreeColonist) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact free colonist is not spawned on this map.");
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out _, out var failure)) return failure;
+            if (!pawn.IsFreeColonist) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact free colonist is not spawned on this map.");
             apparel = pawn.apparel?.WornApparel.ById(intent.TargetId);
             if (apparel != null) return null;
             apparel = ProtoBoundary.LoadedMap(context).listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ById(intent.TargetId);
@@ -43,15 +41,15 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var apparel);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, apparel!)) return NativeGiveJob.Evidence(pawn!, apparel!, pawn!.CurJob, false);
+            if (failure != null || pawn == null || apparel == null) throw new InvalidOperationException(failure?.Detail);
+            if (Running(pawn, apparel)) return NativeGiveJob.Evidence(pawn, apparel, pawn.CurJob, false);
             var job = JobMaker.MakeJob(JobDefOf.Wear, apparel);
-            if (Worn(pawn!, apparel!)) return NativeGiveJob.Evidence(pawn!, apparel!, job, false);
+            if (Worn(pawn, apparel)) return NativeGiveJob.Evidence(pawn, apparel, job, false);
             // Ordered work, not a forced outfit entry: the outfit policy keeps
             // deciding what the pawn may drop later.
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !Worn(pawn, apparel!) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !Worn(pawn, apparel) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
                 throw new InvalidOperationException("The pawn did not take the wear job.");
-            return NativeGiveJob.Evidence(pawn, apparel!, job, true);
+            return NativeGiveJob.Evidence(pawn, apparel, job, true);
         }
     }
 }

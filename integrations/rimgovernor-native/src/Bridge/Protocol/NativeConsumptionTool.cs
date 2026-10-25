@@ -1,4 +1,3 @@
-#nullable enable
 using System.Linq;
 using RimGovernor.Brain.Bridge.Contracts;
 using Verse;

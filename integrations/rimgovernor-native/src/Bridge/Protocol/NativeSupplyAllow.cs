@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -55,10 +54,10 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => intent.ThingId is not null && ProtoBoundary.IsIdentifier(intent.ThingId), "Allow/Forbid requires an exact item")
                 .Present(() => (found = RefIndex.Thing(map, intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact item is no longer spawned on this map")
-                .Require(() => found!.def.EverHaulable && found.def.category == ThingCategory.Item && found.TryGetComp<CompForbiddable>() != null, "the item is not a forbiddable haulable item")
-                .Require(() => !found!.Position.Fogged(found.Map), "the item's cell is fogged")
-                .Require(() => Faction.OfPlayerSilentFail != null && (found!.Faction == null || found.Faction == Faction.OfPlayerSilentFail), "the item belongs to another faction")
-                .Require(() => found!.IsForbidden(Faction.OfPlayer) == forbid || designator.CanDesignateThing(found).Accepted, "the native forbid designator refuses the item");
+                .Require(() => found != null && (found.def.EverHaulable && found.def.category == ThingCategory.Item && found.TryGetComp<CompForbiddable>() != null), "the item is not a forbiddable haulable item")
+                .Require(() => found != null && (!found.Position.Fogged(found.Map)), "the item's cell is fogged")
+                .Require(() => found != null && (Faction.OfPlayerSilentFail != null && (found.Faction == null || found.Faction == Faction.OfPlayerSilentFail)), "the item belongs to another faction")
+                .Require(() => found.IsForbidden(Faction.OfPlayer) == forbid || designator.CanDesignateThing(found).Accepted, "the native forbid designator refuses the item");
             thing = found;
             return rules;
         }
@@ -74,10 +73,10 @@ namespace HomeBridge.BridgeTools
             var rules = Rules(intent, ProtoBoundary.LoadedMap(context), out var thing);
             if (!rules.Holds) throw new InvalidOperationException("Allow/Forbid prerequisites changed before apply: " + rules.Reason);
             var forbid = intent.Designation == Operations.ThingDesignation.Forbid;
-            if (thing!.IsForbidden(Faction.OfPlayer) != forbid)
+            if (thing.IsForbidden(Faction.OfPlayer) != forbid)
                 (forbid ? (Designator)new Designator_Forbid() : new Designator_Unforbid()).DesignateThing(thing);
-            if (thing!.IsForbidden(Faction.OfPlayer) != forbid) throw new InvalidOperationException("Native supply designation did not achieve its forbid state.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = thing!.GetUniqueLoadID(),
+            if (thing.IsForbidden(Faction.OfPlayer) != forbid) throw new InvalidOperationException("Native supply designation did not achieve its forbid state.");
+            return new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = (thing ?? throw new System.InvalidOperationException("Required native value is unavailable: thing.")).GetUniqueLoadID(),
                 DesignationDef = forbid ? "Forbid" : "Allow", Present = true } };
         }
 

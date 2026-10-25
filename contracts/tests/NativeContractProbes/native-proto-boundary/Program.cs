@@ -10,12 +10,12 @@ internal static class NativeProtoBoundaryProbe {
         Check(!ProtoBoundary.IsIdentifier("a\0b"),"identifier NUL");
         Check(ProtoBoundary.IsIdentifier(new string('é',128)),"identifier UTF8 bound");
         Check(!ProtoBoundary.IsIdentifier(new string('é',129)),"identifier UTF8 over");
-        Common.ObservationContext context; Common.Unavailable unavailable;
+        Common.ObservationContext? context; Common.Unavailable? unavailable;
         Check(!ProtoBoundary.TryReadContext(null,out context,out unavailable) && unavailable.Reason==Common.UnavailableReason.NotLoaded,"unloaded read does not create authority");
         var game = new Verse.Game { Identity = new ColonyIdentity { ColonyId="colony",LoadToken="load" } };
         var map = new Verse.Map { uniqueID=1 };
         Verse.Current.Game=game; Verse.Find.CurrentMap=map; Verse.Find.TickManager=new Verse.TickManager { TicksGame=12 };
-        NativeControlAuthority authority;
+        NativeControlAuthority? authority;
         Check(!NativeControlAuthority.TryGetForGame(game,out authority),"new game no authority");
         Check(ProtoBoundary.TryReadContext(map,out context,out unavailable) && context. NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase,"read with absent authority leaves generation absent");
         Check(!NativeControlAuthority.TryGetForGame(game,out authority),"read does not allocate authority");

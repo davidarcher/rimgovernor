@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
             var marker = markers[0];
             var pack = marker.ParentHolder as MinifiedThing;
             var offered = quest.State == QuestState.NotYetAccepted && !marker.Spawned && pack?.Spawned != true;
-            var map = offered ? delivery[0].Part.mapParent.Map : marker.Spawned ? marker.Map : pack!.Map;
+            var map = offered ? delivery[0].Part.mapParent.Map : marker.Spawned ? marker.Map : (pack ?? throw new System.InvalidOperationException("Required native value is unavailable: pack.")).Map;
             Obs.QuestMonumentState state;
             if (marker.Spawned)
                 state = new Obs.QuestMonumentState.Installed(CellOf(marker.Position), marker.AllDone, marker.FirstDisallowedBuilding?.GetUniqueLoadID());

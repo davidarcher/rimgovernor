@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,7 +29,7 @@ namespace HomeBridge.BridgeTools
             var result = new Snapshot();
             var map = people.FirstOrDefault()?.Map;
             if (map == null) return result;
-            var ids = new HashSet<string>(stocks.Where(s => s.corpse && !s.isHumanlike).Select(s => s.id!));
+            var ids = new HashSet<string>(stocks.Where(s => s.corpse && !s.isHumanlike).Select(s => s.id).OfType<string>());
             if (ids.Count == 0) return result;
             var meatDefs = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsMeat && d.IsNutritionGivingIngestible).ToList();
             result.RawMeatNutrition = shared.Where(t => !(t is Corpse) && t.def.IsMeat && !HumanFoodFacts.IsHumanMeat(t.def) && !t.IsForbidden(Faction.OfPlayer))

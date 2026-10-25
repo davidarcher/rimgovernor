@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
                     var arrived = map.mapPawns.AllPawnsSpawned.Where(p => !before.Contains(p)).ToList();
                     var pods = map.listerThings.AllThings.OfType<DropPodIncoming>().Where(t => !podsBefore.Contains(t.thingIDNumber)).ToList();
                     var hostile = arrived.Where(p => p.HostileTo(Faction.OfPlayer)).ToList();
-                    string why = null;
+                    string? why = null;
                     if (!applied) why = "the worker did not apply";
                     else if (pods.Count > 0) why = "the arrivals come in pods, which are not yet pawns to read";
                     else if (hostile.Count == 0) why = "no hostile pawn arrived";

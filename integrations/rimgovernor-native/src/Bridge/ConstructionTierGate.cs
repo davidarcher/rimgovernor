@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +13,7 @@ namespace HomeBridge.BridgeTools
     // docs/developers/contracts/construction-tiers.md.
     internal static class ConstructionTierGate
     {
-        private sealed class Site { public Thing Thing = null!; public int Tier; public List<ThingDef> Needs = new List<ThingDef>(); }
+        private sealed class Site { public required Thing Thing; public int Tier; public List<ThingDef> Needs = new List<ThingDef>(); }
         private static readonly Dictionary<Map, List<Site>> cache = new Dictionary<Map, List<Site>>();
         private static int cacheTick = -1;
         private static int installed;

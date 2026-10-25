@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
                                     frame.resourceContainer.TryAdd(stack, true);
                                 }
                         var room = interior.GetRoom(map);
-                        string problem = target.Impassable(map) ? null : "target cell passable";
+                        string? problem = target.Impassable(map) ? null : "target cell passable";
                         if (problem == null && (room == null || !room.ProperRoom || room.TouchesMapEdge || room.CellCount != 25)) problem = "room not enclosed";
                         if (problem == null && map.reachability.CanReachMapEdge(interior, TraverseParms.For(TraverseMode.PassDoors))) problem = "interior reaches the map edge";
                         if (problem != null) { replaceViolations++; if (replaceFirstViolation.Length == 0) replaceFirstViolation = "tick " + Find.TickManager.TicksGame + ": " + problem; }
@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
                 var built = edifice != null && !(edifice is Frame);
                 var frameThing = target.GetThingList(map).OfType<Frame>().FirstOrDefault();
                 return new { success = true, centre = new { x = centre.x, z = centre.z }, ticks = replaceTicks, violations = replaceViolations, firstViolation = replaceFirstViolation,
-                    impassable = target.Impassable(map), builtDef = built ? edifice.def.defName : "", builtStuff = built ? edifice.Stuff?.defName ?? "" : "",
+                    impassable = target.Impassable(map), builtDef = built && edifice != null ? edifice.def.defName : "", builtStuff = built && edifice != null ? edifice.Stuff?.defName ?? "" : "",
                     blueprint = target.GetThingList(map).OfType<Blueprint_Build>().Any(),
                     frameDef = frameThing?.def.defName ?? "", frameStandable = frameThing != null && frameThing.def.passability == Traversability.Standable };
             }, cancellationToken).ConfigureAwait(false);
@@ -351,7 +351,7 @@ namespace HomeBridge.BridgeTools
                 for (var i = 0; i < 4; i++) {
                     var site = TierCell(map, i).GetThingList(map).FirstOrDefault(t => t is Blueprint_Build);
                     if (site == null) return Refuse("Site " + i + " is gone.");
-                    var job = giver.JobOnThing(pawn, site, true);
+                    var job = (giver ?? throw new InvalidOperationException("Construction work giver unavailable.")).JobOnThing(pawn, site, true);
                     rows.Add(new { job = job?.def.defName, tier = ConstructionSkillGuard.Setting(site)?.Tier, reachable = pawn.CanReach(site, PathEndMode.Touch, Danger.Deadly) });
                 }
                 return new { success = true, supervisorActive = Supervisor.IsActive, a = rows[0], b = rows[1], c = rows[2], d = rows[3] };

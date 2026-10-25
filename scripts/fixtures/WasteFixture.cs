@@ -117,7 +117,7 @@ namespace HomeBridge.BridgeTools
                 var grave = (Building_Grave)ThingMaker.MakeThing(ThingDefOf.Grave);
                 grave.SetFaction(Faction.OfPlayer);
                 GenSpawn.Spawn(grave, graveCell, map);
-                Corpse MakeCorpse(Faction faction, IntVec3 cell)
+                Corpse MakeCorpse(Faction? faction, IntVec3 cell)
                 {
                     var dead = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, faction);
                     GenSpawn.Spawn(dead, cell, map);
@@ -337,7 +337,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var began = System.Diagnostics.Stopwatch.GetTimestamp();
                         var hop = ObservationWork.BeginCapture();
-                        RimGovernor.Contracts.Wire.Observations.BundleSnapshot frame;
+                        RimGovernor.Contracts.Wire.Observations.BundleSnapshot? frame;
                         try { frame = SnapshotFrames.Capture(map, shape); }
                         finally { ObservationWork.End(); }
                         var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - began;

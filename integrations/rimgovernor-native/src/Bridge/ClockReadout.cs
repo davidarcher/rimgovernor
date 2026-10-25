@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -59,7 +58,8 @@ namespace HomeBridge.BridgeTools
             else return;
             var dayTick = GenDate.DayTick(Find.TickManager.TicksAbs, longLat.x);
             var hour = dayTick / GenDate.TicksPerHour;
-            if (hours24!.Count != GenDate.HoursPerDay || hours12!.Count != GenDate.HoursPerDay) return;
+            if (hours24 == null || hours12 == null) throw new InvalidOperationException("The clock readout caches are unavailable.");
+            if (hours24.Count != GenDate.HoursPerDay || hours12.Count != GenDate.HoursPerDay) return;
             hours24[hour] = ClockFace.Format(dayTick, twelveHour: false);
             hours12[hour] = ClockFace.Format(dayTick, twelveHour: true);
         }

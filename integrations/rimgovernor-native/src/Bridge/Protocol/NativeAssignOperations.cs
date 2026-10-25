@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -63,17 +62,17 @@ namespace HomeBridge.BridgeTools
         // Resolve returns null with assignable null when the pawn already
         // owns the thing: the intent holds and applies again.
         private static Common.Failure? Resolve(Operations.AssignIntent? intent, Common.ObservationContext context,
-            out Pawn pawn, out ThingWithComps thing, out CompAssignableToPawn? assignable)
+            out Pawn? pawn, out ThingWithComps? thing, out CompAssignableToPawn? assignable)
         {
-            pawn = null!; thing = null!; assignable = null;
-            if (!Valid(intent))
+            pawn = null; thing = null; assignable = null;
+            if (intent == null || !Valid(intent))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Assignment requires an exact pawn, thing and expected previous assignment.");
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
             // A hosted guest owns a bed like a colonist.
-            var found = map.mapPawns.FreeColonistsSpawned.ById(intent!.PawnId)
+            var found = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId)
                 ?? map.mapPawns.AllPawnsSpawned.Where(NativeUpkeepFacts.HostedGuest).ById(intent.PawnId);
-            var target = RefIndex.Thing<ThingWithComps>(map, intent!.ThingId);
+            var target = RefIndex.Thing<ThingWithComps>(map, intent.ThingId);
             var comp = target?.GetComp<CompAssignableToPawn>();
             if (found != null && target != null && comp != null && comp.AssignedPawnsForReading.Contains(found))
             { pawn = found; thing = target; return null; }
@@ -99,7 +98,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The ideology role the intent targets, when its thing id names one.
-        private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find((intent!.ThingId ?? "")) : null;
+        private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find(((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).ThingId ?? "")) : null;
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
             RoleTarget(action.Intent?.Assign) is Precept_Role role ? IdeoRoleAssignment.Validate(action.Intent?.Assign ?? new Operations.AssignIntent { Swap = false }, context, role) : Resolve(action.Intent?.Assign, context, out _, out _, out _);
@@ -109,7 +108,7 @@ namespace HomeBridge.BridgeTools
             var intent = action.Intent?.Assign ?? new Operations.AssignIntent { Swap = false };
             if (RoleTarget(intent) is Precept_Role role) return IdeoRoleAssignment.Apply(intent, context, role);
             var failure = Resolve(intent, context, out var pawn, out var thing, out var assignable);
-            if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure.Detail ?? ""));
+            if (failure != null || pawn == null || thing == null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (assignable != null && thing is Building_Bed bed && intent.Swap)
                 foreach (var owner in bed.OwnersForReading.ToList()) owner.ownership?.UnclaimBed();
             assignable?.TryAssignPawn(pawn);

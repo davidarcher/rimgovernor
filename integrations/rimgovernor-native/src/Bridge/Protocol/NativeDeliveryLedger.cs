@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -159,7 +158,7 @@ namespace HomeBridge.BridgeTools
         private static IEnumerable<Thing> Butchered(IEnumerable<Thing> __result, RecipeDef __0, Pawn __1, List<Thing> __2)
         {
             var butcher = NativeRecipeRoles.ButcherFlesh(__0) && PlayerWork(__1) && __2 != null && __2.Count == 1 && __2[0] is Corpse;
-            var corpseId = butcher ? __2![0].GetUniqueLoadID() : null;
+            var corpseId = butcher ? (__2 ?? throw new System.InvalidOperationException("Required native value is unavailable: __2."))[0].GetUniqueLoadID() : null;
             long meat = 0, leather = 0;
             double nutrition = 0;
             foreach (var product in __result)
@@ -169,7 +168,7 @@ namespace HomeBridge.BridgeTools
                     if (product.def.IsMeat) { meat += product.stackCount; nutrition += product.stackCount * product.def.GetStatValueAbstract(StatDefOf.Nutrition); }
                     else if (product.def.IsLeather) leather += product.stackCount;
                 }
-                yield return product!;
+                yield return (product ?? throw new System.InvalidOperationException("Required native value is unavailable: product."));
             }
             if (corpseId == null || Current.Game == null) yield break;
             States.GetOrCreateValue(Current.Game).Butchers.Add(new Obs.Butcher { CorpseId = corpseId, MeatUnits = meat, MeatNutrition = nutrition, LeatherUnits = leather });

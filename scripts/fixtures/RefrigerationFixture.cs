@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
                         walls.Add(new { x = cell.x, z = cell.z });
                     }
                 }
-                Thing cooler = null;
+                Thing? cooler = null;
                 if (existingCooler)
                 {
                     // Front (hot side) faces west, outdoors; cold side at (1,4) inside.
@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
                 zone.settings.filter.SetDisallowAll();
                 zone.settings.filter.SetAllow(meatDef, true);
                 var meat = new List<string>();
-                object rotting = null;
+                object? rotting = null;
                 foreach (var cell in interior.Cells.Take(3))
                 {
                     var stack = ThingMaker.MakeThing(meatDef);

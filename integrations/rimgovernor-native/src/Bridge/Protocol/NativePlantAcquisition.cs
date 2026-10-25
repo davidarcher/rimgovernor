@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -77,15 +76,15 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
-                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the plant is not at the expected cell")
-                .Require(() => found!.def.plant.harvestedThingDef?.defName == command.ResourceDefName, "the plant no longer yields the expected resource")
-                .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
-                .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
-                .Require(() => found!.HarvestableNow, "the plant is not harvestable now")
-                .Require(() => !(map.zoneManager.ZoneAt(found!.Position) is Zone_Growing) || ResourceAcquisitionTools.Plantation(found), "the plant stands in a growing zone and is not a sown tree")
-                .Require(() => !ResourceAcquisitionTools.Designated(found!), "the plant is already designated")
-                .Require(() => ResourceAcquisitionTools.DesignatorFor(found!).CanDesignateThing(found).Accepted, "the native designator refuses the plant")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant");
+                .Require(() => found != null && (found.Position.x == command.Cell.X && found.Position.z == command.Cell.Z), "the plant is not at the expected cell")
+                .Require(() => found != null && (found.def.plant.harvestedThingDef?.defName == command.ResourceDefName), "the plant no longer yields the expected resource")
+                .Require(() => found != null && (!found.Position.Fogged(map)), "the plant's cell is fogged")
+                .Require(() => !found.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
+                .Require(() => found != null && (found.HarvestableNow), "the plant is not harvestable now")
+                .Require(() => found != null && (!(map.zoneManager.ZoneAt(found.Position) is Zone_Growing) || ResourceAcquisitionTools.Plantation(found)), "the plant stands in a growing zone and is not a sown tree")
+                .Require(() => found != null && (!ResourceAcquisitionTools.Designated(found)), "the plant is already designated")
+                .Require(() => found != null && (ResourceAcquisitionTools.DesignatorFor(found).CanDesignateThing(found).Accepted), "the native designator refuses the plant")
+                .Require(() => found != null && (map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found))), "no free colonist with plant cutting enabled can reach the plant");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             plant = found;
             return true;
@@ -152,26 +151,28 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent designate, Common.ObservationContext context)
         {
             var failure = Resolve(designate, context, out var intent, out var source);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            if (failure != null || intent == null) throw new InvalidOperationException(failure?.Detail);
             var live = source != null && source.Spawned && !source.Destroyed;
-            if (intent!.Withdraw)
+            if (intent.Withdraw)
             {
                 if (live && source is Pawn prey) NativeHuntAcquisition.Withdraw(prey);
                 else if (live)
                 {
-                    var manager = source!.Map.designationManager;
+                    var manager = (source ?? throw new System.InvalidOperationException("Required native value is unavailable: source.")).Map.designationManager;
                     if (source is Mineable) { if (manager.DesignationAt(source.Position, DesignationDefOf.Mine) is Designation mine) manager.RemoveDesignation(mine); }
                     else foreach (var def in new[] { DesignationDefOf.HarvestPlant, DesignationDefOf.CutPlant })
                         if (manager.DesignationOn(source, def) is Designation designation) manager.RemoveDesignation(designation);
                 }
-                if (live && Designated(source!)) throw new InvalidOperationException("Acquisition designation survived the withdraw.");
+                if (live && Designated((source ?? throw new System.InvalidOperationException("Required native value is unavailable: source.")))) throw new InvalidOperationException("Acquisition designation survived the withdraw.");
             }
-            else if (!Designated(source!))
+            else
             {
+                if (source == null) throw new InvalidOperationException("The acquisition source is unavailable.");
+                if (Designated(source)) return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AcquisitionCase() };
                 if (source is Pawn prey) new Designator_Hunt().DesignateThing(prey);
                 else if (source is Mineable rock) { NativeMineAcquisition.Guard(rock); new Designator_Mine().DesignateThing(rock); }
-                else ResourceAcquisitionTools.DesignatorFor(source!).DesignateThing(source);
-                if (!Designated(source!)) throw new InvalidOperationException("Native acquisition designation was not observed.");
+                else ResourceAcquisitionTools.DesignatorFor(source).DesignateThing(source);
+                if (!Designated(source)) throw new InvalidOperationException("Native acquisition designation was not observed.");
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AcquisitionCase() };
         }

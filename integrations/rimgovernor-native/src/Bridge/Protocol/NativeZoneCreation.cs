@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,7 +33,7 @@ namespace HomeBridge.BridgeTools
             if (!cells.All(c => c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
             if (command.Kind == Operations.ZoneType.Fishing)
                 return (command.Label ?? "") == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
-                    && command.Fishing != null && command.Fishing!.PopulationFloor >= 0 && command.Fishing!.PopulationFloor <= 1
+                    && command.Fishing != null && command.Fishing.PopulationFloor >= 0 && command.Fishing.PopulationFloor <= 1
                     && (command.Zone == null || ProtoBoundary.IsIdentifier(command.Zone.Id));
             if (command.Fishing != null || command.Zone != null) return false;
             if (command.Kind == Operations.ZoneType.Growing)
@@ -135,15 +134,15 @@ namespace HomeBridge.BridgeTools
         {
             if (!Valid(command)) return null;
             var map = ProtoBoundary.LoadedMap(context);
-            var cells = Cells(command!);
+            var cells = Cells(command);
             if (!cells[0].InBounds(map)) return null;
             var zone = map.zoneManager.ZoneAt(cells[0]);
-            if (zone == null || zone.label != (command!.Label ?? "") || zone.Cells.Count != cells.Length || !cells.All(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == zone)) return null;
+            if (zone == null || zone.label != (command.Label ?? "") || zone.Cells.Count != cells.Length || !cells.All(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == zone)) return null;
             switch (command.Kind)
             {
                 case Operations.ZoneType.Fishing:
                     return zone is Zone_Fishing fishing && fishing.Allowed && fishing.repeatMode == FishRepeatMode.DoForever
-                        && Math.Abs(fishing.targetPopulationPct - command.Fishing!.PopulationFloor) < 0.000001
+                        && Math.Abs(fishing.targetPopulationPct - (command.Fishing ?? throw new System.InvalidOperationException("Required native value is unavailable: command.Fishing.")).PopulationFloor) < 0.000001
                         && (command.Zone == null || RefIndex.Is(zone, command.Zone.Id)) ? zone : null;
                 case Operations.ZoneType.Growing:
                     if (!(zone is Zone_Growing growing) || !growing.allowSow || !growing.allowCut) return null;
@@ -157,9 +156,9 @@ namespace HomeBridge.BridgeTools
         {
             var cells = Cells(command);
             if (command.Kind == Operations.ZoneType.Fishing) {
-                var fishing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id ?? "")! : new Zone_Fishing(map.zoneManager);
+                var fishing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id ?? "") ?? throw new InvalidOperationException("The fishing zone is unavailable.") : new Zone_Fishing(map.zoneManager);
                 if (command.Zone == null) map.zoneManager.RegisterZone(fishing);
-                fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)command.Fishing!.PopulationFloor;
+                fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)(command.Fishing ?? throw new System.InvalidOperationException("Required native value is unavailable: command.Fishing.")).PopulationFloor;
                 foreach (var cell in cells) if (!fishing.Cells.Contains(cell)) fishing.AddCell(cell);
                 return fishing;
             }
@@ -167,7 +166,7 @@ namespace HomeBridge.BridgeTools
                 var growing = new Zone_Growing(map.zoneManager);
                 map.zoneManager.RegisterZone(growing); growing.label = command.Label;
                 foreach (var cell in cells) growing.AddCell(cell);
-                growing.SetPlantDefToGrow(crop!); growing.allowSow = true; growing.allowCut = true;
+                growing.SetPlantDefToGrow(crop); growing.allowSow = true; growing.allowCut = true;
                 return growing;
             }
             throw new InvalidOperationException("Unsupported exact zone creation.");
@@ -177,7 +176,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Evidence(string id, Zone? zone, Map map)
         {
             var present = zone != null && map.zoneManager.AllZones.Contains(zone);
-            var effect = new Receipts.ZoneEffect.ZoneCase(id, present, present ? zone!.Cells.Count : 0);
+            var effect = new Receipts.ZoneEffect.ZoneCase(id, present, present ? (zone ?? throw new System.InvalidOperationException("Required native value is unavailable: zone.")).Cells.Count : 0);
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

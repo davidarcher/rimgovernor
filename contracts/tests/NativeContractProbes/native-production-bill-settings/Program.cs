@@ -39,16 +39,16 @@ internal static class NativeProductionBillSettingsProbe
         Check(NativeProductionBillSettings.Valid(bill), "exact leather filter rejected");
         foreach (var change in new Func<Operations.FilterPatch, Operations.FilterPatch>[] {
             f => f with { Replace = null },
-            f => f with { Replace = f.Replace with { Selectors = [] } },
-            f => f with { Replace = f.Replace with { Selectors = [.. f.Replace.Selectors, ThingDef("Leather_Plain")] } },
-            f => f with { Replace = f.Replace with { Selectors = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.CategoryDefCase("Leathers") }] } },
+            f => f with { Replace = (f.Replace ?? throw new InvalidOperationException("filter fixture has no replacement")) with { Selectors = [] } },
+            f => f with { Replace = (f.Replace ?? throw new InvalidOperationException("filter fixture has no replacement")) with { Selectors = [.. (f.Replace ?? throw new InvalidOperationException("filter fixture has no replacement")).Selectors, ThingDef("Leather_Plain")] } },
+            f => f with { Replace = (f.Replace ?? throw new InvalidOperationException("filter fixture has no replacement")) with { Selectors = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.CategoryDefCase("Leathers") }] } },
             f => f with { Allow = [.. f.Allow, ThingDef("Cloth")] },
             f => f with { Disallow = [.. f.Disallow, ThingDef("Cloth")] },
             f => f with { HitPoints = new Operations.HitPointRange.Selected(0, 1) },
-            f => f with { Replace = f.Replace with { Selectors = [ThingDef("")] } }
+            f => f with { Replace = (f.Replace ?? throw new InvalidOperationException("filter fixture has no replacement")) with { Selectors = [ThingDef("")] } }
         }) {
-            var invalid = Settings(bill, s => s with { Ingredients = change(s.Ingredients) });
-            Check(!NativeProductionBillSettings.Valid(invalid), "unsupported filter accepted: " + invalid.Settings.Ingredients);
+            var invalid = Settings(bill, s => s with { Ingredients = change(s.Ingredients ?? throw new InvalidOperationException("bill fixture has no ingredients")) });
+            Check(!NativeProductionBillSettings.Valid(invalid), "unsupported filter accepted: " + (invalid.Settings ?? throw new InvalidOperationException("bill fixture has no settings")).Ingredients);
         }
         var butcher = bill with { RecipeDef = "ButcherCorpseFlesh" };
         butcher = butcher with { Settings = new Operations.BillSettings { Repetition = new Operations.BillRepetition.Forever(), BeerReserve = false, Corpses = new Operations.BillCorpseClass.NotApplicable() } };
@@ -64,14 +64,14 @@ internal static class NativeProductionBillSettingsProbe
         Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");
         var invalidWorker = Settings(butcher, s => s with { Worker = Worker("") });
         Check(!NativeProductionBillSettings.Valid(invalidWorker), "empty worker accepted");
-        invalidWorker = Settings(bill, s => s with { Worker = butcher.Settings.Worker });
+        invalidWorker = Settings(bill, s => s with { Worker = (butcher.Settings ?? throw new InvalidOperationException("butcher fixture has no settings")).Worker });
         Check(!NativeProductionBillSettings.Valid(invalidWorker), "worker accepted outside human butchery");
         butcher = Settings(butcher, s => s with { Ingredients = filter });
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher ingredient override accepted");
         Console.WriteLine("Native production bill settings checks passed.");
     }
     // Records are immutable: each change builds a modified copy.
-    private static Operations.ProductionBillIntent Settings(Operations.ProductionBillIntent bill, Func<Operations.BillSettings, Operations.BillSettings> change) => bill with { Settings = change(bill.Settings) };
+    private static Operations.ProductionBillIntent Settings(Operations.ProductionBillIntent bill, Func<Operations.BillSettings, Operations.BillSettings> change) => bill with { Settings = change(bill.Settings ?? throw new InvalidOperationException("bill fixture has no settings")) };
     private static Operations.Assignment Worker(string entityId) => new Operations.Assignment { Value = new Operations.AssignmentValue.EntityIdCase(entityId) };
     private static Operations.FilterSelector ThingDef(string def) => new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(def) };
     private static void Check(bool condition, string message)

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using RimWorld;
 using Verse;
@@ -20,9 +19,9 @@ namespace HomeBridge.BridgeTools
         private static ResearchProjectDef? Current(ResearchProjectDef def) =>
             Find.ResearchManager.GetProject(def.knowledgeCategory);
 
-        private static Common.Failure? Resolve(Operations.ResearchIntent? intent, out ResearchProjectDef project)
+        private static Common.Failure? Resolve(Operations.ResearchIntent? intent, out ResearchProjectDef? project)
         {
-            project = null!;
+            project = null;
             if (intent == null || intent.ProjectDef is null || !ProtoBoundary.IsIdentifier(intent.ProjectDef))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Research selection requires a project.");
             var def = DefDatabase<ResearchProjectDef>.GetNamedSilentFail((intent.ProjectDef ?? ""));
@@ -40,7 +39,7 @@ namespace HomeBridge.BridgeTools
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var failure = Resolve(action.Intent?.Research, out var def);
-            if (failure != null) throw new InvalidOperationException("Research prerequisites changed before apply: " + (failure.Detail ?? ""));
+            if (failure != null || def == null) throw new InvalidOperationException("Research prerequisites changed before apply: " + (failure?.Detail ?? ""));
             var manager = Find.ResearchManager;
             if (Current(def)?.defName != def.defName) manager.SetCurrentProject(def);
             if (Current(def)?.defName != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
@@ -149,7 +148,7 @@ namespace HomeBridge.BridgeTools
             internal readonly string SessionId, DealSignature;
             internal readonly TradeDeal Deal; internal readonly ITrader Trader; internal readonly Pawn Negotiator; internal readonly Common.TradeTarget Target; internal readonly bool GiftMode;
             internal OpenSession(string id, string signature, TradeDeal deal, ITrader trader, Pawn negotiator, bool gift)
-            { SessionId = id; DealSignature = signature; Deal = deal; Trader = trader; Negotiator = negotiator; GiftMode = gift; Target = _sessionTarget!; }
+            { SessionId = id; DealSignature = signature; Deal = deal; Trader = trader; Negotiator = negotiator; GiftMode = gift; Target = (_sessionTarget ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionTarget.")); }
         }
 
         // SessionSheet is the read-side counterpart of RequireSession: the
@@ -159,9 +158,9 @@ namespace HomeBridge.BridgeTools
         {
             session = default;
             if (!RequireSession(identity, out failure)) return false;
-            RefreshPrices(_sessionDeal!);
-            SafeUpdateCurrency(_sessionDeal!);
-            session = new OpenSession(_sessionId!, DealSignature(), _sessionDeal!, _sessionTrader!, _sessionNegotiator!, _giftMode);
+            RefreshPrices((_sessionDeal ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionDeal.")));
+            SafeUpdateCurrency(_sessionDeal ?? throw new InvalidOperationException("The trade deal is unavailable."));
+            session = new OpenSession((_sessionId ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionId.")), DealSignature(), (_sessionDeal ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionDeal.")), (_sessionTrader ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionTrader.")), (_sessionNegotiator ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionNegotiator.")), _giftMode);
             return true;
         }
 
@@ -435,7 +434,7 @@ namespace HomeBridge.BridgeTools
             if (command == null) return false;
             if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
             if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is open on screen; close it first."); return false; }
-            var deal = _sessionDeal!;
+            var deal = _sessionDeal ?? throw new InvalidOperationException("The trade deal is unavailable.");
             RefreshPrices(deal);
             SafeUpdateCurrency(deal);
             if (command.ExpectedDealSignature is null || DealSignature() != (command.ExpectedDealSignature ?? ""))
@@ -446,7 +445,7 @@ namespace HomeBridge.BridgeTools
             HashSet<Thing> colonyGoods, traderGoods;
             try
             {
-                colonyGoods = new HashSet<Thing>(_sessionTrader!.ColonyThingsWillingToBuy(_sessionNegotiator));
+                colonyGoods = new HashSet<Thing>((_sessionTrader ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionTrader.")).ColonyThingsWillingToBuy(_sessionNegotiator));
                 traderGoods = new HashSet<Thing>(_sessionTrader.Goods);
             }
             catch (Exception e) { failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Trade stock could not be read: " + e.GetType().Name); return false; }
@@ -515,7 +514,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.TradeIntentStep.OpenCase open:
                     return PrepareOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, out _, out _, out _, out failure) ? null : failure;
                 case Operations.TradeIntentStep.SetLinesCase setLines:
-                    var all = RequireSession(identity, out _) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
+                    var all = RequireSession(identity, out _) ? (_sessionDeal ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionDeal.")).AllTradeables : new List<Tradeable>();
                     return PrepareLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, all, out _, out failure) ? null : failure;
                 case Operations.TradeIntentStep.AcceptCase accept:
                     return PrepareAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, out failure) ? null : failure;
@@ -593,7 +592,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyAccept(Operations.AcceptTrade command, string traderId, string negotiatorId, Common.Identity identity)
         {
             if (!PrepareAccept(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("Accept prerequisites changed after validation.");
-            var deal = _sessionDeal!; var traderPawn = _sessionTrader;
+            var deal = _sessionDeal ?? throw new InvalidOperationException("The trade deal is unavailable."); var traderPawn = _sessionTrader;
             var beforeSilver = SessionSilver();
             bool executed, actuallyTraded;
             try { executed = deal.TryExecute(out actuallyTraded); }
@@ -637,7 +636,7 @@ namespace HomeBridge.BridgeTools
             if (command.Kind == Operations.EndTradeKind.CloseDialog)
             {
                 var stack = Find.WindowStack;
-                try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { stack!.TryRemove(w, false); } catch { } } } }
+                try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { (stack ?? throw new System.InvalidOperationException("Required native value is unavailable: stack.")).TryRemove(w, false); } catch { } } } }
                 catch { }
             }
             matches = CancelApproach(traderId, negotiatorId) || matches;

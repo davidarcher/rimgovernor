@@ -15,7 +15,7 @@ internal static class NativeTeamPolicyProbe
         public List<TraitFact> Traits = new List<TraitFact>();
     }
 
-    private static PawnFacts Make(Action<Spec> edit = null)
+    private static PawnFacts Make(Action<Spec>? edit = null)
     {
         var s = new Spec();
         edit?.Invoke(s);
@@ -53,7 +53,7 @@ internal static class NativeTeamPolicyProbe
             Require(NativeTeamPolicy.HardReject(pair.Value) != null, "hard reject: " + pair.Key);
             var team = Team4(); team[3] = pair.Value;
             Require(NativeTeamPolicy.NextReroll(team) == 3, "rejected colonist rerolled first: " + pair.Key);
-            Require(NativeTeamPolicy.Unmet(team).Contains("colonist 3"), "unmet names the rejected colonist: " + pair.Key);
+            Require(NativeTeamPolicy.Unmet(team)?.Contains("colonist 3") == true, "unmet names the rejected colonist: " + pair.Key);
         }
         // The tolerated neighbours of the rejected traits stay legal.
         foreach (var ok in new[] { new TraitFact("Nerves", 2), new TraitFact("Industriousness", 1), new TraitFact("DrugDesire", 1), new TraitFact("Industriousness", 2) })
@@ -71,9 +71,9 @@ internal static class NativeTeamPolicyProbe
             Require(NativeTeamPolicy.NextReroll(team) >= 0, "coverage gap rerolls " + skill);
         }
         // Combat counts and scaling.
-        Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Good(), Good(), Fighter(), Good() }).StartsWith("needs 2 Shooting"), "four colonists need two shooters");
-        Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Shooter(), Fighter(), Good(), Good() }).StartsWith("needs 2 Shooting"), "one shooter of four is short");
-        Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Shooter(), Shooter(), Good(), Good() }).StartsWith("needs 1 Melee"), "melee required at four");
+        Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Good(), Good(), Fighter(), Good() })?.StartsWith("needs 2 Shooting") == true, "four colonists need two shooters");
+        Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Shooter(), Fighter(), Good(), Good() })?.StartsWith("needs 2 Shooting") == true, "one shooter of four is short");
+        Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Shooter(), Shooter(), Good(), Good() })?.StartsWith("needs 1 Melee") == true, "melee required at four");
         Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Shooter(), Fighter(), Good() }) == null, "three colonists: one shooter, one melee");
         Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Shooter(), Good() }) == null, "two colonists: one shooter, no melee");
         Require(NativeTeamPolicy.Unmet(new List<PawnFacts> { Good() }) == null, "one colonist: no combat requirement");

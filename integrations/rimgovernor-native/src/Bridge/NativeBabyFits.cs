@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,7 +48,7 @@ internal static class NativeBabyFits
             : fits.Where(f => f.developmentalStageFilter.Has(baby.DevelopmentalStage) && f.mentalState.Worker.StateCanOccur(baby)).ToArray();
         var room = baby.GetRoom();
         var nursery = room != null && room.Role?.Worker is RoomRoleWorker_Nursery;
-        var doors = nursery ? new HashSet<Building_Door>(room!.ContainedAndAdjacentThings.OfType<Building_Door>()) : new HashSet<Building_Door>();
+        var doors = nursery && room != null ? new HashSet<Building_Door>(room.ContainedAndAdjacentThings.OfType<Building_Door>()) : new HashSet<Building_Door>();
         var now = Reach(baby, map, []);
         var open = nursery ? Reach(baby, map, doors) : now;
         var hearers = now.Concat(open).Distinct().Where(p => p != baby && colonists.Contains(p) && p.needs?.mood != null)

@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
                     plague.Severity = .2f;
                     pawn.health.AddHediff(plague);
                     // Pin the rolled progression factor so the readback rate is exact.
-                    typeof(HediffComp_Immunizable).GetField("severityPerDayNotImmuneRandomFactor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    (BridgeCommon.PrivateInstanceField(typeof(HediffComp_Immunizable), "severityPerDayNotImmuneRandomFactor") ?? throw new System.MissingFieldException(typeof(HediffComp_Immunizable).FullName, "severityPerDayNotImmuneRandomFactor"))
                         .SetValue(plague.TryGetComp<HediffComp_Immunizable>(), 1f);
                     // Seed the precondition normally created on the first immunity tick.
                     pawn.health.immunity.TryAddImmunityRecord(def, def);
@@ -130,13 +130,13 @@ namespace HomeBridge.BridgeTools
                 stage = "missing leg";
                 var leg = surgical.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Leg");
                 surgical.health.AddHediff(HediffDefOf.MissingBodyPart, leg);
-                string conditionPatient = null, prisonerId = null;
+                string? conditionPatient = null, prisonerId = null;
                 var conditionPart = -1;
                 if (condition != "") {
                     stage = "condition " + condition;
                     var patient = people[1];
                     conditionPatient = patient.GetUniqueLoadID();
-                    string partDef, stock = null;
+                    string? partDef, stock = null;
                     switch (condition) {
                     case "restore": partDef = null; break;
                     case "cataract": partDef = "Eye"; stock = "BionicEye"; break;
@@ -155,7 +155,7 @@ namespace HomeBridge.BridgeTools
                         var def = HediffDef.Named("WoundInfection");
                         var infection = HediffMaker.MakeHediff(def, patient, part); infection.Severity = .7f;
                         patient.health.AddHediff(infection, part);
-                        typeof(HediffComp_Immunizable).GetField("severityPerDayNotImmuneRandomFactor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                        (BridgeCommon.PrivateInstanceField(typeof(HediffComp_Immunizable), "severityPerDayNotImmuneRandomFactor") ?? throw new System.MissingFieldException(typeof(HediffComp_Immunizable).FullName, "severityPerDayNotImmuneRandomFactor"))
                             .SetValue(infection.TryGetComp<HediffComp_Immunizable>(), 1f);
                         patient.health.immunity.TryAddImmunityRecord(def, def);
                         patient.health.immunity.GetImmunityRecord(def).immunity = 0f;

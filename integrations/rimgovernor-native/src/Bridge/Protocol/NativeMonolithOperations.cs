@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using RimWorld;
 using Verse;
@@ -20,15 +19,14 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building_VoidMonolith? monolith, out bool running)
         {
             monolith = null; running = false;
-            var failure = NativeGiveJob.Pawn(intent, context, out pawn, out var snapshot);
-            if (failure != null) return failure;
-            if (snapshot!.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A monolith order requires an eligible undrafted pawn.");
+            if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
+            if (snapshot.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A monolith order requires an eligible undrafted pawn.");
             var map = ProtoBoundary.LoadedMap(context);
             monolith = RefIndex.Thing(map, intent.TargetId) as Building_VoidMonolith;
             if (monolith == null || !monolith.Spawned || monolith.Destroyed || !ReferenceEquals(monolith, Find.Anomaly.monolith))
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact void monolith is not spawned on this map.");
             var investigate = intent.Kind == JobOrderKind.InvestigateMonolith;
-            var current = pawn!.CurJob;
+            var current = pawn.CurJob;
             running = current != null && current.def == (investigate ? JobDefOf.InvestigateMonolith : JobDefOf.ActivateMonolith) && current.targetA.Thing == monolith;
             if (running) return null;
             if (investigate != (Find.Anomaly.Level == 0))
@@ -45,12 +43,12 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var monolith, out var running);
-            if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (running) return NativeGiveJob.Evidence(pawn!, monolith!, pawn!.CurJob, false);
+            if (failure != null || pawn == null || monolith == null) throw new InvalidOperationException(failure?.Detail);
+            if (running) return NativeGiveJob.Evidence(pawn, monolith, pawn.CurJob, false);
             var job = JobMaker.MakeJob(intent.Kind == JobOrderKind.InvestigateMonolith ? JobDefOf.InvestigateMonolith : JobDefOf.ActivateMonolith, monolith);
-            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(pawn.CurJob, job))
+            if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !ReferenceEquals(pawn.CurJob, job))
                 throw new InvalidOperationException("The pawn did not take the monolith job.");
-            return NativeGiveJob.Evidence(pawn, monolith!, job, true);
+            return NativeGiveJob.Evidence(pawn, monolith, job, true);
         }
     }
 }

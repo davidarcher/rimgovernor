@@ -1,4 +1,3 @@
-#nullable enable
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -139,7 +138,7 @@ namespace HomeBridge.BridgeTools
                 var s = cached[i];
                 if (s != null && s.Active) live.Add(s);
             }
-            return (live, (bool)SituationalDirtyField.GetValue(sitHandler)!);
+            return (live, (bool)(SituationalDirtyField.GetValue(sitHandler) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")));
         }
 
         /// <summary>Stack identical thoughts the way the Mood tab does. Returns (defName, count, moodOffsetTotal) rows, worst first.</summary>

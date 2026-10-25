@@ -1,4 +1,3 @@
-#nullable enable
 using System.Collections.Generic;
 using HarmonyLib;
 using RimWorld;
@@ -33,7 +32,7 @@ namespace HomeBridge.BridgeTools
                     DurationTicks = Duration(alert),
                     Scanner = condition,
                     Hold = alert.State == QuestPartState.Enabled ? new Obs.SurveyHold.Running(new Tick(End(alert))) : new Obs.SurveyHold.Stopped(),
-                    Complete = alert.State == QuestPartState.Disabled && condition == Obs.SurveyScannerCondition.Intact && scanner!.Spawned
+                    Complete = alert.State == QuestPartState.Disabled && condition == Obs.SurveyScannerCondition.Intact && (scanner ?? throw new System.InvalidOperationException("Required native value is unavailable: scanner.")).Spawned
                         && End(alert) > 0 && GenTicks.TicksGame >= End(alert),
                 };
                 yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HoldSurveyScanner, Active = alert.State != QuestPartState.Disabled, Timing = new Obs.QuestObjectiveTiming.Duration(Duration(alert)), SurveyScanner = state,

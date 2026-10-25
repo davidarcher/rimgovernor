@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     // label is recorded in order so the harness can prove which native actions ran.
     public sealed class DialogFixture
     {
-        private static Dialog_NodeTree opened;
+        private static Dialog_NodeTree? opened;
         private static readonly List<string> chosen = new List<string>();
 
         [Tool("test/open_choice_dialog", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: open a force-pausing Dialog_NodeTree with the given '|'-separated option labels now or delayTicks (1..600) ticks ahead. Every option closes the dialog and records its label; a label prefixed '!' is disabled. action=read reports the dialog's state.")]
@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
             WindowOpen = opened != null && Find.WindowStack.Windows.Contains(opened),
             ForcePaused = Find.TickManager.ForcePaused,
             Chosen = chosen.ToArray(),
-            ForcePausingWindows = Find.WindowStack.Windows.Where(w => w.forcePause).Select(w => w.GetType().FullName).ToArray(),
+            ForcePausingWindows = Find.WindowStack.Windows.Where(w => w.forcePause).Select(w => w.GetType().FullName ?? w.GetType().Name).ToArray(),
             Tick = Find.TickManager.TicksGame,
         };
     }
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
     // ordinary GameComponent tick, exactly as an incident worker would.
     public sealed class ScheduledDialog : GameComponent
     {
-        private Action pending; private int dueTick;
+        private Action? pending; private int dueTick;
         public ScheduledDialog(Game game) { }
         public void Schedule(Action open, int due) { pending = open; dueTick = due; }
         public override void GameComponentTick()

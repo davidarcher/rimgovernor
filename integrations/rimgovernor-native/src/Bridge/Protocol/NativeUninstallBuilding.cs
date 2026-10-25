@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -30,10 +29,10 @@ namespace HomeBridge.BridgeTools
             var found = NativeMoveBuilding.Find(map, (intent.ThingId ?? ""));
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
-                .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
-                .Require(() => found!.def.Minifiable, "the building cannot be uninstalled")
-                .Require(() => InstallBlueprintUtility.ExistingBlueprintFor(found!) == null, "the building has a reinstall blueprint")
-                .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for deconstruction");
+                .Require(() => found != null && (found.Faction == Faction.OfPlayer), "the building is not the player's")
+                .Require(() => found != null && (found.def.Minifiable), "the building cannot be uninstalled")
+                .Require(() => InstallBlueprintUtility.ExistingBlueprintFor(found) == null, "the building has a reinstall blueprint")
+                .Require(() => map.designationManager.DesignationOn(found, DesignationDefOf.Deconstruct) == null, "the building is designated for deconstruction");
             if (!rules.Holds) return rules.Failure();
             building = found;
             return null;
@@ -45,7 +44,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var building);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            var designations = building!.Map.designationManager;
+            var designations = (building ?? throw new System.InvalidOperationException("Required native value is unavailable: building.")).Map.designationManager;
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null)
                 designations.AddDesignation(new Designation(building, DesignationDefOf.Uninstall));
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null) throw new InvalidOperationException("Native uninstall designation was not observed.");

@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
@@ -142,7 +141,7 @@ namespace HomeBridge.BridgeTools
         private static void SetBoost(State s, Clock.Speed speed)
         {
             if (!BoostAvailable) return;
-            s.Boost.For(ClockRunSpeed.Boost(speed), () => (bool)BoostField.GetValue(null)!, value => BoostField.SetValue(null, value));
+            s.Boost.For(ClockRunSpeed.Boost(speed), () => (bool)(BoostField.GetValue(null) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")), value => BoostField.SetValue(null, value));
         }
 
         /// Every policy-derived field of a run segment; re-applied whenever Run
@@ -436,7 +435,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// The boost's current value; false where the field does not exist.
-        internal static bool BoostOn => BoostAvailable && (bool)BoostField.GetValue(null)!;
+        internal static bool BoostOn => BoostAvailable && (bool)(BoostField.GetValue(null) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
 
         /// The acceptance-only clock accounting (#3416), cumulative for the loaded game session: the pause/run split,
         /// the probe and digest work, the session's widest probe gap, the frame account and, per hazard

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -67,16 +66,17 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var pawn, out var recipe, out var part);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var bill = Queued(pawn!, recipe!, part);
+            if (pawn == null || recipe == null) throw new InvalidOperationException("Surgery prerequisites are unavailable.");
+            var bill = Queued(pawn, recipe, part);
             if (bill == null)
             {
-                HealthCardUtility.CreateSurgeryBill(pawn!, recipe!, part);
-                bill = Queued(pawn!, recipe!, part);
+                HealthCardUtility.CreateSurgeryBill(pawn, recipe, part);
+                bill = Queued(pawn, recipe, part);
                 if (bill == null) throw new InvalidOperationException("Native surgery bill was not queued.");
             }
             var effect = new Receipts.SurgeryEffect
             {
-                PawnId = pawn!.GetUniqueLoadID(), Bill = NativeRef.Of(bill.GetUniqueLoadID()),
+                PawnId = pawn.GetUniqueLoadID(), Bill = NativeRef.Of(bill.GetUniqueLoadID()),
                 State = Receipts.SurgeryState.Queued,
                 Target = part is null ? new Receipts.SurgeryTarget.WholeBodyCase() : new Receipts.SurgeryTarget.PartCase(((Operations.SurgeryTarget.Part)intent.PartIndex).Index),
             };

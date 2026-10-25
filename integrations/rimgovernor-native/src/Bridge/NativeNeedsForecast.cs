@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,7 +48,7 @@ internal static class NativeNeedsForecast
                     if (group == "food" && (pawn.needs?.food == null || !target.IngestibleNow
                         || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
                     if (group == "rest" && (pawn.needs?.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
-                    if (group == "joy" && !NativeRecreation.Usable(pawn, target, NativeRecreation.GiverFor(target)!)) continue;
+                    if (group == "joy" && !NativeRecreation.Usable(pawn, target, (NativeRecreation.GiverFor(target) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeRecreation.GiverFor(target).")))) continue;
                     // Reserve with the claim the service job makes, as bind-time does: a stack or slot another pawn
                     // holds under the same maxPawns stays observable while its capacity lasts.
                     var (kind, count) = group == "food" ? (PawnActivityKind.Eat, IngestWantedCount(pawn, target))
@@ -60,7 +59,7 @@ internal static class NativeNeedsForecast
                     var travel = F(route, "route cost");
                     if (group == "food")
                     {
-                        var nutrition = FoodUtility.NutritionForEater(pawn, target) / pawn.needs!.food.MaxLevel;
+                        var nutrition = FoodUtility.NutritionForEater(pawn, target) / (pawn.needs ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.needs.")).food.MaxLevel;
                         var service = target.def.ingestible.baseIngestTicks / (target.def.ingestible.useEatingSpeedStat
                             ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1);
                         var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
@@ -77,7 +76,7 @@ internal static class NativeNeedsForecast
                             Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target), Deterioration = null, Unsupported = [] });
                     else
                     {
-                        var job = NativeRecreation.GiverFor(target)!.jobDef;
+                        var job = (NativeRecreation.GiverFor(target) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeRecreation.GiverFor(target).")).jobDef;
                         // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
                         targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, new Obs.NeedRecovery.Rate(F(NativeRecreation.GainPerTick(pawn, target, job), "joy gain")))
                             { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new Obs.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target), Cell = CellAt(map, target.Position),
@@ -194,7 +193,7 @@ internal static class NativeNeedsForecast
         var bindables = DefDatabase<ThingDef>.AllDefsListForReading
             .Select(d => (Def: d, Props: d.GetCompProperties<CompProperties_DeathrestBindable>())).Where(d => d.Props is not null)
             .OrderBy(d => d.Def.defName, StringComparer.Ordinal)
-            .Select(d => new Obs.DeathrestBindableRead(d.Def.defName, d.Props!.deathrestEffectivenessFactor, d.Props.stackLimit, d.Props.countsTowardsBuildingLimit, d.Props.mustBeLayingInToBind));
+            .Select(d => new Obs.DeathrestBindableRead(d.Def.defName, d.Props.deathrestEffectivenessFactor, d.Props.stackLimit, d.Props.countsTowardsBuildingLimit, d.Props.mustBeLayingInToBind));
         var stages = RoomStatDefOf.Impressiveness.scoreStages?.Select(s => (double)s.minScore)
             ?? throw new InvalidOperationException("RoomStatDefOf.Impressiveness has no score stages");
         return new(Need_Deathrest.FallPerDay, Need_Deathrest.GainPerDayDeathresting, EquatableArray.From(bindables), EquatableArray.From(stages));
@@ -702,12 +701,12 @@ internal static class NativeNeedsForecast
         var job = pawn.CurJob;
         var driver = pawn.jobs?.curDriver;
         if (execution == null || execution.State != "started" || step == null || job == null
-            || NativePawnActivities.RunningJobId(pawn) != job.loadID || job.playerForced || pawn.jobs!.jobQueue.Count != 0
+            || NativePawnActivities.RunningJobId(pawn) != job.loadID || job.playerForced || (pawn.jobs ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.jobs.")).jobQueue.Count != 0
             || pawn.pather.Moving || step.Deadline <= Find.TickManager.TicksGame) return null;
         // A stationary recreation driver's final Delay toil (NativeRecreation.StationaryDriver); billiards' shot loop
         // and sleep's dynamic wake/medical/other-job conditions remain unassessed.
         if (step.Kind != PawnActivityKind.Recreation || !NativeRecreation.StationaryDriver(driver)
-            || !driver!.OnLastToil || driver.ticksLeftThisToil <= 0 || job.doUntilGatheringEnded
+            || !(driver ?? throw new System.InvalidOperationException("Required native value is unavailable: driver.")).OnLastToil || driver.ticksLeftThisToil <= 0 || job.doUntilGatheringEnded
             || !job.ignoreJoyTimeAssignment && !pawn.GetTimeAssignment().allowJoy
             || job.targetA.Thing is not Verse.Building target || target.GetUniqueLoadID() != step.Target
             || job.def != NativeRecreation.GiverFor(target)?.jobDef

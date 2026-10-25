@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -43,7 +42,7 @@ namespace HomeBridge.BridgeTools
         // preview names the gate).
         internal static Obs.BuildingControl.Bed Control(Building_Bed bed) =>
             new(bed.Medical, bed.ForPrisoners,
-                [.. bed.OwnersForReading.Select(owner => NativeRef.Of(owner)!)]);
+                [.. bed.OwnersForReading.Select(owner => (NativeRef.Of(owner) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeRef.Of(owner).")))]);
 
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_Bed? bed)
         {
@@ -74,9 +73,9 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var bed);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Prisoners(intent)) { if (!bed!.ForPrisoners) bed.ForOwnerType = BedOwnerType.Prisoner; }
-            else if (Slaves(intent)) { if (!bed!.ForSlaves) bed.ForOwnerType = BedOwnerType.Slave; }
-            else if (intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical }) bed!.Medical = medical;
+            if (Prisoners(intent)) { if (!(bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).ForPrisoners) bed.ForOwnerType = BedOwnerType.Prisoner; }
+            else if (Slaves(intent)) { if (!(bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).ForSlaves) bed.ForOwnerType = BedOwnerType.Slave; }
+            else if (intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical }) (bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).Medical = medical;
             else throw new InvalidOperationException("Bed use setting missing");
             if (!Matches(bed, intent)) throw new InvalidOperationException("Native bed use requires readback.");
             return Evidence(intent);

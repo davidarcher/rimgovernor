@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Linq;
 using RimWorld;
@@ -27,9 +26,9 @@ namespace HomeBridge.BridgeTools
             return ideo?.PreceptsListForReading.OfType<Precept_Role>().FirstOrDefault(r => r.GetUniqueLoadID() == thingId);
         }
 
-        private static Common.Failure? Resolve(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role, out Pawn pawn, out Precept_Role? previous)
+        private static Common.Failure? Resolve(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role, out Pawn? pawn, out Precept_Role? previous)
         {
-            pawn = null!; previous = null;
+            pawn = null; previous = null;
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
             var found = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
@@ -53,7 +52,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role)
         {
             var failure = Resolve(intent, context, role, out var pawn, out var previous);
-            if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure.Detail ?? ""));
+            if (failure != null || pawn == null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (!role.IsAssigned(pawn))
             {
                 previous?.Unassign(pawn, true);

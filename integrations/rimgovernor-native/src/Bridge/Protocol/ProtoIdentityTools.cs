@@ -1,4 +1,3 @@
-#nullable enable
 using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
