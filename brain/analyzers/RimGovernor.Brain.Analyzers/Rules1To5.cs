@@ -39,8 +39,6 @@ public sealed class LayersAnalyzer : GateAnalyzer
         new[] { "Store", "GameAccess" },
         new[] { "Store", "Bridge" },
         new[] { "Store", "HttpChannel" },
-       new[] { "Executor", "Store" },
-        new[] { "PlayerApi", "Runtime" },
     };
 
     public LayersAnalyzer()

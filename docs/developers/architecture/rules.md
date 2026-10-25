@@ -29,8 +29,10 @@ the rule.
    already form this order and Roslyn cannot compile a cycle; the analyzer
    reads the assembly references of each compilation and fails a reference that
    climbs the order or is a role denial: store does not reference bridge
-   or `HttpChannel`; executor does not reference store (it still does, baselined);
-   `PlayerApi` does not reference `Runtime`. `Telemetry`, `Simulation`,
+   or `HttpChannel`. Executor reads Store's accepted plans and records execution
+   through its narrow journal interface; PlayerApi consumes Runtime's colony
+   reports. Both references follow the layer order and need no exception or
+   duplicate contract project. `Telemetry`, `Simulation`,
    `HttpChannel` and `Acceptance*` sit outside the order.
    Bridge validates and joins native records, policy decides, store
    persists, buildingruntime sequences. Bridge returns Policy types by design, so

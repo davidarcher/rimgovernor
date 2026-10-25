@@ -50,6 +50,13 @@ unification. New writers must also use Hands.
 
 The `RimGovernor.Brain.Runtime` project owns `PlannerScheduler`, `PlannerQueue`, `PlannerWindow` and `PlannerRunDriver`. `ColonyReview` coordinates the review; `BuildingPlanner` reconciles selected construction. Clock terminology describes native game-speed Run/Hold control.
 
+Executor uses Store's accepted-plan and execution records through its narrow
+journal interface. Store remains the only journal owner; an Executor reference
+does not authorize native game access from Store. PlayerApi formats the colony
+reports Runtime produces, with Host composing the reader. These are ordinary
+downward dependencies, not separate state owners or duplicate contract shapes;
+the [layer gate](rules.md) enforces their direction and Store's game-access bans.
+
 ## The control cycle
 
 1. Read a coherent native frame; required facts fail the read and real absence has a named state.
