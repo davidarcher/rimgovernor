@@ -111,14 +111,7 @@ public static class HostilityRules
             {
                 continue;
             }
-            try
-            {
-                @out.Add(PawnSettings.NewHostilitySetting((Domain.PawnId)p.ID, want));
-            }
-            catch (DomainException)
-            {
-                // An unwritable setting is skipped.
-            }
+            @out.Add(PawnSettings.NewHostilitySetting((Domain.PawnId)p.ID, want));
         }
         return @out;
     }

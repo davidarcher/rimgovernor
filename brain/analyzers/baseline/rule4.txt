@@ -33,7 +33,6 @@ Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.InstallModAsync
 Acceptance/Setup/SetupProcesses.cs|SetupProcesses.StopPids
 Acceptance/Suites/ChildProcess.cs|ChildProcess.KillTree
 Acceptance/Suites/SuiteRunner.cs|SuiteRunner.RunEntryOnceAsync
-Bridge/Catalog/CreepJoinerDisarm.cs|DefinitionCatalog.BuildCreepJoinerDisarm
 Runtime/Worker.ArrivalHold.cs|Worker.ResendMoveAsync
 Runtime/Clock/PlannerScheduler.cs|PlannerScheduler.RunPlannerWaveAsync
 Runtime/Colony/ColonyReview.ColonyPlan.cs|ColonyReview.DrawLayoutOverlayAsync
@@ -60,15 +59,6 @@ Host/SchedulerLoop.cs|SchedulerLoop.WaitOrWake
 HttpChannel/EndpointFile.cs|EndpointFile.Remove
 HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
-Policy/DefenseTiers.cs|DefenseTiersPolicy.PlanDefenseTiers
-Policy/Hostility.cs|HostilityRules.HostilityChanges
-Policy/LayoutMining.cs|LayoutPlan.RoomRock
-Policy/MedicalCareCap.cs|MedicalRules.MedicalCareChanges
-Policy/MedicineCarry.cs|MedicineCarryRules.MedicineCarryChanges
-Policy/PawnNames.cs|PawnRules.NicknameChanges
-Policy/QuestCoreSite.cs|QuestCoreSite.CoreSiteJoiner
-Policy/QuestDecrees.cs|QuestDecrees.PlanDecreeProduction
-Policy/StoreMedicine.cs|StoreView.MedicineStore
 Executor/SnapshotLater.cs|SnapshotLaterReplay.Later
 Store/Core/StoreTransaction.cs|StoreTransaction.Dispose
 Telemetry/Otlp/OtlpFileWriter.cs|OtlpFileWriter.MetricLoopAsync

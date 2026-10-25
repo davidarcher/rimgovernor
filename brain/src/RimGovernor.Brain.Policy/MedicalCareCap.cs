@@ -161,14 +161,7 @@ public static partial class MedicalRules
             {
                 return;
             }
-            try
-            {
-                output.Add(PawnSettings.NewMedicalCareSetting(id, want));
-            }
-            catch (DomainException)
-            {
-                // A setting that failed validation is dropped.
-            }
+            output.Add(PawnSettings.NewMedicalCareSetting(id, want));
         }
 
         var colonists = f.MedicalPawns;

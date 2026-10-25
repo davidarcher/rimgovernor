@@ -72,15 +72,8 @@ partial record LayoutPlan
         {
             Add(c);
         }
-        RoomFootprint? shell;
-        try
-        {
-            shell = room.Footprint();
-        }
-        catch (DomainException)
-        {
-            shell = null;
-        }
+        var shell = room.DoorSide is DoorSide.Doored ? room.Footprint() : null;
+
         if (shell is not null)
         {
             var from = shell.Threshold;
@@ -95,13 +88,9 @@ partial record LayoutPlan
                     Add(c);
                 }
                 Add(through.Door);
-                try
+                if (through.DoorSide is DoorSide.Doored)
                 {
                     from = through.Footprint().Threshold;
-                }
-                catch (DomainException)
-                {
-                    // the neighbour's own footprint is unusable: keep the room's threshold
                 }
             }
             Add(from);

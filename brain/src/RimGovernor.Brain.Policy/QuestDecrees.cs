@@ -181,13 +181,7 @@ public static class QuestDecrees
                 continue;
             }
             var names = filter.Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal).ToArray();
-            try
-            {
-                return (new ProductionBill(recipe.Bench, recipe.Recipe, BillMode.GearBatch, (int)iterations, names), "");
-            }
-            catch (DomainException)
-            {
-            }
+            return (new ProductionBill(recipe.Bench, recipe.Recipe, BillMode.GearBatch, (int)iterations, names), "");
         }
         return (null, "production_infeasible");
     }

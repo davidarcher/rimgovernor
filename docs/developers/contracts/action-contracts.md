@@ -272,3 +272,14 @@ recovery](../architecture/sessions-and-recovery.md), and [plans and
 Hands](../architecture/plans-and-hands.md).
 
 Trade participant variants, request evidence and native eligibility: [controllable trade](controllable-trade.md).
+
+## Policy action construction failures
+
+A supported policy decision that owes a pawn setting, recruitment interaction or
+funded production bill must construct that action successfully. Invalid required
+identities or action parameters fail the review; they do not silently discharge
+the obligation or authorize a different recipe. Expected ineligibility remains
+an explicit policy result (for example unavailable production or no mortar sites).
+Required room footprints, hospital haul ranking and install-item catalog prices
+likewise propagate invalid facts. A doorless room explicitly has no shell and
+requires no threshold footprint.

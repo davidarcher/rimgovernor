@@ -334,17 +334,10 @@ public static class DefenseTiersPolicy
                 turretCells.AddRange(t.Buildings.Select(b => b.Cell));
             }
             geometry = geometry with { Turrets = EquatableArray.From(turretCells) };
-            try
+            var mortars = DefenseMortarsPolicy.DefenseMortars(req, geometry);
+            if (mortars.Buildings.Count > 0)
             {
-                var mortars = DefenseMortarsPolicy.DefenseMortars(req, geometry);
-                if (mortars.Buildings.Count > 0)
-                {
-                    layout = layout with { Tiers = EquatableArray.From(layout.Tiers.Append(mortars)) };
-                }
-            }
-            catch (Exception e) when (e is DefenseException or DomainException)
-            {
-                // A census the mortar tier refuses leaves the tier out.
+                layout = layout with { Tiers = EquatableArray.From(layout.Tiers.Append(mortars)) };
             }
         }
         var nodes = TierNodes(id, req.Definitions, layout, pinned);

@@ -132,13 +132,7 @@ public static class QuestCoreSite
                 }
                 if (prisoner.Recruitable && prisoner.CurrentInteraction is PrisonerHeldInteraction.Settable { Mode: not PrisonerInteractionMode.Recruit })
                 {
-                    try
-                    {
-                        return result with { Kind = "recruit", Recruit = new PrisonerInteraction((Domain.PawnId)id, PrisonerInteractionMode.Recruit) };
-                    }
-                    catch (DomainException)
-                    {
-                    }
+                    return result with { Kind = "recruit", Recruit = new PrisonerInteraction((Domain.PawnId)id, PrisonerInteractionMode.Recruit) };
                 }
             }
             return result with { Kind = "waitrescue", Reason = "rescue_work" };

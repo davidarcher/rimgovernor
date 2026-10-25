@@ -41,13 +41,10 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            // A def with no market value leaves the recipe unpriced: the planner then says so instead of guessing.
-            try
+            var (value, priced) = InstallItemValue(recipe);
+            if (priced)
             {
-                install[recipe.defName] = InstallItemValue(recipe);
-            }
-            catch (Exception e) when (e is CatalogException or StatException)
-            {
+                install[recipe.defName] = value;
             }
         }
 
@@ -56,7 +53,7 @@ public sealed partial class DefinitionCatalog
 
     // The market value of the items a recipe consumes by name: each ingredient slot that is exactly one def, at its count.
     // The medicine slot names categories and is priced by the operation.
-    private double InstallItemValue(RecipeDef recipe)
+    private (double Value, bool Priced) InstallItemValue(RecipeDef recipe)
     {
         var total = 0.0;
         foreach (var slot in recipe.ingredients.Seq())
@@ -64,11 +61,16 @@ public sealed partial class DefinitionCatalog
             var allowed = slot.filter.AllowedThingDefs.Take(2).ToList();
             if (allowed.Count == 1)
             {
-                total += (double)StatValue(allowed[0].defName, string.Empty, CatalogStats.MarketValue) * slot.GetBaseCount();
+                var (value, shown) = ShownStatValue(allowed[0].defName, string.Empty, CatalogStats.MarketValue);
+                if (!shown)
+                {
+                    return (0, false); // The game gives this ingredient no market value: the recipe is unpriced.
+                }
+                total += (double)value * slot.GetBaseCount();
             }
         }
 
-        return total;
+        return (total, true);
     }
 
     // The sites of a race: the race's melee tools other than the one that is always usable each link to a body part

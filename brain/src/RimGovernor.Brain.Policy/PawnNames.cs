@@ -28,14 +28,7 @@ public static partial class PawnRules
             {
                 continue;
             }
-            try
-            {
-                result.Add(PawnSettings.NewNicknameSetting(row.PawnId, row.ShortName));
-            }
-            catch (DomainException)
-            {
-                // An unusable name owes no rename.
-            }
+            result.Add(PawnSettings.NewNicknameSetting(row.PawnId, row.ShortName));
         }
         return result;
     }

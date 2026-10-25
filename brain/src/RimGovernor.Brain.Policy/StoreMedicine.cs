@@ -63,15 +63,8 @@ public sealed partial record StoreView
             {
                 consumers = consumers.GetRange(0, MaxMedicineHaulConsumers);
             }
-            try
-            {
-                var costs = HaulDistanceRules.HaulCosts(Cells, consumers);
-                best = HaulDistanceRules.RankSitesByHaul(rects, costs)[0];
-            }
-            catch (DomainException)
-            {
-                // The haul ranking is unavailable: keep the nearest-door patch.
-            }
+            var costs = HaulDistanceRules.HaulCosts(Cells, consumers);
+            best = HaulDistanceRules.RankSitesByHaul(rects, costs)[0];
         }
         // The anchor is the best patch's centre: the store takes that patch, else the free one nearest it.
         return (

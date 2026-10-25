@@ -107,14 +107,7 @@ public static partial class MedicineCarryRules
             {
                 continue;
             }
-            try
-            {
-                changes.Add(PawnSettings.NewMedicineCarrySetting(p.Id, want.GetValueOrDefault(p.Id)));
-            }
-            catch (DomainException)
-            {
-                // A pawn whose setting failed validation is skipped.
-            }
+            changes.Add(PawnSettings.NewMedicineCarrySetting(p.Id, want.GetValueOrDefault(p.Id)));
         }
         return changes;
     }
