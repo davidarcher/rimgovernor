@@ -21,7 +21,7 @@ internal static class NeedsFixtures
     /// <summary>The baby fit read of no baby, at the game's fits (MentalFitGenerator, MentalStates_BabyFits.xml; Biotech, 1.7).</summary>
     public static BabyFitsRead NoBabies => new()
     {
-        CheckIntervalTicks = 150, RecoveryAwakeTicks = 600,
+        CheckIntervalTicks = 150, RecoveryAwakeTicks = 600, SleepDisturbanceIntervalTicks = 300,
         Play = new()
         {
             FallPerTick = .00025 / 150, GainPerTick = .0002,

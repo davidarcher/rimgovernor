@@ -6,7 +6,9 @@ using UnityEngine;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.Policy;
+using Region = Verse.Region;
 
 namespace RimGovernor.Native;
 
@@ -20,16 +22,18 @@ internal static class NativeBabyFits
     /// <summary>GenClamor.DoClamor's maxRegions literal (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     private const int ClamorMaxRegions = 15;
 
-    internal static RimGovernor.Brain.GameFacts.Observations.BabyFitsRead Read(Map map, List<Pawn> people)
+    internal static RimGovernor.Brain.GameFacts.Observations.BabyFitsRead Read(Map map, List<Pawn> people, List<NeedsForecastPawn> rows)
     {
         var fits = DefDatabase<MentalFitDef>.AllDefsListForReading.Where(f => f.developmentalStageFilter.Has(DevelopmentalStage.Baby)).ToArray();
         var colonists = new HashSet<Pawn>(people);
         var babies = people.Where(p => fits.Any(f => f.developmentalStageFilter.Has(p.DevelopmentalStage)))
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
-            .Select(p => Baby(p, map, fits, colonists)).ToArray();
+            .Select(p => Baby(p, map, fits, colonists, rows)).ToArray();
         return new()
         {
             Play = NativeBabyPlay.Mechanics(),
+            SleepDisturbanceIntervalTicks = BridgeCommon.PrivateStaticField(typeof(Pawn), "SleepDisturbanceMinInterval")?.GetRawConstantValue() is int interval && interval > 0
+                ? interval : throw new RequiredFactException("Pawn.SleepDisturbanceMinInterval"),
             CheckIntervalTicks = Const("CheckInterval"), RecoveryAwakeTicks = Const("MinTicksSinceRecoveryToHaveFit"),
             Fits = EquatableArray.From(fits.Select(f => new RimGovernor.Brain.GameFacts.Observations.BabyFitRead
             {
@@ -41,7 +45,7 @@ internal static class NativeBabyFits
         };
     }
 
-    private static RimGovernor.Brain.GameFacts.Observations.BabyRead Baby(Pawn baby, Map map, MentalFitDef[] fits, HashSet<Pawn> colonists)
+    private static RimGovernor.Brain.GameFacts.Observations.BabyRead Baby(Pawn baby, Map map, MentalFitDef[] fits, HashSet<Pawn> colonists, List<NeedsForecastPawn> rows)
     {
         // A fit starts only for a humanlike pawn with a mood (MentalFitGenerator.CanDoRandomMentalFits, MentalFitDef.CalculateMTBDays)
         // whose stage the def admits and whose state its worker lets occur (MentalStateHandler.TryStartMentalState).
@@ -73,8 +77,38 @@ internal static class NativeBabyFits
             return offset;
         }
         var doors = nursery && room != null ? new HashSet<Building_Door>(room.ContainedAndAdjacentThings.OfType<Building_Door>()) : new HashSet<Building_Door>();
-        var now = Reach(baby, map, []);
-        var open = nursery ? Reach(baby, map, doors) : now;
+        var regions = ReachRegions(baby, map, []);
+        var openRegions = nursery ? ReachRegions(baby, map, doors) : regions;
+        var now = Reach(baby, regions);
+        var open = nursery ? Reach(baby, openRegions) : now;
+        var sleepers = new List<BabySleepHearerRead>();
+        // Pawn.HearClamor / CheckForDisturbedSleep: sleep is projected, every other admission predicate is observed.
+        foreach (var pawn in colonists.Where(p => p != baby && !p.Dead && !p.Downed && !p.Deathresting && !p.IsSelfShutdown()
+            && p.Faction == Faction.OfPlayer && !p.IsWildMan() && p.needs?.rest != null && p.needs.mood != null
+            && !LovePartnerRelationUtility.LovePartnerRelationExists(p, baby) && !(baby.RaceProps.petness > 0f)
+            && (baby.relations == null || !baby.relations.DirectRelations.Any(r => r.def == PawnRelationDefOf.Bond))
+            && ThoughtUtility.CanGetThought(p, ThoughtDefOf.SleepDisturbed)).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
+        {
+            var row = rows.SingleOrDefault(r => r.Pawn == pawn.GetUniqueLoadID()) ?? throw new RequiredFactException("sleep hearer needs:" + pawn.GetUniqueLoadID());
+            var surface = row.Sleep ?? throw new RequiredFactException("sleep hearer surface:" + row.Pawn);
+            var targets = row.Targets.Where(t => t.Kind == "rest").Select(t => (Target: t.Id, Cell: new IntVec3(t.Location.X, 0, t.Location.Z))).ToList();
+            if (targets.All(t => t.Target != surface.Bed))
+            {
+                Building_Bed? bed = surface.Ground ? null : (map.listerThings.AllThings.OfType<Building_Bed>().SingleOrDefault(b => b.GetUniqueLoadID() == surface.Bed)
+                    ?? throw new RequiredFactException("sleep hearer bed:" + surface.Bed));
+                targets.Add((surface.Bed, bed is null ? pawn.Position : NativeNeedsForecast.SleepingCell(pawn, bed)));
+            }
+            foreach (var fit in fits.Where(f => typeof(MentalState_BabyCry).IsAssignableFrom(f.mentalState.stateClass)))
+            {
+                var memory = NativeNeedsForecast.Memory(pawn, ThoughtDefOf.SleepDisturbed);
+                if (memory.Life is not MemoryLife.Expires expires) throw new RequiredFactException("SleepDisturbed duration:" + row.Pawn);
+                foreach (var target in targets)
+                    sleepers.Add(new(row.Pawn, target.Target, Reaches(pawn, target.Cell, baby.Position, map, regions),
+                        Reaches(pawn, target.Cell, baby.Position, map, openRegions),
+                        new(fit.defName, ThoughtDefOf.SleepDisturbed.defName, memory.Offset, expires.RemainingTicks,
+                            ThoughtDefOf.SleepDisturbed.stackLimit, ThoughtDefOf.SleepDisturbed.stackedEffectMultiplier)));
+            }
+        }
         var hearers = now.Concat(open).Distinct().Where(p => p != baby && colonists.Contains(p) && p.needs?.mood != null)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
             .Select(p => new RimGovernor.Brain.GameFacts.Observations.BabyHearerRead
@@ -92,29 +126,43 @@ internal static class NativeBabyFits
             Play = NativeBabyPlay.Read(baby, map, nursery ? room : null),
             SleepWithoutNursery = alternate,
             Hearers = EquatableArray.From(hearers),
+            SleepHearers = EquatableArray.From(sleepers),
         };
     }
 
     // GenClamor.DoClamor from the baby's Position: a breadth-first region walk entering a door region only while its door is open
     // (or, here, is one of openDoors), at most ClamorMaxRegions regions, hearing every pawn within BabyScreamRadius times its
     // Hearing capacity (clamped to 0..1; none at 0).
-    private static HashSet<Pawn> Reach(Pawn baby, Map map, HashSet<Building_Door> openDoors)
+    private static HashSet<Pawn> Reach(Pawn baby, HashSet<Region> regions)
     {
         var heard = new HashSet<Pawn>();
-        var position = baby.Position;
-        var region = position.GetRegion(map);
-        if (region == null) return heard;
-        RegionTraverser.BreadthFirstTraverse(region, (_, r) => r.door == null || r.door.Open || openDoors.Contains(r.door), r =>
+        foreach (var r in regions)
         {
             foreach (var thing in r.ListerThings.ThingsInGroup(ThingRequestGroup.Pawn))
             {
                 if (thing is not Pawn pawn) continue;
-                var hearing = Mathf.Clamp01(pawn.health.capacities.GetLevel(PawnCapacityDefOf.Hearing));
-                if (hearing > 0f && pawn.Position.InHorDistOf(position, MentalState_BabyFit.BabyScreamRadius * hearing)) heard.Add(pawn);
+                if (InRange(pawn, pawn.Position, baby.Position)) heard.Add(pawn);
             }
-            return false;
-        }, ClamorMaxRegions);
+        }
         return heard;
+    }
+
+    private static HashSet<Region> ReachRegions(Pawn baby, Map map, HashSet<Building_Door> openDoors)
+    {
+        var heard = new HashSet<Region>();
+        var region = baby.Position.GetRegion(map) ?? throw new RequiredFactException("baby clamor region:" + baby.GetUniqueLoadID());
+        RegionTraverser.BreadthFirstTraverse(region, (_, r) => r.door == null || r.door.Open || openDoors.Contains(r.door),
+            r => { heard.Add(r); return false; }, ClamorMaxRegions);
+        return heard;
+    }
+
+    private static bool Reaches(Pawn pawn, IntVec3 cell, IntVec3 source, Map map, HashSet<Region> regions) =>
+        regions.Contains(cell.GetRegion(map) ?? throw new RequiredFactException("sleep clamor region:" + pawn.GetUniqueLoadID())) && InRange(pawn, cell, source);
+
+    private static bool InRange(Pawn pawn, IntVec3 cell, IntVec3 source)
+    {
+        var hearing = Mathf.Clamp01(pawn.health.capacities.GetLevel(PawnCapacityDefOf.Hearing));
+        return hearing > 0f && cell.InHorDistOf(source, MentalState_BabyFit.BabyScreamRadius * hearing);
     }
 
     // The memory a fit's AuraEffect gives the hearer: the parent's def for the baby's mother or father, else anyone's. None when the

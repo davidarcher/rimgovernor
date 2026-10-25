@@ -47,7 +47,6 @@ public static class ForecastNursery
     /// <summary>The mechanics the credit leaves out, named with each served nursery.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "nursery_disturbed_sleep", // #3942: a cry's SleepDisturbed memory on a sleeping colonist in reach
         "nursery_baby_opinion", // #3943: the BabyCriedSocial and BabyGiggledSocial opinion memories
         "nursery_hearers_move", // #3944: colonists held where they stand now; a colonist who enters the nursery hears its babies
         "nursery_other_hearers", // #3945: prisoners, guests and slaves in reach
@@ -202,6 +201,7 @@ public static class ForecastNursery
         var ownMood = new Dictionary<string, (double With, double Without)>(StringComparer.Ordinal);
         var restDays = new Dictionary<string, double>(StringComparer.Ordinal);
         var playDays = new List<RoomGain>();
+        var sleep = new ForecastNurserySleep(context, outcome);
         var beds = context.PlannedBeds.GetValueOrDefault(Taker(context)) ?? [];
         var babyIndex = 0;
         static void Add(Dictionary<string, List<(HeardMemoryRead, double)>> into, string pawn, HeardMemoryRead memory, double rate)
@@ -253,6 +253,7 @@ public static class ForecastNursery
                 throw new RequiredFactException("baby outcome mood response:" + baby.Pawn);
             var rates = Rates(read, baby, response, withoutMood / 100, now.GainPerTick / (now.GainPerTick + rest.FallPerTick));
             var cribRates = Rates(read, baby, response, withMood / 100, gain / (gain + rest.FallPerTick));
+            sleep.Add(baby, rates, cribRates);
             foreach (var hearer in baby.Hearers)
                 foreach (var memory in hearer.Memories.Where(m => heard.Contains(m.Fit) && rates.ContainsKey(m.Fit)))
                 {
@@ -269,7 +270,13 @@ public static class ForecastNursery
             if (change.With != change.Without) moods[pawn] = change;
         }
 
-        if (moods.Count == 0 && !states.Contains(NoFit)) states.Add(Unheard);
+        foreach (var (pawn, delta) in sleep.Moods())
+        {
+            var fitMood = moods.GetValueOrDefault(pawn);
+            moods[pawn] = (fitMood.With + delta.With, fitMood.Without + delta.Without);
+        }
+        states.Add(read.Babies.Any(b => b.SleepHearers.Count != 0) ? "nursery_sleep_disturbance_stationary" : "nursery_no_sleep_hearers");
+        if (moods.All(m => m.Value.With == m.Value.Without) && !states.Contains(NoFit)) states.Add(Unheard);
         foreach (var (pawn, delta) in ownMood)
         {
             var heardMood = moods.GetValueOrDefault(pawn);

@@ -6,6 +6,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
+using RequiredFactException = RimGovernor.Brain.Policy.RequiredFactException;
 
 namespace RimGovernor.Native;
 
@@ -69,10 +70,14 @@ internal static class NativeNeedsForecast
                             Cell = CellAt(map, target.Position), Bed = null, Deterioration = DeteriorationOf(map, target),
                             Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                     }
-                    else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel,
+                    else if (group == "rest")
+                    {
+                        var sleepingCell = SleepingCell(pawn, (Building_Bed)target);
+                        targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel,
                         new RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Rate(F(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "bed rest gain")))
-                        { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target),
-                            Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target), Deterioration = null, Unsupported = [] });
+                        { MealThoughts = [], Location = new(sleepingCell.x, sleepingCell.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target),
+                            Cell = CellAt(map, sleepingCell), Bed = BedRoomOf((Building_Bed)target), Deterioration = null, Unsupported = [] });
+                    }
                     else
                     {
                         var job = (NativeRecreation.GiverFor(target) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeRecreation.GiverFor(target).")).jobDef;
@@ -132,7 +137,7 @@ internal static class NativeNeedsForecast
         return new() { Tick = new(Find.TickManager.TicksGame), Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
             RainRate = F(map.weatherManager.RainRate, "rain rate"), MapArea = map.Area, Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
-            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people) };
+            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people, rows) };
     }
     /// <summary>
     /// The pawn's food, rest and joy rates (RimGovernor.Brain.GameFacts.Observations.NeedRate), each need it has; joy from <paramref name="joy"/>, the pawn's own or a
@@ -350,7 +355,20 @@ internal static class NativeNeedsForecast
     {
         if (pawn.needs?.rest == null || !pawn.Spawned || pawn.IsWildMan()) return null;
         var bed = pawn.DevelopmentalStage == DevelopmentalStage.Baby ? pawn.CurrentBed() ?? RestUtility.FindBedFor(pawn) : RestUtility.FindBedFor(pawn);
-        return SleepAt(pawn, map, bed, bed?.Position ?? pawn.Position);
+        return SleepAt(pawn, map, bed, bed is null ? pawn.Position : SleepingCell(pawn, bed));
+    }
+
+    /// <summary>RestUtility.GetBedSleepingSlotPosFor / Toils_Bed.GotoBed, without the game's slot-zero error fallback.</summary>
+    internal static IntVec3 SleepingCell(Pawn pawn, Building_Bed bed)
+    {
+        if (bed.IsOwner(pawn, out var assigned) && assigned is int slot) return bed.GetSleepingSlotPos(slot);
+        for (var i = 0; i < bed.SleepingSlotsCount; i++)
+            if ((i >= bed.OwnersForReading.Count || bed.OwnersForReading[i] == null) && bed.GetCurOccupant(i) == pawn)
+                return bed.GetSleepingSlotPos(i);
+        for (var i = 0; i < bed.SleepingSlotsCount; i++)
+            if ((i >= bed.OwnersForReading.Count || bed.OwnersForReading[i] == null) && bed.GetCurOccupant(i) == null)
+                return bed.GetSleepingSlotPos(i);
+        throw new RequiredFactException("sleeping slot:" + pawn.GetUniqueLoadID() + ":" + bed.GetUniqueLoadID());
     }
 
     /// <summary>

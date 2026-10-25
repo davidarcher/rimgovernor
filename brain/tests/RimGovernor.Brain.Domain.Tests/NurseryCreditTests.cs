@@ -27,7 +27,7 @@ public sealed class NurseryCreditTests
 
     private static BabyRead Baby(string pawn = "baby", bool inNursery = false, bool now = true, bool open = true, bool parent = false) => new()
     {
-        CribMood = new(0, 0, 0), Pawn = pawn, Fits = ["Crying", "Giggling"], InNursery = inNursery,
+        CribMood = new(0, 0, 0), Pawn = pawn, Fits = ["Crying", "Giggling"], InNursery = inNursery, SleepHearers = [],
         Play = null,
         SleepWithoutNursery = new("", false, true, 3e-5, 0, 21),
         Hearers = now || open ? [new() { Pawn = "pawn", Now = now, NurseryOpen = open, Memories = [.. Memories(parent)] }] : [],
@@ -87,6 +87,41 @@ public sealed class NurseryCreditTests
     [Fact]
     public void ANurseryIsPriced() => Assert.True(Context(Read(Baby())).Priced(1));
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SleepDisturbanceReachesTheProductionCreditWhenTheHearerIsAwayFromItsBed(bool standing)
+    {
+        var memory = new HeardMemoryRead("Crying", "SleepDisturbed", -1, Day, 3, 1);
+        var baby = Baby(inNursery: standing, now: false, open: false) with
+        {
+            Hearers = [], SleepHearers = [new("pawn", "bed", !standing, true, memory)],
+        };
+        var context = Context(Read(baby));
+        context = context with { Needs = context.Needs with { Pawns = [.. context.Needs.Pawns.Select(p => p.Pawn != "pawn" ? p : p with
+        {
+            Location = new(100, 100), Sleep = new("bed", false, false, 3e-5, .75, 21),
+            Needs = [NeedsFixtures.Rate("rest", .8, 1e-5, .28)],
+        })] } };
+        var rate = ForecastNursery.FitRates(context.Needs.Babies, [.. baby.Fits], .2, .75)["Crying"] * .25;
+        var avoided = -ForecastNursery.HeardMood([(memory, rate / (1 + rate * 300))]);
+        var gain = Assert.Single(Gains(context));
+        Assert.Equal("pawn", gain.Pawn);
+        Assert.Equal(context.Value.WellbeingWeight * avoided / 100, gain.PerDay, 12);
+        Assert.True(gain.PerDay > 0);
+        Assert.DoesNotContain("nursery_disturbed_sleep", Findings(context));
+        Assert.Contains("nursery_sleep_disturbance_stationary", Findings(context));
+
+        var noSleep = context with { Needs = context.Needs with { Babies = Read(baby with { SleepHearers = [] }) } };
+        Assert.Empty(Gains(noSleep));
+        Assert.Contains("nursery_no_sleep_hearers", Findings(noSleep));
+        if (standing)
+        {
+            var open = context with { Needs = context.Needs with { Babies = Read(baby with { SleepHearers = [new("pawn", "bed", true, true, memory)] }) } };
+            Assert.Empty(Gains(open));
+        }
+    }
+
     [Fact]
     public void AFitFiresAtItsShareOfTheChecksOverTheMeanCycle()
     {
@@ -143,7 +178,8 @@ public sealed class NurseryCreditTests
             - context.MoodBreaks.DaysLost(ForecastMood.ShiftedTierTicks(response, 0))!.Value;
         Assert.Equal(-(context.Value.WellbeingWeight * without / 100) + lost, gain.PerDay, 9);
         Assert.True(gain.PerDay > 0);
-        Assert.Contains("nursery_disturbed_sleep", Findings(context));
+        Assert.DoesNotContain("nursery_disturbed_sleep", Findings(context));
+        Assert.Contains("nursery_no_sleep_hearers", Findings(context));
 
         // Through the #3796 seam: one investment row under the colonist, over the served days.
         var rows = new List<ForecastInvestmentContribution>();

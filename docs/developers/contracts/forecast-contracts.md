@@ -466,6 +466,16 @@ unknown. What the game does not have is a case, never an unknown:
   furniture, plus decoration exposure bounds across reachable rooms. Walking and toy-drop exposure stays a
   range; a read never samples random jobs or changes the game to obtain it. The pure nursery credit takes the
   lower savings bound and publishes both ends in its findings ([play valuation](../architecture/forecast-value.md)).
+  `SleepHearers` (#3942) independently reads eligible `SleepDisturbed` recipients at every canonical rest target and
+  at their native default sleeping surface, even when the pawn currently stands out of sound reach. Bed cells use
+  `RestUtility.GetBedSleepingSlotPosFor`'s assigned/occupied/free-slot order; an unreadable slot throws instead of
+  using the game's error fallback. Ground has an empty target id and its observed ground cell. Both closed/current and
+  nursery-open region reach are explicit booleans, including false for out of reach. Admission mirrors
+  `Pawn.HearClamor` / `CheckForDisturbedSleep`: alive, not downed, not deathresting or self-shutdown, player faction,
+  mood/rest, no love relation to the source, no source petness or bond, and `ThoughtUtility.CanGetThought`.
+  Only `MentalState_BabyCry` fits supply this memory; giggles do not. Each row holds the unattached shared
+  `SleepDisturbed` offset, duration, stack limit and multiplier. `SleepDisturbanceIntervalTicks` reads Pawn's private
+  `SleepDisturbanceMinInterval` (300); a missing required input raises `RequiredFactException`.
 
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).

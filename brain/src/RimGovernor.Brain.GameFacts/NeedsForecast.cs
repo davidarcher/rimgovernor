@@ -96,6 +96,8 @@ public sealed record TaughtSkillRead(string Skill, SkillLearning Learning);
 /// </summary>
 public sealed record BabyFitsRead
 {
+    /// <summary>Pawn.CheckForDisturbedSleep's minimum interval between gains, in ticks.</summary>
+    public required double SleepDisturbanceIntervalTicks { get; init; }
     /// <summary>Loaded play activities, refill/fall mechanics and normal-quality building stats; null without Biotech.</summary>
     public required BabyPlayMechanicsRead? Play { get; init; }
     public required double CheckIntervalTicks { get; init; }
@@ -128,6 +130,10 @@ public sealed record BabyFitRead
 /// </summary>
 public sealed record BabyRead
 {
+    /// <summary>Eligible SleepDisturbed recipients at each canonical rest target and their native default sleeping surface.
+    /// Empty means none can gain the thought. A target with both reach flags false is explicitly out of sound reach.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabySleepHearerRead>))]
+    public required EquatableArray<BabySleepHearerRead> SleepHearers { get; init; }
     /// <summary>CribQuality offsets for the current crib, the alternate surface and a new normal-quality crib; null without mood.</summary>
     public required BabyCribMoodRead? CribMood { get; init; }
     /// <summary>Null when the baby has no play need; otherwise its native play opportunities.</summary>
@@ -191,6 +197,9 @@ public sealed record BabyHearerRead
 /// <c>DurationTicks</c>, <c>stackLimit</c> and <c>stackedEffectMultiplier</c>.
 /// </summary>
 public sealed record HeardMemoryRead(string Fit, string Thought, double Offset, double DurationTicks, int StackLimit, double StackedMultiplier);
+/// <summary>A cry's shared SleepDisturbed memory at one hearer's sleeping target (empty Target names ground).
+/// Reach uses that target's cell, independently of the pawn's current standing position.</summary>
+public sealed record BabySleepHearerRead(string Pawn, string Target, bool Now, bool NurseryOpen, HeardMemoryRead Memory);
 /// <summary>
 /// The recruitment mechanics (#3805, #3899), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance
 /// is above 0, each warden recruit attempt lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/>
