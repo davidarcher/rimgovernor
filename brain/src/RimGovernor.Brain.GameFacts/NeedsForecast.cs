@@ -603,8 +603,8 @@ public abstract record ThoughtLasting
 {
     private protected ThoughtLasting() { }
 
-    /// <summary>A memory thought: its def's DurationTicks, whether its offset fades to zero over them (lerpMoodToZero), and its stackLimit.</summary>
-    public sealed record Memory(double DurationTicks, bool Fades, int StackLimit) : ThoughtLasting;
+    /// <summary>A memory thought: its def's DurationTicks, lerpMoodToZero, stackLimit, stackedEffectMultiplier and stagesStack.</summary>
+    public sealed record Memory(double DurationTicks, bool Fades, int StackLimit, double StackedMultiplier, bool StagesStack) : ThoughtLasting;
 
     public sealed record Situational : ThoughtLasting;
 }
@@ -762,6 +762,8 @@ public sealed record NeedCurrentService(string Assignment, string Method, long R
 }
 public sealed record NeedsForecastPawn
 {
+    /// <summary>Canonical room-use mechanics for the governor's observed and prospective need services.</summary>
+    public NeedRoomMechanics? RoomUses { get; init; }
     public required string Pawn { get; init; }
     /// <summary>eligible, unsupported_voluntary_state, dead, downed, mental_state, drafted, player_authority or player_work.</summary>
     public required string State { get; init; }
@@ -1031,6 +1033,11 @@ public sealed record OrganReplacementRead(string Part, string Recipe)
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount, double TravelTicks, NeedRecovery Recovery)
 {
+    /// <summary>The observed service object's room stage, or explicitly no room.</summary>
+    public NeedRoomStage RoomStage { get; init; } = new NeedRoomStage.NoRoom();
+    public NeedMeal? Meal { get; init; }
+    /// <summary>Native joy job's bounded session; null for other needs or an unrecognized driver.</summary>
+    public NeedJoySession? JoySession { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public required EquatableArray<NeedMemory> MealThoughts { get; init; }
     public required Cell Location { get; init; }
@@ -1048,6 +1055,24 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
     /// <summary>A food target's deterioration inputs (#3339); null when it cannot deteriorate.</summary>
     public required NeedDeterioration? Deterioration { get; init; }
 }
+/// <summary>The driver's joyDuration limit, whether its clock includes approach, and whether its finish gains a rec-room memory.</summary>
+public sealed record NeedJoySession(double DurationTicks, bool IncludesApproach, bool RoomThought);
+public sealed record NeedMeal(double ChairSearchRadius, bool TableDesired);
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(NeedRoomStage.NoRoom), "no_room")]
+[JsonDerivedType(typeof(NeedRoomStage.Staged), "staged")]
+public abstract record NeedRoomStage
+{
+    private protected NeedRoomStage() { }
+    public sealed record NoRoom : NeedRoomStage;
+    public sealed record Staged(int Stage) : NeedRoomStage;
+}
+
+public sealed record NeedDiningSeat(Cell Position, NeedRoomStage Stage);
+public sealed record NeedJoyDefinition(string Definition, double GainPerTick, NeedJoySession? Session);
+public sealed record NeedRoomMechanics(
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<NeedDiningSeat>))] EquatableArray<NeedDiningSeat> Seats,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<NeedJoyDefinition>))] EquatableArray<NeedJoyDefinition> Recreation);
 /// <summary>What a need target is as a stock (#3895): a food stack with the count claims sum against and how long it keeps, or a bed or
 /// recreation building, which no claim takes units from.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

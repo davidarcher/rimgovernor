@@ -65,7 +65,7 @@ internal static class NeedsFixtures
     /// <summary>An eligible pawn <paramref name="id"/>.</summary>
     public static NeedsForecastPawn Pawn(string id = "pawn") => new()
     {
-        Pawn = id, State = "eligible", Location = new(0, 0), CurrentService = null, VoluntaryControlBlockers = [],
+        Pawn = id, State = "eligible", Location = new(0, 0), CurrentService = null, VoluntaryControlBlockers = [], RoomUses = new([], []),
         LocalHour = 12, Awake = true, BedThoughts = new BedThoughtOnset.None(), SleepThreshold = .75, WakeThreshold = 1, SleepBlocked = false, SleepBlockedUntilTicks = 0,
         SleepWhileStarving = false, Mood = null, ComfortableMin = 16, ComfortableMax = 26, SleepComfortableMin = 0, SleepComfortableMax = 0,
         Sleep = null, LyingIn = null, Needs = [], Targets = [], Unsupported = [], Outdoors = new NeedLevel.Lacks(), OutdoorsDisabled = false,
@@ -104,7 +104,7 @@ internal static class NeedsFixtures
         new(id, offset, remaining is { } r ? new MemoryLife.Expires(r) : new MemoryLife.Permanent(), fades) { StackLimit = stackLimit };
 
     /// <summary>A memory thought's lasting: its duration and whether it fades.</summary>
-    public static ThoughtLasting Lasting(double duration, bool fades, int stackLimit = 0) => new ThoughtLasting.Memory(duration, fades, stackLimit);
+    public static ThoughtLasting Lasting(double duration, bool fades, int stackLimit = 0) => new ThoughtLasting.Memory(duration, fades, stackLimit, 1, false);
 
     /// <summary>A situational thought's lasting.</summary>
     public static readonly ThoughtLasting Situational = new ThoughtLasting.Situational();
@@ -129,9 +129,10 @@ internal static class NeedsFixtures
 
     /// <summary>A food target eaten in <paramref name="service"/> ticks restoring <paramref name="gain"/> a unit.</summary>
     public static NeedTarget Food(string id, string resource, int count, double travel, double service, double gain) =>
-        Target(id, "food", resource, count, travel, new NeedRecovery.Ingest(service, gain));
+        Target(id, "food", resource, count, travel, new NeedRecovery.Ingest(service, gain)) with { Meal = new(32, true) };
 
     /// <summary>A rest or joy target gaining <paramref name="gain"/> a tick.</summary>
     public static NeedTarget Service(string id, string kind, double travel, double gain) =>
-        Target(id, kind, "", 1, travel, new NeedRecovery.Rate(gain));
+        Target(id, kind, "", 1, travel, new NeedRecovery.Rate(gain)) with
+        { JoySession = kind == "joy" ? new NeedJoySession(GameTime.TicksPerDay, false, true) : null };
 }

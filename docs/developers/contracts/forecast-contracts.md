@@ -1706,6 +1706,17 @@ The routine `Forecast.Needs` census carries native rates, target eligibility and
 memory expiry. Missing census/targets/rates remain unknown or explicitly absent;
 truncation is not completeness. No save intent or journal schema is added.
 
+Recreation targets carry their native driver's `joyDuration` and whether that limit includes the approach. The shared needs
+generator caps both service duration and credited gain at that limit. The watch-building, sit-facing-building and visit-joy-thing
+families gain a rec-room memory on finishing; billiards uses the job's absolute start clock. An unrecognized driver reports
+`joy_session_driver_unread` and supplies no unlimited session. The Governor selects exact targets through the shared portfolio;
+the vanilla random joy-giver weights do not select its activities. Memory stage facts also carry the def's
+`stackedEffectMultiplier` and `stagesStack`, which room investment integrates together with expiry and fading.
+The canonical pawn read also carries usable dining seats, their room stages and eligible recreation definition mechanics.
+Food targets carry chair radius and table desire; service targets carry the observed room stage. Furnished-room predictions
+carry adjoining table seats, recreation gain factors and observed power. These total reads support the shared cycle and
+room-use comparison; a missing mechanics object is a required-fact failure, while an empty object means no observed services.
+
 ## Residual matching
 
 Forecast residual diagnostics compare each selected prediction with later native

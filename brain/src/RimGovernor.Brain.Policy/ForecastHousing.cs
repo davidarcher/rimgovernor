@@ -292,8 +292,17 @@ public static class ForecastHousing
     /// (<see cref="ForecastMoodBreaks.Assessed.Shifted"/>). Null when the mood is unprojected, its breaks unassessed or a break
     /// result unknown.
     /// </summary>
-    public static double? GainPerDay(double delta, ForecastMoodResult? mood, MoodBreakModel breaks, double wellbeingWeight, double horizonDays) =>
-        mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed assessed } ? GainPerDay(delta, assessed, breaks, wellbeingWeight, horizonDays) : null;
+    public static double? GainPerDay(double delta, ForecastMoodResult? mood, MoodBreakModel breaks, double wellbeingWeight, double horizonDays)
+    {
+        if (mood is ForecastMoodResult.Projected { Response: { } response } && horizonDays > 0)
+        {
+            var before = breaks.DaysLost(ForecastMood.ShiftedTierTicks(response, 0));
+            var after = breaks.DaysLost(ForecastMood.ShiftedTierTicks(response, delta / 100));
+            return before is { } b && after is { } a ? wellbeingWeight * delta / 100 + (b - a) / horizonDays : null;
+        }
+        return mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed assessed }
+            ? GainPerDay(delta, assessed, breaks, wellbeingWeight, horizonDays) : null;
+    }
 
     private static double? GainPerDay(double delta, ForecastMoodBreaks.Assessed mood, MoodBreakModel breaks, double wellbeingWeight, double horizonDays)
     {

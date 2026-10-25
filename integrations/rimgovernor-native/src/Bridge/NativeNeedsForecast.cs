@@ -68,6 +68,7 @@ internal static class NativeNeedsForecast
                             travel, new RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Ingest(F(service, "ingest ticks"), F(nutrition, "nutrition")))
                             { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.Stacked(target.stackCount, NativeCoupledFood.StackFreshness(target)), MaxPawns = Claimants(maxPawns, target),
                             Cell = CellAt(map, target.Position), Bed = null, Deterioration = DeteriorationOf(map, target),
+                            RoomStage = StageAt(target.Position, map), Meal = new(target.def.ingestible.chairSearchRadius, target.def.ingestible.tableDesired),
                             Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                     }
                     else if (group == "rest")
@@ -84,7 +85,7 @@ internal static class NativeNeedsForecast
                         // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
                         targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, new RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Rate(F(NativeRecreation.GainPerTick(pawn, target, job), "joy gain")))
                             { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target), Cell = CellAt(map, target.Position),
-                                Bed = null, Deterioration = null, Unsupported = ["play_position_travel", "future_tolerance_changes"] });
+                                Bed = null, Deterioration = null, RoomStage = StageAt(target.Position, map), JoySession = NativeRecreation.Session(job), Unsupported = ["play_position_travel", "future_tolerance_changes"] });
                     }
                 }
             }
@@ -100,6 +101,7 @@ internal static class NativeNeedsForecast
             var health = pawn.health ?? throw new InvalidOperationException("colonist without a health tracker: " + pawn.GetUniqueLoadID());
             rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
                 CurrentService = voluntary ? CurrentService(pawn) : null,
+                RoomUses = new(DiningSeats(pawn, map), NativeRecreation.Definitions(pawn)),
                 LocalHour = F(GenLocalDate.HourFloat(pawn), "local hour"), Awake = pawn.Awake(), BedThoughts = BedThoughtsOf(pawn),
                 SleepThreshold = sleep.SleepThreshold, WakeThreshold = sleep.WakeThreshold, SleepBlocked = sleep.Blocked,
                 SleepBlockedUntilTicks = sleep.BlockedUntilTicks, SleepWhileStarving = sleep.WhileStarving, Mood = moodRead,
@@ -139,6 +141,20 @@ internal static class NativeNeedsForecast
             RainRate = F(map.weatherManager.RainRate, "rain rate"), MapArea = map.Area, Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
             Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people, rows) };
     }
+    private static RimGovernor.Brain.GameFacts.Observations.NeedRoomStage StageAt(IntVec3 cell, Map map) => cell.GetRoom(map) is { } room
+        ? new RimGovernor.Brain.GameFacts.Observations.NeedRoomStage.Staged(RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)))
+        : new RimGovernor.Brain.GameFacts.Observations.NeedRoomStage.NoRoom();
+
+    // Toils_Ingest.TryFindChairOrSpot's chair predicate; no random standing-chew spot is drawn by a read.
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedDiningSeat> DiningSeats(Pawn pawn, Map map) =>
+        EquatableArray.From(map.listerBuildings.allBuildingsColonist
+            .Where(t => t.def.building?.isSittable == true && t.Faction == pawn.Faction && !t.IsForbidden(pawn)
+                && !t.Position.Fogged(map) && t.IsSociallyProper(pawn) && !t.IsBurning() && !t.HostileTo(pawn)
+                && pawn.CanReserveAndReach(t, PathEndMode.OnCell, Danger.None))
+            .SelectMany(t => t.OccupiedRect()).Distinct()
+            .Where(c => pawn.CanReserveSittableOrSpot(c) && GenAdj.CardinalDirections.Any(d => (c + d).HasEatSurface(map)))
+            .OrderBy(c => c.x).ThenBy(c => c.z)
+            .Select(c => new RimGovernor.Brain.GameFacts.Observations.NeedDiningSeat(new(c.x, c.z), StageAt(c, map))));
     /// <summary>
     /// The pawn's food, rest and joy rates (RimGovernor.Brain.GameFacts.Observations.NeedRate), each need it has; joy from <paramref name="joy"/>, the pawn's own or a
     /// detached one of a pawn that lacks it now (the joiner read, #3805), none when null.
@@ -620,7 +636,7 @@ internal static class NativeNeedsForecast
     }
     /// <summary>How long a thought of <paramref name="def"/> lasts: a memory's DurationTicks, lerpMoodToZero and stackLimit, else situational.</summary>
     private static RimGovernor.Brain.GameFacts.Observations.ThoughtLasting Lasting(ThoughtDef def) => def.IsMemory
-        ? new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Memory(def.DurationTicks, def.lerpMoodToZero, def.stackLimit) : new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Situational();
+        ? new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Memory(def.DurationTicks, def.lerpMoodToZero, def.stackLimit, def.stackedEffectMultiplier, def.stagesStack) : new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Situational();
     /// <summary>
     /// The Impressiveness of each room another pawn owns, as ThoughtWorker_BedroomJealous compares the pawn's own room against
     /// them (#3826): every spawned pawn of the player faction but this one, without a host faction, by its ownership.OwnedRoom,

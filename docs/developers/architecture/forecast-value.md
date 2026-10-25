@@ -1035,26 +1035,40 @@ the lower bound of caretaker savings (best without minus worst with), while
 `nursery_play_exposure_bounded` identifies a nonzero interval. Decoration-free intervals collapse to the exact random
 activity calculation. Bounds deliberately permit pessimism when the actual route or drop is not yet determined.
 
-*Dining and rec credits (#3803).* A planned dining or rec room the outcome serves is credited (`ForecastRoomThoughts.DiningCredit`,
-`RecCredit`) the impressive-room memory it gives, per colonist under `dining/<room>/<pawn>` or `rec/<room>/<pawn>`.
-`Toils_Ingest.FinalizeIngest` gains `AteInImpressiveDiningRoom`, and `JoyUtility.TryGainRecRoomThought` (as a joy job ends)
-`JoyActivityInImpressiveRecRoom`, at the Impressiveness stage of the room the pawn is in, whatever its role; a null stage gives
-none. A user is a colonist with a mood and the food (or joy) need; its uses a day are the need's fall a day over one refill, from
-its threshold to full (`ForecastRoomThoughts.UsesPerDay`). Its level in a room is the stage row's offset (`ate_in_dining_room`,
-`joy_in_rec_room`, at the predicted stage) held at those uses (`ForecastRoomThoughts.Held`: a stackLimit-1 memory renewed at each
-use is held min(1, duration × uses) of the time, a fading one its average between uses); its level now is the observed offset of
-the memory it holds, and for dining of `AteWithoutTable` too (`ate_without_table`), which the room's tables lift. The served rooms
-of a role take the users in service order, each crediting the level less the one before (now, then the earlier room's), so the
-credit over the horizon is each room's level from its service day, priced through `GainPerDay` (the shifts are
-`ForecastRoomThoughts.Shifts`). Named states, each earning nothing: a dining room with no eat surface (`dining_no_table`) or a rec
-room with no recreation building (`rec_no_recreation`), by the predicted role (`RoomRoleWorker_DiningRoom`, `RoomRoleWorker_RecRoom`);
-no user (`dining_no_diner`, `rec_no_user`); a ring closing no room (`room_thought_not_closed`). A memory whose stackLimit is not 1
-is named as not modelled (`room_thought_stacked`) and earns nothing. Named as not modelled: table reach and seats
-(`dining_table_reach`), the meal size (`dining_meal_size`), the joy kind (`rec_joy_kind`), joy activities ending before the need
-is full (`rec_activity_length`) and the memory held now standing for the one kept without the room (`room_thought_level_now`).
-An unread stage row, def or observed thoughts throws `RequiredFactException`. The credit reads no planned walk, so it prices the
-same before the first layout plan, when no room is planned. The thought follows the room, not its role, so
-`LayoutMoodRules.MoodJudgment.RoleThoughts` keeps no row for it.
+*Dining and recreation credits.* `ForecastRoomThoughts` compares the observed service profile with the combined profile of
+all rooms served so far. Each room receives its marginal change in capability-days, starting on its service day. Adding a
+second table can serve a second simultaneous diner; it does not pay again for the first. The shared retained
+`ForecastMoodResponse` prices arbitrary combined-room mood changes through `ShiftedTierTicks`, without another model run or
+an enumeration of room subsets.
+
+`NeedServiceRules` owns the same steady best-service assumption for the colony cycle and room accounting. A meal uses the
+observed food's nutrition per pawn, whole-item ingestion bound and hungry threshold. Useful refill is capped by the hungry-to-full
+gap; a smaller available portion gives a shorter cycle. Dining accounting starts from the observed food level and merges the
+pawns' periodic meal events in time and pawn-id order. It chooses the nearest free seat within the food's native
+`chairSearchRadius`, holds that seat for the native ingestion time, and records the actual room stage or the tableless meal.
+Standing seats carry native reachability, safety, social and reservation predicates; planned seats come from the furnished
+room prediction and must adjoin an eat surface. Planned geometry is a conditional spatial prediction: future native path and
+reservation checks still occur at execution. Meals with radius at most ten do not produce these memories. Food without an
+observed service target reports `dining_meal_source_unobserved:<pawn>`: an exact future pickup source has not been selected.
+
+For joy, the Governor chooses exact building jobs; vanilla random `JoyGiverDef.baseChance` does not choose controlled activity.
+Native facts read the eligible giver's joy kind, pawn tolerance factor, gain rate, bounded job duration and verified room-memory
+finish contract. The existing colony-cycle assumption takes the best building rate, or faster outdoor recreation during its
+observed seasonal outdoor share. Other rooms' faster sources therefore retain their use. Ties keep the better observed room
+stage, then stable source identity. Short sessions contribute their actual partial refill and therefore recur more often than
+one full refill. A source with no verified duration/finish contract or observed power carries a named finding. A planned source
+whose absolute duration includes approach needs an observed route to that position; otherwise it reports
+`rec_approach_unobserved:<definition>`, because a future native route has not been measured. Future tolerance
+changes remain explicit (`rec_future_tolerance_changes:<pawn>`); the rate is conditional on the observed tolerance.
+
+The baseline is generated by those same observed services and room stages, rather than preserving today's room memory forever.
+Each stage group uses the pawn's native thought offset, duration, fade flag, stack limit and `stackedEffectMultiplier`.
+The native `stagesStack` flag determines whether different stages share a group; a shared group uses their use-weighted mean offset.
+`ForecastRoomThoughts.Held` integrates periodic expiry and the native group's mean fading offset multiplied by its geometric
+stack shares. Limits at or below one renew the first memory, as `Thought_Memory.TryMergeWithExistingMemory` does.
+A room without usable seats or recreation sources, a colony without the corresponding users, or a shape closing no room earns
+nothing and names the state. Unread required mechanics throw `RequiredFactException`. These facts and allocations are derived
+within the existing forecast; they create no persistent state and write no game orders.
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from

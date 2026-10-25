@@ -8,6 +8,35 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastNeedsTests
 {
+    [Theory]
+    [InlineData(false, 80)]
+    [InlineData(true, 65)]
+    public void NativeJoyDurationBoundsActualGeneratedServiceAndGain(bool includesApproach, double service)
+    {
+        var pawn = Pawn();
+        var target = Assert.Single(pawn.Targets, t => t.Kind == "joy") with { JoySession = new(80, includesApproach, true) };
+        pawn = pawn with { Targets = [target] };
+        var capacity = ForecastCapacity.ForecastPawnCapacityOf(Input());
+        var candidates = ForecastNeeds.GenerateNeedsAlternatives(pawn, capacity, 1000);
+        Assert.NotEmpty(candidates.Choices);
+        Assert.All(candidates.Choices, c =>
+        {
+            Assert.InRange(c.End - c.Start, 0, service);
+            Assert.Equal((c.End - c.Start) * .002, c.Gain, 12);
+        });
+        Assert.Contains(candidates.Choices, c => c.End - c.Start == service);
+    }
+
+    [Fact]
+    public void AnUnrecognizedJoyDriverDoesNotPromiseAnUnlimitedSession()
+    {
+        var pawn = Pawn();
+        pawn = pawn with { Targets = [Assert.Single(pawn.Targets, t => t.Kind == "joy") with { JoySession = null }] };
+        var candidates = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
+        Assert.Empty(candidates.Choices);
+        Assert.Contains("joy_session_driver_unread:pin", candidates.Findings);
+    }
+
     private static ForecastCapacityInput Input(double horizon = 1000) => new()
     {
         Pawn = new() { Id = new("pawn"), State = ForecastPawnCapacityState.Available,

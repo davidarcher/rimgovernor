@@ -17,6 +17,8 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, int Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
+    /// <summary>Seats adjoining eat surfaces and recreation definitions in the furnished hypothetical room.</summary>
+    public PlannedRoomServices? Services { get; init; }
     /// <summary>Every planned or standing production/research bench in the shape, with native facility offsets.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedBenchSpeed>))]
     public required EquatableArray<PlannedBenchSpeed> WorkBenches { get; init; }
@@ -49,6 +51,10 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomDesk>))]
     public required EquatableArray<PlannedRoomDesk> Desks { get; init; }
 }
+public sealed record PlannedRoomServices(
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Seats,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PlannedJoySource>))] EquatableArray<PlannedJoySource> Recreation);
+public sealed record PlannedJoySource(string Definition, Cell Position, double GainFactor, bool Powered);
 /// <summary>One planned school desk of a predicted room and its learning rate.</summary>
 public sealed record PlannedRoomDesk(double LearningRate);
 public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOffset, double ResearchOffset, bool Powered, BenchPlacement Placement);

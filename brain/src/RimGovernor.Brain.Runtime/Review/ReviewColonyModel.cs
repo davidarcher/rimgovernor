@@ -361,49 +361,7 @@ internal static class ReviewColonyModel
             var needs = new List<ModelNeed>();
             foreach (var need in pawn.Needs)
             {
-                // A pawn with no usable service still recovers where it stands when the need has such a recovery (rest on the ground).
-                var gain = need.UnservedGainPerTick;
-                NeedRecovery.Ingest? meal = null;
-                var approach = new List<double>();
-                // Joy's recovery without a building is a walk, taken only while the weather allows it (#3825 D7): the read says when.
-                if (need.Kind == "joy" && need.OutdoorShareByTwelfth.Count != 12)
-                {
-                    throw new RequiredFactException("outdoor recreation share of " + pawn.Pawn);
-                }
-
-                var sheltered = 0d;
-                foreach (var target in pawn.Targets)
-                {
-                    if (target.Kind != need.Kind)
-                    {
-                        continue;
-                    }
-
-                    if (target.Recovery is NeedRecovery.Rate { GainPerTick: var g })
-                    {
-                        sheltered = Math.Max(sheltered, g);
-                        gain = Math.Max(gain, g);
-                    }
-
-                    if (target.Recovery is NeedRecovery.Ingest ingest && (meal is null || ingest.GainPerUnit > meal.GainPerUnit))
-                    {
-                        meal = ingest;
-                    }
-
-                    approach.Add(target.TravelTicks);
-                }
-
-                needs.Add(new ModelNeed
-                {
-                    Kind = need.Kind,
-                    Fall = need.FallPerTick,
-                    Gain = gain,
-                    OutdoorShares = need.OutdoorShareByTwelfth,
-                    ShelteredGain = sheltered,
-                    Threshold = need.Threshold,
-                    // The meal came from a target of the kind, which also gave an approach.
-                    Service = meal is null ? new ModelService.NoneObserved() : new ModelService.Observed(meal.GainPerUnit, meal.ServiceTicks, approach.Average()),
-                });
+                needs.Add(NeedServiceRules.Steady(pawn, need));
             }
 
             if (!skills.TryGetValue(pawn.Pawn, out var workerSkills) || !hunters.TryGetValue(pawn.Pawn, out var hunts))

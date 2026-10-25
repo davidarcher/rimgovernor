@@ -163,10 +163,30 @@ internal static class NativeRoomPrediction
         var readingRoom = Unregistered(map, contained, edge) ?? throw new InvalidOperationException("predicted reading room unavailable");
         var readingBonus = RoomStatDefOf.ReadingBonus.Worker.GetScore(readingRoom);
         if (!float.IsFinite(readingBonus) || readingBonus <= 0) throw new InvalidOperationException("predicted reading bonus unavailable");
+        var servicePieces = placed.Concat(things.OfType<Verse.Building>().Select(b => (Def: b.def, Anchor: b.Position, Rot: b.Rotation)))
+            .DistinctBy(p => (p.Def, p.Anchor)).ToArray();
+        var surfaces = servicePieces.Where(p => p.Def.surfaceType == SurfaceType.Eat)
+            .SelectMany(p => GenAdj.OccupiedRect(p.Anchor, p.Rot, p.Def.size)).ToHashSet();
+        var seats = servicePieces.Where(p => p.Def.building?.isSittable == true)
+            .SelectMany(p => GenAdj.OccupiedRect(p.Anchor, p.Rot, p.Def.size)).Distinct()
+            .Where(c => cellSet.Contains(c) && GenAdj.CardinalDirections.Any(d => surfaces.Contains(c + d)))
+            .OrderBy(c => c.x).ThenBy(c => c.z).Select(c => new Cell(c.x, c.z));
+        var sitting = servicePieces.Where(p => p.Def.building?.isSittable == true)
+            .SelectMany(p => GenAdj.OccupiedRect(p.Anchor, p.Rot, p.Def.size)).ToHashSet();
+        var joy = servicePieces.Where(p => cellSet.Contains(p.Anchor) && NativeRecreation.GiverFor(p.Def) is { } giver
+                && !giver.unroofedOnly && (!giver.requireChair
+                    || GenAdj.OccupiedRect(p.Anchor, p.Rot, p.Def.size).ExpandedBy(1).Any(sitting.Contains)))
+            .Select(p => new RimGovernor.Brain.GameFacts.Observations.PlannedJoySource(p.Def.defName, new(p.Anchor.x, p.Anchor.z),
+                contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor) is { } standing
+                    ? standing.GetStatValue(StatDefOf.JoyGainFactor) : p.Def.GetStatValueAbstract(StatDefOf.JoyGainFactor,
+                        furniture.First(f => f.Def == p.Def && f.Cell == p.Anchor).Stuff),
+                p.Def.GetCompProperties<CompProperties_Power>() is null
+                    || contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)?.TryGetComp<CompPowerTrader>()?.PowerOn == true));
         RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction Row(string role, float score, double clean) =>
             new(shape.Room, shape.Stuff, role, score, RoomStatDefOf.Impressiveness.GetScoreStageIndex(score), cells.Count, openRoof, edge)
                 { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains), Desks = desks,
-                    WorkBenches = speedBenches, ReadingBonus = readingBonus };
+                    WorkBenches = speedBenches, ReadingBonus = readingBonus,
+                    Services = new(EquatableArray.From(seats), EquatableArray.From(joy)) };
 
         // No passable interior cell: closing the ring forms no room.
         if (cells.Count == 0) return null;

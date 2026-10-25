@@ -5,6 +5,7 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Native;
 
@@ -16,17 +17,40 @@ namespace RimGovernor.Native;
 /// </summary>
 internal static class NativeRecreation
 {
+    /// <summary>Verified duration/finish contracts of the building-driver families (decompiled 1.7).</summary>
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedJoySession? Session(JobDef job)
+    {
+        var type = job.driverClass;
+        var absolute = type == typeof(JobDriver_PlayBilliards);
+        if (!absolute && !typeof(JobDriver_WatchBuilding).IsAssignableFrom(type)
+            && !typeof(JobDriver_SitFacingBuilding).IsAssignableFrom(type)
+            && !typeof(JobDriver_VisitJoyThing).IsAssignableFrom(type)) return null;
+        if (job.joyDuration <= 0) throw new InvalidOperationException("invalid joy duration:" + job.defName);
+        return new(job.joyDuration, absolute, true);
+    }
+
     private static Dictionary<ThingDef, JoyGiverDef>? givers;
 
     /// <summary>The interact-building giver that uses this building, or null when the game has none for it.</summary>
-    internal static JoyGiverDef? GiverFor(Thing thing)
+    internal static JoyGiverDef? GiverFor(Thing thing) => GiverFor(thing.def);
+
+    internal static JoyGiverDef? GiverFor(ThingDef definition)
     {
         givers ??= DefDatabase<JoyGiverDef>.AllDefsListForReading
             .Where(g => g.Worker is JoyGiver_InteractBuilding && g.jobDef != null && g.thingDefs != null)
             .SelectMany(g => g.thingDefs.Select(d => (d, g)))
             .GroupBy(p => p.d).ToDictionary(p => p.Key, p => p.First().g);
-        return givers.TryGetValue(thing.def, out var giver) ? giver : null;
+        return givers.TryGetValue(definition, out var giver) ? giver : null;
     }
+
+    internal static EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedJoyDefinition> Definitions(Pawn pawn) =>
+        EquatableArray.From(DefDatabase<ThingDef>.AllDefsListForReading
+            .Select(d => (Def: d, Giver: GiverFor(d)))
+            .Where(p => p.Giver != null && pawn.needs?.joy != null && p.Giver.Worker.CanBeGivenTo(pawn))
+            .OrderBy(p => p.Def.defName, StringComparer.Ordinal)
+            .Select(p => new RimGovernor.Brain.GameFacts.Observations.NeedJoyDefinition(p.Def.defName,
+                p.Giver!.jobDef.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
+                    * pawn.needs.joy.tolerances.JoyFactorFromTolerance(p.Giver.jobDef.joyKind), Session(p.Giver.jobDef))));
 
     /// <summary>
     /// The giver's own legality for this pawn and building, as JoyGiver_InteractBuilding.FindBestGame tests a candidate:

@@ -872,7 +872,8 @@ public static partial class ForecastCoupled
                     moods.Add(moodKey, mood = Next(ForecastMood.ForecastMoodTimeline(pawn, horizon, choiceKeys.Array(choicesId), null,
                         grantedId == 0 ? null : grantedKeys.Array(grantedId), situationalId == 0 ? null : situationalKeys.Array(situationalId),
                         bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn),
-                        context.RoomCredits.ContainsKey(PlannedRole.Nursery) && context.PlannedRoomRoles.Values.Contains(PlannedRole.Nursery)
+                        context.PlannedRoomRoles.Values.Any(r => (r is PlannedRole.Dining or PlannedRole.Rec) && context.RoomCredits.ContainsKey(r))
+                        || context.RoomCredits.ContainsKey(PlannedRole.Nursery) && context.PlannedRoomRoles.Values.Contains(PlannedRole.Nursery)
                             && context.Needs.Babies.Babies.Any(b => b.Pawn == pawn.Pawn || b.Hearers.Any(h => h.Pawn == pawn.Pawn)))));
                 needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof);
             }

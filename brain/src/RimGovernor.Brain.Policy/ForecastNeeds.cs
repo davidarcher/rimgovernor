@@ -102,9 +102,13 @@ public static class ForecastNeeds
             }
             else if (target.Recovery is NeedRecovery.Rate { GainPerTick: var rate and > 0 })
             {
+                if (target.Kind == "joy" && target.JoySession is null)
+                { findings.Add("joy_session_driver_unread:" + target.Id); continue; }
                 // Partial and full recovery both survive generation; service duration never comes from a trigger.
                 var full = (1 - level) / rate;
-                foreach (var duration in new[] { full / 2, full, horizon / 4 }.Distinct().Order())
+                var limit = target.JoySession is { } session
+                    ? Math.Max(0, session.DurationTicks - (session.IncludesApproach ? travel : 0)) : double.PositiveInfinity;
+                foreach (var duration in new[] { full / 2, full, horizon / 4 }.Select(d => Math.Min(d, limit)).Distinct().Order())
                     if (duration > 0) variants.Add((0, duration, rate * duration));
             }
             else findings.Add("unknown_need_recovery:" + target.Id);

@@ -203,7 +203,7 @@ public readonly record struct MoodStage(double Effect, bool Present);
 /// <summary>
 /// A memory thought as the game stacks it (ThoughtDef, MemoryThoughtHandler.TryGainMemory, ThoughtHandler.MoodOffsetOfGroup):
 /// the mood of its one stage, the days a memory lasts, the most memories of the def a pawn holds (a new one past it renews
-/// the oldest; negative is no limit) and the factor each further memory's share is multiplied by.
+/// the oldest; limits at or below one renew the first memory) and the factor each further memory's share is multiplied by.
 /// </summary>
 public sealed record MemoryThought(double Effect, double DurationDays, int StackLimit, double StackedMultiplier)
 {
@@ -218,11 +218,7 @@ public sealed record MemoryThought(double Effect, double DurationDays, int Stack
         {
             return 0;
         }
-        var held = perDay * DurationDays;
-        if (StackLimit >= 0)
-        {
-            held = Math.Min(held, StackLimit);
-        }
+        var held = Math.Min(perDay * DurationDays, Math.Max(1, StackLimit));
         double sum = 0, share = 1;
         for (var i = 0; i < Math.Floor(held); i++)
         {
