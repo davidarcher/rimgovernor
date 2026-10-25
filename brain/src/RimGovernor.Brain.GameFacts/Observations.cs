@@ -4773,7 +4773,11 @@ public abstract record TradePackEstimate
 {
     private protected TradePackEstimate() { }
 
-    public sealed record Packed(double MassUsage, double MassCapacity, double FoodDays, double FoodRotDays, PackRoute Outbound, PackRoute Home) : TradePackEstimate;
+    public sealed record Packed(double MassUsage, double MassCapacity, double FoodDays, double FoodRotDays, PackRoute Outbound, PackRoute Home) : TradePackEstimate
+    {
+        /// <summary>Null for a destination without a settlement trader, including returning home.</summary>
+        public SettlementTradePreview? SettlementTrade { get; init; }
+    }
 
     public sealed record Unpackable : TradePackEstimate;
 }
@@ -7684,3 +7688,12 @@ public sealed record QuestGiftRequest
 
     public required QuestGiftAsk Ask { get; init; }
 }
+
+/// <summary>A non-mutating stock read for the proposed negotiator. An unseen or empty pool draws on arrival;
+/// held stock survives until RestockInTicks, then the next visit draws the native kind afresh.</summary>
+public sealed record SettlementTradePreview(string Settlement, string TraderKind, bool RegeneratesOnVisit,
+    long RestockInTicks, double PriceFactor,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SettlementStockItem>))] EquatableArray<SettlementStockItem> CurrentStock);
+
+/// <summary>A held sale stack with its native unit buy price before restocking.</summary>
+public sealed record SettlementStockItem(string Definition, int Count, double UnitPrice);

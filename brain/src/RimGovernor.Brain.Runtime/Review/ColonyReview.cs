@@ -601,7 +601,7 @@ public sealed partial class ColonyReview
         var medicine = MedicalRules.ReviewMedicalReserve(reading.Reading.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, Policy.MedicalReserve);
         reading = reading.WithFacts(rf => rf with { MedicineCarryOwed = MedicineCarryRules.MedicineCarryOwed(reading.Reading.Facts.ForecastObserved.WorkPawns, medicine) });
         // The routine trade buys medicine before parts (#3907): the stock-arrival model claims the gap's silver and carries the latch.
-        reading = reading.WithFacts(rf => rf with { StockArrival = rf.StockArrival.WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
+
         // A prisoner surgery blocked only by the herbal care limit.
         reading = reading.WithFacts(rf => rf with { ResourceNeeds = PrisonerMedicineRules.PrisonerHerbalNeeds(reading.Reading.Facts.ResourceNeeds, reading.Reading.Facts, SilverGapRules.SilverShort(reading.Reading.Facts, Policy, medicine.Active)) });
         // A willing colonist's psylink neuroformer, bought or made by the resource ladder.
@@ -693,6 +693,8 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
         // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.
         reading = reading.WithFacts(rf => rf with { CreepJoiners = CreepJoiner.CreepJoinerHarmOf(reading.Reading, reading.Frame, reading.Catalog), PreviousPawnValues = PawnValueMemory.Get(state.Snapshot) });
+        var settlementOptions = await SettlementForecastOptionsAsync(state.Snapshot, reading.Reading, reading.Catalog, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { StockArrival = (rf.StockArrival with { Missions = settlementOptions }).WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Reading.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });
         fine.Lap("derive/incumbents");

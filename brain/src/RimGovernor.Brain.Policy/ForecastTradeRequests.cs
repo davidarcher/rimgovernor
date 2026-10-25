@@ -46,13 +46,16 @@ public static class ForecastTradeRequests
     private static readonly PerOutcome<ForecastCoupledContext> Contexts = new((_, chosen, context, _) =>
     {
         var ids = chosen.Where(c => c.TradeRequest.Length != 0).Select(c => c.TradeRequest).ToHashSet(StringComparer.Ordinal);
-        if (ids.Count == 0) return context;
+        var missionIds = chosen.Where(c => c.TradeMission.Length != 0).Select(c => c.TradeMission).ToHashSet(StringComparer.Ordinal);
+        if (ids.Count == 0 && missionIds.Count == 0) return context;
         var requests = context.Stock.Requests.Where(r => ids.Contains(r.Id)).ToArray();
         if (requests.Length != ids.Count) throw new RequiredFactException("trade_request_option");
+        var missions = context.Stock.Missions.Where(m => missionIds.Contains(m.Id)).ToArray();
+        if (missions.Length != missionIds.Count) throw new RequiredFactException("trade_mission_option");
         return context with
         {
             StockBeforeRequests = context.Stock,
-            Stock = context.Stock with { Trade = EquatableArray.From(context.Stock.Trade.Concat(requests.SelectMany(r => r.Sources))) },
+            Stock = context.Stock with { Trade = EquatableArray.From(context.Stock.Trade.Concat(requests.SelectMany(r => r.Sources)).Concat(missions.SelectMany(m => m.Sources))) },
         };
     });
 
@@ -88,6 +91,20 @@ public static class ForecastTradeRequests
                     - (Loss(after, horizon) - Loss(basis, horizon));
                 rows.Add(new(request.Id, "", request.Id, 1, value));
             }
+            basis = after;
+        }
+        var missionIds = chosen.Select(c => c.TradeMission).ToHashSet(StringComparer.Ordinal);
+        foreach (var mission in basis.Missions.Where(m => missionIds.Contains(m.Id)).OrderBy(m => m.Id, StringComparer.Ordinal))
+        {
+            var after = basis with { Trade = EquatableArray.From(basis.Trade.Concat(mission.Sources)) };
+            var days = context.InvestmentHorizonDays;
+            double gain = 0;
+            if (days > horizon / GameTime.TicksPerDay && mission.Sources.Any(s => s.From < days))
+                gain = Loss(after, days * GameTime.TicksPerDay) - Loss(basis, days * GameTime.TicksPerDay)
+                    - (Loss(after, horizon) - Loss(basis, horizon));
+            var lost = ForecastSettlementMissions.LostWork(mission, outcome, chosen, context, horizon);
+            rows.Add(new(mission.Id, "", mission.Id, 1, gain + lost));
+            findings.Add("trade_mission_lost_work:" + mission.Id);
             basis = after;
         }
         return new(EquatableArray.From(rows), EquatableArray.From(findings));

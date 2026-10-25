@@ -178,7 +178,27 @@ namespace RimGovernor.Native
             var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, massUsage, massCapacity);
             var outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs);
             var home = RouteEstimate(destination, map.Tile, ticks, GenTicks.TicksAbs + (outbound is RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable reach ? (int)reach.EstimatedTicks : 0));
-            return new RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed(massUsage, massCapacity, Finite(food.days, "food days"), Finite(food.tillRot, "food rot days"), outbound, home);
+            return new RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed(massUsage, massCapacity, Finite(food.days, "food days"), Finite(food.tillRot, "food rot days"), outbound, home)
+            {
+                SettlementTrade = SettlementPreview(destination, crew.Single(p => RefIndex.Is(p, command.PawnIds[0]))),
+            };
+        }
+
+        // Goods/StockListForReading would generate stock. Read the held pool without mutating the world instead.
+        private static RimGovernor.Brain.GameFacts.Observations.SettlementTradePreview? SettlementPreview(PlanetTile destination, Pawn negotiator)
+        {
+            var settlement = Find.WorldObjects.Settlements.SingleOrDefault(s => s.Tile == destination && !s.Faction.IsPlayer);
+            if (settlement?.TraderKind is not { } kind) return null;
+            var held = settlement.trader.GetDirectlyHeldThings();
+            var fresh = held == null || held.Count == 0;
+            var gain = negotiator.GetStatValue(StatDefOf.TradePriceImprovement);
+            var rows = fresh ? Array.Empty<RimGovernor.Brain.GameFacts.Observations.SettlementStockItem>()
+                : held!.Cast<Thing>().Where(t => t is not Pawn && kind.WillTrade(t.def) && t.def.tradeability.TraderCanSell())
+                    .Select(t => new RimGovernor.Brain.GameFacts.Observations.SettlementStockItem(t.def.defName, t.stackCount,
+                        TradeUtility.GetPricePlayerBuy(t, kind.PriceTypeFor(t.def, TradeAction.PlayerBuys).PriceMultiplier(), 1, gain, settlement.TradePriceImprovementOffsetForPlayer))).ToArray();
+            return new(settlement.GetUniqueLoadID(), kind.defName, fresh,
+                fresh ? 0 : Math.Max(0, (long)settlement.NextRestockTick + 1 - Find.TickManager.TicksGame),
+                (1 + Find.Storyteller.difficulty.tradePriceFactorLoss) * (1 - gain - settlement.TradePriceImprovementOffsetForPlayer), [.. rows]);
         }
 
         private static float Finite(float value, string what) =>

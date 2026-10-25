@@ -419,7 +419,7 @@ public sealed partial record ForecastCoupledSelection
         {
             graphOnly[i] = GraphOnly(alternatives[i]);
             var plannedSite = PlannedSiteRoot(alternatives[i]);
-            keyed[i] = alternatives[i].TradeRequest.Length == 0 && (!graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id));
+            keyed[i] = alternatives[i].TradeRequest.Length == 0 && alternatives[i].TradeMission.Length == 0 && (!graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id));
             exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 } || alternatives[i].OutfitChanges.Count > 0
                 || alternatives[i].ExclusiveOutcome is { } exclusive && (placedRing.Contains(exclusive) || pricedRoom.Contains(exclusive));
         }
@@ -588,7 +588,7 @@ public sealed partial record ForecastCoupledSelection
                 Bits.Set(memberScratch, at);
                 Bits.Or(keyScratch.AsSpan(0, taskWords), closures[at]);
                 if (keyed[at]) Bits.Set(keyScratch.AsSpan(taskWords, rootWords), at);
-                if (c.TradeRequest.Length != 0) Bits.Set(keyScratch.AsSpan(scheduleWords + taskWords, rootWords), at);
+                if (c.TradeRequest.Length != 0 || c.TradeMission.Length != 0) Bits.Set(keyScratch.AsSpan(scheduleWords + taskWords, rootWords), at);
                 if (exempting[at]) Bits.Or(keyScratch.AsSpan(scheduleWords, taskWords), closures[at]);
             }
             ReadOnlySpan<ulong> key = keyScratch, schedule = keyScratch.AsSpan(0, scheduleWords);

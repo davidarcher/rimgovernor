@@ -304,6 +304,35 @@ public sealed class StockArrivalCatalogTests
     }
 
     [Fact]
+    public void AFreshColonysExactSettlementPackBuildsAMissionRootWithoutUnmetDemand()
+    {
+        var catalog = TradeCatalog();
+        var stock = FreshStock(catalog, "Cassandra", 2000);
+        var settlement = ForecastSettlementMissionTests.Destination("Caravan_Outlander_Exotic");
+        var pack = ForecastSettlementMissionTests.Pack(settlement.TraderKind);
+        var option = Assert.IsType<ForecastSettlementMission>(ForecastSettlementMissions.Option(catalog.TraderStock(), settlement, pack, ["pawn"], 1700));
+        stock = stock with { Missions = [option] };
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: GameTime.TicksPerDay) with { StockArrival = stock };
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
+        var root = Assert.Single(generated.Alternatives, c => c.TradeMission.Length != 0);
+        Assert.Equal(option.Id, root.Id);
+        Assert.Empty(root.StockChanges);
+        Assert.Same(stock, generated.Context.Stock);
+        var arrival = Assert.Single(option.Sources, s => s.Resource == new Resource("BionicArm"));
+        Assert.Equal(3, arrival.From);
+        Assert.Equal(.98, arrival.PriceFactor);
+        Assert.Equal(1700, arrival.Silver);
+        Assert.DoesNotContain(stock.Trade, s => s.Once);
+        var items = ItemFactsFixtureRules.CoreItemFacts();
+        var reserve = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
+        {
+            Catalog = items, Items = [], Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [] },
+        }, false, MedicalReservePolicy.Default());
+        var claimed = stock.WithMedicineClaim(items, reserve, 3, MedicalReservePolicy.Default());
+        Assert.Equal(1538, Assert.Single(Assert.Single(claimed.Missions).Sources, s => s.Resource == new Resource("BionicArm")).Silver);
+    }
+
+    [Fact]
     public void AFreshColonyWithoutAFabricationBenchHasAFiniteTradeWaitForABionicArm()
     {
         // The production way (#3822): the catalog's decoded comps and stock, the census as the read boundary fills it with the

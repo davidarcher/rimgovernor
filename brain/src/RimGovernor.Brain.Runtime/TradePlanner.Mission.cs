@@ -28,6 +28,22 @@ partial class TradePlanner
     /// </summary>
     public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(GameClient source, GenerationSnapshot world, int homeTile, RimGovernor.Brain.GameFacts.Observations.Settlement settlement, Pol.ReviewFacts facts, Pol.PlannerSettings thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
     {
+        var (departure, option, _) = await PrepareTradeMissionOptionAsync(source, world, homeTile, settlement, facts, thresholds, silverBudget, claimed, ct).ConfigureAwait(false);
+        if (!CaravanDeparture.TryCreate(departure.Crew, demand, settlement.Tile, out var canonicalDemand))
+            throw new DomainException("invalid_trade_demand");
+        var mission = new TradeMission
+        {
+            HomeColony = world.Colony, HomeMap = world.Map, HomeTile = homeTile,
+            Settlement = settlement.Id, SettlementTile = settlement.Tile, Crew = departure.Crew,
+            Negotiator = departure.Crew[0], SilverBudget = silverBudget, Demand = canonicalDemand.Cargo,
+            Pack = departure.Cargo, Phase = TradeMissionPhase.Planned, ReturnHome = true,
+        };
+        mission.Validate();
+        return (mission, option);
+    }
+
+    internal static async Task<(CaravanDeparture Departure, Pol.TradeAcquisitionOption Option, RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed Pack)> PrepareTradeMissionOptionAsync(GameClient source, GenerationSnapshot world, int homeTile, RimGovernor.Brain.GameFacts.Observations.Settlement settlement, Pol.ReviewFacts facts, Pol.PlannerSettings thresholds, long silverBudget, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
+    {
         if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Relation == RimGovernor.Brain.GameFacts.Observations.SettlementRelation.Player || settlement.TraderKind.Length == 0)
         {
             throw new DomainException("invalid_trade_destination");
@@ -60,7 +76,7 @@ partial class TradePlanner
         {
             throw new DomainException(seedSkip.Value);
         }
-        var seedCargo = new List<CargoItem>(seedFood) { new("Silver", (ulong)silverBudget) };
+        var seedCargo = new List<CargoItem>(seedFood) { new(facts.Items.Currency.Value, (ulong)silverBudget) };
         if (!CaravanDeparture.TryCreate(domainCrew, seedCargo, settlement.Tile, out var departure))
         {
             throw new DomainException("invalid_trade_pack");
@@ -96,18 +112,9 @@ async
         var supply = facts.AnimalUpkeep.Food;
         foreach (var item in seedFood)
         {
-            var mass = double.MaxValue;
-            foreach (var stock in supply.Stocks)
-            {
-                if (stock.DefName == item.Definition)
-                {
-                    mass = Math.Min(mass, stock.UnitMass);
-                }
-            }
-            if (mass == double.MaxValue)
-            {
-                throw new DomainException("no_seed_food_mass");
-            }
+            var masses = supply.Stocks.Where(stock => stock.DefName == item.Definition).Select(stock => stock.UnitMass).ToArray();
+            if (masses.Length == 0) throw new Pol.RequiredFactException("seed_food_mass:" + item.Definition);
+            var mass = masses.Min();
             seedFoodMass += mass * item.Count;
         }
         var (food, foodSkip) = Pol.TradePolicyRules.TradeMissionFood(facts, crew, days, seed.MassCapacity - seed.MassUsage + seedFoodMass, thresholds);
@@ -115,7 +122,7 @@ async
         {
             throw new DomainException(foodSkip.Value);
         }
-        var cargo = new List<CargoItem>(food) { new("Silver", (ulong)silverBudget) };
+        var cargo = new List<CargoItem>(food) { new(facts.Items.Currency.Value, (ulong)silverBudget) };
         if (!CaravanDeparture.TryCreate(domainCrew, cargo, settlement.Tile, out departure))
         {
             throw new DomainException("invalid_trade_pack");
@@ -126,27 +133,6 @@ async
         {
             throw new DomainException("unsafe_trade_pack");
         }
-        // Demand is canonicalized through the same definition/count contract.
-        if (!CaravanDeparture.TryCreate(domainCrew, demand, settlement.Tile, out var canonicalDemand))
-        {
-            throw new DomainException("invalid_trade_demand");
-        }
-        var m = new TradeMission
-        {
-            HomeColony = world.Colony,
-            HomeMap = world.Map,
-            HomeTile = homeTile,
-            Settlement = settlement.Id,
-            SettlementTile = settlement.Tile,
-            Crew = departure.Crew,
-            Negotiator = domainCrew[0],
-            SilverBudget = silverBudget,
-            Demand = canonicalDemand.Cargo,
-            Pack = departure.Cargo,
-            Phase = TradeMissionPhase.Planned,
-            ReturnHome = true,
-        };
-        m.Validate();
         (days, _) = Pol.TradePolicyRules.TradeMissionRouteDays(final);
         var option = new Pol.TradeAcquisitionOption
         {
@@ -154,7 +140,7 @@ async
             Kind = Pol.TradeAcquisitionKind.Settlement,
             Participant = new TradeParticipant(TradeParticipantKind.Settlement, settlement.Id),
             TraderKind = settlement.TraderKind,
-            Negotiator = m.Negotiator.Value,
+            Negotiator = domainCrew[0].Value,
             Eligible = true,
             LeadDays = days,
             OutboundDays = (double)outbound.EstimatedTicks / GameTime.TicksPerDay,
@@ -163,7 +149,7 @@ async
             RotDays = final.FoodRotDays,
             LaborTicks = days * GameTime.TicksPerDay * crew.Count,
         };
-        return (m, option);
+        return (departure, option, final);
     }
 
     /// <summary>

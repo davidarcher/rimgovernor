@@ -102,7 +102,6 @@ Runtime/ProjectBill.cs|ProjectBill.DeficitWork|"Beer"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"Beer"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
-Runtime/TradePlanner.Mission.cs|TradePlanner.PrepareTradeMissionAsync|"Silver"
 Domain/Actions/Ideoligion.cs|IdeoligionReform.IdeoligionReform|2147483647
 Domain/PlanSpec.cs|PlanSpec.PlanSpec|"Wall"
 Domain/StockpileFilter.cs|StockpileFilter.MealShelfFilter|"MealFine"

@@ -107,7 +107,7 @@ public sealed partial record ForecastCoupledCandidates
         // name can have moved in between. The frame's count wins; planned lots add only the stacks the frame does not name.
         var framed = lotGroups.Select(g => g.Key).ToHashSet();
         lots.AddRange(planned.Lots.Where(l => framed.Add((l.Lot, l.Location, l.Resource))));
-        var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>(facts.StockArrival.Requests.Select(r => r.Commitment()));
+        var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>(facts.StockArrival.Requests.Select(r => r.Commitment()).Concat(facts.StockArrival.Missions.Select(m => m.Commitment())));
         var findings = new SortedSet<string>(plannedFindings, StringComparer.Ordinal); findings.UnionWith(planned.Findings);
         foreach (var lot in conflicting) findings.Add("lot_count_conflict:" + lot);
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)

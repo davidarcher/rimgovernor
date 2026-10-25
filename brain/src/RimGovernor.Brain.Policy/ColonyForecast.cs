@@ -15,6 +15,8 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     public string ExclusiveOutcome { get; init; } = "";
     /// <summary>The comms-request option selected by this root; empty for other work.</summary>
     public string TradeRequest { get; init; } = "";
+    /// <summary>The settlement option selected by this root.</summary>
+    public string TradeMission { get; init; } = "";
     public ForecastActivityOutcome? Outcome { get; init; }
     public EquatableArray<ForecastMaterialClaim> MaterialClaims { get; init; }
     public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }

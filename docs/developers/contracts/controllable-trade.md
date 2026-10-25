@@ -184,3 +184,31 @@ are pure policy. Runtime supplies decoded catalog nutrition/mass and native
 route/capacity facts. Purchase quantities reuse `BuildResourceDemand` against the
 shared resource targets; silver and carry headroom are consumed once across the
 live offer rows before the shared supply ranker chooses purchases.
+
+## Settlement portfolio alternatives
+
+Each normal review reads every trading settlement and previews a safe exact crew
+and food/silver pack using native asymmetric outbound and home routes, independently
+of supply demand. A saved active mission suppresses new alternatives. One mission
+can be selected per outcome. Its goods become stock availability only after both
+route legs; they are never secured home inventory.
+
+The packing preview reads the selected negotiator's prices and the settlement's
+held stock without accessing `Goods` (which can generate stock). Useful held goods
+retain their live prices until native restock. A route arriving after restock uses
+the settlement kind's catalog stock generators. Unvisited and completely empty
+stock pools regenerate on access in vanilla; a depleted item in a nonempty pool
+stays absent until restock. No review generates settlement stock or waits out a
+restock. Purchases use today's silver above the reserve, claiming medicine first.
+
+Verified with the installed RimWorld 1.7 `Settlement_TraderTracker`, `Tradeable`,
+`TradeUtility` and `CaravanTicksPerMoveUtility`: stock regenerates lazily on visit
+and expires after 30 days; buy prices include difficulty, the exact negotiator and
+the settlement's native improvement (normally 0.02). Existing mixed-price stacks
+of one definition use their highest observed unit price as an affordability bound.
+
+Avoided later harm is credited only inside `InvestmentHorizonDays`, excluding
+benefit already counted by the one-day immediate harm term. Crew absence costs
+the free work those colonists could supply to this outcome's `ShortfallOf`, at
+their observed speeds, for the round trip inside that same horizon. Selection
+and purchase/departure authorization are separate: the latter remains #3919.

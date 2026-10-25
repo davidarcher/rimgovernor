@@ -791,6 +791,8 @@ namespace RimGovernor.Brain.GameOrders;
 [JsonSerializable(typeof(EquatableArray<RimGovernor.Brain.GameFacts.Observations.TradeCommsWork>), TypeInfoPropertyName = "EquatableArrayObservationsTradeCommsWork")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival), TypeInfoPropertyName = "ObservationsTradeRequestArrival")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.TradeCommsWork), TypeInfoPropertyName = "ObservationsTradeCommsWork")]
+[JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.SettlementTradePreview))]
+[JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.SettlementStockItem))]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.TradePackEstimate), TypeInfoPropertyName = "ObservationsTradePackEstimate")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed), TypeInfoPropertyName = "ObservationsTradePackEstimatePacked")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Unpackable), TypeInfoPropertyName = "ObservationsTradePackEstimateUnpackable")]

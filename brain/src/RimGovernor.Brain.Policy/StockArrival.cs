@@ -83,6 +83,9 @@ public sealed record StockArrival
     /// <summary>Available comms alternatives; their sources enter Trade only in an outcome selecting them.</summary>
     public EquatableArray<ForecastTradeRequest> Requests { get; init; }
 
+    /// <summary>Exact-pack settlement alternatives, independent of supply demand.</summary>
+    public EquatableArray<ForecastSettlementMission> Missions { get; init; }
+
     public EquatableArray<string> Findings { get; init; }
 
     /// <summary>The medicine the routine trade buys over the horizon (#3907); null buys none. Set by <see cref="WithMedicineClaim"/>.</summary>
@@ -237,6 +240,7 @@ public sealed record StockArrival
         {
             Trade = EquatableArray.From(parts),
             Requests = EquatableArray.From(Requests.Select(r => r with { Sources = EquatableArray.From(r.Sources.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) })) })),
+            Missions = EquatableArray.From(Missions.Select(r => r with { Sources = EquatableArray.From(r.Sources.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) })) })),
             MedicineTrade = visits.Count == 0 || !(units > 0)
                 ? null
                 : new MedicineTrade(kind, EquatableArray.From(visits), units, replenish, items.BestMedicine(), colonists, reserve, review.Active, EquatableArray.From(tiers.Take(tiers.IndexOf(kind)))),
