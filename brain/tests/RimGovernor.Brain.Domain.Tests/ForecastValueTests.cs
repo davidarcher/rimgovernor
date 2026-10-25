@@ -162,6 +162,26 @@ public sealed class ForecastValueTests
         Assert.Equal(0.5, value.Hunger.Loss(), 9);
     }
 
+    [Theory]
+    [InlineData(0.8)]
+    [InlineData(1.2)]
+    public void MalnutritionUsesTheObservedPawnFactorForGainAndRecovery(double factor)
+    {
+        var table = Malnutrition(Stage(0), Stage(0.2265, Half("Consciousness")));
+        var pawn = Pawn(foodLevel: 0) with { MalnutritionRateFactor = factor };
+        var starving = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
+        var value = ForecastValue.Of(Outcome(starving), Context(pawn, Tables(table)), Day, Outcome(starving));
+        Assert.Equal(0.5 * (1 - 0.5 / factor), value.Hunger.Loss(), 9);
+        Assert.DoesNotContain(value.Findings, f => f.StartsWith("malnutrition_rate_pawn_factor_unobserved:", StringComparison.Ordinal));
+
+        // Recover for a quarter day before starving again; recovery can reach zero but cannot bank negative severity.
+        var recovering = Pawn(foodLevel: 0.25, fall: 1 / Day) with { MalnutritionSeverity = 0.1, MalnutritionRateFactor = factor };
+        var fed = Timeline(recovering) with { Mood = Mood(0, [0, 0, 0]) };
+        var recovery = ForecastValue.Of(Outcome(fed), Context(recovering, Tables(table)), Day, Outcome(fed));
+        var remaining = Math.Max(0, 0.1 - 0.453 * factor * 0.25);
+        Assert.Equal(0.5 * (0.75 - (0.2265 - remaining) / (0.453 * factor)), recovery.Hunger.Loss(), 9);
+    }
+
     // A pawn whose rest is zero over the given spans, with nothing else wrong.
     private static ForecastNeedsResult Exhausted(params ForecastNeedSpan[] spans) => Calm() with
     {

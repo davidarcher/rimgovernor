@@ -631,6 +631,10 @@ pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the giver
 - `NeedsForecastPawn`: `Consciousness`, `Moving`, `Manipulation`, `Sight` and
   `Talking` (`health.capacities.GetLevel`), and `MalnutritionSeverity`, `HypothermiaSeverity`, `HeatstrokeSeverity` and
   `FoodPoisoningSeverity` (0 when absent).
+  `MalnutritionRateFactor` is the required native per-pawn seeded multiplier from
+  `Need_Food.MalnutritionSeverityPerInterval`. Both the coupled hunger ledger and
+  colony trajectory valuation apply it to severity gain while starving and recovery
+  while fed. An unavailable required read fails the observation; no mean factor is substituted.
   Each capacity ratio of the ledger is the level a stage leaves against the
   observed one.
 - The ledger reads them through `ForecastCoupledContext` (`CapacityPenalties`,

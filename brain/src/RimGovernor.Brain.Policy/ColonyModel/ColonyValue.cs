@@ -633,10 +633,10 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         }
 
         var table = tables.Malnutrition;
-        var rate = ForecastValue.MalnutritionSeverityPerDay;
         var total = 0.0;
         foreach (var row in rows.Values.OrderBy(r => r.Pawn, StringComparer.Ordinal))
         {
+            var rate = ForecastValue.MalnutritionSeverityPerDay * row.MalnutritionRateFactor;
             var (severity, levels) = (row.MalnutritionSeverity, ForecastValue.Levels(row));
 
             var course = new ForecastValue.Course(table, levels, tables.MovingMinForCapable, severity);

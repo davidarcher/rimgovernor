@@ -933,6 +933,8 @@ public sealed record NeedsForecastPawn
     public required double Talking { get; init; }
     /// <summary>The current severity of each hediff the capacity penalty tables decode; 0 when the pawn does not have it (#3519).</summary>
     public required double MalnutritionSeverity { get; init; }
+    /// <summary>Need_Food's seeded per-pawn multiplier, used for both malnutrition gain and recovery.</summary>
+    public required double MalnutritionRateFactor { get; init; }
     public required double FoodPoisoningSeverity { get; init; }
     public required double HypothermiaSeverity { get; init; }
     public required double HeatstrokeSeverity { get; init; }

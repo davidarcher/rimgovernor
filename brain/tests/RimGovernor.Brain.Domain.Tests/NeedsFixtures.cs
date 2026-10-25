@@ -79,7 +79,7 @@ internal static class NeedsFixtures
         Sleep = null, LyingIn = null, Needs = [], Targets = [], Unsupported = [], Outdoors = new NeedLevel.Lacks(), OutdoorsDisabled = false,
         OwnedBed = "", OwnedBedRoom = null, OwnedRoom = null, Ascetic = false, RivalRooms = [], ThoughtStages = [], Apparel = null,
         Consciousness = 1, Moving = 1, Manipulation = 1, Sight = 1, Talking = 1,
-        MalnutritionSeverity = 0, FoodPoisoningSeverity = 0, HypothermiaSeverity = 0, HeatstrokeSeverity = 0,
+        MalnutritionSeverity = 0, MalnutritionRateFactor = 1, FoodPoisoningSeverity = 0, HypothermiaSeverity = 0, HeatstrokeSeverity = 0,
         PainShockThreshold = .8, HealthScale = 1, IncomingDamageFactor = 1, InjuryHealingFactor = 1, ResearchSpeed = 1, PlantWorkSpeed = 1,
         Disease = Disease, PartLoss = PartLoss, CorpseThoughts = [], SightingTicks = 0, Upkeep = Upkeep, Deathrest = null,
     };

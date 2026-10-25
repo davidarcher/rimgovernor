@@ -147,9 +147,9 @@ timeline follows along the needs timeline, [need thoughts](#mirrored-game-litera
 The ledger prices a hediff's pain (`painOffset`, which lowers consciousness by up
 to 0.4 in `PawnCapacityWorker_Consciousness`) as unpriced: the pawn's current pain
 is not observed, so a priced stage with pain reports `hediff_pain_unpriced`.
-Malnutrition's per-pawn rate factor (`Lerp(0.8, 1.2, ...)` seeded by the thing id
-number) is not observed either: the mean 1 is used and `malnutrition_rate_pawn_factor_unobserved`
-is reported.
+Malnutrition's per-pawn rate factor (`Lerp(0.8, 1.2, Rand.ValueSeeded(thingIDNumber ^ 0x26EF7A))`)
+is observed natively as `NeedsForecastPawn.MalnutritionRateFactor`. Both hunger valuation paths
+apply it to severity gain and recovery; the private game's formula is mirrored on the native side.
 
 ## Mirrored game literals: threat schedule (#3539)
 

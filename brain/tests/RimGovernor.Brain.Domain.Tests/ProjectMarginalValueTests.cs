@@ -176,6 +176,21 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         Assert.Contains(starving.Findings, f => f.StartsWith("lethal_severity_reached:Malnutrition:", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(0.8)]
+    [InlineData(1.2)]
+    public void ColonyStarvationReachesLethalSeverityAtTheObservedPawnRate(double factor)
+    {
+        var pawn = ForecastValueTests.Pawn() with { MalnutritionRateFactor = factor };
+        var context = ForecastValueTests.Context(pawn, ForecastValueTests.Tables() with
+        {
+            Malnutrition = new() { Known = true, Hediff = "Malnutrition", Lethality = new Lethality.Lethal(1), Stages = [new(0, 0, [])] },
+        });
+        var trajectory = new ColonyTrajectory { Starvation = [new() { Start = 0, End = 4 }] };
+        var value = new ColonyValue(context, [], 4, [], new ItemFacts()).Price(trajectory);
+        Assert.Equal(-(4 - 1 / (0.453 * factor) + context.Value.DeathTerminalValue), value.Value, 9);
+    }
+
     [Fact]
     public void TheCreditOfAResearchBlockRanksItAboveIdleLaborAndBelowUrgentFoodWhoseFloorHoldsFirst()
     {

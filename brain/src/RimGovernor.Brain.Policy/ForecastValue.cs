@@ -210,8 +210,7 @@ public static partial class ForecastValue
     internal const double AwakeConsciousness = 0.3;
 
     // Need_Food.BaseMalnutritionSeverityPerDay (0.0011325 per 150-tick interval): malnutrition gains this while starving
-    // and loses the same amount otherwise (Need_Food.NeedInterval). The pawn's own factor, Lerp(0.8, 1.2, a seeded random),
-    // is not observed, so the mean 1 is used.
+    // and loses the same amount otherwise (Need_Food.NeedInterval), scaled by the observed per-pawn factor.
     internal const double MalnutritionSeverityPerDay = 0.453;
 
     /// <summary>One observed pawn as the ledger reads it: the row, and its five capacity levels (null when any is unobserved).</summary>
@@ -653,6 +652,7 @@ public static partial class ForecastValue
         if (seen is null)
         { findings.Add("capacities_unobserved:" + pawn); return null; }
         var course = new Course(table, seen.Levels, movingMin, seen.Pawn.MalnutritionSeverity);
+        var rate = MalnutritionSeverityPerDay * seen.Pawn.MalnutritionRateFactor;
         double cursor = 0;
         var spans = food.ZeroSpans;
         Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
@@ -660,13 +660,12 @@ public static partial class ForecastValue
         foreach (var i in order)
         {
             var span = spans[i];
-            course.Advance(span.Start - cursor, -MalnutritionSeverityPerDay);
-            course.Advance(span.End - Math.Max(span.Start, cursor), MalnutritionSeverityPerDay);
+            course.Advance(span.Start - cursor, -rate);
+            course.Advance(span.End - Math.Max(span.Start, cursor), rate);
             cursor = Math.Max(cursor, span.End);
         }
-        course.Advance(horizon - cursor, -MalnutritionSeverityPerDay);
+        course.Advance(horizon - cursor, -rate);
         course.Report(pawn, findings);
-        if (spans.Count > 0) findings.Add("malnutrition_rate_pawn_factor_unobserved:" + pawn);
         return course.LostTicks / GameTime.TicksPerDay;
     }
 
