@@ -4,6 +4,10 @@
 
 Start with the [player guide](players/README.md).
 
+For recovered player outcomes and their implementation/evidence limits, see the
+[product requirements pilot](requirements/README.md) (capability map and research
+goals; awaiting review before expansion).
+
 | Task | Guide |
 | --- | --- |
 | Install and prepare the game | [Setup](players/setup.md) |
