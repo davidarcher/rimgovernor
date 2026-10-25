@@ -282,20 +282,20 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!Holds(intent, target)) throw new InvalidOperationException("Native husbandry readback did not apply.");
             }
-            var effect = new Receipts.AnimalEffect();
-            switch (intent.Order)
+            Receipts.AnimalEffect effect = intent.Order switch
             {
-                case Operations.HusbandryOrder.Train: effect = effect with { TrainableDef = intent.TrainableDef }; effect = effect with { Wanted = animal.training!.GetWanted(target.Trainable) }; break;
-                case Operations.HusbandryOrder.Slaughter:
-                case Operations.HusbandryOrder.CancelSlaughter: effect = effect with { SlaughterDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter) }; break;
-                case Operations.HusbandryOrder.Tame: effect = effect with { TameDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame) }; break;
-                case Operations.HusbandryOrder.Release:
-                case Operations.HusbandryOrder.CancelRelease: effect = effect with { ReleaseDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild) }; break;
-                case Operations.HusbandryOrder.AllowedArea: effect = effect with { AllowedAreaId = NativeHusbandryOperations.AreaId(animal) }; break;
-                case Operations.HusbandryOrder.Master: effect = effect with { MasterId = NativeHusbandryOperations.MasterId(animal) }; break;
-                case Operations.HusbandryOrder.FollowDrafted: effect = effect with { FollowDrafted = animal.playerSettings!.followDrafted }; break;
-                case Operations.HusbandryOrder.FollowFieldwork: effect = effect with { FollowFieldwork = animal.playerSettings!.followFieldwork }; break;
-            }
+                Operations.HusbandryOrder.Train => new Receipts.AnimalEffect.TrainingCase(intent.TrainableDef ?? throw new InvalidOperationException("Training has no def."), animal.training!.GetWanted(target.Trainable)),
+                Operations.HusbandryOrder.Slaughter or Operations.HusbandryOrder.CancelSlaughter => new Receipts.AnimalEffect.SlaughterCase(NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter)),
+                Operations.HusbandryOrder.Tame => new Receipts.AnimalEffect.TameCase(NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame)),
+                Operations.HusbandryOrder.Release or Operations.HusbandryOrder.CancelRelease => new Receipts.AnimalEffect.ReleaseCase(NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild)),
+                Operations.HusbandryOrder.Sterilize when NativeHusbandryOperations.Sterilized(animal) => new Receipts.AnimalEffect.SterilizedCase(),
+                Operations.HusbandryOrder.Sterilize when NativeHusbandryOperations.SterilizeBill(animal) != null => new Receipts.AnimalEffect.SterilizationQueuedCase(),
+                Operations.HusbandryOrder.AllowedArea => new Receipts.AnimalEffect.AreaCase(NativeHusbandryOperations.AreaId(animal)),
+                Operations.HusbandryOrder.Master => new Receipts.AnimalEffect.MasterCase(NativeHusbandryOperations.MasterId(animal)),
+                Operations.HusbandryOrder.FollowDrafted => new Receipts.AnimalEffect.FollowDraftedCase(animal.playerSettings!.followDrafted),
+                Operations.HusbandryOrder.FollowFieldwork => new Receipts.AnimalEffect.FollowFieldworkCase(animal.playerSettings!.followFieldwork),
+                _ => throw new InvalidOperationException("Unsupported husbandry order.")
+            };
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

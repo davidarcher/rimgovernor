@@ -60,7 +60,7 @@ namespace HomeBridge.BridgeTools
         /// active through it).
         internal static bool CombatEpochRunning
         {
-            get { var s = _state; return s != null && s.Active && s.Typed != null && s.Typed.Policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat; }
+            get { var s = _state; return s != null && s.Active && s.Typed != null && s.Typed.RunPolicy.Mode == Clock.WatchMode.Combat; }
         }
 
         internal static void EnsureCombatHooks()
@@ -100,17 +100,17 @@ namespace HomeBridge.BridgeTools
         private static void ResetCombatStops(State s)
         {
             _combatPending = null;
-            if ((s.Typed?.Policy.Mode).GetValueOrDefault() == Clock.WatchMode.Combat && ReferenceEquals(_combatSession, s.Session)) return;
+            if (s.Typed?.Policy?.Mode == Clock.WatchMode.Combat && ReferenceEquals(_combatSession, s.Session)) return;
             _inRange.Clear(); _inOurRange.Clear(); _meleePairs.Clear(); _combatScanBaselined = false;
-            _combatSession = (s.Typed?.Policy.Mode).GetValueOrDefault() == Clock.WatchMode.Combat ? s.Session : null;
+            _combatSession = s.Typed?.Policy?.Mode == Clock.WatchMode.Combat ? s.Session : null;
         }
 
         /// Whether the running epoch is a combat epoch armed for this event.
         private static bool CombatArmed(Clock.CombatEvent e)
         {
             var s = _state;
-            return s != null && s.Active && s.Typed != null && s.Typed.Policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat
-                && s.Typed.Policy.CombatStopEvents.Contains(e);
+            return s != null && s.Active && s.Typed != null && s.Typed.RunPolicy.Mode == Clock.WatchMode.Combat
+                && s.Typed.RunPolicy.CombatStopEvents.Contains(e);
         }
 
         /// A hook saw an armed event: record it for the tick boundary. The
@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
         /// armed, then stops on a recorded event. -> true when play stopped.
         private static bool StopOnCombatEvent(State s)
         {
-            if (s.Typed == null || s.Typed.Policy.Mode.GetValueOrDefault() != Clock.WatchMode.Combat || s.Typed.Policy.CombatStopEvents.Count == 0) return false;
+            if (s.Typed == null || s.Typed.RunPolicy.Mode != Clock.WatchMode.Combat || s.Typed.RunPolicy.CombatStopEvents.Count == 0) return false;
             if (_combatPending == null) ScanCombatContact(s);
             var hit = _combatPending;
             if (hit == null) return false;
@@ -143,8 +143,8 @@ namespace HomeBridge.BridgeTools
 
         private static void ScanCombatContact(State s)
         {
-            var range = s.Typed!.Policy.CombatStopEvents.Contains(Clock.CombatEvent.EnteredRange);
-            var melee = s.Typed.Policy.CombatStopEvents.Contains(Clock.CombatEvent.MeleeContact);
+            var range = s.Typed!.RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.EnteredRange);
+            var melee = s.Typed.RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.MeleeContact);
             if (!range && !melee) return;
             var map = s.Map;
             var pawns = map.mapPawns.AllPawnsSpawned;
@@ -230,7 +230,7 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active)
                 {
                     var serious = pawn.IsColonist ? SeriousWhy(pawn, dinfo, totalDamageDealt, __state) : null;
-                    CombatMirror.Record(Mirror.CombatLogKind.Damaged, serious != null ? Clock.CombatEvent.SeriousInjury : Clock.CombatEvent.Unspecified, pawn, dinfo.Instigator);
+                    CombatMirror.Record(Mirror.CombatLogKind.Damaged, serious != null ? Clock.CombatEvent.SeriousInjury : null, pawn, dinfo.Instigator);
                 }
                 if (!pawn.IsColonist || !OnEpochMap(pawn) || !CombatArmed(Clock.CombatEvent.SeriousInjury)) return;
                 var why = SeriousWhy(pawn, dinfo, totalDamageDealt, __state);
@@ -247,15 +247,15 @@ namespace HomeBridge.BridgeTools
                 var health = pawn.health.summaryHealth.SummaryHealthPercent;
                 var bleed = pawn.health.hediffSet.BleedRateTotal;
                 string? why = null;
-                if (totalDamageDealt >= policy.SeriousSingleHitDamage.GetValueOrDefault()) why = "single hit of " + totalDamageDealt.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
-                else if (__state.x > policy.SeriousSummaryHealthFloor.GetValueOrDefault() && health <= policy.SeriousSummaryHealthFloor.GetValueOrDefault()) why = "summary health under " + policy.SeriousSummaryHealthFloor.GetValueOrDefault();
-                else if (__state.y < policy.SeriousBleedRateFloor.GetValueOrDefault() && bleed >= policy.SeriousBleedRateFloor.GetValueOrDefault()) why = "bleed rate over " + policy.SeriousBleedRateFloor.GetValueOrDefault();
+                if (totalDamageDealt >= policy.SeriousSingleHitDamage) why = "single hit of " + totalDamageDealt.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                else if (__state.x > policy.SeriousSummaryHealthFloor && health <= policy.SeriousSummaryHealthFloor) why = "summary health under " + policy.SeriousSummaryHealthFloor;
+                else if (__state.y < policy.SeriousBleedRateFloor && bleed >= policy.SeriousBleedRateFloor) why = "bleed rate over " + policy.SeriousBleedRateFloor;
                 else
                 {
                     var part = dinfo.HitPart;
                     if (part != null && part.def.tags.Any(t => t.vital) && !pawn.health.hediffSet.PartIsMissing(part)
-                        && pawn.health.hediffSet.GetPartHealth(part) / part.def.GetMaxHealth(pawn) < policy.SeriousVitalPartFloor.GetValueOrDefault())
-                        why = "vital part " + part.def.defName + " under " + policy.SeriousVitalPartFloor.GetValueOrDefault();
+                        && pawn.health.hediffSet.GetPartHealth(part) / part.def.GetMaxHealth(pawn) < policy.SeriousVitalPartFloor)
+                        why = "vital part " + part.def.defName + " under " + policy.SeriousVitalPartFloor;
                 }
                 return why;
             }
@@ -266,7 +266,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var wearer = (__instance.parent as Apparel)?.Wearer ?? __instance.parent as Pawn;
-                if (wearer != null) CombatMirror.Record(Mirror.CombatLogKind.ShieldBroken, wearer.HostileTo(Faction.OfPlayer) ? Clock.CombatEvent.Unspecified : Clock.CombatEvent.ShieldBroken,
+                if (wearer != null) CombatMirror.Record(Mirror.CombatLogKind.ShieldBroken, wearer.HostileTo(Faction.OfPlayer) ? null : Clock.CombatEvent.ShieldBroken,
                     wearer, null);
                 if (wearer == null || !OnEpochMap(wearer) || wearer.HostileTo(Faction.OfPlayer)) return;
                 NoteCombatEvent(Clock.CombatEvent.ShieldBroken, wearer, "shield broke");
@@ -286,13 +286,13 @@ namespace HomeBridge.BridgeTools
                     var margin = EpochPolicy?.ExplosiveNearMarginCells;
                     var explosiveNear = margin.HasValue && radius > 0f && launcher.HostileTo(Faction.OfPlayer) && launcher.Map != null
                         && launcher.Map.mapPawns.FreeColonistsSpawned.Any(c => (c.Position - target).LengthHorizontalSquared <= (radius + margin.Value) * (radius + margin.Value));
-                    CombatMirror.Record(Mirror.CombatLogKind.ProjectileLaunched, explosiveNear ? Clock.CombatEvent.ExplosiveLaunched : Clock.CombatEvent.Unspecified,
+                    CombatMirror.Record(Mirror.CombatLogKind.ProjectileLaunched, explosiveNear ? Clock.CombatEvent.ExplosiveLaunched : null,
                         launcher, __instance.intendedTarget.Thing);
                 }
                 if (radius <= 0f || launcher == null || !OnEpochMap(launcher) || !launcher.HostileTo(Faction.OfPlayer)) return;
                 if (!CombatArmed(Clock.CombatEvent.ExplosiveLaunched)) return;
                 var at = ___destination.ToIntVec3();
-                var near = radius + _state!.Policy!.ExplosiveNearMarginCells.GetValueOrDefault();
+                var near = radius + _state!.Policy!.ExplosiveNearMarginCells;
                 var colonist = _state!.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(c => (c.Position - at).LengthHorizontalSquared <= near * near);
                 if (colonist != null) NoteCombatEvent(Clock.CombatEvent.ExplosiveLaunched, launcher, __instance.def!.defName + " launched at " + SafeLoadId(colonist));
             }
@@ -309,7 +309,7 @@ namespace HomeBridge.BridgeTools
                 if (__state != null && !ReferenceEquals(__state, newLordToil) && __instance != null && CombatMirror.Active)
                 {
                     var hostile = __instance.faction != null && __instance.faction.HostileTo(Faction.OfPlayer);
-                    CombatMirror.Record(Mirror.CombatLogKind.LordToil, hostile ? Clock.CombatEvent.RaidPhase : Clock.CombatEvent.Unspecified, __instance.ownedPawns.FirstOrDefault(), null, CombatMirror.Strategy(__instance));
+                    CombatMirror.Record(Mirror.CombatLogKind.LordToil, hostile ? Clock.CombatEvent.RaidPhase : null, __instance.ownedPawns.FirstOrDefault(), null, CombatMirror.Strategy(__instance));
                 }
                 if (__state == null || ReferenceEquals(__state, newLordToil) || s == null || !ReferenceEquals(__instance!.Map, s.Map)) return;
                 if (__instance.faction == null || !__instance.faction.HostileTo(Faction.OfPlayer)) return;
@@ -329,7 +329,7 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active && __instance is Building && __instance.Spawned)
                 {
                     var breach = __instance.Faction == Faction.OfPlayer && (wall || def.IsDoor || __instance is Building_Turret);
-                    CombatMirror.Record(Mirror.CombatLogKind.BuildingDestroyed, breach ? Clock.CombatEvent.Breach : Clock.CombatEvent.Unspecified, __instance, null);
+                    CombatMirror.Record(Mirror.CombatLogKind.BuildingDestroyed, breach ? Clock.CombatEvent.Breach : null, __instance, null);
                 }
                 if (__instance.Faction != Faction.OfPlayer || !OnEpochMap(__instance)) return;
                 if (!wall && !def.IsDoor && !(__instance is Building_Turret)) return;
@@ -343,7 +343,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (__result && ___pawn != null && ___pawn.Spawned)
-                    CombatMirror.Record(Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? Clock.CombatEvent.MentalBreak : Clock.CombatEvent.Unspecified, ___pawn, null);
+                    CombatMirror.Record(Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? Clock.CombatEvent.MentalBreak : null, ___pawn, null);
                 if (!__result || !OnEpochMap(___pawn) || ___pawn!.RaceProps == null || !___pawn.RaceProps.Humanlike) return;
                 NoteCombatEvent(Clock.CombatEvent.MentalBreak, ___pawn, stateDef?.defName ?? "mental state");
             }

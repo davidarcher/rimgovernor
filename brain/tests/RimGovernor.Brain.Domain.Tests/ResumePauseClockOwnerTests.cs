@@ -65,7 +65,7 @@ public sealed class ResumePauseClockOwnerTests
             {
                 Holds++;
                 Held = true;
-                Reason = request.Reason!.Value;
+                Reason = request.Reason;
             }
             return Task.FromResult(Status());
         }
@@ -77,7 +77,9 @@ public sealed class ResumePauseClockOwnerTests
         {
             Context = Context,
             State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
-            Reason = Held ? Reason : null,
+            Hold = Held ? new PbClock.HoldState.HeldCase(Reason, 1, new PbClock.HoldTrigger.OrdinaryCase()) : new PbClock.HoldState.RunningCase(),
+            LastRun = new PbClock.RunHistory.NeverRunCase(), Pacing = new PbClock.Pacing.StoppedCase(),
+            PlayerRequest = new PbClock.PlayerSpeedRequest.NoneCase(), EffectiveTicksPerSecond = 0,
             NativeTickBoundary = true,
             HoldSerial = 0,
             ActualPaused = Held,
@@ -176,15 +178,23 @@ public sealed class ResumePauseClockOwnerTests
         public async Task RunClockAsync()
         {
             Assert.True(_player.State().Enabled);
-            var policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
+            var policy = new PbClock.WatchPolicy
             {
+                SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+                SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+                SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+                SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+                ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+                MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+                InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+                HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
                 Mode = PbClock.WatchMode.Colony,
                 HealthDropFraction = .1f,
                 MinHealthFraction = .5f,
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
-            });
-            _ = await Clock.RunAsync(new PbClock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = PbClock.Speed.Ultrafast, Policy = policy, PlannedHoldSerial = 0 }, _lifetime.Token);
+            };
+            _ = await Clock.RunAsync(new PbClock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = PbClock.Speed.Ultrafast, Policy = policy, PlannedHoldSerial = 0, HoldAtTick = 2500 }, _lifetime.Token);
         }
 
         public void Dispose()

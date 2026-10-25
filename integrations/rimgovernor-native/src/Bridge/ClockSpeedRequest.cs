@@ -48,8 +48,8 @@ namespace HomeBridge.BridgeTools
         /// <paramref name="status"/> with the request <paramref name="game"/>
         /// has pending; unchanged when it has none.
         internal Clock.Status Report(Clock.Status status, object? game) =>
-            game != null && ReferenceEquals(_game, game)
-                ? status with { PlayerRequestedSpeed = _speed, PlayerSpeedRequestSerial = _serial }
+            game != null && ReferenceEquals(_game, game) && _serial > 0
+                ? status with { PlayerRequest = new Clock.PlayerSpeedRequest.RequestedCase(_speed, _serial) }
                 : status;
     }
 }

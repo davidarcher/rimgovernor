@@ -45,7 +45,7 @@ public static class CombatCalls
         for (var i = 0; i < effect.Results.Count; i++)
         {
             var v = effect.Results[i];
-            output.Add(new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied.GetValueOrDefault(), Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" });
+            output.Add(new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied, Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" });
         }
         return output;
     }

@@ -34,7 +34,7 @@ public static partial class CombatSapperRules
             return m;
         }
         long rush = m.EffectiveTuning().RushRange;
-        if (near <= rush * rush || stop.Kind == CombatEvent.Breach)
+        if (near <= rush * rush || stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.Breach })
         {
             m = m with { Rushing = true };
         }

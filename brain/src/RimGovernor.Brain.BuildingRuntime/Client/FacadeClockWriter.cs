@@ -18,31 +18,23 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
     public async Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0)
+        if (request.ExpectedGeneration == 0)
         {
             throw BridgeContractException.Contract("clock run authority generation");
         }
-        if (request.Speed is not { } speed || speed == PbClock.Speed.Unspecified || !Enum.IsDefined(speed))
+        if (!Enum.IsDefined(request.Speed))
         {
             throw BridgeContractException.Contract("clock run speed");
         }
-        if (request.PlannedHoldSerial is null)
-        {
-            throw BridgeContractException.Contract("clock run planned hold serial");
-        }
         ClockValidation.ValidateClockPolicy(request.Policy);
-        return FacadeWriteChecks.ClockStatus(await _facade.RunClockAsync(request, ct).ConfigureAwait(false));
+        return await _facade.RunClockAsync(request, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<PbClock.Status> HoldAsync(PbClock.HoldRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Reason is null)
-        {
-            throw BridgeContractException.Contract("clock hold reason");
-        }
-        return FacadeWriteChecks.ClockStatus(await _facade.HoldClockAsync(request, ct).ConfigureAwait(false));
+        return await _facade.HoldClockAsync(request, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

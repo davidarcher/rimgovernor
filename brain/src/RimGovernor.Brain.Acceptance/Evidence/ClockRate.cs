@@ -123,9 +123,9 @@ public sealed class ClockRate
     {
         ArgumentNullException.ThrowIfNull(status);
         var paused = status.ActualPaused == true ? "paused" : "unpaused";
-        var common = string.Create(CultureInfo.InvariantCulture, $"target {status.TargetSpeed?.ToString() ?? "none"}, {status.EffectiveTicksPerSecond ?? 0:0.#} ticks/s effective, game {paused}");
+        var common = string.Create(CultureInfo.InvariantCulture, $"target {(status.LastRun as Clock.RunHistory.RanCase)?.Speed.ToString() ?? "none"}, {status.EffectiveTicksPerSecond:0.#} ticks/s effective, game {paused}");
         return status.State == Clock.ClockState.Held
-            ? $"clock held ({status.Reason}): {status.Detail}; {common}"
-            : string.Create(CultureInfo.InvariantCulture, $"clock {status.State} paced at {status.PacedTicksPerSecond ?? 0} ticks/s ({status.PacingReason}); {common}");
+            ? $"clock held ({status.Hold}); {common}"
+            : string.Create(CultureInfo.InvariantCulture, $"clock {status.State} paced at {(status.Pacing as Clock.Pacing.RunningCase)?.TicksPerSecond} ticks/s ({status.Pacing}); {common}");
     }
 }

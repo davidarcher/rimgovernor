@@ -27,12 +27,13 @@ namespace HomeBridge.BridgeTools
         {
             internal Common.ObservationContext LastObservation;
             internal ulong ExpectedGeneration;
-            internal Clock.WatchPolicy Policy;
-            internal TypedEpoch(Common.ObservationContext origin, ulong expectedGeneration, Clock.WatchPolicy policy)
+            internal Clock.WatchPolicy? Policy;
+            internal Clock.WatchPolicy RunPolicy => Policy ?? throw new InvalidOperationException("A held clock has no run policy.");
+            internal TypedEpoch(Common.ObservationContext origin, ulong expectedGeneration, Clock.WatchPolicy? policy)
             { LastObservation = origin; ExpectedGeneration = expectedGeneration; Policy = policy; }
             internal bool StopPauseVerified;
             // The armed combat event that held this segment, else unset.
-            internal Clock.CombatEvent CombatEvent { get; set; }
+            internal Clock.CombatEvent? CombatEvent;
         }
         // The native dev tick boost behind a Run(Hyperfast) is driven up to its
         // 30x cap (HyperfastCap.cs) and the one ceiling, with no launch gate; a
@@ -69,11 +70,11 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? ValidateTypedRun(Clock.RunRequest request)
         {
-            if (request.Speed is null || !ClockRunSpeed.Ordinary(request.Speed.GetValueOrDefault()) || request.Policy is null
-                || request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || !ValidPolicy(request.Policy)
-                || request.PlannedHoldSerial is null || request.HoldAtTick is null)
+            if (!ClockRunSpeed.Ordinary(request.Speed) || request.Policy is null
+                || request.ExpectedGeneration == 0 || !ValidPolicy(request.Policy)
+                || !Enum.IsDefined(request.Speed))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy, the hold serial its step read and the tick to hold at for review.");
-            if (BoostUnavailable(request.Speed.GetValueOrDefault()) is { } boostless) return boostless;
+            if (BoostUnavailable(request.Speed) is { } boostless) return boostless;
             lock (Gate)
             {
                 if (!GameWatchReads.CoreWatchersAvailable)
@@ -100,9 +101,9 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                var typed = new TypedEpoch(context, request.ExpectedGeneration.GetValueOrDefault(), request.Policy ?? throw new InvalidOperationException("Missing policy"));
-                var holdAt = (int)Math.Min(request.HoldAtTick.GetValueOrDefault(), int.MaxValue);
-                var failure = RunClock(typed, request.Speed.GetValueOrDefault(), request.PlannedHoldSerial.GetValueOrDefault(), holdAt);
+                var typed = new TypedEpoch(context, request.ExpectedGeneration, request.Policy ?? throw new InvalidOperationException("Missing policy"));
+                var holdAt = (int)Math.Min(request.HoldAtTick, int.MaxValue);
+                var failure = RunClock(typed, request.Speed, request.PlannedHoldSerial, holdAt);
                 if (failure != null) throw NativeFaults.Refused(failure);
                 return TypedStatus(context);
             }
@@ -149,17 +150,17 @@ namespace HomeBridge.BridgeTools
         private static void ApplyPolicy(State s, Clock.WatchPolicy p)
         {
             var map = s.Map;
-            s.Mode = p.Mode.GetValueOrDefault() == Clock.WatchMode.Colony ? "colony" : "combat";
-            s.HostileWithin = ClampFloat(p.HostileWithin.GetValueOrDefault(), 1f, 250f);
-            s.HealthDropFraction = ClampFloat(p.HealthDropFraction.GetValueOrDefault(), 0.01f, 1f);
-            s.MinHealthFraction = ClampFloat(p.MinHealthFraction.GetValueOrDefault(), 0.01f, 1f);
+            s.Mode = p.Mode == Clock.WatchMode.Colony ? "colony" : "combat";
+            s.HostileWithin = ClampFloat(p.HostileWithin, 1f, 250f);
+            s.HealthDropFraction = ClampFloat(p.HealthDropFraction, 0.01f, 1f);
+            s.MinHealthFraction = ClampFloat(p.MinHealthFraction, 0.01f, 1f);
             s.IgnoredHostiles = PawnIds(ResolveHostiles(map, p.AcknowledgedHostileIds));
             s.IgnoredDowned = PawnIds(ResolveIds(map, p.AcknowledgedDownedColonistIds));
             s.IgnoredInjured = PawnIds(ResolveIds(map, p.AcknowledgedInjuredColonistIds));
             s.SurgicalRecovery = PawnIds(ResolveIds(map, p.SurgicalRecoveryIds));
             s.MedicalRest = PawnIds(ResolveIds(map, p.MedicalRestIds));
-            s.InjuryStopCooldownMs = Clamp((int)p.InjuryStopCooldownMs.GetValueOrDefault(), 0, 1800000);
-            s.HungerHold = (HungerCategory)(int)p.HungerHoldCategory.GetValueOrDefault();
+            s.InjuryStopCooldownMs = Clamp((int)p.InjuryStopCooldownMs, 0, 1800000);
+            s.HungerHold = (HungerCategory)(int)p.HungerHoldCategory;
             s.IgnoredHungry = PawnIds(ResolveIds(map, p.AcknowledgedHungryColonistIds));
         }
 
@@ -173,9 +174,9 @@ namespace HomeBridge.BridgeTools
             s.Ceiling.Beat(NowMs());
             if (!Equals(running.Policy, typed.Policy))
             {
-                var modeChanged = running.Policy.Mode != typed.Policy.Mode;
+                var modeChanged = running.RunPolicy.Mode != typed.RunPolicy.Mode;
                 running.Policy = typed.Policy;
-                ApplyPolicy(s, typed.Policy);
+                ApplyPolicy(s, typed.RunPolicy);
                 if (modeChanged) ResetCombatStops(s);
             }
             var native = ClockRunSpeed.Native(speed);
@@ -222,7 +223,7 @@ namespace HomeBridge.BridgeTools
                 LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame,
                 FramesAtResume = frames, OverBudgetAtResume = overBudget
             };
-            ApplyPolicy(s, typed.Policy);
+            ApplyPolicy(s, typed.RunPolicy);
             s.Ceiling.Beat(NowMs());
             // Pawn IDs belong to a save; another colony must not inherit
             // this one's injury-stop memory.
@@ -279,7 +280,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? ValidateTypedHold(Clock.HoldRequest request)
         {
-            var reason = request.Reason.GetValueOrDefault();
+            var reason = request.Reason;
             if (reason != Clock.HoldReason.CoupledOrder && reason != Clock.HoldReason.Review
                 && reason != Clock.HoldReason.Autosave && reason != Clock.HoldReason.GameForced)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A brain hold names coupled order, review, autosave or game forced.");
@@ -295,7 +296,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                var reason = request.Reason.GetValueOrDefault();
+                var reason = request.Reason;
                 var detail = string.IsNullOrWhiteSpace(request.Detail) ? "Held by the brain: " + reason + "." : request.Detail;
                 var s = _state;
                 var sameSession = s != null && ReferenceEquals(s.Session, Current.Game) && ReferenceEquals(s.Map, Find.CurrentMap);
@@ -310,7 +311,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var shell = new State(Current.Game, Find.CurrentMap) {
                             Active = true, Speed = Clock.Speed.Normal,
-                            Typed = new TypedEpoch(context, 0, new Clock.WatchPolicy()),
+                            Typed = new TypedEpoch(context, 0, null),
                             StartTick = Find.TickManager.TicksGame, LastTick = Find.TickManager.TicksGame,
                             LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
                             Mode = "colony"
@@ -350,26 +351,39 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 EnsurePatched();
-                var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
-                    NativeTickBoundary = TypedHooksReady(), HoldSerial = HoldSerial.Current };
                 var s = _state;
-                if (s == null || !ReferenceEquals(s.Session, Current.Game))
-                    result = result with { State = Clock.ClockState.Held, Reason = Clock.HoldReason.NeverRun };
-                else
+                Clock.HoldState hold = new Clock.HoldState.NeverRunCase();
+                Clock.RunHistory lastRun = new Clock.RunHistory.NeverRunCase();
+                Clock.Pacing pacing = new Clock.Pacing.StoppedCase();
+                var state = Clock.ClockState.Held;
+                if (s != null && ReferenceEquals(s.Session, Current.Game))
                 {
-                    result = result with { TargetSpeed = s.Speed };
+                    if (TypedOf(s).Policy != null) lastRun = new Clock.RunHistory.RanCase(s.Speed);
                     if (s.Active && s.Pending == null)
-                        result = result with { State = Clock.ClockState.Running, PacedTicksPerSecond = (uint)PacedTicksPerSecond(s),
-                            PacingReason = PacingReasonOf(s), CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) };
+                    {
+                        state = Clock.ClockState.Running;
+                        hold = new Clock.HoldState.RunningCase();
+                        pacing = new Clock.Pacing.RunningCase((uint)PacedTicksPerSecond(s), PacingReasonOf(s), (uint)CeilingTicksPerSecond(s));
+                    }
+                    else if (s.Pending is { } pending)
+                        hold = new Clock.HoldState.PendingCase(pending.Reason);
                     else
                     {
-                        result = result with { State = Clock.ClockState.Held, Reason = s.Pending?.Reason ?? s.StopReason,
-                            Detail = ProtoBoundary.WireText(s.Pending?.Detail ?? s.StopDetail ?? "") };
-                        if (s.StopAtMs.HasValue && s.Pending == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
-                        if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
+                        var reason = s.StopReason ?? throw new InvalidOperationException("A held clock has no hold reason.");
+                        var at = s.StopAtMs ?? throw new InvalidOperationException("A held clock has no hold timestamp.");
+                        Clock.HoldTrigger trigger = reason == Clock.HoldReason.CombatEvent
+                            ? new Clock.HoldTrigger.CombatCase(TypedOf(s).CombatEvent ?? throw new InvalidOperationException("A combat hold has no event."))
+                            : new Clock.HoldTrigger.OrdinaryCase();
+                        hold = new Clock.HoldState.HeldCase(reason, at, trigger);
                     }
                 }
-                return SpeedRequest.Report(result, Current.Game) with { EffectiveTicksPerSecond = EffectiveTicksPerSecond() };
+                return SpeedRequest.Report(new Clock.Status
+                {
+                    Context = context, State = state, Hold = hold, LastRun = lastRun, Pacing = pacing,
+                    HoldSerial = HoldSerial.Current, PlayerRequest = new Clock.PlayerSpeedRequest.NoneCase(),
+                    ActualPaused = Find.TickManager.Paused, NativeTickBoundary = TypedHooksReady(),
+                    EffectiveTicksPerSecond = EffectiveTicksPerSecond()
+                }, Current.Game);
             }
         }
 
@@ -390,7 +404,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The last Run's speed in this game (Status.TargetSpeed), else null.
+        // The last Run's speed in this game (Status.LastRun), else null.
         private static Clock.Speed? RunSpeedOf(object? game)
         {
             var s = _state;
@@ -541,20 +555,20 @@ namespace HomeBridge.BridgeTools
         private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static bool ValidPolicy(Clock.WatchPolicy policy)
         {
-            return policy != null && policy.Mode is not null && (policy.Mode.GetValueOrDefault() == Clock.WatchMode.Colony || policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat)
-                && policy.HealthDropFraction is not null && Fraction(policy.HealthDropFraction.GetValueOrDefault()) && policy.MinHealthFraction is not null && Fraction(policy.MinHealthFraction.GetValueOrDefault())
-                && policy.HostileWithin is not null && !float.IsNaN(policy.HostileWithin.GetValueOrDefault()) && policy.HostileWithin.GetValueOrDefault() >= 1 && policy.HostileWithin.GetValueOrDefault() <= 250
-                && policy.InjuryStopCooldownMs is not null && policy.InjuryStopCooldownMs.GetValueOrDefault() <= 1800000
-                && policy.SeriousSingleHitDamage is not null && Positive(policy.SeriousSingleHitDamage.GetValueOrDefault())
-                && policy.SeriousSummaryHealthFloor is not null && Positive(policy.SeriousSummaryHealthFloor.GetValueOrDefault())
-                && policy.SeriousBleedRateFloor is not null && Positive(policy.SeriousBleedRateFloor.GetValueOrDefault())
-                && policy.SeriousVitalPartFloor is not null && Positive(policy.SeriousVitalPartFloor.GetValueOrDefault())
-                && policy.ExplosiveNearMarginCells is not null && Positive(policy.ExplosiveNearMarginCells.GetValueOrDefault())
-                && policy.MeleeReachCells is not null && Positive(policy.MeleeReachCells.GetValueOrDefault())
-                && policy.InjurySeverityFloorTicks is not null && policy.InjurySeverityFloorTicks.GetValueOrDefault() > 0 && policy.InjurySeverityFloorTicks.GetValueOrDefault() <= int.MaxValue
+            return policy != null && (policy.Mode == Clock.WatchMode.Colony || policy.Mode == Clock.WatchMode.Combat)
+                && Fraction(policy.HealthDropFraction) && Fraction(policy.MinHealthFraction)
+                && !float.IsNaN(policy.HostileWithin) && policy.HostileWithin >= 1 && policy.HostileWithin <= 250
+                && policy.InjuryStopCooldownMs <= 1800000
+                && Positive(policy.SeriousSingleHitDamage)
+                && Positive(policy.SeriousSummaryHealthFloor)
+                && Positive(policy.SeriousBleedRateFloor)
+                && Positive(policy.SeriousVitalPartFloor)
+                && Positive(policy.ExplosiveNearMarginCells)
+                && Positive(policy.MeleeReachCells)
+                && policy.InjurySeverityFloorTicks > 0 && policy.InjurySeverityFloorTicks <= int.MaxValue
                 && policy.HungerHoldCategory is { } hunger && hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed && Enum.IsDefined(typeof(RimGovernor.Contracts.Wire.Defs.HungerCategory), hunger)
-                && (policy.CombatStopEvents.Count == 0 || policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat)
-                && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))
+                && (policy.CombatStopEvents.Count == 0 || policy.Mode == Clock.WatchMode.Combat)
+                && policy.CombatStopEvents.All(e => Enum.IsDefined(typeof(Clock.CombatEvent), e))
                 && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count
                 && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
         }

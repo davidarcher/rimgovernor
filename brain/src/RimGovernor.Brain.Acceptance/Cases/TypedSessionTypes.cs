@@ -5,10 +5,18 @@ using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One round of <see cref="TypedSession.RunClockUntilHeldAsync(string, int, Clock.RunRequest, ClockRound, CancellationToken)"/>
+/// One round of <see cref="TypedSession.RunClockUntilHeldAsync(string, int, ClockRunPlan, ClockRound, CancellationToken)"/>
 /// while the clock runs, given that round's status; true ends the wait without a hold.
 /// </summary>
 public delegate Task<bool> ClockRound(Clock.Status running, CancellationToken cancellationToken);
+
+/// <summary>A harness run's policy before the current clock supplies its hold serial and review tick.</summary>
+public sealed record ClockRunPlan
+{
+    public required ulong ExpectedGeneration { get; init; }
+    public required Clock.Speed Speed { get; init; }
+    public required Clock.WatchPolicy Policy { get; init; }
+}
 
 /// <summary>A new-colony start's terminal outcome (<see cref="TypedSession.NewColonyAsync"/>).</summary>
 public sealed record NewColonyResult

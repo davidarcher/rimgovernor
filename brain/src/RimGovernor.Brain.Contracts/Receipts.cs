@@ -6,8 +6,6 @@ namespace RimGovernor.Contracts.Wire.Receipts;
 [JsonConverter(typeof(WireEnumConverter<SettingsField>))]
 public enum SettingsField
 {
-    [WireName("SETTINGS_FIELD_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("SETTINGS_FIELD_FORBIDDEN")]
     Forbidden = 1,
     [WireName("SETTINGS_FIELD_POWER")]
@@ -77,16 +75,12 @@ public enum SettingsField
 [JsonConverter(typeof(WireEnumConverter<FieldOutcome>))]
 public enum FieldOutcome
 {
-    [WireName("FIELD_OUTCOME_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("FIELD_OUTCOME_UNCHANGED")]
     Unchanged = 1,
     [WireName("FIELD_OUTCOME_APPLIED")]
     Applied = 2,
     [WireName("FIELD_OUTCOME_REFUSED")]
     Refused = 3,
-    [WireName("FIELD_OUTCOME_UNKNOWN")]
-    Unknown = 4,
 }
 
 /// <summary>
@@ -96,8 +90,6 @@ public enum FieldOutcome
 [JsonConverter(typeof(WireEnumConverter<SurgeryState>))]
 public enum SurgeryState
 {
-    [WireName("SURGERY_STATE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("SURGERY_STATE_QUEUED")]
     Queued = 1,
 }
@@ -273,7 +265,7 @@ public abstract record EffectEvidenceEffect
     [JsonIgnore]
     public ZoneEffect? Zone => (this as ZoneCase)?.Value;
 
-    public sealed record ZoneCase(ZoneEffect Value) : EffectEvidenceEffect;
+    public sealed record ZoneCase([property: JsonRequired] ZoneEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ZoneEffect value) => new ZoneCase(value);
 
@@ -446,7 +438,7 @@ public sealed record HackDesignationEffect
 {
     public string? TargetId { get; init; }
 
-    public bool? Enabled { get; init; }
+    public required bool Enabled { get; init; }
 }
 
 /// <summary>
@@ -456,7 +448,7 @@ public sealed record GiveItemEffect
 {
     public string? RecipientId { get; init; }
 
-    public long? ExpectedRemaining { get; init; }
+    public required long ExpectedRemaining { get; init; }
 
 }
 
@@ -482,15 +474,15 @@ public sealed record DesignationEffect
 
     public string? DesignationDef { get; init; }
 
-    public bool? Present { get; init; }
+    public required bool Present { get; init; }
 
 }
 
 public sealed record FieldResult
 {
-    public SettingsField? Field { get; init; }
+    public required SettingsField Field { get; init; }
 
-    public FieldOutcome Outcome { get; init; }
+    public required FieldOutcome Outcome { get; init; }
 
 }
 
@@ -523,18 +515,15 @@ public sealed record CreatedZone
     public EquatableArray<Common.Cell> Cells { get; init; }
 }
 
-public sealed record ZoneEffect
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ZoneEffect.CreatedCase), "created")]
+[JsonDerivedType(typeof(ZoneEffect.ZoneCase), "zone")]
+public abstract record ZoneEffect
 {
-    public string? ZoneId { get; init; }
-
-    public bool? Present { get; init; }
-
-    public int? ListedCellCount { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CreatedZone>))]
-    public EquatableArray<CreatedZone> Created { get; init; }
+    private protected ZoneEffect() { }
+    public sealed record CreatedCase([property: JsonRequired, JsonConverter(typeof(EquatableArrayJsonConverter<CreatedZone>))] EquatableArray<CreatedZone> Zones) : ZoneEffect;
+    public sealed record ZoneCase([property: JsonRequired] string ZoneId, [property: JsonRequired] bool Present, [property: JsonRequired] int ListedCellCount) : ZoneEffect;
 }
-
 public sealed record DeconstructEffect
 {
     public string? TargetId { get; init; }
@@ -553,11 +542,9 @@ public sealed record DeconstructEffect
 /// </summary>
 public sealed record CombatOrderResult
 {
-    public uint? Index { get; init; }
-
     public string? PawnId { get; init; }
 
-    public bool? Applied { get; init; }
+    public required bool Applied { get; init; }
 
     public string? Refusal { get; init; }
 
@@ -570,15 +557,24 @@ public sealed record CombatOrdersEffect
     public EquatableArray<CombatOrderResult> Results { get; init; }
 }
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SurgeryTarget.WholeBodyCase), "wholeBody")]
+[JsonDerivedType(typeof(SurgeryTarget.PartCase), "part")]
+public abstract record SurgeryTarget
+{
+    private protected SurgeryTarget() { }
+    public sealed record WholeBodyCase : SurgeryTarget;
+    public sealed record PartCase([property: JsonRequired] int Index) : SurgeryTarget;
+}
 public sealed record SurgeryEffect
 {
     public string? PawnId { get; init; }
 
-    public int? PartIndex { get; init; }
+    public required SurgeryTarget Target { get; init; }
 
     public Common.Ref? Bill { get; init; }
 
-    public SurgeryState? State { get; init; }
+    public required SurgeryState State { get; init; }
 }
 
 /// <summary>
@@ -588,13 +584,13 @@ public sealed record SurgeryEffect
 /// </summary>
 public sealed record AreaEffect
 {
-    public bool? Home { get; init; }
+    public required bool Home { get; init; }
 
     public string? AreaId { get; init; }
 
-    public bool? Present { get; init; }
+    public required bool Present { get; init; }
 
-    public int? CellCount { get; init; }
+    public required int CellCount { get; init; }
 }
 
 /// <summary>
@@ -616,7 +612,7 @@ public sealed record PolicyPruneEffect
 /// </summary>
 public sealed record RemoveRoofEffect
 {
-    public int? Designated { get; init; }
+    public required int Designated { get; init; }
 }
 
 /// <summary>
@@ -635,8 +631,6 @@ public sealed record WallEffect
     public string? TargetId { get; init; }
 
     public string? RemovalId { get; init; }
-
-    public bool? DemolitionObserved { get; init; }
 
     public SnapshotEvidence? Site { get; init; }
 }
@@ -669,32 +663,36 @@ public sealed record JobEffect
 
     public JobTarget? TargetA { get; init; }
 
-    public bool? Issued { get; init; }
+    public required bool Issued { get; init; }
 
     public string? ResultingSnapshotToken { get; init; }
 }
 
-public sealed record AnimalEffect
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AnimalEffect.TrainingCase), "training")]
+[JsonDerivedType(typeof(AnimalEffect.SlaughterCase), "slaughter")]
+[JsonDerivedType(typeof(AnimalEffect.TameCase), "tame")]
+[JsonDerivedType(typeof(AnimalEffect.ReleaseCase), "release")]
+[JsonDerivedType(typeof(AnimalEffect.SterilizationQueuedCase), "sterilizationQueued")]
+[JsonDerivedType(typeof(AnimalEffect.SterilizedCase), "sterilized")]
+[JsonDerivedType(typeof(AnimalEffect.AreaCase), "area")]
+[JsonDerivedType(typeof(AnimalEffect.MasterCase), "master")]
+[JsonDerivedType(typeof(AnimalEffect.FollowDraftedCase), "followDrafted")]
+[JsonDerivedType(typeof(AnimalEffect.FollowFieldworkCase), "followFieldwork")]
+public abstract record AnimalEffect
 {
-    public string? TrainableDef { get; init; }
-
-    public bool? Wanted { get; init; }
-
-    public bool? SlaughterDesignated { get; init; }
-
-    public bool? TameDesignated { get; init; }
-
-    public bool? ReleaseDesignated { get; init; }
-
-    public string? AllowedAreaId { get; init; }
-
-    public string? MasterId { get; init; }
-
-    public bool? FollowDrafted { get; init; }
-
-    public bool? FollowFieldwork { get; init; }
+    private protected AnimalEffect() { }
+    public sealed record TrainingCase([property: JsonRequired] string TrainableDef, [property: JsonRequired] bool Wanted) : AnimalEffect;
+    public sealed record SlaughterCase([property: JsonRequired] bool Designated) : AnimalEffect;
+    public sealed record TameCase([property: JsonRequired] bool Designated) : AnimalEffect;
+    public sealed record ReleaseCase([property: JsonRequired] bool Designated) : AnimalEffect;
+    public sealed record SterilizationQueuedCase : AnimalEffect;
+    public sealed record SterilizedCase : AnimalEffect;
+    public sealed record AreaCase([property: JsonRequired] string AreaId) : AnimalEffect;
+    public sealed record MasterCase([property: JsonRequired] string MasterId) : AnimalEffect;
+    public sealed record FollowDraftedCase([property: JsonRequired] bool Follow) : AnimalEffect;
+    public sealed record FollowFieldworkCase([property: JsonRequired] bool Follow) : AnimalEffect;
 }
-
 /// <summary>
 /// outcome is the pawn's actual custody state read from native at observation:
 /// held (still a colony prisoner), recruited, enslaved, converted, released,
@@ -713,42 +711,35 @@ public sealed record TradeLineEffect
     public string? LineId { get; init; }
 }
 
-public sealed record TradeEffect
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TradeEffect.ApproachingCase), "approaching")]
+[JsonDerivedType(typeof(TradeEffect.OpenCase), "open")]
+[JsonDerivedType(typeof(TradeEffect.StagedCase), "staged")]
+[JsonDerivedType(typeof(TradeEffect.ExecutedCase), "executed")]
+[JsonDerivedType(typeof(TradeEffect.EndedCase), "ended")]
+public abstract record TradeEffect
 {
-    public string? SessionId { get; init; }
-
-    public string? DealSignature { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<TradeLineEffect>))]
-    public EquatableArray<TradeLineEffect> Lines { get; init; }
-
-    public bool? Executed { get; init; }
-
-    public bool? Closed { get; init; }
-
-    public int? BeforeSilver { get; init; }
-
-    public int? AfterSilver { get; init; }
-
-    public string? FactionId { get; init; }
-
-    public bool? ActuallyTraded { get; init; }
+    private protected TradeEffect() { }
+    public sealed record ApproachingCase : TradeEffect;
+    public sealed record OpenCase([property: JsonRequired] string SessionId, [property: JsonRequired] string FactionId) : TradeEffect;
+    public sealed record StagedCase([property: JsonRequired, JsonConverter(typeof(EquatableArrayJsonConverter<TradeLineEffect>))] EquatableArray<TradeLineEffect> Lines) : TradeEffect;
+    public sealed record ExecutedCase([property: JsonRequired] string DealSignature, [property: JsonRequired] int BeforeSilver, [property: JsonRequired] int AfterSilver, [property: JsonRequired] bool ActuallyTraded) : TradeEffect;
+    public sealed record EndedCase : TradeEffect;
 }
-
 public sealed record CommsTradeRequestEffect
 {
     public string? FactionId { get; init; }
 
     public string? TraderKind { get; init; }
 
-    public bool? WorkQueued { get; init; }
+    public required bool WorkQueued { get; init; }
 }
 
 public sealed record CaravanEffect
 {
-    public bool? AssemblyStarted { get; init; }
+    public required bool AssemblyStarted { get; init; }
 
-    public int? DestinationTile { get; init; }
+    public required int DestinationTile { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }
@@ -758,7 +749,7 @@ public sealed record QuestEffect
 {
     public string? QuestId { get; init; }
 
-    public bool? Accepted { get; init; }
+    public required bool Accepted { get; init; }
 
 }
 
@@ -766,7 +757,7 @@ public sealed record QuestShuttleEffect
 {
     public string? QuestId { get; init; }
 
-    public bool? Autoload { get; init; }
+    public required bool Autoload { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }

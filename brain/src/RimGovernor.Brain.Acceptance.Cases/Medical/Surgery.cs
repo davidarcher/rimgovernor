@@ -148,7 +148,7 @@ internal static class MedicalSurgery
     private static async Task<string> QueuedAsync(TypedSession s, string key, Operations.ProductionBillIntent bill, CancellationToken cancellationToken)
     {
         var effect = (await TypedPawns.AppliedAsync(s, key, bill, cancellationToken).ConfigureAwait(false))?.SurgeryBill;
-        return effect is { State: Receipts.SurgeryState.Queued, Bill.Id: { Length: > 0 } id } && effect.PawnId == bill.Patient?.Id && effect.PartIndex == bill.PartIndex
+        return effect is { State: Receipts.SurgeryState.Queued, Bill.Id: { Length: > 0 } id } && effect.PawnId == bill.Patient?.Id && (effect.Target is Receipts.SurgeryTarget.WholeBodyCase ? bill.PartIndex is null : effect.Target is Receipts.SurgeryTarget.PartCase part && part.Index == bill.PartIndex)
             ? id
             : throw new AcceptanceException($"{key}: want a QUEUED surgery bill on {bill.Patient?.Id} part {bill.PartIndex}, got {effect}");
     }

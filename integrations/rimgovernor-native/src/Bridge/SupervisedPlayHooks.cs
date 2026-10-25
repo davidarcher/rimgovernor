@@ -139,7 +139,7 @@ namespace HomeBridge.BridgeTools
             {
                 var pawn = ___pawn; var tm = Find.TickManager;
                 if (pawn != null && pawn.Spawned)
-                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.Downed, pawn.IsColonist ? RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed : RimGovernor.Contracts.Wire.Clock.CombatEvent.Unspecified, pawn, null);
+                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.Downed, pawn.IsColonist ? RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed : null, pawn, null);
                 if (pawn == null || tm == null || !pawn.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[pawn.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
             {
                 var tm = Find.TickManager;
                 if (__instance != null)
-                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.Killed, __instance.IsColonist ? RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed : RimGovernor.Contracts.Wire.Clock.CombatEvent.Unspecified, __instance, null);
+                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.Killed, __instance.IsColonist ? RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed : null, __instance, null);
                 if (__instance == null || tm == null || !__instance.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[__instance.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");

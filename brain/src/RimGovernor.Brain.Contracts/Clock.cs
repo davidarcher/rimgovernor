@@ -11,8 +11,6 @@ namespace RimGovernor.Contracts.Wire.Clock;
 [JsonConverter(typeof(WireEnumConverter<Speed>))]
 public enum Speed
 {
-    [WireName("SPEED_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("SPEED_NORMAL")]
     Normal = 1,
     [WireName("SPEED_FAST")]
@@ -32,8 +30,6 @@ public enum Speed
 [JsonConverter(typeof(WireEnumConverter<PacingReason>))]
 public enum PacingReason
 {
-    [WireName("PACING_REASON_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("PACING_REASON_FIXED")]
     Fixed = 1,
     [WireName("PACING_REASON_FRAME_BUDGET")]
@@ -49,8 +45,6 @@ public enum PacingReason
 [JsonConverter(typeof(WireEnumConverter<WatchMode>))]
 public enum WatchMode
 {
-    [WireName("WATCH_MODE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("WATCH_MODE_COLONY")]
     Colony = 1,
     [WireName("WATCH_MODE_COMBAT")]
@@ -61,8 +55,6 @@ public enum WatchMode
 [JsonConverter(typeof(WireEnumConverter<ClockState>))]
 public enum ClockState
 {
-    [WireName("CLOCK_STATE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("CLOCK_STATE_RUNNING")]
     Running = 1,
     [WireName("CLOCK_STATE_HELD")]
@@ -78,8 +70,6 @@ public enum ClockState
 [JsonConverter(typeof(WireEnumConverter<HoldReason>))]
 public enum HoldReason
 {
-    [WireName("HOLD_REASON_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("HOLD_REASON_NEVER_RUN")]
     NeverRun = 1,
     [WireName("HOLD_REASON_COUPLED_ORDER")]
@@ -156,8 +146,6 @@ public enum HoldReason
 [JsonConverter(typeof(WireEnumConverter<CombatEvent>))]
 public enum CombatEvent
 {
-    [WireName("COMBAT_EVENT_UNSPECIFIED")]
-    Unspecified = 0,
     /// <summary>
     /// A colonist was downed or killed.
     /// </summary>
@@ -225,8 +213,6 @@ public enum CombatEvent
 [JsonConverter(typeof(WireEnumConverter<FactFamily>))]
 public enum FactFamily
 {
-    [WireName("FACT_FAMILY_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("FACT_FAMILY_DEFINITIONS")]
     Definitions = 1,
     [WireName("FACT_FAMILY_WORLD")]
@@ -247,13 +233,13 @@ public enum FactFamily
 
 public sealed record WatchPolicy
 {
-    public WatchMode? Mode { get; init; }
+    public required WatchMode Mode { get; init; }
 
-    public float? HealthDropFraction { get; init; }
+    public required float HealthDropFraction { get; init; }
 
-    public float? MinHealthFraction { get; init; }
+    public required float MinHealthFraction { get; init; }
 
-    public float? HostileWithin { get; init; }
+    public required float HostileWithin { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> AcknowledgedHostileIds { get; init; }
@@ -264,7 +250,7 @@ public sealed record WatchPolicy
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> AcknowledgedInjuredColonistIds { get; init; }
 
-    public uint? InjuryStopCooldownMs { get; init; }
+    public required uint InjuryStopCooldownMs { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> SurgicalRecoveryIds { get; init; }
@@ -277,7 +263,7 @@ public sealed record WatchPolicy
     /// category (Need_Food.CurCategory, the game's own per-pawn thresholds) and they are not acknowledged. Hungry,
     /// UrgentlyHungry or Starving; Fed is refused. A combat watch never holds for hunger.
     /// </summary>
-    public Defs.HungerCategory? HungerHoldCategory { get; init; }
+    public required Defs.HungerCategory HungerHoldCategory { get; init; }
 
     /// <summary>
     /// Colonists already at or past <see cref="HungerHoldCategory"/> when the brain last reviewed them under a held
@@ -306,19 +292,19 @@ public sealed record WatchPolicy
     /// A new wound keeps the hold when it bleeds the colonist out within
     /// injury_severity_floor_ticks or is life-threatening.
     /// </summary>
-    public float? SeriousSingleHitDamage { get; init; }
+    public required float SeriousSingleHitDamage { get; init; }
 
-    public float? SeriousSummaryHealthFloor { get; init; }
+    public required float SeriousSummaryHealthFloor { get; init; }
 
-    public float? SeriousBleedRateFloor { get; init; }
+    public required float SeriousBleedRateFloor { get; init; }
 
-    public float? SeriousVitalPartFloor { get; init; }
+    public required float SeriousVitalPartFloor { get; init; }
 
-    public float? ExplosiveNearMarginCells { get; init; }
+    public required float ExplosiveNearMarginCells { get; init; }
 
-    public float? MeleeReachCells { get; init; }
+    public required float MeleeReachCells { get; init; }
 
-    public uint? InjurySeverityFloorTicks { get; init; }
+    public required uint InjurySeverityFloorTicks { get; init; }
 }
 
 /// <summary>
@@ -331,25 +317,25 @@ public sealed record RunRequest
     public Common.Identity? Identity { get; init; }
 
     /// <summary>The native authority generation the brain holds; a stale one is refused.</summary>
-    public ulong? ExpectedGeneration { get; init; }
+    public required ulong ExpectedGeneration { get; init; }
 
-    public Speed? Speed { get; init; }
+    public required Speed Speed { get; init; }
 
-    public WatchPolicy? Policy { get; init; }
+    public required WatchPolicy Policy { get; init; }
 
     /// <summary>
     /// The <see cref="Status.HoldSerial"/> the step that planned this Run read. Resuming a held clock is refused
     /// (Unavailable; the hold stays) when native has entered a hold since, so a hold the step did not see is never
     /// released.
     /// </summary>
-    public ulong? PlannedHoldSerial { get; init; }
+    public required ulong PlannedHoldSerial { get; init; }
 
     /// <summary>
     /// The game tick native holds the clock at for <see cref="HoldReason.Review"/>: the brain's next review. Required.
     /// A tick the clock has already reached holds at the next tick (an early review). The hold is native's, on the
     /// tick boundary; the brain's step starts from it and ends with the next Run, which names the review after.
     /// </summary>
-    public ulong? HoldAtTick { get; init; }
+    public required ulong HoldAtTick { get; init; }
 }
 
 /// <summary>
@@ -361,7 +347,7 @@ public sealed record HoldRequest
 {
     public Common.Identity? Identity { get; init; }
 
-    public HoldReason? Reason { get; init; }
+    public required HoldReason Reason { get; init; }
 
     /// <summary>Short free-text detail for the journal.</summary>
     public string? Detail { get; init; }
@@ -380,70 +366,71 @@ public sealed record StatusRequest
 
 public sealed record Status
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
+    public required ClockState State { get; init; }
+    public required HoldState Hold { get; init; }
+    public required RunHistory LastRun { get; init; }
+    public required Pacing Pacing { get; init; }
+    public required ulong HoldSerial { get; init; }
+    public required PlayerSpeedRequest PlayerRequest { get; init; }
+    public required bool NativeTickBoundary { get; init; }
+    public required bool ActualPaused { get; init; }
+    /// <summary>Game ticks per wall second over the last ten seconds, including pauses.</summary>
+    public required double EffectiveTicksPerSecond { get; init; }
+}
 
-    /// <summary>Running or Held; unset only when <see cref="Unavailable"/> is set.</summary>
-    public ClockState? State { get; init; }
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HoldState.RunningCase), "running")]
+[JsonDerivedType(typeof(HoldState.NeverRunCase), "neverRun")]
+[JsonDerivedType(typeof(HoldState.PendingCase), "pending")]
+[JsonDerivedType(typeof(HoldState.HeldCase), "held")]
+public abstract record HoldState
+{
+    private protected HoldState() { }
+    public sealed record RunningCase : HoldState;
+    public sealed record NeverRunCase : HoldState;
+    public sealed record PendingCase([property: JsonRequired] HoldReason Reason) : HoldState;
+    public sealed record HeldCase([property: JsonRequired] HoldReason Reason, [property: JsonRequired] long AtUnixMs, [property: JsonRequired] HoldTrigger Trigger) : HoldState;
+}
 
-    /// <summary>Why the clock is held; NeverRun before any Run of the loaded game.</summary>
-    public HoldReason? Reason { get; init; }
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HoldTrigger.OrdinaryCase), "ordinary")]
+[JsonDerivedType(typeof(HoldTrigger.CombatCase), "combat")]
+public abstract record HoldTrigger
+{
+    private protected HoldTrigger() { }
+    public sealed record OrdinaryCase : HoldTrigger;
+    public sealed record CombatCase([property: JsonRequired] CombatEvent Event) : HoldTrigger;
+}
 
-    public string? Detail { get; init; }
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RunHistory.NeverRunCase), "neverRun")]
+[JsonDerivedType(typeof(RunHistory.RanCase), "ran")]
+public abstract record RunHistory
+{
+    private protected RunHistory() { }
+    public sealed record NeverRunCase : RunHistory;
+    public sealed record RanCase([property: JsonRequired] Speed Speed) : RunHistory;
+}
 
-    /// <summary>The speed the last Run asked for.</summary>
-    public Speed? TargetSpeed { get; init; }
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Pacing.StoppedCase), "stopped")]
+[JsonDerivedType(typeof(Pacing.RunningCase), "running")]
+public abstract record Pacing
+{
+    private protected Pacing() { }
+    public sealed record StoppedCase : Pacing;
+    public sealed record RunningCase([property: JsonRequired] uint TicksPerSecond, [property: JsonRequired] PacingReason Reason, [property: JsonRequired] uint CeilingTicksPerSecond) : Pacing;
+}
 
-    /// <summary>
-    /// The tick rate the running clock holds right now (60 x the multiplier the
-    /// game ticks at), and what bounds it.
-    /// </summary>
-    public uint? PacedTicksPerSecond { get; init; }
-
-    public PacingReason? PacingReason { get; init; }
-
-    /// <summary>
-    /// Bumped on every hold entry (a native hazard and the brain's own holds alike), on the game thread. Holds pause
-    /// the game, so a tick cannot order a read against a same-tick hold; this serial does. A Run quotes it as
-    /// <see cref="RunRequest.PlannedHoldSerial"/>.
-    /// </summary>
-    public ulong? HoldSerial { get; init; }
-
-    /// <summary>
-    /// The last speed the player asked for in game (native's RequestSpeed); unset when none was asked for in the
-    /// loaded game. Native never runs at it by itself: the brain adopts it as its target speed and sends a Run.
-    /// </summary>
-    public Speed? PlayerRequestedSpeed { get; init; }
-
-    /// <summary>
-    /// Bumped on every in-game speed request, on the game thread; it starts again with the loaded game. Set exactly
-    /// when <see cref="PlayerRequestedSpeed"/> is. The brain adopts a serial it has not adopted yet.
-    /// </summary>
-    public ulong? PlayerSpeedRequestSerial { get; init; }
-
-    /// <summary>
-    /// The one ceiling on the tick rate (frame budget and brain heartbeat, the
-    /// lower of the two); zero when neither limits it. When it bounds the rate,
-    /// pacing_reason names the input that binds it.
-    /// </summary>
-    public uint? CeilingTicksPerSecond { get; init; }
-
-    public long? HeldAtUnixMs { get; init; }
-
-    /// <summary>HOLD_REASON_COMBAT_EVENT only: which armed event held the clock.</summary>
-    public CombatEvent? CombatEvent { get; init; }
-
-    /// <summary>The status could not be read completely.</summary>
-    public Common.Unavailable? Unavailable { get; init; }
-
-    public bool? NativeTickBoundary { get; init; }
-
-    public bool? ActualPaused { get; init; }
-
-    /// <summary>
-    /// Game ticks per wall second over the last ten seconds of frames, paused
-    /// time included: what the player actually gets.
-    /// </summary>
-    public double? EffectiveTicksPerSecond { get; init; }
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PlayerSpeedRequest.NoneCase), "none")]
+[JsonDerivedType(typeof(PlayerSpeedRequest.RequestedCase), "requested")]
+public abstract record PlayerSpeedRequest
+{
+    private protected PlayerSpeedRequest() { }
+    public sealed record NoneCase : PlayerSpeedRequest;
+    public sealed record RequestedCase([property: JsonRequired] Speed Speed, [property: JsonRequired] ulong Serial) : PlayerSpeedRequest;
 }
 
 /// <summary>What a heartbeat answers: contact was recorded.</summary>

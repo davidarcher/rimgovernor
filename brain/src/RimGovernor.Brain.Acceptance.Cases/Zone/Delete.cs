@@ -25,14 +25,22 @@ internal static class ZoneDelete
     private const int ProbeTicks = 300;
 
     // The colony watch policy with the brain's hazard thresholds, which native requires of every clock run.
-    private static readonly Clock.WatchPolicy Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+    private static readonly Clock.WatchPolicy Policy = new Clock.WatchPolicy
     {
+        SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+        SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+        SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+        SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+        ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+        MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+        InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+        HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
         Mode = Clock.WatchMode.Colony,
         HealthDropFraction = .1f,
         MinHealthFraction = .5f,
         HostileWithin = 20f,
         InjuryStopCooldownMs = 0,
-    });
+    };
 
     internal static TypedCase Case() => new()
     {
@@ -101,13 +109,17 @@ internal static class ZoneDelete
             }
         }
 
-        async Task<Receipts.ZoneEffect> AppliedAsync(string key, Operations.ZoneIntent intent)
+        async Task<Receipts.ZoneEffect> AppliedEffectAsync(string key, Operations.ZoneIntent intent)
         {
             var outcome = await TypedApply.AppliedAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
             var effect = outcome.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone ?? throw new AcceptanceException($"{key}: no zone evidence: {outcome}");
             s.RecordWire(key, effect);
             return effect;
         }
+
+        async Task<Receipts.ZoneEffect.ZoneCase> AppliedAsync(string key, Operations.ZoneIntent intent) =>
+            await AppliedEffectAsync(key, intent).ConfigureAwait(false) as Receipts.ZoneEffect.ZoneCase
+                ?? throw new AcceptanceException($"{key}: no edited-zone evidence");
 
         async Task RefusedAsync(string key, Operations.ZoneIntent intent, Common.FailureCode code)
         {
@@ -131,8 +143,8 @@ internal static class ZoneDelete
                 Filter = new Operations.FilterPatch { Allow = [Def("Steel"), Def("WoodLog")], HitPointsMin = 0.5, HitPointsMax = 1, QualityMin = "Normal", QualityMax = "Legendary" },
             },
         };
-        var created = await AppliedAsync("zone-create", create).ConfigureAwait(false);
-        if (created.Created.ToList() is not [{ ZoneId: { Length: > 0 } zoneId } component] || component.Cells.Count != interior.Count)
+        var created = await AppliedEffectAsync("zone-create", create).ConfigureAwait(false);
+        if (created is not Receipts.ZoneEffect.CreatedCase parts || parts.Zones.ToList() is not [{ ZoneId: { Length: > 0 } zoneId } component] || component.Cells.Count != interior.Count)
         {
             throw new AcceptanceException($"zone-create: want one {interior.Count}-cell component, got {created}");
         }
@@ -247,8 +259,8 @@ internal static class ZoneDelete
 
         // The re-add lands under a running native clock: only the supervised run digests zones, and its first digest
         // baselines, so an edit made while paused never reaches a row. The run ends on the zone's clock_invalidation row.
-        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Normal, Policy = Policy };
-        Receipts.ZoneEffect? added = null;
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Normal, Policy = Policy };
+        Receipts.ZoneEffect.ZoneCase? added = null;
         long addedSince = 0;
         LogRow? invalidated = null;
         var status = await s.RunClockUntilHeldAsync(
@@ -275,8 +287,8 @@ internal static class ZoneDelete
         if (invalidated is null)
         {
             throw new AcceptanceException(added is null
-                ? $"probe: the clock held before the re-add ({status.Reason}): {status.Detail}"
-                : $"probe: the clock held ({status.Reason}) before native named zone {zoneId}: {status.Detail}");
+                ? $"probe: the clock held before the re-add ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}): {status.Hold}"
+                : $"probe: the clock held ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}) before native named zone {zoneId}: {status.Hold}");
         }
 
         var families = ClockRows.Strings(invalidated, "families");

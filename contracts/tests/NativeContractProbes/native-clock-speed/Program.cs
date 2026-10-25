@@ -40,7 +40,7 @@ internal static class NativeClockSpeedProbe
     {
         foreach (var speed in new[] { Clock.Speed.Normal, Clock.Speed.Fast, Clock.Speed.Superfast, Clock.Speed.Ultrafast, Clock.Speed.Hyperfast })
             Check(ClockRunSpeed.Ordinary(speed), speed + " is an ordinary run speed");
-        Check(!ClockRunSpeed.Ordinary(Clock.Speed.Unspecified), "an unspecified speed is not a run speed");
+        Check(!ClockRunSpeed.Ordinary((Clock.Speed)0), "an unspecified speed is not a run speed");
         Check(ClockRunSpeed.Native(Clock.Speed.Ultrafast) == TimeSpeed.Ultrafast && ClockRunSpeed.Native(Clock.Speed.Hyperfast) == TimeSpeed.Ultrafast,
             "Ultrafast and Hyperfast share the game's Ultrafast");
 

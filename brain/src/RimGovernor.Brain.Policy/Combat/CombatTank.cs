@@ -138,7 +138,7 @@ public static partial class CombatTankRules
     /// </summary>
     internal static CombatMemory PullBackTank(StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind != CombatEvent.ShieldBroken)
+        if (stop.Cause is not CombatDecisionTrigger.Native { Kind: CombatEvent.ShieldBroken })
         {
             return m;
         }

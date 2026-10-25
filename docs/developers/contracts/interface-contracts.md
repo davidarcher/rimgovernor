@@ -22,8 +22,8 @@ speed and its clamp relies on.
   that route once the brain is up. While a fight is open and the combat resume-latency gate has tripped, the brain
   asks for the slower fallback speed instead (control loop, Combat).
 - **The player's in-game speed request.** The in-game time controls call native's `RequestSpeed` (game thread;
-  Normal through Hyperfast, Unspecified throws). It records the speed and bumps a serial, which `Status` reports as
-  `player_requested_speed` and `player_speed_request_serial` (both unset until the loaded game's first request; the
+  Normal through Hyperfast, undefined speeds throw). It records the speed and bumps a serial, which `Status` reports as
+  `playerRequest` (`none` until the loaded game's first request, then `requested` with speed and serial; the
   serial starts again with each loaded game), and publishes a `SpeedRequested` colony event (`speed`). The event is
   only a wake (a quiet step, cause Review, when no hold is pending): the request lives in `Status`, so a lost event
   costs latency and the next read still finds it. The run driver adopts a serial it has not adopted for that load

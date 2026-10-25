@@ -46,7 +46,7 @@ public sealed record BrainCompositionOptions
     internal void Validate()
     {
         ArgumentNullException.ThrowIfNull(Families);
-        if (TargetSpeed == PbClock.Speed.Unspecified || !Enum.IsDefined(TargetSpeed))
+        if (!Enum.IsDefined(TargetSpeed))
         {
             throw new ArgumentException("the clock target speed is Normal, Fast, Superfast, Ultrafast or Hyperfast", nameof(TargetSpeed));
         }

@@ -1,3 +1,4 @@
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
@@ -46,9 +47,9 @@ internal static class TradeOpen
         }
 
         var first = await Open("trade-open", traderId, crew.Negotiator).ConfigureAwait(false);
-        var opened = TradeKit.AppliedTrade("open", first);
+        var opened = TradeKit.AppliedTrade("open", first) as Receipts.TradeEffect.OpenCase ?? throw new AcceptanceException("open: no open-session evidence");
         s.RecordWire("open", opened);
-        if (string.IsNullOrEmpty(opened.SessionId) || string.IsNullOrEmpty(opened.FactionId) || opened.Executed == true || opened.Closed == true)
+        if (string.IsNullOrEmpty(opened.SessionId) || string.IsNullOrEmpty(opened.FactionId))
         {
             throw new AcceptanceException($"open: expected session and faction ids on a bare open, neither executed nor closed, got {opened}");
         }
@@ -67,7 +68,7 @@ internal static class TradeOpen
         }
 
         var again = await Open("trade-open-again", traderId, crew.Negotiator).ConfigureAwait(false);
-        if (TradeKit.AppliedTrade("reuse", again).SessionId != opened.SessionId)
+        if (TradeKit.AppliedTrade("reuse", again) is not Receipts.TradeEffect.OpenCase reused || reused.SessionId != opened.SessionId)
         {
             throw new AcceptanceException($"reuse: expected the live session {opened.SessionId}, got {again}");
         }

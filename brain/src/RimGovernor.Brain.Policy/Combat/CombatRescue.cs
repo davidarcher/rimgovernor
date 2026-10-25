@@ -74,7 +74,7 @@ public static partial class CombatRescueRules
     {
         if (m.Rescue is null)
         {
-            if (stop.Kind != CombatEvent.Downed || !IsDefender(view, stop.Pawn))
+            if (stop.Cause is not CombatDecisionTrigger.Native { Kind: CombatEvent.Downed } || !IsDefender(view, stop.Pawn))
             {
                 return (m, [], null);
             }

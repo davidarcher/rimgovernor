@@ -33,18 +33,26 @@ internal static class SmokeClockStall
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new Clock.RunRequest
+        var request = new ClockRunPlan
         {
             ExpectedGeneration = generation,
             Speed = Clock.Speed.Hyperfast,
-            Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+            Policy = new Clock.WatchPolicy
             {
+                SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+                SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+                SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+                SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+                ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+                MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+                InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+                HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
                 Mode = Clock.WatchMode.Colony,
                 HealthDropFraction = 0.5f,
                 MinHealthFraction = 0.2f,
                 HostileWithin = 40,
                 InjuryStopCooldownMs = 0,
-            }),
+            },
         };
 
         var slowed = false;
@@ -67,15 +75,17 @@ internal static class SmokeClockStall
                     var reply = await s.CallAsync(
                         "slow",
                         NativeOps.RunClock,
-                        request with
+                        new Clock.RunRequest
                         {
                             Identity = s.Identity,
+                            ExpectedGeneration = request.ExpectedGeneration,
+                            Policy = request.Policy,
                             Speed = Clock.Speed.Normal,
                             PlannedHoldSerial = running.HoldSerial,
                             HoldAtTick = (ulong)(Math.Max(running.Context?.Tick ?? 0, 0) + s.TicksLeft),
                         },
                         token).ConfigureAwait(false);
-                    var status = reply is { State: Clock.ClockState.Running, TargetSpeed: Clock.Speed.Normal }
+                    var status = reply is { State: Clock.ClockState.Running, LastRun: Clock.RunHistory.RanCase { Speed: Clock.Speed.Normal } }
                         ? reply
                         : throw new AcceptanceException($"slow: want a running clock at Normal, got {WireJson.Serialize(reply)}");
                     s.RecordWire("slowed", status);

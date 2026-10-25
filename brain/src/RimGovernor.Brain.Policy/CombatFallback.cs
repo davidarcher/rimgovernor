@@ -181,11 +181,11 @@ public static partial class CombatFallbackRules
         }
 
         Func<CombatRole, bool> who;
-        if (stop.Kind == CombatEvent.Breach || DefensePositions.HoldCompromised(layout.Firing.Items, layout.Toward, CombatPeelRules.Unpeeled(view, stop, m)))
+        if (stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.Breach } || DefensePositions.HoldCompromised(layout.Firing.Items, layout.Toward, CombatPeelRules.Unpeeled(view, stop, m)))
         {
             who = _ => true;
         }
-        else if (stop.Kind == CombatEvent.SeriousInjury && !stop.Pawn.IsEmpty)
+        else if (stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.SeriousInjury } && !stop.Pawn.IsEmpty)
         {
             who = r => r.Pawn == stop.Pawn;
         }

@@ -85,15 +85,23 @@ public sealed class ClockWatchHungerTests
     [Fact]
     public void PolicyRequiresARealHungerHoldCategoryAndDistinctAcknowledgements()
     {
-        var policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+        var policy = new Clock.WatchPolicy
         {
+            SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+            SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+            SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+            SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+            ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+            MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+            InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+            HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
             Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f, HostileWithin = 20, InjuryStopCooldownMs = 0,
-        });
+        };
         Assert.Equal(Defs.HungerCategory.UrgentlyHungry, policy.HungerHoldCategory);
         ClockValidation.ValidateClockPolicy(policy);
         ClockValidation.ValidateClockPolicy(policy with { AcknowledgedHungryColonistIds = ["a", "b"] });
 
-        Assert.ThrowsAny<Exception>(() => ClockValidation.ValidateClockPolicy(policy with { HungerHoldCategory = null }));
+        Assert.ThrowsAny<Exception>(() => ClockValidation.ValidateClockPolicy(policy with { HungerHoldCategory = (Defs.HungerCategory)int.MaxValue }));
         Assert.ThrowsAny<Exception>(() => ClockValidation.ValidateClockPolicy(policy with { HungerHoldCategory = Defs.HungerCategory.Fed }));
         Assert.ThrowsAny<Exception>(() => ClockValidation.ValidateClockPolicy(policy with { AcknowledgedHungryColonistIds = ["a", "a"] }));
     }

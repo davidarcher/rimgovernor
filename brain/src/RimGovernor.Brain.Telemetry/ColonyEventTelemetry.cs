@@ -36,7 +36,7 @@ public static class ColonyEventTelemetry
     /// <summary>The tick a hold's hazard arose, when its evidence carries one.</summary>
     public const string OccurrenceTickKey = "occurrence_tick";
 
-    /// <summary>Native's Unix ms when the hold took (the status's <c>HeldAtUnixMs</c>).</summary>
+    /// <summary>Native's Unix ms when the hold took (the status's <c>HoldState.HeldCase.AtUnixMs</c>).</summary>
     public const string StopAtMsKey = "stop_at_ms";
 
     /// <summary>The hold reason a resume ended.</summary>

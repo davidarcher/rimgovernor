@@ -3,7 +3,7 @@
 | Contract | Required behavior |
 | --- | --- |
 | `Run`, `Hold`, `Heartbeat` | Continuous run at a target speed; a named hold ends only with a `Run`; no attempt key, no epoch, no tick budget. |
-| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` (the game's 15x, tick boost owned as off) and `SPEED_HYPERFAST` (the tick boost, capped at 30x) are ordinary wire speeds; `Status.target_speed` reports the wire speed the last `Run` asked for. |
+| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` (the game's 15x, tick boost owned as off) and `SPEED_HYPERFAST` (the tick boost, capped at 30x) are ordinary wire speeds; `Status.lastRun (RunHistory.RanCase.speed)` reports the wire speed the last `Run` asked for. |
 | `clock.Event` | Immutable typed events (`HoldEntered`, `Resumed`) native pushes onto a bounded in-process queue; an event that cannot be queued is counted as lost and the brain plans Full, play is never paused for it. |
 | `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick and pause state. Initialization belongs load hooks, not identity reads. |
 | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
@@ -35,9 +35,9 @@ so a hold the planner did not see is never released; a `Run` that only changes a
 not guarded. A serial and not a tick: a hold pauses the game, so a read before and after a same-tick hold carry the
 same tick.
 
-`Status.player_requested_speed` and `Status.player_speed_request_serial` carry the player's in-game speed request
-(native's `RequestSpeed`): the last speed asked for and a serial bumped on every request, both unset until the loaded
-game's first request and started again with each loaded game. A `SpeedRequested` (speed) event wakes the brain, which
+`Status.playerRequest` is `none` before the loaded game's first in-game speed request,
+then `requested` with the last speed and the serial bumped on every request (native's `RequestSpeed`).
+A new loaded game starts with none. A `SpeedRequested` (speed) event wakes the brain, which
 adopts a serial it has not adopted into its target speed and sends `Run`; native never runs at the request by itself.
 
 `Heartbeat` is explicit and carries the identity. Losing it is neither journalled nor a hold: it lowers the clock
@@ -46,9 +46,12 @@ ceiling to Normal until the next beat. Neither `SPEED_ULTRAFAST` nor `SPEED_HYPE
 
 `HoldReason` is fine-grained: every native `StopReason` (health, hostile, downed, combat event, force-pause waits,
 dialog pause and the like) plus the brain's own `COUPLED_ORDER`, `REVIEW` and `AUTOSAVE`, the `GAME_FORCED` pause and
-`NEVER_RUN`. `Status` is flat: `Running`, `Held` and `Unavailable` are exclusive, the held reason and the actual
-pause describe the current clock, and `Unavailable` carries a reason. Consumers needing pause
-require fresh actual-paused facts for the same identity. An uncertain transport response requires a status read,
+`NEVER_RUN`. A `Status` is complete or the read call fails. Its `hold` union names
+running, never run, pending pause or completed hold; a completed hold carries its
+reason, timestamp and ordinary/combat-event trigger. `lastRun` names never
+run or the last requested speed; `pacing` names stopped or the running rate,
+reason and ceiling. `actualPaused` always reports the current native pause fact.
+Consumers needing pause require that fresh fact for the same identity. An uncertain transport response requires a status read,
 never a blind replay of anything but the idempotent `Run`. Clearing a modal does not resume the clock. Acknowledgement
 belongs to brain inspected-event handling; there is no native acknowledge/delete/resume alias.
 

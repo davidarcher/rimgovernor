@@ -10,48 +10,33 @@ public static class ClockValidation
     internal static void ClockPolicy(WatchPolicy? p)
     {
         if (p is null
-            || p.Mode is null
-            || (int)p.Mode.GetValueOrDefault() < 1
-            || (int)p.Mode.GetValueOrDefault() > 2
-            || p.HealthDropFraction is null
-            || p.MinHealthFraction is null
-            || p.HostileWithin is null
-            || p.InjuryStopCooldownMs is null
-            || p.InjuryStopCooldownMs.GetValueOrDefault() > 1800000)
+            || (int)p.Mode < 1
+            || (int)p.Mode > 2
+            || p.InjuryStopCooldownMs > 1800000)
         {
             throw BridgeContractException.Contract("clock policy presence or bounds");
         }
-        if (p.HealthDropFraction.GetValueOrDefault() < 0.01f
-            || p.HealthDropFraction.GetValueOrDefault() > 1
-            || p.MinHealthFraction.GetValueOrDefault() < 0.01f
-            || p.MinHealthFraction.GetValueOrDefault() > 1
-            || p.HostileWithin.GetValueOrDefault() < 1
-            || p.HostileWithin.GetValueOrDefault() > 250)
+        if (p.HealthDropFraction < 0.01f
+            || p.HealthDropFraction > 1
+            || p.MinHealthFraction < 0.01f
+            || p.MinHealthFraction > 1
+            || p.HostileWithin < 1
+            || p.HostileWithin > 250)
         {
             throw BridgeContractException.Contract("clock policy numeric bounds");
         }
-        if (p.SeriousSingleHitDamage is null
-            || p.SeriousSummaryHealthFloor is null
-            || p.SeriousBleedRateFloor is null
-            || p.SeriousVitalPartFloor is null
-            || p.ExplosiveNearMarginCells is null
-            || p.MeleeReachCells is null
-            || p.InjurySeverityFloorTicks is null)
-        {
-            throw BridgeContractException.Contract("clock policy hazard thresholds missing");
-        }
-        foreach (var v in new[] { p.SeriousSingleHitDamage.GetValueOrDefault(), p.SeriousSummaryHealthFloor.GetValueOrDefault(), p.SeriousBleedRateFloor.GetValueOrDefault(), p.SeriousVitalPartFloor.GetValueOrDefault(), p.ExplosiveNearMarginCells.GetValueOrDefault(), p.MeleeReachCells.GetValueOrDefault() })
+        foreach (var v in new[] { p.SeriousSingleHitDamage, p.SeriousSummaryHealthFloor, p.SeriousBleedRateFloor, p.SeriousVitalPartFloor, p.ExplosiveNearMarginCells, p.MeleeReachCells })
         {
             if (!(v > 0) || float.IsInfinity(v))
             {
                 throw BridgeContractException.Contract("clock policy hazard threshold not finite and positive");
             }
         }
-        if (p.InjurySeverityFloorTicks.GetValueOrDefault() == 0 || p.InjurySeverityFloorTicks.GetValueOrDefault() > int.MaxValue)
+        if (p.InjurySeverityFloorTicks == 0 || p.InjurySeverityFloorTicks > int.MaxValue)
         {
             throw BridgeContractException.Contract("clock policy injury severity floor bounds");
         }
-        if (p.HungerHoldCategory is not { } hunger || !Enum.IsDefined(hunger) || hunger == RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)
+        if (!Enum.IsDefined(p.HungerHoldCategory) || p.HungerHoldCategory == RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)
         {
             throw BridgeContractException.Contract("clock policy hunger hold category missing or fed");
         }
@@ -66,14 +51,14 @@ public static class ClockValidation
                 }
             }
         }
-        if (p.CombatStopEvents.Count > 0 && p.Mode.GetValueOrDefault() != WatchMode.Combat)
+        if (p.CombatStopEvents.Count > 0 && p.Mode != WatchMode.Combat)
         {
             throw BridgeContractException.Contract("combat stop events outside combat mode");
         }
         var armed = new HashSet<CombatEvent>();
         foreach (var e in p.CombatStopEvents)
         {
-            if (!Enum.IsDefined(e) || e == CombatEvent.Unspecified || !armed.Add(e))
+            if (!Enum.IsDefined(e) || !armed.Add(e))
             {
                 throw BridgeContractException.Contract("invalid or duplicate combat stop event");
             }

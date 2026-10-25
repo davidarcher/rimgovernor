@@ -230,7 +230,7 @@ public static partial class CombatBlockingRules
     /// </summary>
     internal static bool RelieveBlocker(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind != CombatEvent.SeriousInjury)
+        if (stop.Cause is not CombatDecisionTrigger.Native { Kind: CombatEvent.SeriousInjury })
         {
             return false;
         }

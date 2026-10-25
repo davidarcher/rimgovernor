@@ -17,14 +17,14 @@ public sealed record StepPacing
     /// <summary>Reads the pace out of a status.</summary>
     public static StepPacing Of(PbClock.Status status)
     {
-        var pacing = new StepPacing { EffectiveTps = status.EffectiveTicksPerSecond is not null ? status.EffectiveTicksPerSecond.GetValueOrDefault() : 0 };
-        if (status.State == PbClock.ClockState.Running)
+        var pacing = new StepPacing { EffectiveTps = status.EffectiveTicksPerSecond };
+        if (status.Pacing is PbClock.Pacing.RunningCase running)
         {
             pacing = pacing with
             {
-                PacedTps = status.PacedTicksPerSecond.GetValueOrDefault(),
-                Ceiling = status.CeilingTicksPerSecond.GetValueOrDefault(),
-                Reason = status.PacingReason is not null ? PacingReasonName(status.PacingReason.GetValueOrDefault()) : "",
+                PacedTps = running.TicksPerSecond,
+                Ceiling = running.CeilingTicksPerSecond,
+                Reason = PacingReasonName(running.Reason),
             };
         }
         return pacing;

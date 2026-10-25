@@ -36,7 +36,7 @@ public sealed record Resumed(ColonyEventOrigin Origin, string Detail, Clock.Spee
 
 /// <summary>
 /// The player asked for a speed in game. Only a wake: the request itself is on Status
-/// (PlayerRequestedSpeed, PlayerSpeedRequestSerial), so a lost event costs latency, not the request.
+/// (PlayerSpeedRequest.RequestedCase), so a lost event costs latency, not the request.
 /// </summary>
 public sealed record SpeedRequested(ColonyEventOrigin Origin, string Detail, Clock.Speed Speed) : ColonyEvent(Origin, Detail);
 

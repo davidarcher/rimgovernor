@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
@@ -296,11 +297,21 @@ public sealed partial record CombatView
         spared.Count == 0 ? this : this with { Threats = EquatableArray.From(Threats.Items.Where(t => !spared.Contains(CombatDecideRules.ThreatPawn(t)))) };
 }
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(CombatDecisionTrigger.Review), "review")]
+[JsonDerivedType(typeof(CombatDecisionTrigger.Native), "native")]
+public abstract record CombatDecisionTrigger
+{
+    private protected CombatDecisionTrigger() { }
+    public sealed record Review : CombatDecisionTrigger;
+    public sealed record Native([property: JsonRequired] CombatEvent Kind) : CombatDecisionTrigger;
+}
 /// <summary>The stop DecideCombat answers.</summary>
 public sealed record StopEvent
 {
-    /// <summary>The combat event that stopped the clock; unspecified for the first decision or the backstop.</summary>
-    public CombatEvent Kind { get; init; }
+    /// <summary>A native event or the initial/cadence review.</summary>
+    [JsonRequired]
+    public CombatDecisionTrigger Cause { get; init; } = new CombatDecisionTrigger.Review();
 
     public PawnId Pawn { get; init; }
 
@@ -1412,7 +1423,7 @@ public static partial class CombatDecideRules
     /// </summary>
     private static bool Reform(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (m.Roles.Count == 0 || stop.Kind == CombatEvent.RaidPhase || stop.Kind == CombatEvent.Breach)
+        if (m.Roles.Count == 0 || stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.RaidPhase } || stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.Breach })
         {
             return true;
         }

@@ -1,5 +1,14 @@
 # Clock recovery evidence
 
+Clock requests carry required speed, generation, hold serial, review tick and
+watch thresholds. A status read either returns the complete native observation
+or fails the call; it never returns a partial status with default clock facts.
+`HoldState` distinguishes running, never run, a pending pause and a completed
+hold. Only a completed hold has a timestamp; its trigger distinguishes ordinary
+holds from the exact combat event. `RunHistory`, `Pacing` and
+`PlayerSpeedRequest` separately name whether a run, running pace or player
+request exists. A player request carries its speed and serial together.
+
 [Subsystem contracts](README.md) · [Clock wire contract](../../../contracts/wire/clock-lifecycle.md)
 
 the brain bridge and store validate clock commands and recovered evidence against the

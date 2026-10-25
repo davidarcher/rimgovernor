@@ -50,10 +50,22 @@ internal static class AuthorityWarm
                 Identity = first,
                 ExpectedGeneration = generation,
                 Speed = Clock.Speed.Superfast,
-                Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f, HostileWithin = 40, InjuryStopCooldownMs = 0 }),
+                Policy = new Clock.WatchPolicy
+                {
+                    SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+                    SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+                    SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+                    SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+                    ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+                    MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+                    InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+                    HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
+                    Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f,
+                    HostileWithin = 40, InjuryStopCooldownMs = 0,
+                },
                 PlannedHoldSerial = before.HoldSerial,
                 // A review a day out: the case runs an hour and drops the session before the clock reaches it.
-                HoldAtTick = (ulong)(Math.Max(before.Context?.Tick ?? 0, 0) + 60_000),
+                HoldAtTick = (ulong)(Math.Max(before.Context.Tick, 0) + 60_000),
             }, cancellationToken).ConfigureAwait(false);
             if (run is not { State: Clock.ClockState.Running } running)
             {

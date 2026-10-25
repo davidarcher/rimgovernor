@@ -22,7 +22,7 @@ public static partial class CombatSiteExitRules
             return (m, [], false);
         }
         var failed = m.Tactic == CombatTactic.SiteExit || m.Scattered;
-        if (stop.Kind == CombatEvent.Downed && exit.Crew.Contains(stop.Pawn))
+        if (stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.Downed } && exit.Crew.Contains(stop.Pawn))
         {
             failed = true;
         }

@@ -68,7 +68,7 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   revocation), not a wire field. Native's `TimeControlsRow` replaces `TimeControls.DoTimeControlsGUI` with six
   buttons, Pause through Hyperfast (keys space, 1-4 and `RimGovernor_TimeSpeed_Hyperfast`, default 5). While the
   authority is active a speed button or key only calls `RequestSpeed` (the speed request below) and never sets
-  `CurTimeSpeed`; the row lights the pending click until a `Run` at that speed answers it, then `Status.TargetSpeed`.
+  `CurTimeSpeed`; the row lights the pending click until a `Run` at that speed answers it, then `Status.LastRun` carries that speed.
   Pause and space go to the game, and native's ExternalPause hold is the take-over. Without the authority the row
   sets the game's speed as vanilla does: Ultrafast is 15x with the tick boost off, Hyperfast turns it on (30x).
   The host tool `rimgovernor/press_time_speed {speed}` runs the same click handler for acceptance.

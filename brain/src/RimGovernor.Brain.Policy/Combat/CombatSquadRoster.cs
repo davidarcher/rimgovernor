@@ -37,7 +37,7 @@ public static partial class CombatSquadRosterRules
     /// </summary>
     internal static bool SquadRosterChanged(CombatView view, StopEvent stop, CombatMemory m)
     {
-        if (stop.Kind == CombatEvent.Downed && CombatRescueRules.IsDefender(view, stop.Pawn))
+        if (stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.Downed } && CombatRescueRules.IsDefender(view, stop.Pawn))
         {
             return true;
         }

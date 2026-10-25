@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
             var components = Components(zoneIntent, map);
             var resolved = NativeStockpileSettings.Resolve(zoneIntent.Stockpile ?? throw new InvalidOperationException("Stockpile settings are missing."), StockpileFilter.StorableDefs(null))
                 ?? throw new InvalidOperationException("Stockpile settings stopped resolving.");
-            var effect = new Receipts.ZoneEffect();
+            var createdZones = new List<Receipts.CreatedZone>();
             foreach (var cells in components)
             {
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
@@ -104,9 +104,9 @@ namespace HomeBridge.BridgeTools
                 zone.slotGroup.RemoveHaulDesignationOnStoredThings();
                 var created = new Receipts.CreatedZone { ZoneId = zone.GetUniqueLoadID() };
                 created = created with { Cells = [.. created.Cells, .. zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z).Select(c => new Common.Cell { X = c.x, Z = c.z })] };
-                effect = effect with { Created = [.. effect.Created, created] };
+                createdZones.Add(created);
             }
-            return new Receipts.EffectEvidence { Effect = effect };
+            return new Receipts.EffectEvidence { Effect = new Receipts.ZoneEffect.CreatedCase([.. createdZones]) };
         }
     }
 }

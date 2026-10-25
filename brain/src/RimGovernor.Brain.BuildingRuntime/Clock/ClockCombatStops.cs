@@ -50,10 +50,16 @@ internal static class ClockCombatStops
     /// Names a stop for the metrics: the armed combat event, or the stop reason (<c>tick_budget</c> is the backstop).
     /// The name is the wire enum's C# name in lower snake case.
     /// </summary>
-    public static string Kind(PbClock.Status held) =>
-        held.CombatEvent is not null && held.CombatEvent.GetValueOrDefault() != PbClock.CombatEvent.Unspecified
-            ? Snake(held.CombatEvent.GetValueOrDefault().ToString())
-            : Snake(held.Reason.GetValueOrDefault().ToString());
+    public static string Kind(PbClock.Status held) => held.Hold switch
+    {
+        PbClock.HoldState.HeldCase { Trigger: PbClock.HoldTrigger.CombatCase combat } => Snake(combat.Event.ToString()),
+        PbClock.HoldState.HeldCase h => Snake(h.Reason.ToString()),
+        PbClock.HoldState.PendingCase h => Snake(h.Reason.ToString()),
+        PbClock.HoldState.NeverRunCase => "never_run",
+        PbClock.HoldState.RunningCase => throw new InvalidOperationException("A running clock has no stop kind."),
+        PbClock.HoldState => throw new InvalidOperationException("Unlisted clock hold state."),
+        null => throw new InvalidOperationException("Missing clock hold state."),
+    };
 
     private static string Snake(string pascal)
     {
@@ -126,9 +132,9 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
 
             // The stop that ends the combat resumes into a colony run after the full review; its latency is
             // not a combat reaction.
-            if (held.HeldAtUnixMs is not null && held.HeldAtUnixMs.GetValueOrDefault() > 0 && combat)
+            if (held.Hold is PbClock.HoldState.HeldCase { AtUnixMs: > 0 } stop && combat)
             {
-                var latency = now - DateTimeOffset.FromUnixTimeMilliseconds(held.HeldAtUnixMs.GetValueOrDefault());
+                var latency = now - DateTimeOffset.FromUnixTimeMilliseconds(stop.AtUnixMs);
                 _latencies.Add(latency);
                 attrs.Add(("resume_latency_ms", (long)latency.TotalMilliseconds));
                 if (latency > resumeBudget)

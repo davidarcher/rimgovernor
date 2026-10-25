@@ -719,7 +719,7 @@ namespace HomeBridge.BridgeTools
             foreach (var identity in s.MedicalRest.ToList())
             {
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
-                if (patient != null && MedicalRestSafety.Eligible(patient, s.Policy!.SeriousSummaryHealthFloor.GetValueOrDefault())) continue;
+                if (patient != null && MedicalRestSafety.Eligible(patient, s.Policy!.SeriousSummaryHealthFloor)) continue;
                 s.MedicalRest.Remove(identity);
                 InvalidateMedicalFacts(s, identity, "resting patient " + identity + " requires a fresh medical review", true);
             }
@@ -742,7 +742,7 @@ namespace HomeBridge.BridgeTools
                     && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
-                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor.GetValueOrDefault())))
+                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor)))
                     return PawnHit(Clock.HoldReason.ColonistDowned, p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 // A colony-mode run holds when an unacknowledged colonist's
                 // food reaches the brain's hunger category: the review that
@@ -826,7 +826,7 @@ namespace HomeBridge.BridgeTools
                         // what every stop bought anyway at the price of a
                         // stop-to-readmit pause. A combat threshold crossing
                         // still stops.
-                        var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks.GetValueOrDefault();
+                        var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks;
                         var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening, severityFloorTicks);
                         var demoted = s.Mode == "colony" && newWound && !suppressed && !severe && !threshold;
                         if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
@@ -1075,7 +1075,7 @@ namespace HomeBridge.BridgeTools
             RestoreBoost(s);
             var stopAt = NowMs();
             s.StopAtMs = stopAt;
-            s.Active = false; s.StopReason = cause.Reason; s.StopDetail = cause.Detail; ClockPauseAccounting.Stopped();
+            s.Active = false; s.StopReason = cause.Reason; ClockPauseAccounting.Stopped();
             Publish(new HoldEntered(Origin(s), cause.Detail, cause.Reason, EvidenceOf(s, cause), s.DetectedTick, cause.OccurrenceTick, stopAt, RunSegmentOf(s, stopAt)));
             LogTiming(s, cause.Reason.ToString());
         }
@@ -1221,7 +1221,7 @@ namespace HomeBridge.BridgeTools
             public long? StopAtMs;
             public int DetectedTick;
             public bool? PauseVerified; public bool PauseFailureReported;
-            public Clock.HoldReason? StopReason; public string? StopDetail;
+            public Clock.HoldReason? StopReason;
             // A hold whose pause has not taken yet; retried each frame.
             public HoldCause? Pending;
             // null until the epoch's first probe baselined them; see PublishFactChanges.

@@ -55,7 +55,7 @@ public static partial class CombatPeelRules
         }
         // A peeler never melees an exploder.
         var boom = CombatManhunterRules.LiveExploders(view).ContainsKey(stop.Pawn);
-        if (role.Target.IsEmpty && stop.Kind == CombatEvent.MeleeContact && gunner && !boom && !view.HostileDown(stop.Pawn))
+        if (role.Target.IsEmpty && stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.MeleeContact } && gunner && !boom && !view.HostileDown(stop.Pawn))
         {
             role = role with { Target = stop.Pawn, Post = new CombatPost.Free() };
         }
@@ -91,7 +91,7 @@ public static partial class CombatPeelRules
         {
             return peeler.Target;
         }
-        if (stop.Kind == CombatEvent.MeleeContact && gunners.Contains(stop.Target) && !view.HostileDown(stop.Pawn))
+        if (stop.Cause is CombatDecisionTrigger.Native { Kind: CombatEvent.MeleeContact } && gunners.Contains(stop.Target) && !view.HostileDown(stop.Pawn))
         {
             return stop.Pawn;
         }

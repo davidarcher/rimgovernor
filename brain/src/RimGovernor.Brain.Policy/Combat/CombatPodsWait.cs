@@ -53,7 +53,7 @@ public static partial class CombatPodsRules
     /// <summary>Reports a raid_phase stop with a live hostile fleeing or looting and leaving.</summary>
     internal static bool PodStrike(CombatView view, StopEvent stop)
     {
-        if (stop.Kind != CombatEvent.RaidPhase)
+        if (stop.Cause is not CombatDecisionTrigger.Native { Kind: CombatEvent.RaidPhase })
         {
             return false;
         }

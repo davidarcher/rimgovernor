@@ -100,7 +100,7 @@ internal static class WallRemoval
 
         // Native keeps no receipt replay: a second apply is re-validated and applies again on the open removal.
         var again = await TypedApply.AppliedAsync(s, "wall-demolish-again", Guarded(cell, target), cancellationToken).ConfigureAwait(false);
-        if (again.Effect()?.Wall is not { } reapplied || reapplied.RemovalId != removalId || reapplied.TargetId != target || reapplied.DemolitionObserved == true)
+        if (again.Effect()?.Wall is not { } reapplied || reapplied.RemovalId != removalId || reapplied.TargetId != target)
         {
             throw new AcceptanceException($"reapply: a second apply must apply again on the pending removal {removalId}, got {again}");
         }
@@ -134,7 +134,7 @@ internal static class WallRemoval
         var outcome = await TypedApply.AppliedAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         var effect = outcome.Effect()?.Wall;
         if (effect is null || effect.TargetId != wall || string.IsNullOrEmpty(effect.RemovalId) || effect.Site?.EntityId != wall
-            || string.IsNullOrEmpty(effect.Site.BeforeToken) || string.IsNullOrEmpty(effect.Site.AfterToken) || effect.DemolitionObserved == true)
+            || string.IsNullOrEmpty(effect.Site.BeforeToken) || string.IsNullOrEmpty(effect.Site.AfterToken))
         {
             throw new AcceptanceException($"{key}: unexpected wall effect: {outcome}");
         }

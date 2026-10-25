@@ -117,7 +117,7 @@ public static class HazardCases
     private static async Task RunColonyLostAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
         long? startTick = null;
         Injection? killed = null;
         var held = await s.RunClockUntilHeldAsync(
@@ -138,18 +138,18 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         s.Record("colony_lost", CombatLabKit.Obj(
             ("kill_tick", killed?.Tick),
-            ("hold_reason", held.Reason?.ToString()),
+            ("hold_reason", (held.Hold as Clock.HoldState.HeldCase)?.Reason.ToString()),
             ("hold_tick", held.Context?.Tick),
-            ("detail", held.Detail),
+            ("detail", held.Hold.ToString()),
             ("killed", killed?.Evidence?.DeepClone())));
         if (killed is null)
         {
-            throw new AcceptanceException($"the clock held before the kill ({held.Reason}): {held.Detail}");
+            throw new AcceptanceException($"the clock held before the kill ({(held.Hold as Clock.HoldState.HeldCase)?.Reason}): {held.Hold}");
         }
 
-        if (held.State != Clock.ClockState.Held || held.Reason != Clock.HoldReason.ColonyLost)
+        if (held.State != Clock.ClockState.Held || (held.Hold as Clock.HoldState.HeldCase)?.Reason != Clock.HoldReason.ColonyLost)
         {
-            throw new AcceptanceException($"clock {held.State} {held.Reason} after the kill, expected held for ColonyLost: {held.Detail}");
+            throw new AcceptanceException($"clock {held.State} {(held.Hold as Clock.HoldState.HeldCase)?.Reason} after the kill, expected held for ColonyLost: {held.Hold}");
         }
     }
 
@@ -159,7 +159,7 @@ public static class HazardCases
     private static async Task RunCombatDownedAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = CombatPolicy };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = CombatPolicy };
         long? startTick = null;
         Injection? injected = null;
         var held = await s.RunClockUntilHeldAsync(
@@ -180,20 +180,20 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         if (injected is null)
         {
-            throw new AcceptanceException($"the clock held before the injection ({held.Reason}): {held.Detail}");
+            throw new AcceptanceException($"the clock held before the injection ({(held.Hold as Clock.HoldState.HeldCase)?.Reason}): {held.Hold}");
         }
 
         var row = await s.HoldRowAsync("hold", held, cancellationToken).ConfigureAwait(false);
         var detected = ClockRows.Whole(row, ColonyEventTelemetry.DetectedTickKey);
         s.Record("hazard", CombatLabKit.Obj(
-            ("hold_reason", held.Reason?.ToString()),
-            ("combat_event", held.CombatEvent?.ToString()),
+            ("hold_reason", (held.Hold as Clock.HoldState.HeldCase)?.Reason.ToString()),
+            ("combat_event", ((held.Hold as Clock.HoldState.HeldCase)?.Trigger as Clock.HoldTrigger.CombatCase)?.Event.ToString()),
             ("inject_tick", injected.Tick),
             ("detected_tick", detected),
             ("injected", injected.Evidence?.DeepClone())));
-        if (held.Reason != Clock.HoldReason.CombatEvent || held.CombatEvent != Clock.CombatEvent.Downed)
+        if ((held.Hold as Clock.HoldState.HeldCase)?.Reason != Clock.HoldReason.CombatEvent || ((held.Hold as Clock.HoldState.HeldCase)?.Trigger as Clock.HoldTrigger.CombatCase)?.Event != Clock.CombatEvent.Downed)
         {
-            throw new AcceptanceException($"hold {held.Reason} ({held.CombatEvent}), expected the Downed combat event: {held.Detail}");
+            throw new AcceptanceException($"hold {(held.Hold as Clock.HoldState.HeldCase)?.Reason} ({((held.Hold as Clock.HoldState.HeldCase)?.Trigger as Clock.HoldTrigger.CombatCase)?.Event}), expected the Downed combat event: {held.Hold}");
         }
 
         var gap = detected - injected.Tick;
@@ -289,7 +289,7 @@ public static class HazardCases
     private static async Task RunHazardAsync(TypedSession s, HazardCase hc, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
 
         // The run goes on SettleTicks before the injection, which lands while the clock still runs; a hold before then is a
         // hazard the colony raised on its own and fails the case. The demoted tier ends on its wake instead of a hold.
@@ -328,7 +328,7 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         if (injected is null)
         {
-            throw new AcceptanceException($"the clock held before the injection ({status.Reason}): {status.Detail}");
+            throw new AcceptanceException($"the clock held before the injection ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}): {status.Hold}");
         }
 
         if (hc.Reason is { } reason)
@@ -358,7 +358,7 @@ public static class HazardCases
         s.Record("hazard", CombatLabKit.Obj(
             ("class", hc.Class),
             ("bound_ticks", hc.Bound),
-            ("hold_reason", held.Reason?.ToString()),
+            ("hold_reason", (held.Hold as Clock.HoldState.HeldCase)?.Reason.ToString()),
             ("inject_tick", injected.Tick),
             ("hold_tick", holdTick),
             ("detected_tick", detected),
@@ -379,10 +379,10 @@ public static class HazardCases
         response.DetectionTick = detected;
         s.Record("response", response.ToJson());
 
-        var shown = $"{held.Reason} at tick {holdTick}: {held.Detail}";
-        if (held.Reason != reason)
+        var shown = $"{(held.Hold as Clock.HoldState.HeldCase)?.Reason} at tick {holdTick}: {held.Hold}";
+        if ((held.Hold as Clock.HoldState.HeldCase)?.Reason != reason)
         {
-            throw new AcceptanceException($"hold reason {held.Reason}, expected {reason}: {shown}");
+            throw new AcceptanceException($"hold reason {(held.Hold as Clock.HoldState.HeldCase)?.Reason}, expected {reason}: {shown}");
         }
 
         if (detected is null || occurrence is null)
@@ -459,7 +459,7 @@ public static class HazardCases
         // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.
         if (ended.State == Clock.ClockState.Held || wake is null)
         {
-            throw new AcceptanceException($"the clock was held ({ended.Reason}) for a wound under the severity floor: {ended.Detail}");
+            throw new AcceptanceException($"the clock was held ({(ended.Hold as Clock.HoldState.HeldCase)?.Reason}) for a wound under the severity floor: {ended.Hold}");
         }
 
         if (gap is < 0 || gap > hc.Bound)

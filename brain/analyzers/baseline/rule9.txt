@@ -132,12 +132,8 @@ BuildingRuntime/StockpileSitedRoles.cs|Fact|1
 BuildingRuntime/TradeMission.cs|Fact|2
 BuildingRuntime/TradeMissionOptions.cs|Fact|2
 BuildingRuntime/TradeTarget.cs|Discard|1
-Contracts/Clock.cs|NullableValue|32
-Contracts/Clock.cs|UnknownMember|7
 Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Operations.cs|NullableValue|62
-Contracts/Receipts.cs|NullableValue|32
-Contracts/Receipts.cs|UnknownMember|4
 Domain/Actions/PawnActivities.cs|NullableValue|2
 Domain/Actions/Trade.cs|Discard|1
 Domain/Foundation/Fact.cs|Fact|6

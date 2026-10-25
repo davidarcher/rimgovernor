@@ -166,10 +166,10 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
             },
         };
 
-        async Task<Receipts.ZoneEffect> ApplyAsync(string label)
+        async Task<Receipts.ZoneEffect.CreatedCase> ApplyAsync(string label)
         {
             var outcome = await AppliedAsync("rectangle-stockpile", intent, cancellationToken).ConfigureAwait(false);
-            var effect = outcome.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone
+            var effect = outcome.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone as Receipts.ZoneEffect.CreatedCase
                 ?? throw new InvalidOperationException($"{label}: missing applied stockpile evidence: {outcome}");
             Record(label, effect);
             return effect;
@@ -177,7 +177,7 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
 
         var first = await ApplyAsync("rectangle-create").ConfigureAwait(false);
         await InjectFaultAsync(cancellationToken).ConfigureAwait(false);
-        var rows = first.Created.ToList();
+        var rows = first.Zones.ToList();
         if (rows.Count != 2)
         {
             throw new InvalidOperationException($"expected both components: {first}");

@@ -78,9 +78,10 @@ partial record CombatReads
     internal static CombatMemory CombatStepResults(CombatStep step, IReadOnlyList<PbReceipts.CombatOrderResult> results)
     {
         var shaped = new List<BridgeCombatOrderResult>();
-        foreach (var r in results.Skip(step.Drafts.Count))
+        for (var i = step.Drafts.Count; i < results.Count; i++)
         {
-            shaped.Add(new BridgeCombatOrderResult { Index = (int)(r.Index ?? 0), PawnId = r.PawnId ?? "", Applied = r.Applied == true, Refusal = r.Refusal ?? "" });
+            var r = results[i];
+            shaped.Add(new BridgeCombatOrderResult { Index = i, PawnId = r.PawnId ?? "", Applied = r.Applied, Refusal = r.Refusal ?? "" });
         }
         return RoundsDefensePlanner.CombatStopMemory(step.View.Pawns, step.Orders, shaped, step.Memory);
     }

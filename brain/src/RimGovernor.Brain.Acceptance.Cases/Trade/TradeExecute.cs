@@ -1,3 +1,4 @@
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
@@ -57,13 +58,13 @@ internal static class TradeExecute
         async Task<string> Open(string label)
         {
             var trade = TradeKit.AppliedTrade(label, await Apply(label, new Operations.OpenTrade { GiftMode = false }).ConfigureAwait(false));
-            return string.IsNullOrEmpty(trade.SessionId) ? throw new AcceptanceException($"{label}: expected a session id, got {trade}") : trade.SessionId;
+            return trade is Receipts.TradeEffect.OpenCase { SessionId: { Length: > 0 } id } ? id : throw new AcceptanceException($"{label}: expected a session id, got {trade}");
         }
 
         async Task SetLines(string label, params Operations.TradeLine[] lines)
         {
             var effect = TradeKit.AppliedTrade(label, await Apply(label, new Operations.SetTradeLines { Lines = [.. lines] }).ConfigureAwait(false));
-            if (!effect.Lines.Select(x => x.LineId).Order(StringComparer.Ordinal).SequenceEqual(lines.Select(x => x.LineId).Order(StringComparer.Ordinal)))
+            if (effect is not Receipts.TradeEffect.StagedCase staged || !staged.Lines.Select(x => x.LineId).Order(StringComparer.Ordinal).SequenceEqual(lines.Select(x => x.LineId).Order(StringComparer.Ordinal)))
             {
                 throw new AcceptanceException($"{label}: expected the receipt to name the staged lines, got {effect}");
             }
@@ -110,7 +111,7 @@ internal static class TradeExecute
 
         var deal = TradeKit.AppliedTrade("accept", await Apply("accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature }).ConfigureAwait(false));
         s.RecordWire("accept", deal);
-        if (deal.Executed != true || deal.ActuallyTraded != true || deal.Closed != true || deal.BeforeSilver == deal.AfterSilver || deal.DealSignature != staged.DealSignature)
+        if (deal is not Receipts.TradeEffect.ExecutedCase executed || !executed.ActuallyTraded || executed.BeforeSilver == executed.AfterSilver || executed.DealSignature != staged.DealSignature)
         {
             throw new AcceptanceException($"accept: expected an executed, traded, closed deal of the staged signature that moved colony silver, got {deal}");
         }

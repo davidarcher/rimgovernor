@@ -21,12 +21,12 @@ namespace HomeBridge.BridgeTools
 
         internal static Clock.Status HandleRun(Clock.RunRequest parsed)
         {
-            if (parsed.ExpectedGeneration is null || parsed.ExpectedGeneration.GetValueOrDefault() == 0)
+            if (parsed.ExpectedGeneration == 0)
                 throw NativeFaults.Refused(Invalid("Run requires the current authority generation."));
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) throw NativeFaults.Refused(failure);
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                 throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority has not been acquired."));
-            var guard = authority.Check(parsed.ExpectedGeneration.GetValueOrDefault());
+            var guard = authority.Check(parsed.ExpectedGeneration);
             context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(guard.Snapshot.Generation) };
             if (!guard.Success) throw NativeFaults.Refused(NativeAuthorityControlTools.Refusal(guard.Error, context));
             var invalid = Supervisor.ValidateTypedRun(parsed); if (invalid != null) throw NativeFaults.Refused(invalid);
@@ -57,12 +57,11 @@ namespace HomeBridge.BridgeTools
 
         internal static Clock.Status Read(Common.ObservationContext context)
         {
-            try { return Supervisor.TypedStatus(context); }
-            catch (Exception) { return Unreadable(context); }
+            return Supervisor.TypedStatus(context);
+
         }
 
-        private static Clock.Status Unreadable(Common.ObservationContext context) => new Clock.Status { Context = context, Unavailable = new Common.Unavailable
-            { Reason = Common.UnavailableReason.ReadFailed, Detail = "Clock status could not be read completely." } };
+
         private static Common.Failure Invalid(string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail);
     }
 }

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>authority/player-speed</c> (#3608): a player's time-control click while the bot runs the clock only asks the brain
 /// for the speed, and the brain adopts it. The served brain runs the lab at Hyperfast; the case presses Superfast through
 /// <c>rimgovernor/press_time_speed</c> (the handler a button or key runs) and the brain's next Run asks for Superfast
-/// (<c>Status.TargetSpeed</c>) while the clock keeps running: no ExternalSpeedChanged hold, no ExternalPause hold. The
+/// (<c>Status.LastRun</c>) while the clock keeps running: no ExternalSpeedChanged hold, no ExternalPause hold. The
 /// game launches under test acceleration, which pins the brain at Hyperfast, so the case unpins it with
 /// <see cref="InProcEnvironment.UnpinTestSpeed"/>; native's test acceleration stays on.
 /// </summary>
@@ -24,7 +24,7 @@ internal static class AuthorityPlayerSpeed
     {
         Name = "authority/player-speed",
         Scope = "With the bot running the clock, a time-control press of Superfast (rimgovernor/press_time_speed) is adopted "
-            + "by the served brain: its Run asks for Superfast (Status.TargetSpeed) and the clock keeps running with no "
+            + "by the served brain: its Run asks for Superfast (Status.LastRun) and the clock keeps running with no "
             + "ExternalSpeedChanged or ExternalPause hold (#3608).",
         Ticks = 3000,
         Tier = CaseTier.OnDemand,
@@ -53,9 +53,9 @@ internal static class AuthorityPlayerSpeed
             if (press is null)
             {
                 // The precondition: the brain's own Run at the case's Hyperfast, so a Superfast Run can only be the click's.
-                if (status.State != Clock.ClockState.Running || status.TargetSpeed != Clock.Speed.Hyperfast)
+                if (status.State != Clock.ClockState.Running || (status.LastRun as Clock.RunHistory.RanCase)?.Speed != Clock.Speed.Hyperfast)
                 {
-                    return ($"before {status.State} {status.TargetSpeed}", false);
+                    return ($"before {status.State} {(status.LastRun as Clock.RunHistory.RanCase)?.Speed}", false);
                 }
 
                 s.RecordWire("clock_before", status);
@@ -71,26 +71,26 @@ internal static class AuthorityPlayerSpeed
                 return ("pressed", false);
             }
 
-            if (status.State == Clock.ClockState.Held && status.Reason is Clock.HoldReason.ExternalSpeedChanged or Clock.HoldReason.ExternalPause)
+            if (status.State == Clock.ClockState.Held && (status.Hold as Clock.HoldState.HeldCase)?.Reason is Clock.HoldReason.ExternalSpeedChanged or Clock.HoldReason.ExternalPause)
             {
                 s.RecordWire("clock_held", status);
-                throw new AcceptanceException($"the click held the clock: {status.Reason} ({status.Detail})");
+                throw new AcceptanceException($"the click held the clock: {(status.Hold as Clock.HoldState.HeldCase)?.Reason} ({status.Hold})");
             }
 
-            if (status.TargetSpeed == Clock.Speed.Superfast && status.State == Clock.ClockState.Running)
+            if ((status.LastRun as Clock.RunHistory.RanCase)?.Speed == Clock.Speed.Superfast && status.State == Clock.ClockState.Running)
             {
                 adoptedTick ??= tick;
             }
 
             var done = adoptedTick is { } adopted && tick >= adopted + RunAfter && status.State == Clock.ClockState.Running
-                && status.TargetSpeed == Clock.Speed.Superfast;
+                && (status.LastRun as Clock.RunHistory.RanCase)?.Speed == Clock.Speed.Superfast;
             if (done)
             {
                 s.RecordWire("clock_after", status);
                 doneAt = ClockRows.NowUnixMs();
             }
 
-            return ($"{status.State} {status.TargetSpeed} {status.PlayerSpeedRequestSerial}", done);
+            return ($"{status.State} {(status.LastRun as Clock.RunHistory.RanCase)?.Speed} {(status.PlayerRequest as Clock.PlayerSpeedRequest.RequestedCase)?.Serial}", done);
         }, cancellationToken).ConfigureAwait(false);
 
         // A hold between two polls: none from the press to the poll that saw the claim was the click's. The window ends

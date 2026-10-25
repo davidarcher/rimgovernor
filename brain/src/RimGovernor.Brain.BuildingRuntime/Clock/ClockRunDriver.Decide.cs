@@ -276,10 +276,20 @@ public sealed partial class ClockRunDriver
         var (combatPlan, fightOpen, huntPrey) = await ClockRunWork.CombatPlanAsync(journal, state.Snapshot, call).ConfigureAwait(false);
         if (!running)
         {
-            note.HeldFor = status.Reason;
+            var hold = status.Hold as PbClock.HoldState.HeldCase;
+            var reason = status.Hold switch
+            {
+                PbClock.HoldState.HeldCase h => h.Reason,
+                PbClock.HoldState.PendingCase h => h.Reason,
+                PbClock.HoldState.NeverRunCase => PbClock.HoldReason.NeverRun,
+                PbClock.HoldState.RunningCase => throw new InvalidOperationException("A held clock has a running hold state."),
+                PbClock.HoldState => throw new InvalidOperationException("Unlisted clock hold state."),
+                null => throw new InvalidOperationException("Missing clock hold state.")
+            };
+            note.HeldFor = reason;
             // A lost colony is a result, not a hazard to answer (#2819): the driver files it and never sends Run, so the
             // clock stays held; nothing opens the game-over letter or creates new wanderers.
-            if (status.Reason == PbClock.HoldReason.ColonyLost)
+            if (reason == PbClock.HoldReason.ColonyLost)
             {
                 note.Action = "lost";
                 note.Reason = "colony_lost";
@@ -287,9 +297,9 @@ public sealed partial class ClockRunDriver
             }
             // The stop on an armed combat event is the open fight's next decision: the defense planner runs once more
             // against the held world before the clock resumes.
-            if (status.Reason == PbClock.HoldReason.CombatEvent && _combatStops.Active && _combatMarkedFor != status.HeldAtUnixMs.GetValueOrDefault())
+            if (hold is { Reason: PbClock.HoldReason.CombatEvent } && _combatStops.Active && _combatMarkedFor != hold.AtUnixMs)
             {
-                _combatMarkedFor = status.HeldAtUnixMs.GetValueOrDefault();
+                _combatMarkedFor = hold.AtUnixMs;
                 _scheduler.Queue.CombatStopped();
                 note.Action = "hold";
                 note.Reason = "combat_event";
@@ -297,15 +307,15 @@ public sealed partial class ClockRunDriver
             }
             // An open hunt's review hold is its next decision too: the hunt arms no event, so without it the formation
             // would be ordered only on the defense planner's own cadence.
-            if (ClockCombatStops.HuntReview(status.Reason, fightOpen, huntPrey.Count, step.Defense is not null, status.HeldAtUnixMs.GetValueOrDefault(), _combatMarkedFor))
+            if (hold is not null && ClockCombatStops.HuntReview(hold.Reason, fightOpen, huntPrey.Count, step.Defense is not null, hold.AtUnixMs, _combatMarkedFor))
             {
-                _combatMarkedFor = status.HeldAtUnixMs.GetValueOrDefault();
+                _combatMarkedFor = hold.AtUnixMs;
                 _scheduler.Queue.CombatStopped();
                 note.Action = "hold";
                 note.Reason = "hunt_review";
                 return true;
             }
-            if (_autosaveDue && _config.Autosave is { } autosave && status.ActualPaused is not null && status.ActualPaused.GetValueOrDefault())
+            if (_autosaveDue && _config.Autosave is { } autosave && status.ActualPaused)
             {
                 _autosaveDue = false;
                 try
@@ -365,7 +375,7 @@ public sealed partial class ClockRunDriver
                 Snapshot = state.Snapshot,
                 Tick = tick,
                 State = running ? ClockWatchState.Running : ClockWatchState.Held,
-                NativeTickBoundary = status.NativeTickBoundary ?? throw new HeldException("clock status carried no native tick boundary"),
+                NativeTickBoundary = status.NativeTickBoundary,
             },
             CombatPlan = combatPlan,
             HuntPrey = huntPrey,
@@ -409,7 +419,7 @@ public sealed partial class ClockRunDriver
             };
         }
         var speed = FightSpeed(fightOpen);
-        if (running && _sentPolicy == policy && _sentSpeed == speed && status.TargetSpeed == speed)
+        if (running && _sentPolicy == policy && _sentSpeed == speed && (status.LastRun as PbClock.RunHistory.RanCase)?.Speed == speed)
         {
             note.Action = "";
             return false;
@@ -460,7 +470,7 @@ public sealed partial class ClockRunDriver
         _scheduler.SetRunning(after.State == PbClock.ClockState.Running);
         note.HoldAt = holdAt;
         note.Action = resumed ? "run" : "adjust";
-        note.Reason = resumed ? "resumed" : (status.TargetSpeed == speed ? "watch_changed" : "speed_changed");
+        note.Reason = resumed ? "resumed" : ((status.LastRun as PbClock.RunHistory.RanCase)?.Speed == speed ? "watch_changed" : "speed_changed");
         return true;
     }
 
@@ -469,7 +479,7 @@ public sealed partial class ClockRunDriver
     // carries it (speed_changed). Native reports a request only for the loaded game and starts its serial again with it.
     private void AdoptSpeedRequest(PbClock.Status status, string load)
     {
-        if (status.PlayerSpeedRequestSerial is not { } serial || status.PlayerRequestedSpeed is not { } speed || _adoptedSpeedRequest == (load, serial))
+        if (status.PlayerRequest is not PbClock.PlayerSpeedRequest.RequestedCase(var speed, var serial) || _adoptedSpeedRequest == (load, serial))
         {
             return;
         }

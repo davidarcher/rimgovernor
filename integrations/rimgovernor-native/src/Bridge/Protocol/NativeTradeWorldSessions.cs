@@ -180,7 +180,10 @@ namespace HomeBridge.BridgeTools
                 _contact = contact;
                 if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc)) { _contact = null; throw new InvalidOperationException("Comms job refused."); }
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect { SessionId = _sessionId ?? "", DealSignature = _sessionId == null ? "" : DealSignature(), Executed = false, Closed = false, BeforeSilver = _sessionId == null ? 0 : SessionSilver(), FactionId = seller.Faction?.GetUniqueLoadID() ?? "" } };
+            Receipts.TradeEffect effect = _sessionId is { } sessionId
+                ? new Receipts.TradeEffect.OpenCase(sessionId, seller.Faction?.GetUniqueLoadID() ?? throw new InvalidOperationException("A world trader has no faction."))
+                : new Receipts.TradeEffect.ApproachingCase();
+            return new Receipts.EffectEvidence { Effect = effect };
         }
 
         private static bool CancelApproach(string key, string negotiator)

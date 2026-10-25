@@ -14,6 +14,17 @@ Field-level shapes and required argument presence live in [operation contracts](
 the bridge and native code. This page keeps only the completion boundary and the
 non-obvious constraints.
 
+Receipt scalars describe observed values and are required on the branch that
+owns them. Animal evidence names the one training, designation, sterilization, area, master or
+following setting read back. Trade evidence distinguishes approach, open,
+staged lines, executed silver transfer and session end; approach and staging
+carry no invented transfer amounts. Zone evidence distinguishes created
+components from one edited or deleted zone. Surgery evidence names either a
+whole-body recipe or its exact part index. Receipt order in a combat batch
+defines the index; the wire carries no redundant index. A wall-removal receipt
+does not carry a constant assertion about demolition: the native building read
+proves demolition separately.
+
 | Committed action | Completion boundary |
 | --- | --- |
 | `build_room_shell`, `place_buildings` | Native building observations through ProjectBook; a shell does not certify roofing or usable shelter. |

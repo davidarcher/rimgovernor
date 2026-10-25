@@ -57,7 +57,7 @@ internal static class CombatLabStops
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Superfast, Policy = Policy(lab.Hostiles()) };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Superfast, Policy = Policy(lab.Hostiles()) };
 
         var entered = new HashSet<(string Thing, bool ReachedBy)>();
         var downed = false;
@@ -65,7 +65,7 @@ internal static class CombatLabStops
         {
             var label = "hold-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var held = await s.RunClockUntilHeldAsync(label, s.TicksLeft, request, cancellationToken).ConfigureAwait(false);
-            if (held.Reason != Clock.HoldReason.CombatEvent)
+            if (held.Hold is not Clock.HoldState.HeldCase { Reason: Clock.HoldReason.CombatEvent, Trigger: Clock.HoldTrigger.CombatCase trigger })
             {
                 throw new AcceptanceException($"{label}: not a combat-event hold: {held}");
             }
@@ -78,7 +78,7 @@ internal static class CombatLabStops
             var thing = ClockRows.Text(row, "thing");
             var reason = ClockRows.Text(row, "combat_reason");
             s.Record(label, CombatLabKit.Obj(
-                ("event", held.CombatEvent?.ToString()),
+                ("event", trigger.Event.ToString()),
                 ("thing", thing),
                 ("reason", reason),
                 ("tick", tick),
@@ -89,7 +89,7 @@ internal static class CombatLabStops
                 throw new AcceptanceException($"{label}: combat hold off its event's tick: status {held.Context?.Tick}, row {tick}, detected {detected}, occurred {occurred}");
             }
 
-            switch (held.CombatEvent)
+            switch (trigger.Event)
             {
                 case Clock.CombatEvent.EnteredRange:
                     // First time only: the combat remembers a raider across holds, per direction ("reaches" or "reached by").
@@ -109,7 +109,7 @@ internal static class CombatLabStops
                     downed = true;
                     break;
                 default:
-                    throw new AcceptanceException($"{label}: an unarmed combat event {held.CombatEvent} held the clock: {reason}");
+                    throw new AcceptanceException($"{label}: an unarmed combat event {trigger.Event} held the clock: {reason}");
             }
         }
 

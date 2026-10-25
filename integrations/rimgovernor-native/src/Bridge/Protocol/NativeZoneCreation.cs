@@ -178,8 +178,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Evidence(string id, Zone? zone, Map map)
         {
             var present = zone != null && map.zoneManager.AllZones.Contains(zone);
-            var effect = new Receipts.ZoneEffect { ZoneId = id, Present = present };
-            if (present) effect = effect with { ListedCellCount = zone!.Cells.Count };
+            var effect = new Receipts.ZoneEffect.ZoneCase(id, present, present ? zone!.Cells.Count : 0);
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

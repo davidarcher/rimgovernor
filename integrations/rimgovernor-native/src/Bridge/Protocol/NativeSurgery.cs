@@ -78,8 +78,8 @@ namespace HomeBridge.BridgeTools
             {
                 PawnId = pawn!.GetUniqueLoadID(), Bill = NativeRef.Of(bill.GetUniqueLoadID()),
                 State = Receipts.SurgeryState.Queued,
+                Target = part is null ? new Receipts.SurgeryTarget.WholeBodyCase() : new Receipts.SurgeryTarget.PartCase(intent.PartIndex ?? throw new InvalidOperationException("A part surgery has no part index.")),
             };
-            if (part != null) effect = effect with { PartIndex = intent.PartIndex };
             return new Receipts.EffectEvidence { Effect = effect };
         }
     }

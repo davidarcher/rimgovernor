@@ -86,13 +86,13 @@ namespace HomeBridge.BridgeTools
             {
                 var order = command.Orders[i];
                 var orderPawn = order.Pawn ?? new Operations.EntityPrecondition();
-                var result = new Receipts.CombatOrderResult { Index = (uint)i };
+                string? pawnId = null;
                 string refusal; string? job = null;
                 if (order.Order is Operations.CombatOrderOrder.DoorCase { Value: var doorOrder })
                 {
                     if (doorOrder.Mode is Operations.CombatDoorMode.Open or Operations.CombatDoorMode.Shut)
                     {
-                        result = result with { PawnId = orderPawn.EntityId };
+                        pawnId = orderPawn.EntityId;
                         var admitted = pawns[(orderPawn.EntityId ?? "")];
                         refusal = admitted.refusal;
                         if (refusal.Length == 0) refusal = Drafted(identity, admitted.pawn!);
@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
                 else if (order.Order is Operations.CombatOrderOrder.ReleaseCase || order.Order is Operations.CombatOrderOrder.AnimalAreaCase)
                 {
                     // Animal orders: a player animal, never drafted.
-                    result = result with { PawnId = orderPawn.EntityId };
+                    pawnId = orderPawn.EntityId;
                     var admitted = pawns[(orderPawn.EntityId ?? "")];
                     refusal = admitted.refusal;
                     if (refusal.Length == 0 || refusal == "not_found" && order.Order is Operations.CombatOrderOrder.AnimalAreaCase { Value.Area: Operations.CombatAnimalAreaArea.ClearCase })
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
                 }
                 else
                 {
-                    result = result with { PawnId = orderPawn.EntityId };
+                    pawnId = orderPawn.EntityId;
                     var admitted = pawns[(orderPawn.EntityId ?? "")];
                     refusal = admitted.refusal;
                     bool draft = order.Order is Operations.CombatOrderOrder.DraftCase;
@@ -134,9 +134,7 @@ namespace HomeBridge.BridgeTools
                         catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " failed: " + error.GetType().Name); }
                     }
                 }
-                result = result with { Applied = refusal.Length == 0 };
-                if (refusal.Length > 0) result = result with { Refusal = refusal };
-                if (job != null) result = result with { JobDef = job };
+                var result = new Receipts.CombatOrderResult { PawnId = pawnId, Applied = refusal.Length == 0, Refusal = refusal, JobDef = job };
                 effect = effect with { Results = [.. effect.Results, result] };
             }
             return new Receipts.EffectEvidence { Effect = effect };

@@ -231,15 +231,17 @@ public sealed class ClockRunDriverTests
         {
             Context = Context(),
             State = _held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
-            Reason = _held ? _reason : null,
-            TargetSpeed = _speed == PbClock.Speed.Unspecified ? null : _speed,
-            HeldAtUnixMs = _held ? _heldAtMs : null,
+            Hold = !_held ? new PbClock.HoldState.RunningCase()
+                : _reason == PbClock.HoldReason.NeverRun ? new PbClock.HoldState.NeverRunCase()
+                : new PbClock.HoldState.HeldCase(_reason, _heldAtMs,
+                    _reason == PbClock.HoldReason.CombatEvent ? new PbClock.HoldTrigger.CombatCase(PbClock.CombatEvent.Downed) : new PbClock.HoldTrigger.OrdinaryCase()),
+            LastRun = _speed == 0 ? new PbClock.RunHistory.NeverRunCase() : new PbClock.RunHistory.RanCase(_speed),
+            Pacing = _held ? new PbClock.Pacing.StoppedCase() : new PbClock.Pacing.RunningCase(60, PbClock.PacingReason.Fixed, 0),
+            EffectiveTicksPerSecond = _held ? 0 : 60,
             NativeTickBoundary = true,
             HoldSerial = _holdSerial,
-            PlayerRequestedSpeed = _requestSerial == 0 ? null : _requestedSpeed,
-            PlayerSpeedRequestSerial = _requestSerial == 0 ? null : _requestSerial,
+            PlayerRequest = _requestSerial == 0 ? new PbClock.PlayerSpeedRequest.NoneCase() : new PbClock.PlayerSpeedRequest.RequestedCase(_requestedSpeed, _requestSerial),
             ActualPaused = _held,
-            CombatEvent = _held && _reason == PbClock.HoldReason.CombatEvent ? PbClock.CombatEvent.Downed : null,
         };
 
         /// <summary>
@@ -255,24 +257,19 @@ public sealed class ClockRunDriverTests
                     RefuseRun = null;
                     throw Failure(refusal);
                 }
-                if (request.ExpectedGeneration.GetValueOrDefault() != _generation)
+                if (request.ExpectedGeneration != _generation)
                 {
                     throw Failure(PbCommon.FailureCode.StaleGeneration);
                 }
-                if (request.HoldAtTick is null)
+                if (_held && request.PlannedHoldSerial != _holdSerial)
                 {
-                    // Native requires the review tick on every Run (#3556).
-                    throw Failure(PbCommon.FailureCode.InvalidRequest);
-                }
-                if (_held && request.PlannedHoldSerial.GetValueOrDefault() != _holdSerial)
-                {
-                    _staleSerials.Add(request.PlannedHoldSerial.GetValueOrDefault());
+                    _staleSerials.Add(request.PlannedHoldSerial);
                     throw Failure(PbCommon.FailureCode.Unavailable);
                 }
                 _runs++;
                 _runRequests.Add(request);
-                _speed = request.Speed.GetValueOrDefault();
-                _holdAt = (long)Math.Min(request.HoldAtTick.Value, long.MaxValue);
+                _speed = request.Speed;
+                _holdAt = (long)Math.Min(request.HoldAtTick, long.MaxValue);
                 if (_held)
                 {
                     var from = _reason;
@@ -296,7 +293,7 @@ public sealed class ClockRunDriverTests
                 if (!_held)
                 {
                     _holds++;
-                    TakeHold(request.Reason.GetValueOrDefault(), new NativeEvents.PauseEvidence(true, true, null, null));
+                    TakeHold(request.Reason, new NativeEvents.PauseEvidence(true, true, null, null));
                 }
                 return Status();
             }
@@ -520,14 +517,22 @@ public sealed class ClockRunDriverTests
             {
                 TargetSpeed = options.Accelerated ? new ClockTargetSpeed(PbClock.Speed.Hyperfast) : rig.Target,
                 PlayerSpeed = rig.Target,
-                Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
+                Policy = new PbClock.WatchPolicy
                 {
+                    SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+                    SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+                    SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+                    SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+                    ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+                    MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+                    InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+                    HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
                     Mode = PbClock.WatchMode.Colony,
                     HealthDropFraction = .1f,
                     MinHealthFraction = .5f,
                     HostileWithin = 20f,
                     InjuryStopCooldownMs = 0,
-                }),
+                },
                 Autosave = options.Autosave,
                 AutosaveEveryTicks = options.AutosaveEveryTicks,
                 // The driver beats often so a test waits milliseconds for a heartbeat.
@@ -1257,7 +1262,13 @@ public sealed class ClockRunDriverTests
     }
 
     private static PbClock.Status HeldAt(DateTimeOffset at) =>
-        new() { State = PbClock.ClockState.Held, Reason = PbClock.HoldReason.CombatEvent, CombatEvent = PbClock.CombatEvent.Downed, HeldAtUnixMs = at.ToUnixTimeMilliseconds() };
+        new()
+        {
+            Context = new() { Identity = WorldIdentity, Tick = 0, NativeGeneration = new PbCommon.ObservedGeneration.UnclaimedCase() },
+            State = PbClock.ClockState.Held, Hold = new PbClock.HoldState.HeldCase(PbClock.HoldReason.CombatEvent, at.ToUnixTimeMilliseconds(), new PbClock.HoldTrigger.CombatCase(PbClock.CombatEvent.Downed)),
+            LastRun = new PbClock.RunHistory.RanCase(PbClock.Speed.Normal), Pacing = new PbClock.Pacing.StoppedCase(),
+            PlayerRequest = new PbClock.PlayerSpeedRequest.NoneCase(), HoldSerial = 1, NativeTickBoundary = true, ActualPaused = true, EffectiveTicksPerSecond = 0,
+        };
 
     [Fact]
     public void TheResumeLatencyGateTripsOnASlowCombatResumeAndClearsWhenTheCombatEnds()

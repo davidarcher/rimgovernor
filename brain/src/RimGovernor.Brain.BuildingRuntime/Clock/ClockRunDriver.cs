@@ -106,14 +106,14 @@ public sealed partial class ClockRunDriver : IDisposable
     private static void Validated(ClockRunConfig config)
     {
         var p = config.Policy;
-        if (p.Mode.GetValueOrDefault() != PbClock.WatchMode.Colony
+        if (p.Mode != PbClock.WatchMode.Colony
             || p.AcknowledgedHostileIds.Count + p.AcknowledgedDownedColonistIds.Count + p.AcknowledgedInjuredColonistIds.Count + p.SurgicalRecoveryIds.Count + p.MedicalRestIds.Count + p.AcknowledgedHungryColonistIds.Count != 0
-            || p.InjuryStopCooldownMs.GetValueOrDefault() != 0)
+            || p.InjuryStopCooldownMs != 0)
         {
             throw new ControlException("NewClockRunDriver: the base policy is not a plain colony watch");
         }
         ClockValidation.ValidateClockPolicy(p);
-        if (config.CombatResumeBudget <= TimeSpan.Zero || !Enum.IsDefined(config.CombatFallbackSpeed) || config.CombatFallbackSpeed == PbClock.Speed.Unspecified)
+        if (config.CombatResumeBudget <= TimeSpan.Zero || !Enum.IsDefined(config.CombatFallbackSpeed))
         {
             throw new ControlException("NewClockRunDriver: the combat resume budget must be positive and the fallback speed a real speed");
         }

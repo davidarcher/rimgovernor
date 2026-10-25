@@ -78,18 +78,26 @@ internal static class WallKit
     /// The native clock run a wall case's builders work under: the supervisor runs the clock at <paramref name="generation"/>
     /// with the brain's colony watch policy, so the guards that act only under supervised play are armed.
     /// </summary>
-    internal static Clock.RunRequest ClockRun(ulong generation) => new()
+    internal static ClockRunPlan ClockRun(ulong generation) => new()
     {
         ExpectedGeneration = generation,
         Speed = Clock.Speed.Ultrafast,
-        Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+        Policy = new Clock.WatchPolicy
         {
+            SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+            SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+            SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+            SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+            ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+            MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+            InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+            HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
             Mode = Clock.WatchMode.Colony,
             HealthDropFraction = .1f,
             MinHealthFraction = .5f,
             HostileWithin = 20f,
             InjuryStopCooldownMs = 0,
-        }),
+        },
     };
 
     /// <summary>
@@ -114,7 +122,7 @@ internal static class WallKit
         }, cancellationToken).ConfigureAwait(false);
         if (!gone)
         {
-            throw new AcceptanceException($"{label}: {id} still stands when the clock held ({status.Reason}): {status.Detail}");
+            throw new AcceptanceException($"{label}: {id} still stands when the clock held ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}): {status.Hold}");
         }
 
         s.Record(label + "_after_ticks", tick - (start ?? tick));

@@ -14,19 +14,3 @@ internal sealed class FacadeSaveUncertainException(PbLifecycle.SaveUncertain val
     public BridgeResult Receipt { get; } = receipt;
 }
 
-/// <summary>The shared validation helpers of the write paths (clock status).</summary>
-internal static class FacadeWriteChecks
-{
-    /// <summary>
-    /// The clock status the facade answered (a refusal is already thrown), after an unavailable status is turned
-    /// into an exception.
-    /// </summary>
-    internal static PbClock.Status ClockStatus(PbClock.Status status)
-    {
-        if (status.Unavailable is { } unavailable)
-        {
-            throw FacadeNativeClient.Unavailable(unavailable);
-        }
-        return status;
-    }
-}

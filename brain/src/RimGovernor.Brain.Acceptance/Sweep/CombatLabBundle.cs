@@ -280,7 +280,7 @@ internal static class CombatLabBundle
     // The clock_stop event names of the native combat events: the wire enum's C# name in lower snake case, as the clock
     // scheduler files them.
     private static readonly HashSet<string> CombatEventKinds =
-        [.. Enum.GetValues<Clock.CombatEvent>().Where(e => e != Clock.CombatEvent.Unspecified).Select(e => Snake(e.ToString()))];
+        [.. Enum.GetValues<Clock.CombatEvent>().Select(e => Snake(e.ToString()))];
 
     private static string Snake(string pascal)
     {

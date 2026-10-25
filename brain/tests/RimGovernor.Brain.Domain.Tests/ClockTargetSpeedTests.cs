@@ -26,7 +26,7 @@ public sealed class ClockTargetSpeedTests
     {
         Assert.Equal(Speed.Ultrafast, new BrainComposition(Options()).TargetSpeed.Speed);
         Assert.Equal(Speed.Fast, new BrainComposition(Options(Speed.Fast)).TargetSpeed.Speed);
-        Assert.Throws<ArgumentException>(() => new BrainComposition(Options(Speed.Unspecified)));
+        Assert.Throws<ArgumentException>(() => new BrainComposition(Options((Speed)0)));
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class ClockTargetSpeedTests
         Assert.Equal(Speed.Hyperfast, target.Speed);
         target.Set(Speed.Normal);
         Assert.Equal(Speed.Normal, target.Speed);
-        Assert.Throws<ArgumentOutOfRangeException>(() => target.Set(Speed.Unspecified));
+        Assert.Throws<ArgumentOutOfRangeException>(() => target.Set((Speed)0));
         Assert.Equal(Speed.Normal, target.Speed);
     }
 

@@ -142,17 +142,17 @@ namespace HomeBridge.BridgeTools
             var refusal = Refusal(intent, context, out var wall, out var pending, out var candidate, out _);
             if (refusal != null) throw new InvalidOperationException("Wall removal prerequisites changed before apply: " + refusal);
             if (wall == null)
-                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "", DemolitionObserved = false } };
+                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "" } };
             var id = wall.GetUniqueLoadID();
             if (pending != null)
-                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
+                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id } };
             var chosen = candidate!;
             var before = NativeWallUpgradeObservationTools.SiteToken(chosen.Site, context);
             if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);
             if (blocker != null) throw new InvalidOperationException(blocker);
             var after = chosen.Reread();
-            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
+            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id,
                 Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after != null ? NativeWallUpgradeObservationTools.SiteToken(after, context) : null } };
             return new Receipts.EffectEvidence { Effect = effect };
         }

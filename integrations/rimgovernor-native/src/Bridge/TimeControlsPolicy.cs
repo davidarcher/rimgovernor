@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
 
         // The speed the row has chosen, pause aside. Connected: the player's click the
         // brain has not answered with a Run at that speed, then the last Run's speed
-        // (Status.TargetSpeed), so a combat fallback shows the slower speed it runs at;
+        // (Status.LastRun), so a combat fallback shows the slower speed it runs at;
         // before any Run, the game's own. Not connected: the game's own speed.
         internal static Clock.Speed? Chosen(bool connected, Clock.Speed? pending, Clock.Speed? run, TimeSpeed game, bool boost) =>
             connected ? pending ?? run ?? GameSpeed(game, boost) : GameSpeed(game, boost);

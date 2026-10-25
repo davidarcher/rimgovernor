@@ -147,33 +147,29 @@ public sealed class TypedSession
     /// holds itself, at most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, beating while it runs; returns
     /// the held status. A wait that ends otherwise holds the clock before it throws.
     /// </summary>
-    public Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken) =>
+    public Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, ClockRunPlan request, CancellationToken cancellationToken) =>
         RunClockUntilHeldAsync(label, ticks, request, static (_, _) => Task.FromResult(false), cancellationToken);
 
     /// <summary>
-    /// <see cref="RunClockUntilHeldAsync(string, int, Clock.RunRequest, CancellationToken)"/> that calls
+    /// <see cref="RunClockUntilHeldAsync(string, int, ClockRunPlan, CancellationToken)"/> that calls
     /// <paramref name="whileRunning"/> once per round the clock still runs, before the heartbeat: the hook that acts
     /// mid-run (an injection at a tick) and can end the wait without a hold by returning true. Returns the held status, or
     /// the running status of the round that ended the wait (<see cref="Clock.ClockState.Running"/>); either way the clock
     /// is held when it returns.
     /// </summary>
-    public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, ClockRound whileRunning, CancellationToken cancellationToken)
+    public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, ClockRunPlan request, ClockRound whileRunning, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(whileRunning);
         Budget(label, ticks);
-        if (request.HoldAtTick is null || request.PlannedHoldSerial is null)
+        var current = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
+        var run = await CallAsync(label + "-run", NativeOps.RunClock, new Clock.RunRequest
         {
-            // Native requires both: the review tick is the budget's end (the wait's own ceiling), the hold serial the
-            // one the clock holds under now, so a hold that entered between the read and the Run refuses it.
-            var current = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
-            request = request with
-            {
-                HoldAtTick = request.HoldAtTick ?? (ulong)(Math.Max(current.Context?.Tick ?? 0, 0) + ticks),
-                PlannedHoldSerial = request.PlannedHoldSerial ?? current.HoldSerial,
-            };
-        }
-        var run = await CallAsync(label + "-run", NativeOps.RunClock, request with { Identity = Identity }, cancellationToken).ConfigureAwait(false);
+            Identity = Identity, ExpectedGeneration = request.ExpectedGeneration,
+            Speed = request.Speed, Policy = request.Policy,
+            HoldAtTick = (ulong)(Math.Max(current.Context.Tick, 0) + ticks),
+            PlannedHoldSerial = current.HoldSerial
+        }, cancellationToken).ConfigureAwait(false);
         var status = run is { State: Clock.ClockState.Running }
             ? run
             : throw new AcceptanceException($"{label}: clock run left held: {WireJson.Serialize(run)}");
@@ -220,13 +216,13 @@ public sealed class TypedSession
 
     /// <summary>
     /// The <c>clock_hold</c> row of the hold <paramref name="held"/> reports (a held status, as
-    /// <see cref="RunClockUntilHeldAsync"/> returns): the row whose <c>stop_at_ms</c> is its <c>HeldAtUnixMs</c>. The
+    /// <see cref="RunClockUntilHeldAsync"/> returns): the row whose <c>stop_at_ms</c> is its <c>HoldState.HeldCase.AtUnixMs</c>. The
     /// game is held, so the wait spends no ticks; it ends when the row reaches the log ring, under the hang guard.
     /// </summary>
     public async Task<LogRow> HoldRowAsync(string label, Clock.Status held, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(held);
-        var heldAt = held.HeldAtUnixMs ?? throw new AcceptanceException($"{label}: the status is not held: {held}");
+        var heldAt = (held.Hold as Clock.HoldState.HeldCase)?.AtUnixMs ?? throw new AcceptanceException($"{label}: the status is not held: {held}");
         var deadline = DateTime.UtcNow + HoldRowWait;
         using var pace = Wait.Pace(TimeSpan.FromMilliseconds(100));
         while (true)
@@ -238,7 +234,7 @@ public sealed class TypedSession
 
             if (DateTime.UtcNow > deadline)
             {
-                throw new AcceptanceException($"{label}: no clock_hold row with stop_at_ms {heldAt} within {HoldRowWait} ({held.Reason}: {held.Detail})");
+                throw new AcceptanceException($"{label}: no clock_hold row with stop_at_ms {heldAt} within {HoldRowWait} ({held.Hold})");
             }
 
             await pace.NextAsync(cancellationToken).ConfigureAwait(false);

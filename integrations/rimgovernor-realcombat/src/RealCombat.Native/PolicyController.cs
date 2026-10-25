@@ -97,7 +97,7 @@ public sealed class PolicyController : IFightController
             PolicyFacade.Publish(_facade!, new NativeFrame(frame, ++_serial, 0));
             var combat = _client!.ReadCombatAsync(_seat!.Identity, CancellationToken.None).GetAwaiter().GetResult();
             var stop = RoundsDefensePlanner.CombatStop(combat, _memory.Tick);
-            if (stop.Kind == RimGovernor.Contracts.Wire.Clock.CombatEvent.Unspecified && _decided != int.MinValue && tick - _decided < BackstopTicks)
+            if (stop.Cause is CombatDecisionTrigger.Review && _decided != int.MinValue && tick - _decided < BackstopTicks)
             {
                 return;
             }
@@ -121,7 +121,7 @@ public sealed class PolicyController : IFightController
             }
 
             Decisions++;
-            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{(r.Post is CombatPost.At pa ? pa.Cell.X + "," + pa.Cell.Z : "-")}"))}] stop={stop.Kind}");
+            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{(r.Post is CombatPost.At pa ? pa.Cell.X + "," + pa.Cell.Z : "-")}"))}] stop={stop.Cause}");
             foreach (var o in batch.Orders)
             {
                 Log?.Invoke($"   order {o.Pawn?.EntityId} {o.Order}");

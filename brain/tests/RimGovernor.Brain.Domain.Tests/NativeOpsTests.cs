@@ -41,6 +41,8 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.StartLoad) ? """{"readiness":"READINESS_MAP","timeoutMs":0}"""
                 : ReferenceEquals(op, NativeOps.StartNewColony) ? """{"timeoutMs":0}"""
                 : ReferenceEquals(op, NativeOps.WaitSaveSignal) ? """{"timeoutMs":0}"""
+                : ReferenceEquals(op, NativeOps.HoldClock) ? """{"reason":"HOLD_REASON_REVIEW"}"""
+                : ReferenceEquals(op, NativeOps.RunClock) ? """{"expectedGeneration":1,"speed":"SPEED_NORMAL","plannedHoldSerial":0,"holdAtTick":1,"policy":{"mode":"WATCH_MODE_COLONY","healthDropFraction":0.5,"minHealthFraction":0.2,"hostileWithin":40,"injuryStopCooldownMs":0,"hungerHoldCategory":"HUNGER_CATEGORY_URGENTLY_HUNGRY","seriousSingleHitDamage":10,"seriousSummaryHealthFloor":0.3,"seriousBleedRateFloor":0.1,"seriousVitalPartFloor":0.2,"explosiveNearMarginCells":2,"meleeReachCells":1,"injurySeverityFloorTicks":1000}}"""
                 : ReferenceEquals(op, NativeOps.ListSupplies) ? """{"filter":{"category":"STOCK_CATEGORY_HAULABLE","ownership":"STOCK_OWNERSHIP_OURS","includeHeld":true}}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }

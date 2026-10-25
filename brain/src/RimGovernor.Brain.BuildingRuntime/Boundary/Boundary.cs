@@ -265,7 +265,7 @@ public static class Boundary
                     var zone = placements[i].Action.ZoneCreate!;
                     if (zone.Kind == Domain.ZoneKind.Stockpile)
                     {
-                        foreach (var row in effect?.Created ?? [])
+                        foreach (var row in (effect as PbReceipts.ZoneEffect.CreatedCase)?.Zones ?? [])
                         {
                             var cells = new List<Cell>();
                             foreach (var c in row.Cells)
@@ -289,7 +289,7 @@ public static class Boundary
                     }
                     else
                     {
-                        output[i].Zone = effect?.ZoneId ?? "";
+                        output[i].Zone = (effect as PbReceipts.ZoneEffect.ZoneCase)?.ZoneId ?? "";
                     }
                 }
                 var kind = placements[i].Action.Kind;

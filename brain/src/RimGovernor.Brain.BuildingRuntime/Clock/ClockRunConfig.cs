@@ -10,7 +10,7 @@ public sealed record ClockRunConfig
     public required ClockTargetSpeed TargetSpeed { get; init; }
 
     /// <summary>
-    /// The live target a player's in-game speed request (<see cref="PbClock.Status.PlayerSpeedRequestSerial"/>) sets,
+    /// The live target a player's in-game speed request (<see cref="PbClock.Status.PlayerRequest"/>) sets,
     /// as the player API's speed route does: <see cref="TargetSpeed"/> itself, except under test acceleration, whose
     /// pinned run speed no request reaches.
     /// </summary>

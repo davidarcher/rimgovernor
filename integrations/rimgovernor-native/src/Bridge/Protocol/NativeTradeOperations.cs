@@ -358,35 +358,16 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static Receipts.EffectEvidence OpenEvidence(Pawn trader, bool executed)
-        {
-            var faction = trader.Faction;
-            return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
-            {
-                SessionId = _sessionId ?? "", DealSignature = DealSignature(), Executed = false, Closed = false,
-                BeforeSilver = SessionSilver(),
-                FactionId = faction != null ? faction.GetUniqueLoadID() : "",
-            } };
-        }
-
-        // A walked open's evidence before arrival: no session yet, so no id,
-        // signature or snapshot; the faction and starting silver are known.
-        private static Receipts.EffectEvidence ApproachEvidence(Pawn trader)
-        {
-            var faction = trader.Faction;
-            return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
-            {
-                SessionId = "", DealSignature = "", Executed = false, Closed = false,
-                BeforeSilver = 0,
-                FactionId = faction != null ? faction.GetUniqueLoadID() : "",
-            } };
-        }
+        private static Receipts.EffectEvidence OpenEvidence(Pawn trader) =>
+            new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.OpenCase(
+                _sessionId ?? throw new InvalidOperationException("An open trade has no session id."),
+                trader.Faction?.GetUniqueLoadID() ?? throw new InvalidOperationException("An open trader has no faction.")) };
 
         private static int SessionSilver()
         {
-            if (_sessionDeal == null) return 0;
-            var currency = SafeCurrencyTradeable(_sessionDeal);
-            return currency != null ? SafeInt(() => currency.CountHeldBy(Transactor.Colony)) : 0;
+            if (_sessionDeal == null) throw new InvalidOperationException("Trade silver has no session.");
+            var currency = _sessionDeal.CurrencyTradeable;
+            return currency != null ? currency.CountHeldBy(Transactor.Colony) : 0;
         }
 
         // --------------------------------------------------------- set lines
@@ -569,13 +550,13 @@ namespace HomeBridge.BridgeTools
             var giftMode = command.GiftMode is not null && command.GiftMode.GetValueOrDefault();
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) throw new InvalidOperationException("No current map.");
-            if (reuse == OpenReuse.Session) return OpenEvidence(trader, false);
-            if (reuse == OpenReuse.Walk) return ApproachEvidence(trader);
+            if (reuse == OpenReuse.Session) return OpenEvidence(trader);
+            if (reuse == OpenReuse.Walk) return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.ApproachingCase() };
             if (Adjacent(trader, negotiator))
             {
                 BindSession(trader, negotiator, giftMode, identity, map);
                 if (!TradeSession.Active) throw new InvalidOperationException("Native open readback did not apply.");
-                return OpenEvidence(trader, false);
+                return OpenEvidence(trader);
             }
             // The negotiator walks after the trader; the session opens on
             // arrival (Arrive).
@@ -588,7 +569,8 @@ namespace HomeBridge.BridgeTools
             try { taken = negotiator.jobs.TryTakeOrderedJob(job, JobTag.Misc); }
             catch (Exception e) { _walk = null; throw new InvalidOperationException("Ordered TradeWithPawn threw: " + e.GetType().Name, e); }
             if (!taken) { _walk = null; throw new InvalidOperationException("The negotiator did not take the walk to the trader."); }
-            return _sessionId != null && ReferenceEquals(_sessionTrader, trader) ? OpenEvidence(trader, false) : ApproachEvidence(trader);
+            return _sessionId != null && ReferenceEquals(_sessionTrader, trader) ? OpenEvidence(trader)
+                : new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.ApproachingCase() };
         }
 
         private static Receipts.EffectEvidence ApplyLines(Operations.SetTradeLines command, string traderId, string negotiatorId, Common.Identity identity)
@@ -604,25 +586,20 @@ namespace HomeBridge.BridgeTools
                 lineEffects.Add(new Receipts.TradeLineEffect { LineId = "#" + line.Index });
             }
             SafeUpdateCurrency(deal);
-            var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
-            {
-                SessionId = _sessionId ?? "", DealSignature = DealSignature(), Executed = false, Closed = false,
-                BeforeSilver = SessionSilver(), AfterSilver = SessionSilver(), Lines = [.. lineEffects],
-            } };
+            var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.StagedCase([.. lineEffects]) };
             return evidence;
         }
 
         private static Receipts.EffectEvidence ApplyAccept(Operations.AcceptTrade command, string traderId, string negotiatorId, Common.Identity identity)
         {
             if (!PrepareAccept(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("Accept prerequisites changed after validation.");
-            var deal = _sessionDeal!; var traderPawn = _sessionTrader; var faction = traderPawn?.Faction;
+            var deal = _sessionDeal!; var traderPawn = _sessionTrader;
             var beforeSilver = SessionSilver();
             bool executed, actuallyTraded;
             try { executed = deal.TryExecute(out actuallyTraded); }
             catch { executed = false; actuallyTraded = false; }
             _sessionNegotiator?.GetCaravan()?.RecacheInventory();
-            var afterSilver = ColonySilverNow(traderPawn, _sessionNegotiator, beforeSilver);
-            var sessionIdForEvidence = _sessionId ?? "";
+            var afterSilver = ColonySilverNow(traderPawn, _sessionNegotiator);
             var receiveQuest = command.ReceiveQuest is null || command.ReceiveQuest.GetValueOrDefault();
             if (receiveQuest && traderPawn is Pawn questPawn)
             {
@@ -639,29 +616,23 @@ namespace HomeBridge.BridgeTools
             // A deal the game would not execute still ends the session, but the
             // accept is refused: the routine fails the method and replans.
             if (!executed) throw new ApplyRefusedException(Common.FailureCode.NativeFailure, "The game declined to execute the deal; the session is closed.");
-            var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect
-            {
-                SessionId = sessionIdForEvidence, DealSignature = command.ExpectedDealSignature is not null ? (command.ExpectedDealSignature ?? "") : "",
-                Executed = executed, ActuallyTraded = actuallyTraded, Closed = true,
-                BeforeSilver = beforeSilver, AfterSilver = afterSilver,
-                FactionId = faction != null ? faction.GetUniqueLoadID() : "",
-            } };
+            var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.ExecutedCase(
+                command.ExpectedDealSignature ?? throw new InvalidOperationException("An accepted deal has no signature."),
+                beforeSilver, afterSilver, actuallyTraded) };
             return evidence;
         }
 
         // The colony silver the trader could now take, read fresh from live
         // stacks: the session deal's rows are stale once it has executed.
-        private static int ColonySilverNow(ITrader? trader, Pawn? negotiator, int fallback)
+        private static int ColonySilverNow(ITrader? trader, Pawn? negotiator)
         {
-            if (trader == null || negotiator == null) return fallback;
-            try { return trader.ColonyThingsWillingToBuy(negotiator).Where(t => t != null && !t.Destroyed && t.def == ThingDefOf.Silver).Sum(t => t.stackCount); }
-            catch { return fallback; }
+            if (trader == null || negotiator == null) throw new InvalidOperationException("Trade silver has no trader or negotiator.");
+            return trader.ColonyThingsWillingToBuy(negotiator).Where(t => t != null && !t.Destroyed && t.def == ThingDefOf.Silver).Sum(t => t.stackCount);
         }
 
         private static Receipts.EffectEvidence ApplyEnd(Operations.EndTrade command, string traderId, string negotiatorId, Common.Identity identity)
         {
             if (!PrepareEnd(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("End prerequisites changed after validation.");
-            var sessionIdForEvidence = _sessionId ?? "";
             var matches = EndMatches(traderId, negotiatorId);
             if (command.Kind == Operations.EndTradeKind.CloseDialog)
             {
@@ -671,7 +642,7 @@ namespace HomeBridge.BridgeTools
             }
             matches = CancelApproach(traderId, negotiatorId) || matches;
             if (_sessionId != null && matches) CloseSession(command.ReceiveQuest is not null && command.ReceiveQuest.GetValueOrDefault());
-            return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect { SessionId = sessionIdForEvidence, Executed = false, Closed = matches } };
+            return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.EndedCase() };
         }
     }
 }

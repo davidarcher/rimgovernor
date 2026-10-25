@@ -142,7 +142,7 @@ internal static class TradeWorldSession
 
         s.Record("before", ServedOps.Json(before));
         s.Record("after", ServedOps.Json(after));
-        if (after.SellerComponents != 19 || after.Medicine != 6 || after.Silver >= 2000 || after.Silver < 1000 || after.Silver != effect.AfterSilver)
+        if (after.SellerComponents != 19 || after.Medicine != 6 || after.Silver >= 2000 || after.Silver < 1000 || effect is not Receipts.TradeEffect.ExecutedCase executed || after.Silver != executed.AfterSilver)
         {
             throw new AcceptanceException($"native purchase inventory/silver mismatch: {after} effect={effect}");
         }

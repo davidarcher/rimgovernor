@@ -8,7 +8,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>husbandry/dispatch</c>: every direct-write animal order (train, slaughter, tame, release, allowed area, master,
+/// <c>husbandry/dispatch</c>: every direct-write animal order (train, sterilize, slaughter, tame, release, allowed area, master,
 /// following and the designation cancels) is one HusbandryIntent on <c>operations_apply</c>, an immediate settings write
 /// with no native job, so the case reads each back at once through <c>observations_list_pawns</c> with animal details. The bespoke
 /// <c>test/husbandry_setup</c> prepares the herd: a one-step-short trainable, a pregnant mother, a slaughterable cow, a
@@ -21,7 +21,7 @@ internal static class HusbandryDispatch
     internal static TypedCase Case() => new()
     {
         Name = "husbandry/dispatch",
-        Scope = "HusbandryIntents on operations_apply over the test/husbandry_setup herd: train, slaughter, tame, release, allowed "
+        Scope = "HusbandryIntents on operations_apply over the test/husbandry_setup herd: train, sterilize, slaughter, tame, release, allowed "
             + "area (set and clear), master, follow-drafted, follow-fieldwork and the slaughter/release cancels apply and read back "
             + "at once through observations_list_pawns animal details (no native job), resends apply again, and taming a player animal, "
             + "an untrained master or follow and a missing area refuse by code; the wild muffalo is in the colony facts' wild "
@@ -108,16 +108,23 @@ internal static class HusbandryDispatch
         // Train: SetWantedRecursive, read back at once; resending applies again.
         var train = Order(herd.Dog, Operations.HusbandryOrder.Train) with { TrainableDef = "Obedience" };
         var trained = await AppliedAsync("apply-train", train).ConfigureAwait(false);
-        Want(trained is { Wanted: true, TrainableDef: "Obedience" }, "apply-train: want Obedience wanted", trained);
+        Want(trained is Receipts.AnimalEffect.TrainingCase { Wanted: true, TrainableDef: "Obedience" }, "apply-train: want Obedience wanted", trained);
         dog = await AnimalAsync("dog-after-train", herd.Dog).ConfigureAwait(false);
         Want(dog.Training.Any(t => t is { DefName: "Obedience", Wanted: true }), "dog-after-train: want Obedience wanted", dog);
         _ = await AppliedAsync("reapply-train", train).ConfigureAwait(false);
+
+        // Sterilization applies by queuing the native surgery, including a repeated order while held.
+        foreach (var key in new[] { "apply-sterilize", "reapply-sterilize" })
+        {
+            var effect = await AppliedAsync(key, Order(herd.Dog, Operations.HusbandryOrder.Sterilize)).ConfigureAwait(false);
+            Want(effect is Receipts.AnimalEffect.SterilizationQueuedCase, $"{key}: want the sterilization bill queued", effect);
+        }
 
         // Slaughter, twice.
         foreach (var key in new[] { "apply-slaughter", "reapply-slaughter" })
         {
             var effect = await AppliedAsync(key, Order(herd.Cow, Operations.HusbandryOrder.Slaughter)).ConfigureAwait(false);
-            Want(effect.SlaughterDesignated == true, $"{key}: want a slaughter designation", effect);
+            Want(effect is Receipts.AnimalEffect.SlaughterCase { Designated: true }, $"{key}: want a slaughter designation", effect);
         }
 
         cow = await AnimalAsync("cow-after-slaughter", herd.Cow).ConfigureAwait(false);
@@ -134,7 +141,7 @@ internal static class HusbandryDispatch
         foreach (var key in new[] { "apply-tame", "reapply-tame" })
         {
             var effect = await AppliedAsync(key, Order(herd.Wild, Operations.HusbandryOrder.Tame)).ConfigureAwait(false);
-            Want(effect.TameDesignated == true, $"{key}: want a tame designation", effect);
+            Want(effect is Receipts.AnimalEffect.TameCase { Designated: true }, $"{key}: want a tame designation", effect);
         }
 
         wild = await AnimalAsync("wild-after-tame", herd.Wild).ConfigureAwait(false);
@@ -144,7 +151,7 @@ internal static class HusbandryDispatch
         var father = await AnimalAsync("father-before", herd.Father).ConfigureAwait(false);
         Want(father.SafeToRelease, "father-before: want safe to release", father);
         var released = await AppliedAsync("apply-release", Order(herd.Father, Operations.HusbandryOrder.Release)).ConfigureAwait(false);
-        Want(released.ReleaseDesignated == true, "apply-release: want a release designation", released);
+        Want(released is Receipts.AnimalEffect.ReleaseCase { Designated: true }, "apply-release: want a release designation", released);
         father = await AnimalAsync("father-after-release", herd.Father).ConfigureAwait(false);
         Want(father.Release, "father-after-release: want the designation observable", father);
 
@@ -157,26 +164,26 @@ internal static class HusbandryDispatch
         await RefusedAsync("area-missing", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea) with { TargetId = "Area_Allowed_999999" }, Common.FailureCode.NotFound).ConfigureAwait(false);
 
         var area = await AppliedAsync("apply-area", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea) with { TargetId = herd.Area }).ConfigureAwait(false);
-        Want(area.AllowedAreaId == herd.Area, "apply-area: want the area in the effect", area);
+        Want(area is Receipts.AnimalEffect.AreaCase { AreaId: var areaId } && areaId == herd.Area, "apply-area: want the area in the effect", area);
         guardRow = await RowAsync("guard-after-area", herd.Guard).ConfigureAwait(false);
         Want(guardRow.Settings.AllowedAreaId == herd.Area, "guard-after-area: want the area observable", guardRow);
         var cleared = await AppliedAsync("apply-area-clear", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea)).ConfigureAwait(false);
-        Want(cleared.AllowedAreaId is "", "apply-area-clear: want an empty area in the effect", cleared);
+        Want(cleared is Receipts.AnimalEffect.AreaCase { AreaId: "" }, "apply-area-clear: want an empty area in the effect", cleared);
         guardRow = await RowAsync("guard-after-area-clear", herd.Guard).ConfigureAwait(false);
         Want(guardRow.Settings.AllowedAreaId is null, "guard-after-area-clear: want no area", guardRow);
 
         var master = await AppliedAsync("apply-master", Order(herd.Guard, Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }).ConfigureAwait(false);
-        Want(master.MasterId == herd.Handler, "apply-master: want the handler in the effect", master);
+        Want(master is Receipts.AnimalEffect.MasterCase { MasterId: var masterId } && masterId == herd.Handler, "apply-master: want the handler in the effect", master);
         guard = await AnimalAsync("guard-after-master", herd.Guard).ConfigureAwait(false);
         Want(guard.MasterId == herd.Handler, "guard-after-master: want the master observable", guard);
 
         // Each follow flag is written on its own and leaves the other.
         var drafted = await AppliedAsync("apply-follow-drafted", Order(herd.Guard, Operations.HusbandryOrder.FollowDrafted) with { Follow = true }).ConfigureAwait(false);
-        Want(drafted.FollowDrafted == true, "apply-follow-drafted: want followDrafted in the effect", drafted);
+        Want(drafted is Receipts.AnimalEffect.FollowDraftedCase { Follow: true }, "apply-follow-drafted: want followDrafted in the effect", drafted);
         guard = await AnimalAsync("guard-after-follow-drafted", herd.Guard).ConfigureAwait(false);
         Want(guard is { FollowDrafted: true, FollowFieldwork: false }, "guard-after-follow-drafted: want followDrafted only", guard);
         var fieldwork = await AppliedAsync("apply-follow-fieldwork", Order(herd.Guard, Operations.HusbandryOrder.FollowFieldwork) with { Follow = true }).ConfigureAwait(false);
-        Want(fieldwork.FollowFieldwork == true, "apply-follow-fieldwork: want followFieldwork in the effect", fieldwork);
+        Want(fieldwork is Receipts.AnimalEffect.FollowFieldworkCase { Follow: true }, "apply-follow-fieldwork: want followFieldwork in the effect", fieldwork);
         guard = await AnimalAsync("guard-after-follow-fieldwork", herd.Guard).ConfigureAwait(false);
         Want(guard is { FollowDrafted: true, FollowFieldwork: true }, "guard-after-follow-fieldwork: want both flags", guard);
 
@@ -186,7 +193,7 @@ internal static class HusbandryDispatch
             foreach (var key in new[] { $"cancel-{order}", $"recancel-{order}" })
             {
                 var effect = await AppliedAsync(key, Order(id, order)).ConfigureAwait(false);
-                Want((slaughter ? effect.SlaughterDesignated : effect.ReleaseDesignated) == false, $"{key}: want the designation cleared in the effect", effect);
+                Want(slaughter ? effect is Receipts.AnimalEffect.SlaughterCase { Designated: false } : effect is Receipts.AnimalEffect.ReleaseCase { Designated: false }, $"{key}: want the designation cleared in the effect", effect);
             }
 
             var animal = await AnimalAsync($"after-{order}", id).ConfigureAwait(false);

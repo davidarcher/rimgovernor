@@ -379,14 +379,22 @@ public sealed partial class BrainComposition
         {
             TargetSpeed = RunTargetSpeed(),
             PlayerSpeed = TargetSpeed,
-            Policy = ClockExpectation.WithHazardThresholds(new PbClock.WatchPolicy
+            Policy = new PbClock.WatchPolicy
             {
+                SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
+                SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
+                SeriousBleedRateFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousBleedRateFloor,
+                SeriousVitalPartFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousVitalPartFloor,
+                ExplosiveNearMarginCells = RimGovernor.Brain.Policy.HazardThresholdsRules.ExplosiveNearMarginCells,
+                MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
+                InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
+                HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
                 Mode = PbClock.WatchMode.Colony,
                 HealthDropFraction = .1f,
                 MinHealthFraction = .5f,
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
-            }),
+            },
             // The host's autosaver: saves while the clock is held for it, flushing governor state first.
             Autosave = context.Autosave,
             AutosaveEveryTicks = ClockRunConfig.DefaultAutosaveEveryTicks,

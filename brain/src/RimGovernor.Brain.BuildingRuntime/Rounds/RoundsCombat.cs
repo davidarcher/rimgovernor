@@ -511,7 +511,7 @@ partial class RoundsDefensePlanner
         {
             return new StopEvent();
         }
-        return new StopEvent { Kind = stop.Kind, Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
+        return new StopEvent { Cause = new CombatDecisionTrigger.Native(stop.Kind), Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
     }
 
     /// <summary>The memory after a stop's order results: each refused order is remembered by its refusal. Unknown results change nothing.</summary>
