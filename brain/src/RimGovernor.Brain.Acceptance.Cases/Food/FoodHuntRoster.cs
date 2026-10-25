@@ -396,7 +396,7 @@ internal static class FoodHuntRoster
             var reply = await s.CallAsync("drafted", NativeOps.ListPawns, new Observations.ListPawnsRequest
             {
                 Scope = s.Scope,
-                Filter = new Observations.PawnFilter { Colonist = true, Drafted = true },
+                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Drafted = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
             }, ct).ConfigureAwait(false);
             var snapshot = reply;
             return snapshot.Pawns.Select(p => p.Pawn.Id).ToHashSet(StringComparer.Ordinal);

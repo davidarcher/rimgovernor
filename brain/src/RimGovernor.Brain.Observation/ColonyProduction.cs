@@ -324,7 +324,7 @@ public static class ColonyProductionReads
                     ID = new PawnId(candidate.PawnId),
                     Traits = Known(EquatableArray.From(traits)),
                     Held = HeldPreceptsOf(pawns, candidate.PawnId),
-                    CanWork = ColonyDecodeReads.Optional(candidate.CanWork is not null, candidate.CanWork.GetValueOrDefault()),
+                    CanWork = ColonyDecodeReads.Present(candidate.CanWork),
                 });
             }
             rows.Add(row with { HumanCorpseNutrition = HumanCorpseNutrition(b.HumanCorpseMeat, catalog), HumanButchers = butchers });
@@ -333,24 +333,19 @@ public static class ColonyProductionReads
     }
 
     /// <summary>
-    /// Projects the native food climate into the routine calendar fact. Every day count
-    /// must be present; the season name and day of year are informational and default when absent.
+    /// Projects the native food climate into the routine calendar fact. Every count is a required wire value.
     /// </summary>
     internal static Fact<Calendar> ColonyCalendar(O.FoodClimate climate)
     {
-        if (climate.GrowingDays is null || climate.GrowingDaysRemaining is null || climate.GrowingDaysUntil is null || climate.NonGrowingDays is null)
-        {
-            return Unknown<Calendar>();
-        }
         var c = new Calendar
         {
             GrowingYear = climate.GrowingYear,
-            Season = climate.Season ?? "",
-            DayOfYear = climate.DayOfYear.GetValueOrDefault(),
-            GrowingDays = climate.GrowingDays.GetValueOrDefault(),
-            GrowingDaysRemaining = climate.GrowingDaysRemaining.GetValueOrDefault(),
-            GrowingDaysUntil = climate.GrowingDaysUntil.GetValueOrDefault(),
-            NonGrowingDays = climate.NonGrowingDays.GetValueOrDefault(),
+            Season = climate.Season,
+            DayOfYear = climate.DayOfYear,
+            GrowingDays = climate.GrowingDays,
+            GrowingDaysRemaining = climate.GrowingDaysRemaining,
+            GrowingDaysUntil = climate.GrowingDaysUntil,
+            NonGrowingDays = climate.NonGrowingDays,
         };
         return c.Valid() ? Known(c) : Unknown<Calendar>();
     }

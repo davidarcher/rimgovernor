@@ -21,8 +21,8 @@ public sealed partial class FacadeNativeClient
                     Id = item.Id,
                     Inner = packed.Id,
                     InnerDef = packed.DefName,
-                    Quality = packed.Quality is { } quality ? (int)quality : 0,
-                    QualityKnown = packed.Quality is not null,
+                    Quality = packed.Quality is RimGovernor.Contracts.Wire.Observations.PackedQuality.Rated rated ? (int)rated.Category : 0,
+                    QualityKnown = packed.Quality is RimGovernor.Contracts.Wire.Observations.PackedQuality.Rated,
                     MarketValue = packed.MarketValue,
                 });
             }

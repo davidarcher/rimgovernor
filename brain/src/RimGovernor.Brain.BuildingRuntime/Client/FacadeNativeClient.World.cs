@@ -16,7 +16,7 @@ public sealed partial class FacadeNativeClient
             throw BridgeContractException.Contract("invalid world read request");
         }
 
-        return Facade.ReadWorldAsync(new PbObservations.WorldRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Tile = tile, SettlementRadius = settlementRadius }, cancellationToken);
+        return Facade.ReadWorldAsync(new PbObservations.WorldRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Settlements = new PbObservations.SettlementSearch { Tile = tile, Radius = settlementRadius } }, cancellationToken);
     }
 
     /// <summary>

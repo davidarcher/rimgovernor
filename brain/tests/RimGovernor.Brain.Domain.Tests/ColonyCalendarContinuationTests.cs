@@ -114,7 +114,7 @@ public sealed class ColonyCalendarContinuationTests
         var wire = new RimGovernor.Contracts.Wire.Observations.FoodClimate
         {
             GrowingYear = EquatableArray.From(year), GrowingDays = 20, GrowingDaysRemaining = 10,
-            GrowingDaysUntil = 0, NonGrowingDays = 10, DayOfYear = 58,
+            GrowingDaysUntil = 0, NonGrowingDays = 10, DayOfYear = 58, SowingNow = true, Season = "Winter",
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.FoodClimate>(WireJson.Serialize(wire));
         var calendar = ColonyProductionReads.ColonyCalendar(decoded);

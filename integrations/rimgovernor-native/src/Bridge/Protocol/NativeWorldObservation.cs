@@ -23,9 +23,9 @@ namespace HomeBridge.BridgeTools
                 throw NativeFaults.Refused(invalid);
             try
             {
-                var settlements = request.Tile is int tileId && new PlanetTile(tileId) is var tile && tile.Valid
+                var settlements = request.Settlements is { } search && new PlanetTile(search.Tile) is var tile && tile.Valid
                     ? Find.WorldObjects.Settlements
-                        .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile, s.Tile) <= request.SettlementRadius)
+                        .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile, s.Tile) <= search.Radius)
                         .Select(SettlementRow).ToArray()
                     : Array.Empty<Obs.Settlement>();
                 var info = map.TileInfo ?? throw new InvalidOperationException("The map's world tile is unavailable.");
@@ -58,8 +58,8 @@ namespace HomeBridge.BridgeTools
 
         private static bool Validate(Obs.WorldRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a nonnegative settlement_radius are required.");
-            return request?.Scope?.ExpectedIdentity != null && request.SettlementRadius >= 0;
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a nonnegative settlement search radius are required.");
+            return request?.Scope?.ExpectedIdentity != null && (request.Settlements is null || request.Settlements.Radius >= 0);
         }
     }
 }

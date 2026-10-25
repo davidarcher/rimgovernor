@@ -260,7 +260,7 @@ internal static class LifecycleReuse
         var reply = await s.CallAsync(
             label,
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = TypedReads.Scope(identity), Filter = new Observations.PawnFilter { Colonist = true, Downed = false, Ids = [.. ids] } },
+            new Observations.ListPawnsRequest { Scope = TypedReads.Scope(identity), Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded, Ids = [.. ids] } },
             cancellationToken).ConfigureAwait(false);
         var rows = reply.Pawns;
         return rows.Count > 0 ? rows[0] : throw new AcceptanceException($"{label}: no standing colonist");

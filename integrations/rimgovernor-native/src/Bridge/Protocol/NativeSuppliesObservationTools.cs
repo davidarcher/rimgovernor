@@ -227,7 +227,7 @@ namespace HomeBridge.BridgeTools
                 Id = Id(mini.InnerThing.GetUniqueLoadID()),
                 DefName = Id(mini.InnerThing.def.defName),
                 // Art stock: the trade selector keeps the best pieces.
-                Quality = mini.InnerThing.TryGetQuality(out var quality) ? (Defs.QualityCategory)(int)quality : null,
+                Quality = mini.InnerThing.TryGetQuality(out var quality) ? new Obs.PackedQuality.Rated { Category = (Defs.QualityCategory)(int)quality } : new Obs.PackedQuality.Unrated(),
                 MarketValue = mini.MarketValue,
             } : null,
         };

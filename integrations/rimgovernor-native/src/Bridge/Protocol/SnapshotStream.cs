@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
 
         /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames.
         internal static readonly RimGovernor.Brain.Bridge.FrameHandoff Handoff = new RimGovernor.Brain.Bridge.FrameHandoff();
-        private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
+        private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest { RoutePathBudget = new Obs.FrameBudget.Unlimited(), LinesOfFireBudget = new Obs.FrameBudget.Unlimited() };
 
         // The pull subscriber (the acceptance harness's observations_read_snapshot tool): the newest published
         // frame and how many were published since the first read. Guarded by Gate.
@@ -121,7 +121,7 @@ namespace HomeBridge.BridgeTools
                     pull = true;
                     capturedWrites = -1;
                 }
-                var newer = pullFrame != null && pullHead > request.AfterNumber.GetValueOrDefault();
+                var newer = pullFrame != null && pullHead > request.AfterNumber;
                 return new Obs.SnapshotReadReply
                 {
                     Outcome = new Obs.SnapshotRead

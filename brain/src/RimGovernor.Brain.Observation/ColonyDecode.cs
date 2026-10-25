@@ -45,6 +45,9 @@ public static class ColonyDecodeReads
     /// <summary>A proto3 optional scalar as a fact: unknown when the field is absent.</summary>
     internal static Fact<T> Optional<T>(bool has, T value) => has ? Known(value) : Unknown<T>();
 
+    /// <summary>A required wire scalar as a fact.</summary>
+    internal static Fact<T> Present<T>(T value) => Known(value);
+
     /// <summary>A reference's id, unknown without a reference.</summary>
     internal static Fact<string> OptionalRef(C.Ref? r) => r is null ? Unknown<string>() : Optional(r.Id is not null, (r.Id ?? ""));
 
@@ -278,7 +281,7 @@ public static class ColonyDecodeReads
                     // Whether rain shorts the building is its def's, not the frame's.
                     RainVulnerable = defs.RainVulnerable(def),
                     Roofed = row.Roofed,
-                    Turret = row.TurretDps is { } dps ? new TurretGun(dps) : null,
+                    Turret = row.Turret is O.PowerTurret.Gun shot ? new TurretGun(shot.Dps) : null,
                 };
                 power.Add(site);
                 var consumer = FuelReads.FuelConsumerOf(catalog, site.Id, site.Definition, site, out var refuelable);
@@ -358,7 +361,7 @@ public static class ColonyDecodeReads
                 DisabledConsumers = Known(coverage.Disabled),
                 PowerWeatherSafe = Known(unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power)),
             };
-            f = f with { ShortCircuit = development.ShortCircuitTick is { } shorted ? new DisasterShortCircuit.Seen(new Tick(shorted)) : new DisasterShortCircuit.NoneSeen() };
+            f = f with { ShortCircuit = development.ShortCircuit is O.ObservedShortCircuit.Seen shorted ? new DisasterShortCircuit.Seen(new Tick(shorted.Tick)) : new DisasterShortCircuit.NoneSeen() };
         }
         // The biome is read on every frame; the season facts only with a clean food climate read.
         r = r with { CropClimate = new CropClimate { Biome = v.Biome } };
@@ -368,8 +371,8 @@ public static class ColonyDecodeReads
             {
                 CropClimate = r.CropClimate with
                 {
-                    Sowing = Optional(climate.SowingNow is not null, climate.SowingNow.GetValueOrDefault()),
-                    DaysRemaining = Optional(climate.GrowingDaysRemaining is not null, climate.GrowingDaysRemaining.GetValueOrDefault()),
+                    Sowing = Present(climate.SowingNow),
+                    DaysRemaining = Present(climate.GrowingDaysRemaining),
                     OutdoorsDark = Known(outdoorsDark),
                 },
             };
@@ -446,7 +449,7 @@ public static class ColonyDecodeReads
                     Definition = buildings.Entity(bench.Bench)?.DefName ?? "",
                     Usable = bench.Usable,
                     Room = OptionalRef(bench.Room),
-                    AutoRefuel = Optional(bench.AutoRefuel is not null, bench.AutoRefuel.GetValueOrDefault()),
+                    AutoRefuel = Optional(bench.AutoRefuel is O.BenchAutoRefuel.Refuelable, bench.AutoRefuel is O.BenchAutoRefuel.Refuelable { Allowed: true }),
                 });
             }
             r = r with { CookingBenches = Known(EquatableArray.From(benches)) };
@@ -515,21 +518,18 @@ public static class ColonyDecodeReads
                 var item = new LootItem
                 {
                     Supply = new StartingSupply { Thing = row.Item?.Id ?? "", Definition = head?.DefName ?? "", Cell = MapCellOf(head!) },
-                    Forbidden = row.Forbidden.GetValueOrDefault(),
-                    SafeToHaul = row.SafeToHaul.GetValueOrDefault(),
-                    SafetyKnown = row.SafeToHaul is not null,
-                    Count = row.Count.GetValueOrDefault(),
+                    Forbidden = row.Forbidden,
+                    SafeToHaul = row.Safety is O.HaulSafety.Safe,
+                    SafetyKnown = row.Safety is not O.HaulSafety.Unreached,
+                    Count = row.Count,
+                    StorageHeadroom = Present(row.StorageHeadroom),
                     SpawnForbidden = spawnForbidden.Contains(head?.DefName ?? ""),
                     AcceptedBy = EquatableArray.From(row.AcceptedBy.Select(r => r.Id ?? "")),
                     Deterioration = row.Deterioration,
                 };
-                if (row.PathLength is not null)
+                if (row.Safety is O.HaulSafety.Safe safe)
                 {
-                    item = item with { PathLength = Known(row.PathLength.GetValueOrDefault()) };
-                }
-                if (row.StorageHeadroom is not null)
-                {
-                    item = item with { StorageHeadroom = Known(row.StorageHeadroom.GetValueOrDefault()) };
+                    item = item with { PathLength = Present(safe.PathLength) };
                 }
                 rows.Add(item);
             }

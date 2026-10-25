@@ -93,19 +93,26 @@ public sealed class IdeologyReadsTests
     [Fact]
     public void TheFramesIdeologyModeIsNotInstalledWithoutTheExpansionAndInstalledWithItsPrimaryIdeoligion()
     {
-        Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.NotInstalled>(IdeologyDecoder.Mode(false, null, Catalog()));
+        Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.NotInstalled>(IdeologyDecoder.Mode(new Obs.IdeologyFrame.NotInstalled(), Catalog()));
 
-        var installed = Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.Installed>(IdeologyDecoder.Mode(true, NoPrecepts with { IdeoId = "Ideo_7" }, Catalog()));
+        var installed = Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.Installed>(IdeologyDecoder.Mode(new Obs.IdeologyFrame.Installed { Snapshot = NoPrecepts with { IdeoId = "Ideo_7" } }, Catalog()));
         Assert.Equal("Ideo_7", installed.Primary.Facts.IdeoId);
     }
 
     [Fact]
-    public void TheFramesIdeologyModeRefusesAnAbsentFlagAndAFlagThatContradictsItsSection()
+    public void TheFramesIdeologyModeRefusesAFrameWithoutTheSection()
     {
-        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(null, null, Catalog())).Message);
-        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(null, NoPrecepts, Catalog())).Message);
-        Assert.Contains("primary ideoligion", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(true, null, Catalog())).Message);
-        Assert.Contains("ideology_active false", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(false, NoPrecepts, Catalog())).Message);
+        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(null, Catalog())).Message);
+    }
+
+    [Fact]
+    public void TheIdeologyFrameRoundTripsBothCases()
+    {
+        Obs.IdeologyFrame[] frames = [new Obs.IdeologyFrame.NotInstalled(), new Obs.IdeologyFrame.Installed { Snapshot = NoPrecepts }];
+        foreach (var frame in frames)
+        {
+            Assert.Equal(frame, WireJson.Deserialize<Obs.IdeologyFrame>(WireJson.Serialize(frame)));
+        }
     }
 
     [Fact]

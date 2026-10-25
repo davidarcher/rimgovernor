@@ -136,7 +136,7 @@ public sealed class ColonyStatus
             Workers = observed.WorkerCount,
             FoodNutrition = observed.FoodNutrition,
             NutritionPerDay = observed.NutritionPerDay,
-            FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
+            FoodRunwayDays = OptionalFact(observed.FoodRunway is PbObservations.FoodRunway.Days, observed.FoodRunway is PbObservations.FoodRunway.Days days ? days.Value : 0),
             PendingFoodNutrition = observed.PendingFoodNutrition,
             Threat = observed.Threat.Observed,
             PlayerTechLevel = observed.PlayerTechLevel,

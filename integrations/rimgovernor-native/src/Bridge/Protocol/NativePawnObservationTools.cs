@@ -188,7 +188,7 @@ namespace HomeBridge.BridgeTools
             if (filter == null) return true;
             return Ids(filter.Ids)
                 && (filter.NameContains is null || filter.NameContains.IndexOf('\0')<0 && Encoding.UTF8.GetByteCount(filter.NameContains)<=256)
-                && (filter.WithinColonistDistance is null || IsFinite(filter.WithinColonistDistance.GetValueOrDefault()) && filter.WithinColonistDistance.GetValueOrDefault()>=0);
+                && (filter.WithinColonistDistance is not Obs.ColonistRange.Within within || IsFinite(within.Distance) && within.Distance>=0);
         }
 
         private static bool ValidateTend(Obs.TendDoctorsRequest request, out Common.Failure failure)
@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
         private static bool Ids(IReadOnlyCollection<string> ids) =>
             ids.Count<=256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count()==ids.Count;
 
-        // Pure predicate over the native pawn: optional false is an actual
+        // Pure predicate over the native pawn: Excluded is an actual
         // exclusion, never an omitted filter.
         private static bool Matches(Pawn pawn, Obs.PawnFilter? f, MapFacts facts)
         {
@@ -208,13 +208,20 @@ namespace HomeBridge.BridgeTools
             if (f==null) return true;
             return (f.Ids.Count==0 || f.Ids.Contains(pawn.GetUniqueLoadID()))
                 && (f.NameContains is null || Text(pawn.LabelCap).IndexOf(f.NameContains,StringComparison.OrdinalIgnoreCase)>=0)
-                && (f.Colonist is null || f.Colonist==pawn.IsColonist) && (f.Prisoner is null || f.Prisoner==pawn.IsPrisoner)
-                && (f.Animal is null || f.Animal==pawn.RaceProps.Animal) && (f.Humanlike is null || f.Humanlike==pawn.RaceProps.Humanlike)
-                && (f.Mechanoid is null || f.Mechanoid==pawn.RaceProps.IsMechanoid)
-                && (f.Hostile is null || f.Hostile==Hostile(pawn, Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.")))
-                && (f.Downed is null || f.Downed==pawn.Downed) && (f.Drafted is null || f.Drafted==(pawn.drafter?.Drafted == true))
-                && (f.WithinColonistDistance is null || Nearest(pawn, facts.Colonists) is Obs.NearestColonist.At at && at.Distance<=f.WithinColonistDistance.GetValueOrDefault());
+                && Admits(f.Colonist, pawn.IsColonist) && Admits(f.Prisoner, pawn.IsPrisoner)
+                && Admits(f.Animal, pawn.RaceProps.Animal) && Admits(f.Humanlike, pawn.RaceProps.Humanlike)
+                && Admits(f.Mechanoid, pawn.RaceProps.IsMechanoid)
+                && (f.Hostile == Obs.PawnMembership.Any || Admits(f.Hostile, Hostile(pawn, Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing."))))
+                && Admits(f.Downed, pawn.Downed) && Admits(f.Drafted, pawn.drafter?.Drafted == true)
+                && (f.WithinColonistDistance is not Obs.ColonistRange.Within within || Nearest(pawn, facts.Colonists) is Obs.NearestColonist.At at && at.Distance<=within.Distance);
         }
+
+        private static bool Admits(Obs.PawnMembership want, bool has) => want switch {
+            Obs.PawnMembership.Any => true,
+            Obs.PawnMembership.Only => has,
+            Obs.PawnMembership.Excluded => !has,
+            _ => throw new InvalidOperationException("Unknown pawn membership " + want),
+        };
 
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {

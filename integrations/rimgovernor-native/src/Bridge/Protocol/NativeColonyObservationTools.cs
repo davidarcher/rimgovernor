@@ -171,7 +171,7 @@ namespace HomeBridge.BridgeTools
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
-                FoodRunwayDays = demand > 0 ? Finite(nutrition / demand) : null,
+                FoodRunway = demand > 0 ? new Obs.FoodRunway.Days { Value = Finite(nutrition / demand) } : new Obs.FoodRunway.NoDemand(),
                 SleepingTemperature = sleeping,
                 DeliveryLedger = NativeDeliveryLedger.Read(),
                 FoodSupply = foodSupply, Forecast = forecast, Upkeep = upkeep, Threat = threat, Development = development,
@@ -266,7 +266,6 @@ namespace HomeBridge.BridgeTools
             var power = new List<Obs.DevelopmentPower>(traders.Count + batteries.Count);
             var networks = new List<Obs.PowerNetwork>(nets.Count);
             var geyserRows = new List<Obs.SteamGeyser>(geysers.Count);
-            var result = new Obs.DevelopmentFacts { };
             // Archived letters survive dismissal and saves. Use the game's own
             // translated label rather than matching English message prose.
             var shortLabel = "LetterLabelShortCircuit".Translate().CapitalizeFirst().ToString();
@@ -275,18 +274,18 @@ namespace HomeBridge.BridgeTools
                 .Where(l => l.Label.ToString() == shortLabel && l.lookTargets != null
                     && l.lookTargets.targets.Any(t => t.Map == map))
                 .Select(l => l.arrivalTick).ToList();
-            if (incidents.Count > 0) result = result with { ShortCircuitTick = incidents.Max() };
+            Obs.ObservedShortCircuit shortCircuit = incidents.Count > 0 ? new Obs.ObservedShortCircuit.Seen { Tick = incidents.Max() } : new Obs.ObservedShortCircuit.NoneSeen();
             foreach (var trader in traders) {
                 var building = (Building)trader.parent;
-                var row = new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
-                    Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second.
-                var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row = row with { TurretDps = Finite(dps.Value) };
-                power.Add(row);
+                var dps = NativeDefenseStats.TurretDps(building);
+                power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
+                    Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
+                    Turret = dps.HasValue ? new Obs.PowerTurret.Gun { Dps = Finite(dps.Value) } : new Obs.PowerTurret.NoGun() });
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) });
+                power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)), Turret = new Obs.PowerTurret.NoGun() });
             }
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
@@ -302,7 +301,7 @@ namespace HomeBridge.BridgeTools
                 var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
                 geyserRows.Add(new Obs.SteamGeyser { Geyser = NativeRef.Thing(geyser), Occupied = occupied, Cells = [.. cells.Select(c => Cell(c))] });
             }
-            return result with { Power = [.. power], Networks = [.. networks], Geysers = [.. geyserRows] };
+            return new Obs.DevelopmentFacts { ShortCircuit = shortCircuit, Power = [.. power], Networks = [.. networks], Geysers = [.. geyserRows] };
         }
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);
@@ -317,6 +316,7 @@ namespace HomeBridge.BridgeTools
             var haulers = NativeResourceSourcesTool.Haulers(map);
             foreach (var bench in benches) {
                 var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,context),
+                    AutoRefuel = NativeAutoRefuel.Comp(bench) is CompRefuelable refuel ? new Obs.BenchAutoRefuel.Refuelable { Allowed = refuel.allowAutoRefuel } : new Obs.BenchAutoRefuel.NotRefuelable(),
                     Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
                         && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
@@ -333,7 +333,6 @@ namespace HomeBridge.BridgeTools
                 for(var index=0;index<bench.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(bench.BillStack.Bills[index],index)] };
                 var cookingRoom = bench.GetRoom();
                 if (cookingRoom != null) row = row with { Room = NativeRef.Room(cookingRoom) };
-                if (NativeAutoRefuel.Comp(bench) is CompRefuelable refuel) row = row with { AutoRefuel = refuel.allowAutoRefuel };
                 cooking.Add(row);
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(NativeRecipeRoles.ButcherFlesh)).OrderBy(t=>t.thingIDNumber)){
@@ -385,16 +384,15 @@ namespace HomeBridge.BridgeTools
             foreach (var def in CropDefs.Value) {
                 var product = def.plant.harvestedThingDef;
                 if (product == null || !NativeFoodPolicy.IsFood(product)) continue;
-                var row = new Obs.EdibleCrop { DefName = def.defName };
-                row = row with { DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
+                var dietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
                     p.Ideo != null && p.Ideo.PreceptsListForReading.Any(precept => precept.def.comps
                         .OfType<PreceptComp_SelfTookMemoryThought>().Any(comp =>
                             (comp.eventDef == HistoryEventDefOf.AteFungus || comp.eventDef == HistoryEventDefOf.AteFungusAsIngredient)
-                            && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0)))) };
-                row = row with { NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
+                            && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0))));
+                var nutritionDemand = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
                     && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
-                    .Sum(p => GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)))) };
-                result.Add(row);
+                    .Sum(p => GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))));
+                result.Add(new Obs.EdibleCrop { DefName = def.defName, DietAllowed = dietAllowed, NutritionDemandPerDay = nutritionDemand });
             }
             return result;
         }

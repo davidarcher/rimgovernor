@@ -79,7 +79,7 @@ internal static class OdysseyLavaField
             throw new AcceptanceException($"lava-cells: {zoned.Count} zone cells and {built.Count} player buildings stand on lava, first {zoned.Concat(built).First()}");
         }
 
-        var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Colonist = true } }, cancellationToken).ConfigureAwait(false);
+        var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } }, cancellationToken).ConfigureAwait(false);
         var rows = pawns.Pawns;
         bool OnLava(Common.Cell? at) => at is { X: { } x, Z: { } z } && x >= site.X && x < site.X + site.Width && z >= site.Z && z < site.Z + site.Height;
         var standing = rows.Where(p => OnLava((p.Pawn.Place as Observations.EntityPlace.OnMap)?.Cell)).Select(p => p.Pawn.Id).ToList();

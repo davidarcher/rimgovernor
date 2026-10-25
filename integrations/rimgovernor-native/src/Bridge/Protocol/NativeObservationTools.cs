@@ -244,28 +244,28 @@ namespace HomeBridge.BridgeTools
         // things and the bundle's things table.
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
-            var row = new Obs.Thing { Entity = Entity(thing), StackCount = thing.stackCount, Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse };
-            if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) row = FoodFacts(thing, row);
-            return row;
+            Obs.ThingFood food = thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible) ? FoodFacts(thing) : new Obs.ThingFood.NotFood();
+            return new Obs.Thing { Entity = Entity(thing), StackCount = thing.stackCount, Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse, Food = food };
         }
 
         // The food facts of an ingestible item or a corpse.
-        private static Obs.Thing FoodFacts(Thing thing, Obs.Thing row)
+        private static Obs.ThingFood.Edible FoodFacts(Thing thing)
         {
             var rot = thing.TryGetComp<CompRottable>();
-            if (rot != null && rot.Active) row = row with { RotTicks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp) };
-            row = row with { TemperatureC = Finite(thing.AmbientTemperature) };
+            Obs.ThingPlace place = new Obs.ThingPlace.Carried();
             if (thing.Spawned) {
-                row = row with { Roofed = thing.Position.Roofed(thing.Map) };
                 var room = thing.Position.GetRoom(thing.Map);
-                if (room != null) row = row with { Room = NativeRef.Room(room) };
+                place = new Obs.ThingPlace.Stands { Roofed = thing.Position.Roofed(thing.Map), Room = room != null ? NativeRef.Room(room) : null };
             }
-            row = row with { IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing) };
-            if (thing is Corpse corpse) {
-                row = row with { MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount))) };
-                row = row with { BodySize = Finite(corpse.InnerPawn.BodySize) };
-            }
-            return row;
+            return new Obs.ThingFood.Edible {
+                Rot = rot != null && rot.Active ? new Obs.ThingRot.Rots { Ticks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp) } : new Obs.ThingRot.Keeps(),
+                TemperatureC = Finite(thing.AmbientTemperature),
+                Place = place,
+                IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing),
+                Yield = thing is Corpse corpse
+                    ? new Obs.CorpseYield { MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount))), BodySize = Finite(corpse.InnerPawn.BodySize) }
+                    : null,
+            };
         }
 
         // The bundle's things table: the rows of things, each once,

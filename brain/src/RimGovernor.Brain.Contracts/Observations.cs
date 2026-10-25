@@ -51,8 +51,6 @@ public enum SurgeryKind
 [JsonConverter(typeof(WireEnumConverter<Passion>))]
 public enum Passion
 {
-    [WireName("PASSION_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("PASSION_NONE")]
     None = 1,
     [WireName("PASSION_MINOR")]
@@ -1005,7 +1003,7 @@ public sealed record Skill
     /// </summary>
     public int StoredLevel { get; init; }
 
-    public Passion Passion { get; init; }
+    public required Passion Passion { get; init; }
 
     public bool Disabled { get; init; }
 }
@@ -1679,8 +1677,8 @@ public sealed record PawnMechanitor
 }
 
 /// <summary>
-/// A controllable mech: its overseer (null without one), MechWorkModeDef (null without one), Need_MechEnergy level
-/// (0-1; null for a mech with no energy need) and control group (null outside one).
+/// A controllable mech: its overseer (null without one), MechWorkModeDef (null without one), Need_MechEnergy
+/// (<see cref="PawnMechEnergy"/>) and control group (null outside one).
 /// </summary>
 public sealed record PawnMech
 {
@@ -1688,9 +1686,26 @@ public sealed record PawnMech
 
     public required string? WorkMode { get; init; }
 
-    public required double? Energy { get; init; }
+    public required PawnMechEnergy Energy { get; init; }
 
     public required PawnMechGroup? Group { get; init; }
+}
+
+/// <summary>A mech's energy: <see cref="NoEnergyNeed"/> for a mech without Need_MechEnergy, else its level.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnMechEnergy.NoEnergyNeed), "no_energy_need")]
+[JsonDerivedType(typeof(PawnMechEnergy.Level), "level")]
+public abstract record PawnMechEnergy
+{
+    private protected PawnMechEnergy() { }
+
+    public sealed record NoEnergyNeed : PawnMechEnergy;
+
+    /// <summary>Need_MechEnergy.CurLevelPercentage, 0-1.</summary>
+    public sealed record Level : PawnMechEnergy
+    {
+        public required double Fraction { get; init; }
+    }
 }
 
 /// <summary>A mech's control group: its index and the group's mechRechargeThresholds band (0-1), within which the game recharges.</summary>
@@ -1711,6 +1726,35 @@ public sealed record PawnDeathrest
     public required int Capacity { get; init; }
 }
 
+/// <summary>PawnMembership is what a pawn filter asks of one trait: <see cref="Any"/> pawn, <see cref="Only"/> pawns with the trait, or <see cref="Excluded"/> pawns with it.</summary>
+[JsonConverter(typeof(WireEnumConverter<PawnMembership>))]
+public enum PawnMembership
+{
+    [WireName("PAWN_MEMBERSHIP_ANY")]
+    Any = 1,
+    [WireName("PAWN_MEMBERSHIP_ONLY")]
+    Only = 2,
+    [WireName("PAWN_MEMBERSHIP_EXCLUDED")]
+    Excluded = 3,
+}
+
+/// <summary>How near a pawn must stand to a colonist: <see cref="Anywhere"/>, or <see cref="Within"/> a distance in cells.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ColonistRange.Anywhere), "anywhere")]
+[JsonDerivedType(typeof(ColonistRange.Within), "within")]
+public abstract record ColonistRange
+{
+    private protected ColonistRange() { }
+
+    public sealed record Anywhere : ColonistRange;
+
+    public sealed record Within : ColonistRange
+    {
+        public required double Distance { get; init; }
+    }
+}
+
+/// <summary>Each trait is <see cref="PawnMembership.Any"/> until the request narrows it; the dead are left out unless IncludeDead.</summary>
 public sealed record PawnFilter
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
@@ -1718,25 +1762,25 @@ public sealed record PawnFilter
 
     public string? NameContains { get; init; }
 
-    public bool? Colonist { get; init; }
+    public PawnMembership Colonist { get; init; } = PawnMembership.Any;
 
-    public bool? Prisoner { get; init; }
+    public PawnMembership Prisoner { get; init; } = PawnMembership.Any;
 
-    public bool? Animal { get; init; }
+    public PawnMembership Animal { get; init; } = PawnMembership.Any;
 
-    public bool? Humanlike { get; init; }
+    public PawnMembership Humanlike { get; init; } = PawnMembership.Any;
 
-    public bool? Mechanoid { get; init; }
+    public PawnMembership Mechanoid { get; init; } = PawnMembership.Any;
 
-    public bool? Hostile { get; init; }
+    public PawnMembership Hostile { get; init; } = PawnMembership.Any;
 
-    public bool? Downed { get; init; }
+    public PawnMembership Downed { get; init; } = PawnMembership.Any;
 
-    public bool? Drafted { get; init; }
+    public PawnMembership Drafted { get; init; } = PawnMembership.Any;
 
-    public bool? IncludeDead { get; init; }
+    public bool IncludeDead { get; init; }
 
-    public double? WithinColonistDistance { get; init; }
+    public ColonistRange WithinColonistDistance { get; init; } = new ColonistRange.Anywhere();
 }
 
 public sealed record PawnSnapshot
@@ -1841,7 +1885,7 @@ public sealed record StockItem
 
 /// <summary>
 /// The building inside a packed (minified) item, for a RelocateIntent install: its load id and def, its quality
-/// (absent for a building with no quality), and the packed item's market value.
+/// (<see cref="PackedQuality.Unrated"/> for a building with no quality), and the packed item's market value.
 /// </summary>
 public sealed record PackedBuilding
 {
@@ -1849,9 +1893,25 @@ public sealed record PackedBuilding
 
     public required string DefName { get; init; }
 
-    public Defs.QualityCategory? Quality { get; init; }
+    public required PackedQuality Quality { get; init; }
 
     public required double MarketValue { get; init; }
+}
+
+/// <summary>A packed building's quality: <see cref="Unrated"/> for a building with none, else <see cref="Rated"/> with its category.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PackedQuality.Unrated), "unrated")]
+[JsonDerivedType(typeof(PackedQuality.Rated), "rated")]
+public abstract record PackedQuality
+{
+    private protected PackedQuality() { }
+
+    public sealed record Unrated : PackedQuality;
+
+    public sealed record Rated : PackedQuality
+    {
+        public required Defs.QualityCategory Category { get; init; }
+    }
 }
 
 /// <summary>A holder's units of one definition: the holder thing's load id, what kind of holder it is, and the units.</summary>
@@ -2718,45 +2778,100 @@ public sealed record ListZonesRequest
 
     public Rectangle? Region { get; init; }
 
-    public bool? IncludeFilter { get; init; }
+    public bool IncludeFilter { get; init; }
 }
 
 /// <summary>
 /// A thing's canonical row, from one native builder: the bundle's things
-/// table. Head, stack count, forbidden and corpse are set on every row. The
-/// food facts are set for an ingestible item or a corpse: rot_ticks at the
-/// current ambient temperature (present exactly while the thing rots),
-/// temperature_c that ambient temperature, roofed and room where a spawned
-/// thing stands, is_human_meat when the thing or any ingredient it was made
-/// from (CompIngredients) is humanlike meat; a corpse adds its meat yield
-/// (meat_amount), body size and a one-cell footprint. What the def alone says
-/// (class, vegetable, raw meat and raw ingredient class, a corpse's humanlike
-/// race) is the definition catalog's.
+/// table. Head, stack count, forbidden, corpse and food are set on every row.
+/// The food facts (<see cref="ThingFood"/>) are an ingestible item's or a
+/// corpse's. What the def alone says (class, vegetable, raw meat and raw
+/// ingredient class, a corpse's humanlike race) is the definition catalog's.
 /// </summary>
 public sealed record Thing
 {
     [JsonPropertyName("thing")]
     public required EntityRef Entity { get; init; }
 
-    public long StackCount { get; init; }
+    public required long StackCount { get; init; }
 
-    public bool Forbidden { get; init; }
+    public required bool Forbidden { get; init; }
 
-    public bool Corpse { get; init; }
+    public required bool Corpse { get; init; }
 
-    public long? RotTicks { get; init; }
+    public required ThingFood Food { get; init; }
+}
 
-    public double? TemperatureC { get; init; }
+/// <summary>A thing's food facts: <see cref="NotFood"/> for anything but an ingestible item or a corpse.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ThingFood.NotFood), "not_food")]
+[JsonDerivedType(typeof(ThingFood.Edible), "edible")]
+public abstract record ThingFood
+{
+    private protected ThingFood() { }
 
-    public bool? Roofed { get; init; }
+    public sealed record NotFood : ThingFood;
 
-    public Common.Ref? Room { get; init; }
+    /// <summary>
+    /// rot at the current ambient temperature, temperature_c that ambient temperature, place (where a spawned thing
+    /// stands, or carried), is_human_meat when the thing or any ingredient it was made from (CompIngredients) is
+    /// humanlike meat; a corpse adds its yield (null for an item).
+    /// </summary>
+    public sealed record Edible : ThingFood
+    {
+        public required ThingRot Rot { get; init; }
 
-    public double? MeatAmount { get; init; }
+        public required double TemperatureC { get; init; }
 
-    public double? BodySize { get; init; }
+        public required ThingPlace Place { get; init; }
 
-    public bool? IsHumanMeat { get; init; }
+        public required bool IsHumanMeat { get; init; }
+
+        public required CorpseYield? Yield { get; init; }
+    }
+}
+
+/// <summary>Whether a thing rots: <see cref="Keeps"/>, or <see cref="Rots"/> with the ticks until it rots at the current temperature.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ThingRot.Keeps), "keeps")]
+[JsonDerivedType(typeof(ThingRot.Rots), "rots")]
+public abstract record ThingRot
+{
+    private protected ThingRot() { }
+
+    public sealed record Keeps : ThingRot;
+
+    public sealed record Rots : ThingRot
+    {
+        public required long Ticks { get; init; }
+    }
+}
+
+/// <summary>Where a thing is: <see cref="Carried"/> in an inventory, or <see cref="Stands"/> on the map.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ThingPlace.Carried), "carried")]
+[JsonDerivedType(typeof(ThingPlace.Stands), "stands")]
+public abstract record ThingPlace
+{
+    private protected ThingPlace() { }
+
+    public sealed record Carried : ThingPlace;
+
+    /// <summary>Whether a roof covers its cell, and the room it stands in (null outside any).</summary>
+    public sealed record Stands : ThingPlace
+    {
+        public required bool Roofed { get; init; }
+
+        public required Common.Ref? Room { get; init; }
+    }
+}
+
+/// <summary>A corpse's meat yield (MeatAmount stat) and body size.</summary>
+public sealed record CorpseYield
+{
+    public required double MeatAmount { get; init; }
+
+    public required double BodySize { get; init; }
 }
 
 public sealed record ThingsSnapshot
@@ -3573,14 +3688,20 @@ public sealed record WorldSnapshot
     public required EquatableArray<Settlement> Settlements { get; init; }
 }
 
-/// <summary>SettlementRadius is in tiles (0 when omitted: the requested tile only).</summary>
+/// <summary>The settlements within Radius tiles of a world tile (0: that tile only).</summary>
+public sealed record SettlementSearch
+{
+    public required int Tile { get; init; }
+
+    public required double Radius { get; init; }
+}
+
+/// <summary>Settlements names the settlement search to answer; a request without one lists none.</summary>
 public sealed record WorldRequest
 {
     public ReadScope? Scope { get; init; }
 
-    public int? Tile { get; init; }
-
-    public double SettlementRadius { get; init; }
+    public SettlementSearch? Settlements { get; init; }
 }
 
 /// <summary>A caravan's route to one destination tile: Reachable with its estimated ticks to arrive, or Unreachable.</summary>
@@ -5623,10 +5744,40 @@ public sealed record DevelopmentPower
 
     public bool Roofed { get; init; }
 
-    /// <summary>
-    /// A turret gun's damage per second from its own verb and burst timing; absent for other consumers.
-    /// </summary>
-    public double? TurretDps { get; init; }
+    /// <summary>A turret gun's damage per second from its own verb and burst timing; <see cref="PowerTurret.NoGun"/> for other consumers.</summary>
+    public required PowerTurret Turret { get; init; }
+}
+
+/// <summary>Whether a power member is a turret: <see cref="NoGun"/>, or <see cref="Gun"/> with its damage per second.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PowerTurret.NoGun), "no_gun")]
+[JsonDerivedType(typeof(PowerTurret.Gun), "gun")]
+public abstract record PowerTurret
+{
+    private protected PowerTurret() { }
+
+    public sealed record NoGun : PowerTurret;
+
+    public sealed record Gun : PowerTurret
+    {
+        public required double Dps { get; init; }
+    }
+}
+
+/// <summary>Whether a short circuit was seen on the map: <see cref="NoneSeen"/>, or <see cref="Seen"/> at the latest letter's tick.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ObservedShortCircuit.NoneSeen), "none_seen")]
+[JsonDerivedType(typeof(ObservedShortCircuit.Seen), "seen")]
+public abstract record ObservedShortCircuit
+{
+    private protected ObservedShortCircuit() { }
+
+    public sealed record NoneSeen : ObservedShortCircuit;
+
+    public sealed record Seen : ObservedShortCircuit
+    {
+        public required long Tick { get; init; }
+    }
 }
 
 /// <summary>
@@ -5653,7 +5804,7 @@ public sealed record DevelopmentFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<PowerNetwork>))]
     public EquatableArray<PowerNetwork> Networks { get; init; }
 
-    public long? ShortCircuitTick { get; init; }
+    public required ObservedShortCircuit ShortCircuit { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<SteamGeyser>))]
     public EquatableArray<SteamGeyser> Geysers { get; init; }
@@ -5704,21 +5855,21 @@ public sealed record FoodClimate
 {
     /// <summary>Native seasonal growth eligibility at the observation instant and each following day for one 60-day year.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<bool>))]
-    public EquatableArray<bool> GrowingYear { get; init; }
+    public required EquatableArray<bool> GrowingYear { get; init; }
 
-    public double? GrowingDays { get; init; }
+    public required double GrowingDays { get; init; }
 
-    public double? GrowingDaysRemaining { get; init; }
+    public required double GrowingDaysRemaining { get; init; }
 
-    public bool? SowingNow { get; init; }
+    public required bool SowingNow { get; init; }
 
-    public double? GrowingDaysUntil { get; init; }
+    public required double GrowingDaysUntil { get; init; }
 
-    public string? Season { get; init; }
+    public required string Season { get; init; }
 
-    public int? DayOfYear { get; init; }
+    public required int DayOfYear { get; init; }
 
-    public double? NonGrowingDays { get; init; }
+    public required double NonGrowingDays { get; init; }
 }
 
 /// <summary>
@@ -5802,14 +5953,14 @@ public sealed record ControlledEnvironment
 /// </summary>
 public sealed record EdibleCrop
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public double? NutritionDemandPerDay { get; init; }
+    public required double NutritionDemandPerDay { get; init; }
 
     /// <summary>
     /// No colonist ideology penalises this crop product.
     /// </summary>
-    public bool? DietAllowed { get; init; }
+    public required bool DietAllowed { get; init; }
 }
 
 /// <summary>
@@ -5857,6 +6008,23 @@ public sealed record FoodProduction
     public required EquatableArray<FoodProduct> Products { get; init; }
 }
 
+/// <summary>A cooking bench's auto-refuel setting: <see cref="NotRefuelable"/> without a refuelable comp.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BenchAutoRefuel.NotRefuelable), "not_refuelable")]
+[JsonDerivedType(typeof(BenchAutoRefuel.Refuelable), "refuelable")]
+public abstract record BenchAutoRefuel
+{
+    private protected BenchAutoRefuel() { }
+
+    public sealed record NotRefuelable : BenchAutoRefuel;
+
+    /// <summary>CompRefuelable.allowAutoRefuel.</summary>
+    public sealed record Refuelable : BenchAutoRefuel
+    {
+        public required bool Allowed { get; init; }
+    }
+}
+
 public sealed record CookingFacts
 {
     public required Common.Ref Bench { get; init; }
@@ -5876,9 +6044,9 @@ public sealed record CookingFacts
     public Common.Ref? Room { get; init; }
 
     /// <summary>
-    /// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel).
+    /// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel), or not refuelable.
     /// </summary>
-    public bool? AutoRefuel { get; init; }
+    public required BenchAutoRefuel AutoRefuel { get; init; }
 
     /// <summary>
     /// The bench's CAS token.
@@ -6014,12 +6182,12 @@ public sealed record HumanCorpseMeat
 
 public sealed record HumanButcherCandidate
 {
-    public string PawnId { get; init; } = "";
+    public required string PawnId { get; init; }
 
-    public bool? CanWork { get; init; }
+    public required bool CanWork { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Trait>))]
-    public EquatableArray<Trait> PawnTraits { get; init; }
+    public required EquatableArray<Trait> PawnTraits { get; init; }
 }
 
 /// <summary>
@@ -6039,13 +6207,13 @@ public sealed record HumanButcherCandidate
 /// </summary>
 public sealed record ChoiceDialogOption
 {
-    public int? Index { get; init; }
+    public required int Index { get; init; }
 
-    public string? Label { get; init; }
+    public required string Label { get; init; }
 
-    public bool? Selectable { get; init; }
+    public required bool Selectable { get; init; }
 
-    public bool? Resolves { get; init; }
+    public required bool Resolves { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Keys { get; init; }
@@ -6053,12 +6221,12 @@ public sealed record ChoiceDialogOption
 
 public sealed record ChoiceDialog
 {
-    public int? WindowId { get; init; }
+    public required int WindowId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ChoiceDialogOption>))]
     public EquatableArray<ChoiceDialogOption> Options { get; init; }
 
-    public bool? Interactive { get; init; }
+    public required bool Interactive { get; init; }
 }
 
 
@@ -6528,12 +6696,35 @@ public sealed record ThreatSection
 }
 
 /// <summary>
+/// Whether a colonist can haul a stack safely: <see cref="Safe"/> when some colonist who can reach it has a hazard-free
+/// route there and back (with that route's length in cells), <see cref="Unsafe"/> when colonists reach it but every
+/// route is exposed, <see cref="Unreached"/> when no colonist reaches it.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HaulSafety.Safe), "safe")]
+[JsonDerivedType(typeof(HaulSafety.Unsafe), "unsafe")]
+[JsonDerivedType(typeof(HaulSafety.Unreached), "unreached")]
+public abstract record HaulSafety
+{
+    private protected HaulSafety() { }
+
+    public sealed record Safe : HaulSafety
+    {
+        public required double PathLength { get; init; }
+    }
+
+    public sealed record Unsafe : HaulSafety;
+
+    public sealed record Unreached : HaulSafety;
+}
+
+/// <summary>
 /// Current autonomous hauling safety for visible haulable items. count is the
-/// stack size; path_length is the shortest observed safe colonist route to the
-/// item in cells (present only with safe_to_haul true); storage_headroom is the
+/// stack size; safety is the colonists' verdict on hauling it (<see cref="HaulSafety"/>);
+/// storage_headroom is the
 /// item units the player's accepting storage can still take for this def;
 /// accepted_by, set only on an unforbidden row with storage_headroom 0 and
-/// safe_to_haul not false, names the player's storage groups (stockpile zones and
+/// a safety that is not unsafe, names the player's storage groups (stockpile zones and
 /// storage buildings, by load id) whose settings accept the item, ignoring space.
 /// deterioration is the stack's deterioration where it lies (#3798), absent when it
 /// cannot deteriorate.
@@ -6542,15 +6733,13 @@ public sealed record LootItem
 {
     public Common.Ref? Item { get; init; }
 
-    public bool? Forbidden { get; init; }
+    public required bool Forbidden { get; init; }
 
-    public bool? SafeToHaul { get; init; }
+    public required HaulSafety Safety { get; init; }
 
-    public long? Count { get; init; }
+    public required long Count { get; init; }
 
-    public double? PathLength { get; init; }
-
-    public long? StorageHeadroom { get; init; }
+    public required long StorageHeadroom { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> AcceptedBy { get; init; }
@@ -6965,6 +7154,22 @@ public sealed record DeliveryLedger
     public required EquatableArray<Butcher> Butchers { get; init; }
 }
 
+/// <summary>The food on hand over the colonists' daily need: <see cref="NoDemand"/> when nothing eats, else the days it lasts.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(FoodRunway.NoDemand), "no_demand")]
+[JsonDerivedType(typeof(FoodRunway.Days), "days")]
+public abstract record FoodRunway
+{
+    private protected FoodRunway() { }
+
+    public sealed record NoDemand : FoodRunway;
+
+    public sealed record Days : FoodRunway
+    {
+        public required double Value { get; init; }
+    }
+}
+
 /// <summary>
 /// The colony's eligible indoor sleeping places: the min and max room temperature over them (Indoor), or
 /// NoIndoorBed when the colony has no reachable player bed in a roofed, proper indoor room.
@@ -7025,7 +7230,7 @@ public sealed record ColonyFactsSnapshot
 
     public double NutritionPerDay { get; init; }
 
-    public double? FoodRunwayDays { get; init; }
+    public required FoodRunway FoodRunway { get; init; }
 
     /// <summary>The human-edible nutrition of every designated harvest and hunt not yet taken.</summary>
     public required double PendingFoodNutrition { get; init; }
@@ -7654,14 +7859,6 @@ public sealed record BundleSnapshot
     public EquatableArray<Mirror.CombatMortarRow> CombatMortars { get; init; }
 
     /// <summary>
-    /// The outdoor temperature a fight shelters from is
-    /// colony_facts.outdoor_temperature_c.
-    /// The hottest live hive's cell temperature in degrees Celsius,
-    /// with the combat inputs: an infestation's heat-stroke hold and entry check.
-    /// </summary>
-    public float? CombatHiveTemperatureC { get; init; }
-
-    /// <summary>
     /// The pawn table: every spawned pawn on the map, the rows every
     /// other section's pawn reference resolves against. A free colonist
     /// carries every detail family but tend; a hostile or hunting predator
@@ -7683,14 +7880,12 @@ public sealed record BundleSnapshot
     public Mirror.CellGrid? Grid { get; init; }
 
     /// <summary>
-    /// The player faction's primary ideoligion as it stands: the
-    /// precepts and roles in force, ritual state and building precepts.
-    /// Omittable like the singleton sections above (watermark "ideology");
-    /// absent, with no watermark, without Ideology; with Ideology active the
-    /// section is always present (a colony without a primary ideoligion fails
-    /// the section read).
+    /// The ideology section: <see cref="IdeologyFrame.NotInstalled"/> without the Ideology expansion, else the player
+    /// faction's primary ideoligion as it stands (the precepts and roles in force, ritual state and building precepts;
+    /// a colony without a primary ideoligion fails the section read). A routine frame always carries it; the brain
+    /// refuses one without it.
     /// </summary>
-    public IdeologySnapshot? Ideology { get; init; }
+    public IdeologyFrame? Ideology { get; init; }
 
     /// <summary>
     /// A frame whose section read threw: the frame carries only this,
@@ -7699,14 +7894,22 @@ public sealed record BundleSnapshot
     /// with the section omitted.
     /// </summary>
     public Common.Failure? Failure { get; init; }
+}
 
-    /// <summary>
-    /// ModsConfig.IdeologyActive, carried on every frame: false means the
-    /// Ideology expansion is not installed and the ideology section is absent;
-    /// true carries the section. A routine frame always carries the flag; the
-    /// brain refuses one without it.
-    /// </summary>
-    public bool? IdeologyActive { get; init; }
+/// <summary>ModsConfig.IdeologyActive and the section it gates: <see cref="NotInstalled"/> without the expansion.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(IdeologyFrame.NotInstalled), "not_installed")]
+[JsonDerivedType(typeof(IdeologyFrame.Installed), "installed")]
+public abstract record IdeologyFrame
+{
+    private protected IdeologyFrame() { }
+
+    public sealed record NotInstalled : IdeologyFrame;
+
+    public sealed record Installed : IdeologyFrame
+    {
+        public required IdeologySnapshot Snapshot { get; init; }
+    }
 }
 
 /// <summary>
@@ -7719,16 +7922,32 @@ public sealed record BundleSnapshot
 public sealed record SnapshotStreamRequest
 {
     /// <summary>
-    /// Main-thread milliseconds one frame may spend measuring route path costs
+    /// Main-thread time one frame may spend measuring route path costs
     /// (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs
-    /// past it report RouteTravel.Skipped. Absent: measure every pair.
+    /// past a limit report RouteTravel.Skipped; unlimited measures every pair.
     /// </summary>
-    public uint? RoutePathBudgetMs { get; init; }
+    public required FrameBudget RoutePathBudget { get; init; }
 
     /// <summary>
     /// The LinesOfFireRequest budget_ms of each frame's combat lines of fire.
     /// </summary>
-    public uint? LinesOfFireBudgetMs { get; init; }
+    public required FrameBudget LinesOfFireBudget { get; init; }
+}
+
+/// <summary>A frame's time allowance: <see cref="Unlimited"/>, or <see cref="Millis"/> main-thread milliseconds.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(FrameBudget.Unlimited), "unlimited")]
+[JsonDerivedType(typeof(FrameBudget.Millis), "millis")]
+public abstract record FrameBudget
+{
+    private protected FrameBudget() { }
+
+    public sealed record Unlimited : FrameBudget;
+
+    public sealed record Millis : FrameBudget
+    {
+        public required uint Value { get; init; }
+    }
 }
 
 /// <summary>
@@ -8084,7 +8303,7 @@ public sealed record SnapshotReadRequest
     /// <summary>
     /// Only a frame numbered past this is returned; the head and write counters always are.
     /// </summary>
-    public ulong? AfterNumber { get; init; }
+    public required ulong AfterNumber { get; init; }
 }
 
 public sealed record SnapshotRead

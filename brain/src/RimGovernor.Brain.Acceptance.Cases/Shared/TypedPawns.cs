@@ -27,7 +27,7 @@ internal static class TypedPawns
     /// <summary>The first free, standing colonist by id.</summary>
     internal static async Task<Observations.PawnState> FirstColonistAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var rows = await ListAsync(s, label, new Observations.PawnFilter { Colonist = true, Downed = false }, cancellationToken).ConfigureAwait(false);
+        var rows = await ListAsync(s, label, new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }, cancellationToken).ConfigureAwait(false);
         return rows.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal).FirstOrDefault() ?? throw new AcceptanceException($"{label}: no standing colonist");
     }
 

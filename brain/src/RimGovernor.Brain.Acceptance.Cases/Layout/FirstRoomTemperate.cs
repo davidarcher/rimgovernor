@@ -100,7 +100,7 @@ internal static class FirstRoomReads
         var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
         {
             Scope = s.Scope,
-            Filter = new() { Colonist = true },
+            Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
         }, cancellationToken).ConfigureAwait(false);
         var observed = reply;
         return observed.Pawns.ToDictionary(p => p.Pawn.Id, p => p.Settings.Body.Hypothermia, StringComparer.Ordinal);

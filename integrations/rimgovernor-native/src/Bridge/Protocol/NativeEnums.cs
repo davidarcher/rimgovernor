@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
             RimWorld.Passion.None => Obs.Passion.None,
             RimWorld.Passion.Minor => Obs.Passion.Minor,
             RimWorld.Passion.Major => Obs.Passion.Major,
-            _ => Obs.Passion.Unspecified
+            _ => throw new ArgumentOutOfRangeException(nameof(passion), passion, "no wire passion")
         };
 
         internal static Operations.MedicalCare Care(MedicalCareCategory care) => care switch

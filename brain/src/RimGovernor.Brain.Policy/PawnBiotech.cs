@@ -100,7 +100,7 @@ public sealed record PawnMech
     {
         Overseer = m.Overseer?.Id ?? "",
         WorkMode = m.WorkMode,
-        Energy = m.Energy is { } energy ? new MechEnergy.Level(energy) : new MechEnergy.NoEnergyNeed(),
+        Energy = m.Energy is O.PawnMechEnergy.Level level ? new MechEnergy.Level(level.Fraction) : new MechEnergy.NoEnergyNeed(),
         Group = m.Group is { } g ? new PawnMechGroup(g.Index, g.RechargeBelow, g.RechargeAbove) : null,
     };
 }

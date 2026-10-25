@@ -24,7 +24,7 @@ public sealed class TradeFamilyWireTests
 
     private static O.TradePawn Pawn(string id, O.TradePawnGuest guest) => new()
     {
-        Id = id, Gender = D.Gender.Female, Skills = [new O.Skill { DefName = "Shooting", Level = 6 }], ViolenceCapable = true,
+        Id = id, Gender = D.Gender.Female, Skills = [new O.Skill { DefName = "Shooting", Level = 6, Passion = O.Passion.None }], ViolenceCapable = true,
         Guest = guest, Downed = false, ExtraHomeFactionId = "", ExtraHostFactionId = "Faction_3",
     };
 

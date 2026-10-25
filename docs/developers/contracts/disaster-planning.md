@@ -27,7 +27,7 @@ share of its cells under open sky. Fallout, blight and frost never name a
 disaster episode; they stay food-plan inputs.
 
 An observed Zzztt letter also starts recovery without a game condition.
-`DevelopmentFacts.short_circuit_tick` reports the latest matching map-local
+`DevelopmentFacts.short_circuit` (`none_seen`, or `seen` with its tick) reports the latest matching map-local
 letter in the native active stack or archive, using the game's translated label.
 The durable episode records the processed tick so dismissed or repeatedly read
 letters do not reopen it. Damaged buildings enter history even while burning;

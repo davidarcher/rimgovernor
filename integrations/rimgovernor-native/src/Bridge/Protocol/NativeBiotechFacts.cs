@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
         {
             Overseer = MechanitorUtility.GetOverseer(pawn) is Pawn overseer ? NativeRef.Thing(overseer) : null,
             WorkMode = MechanitorUtility.GetMechWorkMode(pawn)?.defName,
-            Energy = pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy ? Finite(energy.CurLevelPercentage, "mech energy") : null,
+            Energy = pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy ? new Obs.PawnMechEnergy.Level { Fraction = Finite(energy.CurLevelPercentage, "mech energy") } : new Obs.PawnMechEnergy.NoEnergyNeed(),
             Group = MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup group ? Group(group) : null,
         };
 

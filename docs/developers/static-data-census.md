@@ -117,7 +117,7 @@ Deleted (Go reads the mirror row, or the field was dead):
 Kept, reason recorded:
 - `TrainingEntry.def_name`: the key of the live learned/wanted/available row, not a copy of a `TrainableDef` property.
 - `AnimalState.tameable`: `TameUtility.CanTame` on the live animal plus its hunting designation; a game-method output.
-- `DevelopmentPower.turret_dps`: `NativeDefenseStats.TurretDps` reads the live gun (its quality-scaled verb), not a row.
+- `DevelopmentPower.turret` (`gun` with `dps`): `NativeDefenseStats.TurretDps` reads the live gun (its quality-scaled verb), not a row.
 - `DefinitionCatalog.thing_defs`/`terrain_defs`, `ClassChain`: these are the mirror rows (`DefSets` omits ThingDef and TerrainDef by construction), not copies of them; `ClassChain` is the `ClassIsA` index.
 - `NativeColonyObservationTools.Crops`: the `EdibleCrop` row is the live per-map diet and animal nutrition demand of a crop; the `CropDefs` list only enumerates `DefDatabase` and its food filter is `NativeFoodPolicy.IsFood`, the game-method output the `ThingDefFacts` section keeps.
 - `NativeColonyObservationTools` room roles: `room.Role` is the live room's computed role (`NativeUpkeepFacts`), nothing in the file retypes the role table.
@@ -594,7 +594,7 @@ Kept, reason recorded:
 | RoyaltySection | message | 1418 | 2 | state | Royalty colony section envelope |  |  |
 | RoyaltyColonyFacts | message | 1419 | 3 | state | Neuroformers, ceremonies, thrones |  |  |
 | ColonyAnimal | message | 1422 | 2 | mixed | Player animal and its roping (roam, suitable pen) | diet | RaceProperties.foodType (ThingDef.race) |
-| DevelopmentPower | message | 1423 | 3 | state | Power consumer/battery roof and turret dps (capacity deleted, #2657; stored energy is the network's) |  | turret_dps kept: the live gun's verb output |
+| DevelopmentPower | message | 1423 | 3 | state | Power consumer/battery roof and turret dps (capacity deleted, #2657; stored energy is the network's) |  | turret gun dps kept: the live gun's verb output |
 | SteamGeyser | message | 1431 | 3 | state | Steam geyser cells and occupancy |  |  |
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
 | EnvironmentCondition | message | 1433 | 3 | state | Active game condition with id, def name and a permanent or timed duration (class and label deleted, #2657; duration a named state, #3888) |  |  |

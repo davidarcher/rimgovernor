@@ -22,6 +22,7 @@ public sealed class ColonyFactsCoreTests
     {
         Context = context ?? new C.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
+        FoodRunway = new RimGovernor.Contracts.Wire.Observations.FoodRunway.NoDemand(),
         WorkResources = [],
         JoinerLetters = [],
         ColonistCount = 0,
@@ -102,7 +103,7 @@ public sealed class ColonyFactsCoreTests
     [Fact]
     public void PlanningReadHandsPlannerItsFacts()
     {
-        var planning = new PlanningFacts { Gear = GearFixtures.NoSnapshot, Environment = ControlledEnvironmentTests.NoWireEnvironment, Crops = [new EdibleCrop { DefName = "Plant_Rice" }] };
+        var planning = new PlanningFacts { Gear = GearFixtures.NoSnapshot, Environment = ControlledEnvironmentTests.NoWireEnvironment, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] };
         var facts = Snapshot() with { Planning = new Planning.Requested(planning) };
         Assert.Same(planning, PlanningWindowReads.RequirePlanning(facts));
     }
@@ -115,7 +116,7 @@ public sealed class ColonyFactsCoreTests
             Snapshot(),
             Snapshot() with
             {
-                Planning = new Planning.Requested(new PlanningFacts { Gear = GearFixtures.NoSnapshot, Environment = ControlledEnvironmentTests.NoWireEnvironment, Crops = [new EdibleCrop { DefName = "Plant_Rice" }] }),
+                Planning = new Planning.Requested(new PlanningFacts { Gear = GearFixtures.NoSnapshot, Environment = ControlledEnvironmentTests.NoWireEnvironment, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] }),
                 SleepingTemperature = new SleepingTemperature.Indoor(12.5, 21),
                 PendingFoodNutrition = 3.5,
                 PendingHunts = 2,

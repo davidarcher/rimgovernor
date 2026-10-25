@@ -78,8 +78,8 @@ internal sealed class DefinitionFacts
         {
             d = d with
             {
-                NutritionDemandPerDay = ColonyDecodeReads.Optional(crop.NutritionDemandPerDay is not null, crop.NutritionDemandPerDay.GetValueOrDefault()),
-                DietAllowed = ColonyDecodeReads.Optional(crop.DietAllowed is not null, crop.DietAllowed.GetValueOrDefault()),
+                NutritionDemandPerDay = ColonyDecodeReads.Present(crop.NutritionDemandPerDay),
+                DietAllowed = ColonyDecodeReads.Present(crop.DietAllowed),
             };
         }
         return d;
@@ -134,7 +134,7 @@ public static class DefinitionsReads
         {
             foreach (var row in planning.Crops)
             {
-                rows[(row.DefName ?? "")] = row;
+                rows[row.DefName] = row;
             }
         }
         return rows;

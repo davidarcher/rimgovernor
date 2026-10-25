@@ -59,7 +59,7 @@ public sealed class BiotechSectionTests
             {
                 Overseer = null,
                 WorkMode = "Work",
-                Energy = 0.5,
+                Energy = new O.PawnMechEnergy.Level { Fraction = 0.5 },
                 Group = new O.PawnMechGroup { Index = 1, RechargeBelow = 0.1, RechargeAbove = 1 },
             },
             Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 2 },
@@ -68,7 +68,7 @@ public sealed class BiotechSectionTests
         var json = WireJson.Serialize(state);
 
         Assert.Equal(
-            """{"type":"active","facts":{"developmentalStage":"DEVELOPMENTAL_STAGE_ADULT","genes":[{"defName":"Hair_Black","active":true}],"mechanitor":null,"mech":{"overseer":null,"workMode":"Work","energy":0.5,"group":{"index":1,"rechargeBelow":0.1,"rechargeAbove":1}},"deathrest":{"deathresting":false,"capacity":2}}}""",
+            """{"type":"active","facts":{"developmentalStage":"DEVELOPMENTAL_STAGE_ADULT","genes":[{"defName":"Hair_Black","active":true}],"mechanitor":null,"mech":{"overseer":null,"workMode":"Work","energy":{"type":"level","fraction":0.5},"group":{"index":1,"rechargeBelow":0.1,"rechargeAbove":1}},"deathrest":{"deathresting":false,"capacity":2}}}""",
             json);
         Assert.Equal(state, WireJson.Deserialize<O.PawnBiotechState>(json));
 

@@ -64,26 +64,27 @@ public static class FoodSupplyReads
             var def = row.Entity.DefName;
             var defFacts = FoodDefFactsOf(catalog, def, row.Corpse);
             var food = $"food stock {s.Item.Id}";
+            var edible = row.Food as RimGovernor.Contracts.Wire.Observations.ThingFood.Edible ?? throw new ObservationContractException($"{food} is not an ingestible item or a corpse");
             FoodForm form = row.Corpse
-                ? new FoodForm.Corpse(row.MeatAmount ?? throw new ObservationContractException($"{food} is a corpse without its meat amount"), row.BodySize ?? throw new ObservationContractException($"{food} is a corpse without its body size"))
+                ? new FoodForm.Corpse((edible.Yield ?? throw new ObservationContractException($"{food} is a corpse without its yield")).MeatAmount, edible.Yield.BodySize)
                 : new FoodForm.Item();
             // A spawned stock stands where its roof is read; a stock in an inventory is carried.
-            FoodPlace place = row.Roofed is { } roofed ? new FoodPlace.Stands(roofed, row.Room?.Id ?? "") : new FoodPlace.Carried();
+            FoodPlace place = edible.Place is RimGovernor.Contracts.Wire.Observations.ThingPlace.Stands stands ? new FoodPlace.Stands(stands.Roofed, stands.Room?.Id ?? "") : new FoodPlace.Carried();
             // A thing rots exactly while it has a rot deadline.
             var stock = new FoodStock
             {
                 Id = s.Item.Id ?? "",
-                IsHumanMeat = row.IsHumanMeat ?? throw new ObservationContractException($"{food} has no human meat fact"),
+                IsHumanMeat = edible.IsHumanMeat,
                 RawMeat = defFacts.RawMeat,
                 IsHumanlike = defFacts.Humanlike,
                 Vegetable = defFacts.Vegetable,
                 RawClass = defFacts.Class,
                 Holder = new PawnId(s.Holder?.Id ?? ""),
                 Nutrition = s.Nutrition,
-                Rot = row.RotTicks is { } rot ? new FoodRot.Rots(rot) : new FoodRot.Keeps(),
+                Rot = edible.Rot is RimGovernor.Contracts.Wire.Observations.ThingRot.Rots rot ? new FoodRot.Rots(rot.Ticks) : new FoodRot.Keeps(),
                 DefName = new Resource(def),
                 Place = place,
-                TemperatureC = row.TemperatureC ?? throw new ObservationContractException($"{food} has no ambient temperature"),
+                TemperatureC = edible.TemperatureC,
                 Count = row.StackCount,
                 UnitMass = catalog.StatValue(def, "", CatalogStats.Mass),
                 Form = form,

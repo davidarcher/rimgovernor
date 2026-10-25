@@ -146,7 +146,7 @@ internal static class MapscopeIsolation
         var pawns = await s.CallAsync(
             "pawn-after",
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Ids = [colonist], Colonist = true } },
+            new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Ids = [colonist], Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } },
             cancellationToken).ConfigureAwait(false);
         var rows = pawns.Pawns.ToList();
         if (rows is not [{ Drafted: true } after] || after.Pawn.Place is not RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { MapId: var afterMap } || afterMap != home.MapId || after.PawnSnapshot?.Token != job.ResultingSnapshotToken)

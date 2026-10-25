@@ -80,7 +80,7 @@ public sealed partial class FacadeNativeClient
         {
             output = output with { Quests = WorldProgressionRead.DecodeWorldProgressionSnapshot(v.WorldProgression) };
         }
-        return output with { Ideology = IdeologyDecoder.Mode(v.IdeologyActive, v.Ideology, catalog), Zones = v.Zones };
+        return output with { Ideology = IdeologyDecoder.Mode(v.Ideology, catalog), Zones = v.Zones };
     }
 
     /// <summary>
@@ -167,7 +167,6 @@ public sealed partial class FacadeNativeClient
             Rooms = v.Rooms,
             CombatDoors = v.CombatDoors,
             CombatMortars = v.CombatMortars,
-            CombatHiveTemperatureC = v.CombatHiveTemperatureC,
             WorldProgression = v.WorldProgression,
             Things = things,
         };

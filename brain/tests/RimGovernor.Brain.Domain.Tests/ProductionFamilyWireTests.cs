@@ -46,9 +46,9 @@ public sealed class ProductionFamilyWireTests
                 Items =
                 [
                     new O.StockItem { Id = "Thing_Minified1", Cell = new Cell(3, 4), Snapshot = new O.SnapshotRef { EntityId = "Thing_Minified1", Token = "t1" },
-                        Packed = new O.PackedBuilding { Id = "Thing_Sculpture1", DefName = "SculptureSmall", Quality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Excellent, MarketValue = 410.5 } },
+                        Packed = new O.PackedBuilding { Id = "Thing_Sculpture1", DefName = "SculptureSmall", Quality = new O.PackedQuality.Rated { Category = RimGovernor.Contracts.Wire.Defs.QualityCategory.Excellent }, MarketValue = 410.5 } },
                     new O.StockItem { Id = "Thing_Minified2", Cell = new Cell(9, 9),
-                        Packed = new O.PackedBuilding { Id = "Thing_Bed2", DefName = "Bed", MarketValue = 80 } },
+                        Packed = new O.PackedBuilding { Id = "Thing_Bed2", DefName = "Bed", Quality = new O.PackedQuality.Unrated(), MarketValue = 80 } },
                 ],
                 Holders = [new O.HeldStock { Holder = "Thing_Human7", HolderKind = O.HolderKind.Carried, Units = 1 }],
                 WeaponItems = [],

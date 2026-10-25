@@ -122,7 +122,7 @@ internal static class CaravanDeparture
         var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var home = progression.Maps.FirstOrDefault(m => m.Home)?.Tile
             ?? throw new AcceptanceException("home-tile: no home map tile");
-        var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Tile = home, SettlementRadius = 1000 }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Settlements = new Observations.SettlementSearch { Tile = home, Radius = 1000 } }, cancellationToken).ConfigureAwait(false);
         var candidates = reply.Settlements
             .Where(c => c.Relation == Observations.SettlementRelation.Neutral && c.Tile != home)
             .OrderBy(c => c.Id, StringComparer.Ordinal).Take(12).ToList();

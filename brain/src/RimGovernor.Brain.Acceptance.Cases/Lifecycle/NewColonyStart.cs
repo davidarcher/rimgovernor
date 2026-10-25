@@ -118,7 +118,7 @@ internal static class NewColonyStart
             new Observations.ListPawnsRequest
             {
                 Scope = TypedReads.Scope(identity),
-                Filter = new Observations.PawnFilter { Colonist = true },
+                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
             },
             cancellationToken).ConfigureAwait(false);
         return [.. reply.Pawns];

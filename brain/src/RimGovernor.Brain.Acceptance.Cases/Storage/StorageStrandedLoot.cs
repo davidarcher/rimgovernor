@@ -56,7 +56,7 @@ internal static class StorageStrandedLoot
             ?? throw new AcceptanceException($"the loot census lists no row for the WoodLog stack {wood}: {string.Join("; ", census.Items)}");
         s.RecordWire("wood-row", row);
 
-        if (row is not { Forbidden: false, SafeToHaul: true, StorageHeadroom: 0 })
+        if (row is not { Forbidden: false, Safety: Observations.HaulSafety.Safe, StorageHeadroom: 0 })
         {
             throw new AcceptanceException($"want an unforbidden safe WoodLog stack with zero storage headroom, got {row}");
         }

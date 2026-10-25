@@ -87,7 +87,7 @@ internal static class PawnReads
             problems.Add($"bounded read found {baseline.Count} pawns, want the 3 colonists and the muffalo");
         }
 
-        var colonists = await ReadAsync("colonists", new Observations.PawnFilter { Colonist = true, Humanlike = true, Animal = false }).ConfigureAwait(false);
+        var colonists = await ReadAsync("colonists", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Humanlike = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Animal = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false);
         if (colonists.Count != 3)
         {
             problems.Add($"colonist filter found {colonists.Count}, want 3");
@@ -107,23 +107,23 @@ internal static class PawnReads
             }
         }
 
-        ExpectCount("exact-id", await ReadAsync("exact-id", new Observations.PawnFilter { Ids = [target], Colonist = true, Animal = false }).ConfigureAwait(false), 1);
-        ExpectCount("contradictory", await ReadAsync("contradictory", new Observations.PawnFilter { Ids = [target], Colonist = false }).ConfigureAwait(false), 0);
+        ExpectCount("exact-id", await ReadAsync("exact-id", new Observations.PawnFilter { Ids = [target], Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Animal = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false), 1);
+        ExpectCount("contradictory", await ReadAsync("contradictory", new Observations.PawnFilter { Ids = [target], Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false), 0);
         ExpectCount("unknown-id", await ReadAsync("unknown-id", new Observations.PawnFilter { Ids = ["missing-pawn-id"] }).ConfigureAwait(false), 0);
-        var animals = await ReadAsync("animals", new Observations.PawnFilter { Colonist = false, Animal = true }).ConfigureAwait(false);
+        var animals = await ReadAsync("animals", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded, Animal = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only }).ConfigureAwait(false);
         if (!animals.Any(a => a.Pawn.Id == muffalo && a.PawnSnapshot is not null && a.AnimalState is Observations.PawnAnimalState.Animal))
         {
             problems.Add($"animal filter did not read the muffalo {muffalo} with a snapshot and an animal state");
         }
 
-        var knownFalse = await ReadAsync("known-false", new Observations.PawnFilter { Drafted = false, Downed = false }).ConfigureAwait(false);
+        var knownFalse = await ReadAsync("known-false", new Observations.PawnFilter { Drafted = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false);
         if (knownFalse.Any(p => p.Drafted || p.Downed))
         {
             problems.Add("known-false filter returned a drafted or downed pawn");
         }
 
         await ExpectFailureAsync("duplicate-id", Common.FailureCode.InvalidRequest, new Observations.PawnFilter { Ids = [target, target] }).ConfigureAwait(false);
-        await ExpectFailureAsync("negative-distance", Common.FailureCode.InvalidRequest, new Observations.PawnFilter { WithinColonistDistance = -1 }).ConfigureAwait(false);
+        await ExpectFailureAsync("negative-distance", Common.FailureCode.InvalidRequest, new Observations.PawnFilter { WithinColonistDistance = new Observations.ColonistRange.Within { Distance = -1 } }).ConfigureAwait(false);
         await ExpectFailureAsync("stale-identity", Common.FailureCode.StaleIdentity, null, new Observations.ReadScope { ExpectedIdentity = s.Identity with { LoadToken = "stale-load" } }).ConfigureAwait(false);
         var repeat = await ReadAsync("repeat", null).ConfigureAwait(false);
         if (!repeat.SequenceEqual(baseline))

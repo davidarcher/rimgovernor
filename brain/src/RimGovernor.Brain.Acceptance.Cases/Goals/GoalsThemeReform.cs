@@ -47,7 +47,7 @@ internal static class GoalsThemeReform
     private static async Task<Observations.IdeologySnapshot?> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadSnapshot, new Observations.SnapshotReadRequest { AfterNumber = 0 }, cancellationToken).ConfigureAwait(false);
-        return (reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: snapshot read failed: {reply.Outcome}")).Frame?.Ideology;
+        return (reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: snapshot read failed: {reply.Outcome}")).Frame?.Ideology is Observations.IdeologyFrame.Installed installed ? installed.Snapshot : null;
     }
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)

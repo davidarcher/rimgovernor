@@ -86,7 +86,7 @@ public sealed class PolicyController : IFightController
 
         try
         {
-            var request = new Obs.SnapshotStreamRequest { LinesOfFireBudgetMs = 15 };
+            var request = new Obs.SnapshotStreamRequest { RoutePathBudget = new Obs.FrameBudget.Unlimited(), LinesOfFireBudget = new Obs.FrameBudget.Millis { Value = 15 } };
             var frame = SnapshotFrames.Capture(map, request);
             if (frame is null)
             {

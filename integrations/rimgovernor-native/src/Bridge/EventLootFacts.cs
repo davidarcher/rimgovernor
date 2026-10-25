@@ -23,19 +23,24 @@ namespace HomeBridge.BridgeTools
             var census = new Obs.LootCensus();
             var headroom = new Dictionary<ThingDef, long>();
             foreach (var t in items) {
+                var safe = safety.Safe(t);
+                // A safe verdict always carries the measured route (Safe returns true only after a found path).
+                Obs.HaulSafety verdict = safe switch
+                {
+                    true => new Obs.HaulSafety.Safe { PathLength = safety.PathLength >= 0 ? safety.PathLength : throw new InvalidOperationException("A safe haul verdict measured no route.") },
+                    false => new Obs.HaulSafety.Unsafe(),
+                    null => new Obs.HaulSafety.Unreached(),
+                };
+                if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
                 var row = new Obs.LootItem {
                     Item = NativeRef.Thing(t),
-                    Forbidden = t.IsForbidden(Faction.OfPlayer), Count = t.stackCount
+                    Forbidden = t.IsForbidden(Faction.OfPlayer), Count = t.stackCount,
+                    Safety = verdict, StorageHeadroom = units
                 };
-                var safe = safety.Safe(t);
-                if (safe.HasValue) row = row with { SafeToHaul = safe.Value };
-                if (safe == true && safety.PathLength >= 0) row = row with { PathLength = safety.PathLength };
-                if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
-                row = row with { StorageHeadroom = units };
                 // A stack no storage has room for names the stores whose
                 // filter would take it. Unknown safety is listed too, so the
                 // brain can read that store's stranded count as unknown.
-                if (units == 0 && row.Forbidden == false && safe != false) row = row with { AcceptedBy = [.. AcceptingGroups(map, t)] };
+                if (units == 0 && !row.Forbidden && safe != false) row = row with { AcceptedBy = [.. AcceptingGroups(map, t)] };
                 row = row with { Deterioration = DeteriorationOf(map, t) };
                 census = census with { Items = [.. census.Items, row] };
             }

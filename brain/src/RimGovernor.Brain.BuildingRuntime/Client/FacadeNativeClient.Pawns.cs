@@ -56,7 +56,7 @@ public sealed partial class FacadeNativeClient
         var request = new PbObservations.ListPawnsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            Filter = new PbObservations.PawnFilter { Colonist = true, IncludeDead = false },
+            Filter = new PbObservations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, IncludeDead = false },
         };
         return await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
     }

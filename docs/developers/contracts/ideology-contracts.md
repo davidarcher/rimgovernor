@@ -223,11 +223,11 @@ typed rows on the pawn. Human butchery (`policy.SelectHumanButcher`) skips a wor
 tribute collector (`policy.FavorPrisonersHeld`) asks the rule about `SoldPrisoner` for the
 colony and sells only when it is allowed or approved: a mood cost or a refusal holds; without Ideology it sells.
 
-`BundleSnapshot.ideology_active` (`ModsConfig.IdeologyActive`, carried on every frame) is the
-DLC signal and is required on a routine frame (an absent flag fails the frame). `false` decodes to
+`BundleSnapshot.ideology` (`not_installed`, or `installed` with the section; `ModsConfig.IdeologyActive`, carried on every frame) is the
+DLC signal and is required on a routine frame (an absent flag fails the frame). `not_installed` decodes to
 `IdeologyMode.NotInstalled`: the rule answers `allowed` ("Ideology not installed"), butchery falls
-through and the herd, diet, roles and rituals read nothing owed. `true` with no section, or an
-ideology section with `ideology_active` false, fails the frame (`IdeologyDecoder.Mode`). The game raises no history event for burying, entombing or
+through and the herd, diet, roles and rituals read nothing owed. `installed` carries its section, so no section can be missing; an
+unknown frame fails (`IdeologyDecoder.Mode`). The game raises no history event for burying, entombing or
 burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing to bind to.
 
 ## Role assignment

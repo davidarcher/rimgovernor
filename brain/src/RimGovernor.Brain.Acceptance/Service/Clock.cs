@@ -19,7 +19,7 @@ public static class ClockFixture
         var reply = await h.CallAsync(
             label,
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = TypedReads.Scope(Harness.IdentityOf(identity)), Filter = new() { Colonist = true } },
+            new Observations.ListPawnsRequest { Scope = TypedReads.Scope(Harness.IdentityOf(identity)), Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } },
             cancellationToken).ConfigureAwait(false);
         var pawns = reply.Pawns;
         if (pawns.Count == 0)

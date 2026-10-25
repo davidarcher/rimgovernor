@@ -33,12 +33,9 @@ internal static class FarmCalendar
 
         var climate = facts.FoodClimate ?? throw new AcceptanceException("colony facts carry no foodClimate");
         s.RecordWire("food_climate", climate);
-        if (climate is not { Season: { } season, DayOfYear: { } day, GrowingDays: { } growing, GrowingDaysRemaining: { } remaining, GrowingDaysUntil: { } until, NonGrowingDays: { } stretch })
-        {
-            throw new AcceptanceException($"foodClimate lacks a field: {climate}");
-        }
-
-        var calendar = new RimGovernor.Brain.Policy.Calendar { Season = season, DayOfYear = day, GrowingDays = growing, GrowingDaysRemaining = remaining, GrowingDaysUntil = until, NonGrowingDays = stretch };
+        var remaining = climate.GrowingDaysRemaining;
+        var until = climate.GrowingDaysUntil;
+        var calendar = new RimGovernor.Brain.Policy.Calendar { Season = climate.Season, DayOfYear = climate.DayOfYear, GrowingDays = climate.GrowingDays, GrowingDaysRemaining = remaining, GrowingDaysUntil = until, NonGrowingDays = climate.NonGrowingDays };
         if (!calendar.Valid())
         {
             throw new AcceptanceException($"calendar out of range: {calendar}");
@@ -52,6 +49,7 @@ internal static class FarmCalendar
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"growing walks disagree: remaining={remaining} until={until}"));
         }
 
+        var stretch = climate.NonGrowingDays;
         var stretchAgrees = until > 0 ? stretch == until : remaining < year ? stretch > 0 : stretch == 0;
         if (!stretchAgrees)
         {

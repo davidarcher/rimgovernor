@@ -141,7 +141,6 @@ BuildingRuntime/Rounds/RoundsPartySpot.cs|Fact|5
 BuildingRuntime/Rounds/RoundsPaste.cs|Fact|2
 BuildingRuntime/Rounds/RoundsPeople.cs|Discard|1
 BuildingRuntime/Rounds/RoundsPeople.cs|Fact|5
-BuildingRuntime/Rounds/RoundsPeople.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsPlanDig.cs|Fact|1
 BuildingRuntime/Rounds/RoundsPlannedRooms.cs|Fact|6
 BuildingRuntime/Rounds/RoundsPlannedSites.cs|Fact|5
@@ -219,8 +218,6 @@ BuildingRuntime/Worker.cs|Fact|10
 Contracts/Clock.cs|NullableValue|32
 Contracts/Clock.cs|UnknownMember|7
 Contracts/Json/FactJsonConverter.cs|Fact|5
-Contracts/Observations.cs|NullableValue|48
-Contracts/Observations.cs|UnknownMember|1
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
 Contracts/Receipts.cs|NullableValue|32
@@ -274,7 +271,7 @@ Observation/ColonyGear.cs|Fact|15
 Observation/ColonyGear.cs|Unknown|4
 Observation/ColonyGear.cs|ValueOrDefault|1
 Observation/ColonyProduction.cs|Fact|31
-Observation/ColonyProduction.cs|Unknown|6
+Observation/ColonyProduction.cs|Unknown|5
 Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
 Observation/ColonyUpkeep.cs|Fact|4

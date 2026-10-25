@@ -64,7 +64,7 @@ public static class ColonyAudits
             new Observations.ListPawnsRequest
             {
                 Scope = TypedReads.Scope(identity),
-                Filter = new Observations.PawnFilter { Colonist = true },
+                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
             },
             cancellationToken).ConfigureAwait(false);
         var rows = new JsonArray();

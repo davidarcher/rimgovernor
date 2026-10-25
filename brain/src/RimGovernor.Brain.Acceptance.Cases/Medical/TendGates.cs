@@ -23,7 +23,7 @@ internal static class TendGates
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var rows = await TypedPawns.ListAsync(s, "tend-gates", new Observations.PawnFilter { Colonist = true }, cancellationToken).ConfigureAwait(false);
+        var rows = await TypedPawns.ListAsync(s, "tend-gates", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only }, cancellationToken).ConfigureAwait(false);
         var table = await s.CallAsync(
             "tend-table",
             NativeOps.ReadTendDoctors,

@@ -546,7 +546,7 @@ public sealed class GameReuse : IAsyncDisposable
         var pawnsReply = await h.CallAsync(
             label + "-pawns",
             NativeOps.ListPawns,
-            new Wo.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = true } },
+            new Wo.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } },
             cancellationToken).ConfigureAwait(false);
         var pawns = pawnsReply;
 

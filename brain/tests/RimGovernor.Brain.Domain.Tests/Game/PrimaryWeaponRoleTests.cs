@@ -63,7 +63,7 @@ public sealed class PrimaryWeaponRoleTests
         {
             const string id = "Weapon_1";
             equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [GearFixtures.Item(id, new O.ItemQuality.Graded(D.QualityCategory.Good)) with { ConditionFraction = 0.8 }] };
-            things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() } });
+            things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() }, StackCount = 1, Forbidden = false, Corpse = false, Food = new O.ThingFood.NotFood() });
         }
         var tables = new Tables(default, default, Things.Of(things), []);
         var row = GearFixtures.Loadout("pawn") with { Equipment = equipment, ApparelPolicy = PoliciesTests.EmptyOutfit };

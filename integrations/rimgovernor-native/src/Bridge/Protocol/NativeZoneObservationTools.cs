@@ -106,7 +106,7 @@ namespace HomeBridge.BridgeTools
                         Id = id, Label = label, Bounds = bounds,
                         Priority = stockpile.settings.Priority.ToString(),
                         FoodStorage = DefDatabase<ThingDef>.AllDefsListForReading.Any(d => HumanFood(d) && d.GetCompProperties<CompProperties_Rottable>() != null && filter.Allows(d)),
-                        Filter = request.IncludeFilter.GetValueOrDefault() ? NativeStockpileSettings.Project(stockpile.settings.filter) : null,
+                        Filter = request.IncludeFilter ? NativeStockpileSettings.Project(stockpile.settings.filter) : null,
                     };
                 }
                 default:

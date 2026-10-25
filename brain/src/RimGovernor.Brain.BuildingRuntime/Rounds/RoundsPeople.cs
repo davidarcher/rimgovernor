@@ -176,12 +176,12 @@ public sealed class PeopleRounds
         var options = new List<DialogOption>(dialog.Options.Count);
         foreach (var option in dialog.Options)
         {
-            options.Add(new DialogOption { Index = option.Index.GetValueOrDefault(), Label = option.Label ?? "", Keys = [.. option.Keys], Selectable = option.Selectable.GetValueOrDefault(), Resolves = option.Resolves.GetValueOrDefault() });
+            options.Add(new DialogOption { Index = option.Index, Label = option.Label, Keys = [.. option.Keys], Selectable = option.Selectable, Resolves = option.Resolves });
         }
         return new OpenDialog
         {
-            Window = dialog.WindowId is { } id ? Known(id) : Unknown<int>(),
-            Interactive = dialog.Interactive.GetValueOrDefault(),
+            Window = Known(dialog.WindowId),
+            Interactive = dialog.Interactive,
             Options = EquatableArray.From(options),
         };
     }

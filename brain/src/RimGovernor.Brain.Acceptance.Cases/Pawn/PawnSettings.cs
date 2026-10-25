@@ -100,7 +100,7 @@ internal static class PawnSettings
 
     private static async Task SelfTendAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = true, Downed = false }, cancellationToken).ConfigureAwait(false);
+        var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }, cancellationToken).ConfigureAwait(false);
         var doctor = colonists.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal)
             .FirstOrDefault(p => p.Settings.Work is Observations.PawnWork.Works { Rows: var rows } && rows.Any(w => w.DefName == "Doctor" && !w.Disabled))
             ?? throw new AcceptanceException("no doctor-capable colonist");

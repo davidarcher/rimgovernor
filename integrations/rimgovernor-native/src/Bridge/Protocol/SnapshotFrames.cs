@@ -82,14 +82,6 @@ namespace HomeBridge.BridgeTools
             var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn.Id ?? "")).ToList();
             if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.MentalState is not null)) return;
-            // The hottest live hive's temperature, for the heat-stroke hold.
-            var hottest = observed.CombatHiveTemperatureC;
-            foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
-            {
-                if (!hive.Spawned || hive.Destroyed) continue;
-                var t = hive.Position.GetTemperature(map);
-                if (hottest is null || t > hottest.GetValueOrDefault()) hottest = t;
-            }
             // The damaged player doors, for a fight's door repair.
             var doors = new List<RimGovernor.Contracts.Wire.Mirror.CombatDoorRow>(observed.CombatDoors);
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
@@ -109,7 +101,7 @@ namespace HomeBridge.BridgeTools
                     MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range,
                     LoadedShell = loaded?.defName });
             }
-            observed = observed with { CombatHiveTemperatureC = hottest, CombatDoors = [.. doors], CombatMortars = [.. mortars] };
+            observed = observed with { CombatDoors = [.. doors], CombatMortars = [.. mortars] };
             var firing = new List<IntVec3>();
             foreach (var row in colonists)
             {
@@ -136,7 +128,7 @@ namespace HomeBridge.BridgeTools
                     }
             }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
-            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudgetMs ?? uint.MaxValue) }; }
+            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudget is Obs.FrameBudget.Millis lines ? lines.Value : uint.MaxValue) }; }
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 
@@ -151,7 +143,7 @@ namespace HomeBridge.BridgeTools
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope()), context, request.RoutePathBudgetMs is not null ? request.RoutePathBudgetMs.GetValueOrDefault() : (uint?)null)) };
+                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope()), context, request.RoutePathBudget is Obs.FrameBudget.Millis route ? route.Value : (uint?)null)) };
                 ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts?.Resources.Count ?? 0);
             }
             {
@@ -206,9 +198,11 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                observed = observed with { IdeologyActive = ModsConfig.IdeologyActive };
-                observed = observed with { Ideology = SnapshotSectionException.Read("ideology", () => NativeIdeologyObservation.Build(map)) };
-                ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
+                // Build is null only without the expansion; with it, a missing primary ideoligion throws inside it.
+                observed = observed with { Ideology = SnapshotSectionException.Read("ideology", () => NativeIdeologyObservation.Build(map) is { } snapshot
+                    ? (Obs.IdeologyFrame)new Obs.IdeologyFrame.Installed { Snapshot = snapshot }
+                    : new Obs.IdeologyFrame.NotInstalled()) };
+                ObservationWork.Captured("ideology", Now() - began, observed.Ideology is Obs.IdeologyFrame.Installed installed ? installed.Snapshot.Precepts.Count : 0);
             }
             {
                 var rooms = new Obs.ListRoomsRequest { Scope = Scope() };

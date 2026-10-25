@@ -139,7 +139,7 @@ internal static class LayoutFirstBedroomCloses
             var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest
             {
                 Scope = s.Scope,
-                Filter = new Observations.PawnFilter { Colonist = true },
+                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
             }, ct).ConfigureAwait(false);
             owned = pawns.Pawns
                 .ToDictionary(p => p.Pawn.Id, p => p.OwnedBed?.Id ?? "", StringComparer.Ordinal);

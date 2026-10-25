@@ -23,7 +23,6 @@ public static class CombatLabCases
         registry.Register(CombatLabDrugs.Case());
         registry.Register(CombatLabRepair.Case());
         registry.Register(CombatLabEmp.Case());
-        registry.Register(CombatLabHiveTemperature.Case());
         registry.Register(CombatLabHoldFire.Case());
         registry.Register(CombatLabMortar.Case());
         registry.Register(CombatLabMortarShell.Case());

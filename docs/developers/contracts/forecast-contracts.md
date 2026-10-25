@@ -87,7 +87,7 @@ remains pending.
 The [corpse larder](upkeep-contracts.md#corpse-larder) owns reserve release.
 
 A corpse is humanlike when its source race row is (`DefinitionCatalog.HumanlikeCorpse`);
-a stock is perishable exactly while it carries `rot_ticks`; raw class and
+a stock is perishable exactly while its food facts carry `rot` of type `rots` (`keeps` otherwise); raw class and
 vegetable come from the def row. Raw meat and meals containing it carry
 `is_human_meat`. Each consumer exposes native trait/precept eating disposition.
 Unknown or unacceptable disposition excludes that stock from its forecast,

@@ -315,8 +315,8 @@ public sealed partial class FacadeNativeClient : IDisposable
             }
             var request = new PbObservations.SnapshotStreamRequest
             {
-                RoutePathBudgetMs = RoutePathBudgetMs,
-                LinesOfFireBudgetMs = LinesOfFireBudgetMs,
+                RoutePathBudget = new PbObservations.FrameBudget.Millis { Value = RoutePathBudgetMs },
+                LinesOfFireBudget = new PbObservations.FrameBudget.Millis { Value = LinesOfFireBudgetMs },
             };
             PbObservations.SnapshotStreamReply reply;
             reply = await Facade.OpenFramesAsync(request, cancellationToken).ConfigureAwait(false);
