@@ -85,12 +85,33 @@ internal static class NativeTradeVisitFacts
             else if (def.workerClass == typeof(IncidentWorker_VisitorGroup))
             {
                 // IncidentWorker_VisitorGroup.TryConvertOnePawnToSmallTrader: a visitorTraderKinds kind by CalculatedCommonality.
-                sources.AddRange(factions.Select(f => new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Faction = f.def.defName, Kinds = [.. (f.def.visitorTraderKinds ?? new List<TraderKindDef>())
+                sources.AddRange(factions.Select(f => new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Faction = f.def.defName, Visitors = Visitors(f), Kinds = [.. (f.def.visitorTraderKinds ?? new List<TraderKindDef>())
                     .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, k.CalculatedCommonality)).Where(k => k.Weight > 0)] }));
             }
         }
 
         return new RimGovernor.Brain.GameFacts.Observations.TraderIncidentRead(def.defName) { Blocked = [.. blocked.Distinct()], Weight = Weight(map, def), Sources = [.. sources] };
+    }
+
+    private static RimGovernor.Brain.GameFacts.Observations.VisitorGenerationRead Visitors(Faction faction)
+    {
+        var parms = new PawnGroupMakerParms { faction = faction, groupKind = PawnGroupKindDefOf.Peaceful };
+        return new RimGovernor.Brain.GameFacts.Observations.VisitorGenerationRead {
+            MinimumPoints = faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Peaceful),
+            CostCurve = [.. faction.def.maxPawnCostPerTotalPointsCurve.Points.Select(p => new RimGovernor.Brain.GameFacts.Observations.CurvePointRead(p.x, p.y))],
+            Groups = [.. faction.def.pawnGroupMakers.Where(g => g.kindDef == PawnGroupKindDefOf.Peaceful).Select(g =>
+                new RimGovernor.Brain.GameFacts.Observations.VisitorGroupRead {
+                    Commonality = g.commonality,
+                    MaximumPoints = g.maxTotalPoints,
+                    // GetOptions reads native xenotype weights/costs and eligibility without drawing or generating a pawn.
+                    // In 1.7 its CanUseOption applies ChildRaidersAllowed even to non-hostile groups. The later
+                    // hostile-only forced Adult request in PawnGroupKindWorker_Normal is a different gate.
+                    Options = [.. PawnGroupMakerUtility.GetOptions(parms, faction.def, g.options, float.MaxValue, float.MaxValue, float.MaxValue)
+                        .Select(o => new RimGovernor.Brain.GameFacts.Observations.VisitorPawnOption(o.Option.kind.defName, o.Cost,
+                            o.Option.Cost, o.SelectionWeight, !o.Option.kind.pawnGroupDevelopmentStage.HasValue
+                                || o.Option.kind.pawnGroupDevelopmentStage.Value.Adult(), o.Option.kind.maxPerGroup, o.Option.kind.factionLeader))],
+                })],
+        };
     }
 
     // IncidentWorker.CanFireNow's other game-state gates: the target tags, the biome lists, minPopulation, minRefireDays,

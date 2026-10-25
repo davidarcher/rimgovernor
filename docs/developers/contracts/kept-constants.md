@@ -349,6 +349,9 @@ own target, standing in for the player's stock-target bill count.
 | Count draw with a price range | up to 100 draws kept when the total price is in range, the 101st kept whatever it costs | `StockGenerator.RandomCountOf` |
 | Passing ships | none arrive at 5 | `IncidentWorker_OrbitalTraderArrival.MaxShips` |
 | Visitor trader chance (#3909) | 0.75 | `IncidentWorker_VisitorGroup.TraderChance` |
+| Visitor point density (#3946) | (45, 0), (50, 1), (100, 1), (200, 0.25), (300, 0.1), (500, 0) | `IncidentWorker_VisitorGroup.PointsCurve`, `Rand.ByCurve` |
+| Pawn cost-fraction selection weight (#3946) | (0.2, 0.01), (0.3, 0.3), (0.5, 1); highest affordable cost retained across draws | `PawnGroupMakerUtility.PawnWeightFactorByMostExpensivePawnCostFractionCurve`, `ChoosePawnGenOptionsByPoints` |
+| Faction per-pawn cost floor (#3946) | 1.2 × minimum points to generate the group | `PawnGroupMakerUtility.MaxPawnCost` |
 | Population-intent offsets (#3909) | IncreaseHard 0.4, IncreaseMedium 0, IncreaseEasy −0.4, floored at the comp's `minIncChancePopulationIntentFactor` | `StorytellerComp.IncidentChanceFactor_PopulationIntent` |
 | RandomMain ThreatBig fraction (#3909) | 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷ p), 1 ÷ (1 + λM) at p = 0: λ = 1 ÷ `mtbDays`, p = ThreatBig's weight over the drawable weight, M = `maxThreatBigIntervalDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory` |
 
@@ -359,8 +362,7 @@ a visit is a fluid expectation rather than a lump (its cheapest-carried medicine
 and native buy price, #3981), the accept curves are taken at today's days and points,
 the category draws at today's gates, weights, danger and population intent (#3909 Q3, `minRefireDays` among the gates), a
 RandomMain comp's last ThreatBig is its own (another comp's ThreatBig resets the game's one clock), its space-layer factors are
-left out, every non-trader category counts as always drawable (#3909 Q2 B), a visitor faction with a child kind in its Peaceful
-groups supplies nothing (#3909 Q1 B), and the Tag pool's `PlayerAcquirable` reads only `destroyOnDrop` (a def requiring a faction absent
+left out, every non-trader category counts as always drawable (#3909 Q2 B), and the Tag pool's `PlayerAcquirable` reads only `destroyOnDrop` (a def requiring a faction absent
 from the world stays in the pool).
 
 ## Mirrored game rules: food hauling (#3849)

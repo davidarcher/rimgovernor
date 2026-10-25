@@ -5975,9 +5975,40 @@ public sealed record TraderSourceRead
 {
     public string Faction { get; init; } = "";
 
+    /// <summary>Visitor group generation on the current native frame; absent for other incident workers.</summary>
+    public VisitorGenerationRead? Visitors { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<TraderKindWeight>))]
     public EquatableArray<TraderKindWeight> Kinds { get; init; }
 }
+
+/// <summary>The native Peaceful group options, after current difficulty, reserved-kind and xenotype eligibility.
+/// The forecast is conditional on these current gates, just as its incident and faction eligibility are.</summary>
+public sealed record VisitorGenerationRead
+{
+    public double MinimumPoints { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
+    public EquatableArray<CurvePointRead> CostCurve { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<VisitorGroupRead>))]
+    public EquatableArray<VisitorGroupRead> Groups { get; init; }
+}
+
+/// <summary>One Peaceful maker, drawn by commonality among the makers usable at the points budget.</summary>
+public sealed record VisitorGroupRead
+{
+    public double Commonality { get; init; }
+
+    public double MaximumPoints { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<VisitorPawnOption>))]
+    public EquatableArray<VisitorPawnOption> Options { get; init; }
+}
+
+/// <summary>One eligible pawn kind/xenotype option. Cost spends the budget; BaseCost tests the faction's per-pawn cap.
+/// Kind shares maxPerGroup across xenotypes. A leader prevents all further leader options.</summary>
+public sealed record VisitorPawnOption(string Kind, double Cost, double BaseCost, double Weight, bool Adult, int MaximumPerGroup, bool Leader);
 
 /// <summary>RimWorld.StoryDanger: the map's danger rating (DangerWatcher.DangerRating), ordered as the game compares it.</summary>
 [JsonConverter(typeof(WireEnumConverter<StoryDangerLevel>))]

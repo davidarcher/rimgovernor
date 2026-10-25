@@ -136,8 +136,7 @@ public sealed record StorytellerTrade
 
 /// <summary>
 /// Every storyteller def's trader comps by defName (#3869), the incidents they draw by defName (#3909: each comp's incident and
-/// every incident of a trader category a comp draws), the FactionDefs whose Peaceful group makers hold a child kind
-/// (<see cref="ChildVisitorFactions"/>, #3909 Q1 B), and StorytellerComp.IncreasesPopChanceByPopIntentCurve
+/// every incident of a trader category a comp draws), and StorytellerComp.IncreasesPopChanceByPopIntentCurve
 /// (<see cref="PopulationChanceByIntent"/>).
 /// </summary>
 public sealed record TradeScheduleTable
@@ -145,8 +144,6 @@ public sealed record TradeScheduleTable
     public IReadOnlyDictionary<string, StorytellerTrade> Storytellers { get; init; } = new Dictionary<string, StorytellerTrade>();
 
     public IReadOnlyDictionary<string, TradeIncident> Incidents { get; init; } = new Dictionary<string, TradeIncident>();
-
-    public IReadOnlySet<string> ChildVisitorFactions { get; init; } = new HashSet<string>();
 
     public EquatableArray<(double Intent, double Chance)> PopulationChanceByIntent { get; init; }
 }
@@ -526,12 +523,6 @@ public static class TradeArrivalRules
     /// <summary>A trader kind that trades for royal favor, which the model does not price (<c>:&lt;kind&gt;</c>).</summary>
     public const string FavorUnmodelled = "stock_arrival_trade_favor_unmodelled";
 
-    /// <summary>
-    /// A visitor faction whose Peaceful group makers hold a child kind (<c>:&lt;faction&gt;</c>, #3909 Q1 B): whether its group
-    /// holds an adult to trade is not modelled, so its visitor groups supply nothing.
-    /// </summary>
-    public const string VisitorChildUnmodelled = "stock_arrival_visitor_child_group_unmodelled";
-
     /// <summary>States with no trade visits (true zeros, named): no negotiator, an orbital trader without a powered comms console or trade beacon, a blocked incident.</summary>
     public const string NoNegotiator = "stock_arrival_trade_no_negotiator";
 
@@ -626,7 +617,7 @@ public static class TradeArrivalRules
                     continue;
                 }
 
-                var kinds = KindChances(schedule, incident, read, findings);
+                var kinds = KindChances(incident, read);
                 if (kinds.Count == 0)
                 {
                     findings.Add(NoTraderKind + ":" + name);
@@ -806,8 +797,8 @@ public static class TradeArrivalRules
         changesPopulation ? Math.Max(intent + intentOffset, floor) : 1;
 
     // The kind a visit of the incident is of: a source (a candidate faction) uniformly, then a kind by weight; a visitor group's
-    // trader only with TraderChance, and none of a faction whose Peaceful groups may be children (named).
-    private static Dictionary<string, double> KindChances(TradeScheduleTable schedule, TradeIncident incident, TraderIncidentRead read, SortedSet<string> findings)
+    // trader only with TraderChance and an adult in the generated group.
+    private static Dictionary<string, double> KindChances(TradeIncident incident, TraderIncidentRead read)
     {
         if (incident.Worker == TradeWorker.Orbital)
         {
@@ -817,20 +808,21 @@ public static class TradeArrivalRules
         var kinds = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var source in read.Sources)
         {
+            if (source.Kinds.Count == 0)
+            {
+                continue;
+            }
+
             var share = 1.0 / read.Sources.Count;
             if (incident.Worker == TradeWorker.Visitors)
             {
-                if (schedule.ChildVisitorFactions.Contains(source.Faction))
-                {
-                    if (source.Kinds.Count > 0)
-                    {
-                        findings.Add(VisitorChildUnmodelled + ":" + source.Faction);
-                    }
+                share *= VisitorTraderChance * VisitorAdultChance.Of(source.Visitors
+                    ?? throw new RequiredFactException("visitor_generation:" + source.Faction));
+            }
 
-                    continue;
-                }
-
-                share *= VisitorTraderChance;
+            if (!(share > 0))
+            {
+                continue;
             }
 
             var total = source.Kinds.Sum(k => Math.Max(0, k.Weight));

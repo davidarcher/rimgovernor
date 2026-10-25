@@ -137,20 +137,6 @@ public sealed class StockArrivalCatalogTests
         ],
     };
 
-    // A tribal faction whose Peaceful groups may bring children.
-    private static FactionDef Tribe() => new()
-    {
-        defName = "TribeCivil",
-        pawnGroupMakers =
-        [
-            new PawnGroupMaker
-            {
-                kindDef = new PawnGroupKindDef { defName = "Peaceful" },
-                options = [new PawnGenOption { kind = new PawnKindDef { defName = "Tribal_Child", pawnGroupDevelopmentStage = DevelopmentalStage.Child }, selectionWeight = 1 }],
-            },
-        ],
-    };
-
     private static TraderKindDef Outlander()
     {
         var implants = new StockGenerator_Tag { tradeTag = "TechHediff", countRange = new IntRange(1, 1) };
@@ -201,7 +187,7 @@ public sealed class StockArrivalCatalogTests
         return new DefinitionCatalog(
             [
                 silver, new TerrainDef { defName = "Soil" }, Potency, Arm, arm, leg, herbal, install, FactionArrival, OrbitalVisitor, Misc, ThreatBig, Caravan, Orbital, Visitors,
-                Travelers, Cassandra(), Randy(), Tribe(), Outlander(), medic, .. (mixedMedicine ? new Def[] { industrial } : []), .. extra,
+                Travelers, Cassandra(), Randy(), Outlander(), medic, .. (mixedMedicine ? new Def[] { industrial } : []), .. extra,
             ],
             stats, new CatalogDerived("Silver", "Wort", 10f));
     }
@@ -241,7 +227,6 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal((TradeDrawRule.RandomMain, 1.4, 13.0, 0.2), (draw.Rule, draw.ThreatBigWeight, draw.MaxThreatBigIntervalDays, draw.MinPopulationIntentFactor));
         Assert.Equal([new("Misc", 3.5, false), new("OrbitalVisitor", 1.1, true), new TradeCategoryWeight("FactionArrival", 2.4, true)], draw.Categories);
         Assert.Equal(new TradeIncident("FactionArrival", TradeWorker.Travelers, 0), schedule.Incidents["TravelerGroup"]);
-        Assert.Equal(["TribeCivil"], schedule.ChildVisitorFactions);
         Assert.Equal([(0, 0.05), (1, 0.3), (3, 0.45)], schedule.PopulationChanceByIntent);
 
         // The tag generator draws 3 of its 2 tagged defs: each is picked; one each at 1000 × 1.4 × Normal. The buy generator makes nothing.
@@ -263,7 +248,7 @@ public sealed class StockArrivalCatalogTests
             new TraderIncidentRead("OrbitalTraderArrival") { Weight = 3, Sources = [new() { Kinds = [new TraderKindWeight(kind, 1)] }] },
             new TraderIncidentRead("TraderCaravanArrival") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight(kind, 1)] }] },
             new TraderIncidentRead("TravelerGroup") { Weight = 4 },
-            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight(kind, 1)] }] },
+            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Visitors = VisitorAdultChanceTests.Adults, Kinds = [new TraderKindWeight(kind, 1)] }] },
         ],
     };
 

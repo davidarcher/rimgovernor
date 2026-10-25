@@ -225,9 +225,6 @@ public sealed partial class DefinitionCatalog
         {
             Storytellers = Rows<StorytellerDef>().ToDictionary(row => row.Key, row => StorytellerTrade(row.Value, modelled, traderCategories), StringComparer.Ordinal),
             Incidents = modelled,
-            ChildVisitorFactions = Rows<FactionDef>().Values.Where(f => f.pawnGroupMakers.Seq()
-                    .Any(m => m.kindDef?.defName == nameof(PawnGroupKindDefOf.Peaceful) && m.options.Seq().Any(o => o.kind?.pawnGroupDevelopmentStage is { } stage && stage != DevelopmentalStage.Adult)))
-                .Select(f => f.defName).ToHashSet(StringComparer.Ordinal),
             PopulationChanceByIntent = Domain.EquatableArray.From(CurvePoints(StorytellerComp.IncreasesPopChanceByPopIntentCurve)),
         };
     }

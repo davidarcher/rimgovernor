@@ -93,7 +93,6 @@ public sealed class TradeArrivalTests
             ["TravelerGroup"] = new("FactionArrival", TradeWorker.Travelers, 0),
             ["OrbitalTraderArrival"] = new("OrbitalVisitor", TradeWorker.Orbital, 0),
         },
-        ChildVisitorFactions = new HashSet<string> { "TribeCivil" },
         PopulationChanceByIntent = [(0, 0.05), (1, 0.3), (3, 0.45)],
     };
 
@@ -118,7 +117,7 @@ public sealed class TradeArrivalTests
             {
                 Weight = 4, Sources = [new() { Kinds = [new TraderKindWeight("Outlander", 1), new TraderKindWeight("Bulk", 3)] }, new() { Kinds = [new TraderKindWeight("Royal", 2)] }],
             },
-            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Kinds = [new TraderKindWeight("Outlander", 1)] }] },
+            new TraderIncidentRead("VisitorGroup") { Weight = 4, Sources = [new() { Faction = "OutlanderCivil", Visitors = VisitorAdultChanceTests.Adults, Kinds = [new TraderKindWeight("Outlander", 1)] }] },
             new TraderIncidentRead("TravelerGroup") { Weight = 4 },
         ],
     };
@@ -250,7 +249,7 @@ public sealed class TradeArrivalTests
     }
 
     [Fact]
-    public void TrySelectRandomIncidentSplitsByThePopulationIntentAndAChildVisitorFactionIsNamed()
+    public void TrySelectRandomIncidentSplitsByThePopulationIntentAndVisitorsPriceTheAdultChance()
     {
         // A visitor group that increases the population (medium: the intent's factor) against a caravan that does not: with the
         // curve's 0.3 at intent 1 the visitors, else the caravan (the travelers off).
@@ -276,11 +275,17 @@ public sealed class TradeArrivalTests
         var cycled = TradeArrivalRules.Sources(withoutTravelers, cycle, Stock, facts, 0, 5000, 5000, Cycles).Sources;
         Assert.Equal(0.5, Assert.IsType<IncidentTiming.Scheduled>(cycled.Single(s => s.Kinds.Any(k => k.Chance == 0.75)).Timing).Chance, 12);
 
-        // A visitor faction whose Peaceful groups hold a child kind supplies nothing, named.
-        var child = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "VisitorGroup" ? i with { Sources = [new() { Faction = "TribeCivil", Kinds = [new TraderKindWeight("Outlander", 1)] }] } : i)] };
+        // A mixed visitor group contributes its exact adult-in-group chance through the complete stock-arrival source.
+        var child = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "VisitorGroup" ? i with { Sources = [new() { Faction = "TribeCivil", Visitors = VisitorAdultChanceTests.Generation(new("adult", 50, 50, 1, true, int.MaxValue, false), new("child", 50, 50, 1, false, int.MaxValue, false)), Kinds = [new TraderKindWeight("Outlander", 1)] }] } : i)] };
         var (childSources, childFindings, _) = TradeArrivalRules.Sources(Schedule, Randy, Stock, child, 0, 5000, 5000, Cycles);
         Assert.DoesNotContain(childSources, s => s.Kinds.Any(k => k.Chance == 0.75));
-        Assert.Contains(TradeArrivalRules.VisitorChildUnmodelled + ":TribeCivil", childFindings);
+        var generation = child.Incidents.Single(i => i.Incident == "VisitorGroup").Sources[0].Visitors!;
+        var visitor = childSources.Single(s => s.Kinds.Any(k => Math.Abs(k.Chance - (0.75 * VisitorAdultChance.Of(generation))) < 1e-12));
+        Assert.Equal(0.75 * VisitorAdultChance.Of(generation) * 0.3, visitor.Supplies(1), 12);
+        Assert.DoesNotContain(childFindings, f => f.Contains("visitor_child", StringComparison.Ordinal));
+        var missing = child with { Incidents = [.. child.Incidents.Select(i => i.Incident == "VisitorGroup"
+            ? i with { Sources = [i.Sources[0] with { Visitors = null }] } : i)] };
+        Assert.Throws<RequiredFactException>(() => TradeArrivalRules.Sources(Schedule, Randy, Stock, missing, 0, 5000, 5000, Cycles));
     }
 
     [Fact]

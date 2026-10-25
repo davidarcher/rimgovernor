@@ -702,8 +702,7 @@ settling. A comp of a trader-like worker of another class, or drawing a trader c
 threat-points range or an Anomaly-chance split, and a comp
 class the decoder does not know, is named `stock_arrival_trade_comp_unmodelled:<comps>`. A visit's kind is drawn as the incident draws it: a source faction uniformly
 (`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality` (a visitor group: its visitorTraderKinds by
-`CalculatedCommonality`, with `TraderChance` 0.75; a faction whose Peaceful group makers hold a child kind supplies nothing,
-named `stock_arrival_visitor_child_group_unmodelled:<faction>`, #3909 Q1 B), a tribute collector the Empire's TributeCollector
+`CalculatedCommonality`, with `TraderChance` 0.75 times the exact probability its generated Peaceful group contains an adult, #3946), a tribute collector the Empire's TributeCollector
 kinds by `CalculatedCommonality`, an orbital trader a kind by `CalculatedCommonality` among the kinds whose `CanSpawn` passes (#3910: `GetFaction` draws one of the
 kind's faction def's factions at random, so a kind passes with the share of them a colonist can trade with, `TraderKindWeight.Qualifies`;
 the ship's own faction is a second such draw, and `TradeShip.CanCommunicateWith` lets the colony trade only when that one qualifies too,
@@ -723,6 +722,17 @@ named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_cons
 `stock_arrival_trade_blocked:<incident>:<gates>`, `stock_arrival_trade_no_trader_kind:<incident>` (it fires with no kind to
 send); a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
 [kept constants](kept-constants.md#mirrored-game-rules-trader-stock-3869).
+
+Visitor adult probability integrates the native `IncidentWorker_VisitorGroup.PointsCurve` density analytically, including
+the minimum-points clamp from `IncidentParmsUtility`. Usable Peaceful makers compete by commonality below their maximum
+points. Within a maker, `ChoosePawnGenOptionsByPoints` recurses over child-only branches until an adult is selected or no
+weighted option fits. The draw retains the first iteration's highest cost for the native cost-fraction weight curve,
+applies the faction's per-pawn cost curve and minimum floor, shares `maxPerGroup` across xenotypes of one kind, and permits
+only one faction leader. Native `TraderSourceRead.Visitors` reads actual faction xenotypes, costs and weights through
+`PawnGroupMakerUtility.GetOptions`; current difficulty and reserved-kind eligibility remain conditional on the observed
+frame, as the other visit gates do. In installed RimWorld 1.7, `CanUseOption` applies `ChildRaidersAllowed` even to
+non-hostile groups; the later forced-adult pawn request is hostile-only. No child-faction exclusion remains. Missing
+visitor generation facts fail the required read.
 
 Medicine and parts share spendable silver in the autopilot's purchase order (`StockArrival.WithMedicineClaim`): medicine first, with the expected cost of today's reserve gap at native buy prices claimed from each trader kind before parts. The shared `TraderKindStock.CheapestMedicineUnits` law preserves joint generator choices; a visit buys each medicine only when it is the cheapest medicine actually carried. Current visits and settlement previews share `TraderKindStock.Held`.
 
