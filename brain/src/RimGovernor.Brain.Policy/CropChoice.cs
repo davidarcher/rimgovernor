@@ -348,7 +348,7 @@ public static class CropChoiceRules
     internal static FieldCandidate FieldCandidateFor(FieldRequest r, ViableCrop v)
     {
         var site = r.Site;
-        var sites = SiteRules.SitePick(site, v, s => SiteRules.SiteKnownFalse(s.Roofed) && (site.Fields is null || site.Fields.Contains(s.Cell)), null, false);
+        var sites = SiteRules.SitePick(site, v, s => !s.Roofed && (site.Fields is null || site.Fields.Contains(s.Cell)), null, false);
         var c = new FieldCandidate { Crop = v.Crop, Needed = v.Needed, Sites = sites, Price = v.Price };
         if (sites.Cells == 0)
         {
@@ -419,11 +419,8 @@ public static class CropChoiceRules
 
     internal static (double Soil, bool Ok) FreeCropSoil(SiteCell cell, double minimum, IReadOnlySet<Cell>? blocked)
     {
-        var wk = cell.Walkable.TryGetValue(out var walk);
-        var zk = cell.Zone.TryGetValue(out var zone);
-        var rk = cell.Roofed.TryGetValue(out var roof);
-        var fk = cell.Fertility.TryGetValue(out var soil);
-        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && wk && walk && !cell.Occupied() && zk && !zone && rk && !roof && fk && FoodForecastRules.FoodNumber(soil) && soil >= minimum);
+        var soil = cell.Fertility;
+        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && cell.Walkable && !cell.Occupied() && !cell.Zone && !cell.Roofed && FoodForecastRules.FoodNumber(soil) && soil >= minimum);
     }
 
     /// <summary>

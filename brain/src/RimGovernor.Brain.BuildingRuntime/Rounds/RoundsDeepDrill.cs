@@ -356,8 +356,7 @@ partial class RoundsResourcePlanner
         var onLump = false;
         foreach (var cell in footprint)
         {
-            var exists = seen.TryGetValue(cell, out var row);
-            if (!exists || !row!.Roofed.TryGetValue(out var roof) || roof || row.Occupied() || !row.Walkable.TryGetValue(out var walkable) || !walkable)
+            if (!seen.TryGetValue(cell, out var row) || row.Roofed || row.Occupied() || !row.Walkable)
             {
                 return false;
             }

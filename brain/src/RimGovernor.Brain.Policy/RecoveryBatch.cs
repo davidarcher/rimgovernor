@@ -155,11 +155,7 @@ public static partial class RecoveryRules
                     {
                         continue;
                     }
-                    if (!row.Roofed.TryGetValue(out var roofed) || !roofed)
-                    {
-                        continue;
-                    }
-                    if (!row.Roof.TryGetValue(out var name) || !rules.TryGetValue(name, out var rule) || !rule.Removable())
+                    if (row.Roof is not { } name || !rules.TryGetValue(name, out var rule) || !rule.Removable())
                     {
                         continue;
                     }

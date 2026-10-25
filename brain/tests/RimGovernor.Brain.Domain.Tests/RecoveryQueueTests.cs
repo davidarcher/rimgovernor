@@ -126,11 +126,11 @@ public sealed class RecoveryQueueTests
                     return null;
                 }
                 var onRoof = roofed && roofCells.Contains(c);
-                return new SiteCell
+                return SiteCellFixtures.Ground with
                 {
                     Cell = c,
-                    Roofed = Known(onRoof),
-                    Roof = onRoof ? Known(ThinRoof) : Unknown<string>(),
+                    Roofed = onRoof,
+                    Roof = onRoof ? ThinRoof : null,
                     Things = walls.TryGetValue(c, out var w) ? [w] : [],
                 };
             },

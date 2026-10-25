@@ -73,10 +73,10 @@ public sealed partial class DefinitionCatalog
     {
         private readonly Dictionary<string, bool> _chunks = new(StringComparer.Ordinal);
 
-        // Decodes the traversal facts of one mirror cell. A held cell with an unknown walkability or terrain is not known.
+        // Decodes the traversal facts of one mirror cell. A fogged cell, or one whose terrain name is not a def name, is not known.
         private static CensusCell Read(P.SiteCell? cell)
         {
-            if (cell is null || !cell.Walkable.TryGetValue(out var walkable) || !cell.Terrain.TryGetValue(out var terrain) || !Domain.IdText.IsValidText(terrain))
+            if (cell is null || !Domain.IdText.IsValidText(cell.Terrain))
             {
                 return default;
             }
@@ -88,12 +88,12 @@ public sealed partial class DefinitionCatalog
                 {
                     passable = false;
                 }
-                if (t.Has(P.ThingMarks.Edifice) && !t.Has(P.ThingMarks.Frame) && t.Category == P.ThingCategory.Building && cell.Doorway.ValueOrDefault)
+                if (t.Has(P.ThingMarks.Edifice) && !t.Has(P.ThingMarks.Frame) && t.Category == P.ThingCategory.Building && cell.Doorway)
                 {
                     door = true;
                 }
             }
-            return new CensusCell(true, walkable && passable, passable, door);
+            return new CensusCell(true, cell.Walkable && passable, passable, door);
         }
 
         // The native "can reach a map edge without opening doors" (Reachability.CanReachMapEdge with NoPassClosedDoors): a
@@ -200,13 +200,13 @@ public sealed partial class DefinitionCatalog
             return new Obs.DefenseCell.Seen
             {
                 Cell = at,
-                Terrain = cell.Terrain.ValueOrDefault ?? "",
+                Terrain = cell.Terrain,
                 Walkable = view.Walkable,
                 Passable = view.Passable,
                 CoverFill = cover is null ? 0 : Math.Min(fill, 1),
                 EdgeReachable = edgeReachable,
-                FoundationRemovalDesignated = cell.FoundationRemoval.ValueOrDefault,
-                Roofed = cell.Roofed.ValueOrDefault,
+                FoundationRemovalDesignated = cell.FoundationRemoval,
+                Roofed = cell.Roofed,
                 Edifice = edifice is null
                     ? null
                     : new Obs.DefenseEdifice

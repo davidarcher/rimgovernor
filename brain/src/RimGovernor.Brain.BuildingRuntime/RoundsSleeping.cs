@@ -967,7 +967,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            if (Environment == Pol.PlacementEnvironment.Anywhere || (c.Roofed.TryGetValue(out var roofed) && roofed))
+            if (Environment == Pol.PlacementEnvironment.Anywhere || c.Roofed)
             {
                 cells.Add(c);
             }

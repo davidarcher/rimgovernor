@@ -56,7 +56,7 @@ public static class FurnitureRoomsRules
         var doorways = new List<Cell>();
         foreach (var c in cells)
         {
-            if (RoundsRules.Positive(c.Doorway))
+            if (c.Doorway)
             {
                 doorways.Add(c.Cell);
             }

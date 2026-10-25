@@ -25,7 +25,7 @@ public static class HaulDistanceRules
         var walkable = new Dictionary<Cell, bool>(cells.Count);
         foreach (var c in cells)
         {
-            walkable[c.Cell] = RoundsRules.Positive(c.Walkable);
+            walkable[c.Cell] = c.Walkable;
         }
         bool Walkable(Cell c) => walkable.GetValueOrDefault(c);
         var total = new Dictionary<Cell, long>();

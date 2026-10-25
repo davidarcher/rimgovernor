@@ -160,9 +160,9 @@ public sealed class HuntingPredictionFixture
                 .Select(h => new EncounterInjury(h.def.defName, h.Part?.Label ?? "", h.Severity, h.BleedRate, h.TendableNow(), h.IsTended(), h.IsPermanent())).ToArray(),
             Missing(p), kills.Where(k => k.Value == p && k.Key.Dead).Select(k => ids[k.Key]).Order().ToArray(), p.Dead ? new(p.RaceProps.meatDef?.defName ?? "", p.GetStatValue(StatDefOf.MeatAmount),
                 p.RaceProps.leatherDef?.defName ?? "", p.GetStatValue(StatDefOf.LeatherAmount)) : null,
-            first.TryGetValue(p, out var attack) ? attack : null, last.TryGetValue(p, out var shot) ? shot : null,
-            stratum == "departure" && p == actors[1] && left.ContainsKey(p) ? 300 : null,
-            left.TryGetValue(p, out var exit) ? exit : null)).ToArray());
+            first.TryGetValue(p, out var attack) ? new EncounterTick(attack) : null, last.TryGetValue(p, out var shot) ? new EncounterTick(shot) : null,
+            stratum == "departure" && p == actors[1] && left.ContainsKey(p) ? new EncounterTick(300) : null,
+            left.TryGetValue(p, out var exit) ? new EncounterTick(exit) : null)).ToArray());
         return new { request, observed = outcome, nativeRunId = Guid.NewGuid().ToString("N"), nativeBuild = build, nativeMods = mods,
             predictorMods = Mods(true), huntRead, revengeFactor = revenge, retaliation = retaliation.Order().ToArray(), initialStateMatched = true,
             note = "Live-game observation; no hypothetical Arena execution or future-RNG read." };

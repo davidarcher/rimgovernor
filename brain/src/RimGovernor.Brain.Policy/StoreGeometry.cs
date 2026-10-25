@@ -14,10 +14,7 @@ public static partial class StoreRules
             {
                 continue;
             }
-            c.Walkable.TryGetValue(out var walkable);
-            c.Roofed.TryGetValue(out var roofed);
-            var empty = c.StorageStacks.TryGetValue(out var stacks) && stacks == 0;
-            if (walkable && roofed && empty && !c.Occupied())
+            if (c.Walkable && c.Roofed && c.StorageStacks == 0 && !c.Occupied())
             {
                 output.Add(c.Cell);
             }

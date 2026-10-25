@@ -62,7 +62,7 @@ internal static class LayoutProtected
             {
                 return false;
             }
-            return c.Walkable.TryGetValue(out var walkable) && c.Zone.TryGetValue(out var zone) && walkable && !c.Occupied() && !zone;
+            return c.Walkable && !c.Occupied() && !c.Zone;
         }
         return module =>
         {

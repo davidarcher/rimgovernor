@@ -52,7 +52,7 @@ public static class FreeSitesRules
             {
                 return false;
             }
-            return RoundsRules.Positive(c.Walkable) && !c.Occupied() && RoundsRules.Positive(RoundsRules.Measured(c.Zone, v => !v)) && c.SupportsLight(r.Light);
+            return c.Walkable && !c.Occupied() && !c.Zone && c.SupportsLight(r.Light);
         }
         var sites = new List<(long Score, Cell Cell)>();
         foreach (var c in ordered)

@@ -140,14 +140,8 @@ public static class ColonyFramesReads
         var plants = new List<BlightedPlant>();
         foreach (var cell in p.Cells)
         {
-            _ = cell.ZoneId.TryGetValue(out var zone);
-            zone ??= "";
-            if (!farms.Contains(zone))
-            {
-                zone = "";
-            }
-            _ = cell.InHome.TryGetValue(out var home);
-            if (zone == "" && !home)
+            var zone = cell.ZoneId is { } id && farms.Contains(id) ? id : "";
+            if (zone == "" && !cell.InHome)
             {
                 continue;
             }

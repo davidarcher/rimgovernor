@@ -469,11 +469,11 @@ public static class LightingRules
                 {
                     continue;
                 }
-                if (!site.Walkable.TryGetValue(out var walkable) || !walkable || site.Occupied())
+                if (!site.Walkable || site.Occupied())
                 {
                     continue;
                 }
-                if (site.Zone.TryGetValue(out var zone) && zone)
+                if (site.Zone)
                 {
                     continue;
                 }

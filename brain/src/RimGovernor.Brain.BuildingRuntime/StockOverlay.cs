@@ -95,7 +95,7 @@ public sealed partial class Rounder
         var cells = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
         foreach (var cell in projection.Cells)
         {
-            if (cell.ZoneId.TryGetValue(out var id) && id.Length > 0)
+            if (cell.ZoneId is { Length: > 0 } id)
             {
                 if (!cells.TryGetValue(id, out var list))
                 {

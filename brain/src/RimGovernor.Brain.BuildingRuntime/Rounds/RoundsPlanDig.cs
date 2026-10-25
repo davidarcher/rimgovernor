@@ -215,7 +215,7 @@ partial class RoundsBuildingPlanner
         var open = new HashSet<Cell>();
         foreach (var c in cells)
         {
-            if (c.Walkable.TryGetValue(out var walkable) && walkable)
+            if (c.Walkable)
             {
                 open.Add(c.Cell);
             }

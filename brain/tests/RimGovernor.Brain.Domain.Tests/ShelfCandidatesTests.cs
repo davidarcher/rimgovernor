@@ -43,7 +43,7 @@ public sealed class ShelfCandidatesTests
             stores.Add(new Policy.Store { Site = new StoreSite { Role = role, Interior = room, Filter = filter } });
             foreach (var c in PlannedRules.RectCells(room))
             {
-                cells.Add(new SiteCell { Cell = c, Walkable = Known(true), Doorway = Known(doors.Contains(c)), StorageCapacity = Known(1), StorageStacks = Known(0) });
+                cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = true, Doorway = doors.Contains(c), StorageCapacity = 1, StorageStacks = 0 });
             }
         }
         return new StockpileRequest { Zones = zones, Stores = stores, Cells = cells, Walkways = walkways, ShelfStacks = Known(6) };

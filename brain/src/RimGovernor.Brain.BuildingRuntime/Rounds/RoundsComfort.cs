@@ -157,7 +157,7 @@ public sealed partial class RoundsBuildingPlanner
                     var canSite = false;
                     foreach (var c in facts.Cells)
                     {
-                        canSite = canSite || (c.Roofed == Known(true) && c.Indoors == Known(true) && !c.Occupied() && PoweredRecreationCell(facts, c.Cell, m.PowerW));
+                        canSite = canSite || (c.Roofed && c.Indoors && !c.Occupied() && PoweredRecreationCell(facts, c.Cell, m.PowerW));
                     }
                     if (!canSite)
                     {

@@ -98,7 +98,7 @@ public sealed record StoreSite
         {
             // The zone waits until the interior is settled: no stand-in store covers a room still being dug,
             // unseen or cleared.
-            (SiteCell Cell, bool Ok) Lookup(Cell c) => open.Cells.TryGetValue(c, out var sc) ? (sc, true) : (new SiteCell(), false);
+            (SiteCell? Cell, bool Ok) Lookup(Cell c) => open.Cells.TryGetValue(c, out var sc) ? (sc, true) : (null, false);
             var reading = InteriorOpenRules.ReadInterior(Interior, Lookup);
             if (Reshaped())
             {
@@ -141,7 +141,7 @@ public sealed record StoreSite
         Func<SiteCell, bool>? allow = null;
         if (Roofed)
         {
-            allow = c => c.Roofed.TryGetValue(out var roofed) && roofed;
+            allow = c => c.Roofed;
         }
         return StockpileRules.RectangleSites(within, Anchor, Width, Height, allow, 1);
     }

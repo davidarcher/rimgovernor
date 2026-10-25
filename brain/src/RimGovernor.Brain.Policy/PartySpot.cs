@@ -82,9 +82,7 @@ public static partial class PartySpotRules
         var free = new HashSet<Cell>();
         foreach (var c in input.Cells)
         {
-            c.Roofed.TryGetValue(out var roofed);
-            c.Indoors.TryGetValue(out var indoors);
-            if (roofed && indoors && !c.Occupied())
+            if (c.Roofed && c.Indoors && !c.Occupied())
             {
                 free.Add(c.Cell);
             }

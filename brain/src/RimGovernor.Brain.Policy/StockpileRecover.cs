@@ -64,7 +64,7 @@ public static partial class StockpileRules
             {
                 continue;
             }
-            var drop = z.Cells.Where(c => !keep.Contains(c) || Furnished(open.CellAt(c))).ToList();
+            var drop = z.Cells.Where(c => !keep.Contains(c) || (open.CellAt(c) is { } site && Furnished(site))).ToList();
             if (drop.Count == 0 || drop.Count == z.Cells.Count)
             {
                 continue;

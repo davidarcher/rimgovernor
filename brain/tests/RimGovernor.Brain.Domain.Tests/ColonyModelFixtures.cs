@@ -107,7 +107,7 @@ internal static class ColonyModelFixtures
         Resources = new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 },
         Definitions = [CropRow()],
         Farms = [ZoneFixtures.Growing("zone1", Crop)],
-        Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],
+        Cells = [.. Enumerable.Range(0, 4).Select(x => SiteCellFixtures.Ground with { Cell = new Cell(x, 0), Zone = true, ZoneId = "zone1", Fertility = 0.5 + (0.1 * x) })],
         WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
         Acquisition = [],
     };

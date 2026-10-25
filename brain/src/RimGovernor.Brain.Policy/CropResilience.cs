@@ -72,19 +72,16 @@ public static class CropResilienceRules
         {
             // Dark is a roofed cell with no lamp: an open cell is lit by the sky for part of every day,
             // whatever hour the cells were read.
-            var known = cell.Glow.TryGetValue(out var glow);
-            var roofKnown = cell.Roofed.TryGetValue(out var roofed);
-            if (!known || glow != 0 || !roofKnown || !roofed)
+            if (cell.Glow != 0 || !cell.Roofed)
             {
                 return false;
             }
         }
-        var pk = cell.Polluted.TryGetValue(out var pollution);
-        if (RoundsRules.Positive(crop.RequiresPollution) && (!pk || !pollution))
+        if (RoundsRules.Positive(crop.RequiresPollution) && !cell.Polluted)
         {
             return false;
         }
-        if (RoundsRules.Positive(crop.RequiresCleanSoil) && (!pk || pollution))
+        if (RoundsRules.Positive(crop.RequiresCleanSoil) && cell.Polluted)
         {
             return false;
         }

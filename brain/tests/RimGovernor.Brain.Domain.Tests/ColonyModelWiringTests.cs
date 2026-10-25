@@ -30,7 +30,7 @@ public sealed class ColonyModelWiringTests
                 Gear = Known(gear with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, Pawns = [gear.Pawns[0] with { LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = [BillDuster()] }) }] }),
             },
             // 20 cells of 6 cloth each cover the duster's 80.
-            Cells = [.. Enumerable.Range(0, 20).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.8) })],
+            Cells = [.. Enumerable.Range(0, 20).Select(x => SiteCellFixtures.Ground with { Cell = new Cell(x, 0), Zone = true, ZoneId = "zone1", Fertility = 0.8 })],
             CombinedFoodSupply = projection.CombinedFoodSupply with { Stocks = [projection.CombinedFoodSupply.Stocks[0] with { Nutrition = 10_000.0 }] },
         };
     }

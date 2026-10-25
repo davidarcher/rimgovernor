@@ -814,8 +814,7 @@ public static partial class PowerRules
             {
                 continue;
             }
-            if (!observed.TryGetValue(p, out var c) || !RoundsRules.Positive(c.Walkable) || !c.SupportsLight(light) || c.Occupied()
-                || !RoundsRules.Positive(RoundsRules.Measured(c.Zone, v => !v)))
+            if (!observed.TryGetValue(p, out var c) || !c.Walkable || !c.SupportsLight(light) || c.Occupied() || c.Zone)
             {
                 return (default, false);
             }

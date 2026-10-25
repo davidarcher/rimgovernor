@@ -350,7 +350,7 @@ public static class InteriorRules
         var edifice = new Dictionary<Cell, string>();
         foreach (var c in cells)
         {
-            if (RoundsRules.Positive(c.Doorway))
+            if (c.Doorway)
             {
                 doorways.Add(c.Cell);
             }

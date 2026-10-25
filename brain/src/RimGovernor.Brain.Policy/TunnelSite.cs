@@ -134,17 +134,14 @@ public static partial class TunnelSiteRules
 
     // A visible natural rock cell: solid, impassable natural rock, roofed or not (the rim of a mountain carries no
     // roof, and a miner reaches the rock behind it only by mining it).
-    internal static bool RockCell(SiteCell c) => c.Occupied() && c.Walkable.TryGetValue(out var walkable) && !walkable && c.NaturalRock();
+    internal static bool RockCell(SiteCell c) => c.Occupied() && !c.Walkable && c.NaturalRock();
 
     // Open ground still under a natural rock roof that is not part of a proper room: rock that has already been dug
     // (or a natural pocket), so a half-dug tunnel is re-planned over the same cells. Only a natural roof marks a cell
     // as part of a mountain, so a constructed wall under a built roof is never mistaken for a rock face.
     private static bool ExcavatedCell(SiteCell c, IReadOnlyDictionary<string, RoofRule> roofs)
     {
-        var wk = c.Walkable.TryGetValue(out var walkable);
-        var rk = c.Roof.TryGetValue(out var roof);
-        var ik = c.Indoors.TryGetValue(out var indoors);
-        return !c.Occupied() && wk && walkable && rk && roofs.GetValueOrDefault(roof!).Natural && (!ik || !indoors);
+        return !c.Occupied() && c.Walkable && c.Roof is { } roof && roofs.GetValueOrDefault(roof).Natural && !c.Indoors;
     }
 
     private static readonly Cell[] ExcavationDirections = [new Cell(0, 1), new Cell(1, 0), new Cell(0, -1), new Cell(-1, 0)];
@@ -193,7 +190,7 @@ public static partial class TunnelSiteRules
             {
                 throw new DomainException("duplicate site cell");
             }
-            if (c.Roof.TryGetValue(out var roof) && roof.Length != 0 && !r.Roofs.ContainsKey(roof))
+            if (c.Roof is { Length: > 0 } roof && !r.Roofs.ContainsKey(roof))
             {
                 throw new DomainException($"unknown roof def \"{roof}\" at {c.Cell}");
             }
@@ -210,7 +207,7 @@ public static partial class TunnelSiteRules
             }
             protectedCells.Add(c);
         }
-        bool Free(Cell p) => cells.TryGetValue(p, out var c) && !protectedCells.Contains(p) && RoundsRules.Positive(c.Walkable) && !c.Occupied();
+        bool Free(Cell p) => cells.TryGetValue(p, out var c) && !protectedCells.Contains(p) && c.Walkable && !c.Occupied();
 
         // Diggable: unknown (fogged), visible rock or already excavated, never protected.
         bool Diggable(Cell p)
@@ -233,7 +230,7 @@ public static partial class TunnelSiteRules
             {
                 return true;
             }
-            return c.Walkable.TryGetValue(out var walkable) && !walkable;
+            return !c.Walkable;
         }
 
         // Judge accepts one corridor when every cell is diggable, at least one is rock, and its cardinal neighbours

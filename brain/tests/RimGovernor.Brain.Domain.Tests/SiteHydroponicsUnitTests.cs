@@ -20,14 +20,16 @@ public sealed class SiteHydroponicsUnitTests
         {
             for (var z = 0; z < 6; z++)
             {
-                cells.Add(new SiteCell
+                cells.Add(SiteCellFixtures.Ground with
                 {
                     Cell = new Cell(x, z),
-                    Walkable = Known(true),
-                    Zone = Known(false),
-                    Roofed = Known(true),
-                    Indoors = Known(true),
-                    Room = Known(GridKey),
+                    Walkable = true,
+                    Zone = false,
+                    Roofed = true,
+                    Indoors = true,
+                    Room = new CellRoom.InRoom(GridKey),
+                    // A floored room: no soil a crop grows in, so the soil-free unit is the kind.
+                    Fertility = 0,
                 });
             }
         }

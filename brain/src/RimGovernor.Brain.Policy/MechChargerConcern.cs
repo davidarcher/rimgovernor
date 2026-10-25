@@ -43,18 +43,15 @@ public static partial class MechRules
         var livingCells = new List<Cell>();
         foreach (var c in f.Cells)
         {
-            var zk = c.Zone.TryGetValue(out var zone);
-            if (c.ZoneId.TryGetValue(out var id) && zk && zone && f.FieldZones.GetValueOrDefault(id))
+            if (c.ZoneId is { } id && f.FieldZones.GetValueOrDefault(id))
             {
                 fieldCells.Add(c.Cell);
             }
-            if (c.Polluted.TryGetValue(out var polluted) && polluted)
+            if (c.Polluted)
             {
                 pollutedCells.Add(c.Cell);
             }
-            var wk = c.Walkable.TryGetValue(out var walkable);
-            var dk = c.Doorway.TryGetValue(out var door);
-            free[c.Cell] = wk && walkable && !c.Occupied() && zk && !zone && dk && !door;
+            free[c.Cell] = c.Walkable && !c.Occupied() && !c.Zone && !c.Doorway;
         }
         if (f.Rooms.TryGetValue(out var rooms))
         {

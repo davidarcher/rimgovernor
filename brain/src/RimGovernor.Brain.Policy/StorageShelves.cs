@@ -216,7 +216,7 @@ public static partial class StorageRules
             {
                 return false;
             }
-            if (!s.Walkable.TryGetValue(out var walk) || !walk || s.Occupied())
+            if (!s.Walkable || s.Occupied())
             {
                 return false;
             }
@@ -226,7 +226,7 @@ public static partial class StorageRules
                 {
                     if (site.TryGetValue(new Cell(c.X + dx, c.Z + dz), out var n))
                     {
-                        if (!n.Doorway.TryGetValue(out var door) || door)
+                        if (n.Doorway)
                         {
                             return false;
                         }
@@ -249,7 +249,7 @@ public static partial class StorageRules
                 {
                     continue;
                 }
-                if (s.Walkable.TryGetValue(out var walk) && !walk)
+                if (!s.Walkable)
                 {
                     return true;
                 }
@@ -301,7 +301,7 @@ public static partial class StorageRules
         {
             foreach (var n in Neighbours4(shelf))
             {
-                if (Rest(n) && site.TryGetValue(n, out var sn) && sn.Walkable.TryGetValue(out var walk) && walk)
+                if (Rest(n) && site.TryGetValue(n, out var sn) && sn.Walkable)
                 {
                     return true;
                 }

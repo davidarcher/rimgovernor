@@ -71,7 +71,7 @@ public sealed partial class DefinitionCatalog
     private P.SurveyCell SurveyCell(P.SiteCell cell, P.RoofRules roofs)
     {
         HashSet<string> affordances = [];
-        if (cell.BaseTerrain.ValueOrDefault is { Length: > 0 } baseName)
+        if (cell.BaseTerrain is { Length: > 0 } baseName)
         {
             var baseTerrain = FindTerrain(baseName) ?? throw new CatalogException($"catalog has no def row for base terrain {baseName} at {cell.Cell}");
             affordances = [.. baseTerrain.affordances.Seq().Select(a => a.defName)];
@@ -81,14 +81,14 @@ public sealed partial class DefinitionCatalog
         {
             footing = affordances.Contains(AffordanceLight) ? P.Footing.Light : P.Footing.None;
         }
-        var roof = cell.Roof.ValueOrDefault ?? "";
+        var roof = cell.Roof ?? "";
         if (roof.Length > 0 && !roofs.ContainsKey(roof))
         {
             throw new CatalogException($"unknown roof def \"{roof}\" at {cell.Cell}");
         }
         var thick = roof.Length > 0 && roofs[roof].Thick;
         TerrainDef? terrain = null;
-        var terrainName = cell.Terrain.ValueOrDefault ?? "";
+        var terrainName = cell.Terrain;
         if (terrainName.Length > 0)
         {
             terrain = FindTerrain(terrainName) ?? throw new CatalogException($"catalog has no def row for terrain {terrainName} at {cell.Cell}");
@@ -112,7 +112,7 @@ public sealed partial class DefinitionCatalog
         return new P.SurveyCell
         {
             Cell = cell.Cell,
-            Walkable = cell.Walkable.ValueOrDefault,
+            Walkable = cell.Walkable,
             Rock = rock,
             Built = edifice.Length > 0,
             Footing = footing,
@@ -120,7 +120,7 @@ public sealed partial class DefinitionCatalog
             Dries = terrain?.driesTo is not null,
             Hazard = terrain is { } t && (t.dangerous || t.burnDamage > 0 || t.heatPerTick > 0 || t.toxicBuildupFactor > 0),
             ThickRoof = thick,
-            Fertility = cell.Fertility.ValueOrDefault,
+            Fertility = cell.Fertility,
             Ore = ore,
             Tree = tree,
             // Occupied off rock, player edifice and clearable ruin is a standing prop.

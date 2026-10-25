@@ -51,7 +51,7 @@ public sealed class GraveSitingTests
             {
                 var c = new Cell(x, z);
                 var zoned = In(Crops, c) || In(FoodStore, c);
-                cells.Add(new SiteCell { Cell = c, Walkable = Known(walkable?.Invoke(c) ?? true), Zone = Known(zoned), Terrain = Known("Soil") });
+                cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = walkable?.Invoke(c) ?? true, Zone = zoned, Terrain = "Soil" });
             }
         }
         return cells;

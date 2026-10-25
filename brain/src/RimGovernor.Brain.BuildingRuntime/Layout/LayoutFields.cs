@@ -60,7 +60,7 @@ internal static class LayoutFieldPlanning
         foreach (var c in facts.Cells)
         {
             census[c.Cell] = c;
-            if (c.Fertility.TryGetValue(out var f) && f > FieldRichFertility)
+            if (c.Fertility > FieldRichFertility)
             {
                 rich.Add(c.Cell);
             }
@@ -89,7 +89,7 @@ internal static class LayoutFieldPlanning
         var cropZone = new HashSet<Cell>();
         foreach (var c in facts.Cells)
         {
-            if (c.ZoneId.TryGetValue(out var id) && growing.TryGetValue(id, out var crop))
+            if (c.ZoneId is { } id && growing.TryGetValue(id, out var crop))
             {
                 (trees.Contains(crop) ? treeZone : cropZone).Add(c.Cell);
             }
@@ -132,7 +132,7 @@ internal static class LayoutFieldPlanning
                 {
                     continue;
                 }
-                if (c.ZoneId.TryGetValue(out var id) && id != "" && growing.ContainsKey(id))
+                if (c.ZoneId is { Length: > 0 } id && growing.ContainsKey(id))
                 {
                     if (!zoneCells.TryGetValue(id, out var set))
                     {
@@ -234,7 +234,7 @@ internal static class LayoutFieldPlanning
         var output = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in cells)
         {
-            if (!c.ZoneId.TryGetValue(out var id) || !growing.TryGetValue(id, out var crop)
+            if (c.ZoneId is not { } id || !growing.TryGetValue(id, out var crop)
                 || c.Cell.X < lo.X - r || c.Cell.X > hi.X + r || c.Cell.Z < lo.Z - r || c.Cell.Z > hi.Z + r)
             {
                 continue;
@@ -460,10 +460,7 @@ internal static class LayoutFieldPlanning
 
     /// <summary>Observed walkable, unoccupied, unzoned, unroofed soil at or above the crop's fertility floor.</summary>
     public static bool FreeFieldSoil(SiteCell c, double floor) =>
-        c.Walkable.TryGetValue(out var walk) && walk && !c.Occupied()
-        && c.Zone.TryGetValue(out var zone) && !zone
-        && c.Roofed.TryGetValue(out var roof) && !roof
-        && c.Fertility.TryGetValue(out var soil) && soil > 0 && soil >= floor;
+        c.Walkable && !c.Occupied() && !c.Zone && !c.Roofed && c.Fertility > 0 && c.Fertility >= floor;
 
     /// <summary>
     /// Want cells of <paramref name="free"/> laid as a w x h rectangle with a partial last row, every cell free:

@@ -66,7 +66,7 @@ internal static class LayoutFieldShrink
         var zones = new Dictionary<string, HashSet<Cell>>(StringComparer.Ordinal);
         foreach (var c in facts.Cells)
         {
-            if (c.ZoneId.TryGetValue(out var id) && id != "" && growing.ContainsKey(id))
+            if (c.ZoneId is { Length: > 0 } id && growing.ContainsKey(id))
             {
                 if (!zones.TryGetValue(id, out var set))
                 {

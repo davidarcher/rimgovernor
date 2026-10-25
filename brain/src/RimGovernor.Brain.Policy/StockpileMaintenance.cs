@@ -234,7 +234,8 @@ internal sealed record StockpileOpen
     /// <summary>When set, limits the cells to a site's room.</summary>
     public HashSet<Cell>? Only { get; init; }
 
-    public SiteCell CellAt(Cell c) => Cells.TryGetValue(c, out var found) ? found : new SiteCell();
+    /// <summary>The planning cell at <paramref name="c"/>; null for a cell the census does not hold (fogged).</summary>
+    public SiteCell? CellAt(Cell c) => Cells.GetValueOrDefault(c);
 
     public bool Ok(Cell p)
     {
@@ -243,9 +244,7 @@ internal sealed record StockpileOpen
         {
             return false;
         }
-        var wk = c.Walkable.TryGetValue(out var walkable);
-        var zk = c.Zone.TryGetValue(out var zone);
-        return wk && walkable && !c.Occupied() && zk && !zone;
+        return c.Walkable && !c.Occupied() && !c.Zone;
     }
 }
 
@@ -352,36 +351,21 @@ public static partial class StockpileRules
 
     /// <summary>
     /// The stack capacity and held stacks of a store's cells (its zone cells and its built shelves' cells) in the
-    /// planning census: each unknown when any cell is not in the census or its count is unknown, never 0.
+    /// planning census: each unknown when any cell is not in the census (fogged), never 0.
     /// </summary>
     public static (Fact<int> Capacity, Fact<int> Used) StorageStacks(IEnumerable<Cell> cells, IReadOnlyDictionary<Cell, SiteCell> census)
     {
         int capacity = 0, used = 0;
-        bool capacityKnown = true, usedKnown = true;
         foreach (var c in cells)
         {
             if (!census.TryGetValue(c, out var site))
             {
                 return (Unknown<int>(), Unknown<int>());
             }
-            if (site.StorageCapacity.TryGetValue(out var slots))
-            {
-                capacity += slots;
-            }
-            else
-            {
-                capacityKnown = false;
-            }
-            if (site.StorageStacks.TryGetValue(out var stacks))
-            {
-                used += stacks;
-            }
-            else
-            {
-                usedKnown = false;
-            }
+            capacity += site.StorageCapacity;
+            used += site.StorageStacks;
         }
-        return (capacityKnown ? Known(capacity) : Unknown<int>(), usedKnown ? Known(used) : Unknown<int>());
+        return (Known(capacity), Known(used));
     }
 
     /// <summary>

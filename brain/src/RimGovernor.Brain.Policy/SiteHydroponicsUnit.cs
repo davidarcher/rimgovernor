@@ -9,7 +9,7 @@ public static partial class SiteRules
         var free = new HashSet<Cell>();
         foreach (var s in site.Cells)
         {
-            if (keep(s) && !blocked.Contains(s.Cell) && RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Walkable) && !s.Occupied() && SiteKnownFalse(s.Zone))
+            if (keep(s) && !blocked.Contains(s.Cell) && s.Roofed && s.Walkable && !s.Occupied() && !s.Zone)
             {
                 free.Add(s.Cell);
             }
@@ -93,7 +93,7 @@ public static partial class SiteRules
         v.Crop.FertilityMin.TryGetValue(out var minimum);
         foreach (var s in site.Cells)
         {
-            if (CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Indoors))
+            if (CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && s.Roofed && s.Indoors)
             {
                 return c with { Reason = "free indoor soil: a greenhouse lamp is the cheaper kind" };
             }
@@ -101,13 +101,13 @@ public static partial class SiteRules
         var roomOf = new Dictionary<Cell, string>();
         foreach (var s in site.Cells)
         {
-            if (s.Room.TryGetValue(out var id))
+            if (s.Room is CellRoom.InRoom(var id))
             {
                 roomOf[s.Cell] = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
         }
         string RoomAt(Cell cell) => roomOf.TryGetValue(cell, out var room) ? room : "";
-        var free = SiteFreeFloor(site, s => RoundsRules.Positive(s.Indoors));
+        var free = SiteFreeFloor(site, s => s.Indoors);
         var cells = new List<Cell>(free.Count);
         foreach (var cell in free.ToList())
         {

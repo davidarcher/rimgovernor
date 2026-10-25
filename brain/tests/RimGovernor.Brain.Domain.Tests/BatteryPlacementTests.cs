@@ -63,7 +63,7 @@ public sealed class BatteryPlacementTests
             for (var x = 0; x < 20; x++)
             {
                 var c = new Cell(x, z);
-                cells.Add(new SiteCell { Cell = c, Walkable = Known(true), Zone = Known(false), Roofed = Known(Roofed(c)), Indoors = Known(Roofed(c)) });
+                cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = true, Zone = false, Roofed = Roofed(c), Indoors = Roofed(c) });
             }
         }
         var facts = ColonyFactsCoreTests.Projection() with { Identity = new() { Tick = new(100) }, Bounds = new(20, 20), Cells = cells };
@@ -98,7 +98,7 @@ public sealed class BatteryPlacementTests
         {
             for (var x = 0; x < 20; x++)
             {
-                cells.Add(new SiteCell { Cell = new(x, z), Walkable = Known(true), Zone = Known(false), Terrain = Known("Soil") });
+                cells.Add(SiteCellFixtures.Ground with { Cell = new(x, z), Walkable = true, Zone = false, Terrain = "Soil" });
             }
         }
         var battery = new PowerSite

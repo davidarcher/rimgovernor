@@ -384,20 +384,9 @@ public static partial class RefrigerationRules
         RefrigerationCooler cooler, IReadOnlyDictionary<string, RoomState> rooms, IReadOnlyDictionary<Cell, string> cellRoom, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
         var hot = cooler.Hot();
-        if (cells.TryGetValue(hot, out var c) && c.Walkable.TryGetValue(out var walkable) && !walkable)
+        if (cells.TryGetValue(hot, out var c))
         {
-            return (true, true);
-        }
-        if (cells.TryGetValue(hot, out var hc))
-        {
-            if (hc.Indoors.TryGetValue(out var indoors))
-            {
-                return (indoors, true);
-            }
-            if (hc.Roofed.TryGetValue(out var roofed) && !roofed)
-            {
-                return (false, true);
-            }
+            return (!c.Walkable || c.Indoors, true);
         }
         // The room holding the hot cell decides; rooms do not overlap.
         if (cellRoom.TryGetValue(hot, out var id) && rooms.TryGetValue(id, out var room))
@@ -448,7 +437,7 @@ public static partial class RefrigerationRules
                 {
                     continue;
                 }
-                if (!w.Walkable.TryGetValue(out var walkable) || walkable)
+                if (w.Walkable)
                 {
                     continue;
                 }
@@ -460,13 +449,11 @@ public static partial class RefrigerationRules
                 {
                     continue;
                 }
-                var ik = o.Indoors.TryGetValue(out var indoors);
-                var rk = o.Roofed.TryGetValue(out var roofed);
-                if (!((ik && !indoors) || (rk && !roofed)))
+                if (o.Indoors && o.Roofed)
                 {
                     continue;
                 }
-                if (!o.Walkable.TryGetValue(out var ow) || !ow)
+                if (!o.Walkable)
                 {
                     continue;
                 }

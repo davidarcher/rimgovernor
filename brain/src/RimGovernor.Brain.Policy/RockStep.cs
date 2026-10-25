@@ -123,21 +123,13 @@ public static partial class RockStepRules
             var listed = site.TryGetValue(cell, out var c);
             if (role[cell] == RockRole.NeedsSky)
             {
-                // The native grid names a roof only where one stands: an unroofed cell reads Roofed=false
-                // with the roof name unknown.
-                var known = c is not null && c.Roof.TryGetValue(out var roof);
-                roof = c is not null && c.Roof.TryGetValue(out var r0) ? r0 : "";
-                if (c is not null && c.Roofed.TryGetValue(out var roofed) && !roofed)
-                {
-                    roof = "";
-                    known = true;
-                }
-                if (!listed || !known)
+                // The native grid names a roof only where one stands: an unroofed cell has no roof name.
+                if (!listed || c is null)
                 {
                     unfit.Add(cell);
                     continue;
                 }
-                if (roof.Length != 0)
+                if (c.Roof is { } roof)
                 {
                     if (roofs is null || !roofs.TryGetValue(roof, out var rule))
                     {
@@ -226,8 +218,7 @@ public static partial class RockStepRules
         Cell[] directions = [new(1, 0), new(-1, 0), new(0, 1), new(0, -1)];
         foreach (var c in cells)
         {
-            var wk = c.Walkable.TryGetValue(out var walkable);
-            if (inside.Contains(c.Cell) || c.Occupied() || !wk || !walkable)
+            if (inside.Contains(c.Cell) || c.Occupied() || !c.Walkable)
             {
                 continue;
             }

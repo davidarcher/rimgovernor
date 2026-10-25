@@ -21,16 +21,11 @@ public sealed class StorageOptionsTests
     private static readonly Resource Granite = new("ChunkGranite");
     private static readonly Resource Wood = new("WoodLog");
 
-    private static SiteCell Floor(Cell c, bool zoned, bool sheltered) => new()
+    private static SiteCell Floor(Cell c, bool zoned, bool sheltered) => SiteCellFixtures.At(c) with
     {
-        Cell = c,
-        Walkable = Known(true),
-        Zone = Known(zoned),
-        Roofed = Known(sheltered),
-        Indoors = Known(sheltered),
-        Doorway = Known(false),
-        StorageCapacity = Known(1),
-        StorageStacks = Known(0),
+        Zone = zoned,
+        Roofed = sheltered,
+        Indoors = sheltered,
     };
 
     private static LootItem Stranded(string thing, Resource def, Cell at) => new()

@@ -33,7 +33,7 @@ internal static class RoundsAcquisitionFields
         var farms = new HashSet<string>(projection.Farms.Select(f => f.Id), StringComparer.Ordinal);
         foreach (var cell in projection.Cells)
         {
-            if (cell.ZoneId.TryGetValue(out var id) && farms.Contains(id))
+            if (cell.ZoneId is { } id && farms.Contains(id))
             {
                 cells.Add(cell.Cell);
             }

@@ -30,6 +30,31 @@ public sealed class RoomCellsTests
         Assert.Equal([new Cell(10, 20), new Cell(12, 20), new Cell(11, 21)], cells["a"]);
     }
 
+    [Fact]
+    public void AWindowCellNamesItsRoomOrNoRoomAndCarriesNoRoofOrZoneAsNone()
+    {
+        // A 3x1 grid: (0,0) in room 5, (1,0) in no room, (2,0) fogged.
+        var source = Grid(0, 0, 3, 1, [true, true, false], [5, null, 5]);
+        source.Roof[0] = "RoofConstructed";
+        source.ZoneId[0] = "Zone_1";
+        var (cells, fogged) = new FrameCellGrid(source).Window(new RimGovernor.Brain.Policy.Rectangle(0, 0, 3, 1));
+
+        Assert.Equal(1UL, fogged);
+        Assert.Equal(2, cells.Count);
+        var (inRoom, outside) = (cells[0], cells[1]);
+        Assert.Equal(new RimGovernor.Brain.Policy.CellRoom.InRoom(5), inRoom.Room);
+        Assert.True(inRoom.Roofed);
+        Assert.Equal("RoofConstructed", inRoom.Roof);
+        Assert.True(inRoom.Zone);
+        Assert.Equal("Zone_1", inRoom.ZoneId);
+        Assert.IsType<RimGovernor.Brain.Policy.CellRoom.NoRoom>(outside.Room);
+        Assert.False(outside.Roofed);
+        Assert.Null(outside.Roof);
+        Assert.False(outside.Zone);
+        Assert.Null(outside.ZoneId);
+        Assert.Empty(outside.Things);
+    }
+
     // A grid of bare cells (unwalkable open ground, no roof, zone or things) carrying the given held and room arrays.
     private static Mirror.CellGrid Grid(int x, int z, int width, int height, bool[] held, int?[] room)
     {

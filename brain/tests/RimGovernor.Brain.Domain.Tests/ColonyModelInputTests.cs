@@ -103,7 +103,7 @@ public sealed class ColonyModelInputTests
         projection = projection with
         {
             LayoutPlan = plan,
-            Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }, new SiteCell { Cell = new Cell(5, 0), Fertility = Known(0.9) }],
+            Cells = [.. projection.Cells, SiteCellFixtures.Ground with { Cell = new Cell(4, 0), Fertility = 1.1 }, SiteCellFixtures.Ground with { Cell = new Cell(5, 0), Fertility = 0.9 }],
         };
 
         var planned = Assert.Single(ColonyModelFixtures.ReadyOf(projection).Land, f => f.Planned);
@@ -118,7 +118,7 @@ public sealed class ColonyModelInputTests
     {
         var projection = ColonyModelFixtures.Projection();
         var plan = new LayoutPlan { Zones = [new LayoutZone { Kind = LayoutPlanRules.ZoneField, Runs = [new RowRun(0, 4, 2)] }] };
-        projection = projection with { LayoutPlan = plan, Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }] };
+        projection = projection with { LayoutPlan = plan, Cells = [.. projection.Cells, SiteCellFixtures.Ground with { Cell = new Cell(4, 0), Fertility = 1.1 }] };
 
         var unknowns = ColonyModelFixtures.GapsOf(projection);
 

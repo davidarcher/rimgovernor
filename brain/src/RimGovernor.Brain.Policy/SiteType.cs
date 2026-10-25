@@ -502,7 +502,7 @@ public static partial class SiteRules
             return true;
         }
 
-        static bool RoofedIndoorSoil(SiteCell s) => RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Indoors);
+        static bool RoofedIndoorSoil(SiteCell s) => s.Roofed && s.Indoors;
 
         var cells = 0;
         var sites = new FarmSitePlan();
@@ -521,7 +521,7 @@ public static partial class SiteRules
                 {
                     return c with { Reason = "no running sun lamp" };
                 }
-                sites = SitePick(r.Field.Site, v, s => lit.ContainsKey(s.Cell) && RoundsRules.Positive(s.Roofed), null, true);
+                sites = SitePick(r.Field.Site, v, s => lit.ContainsKey(s.Cell) && s.Roofed, null, true);
                 cells = sites.Cells;
                 if (cells == 0)
                 {
@@ -773,7 +773,7 @@ public static partial class SiteRules
         return (best, covered);
     }
 
-    internal static SiteCell SiteUnroofed(SiteCell s) => s with { Roofed = Known(false) };
+    internal static SiteCell SiteUnroofed(SiteCell s) => s with { Roofed = false };
 
     /// <summary>
     /// Sites a growing-room kind with the rectangle picker: candidates are the free soil cells keep accepts that
@@ -805,7 +805,7 @@ public static partial class SiteRules
             var key = "";
             if (byRoom)
             {
-                if (!s.Room.TryGetValue(out var room))
+                if (s.Room is not CellRoom.InRoom(var room))
                 {
                     continue;
                 }

@@ -418,7 +418,7 @@ public sealed partial class Rounder
         var unroofed = new HashSet<Cell>();
         foreach (var c in projection.Cells)
         {
-            if (c.Roofed.TryGetValue(out var roofed) && !roofed)
+            if (!c.Roofed)
             {
                 unroofed.Add(c.Cell);
             }

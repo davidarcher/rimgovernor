@@ -319,7 +319,7 @@ partial class FirebreakPlan
         var zones = new List<Cell>();
         foreach (var cell in projection.Cells)
         {
-            if (cell.ZoneId.TryGetValue(out var id) && farms.Contains(id))
+            if (cell.ZoneId is { } id && farms.Contains(id))
             {
                 zones.Add(cell.Cell);
             }

@@ -104,30 +104,26 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
         new()
         {
             Cell = cell,
-            Walkable = Fact.Known(grid.Walkable[j]),
-            Zone = Fact.Known(grid.ZoneId[j] is not null),
-            Roofed = Fact.Known(grid.Roof[j] is not null),
-            Indoors = Fact.Known(grid.Indoors[j]),
-            StorageStacks = Fact.Known(grid.StorageStacks[j]),
-            Doorway = Fact.Known(grid.Doorway[j]),
-            Fertility = Fact.Known((double)grid.Fertility[j]),
-            Polluted = Fact.Known(grid.Polluted[j]),
-            Glow = Fact.Known((double)grid.Glow[j]),
-            Roof = Present(grid.Roof[j]),
-            ZoneId = Present(grid.ZoneId[j]),
-            Room = grid.Room[j] is { } room ? Fact.Known(room) : Fact.Unknown<int>(),
-            Terrain = Fact.Known(grid.Terrain[j]),
-            InHome = Fact.Known(grid.InHome[j]),
-            BaseTerrain = Fact.Known(grid.BaseTerrain[j]),
-            FoundationRemoval = Fact.Known(grid.FoundationRemoval[j]),
-            StorageCapacity = Fact.Known(grid.StorageCapacity[j]),
+            Walkable = grid.Walkable[j],
+            Zone = grid.ZoneId[j] is not null,
+            Roofed = grid.Roof[j] is not null,
+            Indoors = grid.Indoors[j],
+            StorageStacks = grid.StorageStacks[j],
+            Doorway = grid.Doorway[j],
+            Fertility = grid.Fertility[j],
+            Polluted = grid.Polluted[j],
+            Glow = grid.Glow[j],
+            Roof = grid.Roof[j],
+            ZoneId = grid.ZoneId[j],
+            Room = grid.Room[j] is { } room ? new P.CellRoom.InRoom(room) : P.CellRoom.Outside,
+            Terrain = grid.Terrain[j],
+            InHome = grid.InHome[j],
+            BaseTerrain = grid.BaseTerrain[j],
+            FoundationRemoval = grid.FoundationRemoval[j],
+            StorageCapacity = grid.StorageCapacity[j],
             Things = grid.Things[j] ?? [],
         };
-
-    // A roof or zone the cell lacks is no fact about one.
-    private static Fact<string> Present(string? value) => value is null ? Fact.Unknown<string>() : Fact.Known(value);
 }
-
 public sealed partial class FacadeNativeClient
 {
     /// <summary>Keys a frame's grid, frames-only; the reply is the frame's context.</summary>

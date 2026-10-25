@@ -100,9 +100,7 @@ public static partial class StockpileRules
                 var clear = true;
                 foreach (var cell in fragment.Cells)
                 {
-                    var observed = open.CellAt(cell);
-                    var known = observed.Walkable.TryGetValue(out var walkable);
-                    clear = clear && allowed(cell) && known && walkable && !observed.Occupied();
+                    clear = clear && allowed(cell) && open.CellAt(cell) is { Walkable: true } observed && !observed.Occupied();
                     foreach (var neighbour in StockpileNeighbours(cell))
                     {
                         connected = connected || reached.Contains(neighbour);
@@ -145,7 +143,7 @@ public static partial class StockpileRules
             }
             if (site.Roofed)
             {
-                if (!observed.Roofed.TryGetValue(out var roofed) || !roofed)
+                if (!observed.Roofed)
                 {
                     return false;
                 }

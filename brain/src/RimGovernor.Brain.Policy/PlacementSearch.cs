@@ -96,14 +96,13 @@ public sealed class PlacementSearch
             {
                 throw new DomainException("invalid placement cell census");
             }
-            var zoneKnown = row.Zone.TryGetValue(out var zone);
-            if (blocked.Contains(c) || !RoundsRules.Positive(row.Walkable) || row.Occupied() || !zoneKnown || (zone && !PlacementSearchRules.StockpileCell(row, r.StockpileZones)))
+            if (blocked.Contains(c) || !row.Walkable || row.Occupied() || (row.Zone && !PlacementSearchRules.StockpileCell(row, r.StockpileZones)))
             {
                 continue;
             }
             if (r.Environment != PlacementEnvironment.Anywhere)
             {
-                if (!row.Indoors.TryGetValue(out var indoors) || indoors != (r.Environment == PlacementEnvironment.Indoors))
+                if (row.Indoors != (r.Environment == PlacementEnvironment.Indoors))
                 {
                     continue;
                 }
@@ -226,7 +225,7 @@ public static partial class PlacementSearchRules
         var aisles = new List<Cell>();
         foreach (var row in cells)
         {
-            if (!RoundsRules.Positive(row.Doorway))
+            if (!row.Doorway)
             {
                 continue;
             }
@@ -259,5 +258,5 @@ public static partial class PlacementSearchRules
 
     /// <summary>Reports whether the cell's zone is a known stockpile.</summary>
     internal static bool StockpileCell(SiteCell row, IReadOnlyDictionary<string, bool> stockpiles) =>
-        row.ZoneId.TryGetValue(out var id) && stockpiles.GetValueOrDefault(id);
+        row.ZoneId is { } id && stockpiles.GetValueOrDefault(id);
 }

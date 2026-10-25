@@ -47,8 +47,7 @@ public static partial class PasteSiteRules
         var rock = new Dictionary<Cell, bool>();
         foreach (var c in r.Field.Site.Cells)
         {
-            var zk = c.Zone.TryGetValue(out var zone);
-            cells[c.Cell] = RoundsRules.Positive(c.Walkable) && !c.Occupied() && zk && !zone;
+            cells[c.Cell] = c.Walkable && !c.Occupied() && !c.Zone;
             listed.Add(c.Cell);
             rock[c.Cell] = TunnelSiteRules.RockCell(c);
         }

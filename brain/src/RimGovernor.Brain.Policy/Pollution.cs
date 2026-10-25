@@ -142,7 +142,7 @@ public static partial class PollutionRules
         var result = new List<Cell>();
         foreach (var c in cells)
         {
-            if (c.Polluted.TryGetValue(out var polluted) && polluted)
+            if (c.Polluted)
             {
                 result.Add(c.Cell);
             }

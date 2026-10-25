@@ -68,5 +68,5 @@ internal static class PredictorCheck
         return paired && cancelled.Status == EncounterStatus.Cancelled && unsupported.Status == EncounterStatus.Unsupported ? 0 : 1;
     }
 
-    private static int? Tick(int tick) => tick < 0 ? null : tick;
+    private static EncounterTick? Tick(int tick) => tick < 0 ? null : new(tick);
 }

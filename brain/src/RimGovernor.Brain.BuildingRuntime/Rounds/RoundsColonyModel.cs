@@ -216,18 +216,12 @@ internal static class RoundsColonyModel
         var occupied = new HashSet<Cell>();
         foreach (var cell in colony.Cells)
         {
-            if (!cell.Zone.TryGetValue(out var inZone) || !inZone || !cell.ZoneId.TryGetValue(out var id) || !zoned.TryGetValue(id, out var fertility))
+            if (cell.ZoneId is not { } id || !zoned.TryGetValue(id, out var fertility))
             {
                 continue;
             }
 
-            if (!cell.Fertility.TryGetValue(out var f))
-            {
-                gaps.Add(Unread);
-                return default;
-            }
-
-            fertility.Add(f);
+            fertility.Add(cell.Fertility);
             occupied.Add(cell.Cell);
         }
 
@@ -235,7 +229,7 @@ internal static class RoundsColonyModel
         foreach (var farm in colony.Farms)
         {
             fields.Add(new ModelField { Id = farm.Id, Crop = farm.Crop, Fertility = [.. zoned[farm.Id]],
-                Cells = [.. colony.Cells.Where(c => c.ZoneId == Known(farm.Id) && c.Zone == Known(true)).Select(c => c.Cell)] });
+                Cells = [.. colony.Cells.Where(c => c.ZoneId == farm.Id).Select(c => c.Cell)] });
         }
 
         if (colony.LayoutPlan is { } plan)
@@ -254,13 +248,13 @@ internal static class RoundsColonyModel
                             continue;
                         }
 
-                        if (!cells.TryGetValue(at, out var cell) || !cell.Fertility.TryGetValue(out var f))
+                        if (!cells.TryGetValue(at, out var cell))
                         {
                             gaps.Add(Unread);
                             return default;
                         }
 
-                        fertility.Add(f);
+                        fertility.Add(cell.Fertility);
                     }
                 }
 

@@ -62,7 +62,7 @@ public sealed record RoofSupportGrid
             // structural cell is roofed by construction.
             return true;
         }
-        return row.Roofed.TryGetValue(out var v) && v;
+        return row.Roofed;
     }
 
     private bool Holds(Cell c)

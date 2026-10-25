@@ -142,7 +142,7 @@ partial class StockpileZones
         var byZone = new Dictionary<string, List<Cell>>();
         foreach (var cell in projection.Cells)
         {
-            if (!cell.ZoneId.TryGetValue(out var id) || id == "")
+            if (cell.ZoneId is not { Length: > 0 } id)
             {
                 continue;
             }

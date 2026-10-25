@@ -135,8 +135,7 @@ partial class Rounder
         foreach (var c in projection.Cells)
         {
             var edifice = c.PlayerEdifice();
-            _ = c.Doorway.TryGetValue(out var door);
-            if (edifice.Length != 0 || door)
+            if (edifice.Length != 0 || c.Doorway)
             {
                 built.Add(c.Cell);
             }

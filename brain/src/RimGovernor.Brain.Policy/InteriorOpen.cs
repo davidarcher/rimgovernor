@@ -49,15 +49,9 @@ public static class InteriorOpenRules
         foreach (var cell in cells)
         {
             var (c, listed) = lookup(cell);
-            var known = false;
-            var walkable = false;
-            var ruin = false;
-            if (c is not null)
-            {
-                known = c.Walkable.TryGetValue(out walkable);
-                ruin = c.Ruin();
-            }
-            if (!listed || !known)
+            var walkable = c is { Walkable: true };
+            var ruin = c is not null && c.Ruin();
+            if (!listed || c is null)
             {
                 pending.Add(cell);
             }

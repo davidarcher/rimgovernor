@@ -430,7 +430,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var storage = new List<Cell>();
         foreach (var cell in projection.Cells)
         {
-            if (cell.ZoneId.TryGetValue(out var id) && stockpiles.Contains(id))
+            if (cell.ZoneId is { } id && stockpiles.Contains(id))
             {
                 storage.Add(cell.Cell);
             }

@@ -146,29 +146,20 @@ public static class ColonyProductionReads
     internal readonly record struct ZoneRoof(Fact<long> Cells, Fact<long> Unroofed);
 
     /// <summary>
-    /// Counts each growing zone's cells in the planning window and the ones with no roof. A zone with a cell
-    /// whose roof is unread is unknown: a partial count would pass for the field's exposure. Without the window
+    /// Counts each growing zone's cells in the planning window and the ones with no roof. Without the window
     /// no zone has a row, so every exposure reads unknown.
     /// </summary>
     internal static Dictionary<string, ZoneRoof> ZoneRoofs(IEnumerable<SiteCell> cells)
     {
-        var counts = new Dictionary<string, (long Cells, long Unroofed, bool Unknown)>(StringComparer.Ordinal);
+        var counts = new Dictionary<string, (long Cells, long Unroofed)>(StringComparer.Ordinal);
         foreach (var cell in cells)
         {
-            if (!cell.Zone.TryGetValue(out var zoned) || !zoned)
-            {
-                continue;
-            }
-            if (!cell.ZoneId.TryGetValue(out var id))
+            if (cell.ZoneId is not { } id)
             {
                 continue;
             }
             var t = counts.GetValueOrDefault(id);
-            if (!cell.Roofed.TryGetValue(out var roofed))
-            {
-                t.Unknown = true;
-            }
-            else if (!roofed)
+            if (!cell.Roofed)
             {
                 t.Unroofed++;
             }
@@ -178,10 +169,7 @@ public static class ColonyProductionReads
         var output = new Dictionary<string, ZoneRoof>(counts.Count, StringComparer.Ordinal);
         foreach (var (id, t) in counts)
         {
-            if (!t.Unknown)
-            {
-                output[id] = new ZoneRoof(Known(t.Cells), Known(t.Unroofed));
-            }
+            output[id] = new ZoneRoof(Known(t.Cells), Known(t.Unroofed));
         }
         return output;
     }

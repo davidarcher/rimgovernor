@@ -359,15 +359,15 @@ public static partial class StorageRules
 
     /// <summary>
     /// A cell's deterioration exposure, the factor the game multiplies an item's DeteriorationRate by
-    /// (SteadyEnvironmentEffects): 0.5 unroofed plus 0.5 not indoors. Unknown when the cell or either reading is.
+    /// (SteadyEnvironmentEffects): 0.5 unroofed plus 0.5 not indoors. Unknown when the census does not hold the cell.
     /// </summary>
     internal static Fact<double> CellExposure(IReadOnlyDictionary<Cell, SiteCell> census, Cell cell)
     {
-        if (!census.TryGetValue(cell, out var c) || !c.Roofed.TryGetValue(out var roofed) || !c.Indoors.TryGetValue(out var indoors))
+        if (!census.TryGetValue(cell, out var c))
         {
             return Unknown<double>();
         }
-        return Known((roofed ? 0.0 : 0.5) + (indoors ? 0.0 : 0.5));
+        return Known((c.Roofed ? 0.0 : 0.5) + (c.Indoors ? 0.0 : 0.5));
     }
 
     private static Dictionary<Resource, long> MaterialOf(IReadOnlyList<Amount> costs)

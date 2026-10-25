@@ -117,14 +117,14 @@ partial class RoundsBuildingPlanner
         {
             foreach (var c in facts.Cells)
             {
-                if (c.Roofed.TryGetValue(out var roofed) && !roofed && vestibules.Contains(c.Cell))
+                if (!c.Roofed && vestibules.Contains(c.Cell))
                 {
                     unroofed.Add(c.Cell);
                 }
             }
             foreach (var c in cells)
             {
-                if (c.Roofed.TryGetValue(out var roofed) && !roofed)
+                if (!c.Roofed)
                 {
                     unroofed.Add(c.Cell);
                 }
