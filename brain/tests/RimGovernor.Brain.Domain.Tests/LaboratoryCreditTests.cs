@@ -57,7 +57,7 @@ public sealed class LaboratoryCreditTests
         };
 
     private static ForecastCoupledOutcome Outcome(bool research = true) =>
-        new(new(research ? [new(Task, "pawn", 0, 0, 0, Hour, 0, 0, Hour, 0, 0)] : [], Hour, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
+        new(new(research ? [new(Task, "pawn", 0, 0, 0, Hour, 0, 0, Hour, 0, 0)] : [], Hour, 0), true, new Dictionary<string, ForecastNeedsResult>(), [])
         { ServedRooms = [new(1, "WoodLog", 3 * Day)] };
 
     private static ForecastValueResult Ledger(ForecastCoupledContext context, ForecastCoupledOutcome outcome) => ForecastValue.Of(outcome, context, Day);

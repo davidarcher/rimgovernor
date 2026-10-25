@@ -154,8 +154,8 @@ public sealed class GoalEtaTests
             Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
         };
         ForecastValueResult Ledger(ForecastGoalValue goal) => ForecastValue.Of(
-            new(new([new("research/Anna/bench", "Anna", 0, 0, 0, 2500, 0, 0, 2500, 0, 0)], 2500, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []),
-            context with { GoalValues = [goal] }, GameTime.TicksPerDay, new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
+            new(new([new("research/Anna/bench", "Anna", 0, 0, 0, 2500, 0, 0, 2500, 0, 0)], 2500, 0), true, new Dictionary<string, ForecastNeedsResult>(), []),
+            context with { GoalValues = [goal] }, GameTime.TicksPerDay, new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
 
         // The flat share of 2,500 of 600 points caps at the whole goal's worth; the priced goal pays 2,500 points at its marginal value.
         Assert.Equal(-2.0, Ledger(flat).Goals, 9);

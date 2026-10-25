@@ -47,8 +47,8 @@ public sealed class ForecastStockHandoffTests
         var result = Evaluate(request);
         var handoff = ForecastHandoffPolicy.Project(result)!;
         Assert.Empty(handoff.Gaps);
-        Assert.Equal(0, Assert.Single(result.Terminal!.Lots, l => l.Id == "early").Count.Value);
-        Assert.Equal(10, Assert.Single(result.Terminal.Lots, l => l.Id == "late").Count.Value);
+        Assert.Equal(0, Assert.Single(result.Terminal!.Lots, l => l.Id == "early").Count);
+        Assert.Equal(10, Assert.Single(result.Terminal.Lots, l => l.Id == "late").Count);
         Assert.Equal(5.5, handoff.State!.Nutrition);
         Assert.Equal(5, Assert.Single(handoff.State!.Medicine).Count);
         Assert.Equal(10, Assert.Single(handoff.State!.Materials, r => r.Resource == Meal).Count);
@@ -63,7 +63,7 @@ public sealed class ForecastStockHandoffTests
         var request = Request(Stock("first", 4), Stock("second", 6));
         var outcome = Evaluate(request, new("debit", [new(Meal, .25, -3d)]), new("harvest", [new(Meal, .5, 8d)]),
             new("tend", [new(Medicine, .5, -2d)]));
-        Assert.Equal(Known(true), outcome.Feasible);
+        Assert.True(outcome.Feasible);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);
         Assert.Equal(6.5, handoff.State!.Nutrition);
@@ -89,7 +89,7 @@ public sealed class ForecastStockHandoffTests
         } };
         var plan = new ForecastActivityPlan([new("cook", "worker", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0);
         var outcome = new ForecastCoupled.CoupledSearchCache().Evaluate(request, new Dictionary<string, ForecastCommitment>(), request.Coupled.Activities, plan);
-        Assert.Equal(Known(true), outcome.Feasible);
+        Assert.True(outcome.Feasible);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);
         Assert.Equal(6, handoff.State!.Nutrition, 8);

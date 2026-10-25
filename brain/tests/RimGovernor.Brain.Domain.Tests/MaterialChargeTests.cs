@@ -54,8 +54,8 @@ public sealed class MaterialChargeTests
         };
         var plan = new ForecastActivityPlan(
             [new(Delivery, "builder", 0, 0, 0, 100, 0, 0, 100, 100, 0), new(Refuel, "builder", 100, 100, 100, 200, 0, 0, 100, 200, 0)], 200, 200);
-        return ForecastValue.Of(new(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []), context, GameTime.TicksPerDay,
-            new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
+        return ForecastValue.Of(new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), context, GameTime.TicksPerDay,
+            new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
     }
 
     [Fact]

@@ -20,7 +20,7 @@ public sealed class ForecastPortfolioChoiceTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 150d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
-        Assert.Equal(Known(true), selected.Selected.Feasible);
+        Assert.True(selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
         // The hungry pawn's food reaches zero without the portfolio: it loses fewer capability-days with it.
         Assert.True(selected.SelectedVector.Value.Ledger.LossAgainst(selected.BaselineVector.Value.Ledger) < 0);
@@ -130,10 +130,10 @@ public sealed class ForecastPortfolioChoiceTests
         {
             var subset = roots.Where((_, i) => (mask & (1 << i)) != 0).ToArray();
             var result = CoupledForecastKit.Forecast(request, subset);
-            foreach (var outcome in result.Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)))
+            foreach (var outcome in result.Proposed.Coupled!.Alternatives.Where(p => p.Feasible))
             {
                 var vector = ForecastCoupledSelection.CoupledConsequences(outcome, subset);
-                Assert.All(vector.Urgent, value => Assert.True(value.IsKnown));
+                Assert.All(vector.Urgent, value => Assert.True(value.Assessed()));
                 var value = ForecastValue.Explain(outcome, vector.Urgent[0], generated.Context, horizon, selected.Baseline);
                 if (best is null || value.UrgentZero.Excess < best.UrgentZero.Excess
                     || value.UrgentZero.Excess == best.UrgentZero.Excess && value.Ledger.LossAgainst(best.Ledger) < -value.Policy.TieResolution) best = value;

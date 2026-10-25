@@ -75,7 +75,7 @@ public sealed class WorshipCreditTests
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>.</summary>
     private static ForecastCoupledOutcome Served(double shift) =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {

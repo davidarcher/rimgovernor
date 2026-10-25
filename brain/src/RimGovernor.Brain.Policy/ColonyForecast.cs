@@ -110,7 +110,7 @@ public static class ColonyForecastRules
 
     /// <summary>One stock effect in projection order, with the finding it always raises (a day beyond the horizon), made
     /// once. Only a schedule's own activity output can carry unread units (#3894's activity yields).</summary>
-    internal readonly record struct InventoryEffect(string Id, Resource Resource, double Day, Fact<double> Units, ForecastFinding? Note);
+    internal readonly record struct InventoryEffect(string Id, Resource Resource, double Day, double Units, ForecastFinding? Note);
 
     /// <summary>What a stock projection reads besides a schedule's own timed effects (#3468): the observed stock, the
     /// commitments by id with their effects split where the schedule's own sort, the resources and the findings every
@@ -147,7 +147,7 @@ public static class ColonyForecastRules
                 {
                     Resources.Add(change.Resource);
                     var note = change.Day > horizon ? new ForecastFinding("beyond_horizon", commitment.Id) : null;
-                    (string.CompareOrdinal(commitment.Id, TimedEffects) < 0 ? before : after).Add(new(commitment.Id, change.Resource, change.Day, Known(change.Units), note));
+                    (string.CompareOrdinal(commitment.Id, TimedEffects) < 0 ? before : after).Add(new(commitment.Id, change.Resource, change.Day, change.Units, note));
                 }
             (Before, After) = ([.. before], [.. after]);
             Sorted = [.. Resources];
@@ -172,13 +172,13 @@ public static class ColonyForecastRules
     /// the stock findings in projection order.</summary>
     internal sealed class InventoryWalk
     {
-        internal readonly Dictionary<Resource, Fact<double>> Terminal = [];
+        internal readonly Dictionary<Resource, double> Terminal = [];
         private readonly List<InventoryEffect> merged = [];
         private readonly List<Resource> resources = [];
         private readonly HashSet<Resource> extra = [];
         private readonly List<int> timed = [];
 
-        public void Run(InventoryBase stock, ReadOnlySpan<(Resource Resource, double Day, Fact<double> Units)> own,
+        public void Run(InventoryBase stock, ReadOnlySpan<(Resource Resource, double Day, double Units)> own,
             List<ForecastFinding> findings)
         {
             foreach (var finding in stock.Constant) findings.Add(finding);
@@ -192,20 +192,13 @@ public static class ColonyForecastRules
             var horizon = stock.Horizon;
             foreach (var resource in resources)
             {
-                var balance = stock.StockKnown ? Known(stock.Stocks.GetValueOrDefault(resource)) : Unknown<double>();
+                var balance = stock.Stocks.GetValueOrDefault(resource);
                 timed.Clear();
                 for (var i = 0; i < merged.Count; i++)
                 {
                     var e = merged[i];
                     if (e.Resource != resource) continue;
-                    if (!e.Units.IsKnown)
-                    {
-                        findings.Add(e.Note ?? new ForecastFinding("unknown_stock_effect", e.Id));
-                    }
-                    else if (e.Day > horizon)
-                    {
-                        findings.Add(e.Note ?? new ForecastFinding("beyond_horizon", e.Id));
-                    }
+                    if (e.Day > horizon) findings.Add(e.Note ?? new ForecastFinding("beyond_horizon", e.Id));
                     if (e.Day <= horizon) Place(i);
                 }
                 for (var start = 0; start < timed.Count;)
@@ -216,27 +209,21 @@ public static class ColonyForecastRules
                     for (var k = start; k < end; k++)
                     {
                         var e = merged[timed[k]];
-                        if (balance.TryGetValue(out var before) && e.Units.TryGetValue(out var units))
+                        var after = balance + e.Units;
+                        if (!double.IsFinite(after))
                         {
-                            var after = before + units;
-                            if (!double.IsFinite(after))
-                            {
-                                throw new DomainException("forecast stock balance overflow");
-                            }
-                            balance = Known(after);
-                            if (after < 0 && units < 0)
-                            {
-                                findings.Add(new ForecastFinding("stock_shortfall", e.Id));
-                            }
+                            throw new DomainException("forecast stock balance overflow");
                         }
-                        else
+                        balance = after;
+                        if (stock.StockKnown && after < 0 && e.Units < 0)
                         {
-                            balance = Unknown<double>();
+                            findings.Add(new ForecastFinding("stock_shortfall", e.Id));
                         }
                     }
                     start = end;
                 }
-                Terminal[resource] = balance;
+                // With the observed stock unread (named by its own finding) there is no balance to hand on.
+                if (stock.StockKnown) Terminal[resource] = balance;
             }
         }
 
@@ -258,6 +245,6 @@ public static class ColonyForecastRules
             return c == 0 ? x.CompareTo(y) : c;
         }
 
-        private static int Sign(Fact<double> units) => units.TryGetValue(out var value) && value > 0 ? 1 : 0;
+        private static int Sign(double units) => units > 0 ? 1 : 0;
     }
 }

@@ -137,7 +137,7 @@ internal static class ReferenceScheduleChecker
     {
         var balance = new Dictionary<(Resource, string), double>();
         foreach (var lot in context.InitialLots)
-            if (lot.Count.TryGetValue(out var count)) balance[(lot.Resource, lot.Lot)] = balance.GetValueOrDefault((lot.Resource, lot.Lot)) + count;
+            balance[(lot.Resource, lot.Lot)] = balance.GetValueOrDefault((lot.Resource, lot.Lot)) + lot.Count;
         var events = new List<(double At, int Order, Resource Resource, string Lot, double Units, string Activity)>();
         foreach (var step in steps)
         {

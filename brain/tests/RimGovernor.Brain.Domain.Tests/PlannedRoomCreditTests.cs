@@ -53,7 +53,7 @@ public sealed class PlannedRoomCreditTests
     internal static ForecastCoupledOutcome Outcome(ForecastCoupledContext context, IReadOnlyDictionary<string, double>? finished = null)
     {
         var service = PlannedRoomCredits.ServiceDays(context, finished ?? new Dictionary<string, double>(), Day);
-        return new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
+        return new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), [])
         {
             ServedRooms = service,
             RequestedDevelopment = [Wall, Shelf, Roof, ZoneShelf],
@@ -159,7 +159,7 @@ public sealed class PlannedRoomCreditTests
 
     private static double ConnectedDevelopment(ForecastCoupledContext context)
     {
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), [])
         { RequestedDevelopment = [BedWall, CorridorWall] };
         ForecastCommitment[] relief = [new("flooring/connector-floor", [])
         {
@@ -299,7 +299,7 @@ public sealed class PlannedRoomCreditTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         var pawns = generated.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
         Assert.NotEmpty(pawns);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = MoodResults.Flat(0d, [0, 0, 0], [new(0, [Day, 0, 0])]),
         }), []);
@@ -423,7 +423,7 @@ public sealed class PlannedRoomCreditTests
         {
             Assert.Equal(without.Plan.Allocations, outcome.Plan.Allocations);
             Assert.DoesNotContain(outcome.Findings, f => f.Reason == "commitment_completion_unassessed");
-            Assert.True(outcome.Feasible.IsKnown);
+            Assert.True(outcome.Feasible);
             var mood = outcome.Needs["pawn"].Mood.Projected();
             mood.Assessed();
             // The memory lifts the mood from the site's completion on; a site that does not complete inside the day grants nothing.
@@ -433,21 +433,6 @@ public sealed class PlannedRoomCreditTests
             RunsEveryShippedCredit(generated.Context, outcome, Day);
         }
         Assert.True(granted > 0, "no outcome granted the site's memory");
-    }
-
-    /// <summary>A completion the evaluation cannot settle is an unread fact (#3881): the site's memories are not dropped quietly.</summary>
-    [Fact]
-    public void AnUnsettledCommitmentCompletionIsAnUnreadFact()
-    {
-        var facts = WorkRules.ReviewWorkResources(WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview()),
-            Known<EquatableArray<ProductionBatch>>([]), new([]));
-        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
-        var site = generated.Alternatives.First(c => c.Id.StartsWith("site-", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
-        // A lot whose count was never read leaves the site's delivery, and so its completion, unsettled.
-        var unread = generated with { Context = generated.Context with { InitialLots = EquatableArray.From(generated.Context.InitialLots.Select(l => l with { Count = default })) } };
-        var pending = new[] { site with { MoodMemories = [new("pawn", NeedsFixtures.Memory("KnowBuriedInSarcophagus", 4, 8d * Day, false))] } };
-        var thrown = Assert.Throws<RequiredFactException>(() => Evaluated(facts with { CoupledAlternatives = unread with { Alternatives = EquatableArray.From(pending) } }, Day, pending));
-        Assert.StartsWith("commitment_completion:", thrown.Fact, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -638,7 +623,7 @@ public sealed class PlannedRoomCreditTests
                 new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment }, bound.Activities, plan);
             // A plan the binding starts nothing of is refused; one it starts is not refused for it.
             Assert.Equal(started is null, outcome.Findings.Contains(new ForecastFinding("dispatch_allocation_unbound", "cook")));
-            if (started is null) { Assert.Equal(Known(false), outcome.Feasible); return; }
+            if (started is null) { Assert.False(outcome.Feasible); return; }
             var mood = outcome.Needs["pawn"].Mood!;
             mood.Assessed();
             Assert.Equal(ordered, mood.Projected().Trajectory[0].Actual != mood.Projected().Trajectory.First(p => p.Tick > 0).Actual);
@@ -699,7 +684,7 @@ public sealed class PlannedRoomCreditTests
             params ForecastActivityAllocation[] rows)
         {
             var plan = new ForecastActivityPlan(rows, rows.Max(a => a.End), 0);
-            var outcome = new ForecastCoupledOutcome(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
+            var outcome = new ForecastCoupledOutcome(plan, true, new Dictionary<string, ForecastNeedsResult>(), []);
             var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
             var selection = new ForecastCoupledSelection(new(selected, plan, [], 0, false), outcome, outcome, vector, vector, [], 100, false);
             var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, EquatableArray.From(incumbents), 100, bound.Activities.Activities);
@@ -717,7 +702,7 @@ public sealed class PlannedRoomCreditTests
             {
                 // Refused exactly when the review starts nothing of a selection it would start.
                 Assert.Null(started);
-                Assert.Equal(Known(false), forecast.Feasible);
+                Assert.False(forecast.Feasible);
                 return;
             }
             var mood = forecast.Needs["pawn"].Mood!;

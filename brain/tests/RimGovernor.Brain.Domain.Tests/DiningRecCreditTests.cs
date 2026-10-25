@@ -55,7 +55,7 @@ public sealed class DiningRecCreditTests
 
     /// <summary>Each pawn a day in the mildest break tier unshifted, none once its mood shifts by any of <paramref name="shifts"/>; the rooms serve at their ticks.</summary>
     private static ForecastCoupledOutcome Serving(string[] pawns, double[] shifts, params (int Room, double At)[] served) =>
-        new(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        new(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = MoodResults.Flat(0d, [Day, 0, 0], [.. shifts.Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))]),
         }), [])

@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
@@ -25,24 +26,24 @@ public sealed class ForecastHandoffTests
             Facts = new() { Stock = Known(stock), Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), default),
-                InitialLots = [new("meal", "", Food, Known(10d)) { Perishable = true, FreshTicks = Known(120000d) }] } };
+                InitialLots = [new("meal", "", Food, 10d) { Freshness = new FoodFreshness.Rots(120000d) }] } };
     }
-    private static ForecastCoupledOutcome Outcome() => new(new([new("research", "pawn", 0, 0, 0, 50, 0, 0, 50, 0, 0)], 50, 0), Known(true),
+    private static ForecastCoupledOutcome Outcome() => new(new([new("research", "pawn", 0, 0, 0, 50, 0, 0, 50, 0, 0)], 50, 0), true,
         new Dictionary<string, ForecastNeedsResult>(), []);
 
-    private static ForecastHandoff Handoff(ColonyForecastRequest request, IReadOnlyDictionary<Resource, Fact<double>> stock,
+    private static ForecastHandoff Handoff(ColonyForecastRequest request, IReadOnlyDictionary<Resource, double> stock,
         ForecastCoupledOutcome? outcome = null, IReadOnlyDictionary<string, ForecastCommitment>? commitments = null)
     {
         commitments ??= new Dictionary<string, ForecastCommitment>();
         return ForecastHandoffPolicy.Project(request, commitments, outcome ?? Outcome(), stock,
-            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { MedicineComplete = true, PhysicalCensusComplete = true, Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, Known(double.PositiveInfinity), Known(p.Key == Food), Known(p.Key == Food ? .5 : 0), [], p.Key == Medicine))) });
+            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { MedicineComplete = true, PhysicalCensusComplete = true, Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, double.PositiveInfinity, p.Key == Food ? FoodEligibility.Eligible : FoodEligibility.Ineligible, p.Key == Food ? .5 : 0, [], p.Key == Medicine))) });
     }
 
     [Fact]
     public void EqualResearchWithDifferentRemainingStocksProducesDifferentUsableState()
     {
-        var a = Handoff(Request(), new Dictionary<Resource, Fact<double>> { [Steel] = Known(12d), [Food] = Known(8d), [Medicine] = Known(3d) });
-        var b = Handoff(Request(), new Dictionary<Resource, Fact<double>> { [Steel] = Known(17d), [Food] = Known(8d), [Medicine] = Known(3d) });
+        var a = Handoff(Request(), new Dictionary<Resource, double> { [Steel] = 12d, [Food] = 8d, [Medicine] = 3d });
+        var b = Handoff(Request(), new Dictionary<Resource, double> { [Steel] = 17d, [Food] = 8d, [Medicine] = 3d });
         Assert.Empty(a.Gaps);
         Assert.Empty(b.Gaps);
         Assert.Equal(50, Assert.Single(a.State!.Projects).Remaining);
@@ -64,7 +65,7 @@ public sealed class ForecastHandoffTests
         var request = Request();
         var inventory = new ColonyForecastRules.InventoryWalk();
         inventory.Run(new(request.Facts.Stock, new Dictionary<string, ForecastCommitment>(), 1),
-            [(Food, .1, Known(-2d)), (Food, .2, Known(4d)), (Food, .8, Known(-1d)), (Steel, .3, Known(-5d))], []);
+            [(Food, .1, -2d), (Food, .2, 4d), (Food, .8, -1d), (Steel, .3, -5d)], []);
         var handoff = Handoff(request, inventory.Terminal);
         Assert.Empty(handoff.Gaps);
         Assert.Equal(5.5, handoff.State!.Nutrition);
@@ -74,7 +75,8 @@ public sealed class ForecastHandoffTests
     [Fact]
     public void AnUnreadStockLeavesNoStateAndNamesTheGapRatherThanDefaultingTheStock()
     {
-        var handoff = Handoff(Request(), new Dictionary<Resource, Fact<double>> { [Steel] = default, [Food] = Known(8d), [Medicine] = Known(3d) });
+        var request = Request();
+        var handoff = Handoff(request with { Facts = request.Facts with { Stock = default } }, new Dictionary<Resource, double> { [Steel] = 12d, [Food] = 8d, [Medicine] = 3d });
 
         Assert.Null(handoff.State);
         Assert.Contains("terminal_stock_unknown", handoff.Gaps);
@@ -85,7 +87,7 @@ public sealed class ForecastHandoffTests
     {
         var outcome = Outcome() with { Needs = new Dictionary<string, ForecastNeedsResult>
         { ["pawn"] = new([new("food", default, default, default, default), new("rest", Known(.17), default, default, default)], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []) } };
-        var handoff = Handoff(Request(), new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome);
+        var handoff = Handoff(Request(), new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d }, outcome);
         Assert.False(Assert.Single(handoff.Needs, n => n.Kind == "food").Level.IsKnown);
         Assert.Equal(.17, Assert.Single(handoff.Needs, n => n.Kind == "rest").Level.Value);
         Assert.Contains("terminal_need_unknown:pawn:food", handoff.Gaps);
@@ -103,7 +105,7 @@ public sealed class ForecastHandoffTests
         var commitment = new ForecastCommitment("warm", []) { ActivityCompletions = ["research"], ComfortShifts = [new("pawn", -5, 2)] };
         var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "")],
             ServedRooms = [new(1, "Wood", 50)], Shelters = [new ForecastShelterOutcome.Projected(new(ForecastShelterSource.Planned, "1"), 50, 20, [], [])] };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome,
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d }, outcome,
             new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment });
         Assert.Empty(handoff.Gaps);
         Assert.Equal(5, Assert.Single(handoff.State!.Pawns).ComfortableMin);
@@ -124,7 +126,7 @@ public sealed class ForecastHandoffTests
         var request = Request();
         request = request with { Coupled = request.Coupled! with { ModelBasis = request.Coupled.ModelBasis! with
         { Input = request.Coupled.ModelBasis.Input with { Stocks = request.Coupled.ModelBasis.Input.Stocks with { Nutrition = 4d } } } } };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) });
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d });
         Assert.Equal(5d, handoff.State!.Nutrition);
         Assert.DoesNotContain("terminal_food_census_scope_mismatch", handoff.Gaps);
     }
@@ -137,7 +139,7 @@ public sealed class ForecastHandoffTests
         var promises = Known<EquatableArray<ProductionMaterialPromise>>([new("paid", [new(Steel, Known(5d), Known(""))]), new("other", other.MaterialClaims)]);
         request = request with { Commitments = [paid, other], Coupled = request.Coupled! with
         { Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with { Promises = promises } } } };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(15d), [Food] = Known(10d), [Medicine] = Known(3d) },
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 15d, [Food] = 10d, [Medicine] = 3d },
             commitments: new Dictionary<string, ForecastCommitment> { [paid.Id] = paid, [other.Id] = other });
         Assert.Empty(handoff.Gaps);
         Assert.Equal(3, Assert.Single(handoff.State!.ExternalHolds).Count);
@@ -157,7 +159,7 @@ public sealed class ForecastHandoffTests
         request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = nodes }),
             Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("sow:zone1", 1d / 50) }] } } };
         var outcome = Outcome() with { Plan = new([new("research", "pawn", 0, 0, completion * GameTime.TicksPerDay - 50, completion * GameTime.TicksPerDay, 0, 0, 50, 0, 0)], completion * GameTime.TicksPerDay, 0) };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome);
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d }, outcome);
         Assert.Empty(handoff.Gaps);
         Assert.Equal(ModelProjectStatus.Done, Assert.Single(handoff.State!.Projects, p => p.Id == "sow:zone1").Status);
         Assert.Equal(completion, Assert.Single(handoff.Completed).Day, 8);
@@ -174,7 +176,7 @@ public sealed class ForecastHandoffTests
         request = request with { Coupled = request.Coupled with { ModelBasis = basis with { Policy = basis.Policy with
         { Projects = new() { Nodes = [new() { Id = "hunt", Kind = ProjectKind.Hunt, Work = 100, Nutrition = 5 }] } } },
             Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { Outputs = [new(Food, 4d)] }] } } };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(14d), [Medicine] = Known(3d) });
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 14d, [Medicine] = 3d });
         Assert.Empty(handoff.Gaps);
         Assert.Equal(100, Assert.Single(handoff.State!.Projects).Remaining);
     }
@@ -182,7 +184,7 @@ public sealed class ForecastHandoffTests
     [Fact]
     public async Task SelectedHandoffRoundTripsThroughProductionDecisionAndReport()
     {
-        var handoff = Handoff(Request(), new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) });
+        var handoff = Handoff(Request(), new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d });
         var directory = Path.Combine(Path.GetTempPath(), "forecast-handoff-" + Guid.NewGuid().ToString("N"));
         try
         {
@@ -214,7 +216,7 @@ public sealed class ForecastHandoffTests
             Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with { Stocks = basis.Input.Stocks with { Materials = stock.Value } } },
                 Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
                 { Stock = stock, Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("other", promise.MaterialClaims)]) } } } };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Food] = Known(10d), [Medicine] = Known(3d) });
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Food] = 10d, [Medicine] = 3d });
         Assert.Equal(3, Assert.Single(handoff.State!.ExternalHolds).Count);
         Assert.Contains("colony_model_holds_exceed_stock", handoff.Gaps);
     }}

@@ -61,12 +61,12 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review(); var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
         var build = generated.Alternatives.Single(c => Original(c, "site-0-finish"));
-        Assert.DoesNotContain(Evaluate(facts, build).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
+        Assert.DoesNotContain(Evaluate(facts, build).Proposed.Coupled!.Alternatives, p => p.Feasible);
         var combinations = generated.Alternatives.Where(c => c.Id.StartsWith("site-0-finish/composition/", StringComparison.Ordinal) && c.Id.Contains("/after/raw/", StringComparison.Ordinal)
             && c.Id.Contains("/eat/pawn/0/composition/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(combinations);
-        var compared = combinations.Select(c => Evaluate(facts, c)).First(f => f.Proposed.Coupled!.Alternatives.Any(p => p.Feasible == Known(true)));
-        var useful = compared.Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+        var compared = combinations.Select(c => Evaluate(facts, c)).First(f => f.Proposed.Coupled!.Alternatives.Any(p => p.Feasible));
+        var useful = compared.Proposed.Coupled!.Alternatives.First(p => p.Feasible);
         Assert.True(useful.Plan.CompletedAt <= 300);
         Assert.True(useful.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value > 0);
         Assert.Empty(compared.Baseline.Coupled!.Alternatives.Single().Plan.Allocations);
@@ -116,7 +116,7 @@ public sealed class ForecastCoupledTests
         {
             var candidates = facts.CoupledAlternatives!.Alternatives.Where(c => c.Id.StartsWith("site-0-finish/composition/", StringComparison.Ordinal) && c.Id.Contains("/after/raw/", StringComparison.Ordinal)
                 && c.Id.Contains("/eat/pawn/0/composition/", StringComparison.Ordinal)).ToArray();
-            Assert.All(candidates, candidate => Assert.DoesNotContain(Evaluate(facts, candidate).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true)));
+            Assert.All(candidates, candidate => Assert.DoesNotContain(Evaluate(facts, candidate).Proposed.Coupled!.Alternatives, p => p.Feasible));
         }
     }
 
@@ -183,7 +183,7 @@ public sealed class ForecastCoupledTests
         var facts = ConstructionReview();
         Assert.Equal(100, facts.WorkView!.Materials.Value[new("Rice")].Value); // Unselected sites do not reserve stock.
         var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
-        Assert.Contains(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
+        Assert.Contains(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class ForecastCoupledTests
             var facts = ConstructionReview(2, stock);
             var selected = facts.CoupledAlternatives!.Alternatives.Where(c => Original(c, "site-0-finish") || Original(c, "site-1-finish")).ToArray();
             var result = Evaluate(facts, selected).Proposed.Coupled!;
-            Assert.Equal(stock == 200, result.Alternatives.Any(p => p.Feasible == Known(true)));
+            Assert.Equal(stock == 200, result.Alternatives.Any(p => p.Feasible));
         }
     }
 
@@ -203,7 +203,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = ConstructionReview(reserved: 50);
         var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
-        Assert.DoesNotContain(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
+        Assert.DoesNotContain(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible);
     }
     /// <summary>A complete heat source in the shelter at (1, 1) with ample supply.</summary>
     internal static ThermalSource Heater(double heatPerTick, double target) =>
@@ -315,7 +315,7 @@ public sealed class ForecastCoupledTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1000.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var forecast = CoupledForecastKit.Forecast(request, [shelter]);
         Assert.False(forecast.Baseline.Coupled!.Alternatives.Single().Shelters.Single().IsProjected());
-        var projected = forecast.Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).Shelters.Single();
+        var projected = forecast.Proposed.Coupled!.Alternatives.First(p => p.Feasible).Shelters.Single();
         Assert.True(projected.Scheduled().CompleteAt >= 95);
         Assert.Equal(-10, projected.Projected().Trajectory[0].Temperature);
         Assert.True(projected.Projected().TemperatureAtHorizon > 16);
@@ -345,7 +345,7 @@ public sealed class ForecastCoupledTests
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
         var firstMeal = generated.Context.NeedTasks.First(n => n.FoodReady == batch.ActivityCompletions[0]);
         var meal = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(firstMeal.Task));
-        var result = Evaluate(facts, batch, meal).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
+        var result = Evaluate(facts, batch, meal).Proposed.Coupled!.Alternatives.Where(p => p.Feasible).ToArray();
         Assert.NotEmpty(result);
         Assert.All(result, p => Assert.Equal(1, ForecastActivities.StockChangesOf(generated.Context.Activities, p.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units)));
         var secondRecipe = generated.Context.Activities.Activities.Single(t => t.Id == batch.ActivityCompletions[1]).Prerequisites
@@ -425,7 +425,7 @@ public sealed class ForecastCoupledTests
             }
         };
         facts = facts with { CoupledAlternatives = generated };
-        ForecastCoupledOutcome Outcome(params ForecastCommitment[] c) => Evaluate(facts, c).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+        ForecastCoupledOutcome Outcome(params ForecastCommitment[] c) => Evaluate(facts, c).Proposed.Coupled!.Alternatives.First(p => p.Feasible);
         var outdoor = generated.Alternatives.Where(c => c.ActivityCompletions.Count > 0).Select(c => (Commitment: c, Outcome: Outcome(c)))
             .First(p => p.Outcome.ThermalExposure.Single().AssessedTicks > 0);
         // A labor-free outfit change applies from the forecast start, so it covers the outdoor work.
@@ -452,7 +452,7 @@ public sealed class ForecastCoupledTests
         Assert.NotEmpty(alternatives);
         Assert.All(alternatives, p =>
         {
-            Assert.Equal(Known(false), p.Feasible);
+            Assert.False(p.Feasible);
             Assert.True(p.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value <= .1);
         });
     }
@@ -467,7 +467,7 @@ public sealed class ForecastCoupledTests
         var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [held]);
-        Assert.DoesNotContain(CoupledForecastKit.Forecast(request, [wall], [held.Id]).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
+        Assert.DoesNotContain(CoupledForecastKit.Forecast(request, [wall], [held.Id]).Proposed.Coupled!.Alternatives, p => p.Feasible);
     }
 
     [Theory]
@@ -551,7 +551,7 @@ public sealed class ForecastCoupledTests
                 var garment = generated.Alternatives.First(c => c.ActivityCompletions.Count == 1 && generated.Context.Activities.Activities
                     .Single(t => t.Id == c.ActivityCompletions[0]).Prerequisites.Contains(recipe.Id));
                 Assert.Equal(stuff, Assert.Single(Assert.Single(garment.OutfitChanges, o => o.Overlay).Items).Stuff.Value);
-                Assert.Equal(stuff == "Cloth" || rice == 110, Evaluate(facts, wall, garment).Proposed.Coupled!.Alternatives.Any(p => p.Feasible == Known(true)));
+                Assert.Equal(stuff == "Cloth" || rice == 110, Evaluate(facts, wall, garment).Proposed.Coupled!.Alternatives.Any(p => p.Feasible));
             }
         }
     }
@@ -591,7 +591,7 @@ public sealed class ForecastCoupledTests
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var batch = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && !c.Id.Contains("/eat/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
-        var feasible = Evaluate(facts, batch).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
+        var feasible = Evaluate(facts, batch).Proposed.Coupled!.Alternatives.Where(p => p.Feasible).ToArray();
         Assert.NotEmpty(feasible);
         var cheapest = feasible.OrderBy(p => p.Plan.LaborCost).First();
         Assert.Equal(helperSupplies, cheapest.Plan.Allocations.Single(a => a.Activity.Contains("/supply/", StringComparison.Ordinal)).Pawn == "helper");
@@ -623,7 +623,7 @@ public sealed class ForecastCoupledTests
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
-        var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible == Known(true));
+        var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible);
         Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget.IsKnown);
         Assert.Contains(result.Plan.Allocations, a => a.Activity == wall.ActivityCompletions[0]);
     }
@@ -642,7 +642,7 @@ public sealed class ForecastCoupledTests
         var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [legacy]);
         var result = CoupledForecastKit.Forecast(request, [wall]).Proposed.Coupled!;
-        Assert.Equal(fits, result.Alternatives.Any(p => p.Feasible == Known(true)));
+        Assert.Equal(fits, result.Alternatives.Any(p => p.Feasible));
         if (fits) Assert.All(result.Alternatives, p => Assert.DoesNotContain(p.Findings, f => f.Reason == "stock_shortfall"));
     }
 
@@ -655,7 +655,7 @@ public sealed class ForecastCoupledTests
             [new("external", [new(new("Rice"), 0.0, 100.0)])]);
         var result = CoupledForecastKit.Forecast(request).Proposed.Coupled!.Alternatives;
         Assert.All(result, p => Assert.Empty(p.Plan.Allocations));
-        Assert.All(result, p => Assert.Equal(100, Assert.Single(p.Terminal!.Lots, l => l.Resource == new Resource("Rice")).Count.Value));
+        Assert.All(result, p => Assert.Equal(100, Assert.Single(p.Terminal!.Lots, l => l.Resource == new Resource("Rice")).Count));
     }
     [Fact]
     public void OmittedSheltersRemainVisibleAsGenerationAndScenarioTruncation()
@@ -688,7 +688,7 @@ public sealed class ForecastCoupledTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [new("external", [new(new("Rice"), 20.0 / GameTime.TicksPerDay, -10.0)])]);
         var result = CoupledForecastKit.Forecast(request).Proposed.Coupled!.Alternatives.Single();
-        Assert.Equal(Known(false), result.Feasible);
+        Assert.False(result.Feasible);
         Assert.Contains(result.Findings, f => f.Reason == "observed_lot_expired");
         Assert.Contains(result.Findings, f => f.Reason == "external_stock_shortfall");
     }

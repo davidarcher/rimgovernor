@@ -17,8 +17,10 @@ public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, str
     public int MaxPawns { get; init; } = 1;
     public string FreshFrom { get; init; } = "";
 }
-public sealed record ForecastMaterialLot(string Lot, string Location, Resource Resource, Fact<double> Count)
-{ public bool Perishable { get; init; } public Fact<double> FreshTicks { get; init; } }
+/// <summary>A physical lot the forecast starts with. <see cref="Freshness"/> is how long it keeps from the forecast start: it
+/// rots, or it never does.</summary>
+public sealed record ForecastMaterialLot(string Lot, string Location, Resource Resource, double Count)
+{ public FoodFreshness Freshness { get; init; } = new FoodFreshness.Never(); }
 /// <summary>
 /// One planned site's generated work (#3276): the composed activities it was realized as (deliveries, clearing and its
 /// finish) and the finish realizations among them. Stuff is a ring site's stuff, empty for any other site. The
@@ -212,7 +214,17 @@ public sealed record ForecastCoupledContext
     /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>
     public bool MoodTrajectory { get; init; }
 }
-public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool> Feasible,
+/// <summary>One number the forecast ranks or explains an outcome by: the value it assessed, or the reason it could not
+/// (the finding or unread input that names why).</summary>
+public abstract record ForecastTerm
+{
+    private ForecastTerm() { }
+    public sealed record Assessed(double Value) : ForecastTerm;
+    public sealed record Unassessed(string Reason) : ForecastTerm;
+}
+/// <summary><see cref="Feasible"/> is whether every activity of the schedule completes: an unread fact that settles one refuses it
+/// with a finding that names the fact, so an infeasible outcome always says why.</summary>
+public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, bool Feasible,
     IReadOnlyDictionary<string, ForecastNeedsResult> Needs,
     EquatableArray<ForecastFinding> Findings)
 {
@@ -230,9 +242,9 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     /// room's per-cell roof as its <see cref="ForecastPlannedSite.RoofUnit"/>. One unit each of requested development, except a
     /// planned room's unit (PlannedRoomCredits.PlannedUnits, #3828), which the ranking does not count: a room wins on the ledger only.</summary>
     public EquatableArray<string> RequestedDevelopment { get; init; }
-    /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
-    /// Unobserved transit/idle receive no benefit.</summary>
-    public Fact<double> StationaryThermalRelief { get; init; }
+    /// <summary>Assessed stationary-location exposure avoided relative to the same occupancy without proposed room changes.
+    /// Unobserved transit/idle receive no benefit. Unassessed when the need services' exposure was not assessed in full.</summary>
+    public ForecastTerm StationaryThermalRelief { get; init; } = new ForecastTerm.Unassessed("thermal_relief_not_evaluated");
     public string ThermalOccupancy { get; init; } = "";
     public ForecastSupportConsequences Support { get; init; } = new();
     /// <summary>When each commitment with activities and outfit changes took effect (#3621); the harm term prices its outfit from then.</summary>
@@ -341,8 +353,7 @@ public static partial class ForecastCoupled
         {
             var output = problem.Activities.SelectMany(t => t.Outputs).Where(o => o.Lot == input.Key.Lot && o.Resource == input.Key.Resource).ToArray();
             var observed = context.InitialLots.Where(l => l.Lot == input.Key.Lot && l.Resource == input.Key.Resource).ToArray();
-            if (observed.Any(l => !l.Count.IsKnown)) continue;
-            if (input.Sum(i => i.Units) > output.Sum(o => o.Units) + observed.Sum(l => l.Count.Value))
+            if (input.Sum(i => i.Units) > output.Sum(o => o.Units) + observed.Sum(l => l.Count))
                 return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }
@@ -376,7 +387,7 @@ public static partial class ForecastCoupled
             // The assignment search is bounded and tries the cheapest pawn first, so every plan it reaches can hand the same work to a pawn the
             // needs timeline then shows cannot do it. When that leaves nothing feasible, search again without those pawn choices.
             var retried = problem;
-            for (var round = 0; round < 2 && !exhausted && results.All(r => r.Feasible != Known(true)); round++)
+            for (var round = 0; round < 2 && !exhausted && results.All(r => !r.Feasible); round++)
             {
                 var barred = results.SelectMany(r => r.Findings.Where(f => f.Reason == "work_outside_recovered_capacity")
                     .SelectMany(f => r.Plan.Allocations.Where(a => a.Activity == f.Commitment).Select(a => (a.Activity, a.Pawn)))).ToHashSet();

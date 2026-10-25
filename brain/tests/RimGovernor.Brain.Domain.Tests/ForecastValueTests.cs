@@ -39,7 +39,7 @@ public sealed class ForecastValueTests
 
     // By default the pawn's whole day is assessed with no span outside its comfort range, so the thermal term is a known 0.
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs, double poisonCases = 0, ForecastThermalExposure? exposure = null) =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
         { Support = new() { FoodPoisonExposure = poisonCases }, ThermalExposure = [exposure ?? new("pawn", Day, 0, 0, 0)] };
 
     private static HediffPenaltyTable Malnutrition(params PenaltyStage[] stages) => new()
@@ -691,8 +691,8 @@ public sealed class ForecastValueTests
         var context = HarmContext(Devilstrand);
         var reference = Outcome(Calm());
 
-        var same = ForecastValue.Explain(reference, Known(0d), context, Day, reference);
-        var stripped = ForecastValue.Explain(reference, Known(0d), context, Day, reference, [Wears([])]);
+        var same = ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), context, Day, reference);
+        var stripped = ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), context, Day, reference, [Wears([])]);
 
         Assert.True(same.Death.Assessed);
         Assert.True(same.Death.Passed);
@@ -707,7 +707,7 @@ public sealed class ForecastValueTests
         var context = HarmContext(Cloth, RaidDay(Exposure(trials: 5)));
         var reference = Outcome(Calm());
 
-        var explained = ForecastValue.Explain(reference, Known(0d), context, Day, reference);
+        var explained = ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), context, Day, reference);
 
         Assert.False(explained.Death.Assessed);
         Assert.True(explained.Death.Passed);
@@ -728,7 +728,7 @@ public sealed class ForecastValueTests
     {
         var context = Context(Pawn());
         var reference = Outcome(Calm());
-        var staged = ForecastValue.Stage(Outcome(Starving(4000)), Known(4000d), context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day), null);
+        var staged = ForecastValue.Stage(Outcome(Starving(4000)), new ForecastTerm.Assessed(4000d), context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day), null);
 
         Assert.False(staged.LedgerPriced);
         Assert.Equal(new ForecastFloor(true, 4000), staged.UrgentZero);
@@ -736,7 +736,7 @@ public sealed class ForecastValueTests
         Assert.True(staged.Death.Assessed);
         Assert.Empty(staged.GoalContributions);
 
-        Assert.Equal(ForecastValue.Explain(Outcome(Starving(4000)), Known(4000d), context, Day, reference), staged.Explanation);
+        Assert.Equal(ForecastValue.Explain(Outcome(Starving(4000)), new ForecastTerm.Assessed(4000d), context, Day, reference), staged.Explanation);
         Assert.True(staged.LedgerPriced);
         Assert.Equal(ForecastValue.Of(Outcome(Starving(4000)), context, Day, reference), staged.Explanation.Ledger);
     }
@@ -772,7 +772,7 @@ public sealed class ForecastValueTests
         var reference = Outcome(Calm());
         var worn = Staged(reference, harmContext, reference);
         var stripped = Staged(reference, harmContext, reference, Wears([]));
-        Assert.Equal(ForecastValue.Explain(reference, Known(0d), harmContext, Day, reference, [Wears([])]).Death, stripped.Death);
+        Assert.Equal(ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), harmContext, Day, reference, [Wears([])]).Death, stripped.Death);
         Assert.True(stripped.Death.Excess > 0, "stripped death excess " + stripped.Death);
         Assert.True(ForecastCoupledSelection.CompareConsequences(stripped, worn, out var stage) > 0, "stripped against worn at " + stage);
         Assert.Equal(ForecastCoupledSelection.DeathFloorStage, stage);

@@ -36,7 +36,7 @@ public sealed class ForecastObservedMealTests
     public void OrdinarySelectorUsesTwoObservedMealsAtDifferentTimesWithoutProducingMoreFood()
     {
         var result = Select(2, Day + 1);
-        Assert.Equal(Known(true), result.Selected.Feasible);
+        Assert.True(result.Selected.Feasible);
         Assert.Equal(2, result.Selected.Plan.Allocations.Length);
         var meals = result.Selected.Plan.Allocations.OrderBy(a => a.Start).ToArray();
         Assert.True(meals[1].Start > meals[0].End + 10000);
@@ -52,7 +52,7 @@ public sealed class ForecastObservedMealTests
     public void InsufficientOrExpiredObservedStockCannotFinanceRepeatedRecovery(int count, double expiry)
     {
         var result = Select(count, expiry);
-        Assert.Equal(Known(true), result.Selected.Feasible);
+        Assert.True(result.Selected.Feasible);
         Assert.True(result.Selected.Plan.Allocations.Length <= count);
         Assert.True(result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Value > 0);
         Assert.All(result.Selected.Plan.Allocations, meal => Assert.True(meal.End <= expiry));

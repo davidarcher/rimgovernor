@@ -1,10 +1,19 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>What a schedule's bills may draw: the free units per material after the native holds, the standing promises and the
+/// construction owed, or the reason the budget could not be read (the census, a standing owed, a promise or a hold was not).</summary>
+internal abstract record MaterialBudget
+{
+    private MaterialBudget() { }
+    internal sealed record Read(IReadOnlyDictionary<Resource, double> Free) : MaterialBudget;
+    internal sealed record Unread(string Reason) : MaterialBudget;
+}
+
 public static class ForecastCoupledMaterials
 {
     /// <summary>The shared owner's holds before any schedule's bills: held promises by id, the protected materials, and
-    /// the construction owed. Null when the evidence is unknown.</summary>
-    internal sealed record MaterialHolds(Dictionary<string, ForecastCommitment> Held, IReadOnlyDictionary<Resource, Fact<double>> Protected,
+    /// the construction owed. Null when the evidence is unread.</summary>
+    internal sealed record MaterialHolds(Dictionary<string, ForecastCommitment> Held, IReadOnlyDictionary<Resource, double> Protected,
         Dictionary<Resource, long> Owed);
 
     internal static MaterialHolds? MaterialHoldsOf(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments)
@@ -32,29 +41,33 @@ public static class ForecastCoupledMaterials
             };
         }
         var protectedMaterials = ProductionRules.ProductionMaterialHoldsOf(Known(WorkRules.MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
-        return protectedMaterials.TryGetValue(out var holds) ? new(held, holds, owed) : null;
+        if (!protectedMaterials.TryGetValue(out var holds) || holds.Values.Any(h => !h.IsKnown)) return null;
+        return new(held, holds.ToDictionary(h => h.Key, h => h.Value.Value), owed);
     }
 
     /// <summary>Reproject the shared owner for this schedule, with optional sites and exact admitted work claims.
     /// Native reservations for unrelated bills are retained even when a proposed commitment is removed.</summary>
-    internal static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
+    internal static MaterialBudget CoupledMaterialBudgetOf(ColonyForecastRequest request,
         MaterialHolds? fixedHolds, IReadOnlyDictionary<string, ForecastActivity> tasks, ForecastActivityPlan plan)
     {
-        if (fixedHolds is not var (held, holds, owed)) return default;
+        if (fixedHolds is not var (held, holds, owed)) return new MaterialBudget.Unread("material_holds_unread");
         var context = request.Coupled!; var evidence = context.Resources.Evidence;
         var selected = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>().ToArray();
-        var adjusted = new Dictionary<Resource, Fact<double>>(holds);
+        var adjusted = new Dictionary<Resource, double>(holds);
         foreach (var bill in selected.Where(b => (b.Kind == PawnActivityKind.Recipe || b.Kind == PawnActivityKind.Work && b.Job == "DoBill")
             && b.Recipe is { Bill.Length: > 0 }).GroupBy(b => b.Recipe!.Bill))
             foreach (var resource in bill.SelectMany(b => tasks[b.Id].Inputs).GroupBy(i => i.Resource))
             {
                 var promised = held.Values.SelectMany(c => c.MaterialClaims).Where(c => c.Resource == resource.Key && c.ReservationBill == Known(bill.Key)).ToArray();
                 var native = evidence.Reservations.Where(r => r.Bill == bill.Key).SelectMany(r => r.Items).Where(i => i.Resource == resource.Key).Sum(i => (double)i.Count);
-                var before = adjusted.GetValueOrDefault(resource.Key, Known(0.0));
-                if (!before.IsKnown || promised.Any(p => !p.Units.IsKnown)) continue;
+                if (promised.Any(p => !p.Units.IsKnown)) continue;
                 var credit = Math.Min(resource.Sum(i => i.Units), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
-                adjusted[resource.Key] = Known(Math.Max(0, before.Value - credit));
+                adjusted[resource.Key] = Math.Max(0, adjusted.GetValueOrDefault(resource.Key) - credit);
             }
-        return ProductionRules.SharedMaterialBudgetOf(evidence.Stock, owed, Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));
+        var shared = ProductionRules.SharedMaterialBudgetOf(evidence.Stock, owed,
+            Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted.ToDictionary(p => p.Key, p => Known(p.Value))));
+        return shared.TryGetValue(out var free) && free.Values.All(v => v.IsKnown)
+            ? new MaterialBudget.Read(free.ToDictionary(p => p.Key, p => p.Value.Value))
+            : new MaterialBudget.Unread("material_budget_unread");
     }
 }

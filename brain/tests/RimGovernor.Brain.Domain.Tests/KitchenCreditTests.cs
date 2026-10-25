@@ -39,7 +39,7 @@ public sealed class KitchenCreditTests
         };
 
     private static ForecastCoupledOutcome Serving(int room, double poisonCases = 0) =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []),
         }, [])

@@ -180,7 +180,7 @@ public sealed class PlannedShelterTests
         Assert.True(barracks.CoupledAlternatives!.Context.Priced(1));
         var result = Select(barracks);
         Assert.True(result.Selection.Selected.Any(id => id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal)), Reasons(result));
-        Assert.Equal(Known(0d), result.Selected.StationaryThermalRelief);
+        Assert.Equal(new ForecastTerm.Assessed(0d), result.Selected.StationaryThermalRelief);
         Assert.DoesNotContain(result.Rejected, e => Room(e) && e.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
     }
 
@@ -242,7 +242,7 @@ public sealed class PlannedShelterTests
         Assert.DoesNotContain(candidates.Context.Activities.Activities, a => a.Id.StartsWith("roof/", StringComparison.Ordinal));
 
         var result = Select(facts);
-        Assert.True(result.Selected.StationaryThermalRelief.Value > 0, Why(facts, result));
+        Assert.True(result.Selected.StationaryThermalRelief.Number() > 0, Why(facts, result));
         var shelter = Assert.Single(result.Selected.Shelters);
         Assert.True(shelter.Scheduled().CompleteAt < Horizon, Why(facts, result));
         // The shell and roof are builder work in the same schedule as the pawn's rest.
@@ -271,7 +271,7 @@ public sealed class PlannedShelterTests
         // The whole-portfolio selection over every planned-site, room and rest root picks the complete shelter (#3334).
         var result = Select(facts);
         Assert.DoesNotContain("portfolio_search_truncated", result.Selection.Findings);
-        Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result)
+        Assert.True(result.Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 }, Why(facts, result)
             + " | SEL " + string.Join(",", result.Selection.Selected) + " | " + string.Join(",", result.Selected.Plan.Allocations.Select(a => a.Activity + "@" + a.Start + "-" + a.End)));
         // Its four completed sites are the planned room's, which count no development (#3828): the relief selects it.
         Assert.Equal(4, result.Selected.RequestedDevelopment.Count);
@@ -312,7 +312,7 @@ public sealed class PlannedShelterTests
         var result = Select(facts);
         var shelter = Assert.Single(result.Selected.Shelters);
         Assert.True(shelter.IsProjected(), Why(facts, result));
-        Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result));
+        Assert.True(result.Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 }, Why(facts, result));
         var row = Assert.Single(ForecastValue.Of(result.Selected, alternatives.Context, Horizon).InvestmentContributions, r => r.Key == "material/WoodLog");
         var units = burn * (Horizon - shelter.Scheduled().CompleteAt);
         Assert.Equal((CampfireSite, ""), (row.Activity, row.Pawn));
@@ -433,7 +433,7 @@ public sealed class PlannedShelterTests
         var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50, PlannedSiteVerdict.Unestimable)], unplaced: true);
         var plan = Assert.Single(facts.CoupledAlternatives!.Context.Shelters);
         Assert.Equal(["planned_heat_source_unvalued"], plan.Findings);
-        Assert.False(Select(facts).Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 });
+        Assert.False(Select(facts).Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 });
     }
 
     [Fact]
@@ -482,7 +482,7 @@ public sealed class PlannedShelterTests
         var plan = Assert.Single(facts.CoupledAlternatives!.Context.Shelters);
         Assert.Contains("planned_shell_unvalued", plan.Findings);
         Assert.DoesNotContain("unmodeled_shell_work", plan.Findings);
-        Assert.False(Select(facts).Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 });
+        Assert.False(Select(facts).Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 });
     }
 
     [Fact]
@@ -508,7 +508,7 @@ public sealed class PlannedShelterTests
         // room's one roof unit, so the shelter's wall, door and roof outrank the shell's two sites.
         var result = Select(facts);
         Assert.DoesNotContain("portfolio_search_truncated", result.Selection.Findings);
-        Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result)
+        Assert.True(result.Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 }, Why(facts, result)
             + " | SEL " + string.Join(",", result.Selection.Selected));
         Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
         Assert.True(Assert.Single(result.Selected.Shelters).Scheduled().CompleteAt < Horizon, Why(facts, result));

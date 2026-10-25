@@ -67,7 +67,7 @@ public sealed class CreepJoinerHarmTests
         return context with { Needs = context.Needs with { Pawns = [ForecastValueTests.HarmPawn(), cj ?? Cj] } };
     }
 
-    private static ForecastCoupledOutcome Outcome(NeedsForecastPawn? cj = null) => new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+    private static ForecastCoupledOutcome Outcome(NeedsForecastPawn? cj = null) => new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
     {
         ["pawn"] = ForecastValueTests.Timeline(ForecastValueTests.HarmPawn()), // The needs result is keyed by pawn; its own identity is the fixture pawn's.
         ["cj"] = ForecastValueTests.Timeline(ForecastValueTests.HarmPawn()),

@@ -35,10 +35,10 @@ public abstract record CareRoomRead
 public static class ForecastSupport
 {
     internal static ForecastSupportConsequences ForecastSupportConsequencesOf(ForecastCoupledContext context,
-        ForecastActivityPlan plan, IReadOnlyDictionary<string, Fact<bool>> completed, double horizon)
+        ForecastActivityPlan plan, IReadOnlyDictionary<string, bool> completed, double horizon)
     {
         var read = context.Support;
-        var tasks = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true))
+        var tasks = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity))
             .Select(a => (Allocation: a, Binding: context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))))
             .Where(p => p.Binding is not null).Select(p => (p.Allocation, Binding: p.Binding!)).ToArray();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);

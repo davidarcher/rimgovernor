@@ -184,12 +184,12 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
 
         ForecastValueResult Ledger(double researchTicks) => ForecastValue.Of(
             new(new(researchTicks == 0 ? Array.Empty<ForecastActivityAllocation>() : [new("research/Anna/bench", "Anna", 0, 0, 0, researchTicks, 0, 0, researchTicks, 0, 0)], researchTicks, 0),
-                Known(true), new Dictionary<string, ForecastNeedsResult>(), []),
-            context, GameTime.TicksPerDay, new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
+                true, new Dictionary<string, ForecastNeedsResult>(), []),
+            context, GameTime.TicksPerDay, new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
 
         ForecastConsequenceVector Vector(ForecastValueResult ledger, double foodExcess) => new(
-            EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
-            Known(0d), Known(0d), 0, 0, [])
+            EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
+            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, 0, [])
         { Value = new(ledger, new()) { UrgentZero = new(true, foodExcess) } };
 
         var research = Ledger(Hour);

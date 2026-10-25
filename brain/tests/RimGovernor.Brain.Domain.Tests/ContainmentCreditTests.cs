@@ -39,7 +39,7 @@ public sealed class ContainmentCreditTests
         };
 
     private static ForecastCoupledOutcome Outcome() =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = ForecastValueTests.Timeline(ForecastValueTests.HarmPawn()) }, []);
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult> { ["pawn"] = ForecastValueTests.Timeline(ForecastValueTests.HarmPawn()) }, []);
 
     private static readonly ForecastRoomService Cell = new(1, "", 0);
 

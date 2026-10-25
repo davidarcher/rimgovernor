@@ -51,7 +51,7 @@ public sealed class IsolationCreditTests
 
     private static CreepJoinerForecast Held(double days = 2, bool agony = true) => new() { Unread = "", Held = [new HeldCreepJoiner("cj", days)], Table = Table(agony) };
 
-    private static ForecastCoupledOutcome Outcome() => new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
+    private static ForecastCoupledOutcome Outcome() => new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []);
 
     private static readonly ForecastRoomService Room = new(1, "", 0);
 

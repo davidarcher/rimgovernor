@@ -133,9 +133,14 @@ rate over the piecewise-linear target trajectory, cut at the tier thresholds. Th
 2,000-tick wait below a threshold before a break can fire and the break's own
 duration are not modelled. Actual mood and layout's work-day/watt price are not used.
 
-`ForecastConsequenceVector.BreakRisk` sums the pawns' risk and is known only when
-every pawn's threshold and mood are assessed; otherwise the vector keeps
-`mental_break_probability_unassessed`. The ranking no longer reads it, nor the raw
+The vector's terms (`Urgent`, `Needs`, `MoodExposure`, `MoodDepth`, `BreakRisk`) are each a
+`ForecastTerm`, `Assessed(value)` or `Unassessed(reason)`. `ForecastConsequenceVector.BreakRisk`
+sums the pawns' risk and is assessed only when every pawn's threshold and mood are;
+otherwise it is `Unassessed("mental_break_probability_unassessed")`. A coupled outcome's
+`Feasible` is a plain bool: an unread fact that settles a schedule refuses it with a named
+finding (`material_holds_unread` or `material_budget_unread` (a timed task with inputs), `unread_food_access_or_expiry`, `unread_future_capacity`,
+`unscheduled_prerequisite`, `food_consumer_rate_unread`), so there is no uncertain
+feasibility. `StationaryThermalRelief` is a `ForecastTerm` too. The ranking no longer reads it, nor the raw
 target exposure and pressure, directly. The ledger's `MoodBreaks` term prices the risk
 in capability-days (expected breaks times the days a break costs), so mood far above
 every threshold has no comparator value, and a pawn whose threshold is unobserved

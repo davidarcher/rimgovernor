@@ -538,7 +538,7 @@ public static partial class ForecastValue
     }
 
     /// <summary>The ledger and the floors of one outcome, as the comparison reads them (#3522), priced at once. Wellbeing is against <paramref name="reference"/>, the same for every outcome of a search.</summary>
-    public static ForecastValueExplanation Explain(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context,
+    public static ForecastValueExplanation Explain(ForecastCoupledOutcome outcome, ForecastTerm urgentZeroTicks, ForecastCoupledContext context,
         double horizon, ForecastCoupledOutcome reference, IEnumerable<ForecastCommitment>? commitments = null)
         => Stage(outcome, urgentZeroTicks, context, horizon, reference, ReferenceHarm(reference, context, horizon), commitments).Explanation;
 
@@ -551,7 +551,7 @@ public static partial class ForecastValue
     }
 
     /// <summary>One outcome's value in the comparison's order (#3723): the floors and what they need now, the rest of the ledger when it is read.</summary>
-    internal static Staged Stage(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context, double horizon,
+    internal static Staged Stage(ForecastCoupledOutcome outcome, ForecastTerm urgentZeroTicks, ForecastCoupledContext context, double horizon,
         ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
         => new(outcome, urgentZeroTicks, context, horizon, reference, referenceHarm, commitments);
 
@@ -575,7 +575,7 @@ public static partial class ForecastValue
         private readonly IEnumerable<ForecastCommitment>? commitments;
         private ForecastValueExplanation? explanation;
 
-        internal Staged(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context, double horizon,
+        internal Staged(ForecastCoupledOutcome outcome, ForecastTerm urgentZeroTicks, ForecastCoupledContext context, double horizon,
             ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
         {
             this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference; this.commitments = commitments;
@@ -591,7 +591,7 @@ public static partial class ForecastValue
             }
             harm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments, index.Illness);
             contributions = GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []);
-            UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0);
+            UrgentZero = urgentZeroTicks is ForecastTerm.Assessed(var urgentZero) ? new(true, Math.Max(0, urgentZero)) : new(false, 0);
             BreakRisk = new(assessed, worst);
             // The death floor: expected deaths a day above the reference's (worn outfits, its own care), beyond what the policy allows.
             Death = harm.Detail is { } detail && referenceHarm is { } before

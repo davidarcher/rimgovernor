@@ -1,8 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>Whether a surviving lot feeds the modeled pawns: some pawn may eat it, none may, or it is edible and no pawn's food use
+/// was observed for it, so which eats it is not read. A lot of the last kind carries <see cref="ForecastTerminalLot.FreshUntil"/>
+/// of never; nothing reads it.</summary>
+public enum FoodEligibility { Eligible, Ineligible, NoObservedUse }
+
 /// <summary>A surviving lot from the detailed evaluator, with the native census eligibility kept beside its balance.</summary>
-public sealed record ForecastTerminalLot(string Id, Resource Resource, Fact<double> Count, Fact<double> FreshUntil,
-    Fact<bool> FoodEligible, Fact<double> NutritionPerUnit, EquatableArray<PawnId> Eaters, bool Medicine);
+public sealed record ForecastTerminalLot(string Id, Resource Resource, double Count, double FreshUntil,
+    FoodEligibility FoodEligible, double NutritionPerUnit, EquatableArray<PawnId> Eaters, bool Medicine);
 
 public static class ForecastStockScope
 {
@@ -41,10 +46,9 @@ public static class ForecastStockScope
         double count = 0;
         foreach (var lot in lots.Where(l => l.Resource == resource))
         {
-            if (!lot.FoodEligible.IsKnown) return default;
-            if (!lot.FoodEligible.Value) continue;
-            if (!lot.Count.IsKnown || !lot.FreshUntil.IsKnown) return default;
-            count += lot.Count.Value;
+            if (lot.FoodEligible is FoodEligibility.NoObservedUse) return default;
+            if (lot.FoodEligible is FoodEligibility.Ineligible) continue;
+            count += lot.Count;
         }
         return Known(count);
     }

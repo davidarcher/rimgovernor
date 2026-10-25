@@ -28,7 +28,7 @@ public sealed class GoalValueTests
 
     private static ForecastCoupledOutcome Outcome(double researchTicks) =>
         new(new(researchTicks == 0 ? Array.Empty<ForecastActivityAllocation>() : [new("research/pawn/bench", "pawn", 0, 0, 0, researchTicks, 0, 0, researchTicks, 0, 0)], researchTicks, 0),
-            Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
+            true, new Dictionary<string, ForecastNeedsResult>(), []);
 
     private static ForecastValueResult Ledger(ForecastCoupledContext context, double researchTicks) =>
         ForecastValue.Of(Outcome(researchTicks), context, GameTime.TicksPerDay, Outcome(0));
@@ -68,8 +68,8 @@ public sealed class GoalValueTests
         // Mood-days gained at the default wellbeing weight: 0.4 capability-days, between Low (0.25 for the hour) and High (4).
         var wellbeing = new ForecastValuePolicy().WellbeingWeight * 4;
         ForecastConsequenceVector Vector(ForecastValueResult goals, double wellbeingLoss) => new(
-            EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
-            Known(0d), Known(0d), 0, 0, [])
+            EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
+            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, 0, [])
         { Value = new(goals with { Wellbeing = new LedgerTerm.Priced(wellbeingLoss) }, new()) };
 
         var high = Vector(Ledger(Context(Importance.High), Hour), 0);

@@ -26,12 +26,12 @@ public sealed record ForecastHandoff(double Day, double EndDay, ColonyModelState
 public sealed class ForecastTerminalAccounting
 {
     internal ForecastTerminalAccounting(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments,
-        IReadOnlyDictionary<Resource, Fact<double>> stocks, IReadOnlyDictionary<string, double> finished,
+        IReadOnlyDictionary<Resource, double> stocks, IReadOnlyDictionary<string, double> finished,
         ForecastCoupledMaterials.MaterialHolds? holds)
     { Request = request; Commitments = commitments; Stocks = stocks; Finished = finished; Holds = holds; }
     internal ColonyForecastRequest Request { get; }
     internal IReadOnlyDictionary<string, ForecastCommitment> Commitments { get; }
-    internal IReadOnlyDictionary<Resource, Fact<double>> Stocks { get; }
+    internal IReadOnlyDictionary<Resource, double> Stocks { get; }
     internal IReadOnlyDictionary<string, double> Finished { get; }
     internal ForecastCoupledMaterials.MaterialHolds? Holds { get; }
     public EquatableArray<ForecastTerminalLot> Lots { get; init; }
@@ -47,7 +47,7 @@ public static class ForecastHandoffPolicy
         ? Project(t.Request, t.Commitments, outcome, t.Stocks, t.Finished, t.Holds, t) : null;
 
     internal static ForecastHandoff Project(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments,
-        ForecastCoupledOutcome outcome, IReadOnlyDictionary<Resource, Fact<double>> physical,
+        ForecastCoupledOutcome outcome, IReadOnlyDictionary<Resource, double> physical,
         IReadOnlyDictionary<string, double> finished, ForecastCoupledMaterials.MaterialHolds? holds, ForecastTerminalAccounting terminal)
     {
         var context = request.Coupled!;
@@ -63,14 +63,14 @@ public static class ForecastHandoffPolicy
         foreach (var pawn in basis.Input.Pawns)
             foreach (var need in pawn.Needs)
                 if (!needs.Any(n => n.Pawn == pawn.Pawn && n.Kind == need.Kind)) gaps.Add($"terminal_need_missing:{pawn.Pawn}:{need.Kind}");
-        if (outcome.Feasible != Known(true)) gaps.Add("terminal_schedule_not_known_feasible");
+        if (!outcome.Feasible) gaps.Add("terminal_schedule_infeasible");
         foreach (var c in commitments.Values)
         {
             foreach (var unsupported in c.UnsupportedEffects) gaps.Add("terminal_unsupported:" + unsupported);
         }
 
-        var stocks = physical.Where(p => p.Value.IsKnown).Select(p => new ModelResourceStock(p.Key, p.Value.Value)).ToArray();
-        var stockKnown = terminal.PhysicalCensusComplete && request.Facts.Stock.IsKnown && physical.All(p => p.Value.IsKnown && p.Value.Value >= 0);
+        var stocks = physical.Select(p => new ModelResourceStock(p.Key, p.Value)).ToArray();
+        var stockKnown = terminal.PhysicalCensusComplete && request.Facts.Stock.IsKnown && physical.All(p => p.Value >= 0);
         if (!SameStocks(request.Facts.Stock, basis.Input.Stocks.Materials))
         { stockKnown = false; gaps.Add("terminal_material_census_scope_mismatch"); }
         if (!stockKnown) gaps.Add("terminal_stock_unknown");
@@ -82,8 +82,7 @@ public static class ForecastHandoffPolicy
             var medicineLots = terminal.Lots.Where(l => l.Medicine).ToArray();
             foreach (var group in medicineLots.GroupBy(l => l.Resource).OrderByDescending(g => request.Facts.Items.MedicalPotency.GetValueOrDefault(g.Key)).ThenBy(g => g.Key))
             {
-                if (group.Any(l => !l.Count.IsKnown || !l.FreshUntil.IsKnown)) break;
-                result.Add(new(group.Key, group.Sum(l => l.Count.Value)));
+                result.Add(new(group.Key, group.Sum(l => l.Count)));
             }
             if (result.Count == medicineLots.Select(l => l.Resource).Distinct().Count()) medicine = EquatableArray.From(result);
         }
@@ -96,13 +95,12 @@ public static class ForecastHandoffPolicy
         dates.AddRange(projected.Completed);
         EquatableArray<ModelResourceStock>? external = null;
         var budget = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, holds, tasks, outcome.Plan);
-        if (holds is not null && budget.TryGetValue(out var available) && request.Facts.Stock.TryGetValue(out var initial))
+        if (holds is not null && budget is MaterialBudget.Read(var available) && request.Facts.Stock.TryGetValue(out var initial))
         {
             var reserved = new List<ModelResourceStock>();
             foreach (var resource in initial.Select(s => s.Resource).Concat(available.Keys).Distinct())
             {
-                if (!available.GetValueOrDefault(resource, Known(0.0)).TryGetValue(out var free))
-                { gaps.Add("terminal_hold_unknown:" + resource); continue; }
+                var free = available.GetValueOrDefault(resource);
                 var count = Math.Max(0, initial.Where(s => s.Resource == resource).Sum(s => (double)s.Count) - free);
                 // Deliveries pay the shared construction demand; unrelated reservations remain protected.
                 var delivered = outcome.Plan.Allocations.Where(a => finished.ContainsKey(a.Activity)
@@ -160,11 +158,12 @@ public static class ForecastHandoffPolicy
         double total = 0;
         foreach (var lot in terminal.Lots)
         {
-            if (!lot.FoodEligible.IsKnown) { gaps.Add("terminal_food_eligibility_unknown:" + lot.Id); return null; }
-            if (!lot.FoodEligible.Value) continue;
-            if (!lot.Count.IsKnown || !lot.NutritionPerUnit.IsKnown || !lot.FreshUntil.IsKnown)
-            { gaps.Add("terminal_food_lot_unknown:" + lot.Id); return null; }
-            total += lot.Count.Value * lot.NutritionPerUnit.Value;
+            switch (lot.FoodEligible)
+            {
+                case FoodEligibility.NoObservedUse: gaps.Add("terminal_food_eligibility_unknown:" + lot.Id); return default;
+                case FoodEligibility.Eligible: total += lot.Count * lot.NutritionPerUnit; break;
+                case FoodEligibility.Ineligible: break;
+            }
         }
         return total;
     }

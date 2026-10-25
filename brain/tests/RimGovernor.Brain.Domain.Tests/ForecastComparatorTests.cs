@@ -23,8 +23,8 @@ public sealed class ForecastComparatorTests
         {
             UrgentZero = new(true, zeroExcess), BreakRisk = new(breakAssessed, breakExcess), Death = new(deathExcess > 0, deathExcess),
         };
-        return new(EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
-            Known(0d), Known(0d), development, labor, []) { Value = value };
+        return new(EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
+            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), development, labor, []) { Value = value };
     }
 
     [Fact]

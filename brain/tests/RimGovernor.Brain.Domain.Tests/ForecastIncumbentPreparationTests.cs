@@ -226,7 +226,7 @@ public sealed class ForecastIncumbentPreparationTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
             prepared,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
-        Assert.Equal(Known(true), selected.Baseline.Feasible);
+        Assert.True(selected.Baseline.Feasible);
         Assert.DoesNotContain(incumbent.Commitment, selected.Selection.Selected);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Activity.Contains("/eat/", StringComparison.Ordinal));
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value);

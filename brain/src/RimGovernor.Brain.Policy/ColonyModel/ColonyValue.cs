@@ -404,7 +404,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         {
             var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = TendCare, TendQuality = quality };
             var needs = rows.Keys.ToDictionary(p => p, _ => NoNeeds, StringComparer.Ordinal);
-            var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), needs, []) { Support = support };
+            var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, needs, []) { Support = support };
             tendedHarm[(quality, shift)] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness, shift);
         }
 
@@ -649,7 +649,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             return known;
         }
 
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { [pawn] = NoNeeds }, []);
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult> { [pawn] = NoNeeds }, []);
         return losses[(pawn, outfit)] = HarmLedger.Of(outcome, context, GameTime.TicksPerDay, harmCache, rows,
             [new ForecastCommitment("apparel", default) { OutfitChanges = [new(pawn, outfit)] }], dailyIllness).Loss;
     }

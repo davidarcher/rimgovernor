@@ -68,24 +68,23 @@ public sealed class ColonyForecastTests
     }
 
     [Fact]
-    public void UnknownQuantityStartsAtItsEventAndUnsupportedWorkStaysExplicit()
+    public void ScheduleOwnOutputLandsAtItsEventAndUnsupportedWorkStaysExplicit()
     {
         var commitment = new ForecastCommitment("work", [])
         {
             UnsupportedEffects = EquatableArray.From(new List<string> { "work_completion" }),
         };
-        // A schedule's own output with an unread yield on day 2: a use before it is still certified; one after it is not.
+        // A schedule's own output of 4 on day 2: a use of 12 before it is short; one after it is covered.
         List<ForecastFinding> Walk(params ForecastCommitment[] commitments)
         {
             var findings = new List<ForecastFinding>();
             new ColonyForecastRules.InventoryWalk().Run(new(Stock, ColonyForecastRules.ForecastCommitmentsById(commitments), 3),
-                new[] { (Material, 2.0, Unknown<double>()) }, findings);
+                new[] { (Material, 2.0, 4.0) }, findings);
             return findings;
         }
         var before = Walk(Change("use", 1, -12), commitment);
         Assert.Equal("use", Assert.Single(before, f => f.Reason == "stock_shortfall").Commitment);
         Assert.Contains(before, f => f.Reason == "unsupported:work_completion");
-        Assert.Contains(before, f => f.Reason == "unknown_stock_effect");
         Assert.DoesNotContain(Walk(Change("use", 3, -12), commitment), f => f.Reason == "stock_shortfall");
     }
 }

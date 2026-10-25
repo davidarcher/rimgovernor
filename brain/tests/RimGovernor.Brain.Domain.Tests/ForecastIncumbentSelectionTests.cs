@@ -34,7 +34,7 @@ public sealed class ForecastIncumbentSelectionTests
                 Deadline = 300d, ExpansionBudget = 4096
             },
             Needs = original.Context.Needs with { Pawns = [pawn] },
-            InitialLots = [new("rice", "start", new("Rice"), Known(1d)) { Perishable = true, FreshTicks = Known(1000d) }],
+            InitialLots = [new("rice", "start", new("Rice"), 1d) { Freshness = new FoodFreshness.Rots(1000d) }],
             NeedTasks = [new("ongoing-joy", "pawn", "joy", "horseshoes", new(""), 0, .25, []),
                 new("meal", "pawn", "food", "rice", new("Rice"), 1, .8, [])
                 { Quantity = new TargetQuantity.Units(1) }],
@@ -100,7 +100,7 @@ public sealed class ForecastIncumbentSelectionTests
         // must still prevent a second owner, even when native participant capacity allows it.
         var forecast = CoupledForecastKit.Forecast(request with { Coupled = context,
             Commitments = candidates.Incumbents }, [helper]);
-        Assert.DoesNotContain(forecast.Proposed.Coupled!.Alternatives, a => a.Feasible == Known(true));
+        Assert.DoesNotContain(forecast.Proposed.Coupled!.Alternatives, a => a.Feasible);
         Assert.Contains(forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings),
             f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "horseshoes");
     }
@@ -132,8 +132,18 @@ public sealed class ForecastIncumbentSelectionTests
         };
         var forecast = CoupledForecastKit.Forecast(request with { Coupled = context, Commitments = candidates.Incumbents },
             [.. names.Select(n => new ForecastCommitment(n + "-joy", []) { ActivityCompletions = [n + "-joy"] })]);
-        anyFeasible = forecast.Proposed.Coupled!.Alternatives.Any(a => a.Feasible == Known(true));
+        anyFeasible = forecast.Proposed.Coupled!.Alternatives.Any(a => a.Feasible);
         return [.. forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings)];
+    }
+
+    [Fact]
+    public void AMealWhoseLotHoldsNothingIsNotSelected()
+    {
+        var (request, candidates) = Problem(1, 0, meal: true);
+        var context = candidates.Context with { InitialLots = [new("rice", "start", new("Rice"), 0d) { Freshness = new FoodFreshness.Rots(1000d) }] };
+        var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates with { Context = context });
+        Assert.DoesNotContain("eat", result.Selection.Selected);
+        Assert.DoesNotContain(result.Selected.Plan.Allocations, a => a.Activity == "meal");
     }
 
     [Theory]
@@ -159,7 +169,7 @@ public sealed class ForecastIncumbentSelectionTests
             Resources = view, Bindings = bindings,
             Needs = candidates.Context.Needs with { Pawns = [candidates.Context.Needs.Pawns[0] with { Targets = [rice] },
                 candidates.Context.Needs.Pawns[0] with { Pawn = "helper", Targets = [rice] }] },
-            InitialLots = [new("rice", "start", new("Rice"), Known(20d)) { Perishable = true, FreshTicks = Known(1000d) }],
+            InitialLots = [new("rice", "start", new("Rice"), 20d) { Freshness = new FoodFreshness.Rots(1000d) }],
             NeedTasks = [new("eat", "pawn", "food", "rice", new("Rice"), 2, .1, []) { Quantity = new TargetQuantity.Units(20), MaxPawns = 10 }],
             Activities = candidates.Context.Activities with
             {
@@ -173,12 +183,12 @@ public sealed class ForecastIncumbentSelectionTests
         var forecast = CoupledForecastKit.Forecast(request with { Coupled = context, Commitments = [] }, [both]);
         var outcomes = forecast.Proposed.Coupled!.Alternatives;
         var findings = string.Join(",", outcomes.SelectMany(a => a.Findings).Select(f => f.Reason + ":" + f.Commitment));
-        Assert.True(fits == outcomes.Any(a => a.Feasible == Known(true)), findings);
+        Assert.True(fits == outcomes.Any(a => a.Feasible), findings);
         Assert.True(!fits == findings.Contains("conflicting_selected_target_owners:rice", StringComparison.Ordinal), findings);
-        if (fits) Assert.Equal(eatStart, outcomes.First(a => a.Feasible == Known(true)).Plan.Allocations.Single(a => a.Activity == "eat").Depart);
+        if (fits) Assert.Equal(eatStart, outcomes.First(a => a.Feasible).Plan.Allocations.Single(a => a.Activity == "eat").Depart);
 
         // Admission of the selected schedule's haul and eat orders, or of both at once when nothing was selected.
-        var plan = fits ? outcomes.First(a => a.Feasible == Known(true)).Plan
+        var plan = fits ? outcomes.First(a => a.Feasible).Plan
             : new ForecastActivityPlan([new("haul", "helper", 0, 0, 0, 20, 0, 0, 20, 0, 0), new("eat", "pawn", 0, 0, 0, 20, 0, 0, 20, 0, 0)], 20, 40);
         plan = plan with { Allocations = plan.Allocations.Where(a => a.Activity != "work").ToArray() };
         var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(plan, bindings, 1, "coupled", 100);
@@ -222,12 +232,12 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var (request, candidates) = Problem(.1, .001);
         var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
-        Assert.Equal(Known(true), result.Baseline.Feasible);
+        Assert.True(result.Baseline.Feasible);
         Assert.Equal("ongoing-joy", Assert.Single(result.Baseline.Plan.Allocations).Activity);
         Assert.Contains("eat", result.Selection.Selected);
         Assert.DoesNotContain("current-joy", result.Selection.Selected);
         Assert.DoesNotContain(result.Selected.Plan.Allocations, a => a.Activity == "ongoing-joy");
-        Assert.True(result.SelectedVector.Urgent[0].Value < result.BaselineVector.Urgent[0].Value);
+        Assert.True(result.SelectedVector.Urgent[0].Number() < result.BaselineVector.Urgent[0].Number());
         Assert.Contains(result.Rejected, p => p.Commitments.Count == 0);
     }
 
@@ -338,7 +348,7 @@ public sealed class ForecastIncumbentSelectionTests
         Assert.True(free.Alternatives.Count == 2, why);
         var retried = Assert.Single(free.Alternatives, a => a.Findings.Any(f => f.Reason == "work_outside_recovered_capacity"));
         Assert.True(retried.Plan.Allocations.Length == 1 && retried.Plan.Allocations[0].Pawn == "helper", why);
-        var served = Assert.Single(free.Alternatives, a => a.Feasible == Known(true));
+        var served = Assert.Single(free.Alternatives, a => a.Feasible);
         Assert.True(served.Plan.Allocations.Length == 1 && served.Plan.Allocations[0].Pawn == "pawn", why);
         // Both schedule searches' expansions and both plans' evaluations are on the ledger, none of them as baseline work; the same
         // search spends the same units again. The two-expansion schedule searches are cut by their own bound; neither allowance ended.
@@ -360,7 +370,7 @@ public sealed class ForecastIncumbentSelectionTests
         Assert.Equal((1, bound), (one.Evaluations, one.Expansions));
         Assert.True(starved.Truncated);
         Assert.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted, starved.Findings);
-        Assert.DoesNotContain(starved.Alternatives, a => a.Feasible == Known(true));
+        Assert.DoesNotContain(starved.Alternatives, a => a.Feasible);
 
         // A traversal bound the first search spends: its plan is evaluated, the retry's schedule search gets no expansions and is not run.
         var cut = new ForecastSearchLedger(new(8, Traversal: bound));

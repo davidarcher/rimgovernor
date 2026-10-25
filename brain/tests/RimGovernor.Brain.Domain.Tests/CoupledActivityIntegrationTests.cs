@@ -24,7 +24,7 @@ public sealed class CoupledActivityIntegrationTests
         var findings = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
         var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
         Assert.NotEmpty(selection.Selection.Selected);
-        Assert.True(selection.SelectedVector.Urgent[0].Value < selection.BaselineVector.Urgent[0].Value);
+        Assert.True(selection.SelectedVector.Urgent[0].Number() < selection.BaselineVector.Urgent[0].Number());
         var batch = ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100);
         Assert.NotNull(batch);
         Assert.Equal(2, Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver).Step.Count);

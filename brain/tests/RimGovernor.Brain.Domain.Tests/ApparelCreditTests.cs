@@ -43,7 +43,7 @@ public sealed class ApparelCreditTests
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>; the garment delivered at <paramref name="at"/>.</summary>
     private static ForecastCoupledOutcome Delivering(double at, double shift) =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {

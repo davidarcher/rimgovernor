@@ -81,9 +81,9 @@ public sealed partial record ForecastCoupledCandidates
         var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives,
             plannedFacts is null ? [] : plannedFacts.Routes, read.Thermal, resources,
             needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline);
-        ForecastMaterialLot Lot(string lot, string location, string resource, double count) => new(lot, location, new(resource), Known(count));
-        var fresh = (FoodFreshness f) => Known(Methods.Generation.FoodMethodCandidates.Keeps(f));
-        var lots = read.FoodSources.Select(o => Lot(o.Target, Location(o.Location), o.Resource, o.Count) with { Perishable = true, FreshTicks = fresh(o.FreshTicks) })
+        ForecastMaterialLot Lot(string lot, string location, string resource, double count) => new(lot, location, new(resource), count);
+
+        var lotGroups = read.FoodSources.Select(o => Lot(o.Target, Location(o.Location), o.Resource, o.Count) with { Freshness = o.FreshTicks })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => Lot(o.Input, Location(o.Origin), o.Resource, o.AvailableInput)))
     .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => Lot(i.Thing, Location(i.Location), i.Resource, i.AvailableCount)))
     .Concat(read.Support.Deliveries.Select(d => Lot(d.Target, Location(d.Source), d.Resource, d.Available)))
@@ -91,15 +91,20 @@ public sealed partial record ForecastCoupledCandidates
         .Select(m => Lot(m.Id, Location(m.Location), m.Resource, m.Available)))
     .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food")
         .Select(t => t.Stock is NeedStock.Stacked stacked
-            ? Lot(t.Id, Location(t.Location), t.Resource, stacked.Count) with { Perishable = true, FreshTicks = fresh(stacked.Freshness) }
+            ? Lot(t.Id, Location(t.Location), t.Resource, stacked.Count) with { Freshness = stacked.Freshness }
             : null).OfType<ForecastMaterialLot>())
-    .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToList();
+    .GroupBy(l => (l.Lot, l.Location, l.Resource)).ToList();
+        // Sources that count one lot differently leave it out: no schedule draws from a lot whose count is not read, and the
+        // finding names it.
+        var conflicting = lotGroups.Where(g => g.Select(l => l.Count).Distinct().Count() != 1).Select(g => g.Key.Lot).ToArray();
+        var lots = lotGroups.Where(g => g.Select(l => l.Count).Distinct().Count() == 1).Select(g => g.First()).ToList();
         // The frame is the forecast's start state (#3881): the planned-site read comes from a later native call, so a stack both
         // name can have moved in between. The frame's count wins; planned lots add only the stacks the frame does not name.
-        var framed = lots.Select(l => (l.Lot, l.Location, l.Resource)).ToHashSet();
+        var framed = lotGroups.Select(g => g.Key).ToHashSet();
         lots.AddRange(planned.Lots.Where(l => framed.Add((l.Lot, l.Location, l.Resource))));
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
         var findings = new SortedSet<string>(plannedFindings, StringComparer.Ordinal); findings.UnionWith(planned.Findings);
+        foreach (var lot in conflicting) findings.Add("lot_count_conflict:" + lot);
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
             findings.Add("unsupported_voluntary_state:" + pawn.Pawn + ":" + blocker);
         if (facts.CoupledWorkActive) findings.Add("protected_current_method_remaining_time_unassessed");

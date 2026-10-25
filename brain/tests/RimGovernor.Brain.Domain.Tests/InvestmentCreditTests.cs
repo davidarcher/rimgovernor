@@ -32,13 +32,13 @@ public sealed class InvestmentCreditTests
         var option = new ForecastActivityOption("tend/1", "doctor", 400d, 0d) { TendLearning = tend };
         var learning = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0)).Evidence!;
         var plan = new ForecastActivityPlan([new("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = learning }], 400, 400);
-        return ForecastValue.Of(new(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []), Context(investment), GameTime.TicksPerDay,
-            new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
+        return ForecastValue.Of(new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), Context(investment), GameTime.TicksPerDay,
+            new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
     }
 
     private static ForecastConsequenceVector Vector(ForecastValueResult ledger) => new(
-        EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
-        Known(0d), Known(0d), 0, 0, [])
+        EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
+        new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, 0, [])
     { Value = new(ledger, new()) { UrgentZero = new(true, 0) } };
 
     [Fact]

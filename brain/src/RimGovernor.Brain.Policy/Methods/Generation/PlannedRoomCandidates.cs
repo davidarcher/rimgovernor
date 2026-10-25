@@ -171,7 +171,7 @@ internal static class PlannedRoomCandidates
                             var sourceLocation = ForecastLocations.Of(first.Origin);
                             roomObserved.Add(new(source, new(first.Resource), first.AvailableInput, sourceLocation, 0, horizon)
                             { Lot = first.Input, Provenance = "native-construction-source:" + site.Id + ":" + first.Input });
-                            roomLots.Add(new(first.Input, sourceLocation, new(first.Resource), Known((double)first.AvailableInput)));
+                            roomLots.Add(new(first.Input, sourceLocation, new(first.Resource), (double)first.AvailableInput));
                             // A whole-stack source is one of the site's alternative deliveries; a set's stacks are each delivered.
                             roomOperations.Add(new(new(delivery, sourceLocation, siteLocation, []) { ChoiceIdentity = shares is null ? site.Id + "/delivery" : delivery },
                                 [new(delivery + "/material", new(first.Resource), units, sourceLocation,

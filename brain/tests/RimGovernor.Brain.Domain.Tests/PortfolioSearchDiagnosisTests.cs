@@ -95,7 +95,7 @@ public sealed class PortfolioSearchDiagnosisTests
         }
     }
 
-    private static double[] Flat(IEnumerable<Fact<double>> facts) => [.. facts.Select(x => x.IsKnown ? x.Value : -1)];
+    private static double[] Flat(IEnumerable<ForecastTerm> terms) => [.. terms.Select(x => x is ForecastTerm.Assessed(var value) ? value : -1)];
 
     private static string[] LastSubset(ForecastCoupledSelection selection) => [.. selection.Rejected[^1].Commitments];
 
@@ -152,17 +152,17 @@ public sealed class PortfolioSearchDiagnosisTests
         // Both consumers' ingestions share one delivered stack (capacity 10, the batch quantity): #3210 accepts them.
         Assert.True(production.Truncated);
         Assert.Equal(1023, production.Alternatives.Count);
-        Assert.All(production.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
+        Assert.All(production.Alternatives, a => Assert.True(a.Feasible));
         Assert.DoesNotContain(production.Alternatives.SelectMany(a => a.Findings),
             f => f.Reason is "conflicting_selected_target_owners" or "target_stack_quantity_exceeded");
         // The pinned reference assignment serves all four ingestions with no exposure: the reference set is accepted.
         Assert.Equal(420, pinned.Alternatives.Count);
-        Assert.All(pinned.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
+        Assert.All(pinned.Alternatives, a => Assert.True(a.Feasible));
         Assert.Equal(1018, mixed.Alternatives.Count);
-        Assert.All(mixed.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
-        Assert.Contains(diner.Alternatives, a => a.Feasible == Known(true));
+        Assert.All(mixed.Alternatives, a => Assert.True(a.Feasible));
+        Assert.Contains(diner.Alternatives, a => a.Feasible);
         Assert.Contains(pinned.Alternatives.Select(a => ForecastCoupledSelection.CoupledConsequences(a, s.ReferenceRoots)),
-            v => v.Labor == 841 && v.Urgent.All(x => x == Known(0d)));
+            v => v.Labor == 841 && v.Urgent.All(x => x is ForecastTerm.Assessed { Value: 0d }));
     }
 
     [Fact]
@@ -188,9 +188,9 @@ public sealed class PortfolioSearchDiagnosisTests
         var single = s.Select([incumbentRoot], Default);
         Assert.Equal(single.SelectedVector.Value.UrgentZero, selection.SelectedVector.Value.UrgentZero);
         Assert.True(selection.SelectedVector.Value.Ledger.LossAgainst(single.SelectedVector.Value.Ledger) < -selection.SelectedVector.Value.Policy.TieResolution);
-        Assert.Equal(2d, single.SelectedVector.Needs[4].Value);
+        Assert.Equal(2d, single.SelectedVector.Needs[4].Number());
         Assert.Equal(197, single.Selected.Plan.LaborCost);
-        Assert.Equal(1d, selection.SelectedVector.Needs[4].Value);
+        Assert.Equal(1d, selection.SelectedVector.Needs[4].Number());
         // It costs more labor (329 vs 197) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
         Assert.Equal(329, selection.Selected.Plan.LaborCost);
         Assert.True(selection.Selection.SearchTruncated);
@@ -207,7 +207,7 @@ public sealed class PortfolioSearchDiagnosisTests
         // Four roots, one ingestion each, two per consumer. Every food ledger term and the zero floor are met, so which of the
         // equally priced four-ingestion sets wins is decided by the tiebreakers and labor, not by the urgent-time vector.
         Assert.Equal(4, selection.Selection.Selected.Length);
-        Assert.True(selection.Selected.Feasible == Known(true));
+        Assert.True(selection.Selected.Feasible);
         Assert.Equal(4, eats.Length);
         Assert.Equal(2, eats.Count(a => a.Pawn == "pawn"));
         Assert.Equal(2, eats.Count(a => a.Pawn == "diner"));
@@ -217,7 +217,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(721, selection.Selected.Plan.LaborCost);
         Assert.DoesNotContain("selected_activity_budget_truncated", selection.Selection.Findings);
 
-        Assert.Equal(0d, selection.SelectedVector.Needs[4].Value);
+        Assert.Equal(0d, selection.SelectedVector.Needs[4].Number());
 
         // Cost stays under the default budget: cardinalities 3 and 4 were entered through one-root extension steps from the
         // leader, not a subset sweep (which would need 28,580 / 339,189 subsets), and the sweep the budget left could not
@@ -320,11 +320,11 @@ public sealed class PortfolioSearchDiagnosisTests
     private static object Describe(ForecastCoupledScenario scenario, ForecastCommitment[] roots) => new
     {
         scenario.Truncated, Alternatives = scenario.Alternatives.Count,
-        Feasible = scenario.Alternatives.Count(a => a.Feasible == Known(true)),
+        Feasible = scenario.Alternatives.Count(a => a.Feasible),
         Reasons = scenario.Alternatives.SelectMany(a => a.Findings.Select(f => f.Reason)).GroupBy(x => x).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => g.Key + "=" + g.Count()).ToArray(),
-        Best = scenario.Alternatives.Where(a => a.Feasible == Known(true)).Select(a => ForecastCoupledSelection.CoupledConsequences(a, roots))
-            .Select(v => new { Urgent = v.Urgent.Select(x => x.IsKnown ? x.Value : -1).ToArray(), Needs = v.Needs.Select(x => x.IsKnown ? x.Value : -1).ToArray(), v.Labor })
+        Best = scenario.Alternatives.Where(a => a.Feasible).Select(a => ForecastCoupledSelection.CoupledConsequences(a, roots))
+            .Select(v => new { Urgent = v.Urgent.Select(x => x is ForecastTerm.Assessed(var value) ? value : -1).ToArray(), Needs = v.Needs.Select(x => x is ForecastTerm.Assessed(var value) ? value : -1).ToArray(), v.Labor })
             .OrderBy(v => v.Urgent[0]).ThenBy(v => v.Urgent[1]).ThenBy(v => v.Urgent[2]).ThenBy(v => v.Urgent[3]).ThenBy(v => v.Needs[4]).Take(1).ToArray()
     };
 

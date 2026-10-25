@@ -77,7 +77,7 @@ public sealed class HospitalCreditTests
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>, the hospital serving from tick <paramref name="servedAt"/>.</summary>
     private static ForecastCoupledOutcome Served(double shift, double servedAt = 0, ForecastActivityAllocation[]? allocations = null) =>
-        new(new(allocations ?? [], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        new(new(allocations ?? [], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {

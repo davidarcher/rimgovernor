@@ -286,7 +286,7 @@ public sealed class ForecastConditionalMoodTests
         var sleep = Assert.Single(selected.Selected.Plan.Allocations);
         Assert.Equal(5 * Hour, sleep.Start, 6);
         Assert.Equal(12 * Hour, sleep.End, 6);
-        Assert.True(selected.SelectedVector.BreakRisk.Value < selected.BaselineVector.BreakRisk.Value);
+        Assert.True(selected.SelectedVector.BreakRisk.Number() < selected.BaselineVector.BreakRisk.Number());
         var (_, control) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
         // Rest that reaches zero within minutes breaks the zero floor unless a sleep starts before it does.

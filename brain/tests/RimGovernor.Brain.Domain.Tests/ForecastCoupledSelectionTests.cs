@@ -250,7 +250,7 @@ public sealed class ForecastCoupledSelectionTests
         // A partial portfolio that breaks the floor (feeding the worker alone) is not discarded on that: the selection feeds both pawns.
         Assert.Contains(pruned.Selection.Selected, id => id.Contains("/eat/pawn/", StringComparison.Ordinal));
         Assert.Contains(pruned.Selection.Selected, id => id.Contains("/eat/worker/", StringComparison.Ordinal));
-        Assert.Equal(Known(true), pruned.Selected.Feasible);
+        Assert.True(pruned.Selected.Feasible);
         // Subsets were pruned (the ones feeding the worker alone, or nobody, named after the pawn left starving) in the seed pass and in the
         // extension; the 52-root graph affords no sweep at the default budget (the sweep's prefix pruning is shown on the eight-root fixture below).
         var prunedRows = pruned.Rejected.Where(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null).ToArray();
@@ -464,12 +464,12 @@ public sealed class ForecastCoupledSelectionTests
         // One source leaves the pawn starving part of the horizon: the second source's meal is capability-days of hunger.
         var facts = Review(fall: .012);
         var result = Select(facts);
-        Assert.Equal(Known(true), result.Selected.Feasible);
+        Assert.True(result.Selected.Feasible);
         Assert.True(result.Selected.Plan.Allocations.Length > 0, string.Join(";", result.Selection.Findings));
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == SourceTask(facts, "plant-a"));
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == SourceTask(facts, "plant-b"));
         Assert.Equal(2, result.Selected.Plan.Allocations.Count(a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "food")));
-        Assert.True(result.SelectedVector.Urgent[0].Value < result.BaselineVector.Urgent[0].Value);
+        Assert.True(result.SelectedVector.Urgent[0].Number() < result.BaselineVector.Urgent[0].Number());
         Assert.True(result.SelectedVector.Value.Ledger.LossAgainst(result.BaselineVector.Value.Ledger) < 0);
         // Unknown future meal thoughts must not veto known relief of urgent hunger.
         result.Baseline.Needs["pawn"].Mood.Projected();
@@ -668,22 +668,22 @@ public sealed class ForecastCoupledSelectionTests
             Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
         } };
         var result = Select(facts);
-        Assert.Equal(Known(true), result.Selected.Feasible);
-        Assert.True(result.BaselineVector.BreakRisk.IsKnown);
+        Assert.True(result.Selected.Feasible);
+        Assert.True(result.BaselineVector.BreakRisk.Assessed());
         Assert.DoesNotContain("mental_break_probability_unassessed", result.BaselineVector.Unknown);
         Assert.DoesNotContain("mental_break_probability_unassessed", result.Baseline.Needs["pawn"].Findings);
         if (wins)
         {
             Assert.Equal(["mood"], result.Selection.Selected);
-            Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+            Assert.True(result.SelectedVector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
             return;
         }
         // No break risk to remove: the memory ties no-change and the incumbent is kept.
         Assert.Empty(result.Selection.Selected);
-        Assert.Equal(0, result.BaselineVector.BreakRisk.Value);
+        Assert.Equal(0, result.BaselineVector.BreakRisk.Number());
         // The memory still lowers raw mood pressure; that is not break risk and does not rank.
         var evaluated = result.Rejected.First(r => r.Commitments.SequenceEqual(["mood"])).Consequences!;
-        Assert.True(evaluated.MoodDepth.Value < result.BaselineVector.MoodDepth.Value);
+        Assert.True(evaluated.MoodDepth.Number() < result.BaselineVector.MoodDepth.Number());
     }
 
     [Theory]
@@ -703,7 +703,7 @@ public sealed class ForecastCoupledSelectionTests
         } };
         var result = Select(facts);
         var vector = wins ? result.SelectedVector : result.Rejected.First(r => r.Commitments.SequenceEqual(["gear"])).Consequences!;
-        Assert.True(vector.BreakRisk.IsKnown);
+        Assert.True(vector.BreakRisk.Assessed());
         Assert.DoesNotContain("mental_break_probability_unassessed", vector.Unknown);
         if (!wins)
         {
@@ -712,7 +712,7 @@ public sealed class ForecastCoupledSelectionTests
             return;
         }
         Assert.Equal(["gear"], result.Selection.Selected);
-        Assert.True(vector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+        Assert.True(vector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
         var moodResult = result.Selected.Needs["pawn"].Mood!;
         // The change counts from the forecast start; every other situational thought is still held constant.
         Assert.Equal(mood + .11, moodResult.Projected().Trajectory[0].Target, 9);
@@ -735,7 +735,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(["memory"], result.Selection.Selected);
         var needs = result.Selected.Needs["pawn"];
         Assert.Equal(.32, needs.Mood!.Projected().Trajectory[0].Target, 9);
-        Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+        Assert.True(result.SelectedVector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
     }
 
     [Fact]
@@ -759,7 +759,7 @@ public sealed class ForecastCoupledSelectionTests
         if (nearBreak)
         {
             Assert.Equal([root.Id], result.Selection.Selected);
-            Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+            Assert.True(result.SelectedVector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
             // #3329: the selected pair keeps the worn insulation floor.
             Assert.Equal([new GearChoice("pawn", false, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0))], allowed);
             return;
@@ -772,7 +772,7 @@ public sealed class ForecastCoupledSelectionTests
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
         double Cold(params ForecastCommitment[] add) => CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
                 facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), add)
-            .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
+            .Proposed.Coupled!.Alternatives.First(p => p.Feasible).ThermalExposure.Single().AssessedColdDegreeTicks;
         Assert.True(Cold([.. work, root]) > Cold(work));
     }
 
@@ -865,7 +865,7 @@ public sealed class ForecastCoupledSelectionTests
     private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
         CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
-            []), add).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+            []), add).Proposed.Coupled!.Alternatives.First(p => p.Feasible);
 
     [Fact]
     public void AComfortShiftRaisesTemperatureMoodAlongTheOutdoorWork()
@@ -894,7 +894,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
         Assert.Equal(["gear"], result.Selection.Selected);
         Assert.True(result.Selected.ThermalExposure.Single().AssessedColdDegreeTicks < result.Baseline.ThermalExposure.Single().AssessedColdDegreeTicks);
-        Assert.Equal(nearBreak, result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+        Assert.Equal(nearBreak, result.SelectedVector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
     }
 
     // #3329 acceptance: gear warmth chosen by the comparator. A pawn in a shirt and pants with a parka (cold 30) loose: the
@@ -1080,7 +1080,7 @@ public sealed class ForecastCoupledSelectionTests
     {
         var (result, parkas) = ColdParka(.28);
         Assert.Contains(Assert.Single(result.Selection.Selected), parkas.Select(p => p.Id));
-        Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+        Assert.True(result.SelectedVector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
     }
 
     [Fact]
@@ -1132,7 +1132,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(result.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", result.Selection.Findings);
         Assert.Empty(result.Selection.Selected);
-        Assert.Equal(Known(true), result.Selected.Feasible);
+        Assert.True(result.Selected.Feasible);
         Assert.Equal(result.Baseline.Plan, result.Selected.Plan);
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == SourceTask(facts, "plant-a"));
     }

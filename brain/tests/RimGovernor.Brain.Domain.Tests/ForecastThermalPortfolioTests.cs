@@ -62,8 +62,8 @@ public sealed class ForecastThermalPortfolioTests
     {
         var facts = Review(-10);
         var result = Select(facts);
-        Assert.Equal(Known(true), result.Selected.Feasible);
-        Assert.True(result.Selected.StationaryThermalRelief.Value > 0);
+        Assert.True(result.Selected.Feasible);
+        Assert.True(result.Selected.StationaryThermalRelief.Number() > 0);
         Assert.Contains(result.Selected.Plan.Allocations, a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "rest"));
         Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("site/", StringComparison.Ordinal));
         Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
@@ -78,10 +78,10 @@ public sealed class ForecastThermalPortfolioTests
     public void WarmOrOutsideOccupancyCannotClaimShelterReliefAndNoDemandRetainsNoChange()
     {
         var warm = Select(Review(20));
-        Assert.Equal(Known(0d), warm.Selected.StationaryThermalRelief);
+        Assert.Equal(new ForecastTerm.Assessed(0d), warm.Selected.StationaryThermalRelief);
         Assert.Empty(warm.Selected.CompletedDevelopmentSites);
         var outside = Select(Review(-10, occupiedInside: false));
-        Assert.Equal(Known(0d), outside.Selected.StationaryThermalRelief);
+        Assert.Equal(new ForecastTerm.Assessed(0d), outside.Selected.StationaryThermalRelief);
         Assert.Empty(outside.Selected.CompletedDevelopmentSites);
         var noDemand = Select(Review(20, demand: false, restDemand: false));
         Assert.Empty(noDemand.Selection.Selected);
@@ -153,7 +153,7 @@ public sealed class ForecastThermalPortfolioTests
         var result = Select(facts);
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity.StartsWith("site-0-finish", StringComparison.Ordinal));
         Assert.Contains(result.Selected.Plan.Allocations, a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "rest"));
-        Assert.True(result.Selected.StationaryThermalRelief.Value > 0);
+        Assert.True(result.Selected.StationaryThermalRelief.Number() > 0);
     }
 
     /// <summary>A door held open leaves the ring open: the heater has no assessed relief and is not built.</summary>

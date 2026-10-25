@@ -42,7 +42,7 @@ public sealed class ForecastNeedThoughtTests
     private static ForecastNeedMetric Joy(double exposure) => new("joy", Known(.5), Known(0d), Known(exposure), Known(0d)) { ZeroTicks = Known(0d), ThresholdDepthTicks = Known(0d) };
 
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs) =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
         { Support = new() { FoodPoisonExposure = 0 }, ThermalExposure = [new("pawn", H, 0, 0, 0)] };
 
     [Fact]

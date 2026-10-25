@@ -76,7 +76,7 @@ public static class ForecastShelterPolicy
     /// (all of <paramref name="allocations"/> when null). A search projects thousands of schedules against one set of
     /// rooms, so this reads the search's own rows and allocates only the result (#3468).</summary>
     internal static EquatableArray<ForecastShelterOutcome> ForecastShelters(IReadOnlyList<ForecastShelterPlan> rooms,
-        IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed, double horizon, ShelterScratch scratch)
+        IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, bool>? completed, double horizon, ShelterScratch scratch)
     {
         // Each networked source of a room whose prerequisites are all scheduled draws on its network; the network is
         // overloaded when the draws (one per source) exceed the smallest surplus.
@@ -133,14 +133,14 @@ public static class ForecastShelterPolicy
         return false;
     }
 
-    private static bool Selected(string activity, IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed)
-        => allocations.ContainsKey(activity) && (completed is null || completed.GetValueOrDefault(activity) == Known(true));
+    private static bool Selected(string activity, IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, bool>? completed)
+        => allocations.ContainsKey(activity) && (completed is null || completed.GetValueOrDefault(activity));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastShelterPlan,
         System.Collections.Concurrent.ConcurrentDictionary<(bool Shared, double Complete, double Horizon), ForecastShelterOutcome>> Outcomes = new();
 
     /// <summary>When the room's shell completes in the schedule, or NaN when a prerequisite is not scheduled.</summary>
-    private static double CompletedAt(ForecastShelterPlan room, IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, Fact<bool>>? completed)
+    private static double CompletedAt(ForecastShelterPlan room, IReadOnlyDictionary<string, ForecastActivityAllocation> allocations, IReadOnlyDictionary<string, bool>? completed)
     {
         double complete = 0;
         foreach (var p in room.Prerequisites)

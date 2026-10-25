@@ -31,9 +31,9 @@ public sealed class ProductiveDemandTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 700d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var alternatives = CoupledForecastKit.Forecast(request, [batch, eat]).Proposed.Coupled!.Alternatives;
-        Assert.Equal(feasible, alternatives.Any(a => a.Feasible == Known(true)));
+        Assert.Equal(feasible, alternatives.Any(a => a.Feasible));
         if (feasible)
-            Assert.Contains(alternatives.Where(a => a.Feasible == Known(true)), a => ForecastActivities.StockChangesOf(generated.Context.Activities, a.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units) == 3);
+            Assert.Contains(alternatives.Where(a => a.Feasible), a => ForecastActivities.StockChangesOf(generated.Context.Activities, a.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units) == 3);
         else
             Assert.Contains(alternatives.SelectMany(a => a.Findings), f => f.Reason == "productive_output_without_useful_demand");
         if (saturated)

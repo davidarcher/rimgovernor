@@ -241,7 +241,7 @@ public sealed class PlannedRoomActivitiesTests
         var result = Select(facts);
         var needs = facts.CoupledAlternatives!.Context.NeedTasks;
         Assert.Contains(result.Selected.Plan.Allocations, a => needs.Any(n => n.Task == a.Activity && n.Kind == "food"));
-        Assert.True(result.SelectedVector.Urgent[0].Value < result.BaselineVector.Urgent[0].Value, Why(facts, result));
+        Assert.True(result.SelectedVector.Urgent[0].Number() < result.BaselineVector.Urgent[0].Number(), Why(facts, result));
         Assert.DoesNotContain(result.Selected.PlannedRooms, r => r.Complete.Count > 0);
     }
 
@@ -974,7 +974,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(facts.Filth, context.Filth);
         Assert.Contains(context.Closures, c => c.Room == 1 && c.Prediction.Role == "Kitchen");
 
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             [Pawn] = new([], default, default, new(new(Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), []),
         }, []) { ServedRooms = [new(1, "WoodLog", 0)] };

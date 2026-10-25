@@ -99,8 +99,8 @@ public sealed class PracticeHarmTests
                 Investment = investment, PracticeTasks = [session],
             }.Priced();
             var plan = new ForecastActivityPlan([new("practice/a", "a", 0, 0, 0, 1000, 0, 0, 1000, 1000, 0)], 1000, 1000);
-            return ForecastValue.Of(new(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []), context, GameTime.TicksPerDay,
-                new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
+            return ForecastValue.Of(new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), context, GameTime.TicksPerDay,
+                new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
         }
 
         // Nine callbacks of 10 raw XP inside the read's 1000-tick validity, unsaturated at a unit learn rate.

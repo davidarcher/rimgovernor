@@ -3,14 +3,14 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Inspectable consequences of one outcome. The ranking reads <see cref="Value"/> (floors, then the capability-days ledger)
 /// and then only the terms with no mechanical conversion yet: care and room factors, maintenance, joy exposure, development,
 /// supply and first care. The other fields explain the outcome.</summary>
-public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urgent, EquatableArray<Fact<double>> Needs,
-    Fact<double> MoodExposure, Fact<double> MoodDepth, double Development, double Labor,
+public sealed record ForecastConsequenceVector(EquatableArray<ForecastTerm> Urgent, EquatableArray<ForecastTerm> Needs,
+    ForecastTerm MoodExposure, ForecastTerm MoodDepth, double Development, double Labor,
     EquatableArray<string> Unknown)
 {
     /// <summary>The ledger, floors and constants this outcome was ranked by (#3522); empty when assembled without a context.</summary>
     public ForecastValueExplanation Value { get; init; } = ForecastValueExplanation.Empty;
     /// <summary>Expected mental breaks summed over pawns; known only when every pawn's break threshold and mood are.</summary>
-    public Fact<double> BreakRisk { get; init; }
+    public ForecastTerm BreakRisk { get; init; } = new ForecastTerm.Unassessed("break_risk_not_evaluated");
     public string ThermalOccupancy { get; init; } = "";
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public ForecastSupportConsequences Support { get; init; } = new();
@@ -298,7 +298,7 @@ public sealed partial record ForecastCoupledSelection
         var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments), cache, ledger).Coupled!;
         ledger.Mandatory = false;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
-            : new ForecastCoupledOutcome(new([], 0, 0), default, new Dictionary<string, ForecastNeedsResult>(), []);
+            : new ForecastCoupledOutcome(new([], 0, 0), false, new Dictionary<string, ForecastNeedsResult>(), []);
         // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
         var reference = baseline;
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
@@ -327,11 +327,11 @@ public sealed partial record ForecastCoupledSelection
             }
         }
         var baselineVector = Consequences(baseline, baselineCommitments);
-        foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
+        foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible))
         {
             var staged = Consequences(candidate, baselineCommitments);
             var rank = CompareConsequences(staged, baselineVector, out _);
-            if (baseline.Feasible != Known(true) || rank < 0 || rank == 0 && candidate.Plan.LaborCost < baseline.Plan.LaborCost)
+            if (!baseline.Feasible || rank < 0 || rank == 0 && candidate.Plan.LaborCost < baseline.Plan.LaborCost)
                 (baseline, baselineVector) = (candidate, staged);
         }
         var best = baseline;
@@ -340,7 +340,7 @@ public sealed partial record ForecastCoupledSelection
         var bestIsBaseline = true;
         var findings = new SortedSet<string>(candidates.Findings, StringComparer.Ordinal);
         findings.UnionWith(baselineScenario.Findings);
-        if (baseline.Feasible != Known(true)) findings.Add("baseline_unassessed_or_infeasible");
+        if (!baseline.Feasible) findings.Add("baseline_unassessed_or_infeasible");
         var evidence = new List<ForecastPortfolioEvidence>();
         // A construction root rejected only for lacking supported service relief is not a leader, yet it is the one a service root completes.
         var unserved = new List<string[]>();
@@ -549,7 +549,7 @@ public sealed partial record ForecastCoupledSelection
         {
             if (candidates.Context.GoalValues.Count > 0) return "goal_routes";
             if (!baselineZeroKnown) return "baseline_zero_unassessed";
-            if (best.Feasible != Known(true) || !bestVector.UrgentZero.Assessed) return "leader_unassessed";
+            if (!best.Feasible || !bestVector.UrgentZero.Assessed) return "leader_unassessed";
             return restInClosure ? "rest_service_in_closure" : null;
         }
         // The pawn whose baseline zero time proves every plan serving only the pawns in `served` loses at the urgent-zero stage; null when none does.
@@ -634,7 +634,7 @@ public sealed partial record ForecastCoupledSelection
             }
             evaluated[key] = known.Bound;
             var scenario = known.Scenario;
-            var feasible = scenario.Alternatives.Where(a => a.Feasible == Known(true)).ToArray();
+            var feasible = scenario.Alternatives.Where(a => a.Feasible).ToArray();
             if (feasible.Length == 0)
             {
                 phaseInfeasible++;
@@ -660,18 +660,18 @@ public sealed partial record ForecastCoupledSelection
                     if (unplaced.Contains(a.Activity) || candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
                         && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof")) { unsupported = true; break; }
                 }
-                if (unsupported && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
+                if (unsupported && outcome.StationaryThermalRelief is not ForecastTerm.Assessed { Value: > 0 })
                 {
                     phaseUnsupported++;
                     if (unserved.Count < 4 && additions.Length == 1) unserved.Add([additions[0].Id]);
                     evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector.VectorIfPriced, "construction_without_supported_service_relief" + string.Concat(outcome.Findings.Where(f => f.Reason.StartsWith("thermal_relief_unassessed", StringComparison.Ordinal)).Select(f => ":" + f.Reason))
-                        + (outcome.StationaryThermalRelief.IsKnown ? ":relief=" + outcome.StationaryThermalRelief.Value : "")));
+                        + (outcome.StationaryThermalRelief is ForecastTerm.Assessed(var relief) ? ":relief=" + relief : "")));
                     continue;
                 }
                 var rank = CompareConsequences(vector, bestVector, out var stage);
                 // Consequence ties never release a retained incumbent to save nominal labor.
                 var retainsSelectedIncumbents = selected.Where(incumbentIds.Contains).All(id => additions.Any(c => c.Id == id));
-                if (best.Feasible != Known(true) || rank < 0 || rank == 0 && !bestIsBaseline && retainsSelectedIncumbents && vector.Labor < bestVector.Labor)
+                if (!best.Feasible || rank < 0 || rank == 0 && !bestIsBaseline && retainsSelectedIncumbents && vector.Labor < bestVector.Labor)
                 {
                     var ids = additions.Select(c => c.Id).ToArray();
                     if (!ids.SequenceEqual(selected, StringComparer.Ordinal)) { selectedPhase = phase; phaseImproved++; }
@@ -931,31 +931,31 @@ public sealed partial record ForecastCoupledSelection
 
     /// <summary>One need term over the outcome's pawns, in order, as Enumerable.Sum adds and Enumerable.Max (a NaN gives way to
     /// the next value) compares; unknown when any pawn's is, each such pawn noted in <paramref name="unknown"/>.</summary>
-    private static Fact<double> Metric(Dictionary<string, ForecastNeedsResult> rows, List<string> unknown, string kind, Term term, bool maximum = false)
+    private static ForecastTerm Metric(Dictionary<string, ForecastNeedsResult> rows, List<string> unknown, string kind, Term term, bool maximum = false)
     {
         double sum = 0, max = 0;
         var any = false;
         var complete = rows.Count > 0;
+        string? reason = rows.Count > 0 ? null : "unassessed:no_pawns:" + kind;
         foreach (var (pawn, needs) in rows)
             foreach (var metric in needs.Needs)
             {
                 if (metric.Kind != kind) continue;
-                var value = term switch
-                {
-                    Term.ZeroTicks => metric.ZeroTicks,
-                    Term.ThresholdDepthTicks => metric.ThresholdDepthTicks,
-                    Term.ThresholdExposureTicks => metric.ThresholdExposureTicks,
-                    _ => metric.FinalLevel.IsKnown ? Known(metric.FinalLevel.Value == 0 ? 1.0 : 0.0) : default
-                };
-                if (!value.TryGetValue(out var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); complete = false; continue; }
+                var value = term == Term.ZeroTicks ? metric.ZeroTicks
+                    : term == Term.ThresholdDepthTicks ? metric.ThresholdDepthTicks
+                    : term == Term.ThresholdExposureTicks ? metric.ThresholdExposureTicks
+                    : metric.FinalLevel.IsKnown ? Known(metric.FinalLevel.Value == 0 ? 1.0 : 0.0) : default;
+                if (!value.TryGetValue(out var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); reason ??= "unassessed:" + pawn + ":" + kind; complete = false; continue; }
                 sum += number;
                 if (!any || double.IsNaN(max) || number > max) max = number;
                 any = true;
             }
-        return complete ? Known(maximum ? max : sum) : default;
+        return complete ? new ForecastTerm.Assessed(maximum ? max : sum) : new ForecastTerm.Unassessed(reason!);
     }
 
-    private static Fact<double> Worst(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Known(Math.Max(a.Value, b.Value)) : default;
+    private static ForecastTerm Worst(ForecastTerm a, ForecastTerm b)
+        => a is ForecastTerm.Assessed(var x) && b is ForecastTerm.Assessed(var y) ? new ForecastTerm.Assessed(Math.Max(x, y))
+        : a is ForecastTerm.Unassessed ? a : b;
 
     /// <summary>The complete vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).</summary>
     internal static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
@@ -970,7 +970,7 @@ public sealed partial record ForecastCoupledSelection
     {
         var rows = outcome.Needs as Dictionary<string, ForecastNeedsResult> ?? new Dictionary<string, ForecastNeedsResult>(outcome.Needs, StringComparer.Ordinal);
         var unknown = new List<string>();
-        var urgent = new Fact<double>[]
+        var urgent = new ForecastTerm[]
         {
             Worst(Metric(rows, unknown, "food", Term.ZeroTicks, true), Metric(rows, unknown, "rest", Term.ZeroTicks, true)),
             Worst(Metric(rows, unknown, "food", Term.ThresholdDepthTicks, true), Metric(rows, unknown, "rest", Term.ThresholdDepthTicks, true)),
@@ -981,10 +981,10 @@ public sealed partial record ForecastCoupledSelection
         double degreeTicks = 0;
         foreach (var t in outcome.ThermalExposure) { thermalKnown &= t.UnknownTicks == 0; degreeTicks += t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks; }
         if (!thermalKnown) unknown.Add("unassessed_thermal_exposure");
-        var needsVector = new Fact<double>[]
+        var needsVector = new ForecastTerm[]
         {
-            outcome.StationaryThermalRelief.IsKnown ? Known(-outcome.StationaryThermalRelief.Value) : default,
-            thermalKnown ? Known(degreeTicks) : default,
+            outcome.StationaryThermalRelief is ForecastTerm.Assessed(var thermalRelief) ? new ForecastTerm.Assessed(-thermalRelief) : outcome.StationaryThermalRelief,
+            thermalKnown ? new ForecastTerm.Assessed(degreeTicks) : new ForecastTerm.Unassessed("unassessed_thermal_exposure"),
             Metric(rows, unknown, "joy", Term.ThresholdExposureTicks, true), Metric(rows, unknown, "joy", Term.ThresholdExposureTicks),
             Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
         };
@@ -1024,10 +1024,12 @@ public sealed partial record ForecastCoupledSelection
         for (var i = 0; i < unknown.Count; i++) if (i == 0 || unknown[i] != unknown[i - 1]) unknown[distinct++] = unknown[i];
         var unknownRows = new string[distinct];
         unknown.CopyTo(0, unknownRows, 0, distinct);
-        return new(EquatableArray.Wrap(urgent), EquatableArray.Wrap(needsVector), moodKnown ? Known(exposure) : default,
-            moodKnown ? Known(pressure) : default, development, outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
+        return new(EquatableArray.Wrap(urgent), EquatableArray.Wrap(needsVector),
+            moodKnown ? new ForecastTerm.Assessed(exposure) : new ForecastTerm.Unassessed("unassessed_mood"),
+            moodKnown ? new ForecastTerm.Assessed(pressure) : new ForecastTerm.Unassessed("unassessed_mood"),
+            development, outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
         {
-            BreakRisk = breakKnown ? Known(breaks) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
+            BreakRisk = breakKnown ? new ForecastTerm.Assessed(breaks) : new ForecastTerm.Unassessed("mental_break_probability_unassessed"), ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
         };
     }
 
@@ -1116,8 +1118,8 @@ public sealed partial record ForecastCoupledSelection
         { var rank = x.Support.UrgentFirstCareTicks.CompareTo(y.Support.UrgentFirstCareTicks); if (rank != 0) return rank; }
         // Relief is measured against each outcome's own unimproved rooms, so it ranks even when the sleeps differ in time.
         stage = "thermal_relief";
-        if (x.Needs[0].IsKnown && y.Needs[0].IsKnown)
-        { var rank = x.Needs[0].Value.CompareTo(y.Needs[0].Value); if (rank != 0) return rank; }
+        if (x.Needs[0] is ForecastTerm.Assessed(var xRelief) && y.Needs[0] is ForecastTerm.Assessed(var yRelief))
+        { var rank = xRelief.CompareTo(yRelief); if (rank != 0) return rank; }
         stage = "care_batches";
         var care = x.Support.PendingCareBatches.CompareTo(y.Support.PendingCareBatches); if (care != 0) return care;
         if (x.Support.CareServices.Length != 0 && x.Support.CareServices == y.Support.CareServices)
@@ -1145,8 +1147,8 @@ public sealed partial record ForecastCoupledSelection
         for (var index = 2; index <= 3; index++)
         {
             stage = index == 2 ? "joy_exposure" : "joy_total";
-            if (!x.Needs[index].IsKnown || !y.Needs[index].IsKnown) continue;
-            var rank = x.Needs[index].Value.CompareTo(y.Needs[index].Value); if (rank != 0) return rank;
+            if (x.Needs[index] is not ForecastTerm.Assessed(var xJoy) || y.Needs[index] is not ForecastTerm.Assessed(var yJoy)) continue;
+            var rank = xJoy.CompareTo(yJoy); if (rank != 0) return rank;
         }
         stage = "development";
         var development = y.Development.CompareTo(x.Development); if (development != 0) return development;

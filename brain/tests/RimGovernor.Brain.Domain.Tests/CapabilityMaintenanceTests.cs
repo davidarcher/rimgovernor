@@ -37,7 +37,7 @@ public sealed class CapabilityMaintenanceTests
     {
         var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology("pawn"))));
         WorkSkill[] skills = [new() { Name = "Shooting", Level = 1, Learning = Learning() }, new() { Name = "Melee", Disabled = true }];
-        var completed = new Dictionary<string, Fact<bool>> { ["work"] = Known(true) };
+        var completed = new Dictionary<string, bool> { ["work"] = true };
         ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)
             => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
         Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp).Xp > 0);

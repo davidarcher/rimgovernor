@@ -47,7 +47,7 @@ public sealed class RoyalRoomCreditTests
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>; the room serves at <paramref name="servedAt"/>.</summary>
     private static ForecastCoupledOutcome Serving(double servedAt, double shift) =>
-        new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>
+        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {

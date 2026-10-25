@@ -298,6 +298,7 @@ public sealed partial class Rounder
     }).ToArray();
 
     private static double? Number(Fact<double> value) => value.IsKnown ? value.Value : null;
+    private static double? Number(ForecastTerm term) => term is ForecastTerm.Assessed(var value) ? value : null;
     private static double? Number(LedgerTerm term) => term is LedgerTerm.Priced(var loss) ? loss : null;
 
     /// <summary>What an outcome was ranked by (#3522): the ledger term by term, the floors, and the policy constants.</summary>
@@ -356,11 +357,13 @@ public sealed partial class Rounder
 
     private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector) => new()
     {
-        ["urgent"] = vector.Urgent.Select(v => v.IsKnown ? (object)v.Value : null).ToArray(),
-        ["needs"] = vector.Needs.Select(v => v.IsKnown ? (object)v.Value : null).ToArray(),
-        ["mood_exposure"] = vector.MoodExposure.IsKnown ? vector.MoodExposure.Value : null,
-        ["mood_pressure"] = vector.MoodDepth.IsKnown ? vector.MoodDepth.Value : null,
+        ["urgent"] = vector.Urgent.Select(v => (object?)Number(v)).ToArray(),
+        ["needs"] = vector.Needs.Select(v => (object?)Number(v)).ToArray(),
+        ["mood_exposure"] = Number(vector.MoodExposure),
+        ["mood_pressure"] = Number(vector.MoodDepth),
         ["mood_break_risk"] = Number(vector.BreakRisk),
+        ["unassessed_terms"] = vector.Urgent.Concat(vector.Needs).Append(vector.MoodExposure).Append(vector.MoodDepth).Append(vector.BreakRisk)
+            .OfType<ForecastTerm.Unassessed>().Select(t => t.Reason).Distinct().ToArray(),
         ["thermal_occupancy"] = vector.ThermalOccupancy,
         ["support_urgent_first_care_ticks"] = vector.Support.UrgentFirstCareTicks,
         ["support_pending_care_batches"] = vector.Support.PendingCareBatches,
