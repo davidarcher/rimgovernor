@@ -30,7 +30,7 @@ public static class PreferenceRules
                 },
             };
         }
-        var apparel = preferences.Apparel ?? ApparelPreference.Dressed;
+        var apparel = preferences.Apparel;
         if ((!leather && apparel == ApparelPreference.Dressed) || !f.Gear.TryGetValue(out var gear))
         {
             return f;

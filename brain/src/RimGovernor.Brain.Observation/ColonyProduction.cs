@@ -59,14 +59,25 @@ public static class ColonyProductionReads
                 (lo, loOptimal, hiOptimal, hi) = (d.MinGrowthTemperature, d.MinOptimalGrowthTemperature, d.MaxOptimalGrowthTemperature, d.MaxGrowthTemperature);
             }
         }
-        var planted = farm.PlantedCells > 0;
+        if (!double.IsFinite(farm.Temperature))
+        {
+            throw new RequiredFactException("zone temperature");
+        }
+        CropStand stand = new CropStand.Fallow();
+        if (farm.PlantedCells > 0)
+        {
+            var growth = farm.GrowthTotal / farm.PlantedCells;
+            var fertility = farm.FertilityFactorTotal / farm.PlantedCells;
+            if (!double.IsFinite(growth) || growth < 0 || !double.IsFinite(fertility) || fertility < 0)
+            {
+                throw new RequiredFactException("zone plant means");
+            }
+            stand = new CropStand.Sown(farm.PlantedCells, farm.FertilePlantedCells, growth, fertility);
+        }
         return new CropGrowth
         {
-            Planted = farm.PlantedCells,
-            FertilePlanted = farm.FertilePlantedCells,
-            GrowthMean = ColonyDecodeReads.Optional(planted, planted ? farm.GrowthTotal / farm.PlantedCells : 0),
-            FertilityMean = ColonyDecodeReads.Optional(planted, planted ? farm.FertilityFactorTotal / farm.PlantedCells : 0),
-            Temperature = Known(farm.Temperature),
+            Stand = stand,
+            Temperature = farm.Temperature,
             MinGrowth = lo,
             MinOptimal = loOptimal,
             MaxOptimal = hiOptimal,

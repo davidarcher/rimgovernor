@@ -76,7 +76,7 @@ internal static class GoalsThemeReform
         await GoalReviews.SeedAsync(s, world with
         {
             NextId = themeId + 1,
-            Goals = [.. targets.Select((t, i) => new GoalRecord { Id = i + 1, Kind = t.Kind, Target = t.Target, Theme = themeId })],
+            Goals = [.. targets.Select((t, i) => new GoalRecord { Id = i + 1, Kind = t.Kind, Target = t.Target, Theme = ThemeMembership.Of(themeId) })],
             Themes = [new ThemeRecord { Id = themeId, Name = "Naked cannibals who worship monkeys", Preset = Preset, Members = [.. Enumerable.Range(1, targets.Count)] }],
         }, cancellationToken).ConfigureAwait(false);
 

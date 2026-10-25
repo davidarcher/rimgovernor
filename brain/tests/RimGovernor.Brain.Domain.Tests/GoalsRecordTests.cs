@@ -15,17 +15,17 @@ public sealed class GoalsRecordTests
     private static GoalsRecord Full()
     {
         var record = new GoalsRecord { World = Home }
-            .WithNewGoal(new GoalRecord { Kind = GoalKind.ResearchProject, Target = "Smithing", Importance = Importance.High, DeadlineDay = 30 })
-            .WithNewGoal(new GoalRecord { Kind = GoalKind.WornCount, Target = "Apparel_Parka", Qualifier = "Leather_Plain", Count = 4, SiteMap = new(1) })
+            .WithNewGoal(new GoalRecord { Kind = GoalKind.ResearchProject, Target = "Smithing", Importance = Importance.High, DeadlineDay = GoalDeadline.Of(30) })
+            .WithNewGoal(new GoalRecord { Kind = GoalKind.WornCount, Target = "Apparel_Parka", Qualifier = "Leather_Plain", Count = 4 })
             .WithNewGoal(new GoalRecord { Kind = GoalKind.Skill, Target = "pawn-7", Qualifier = "Shooting", Count = 12 })
-            .WithNewTheme(new ThemeRecord { Name = "Winter", Preset = "winter-prep", Importance = Importance.High, DeadlineDay = 40, RemovedPresetMembers = ["a", "b"] });
+            .WithNewTheme(new ThemeRecord { Name = "Winter", Preset = "winter-prep", Importance = Importance.High, DeadlineDay = GoalDeadline.Of(40), RemovedPresetMembers = ["a", "b"] });
         var theme = record.Themes[0];
         record = record.With(theme with { Members = [2, 3] })
-            .With(record.Goals[1] with { Theme = theme.Id, ImportanceOverride = Importance.Low, DeadlineOverride = 35 })
-            .With(record.Goals[2] with { Theme = theme.Id });
+            .With(record.Goals[1] with { Theme = ThemeMembership.Of(theme.Id), ImportanceOverride = ImportanceChoice.Of(Importance.Low), DeadlineOverride = GoalDeadline.Of(35) })
+            .With(record.Goals[2] with { Theme = ThemeMembership.Of(theme.Id) });
         return record.With(new PreferencesRecord
         {
-            RiskProfile = RiskProfile.Cautious, Pace = Pace.Development, WealthCap = 50000,
+            RiskProfile = RiskProfile.Cautious, Pace = Pace.Development,
             Forbidden = [ForbiddenMethod.HumanButchery, ForbiddenMethod.Slavery], ProtectedThings = ["t1", "t2"], ProtectedPawns = ["p1"],
             Diet = [DietOverride.Vegetarian], Apparel = ApparelPreference.ArmorOnly, DrugPolicy = DrugPolicyPreference.Medical,
         });
@@ -68,6 +68,34 @@ public sealed class GoalsRecordTests
     }
 
     [Fact]
+    public void UnsetChoicesAreNamedStatesAndKeepTheNullWireShape()
+    {
+        Assert.Equal(ThemeMembership.Alone, ThemeMembership.Of(null));
+        Assert.Null(ThemeMembership.Alone.ToWire());
+        Assert.True(ThemeMembership.Of(4).Is(4));
+        Assert.False(ThemeMembership.Alone.Is(4));
+        Assert.Equal(4, ThemeMembership.Of(4).ToWire());
+
+        Assert.Equal(ImportanceChoice.Inherited, ImportanceChoice.Of(null));
+        Assert.Null(ImportanceChoice.Inherited.ToWire());
+        Assert.Equal(Importance.Low, ImportanceChoice.Of(Importance.Low).Or(Importance.High));
+        Assert.Equal(Importance.High, ImportanceChoice.Inherited.Or(Importance.High));
+
+        Assert.Equal(GoalDeadline.Of(9), GoalDeadline.Of(9).Or(GoalDeadline.Of(20)));
+        Assert.Equal(GoalDeadline.Of(20), GoalDeadline.Unbounded.Or(GoalDeadline.Of(20)));
+        Assert.Null(GoalDeadline.Unbounded.ToWire());
+
+        var preferences = new PreferencesRecord();
+        Assert.True(preferences.IsDefault);
+        Assert.Equal(DrugPolicyPreference.Unmanaged, preferences.DrugPolicy);
+        Assert.False((preferences with { DrugPolicy = DrugPolicyPreference.None }).IsDefault);
+        var back = StoreJson.Deserialize<PreferencesRecord>(StoreJson.Serialize(preferences));
+        Assert.Equal(DrugPolicyPreference.Unmanaged, back.DrugPolicy);
+        Assert.Equal(ApparelPreference.Dressed, back.Apparel);
+        Assert.Equal(GoalDeadline.Unbounded, StoreJson.Deserialize<GoalRecord>(StoreJson.Serialize(new GoalRecord { Id = 1 })).DeadlineDay);
+    }
+
+    [Fact]
     public void EmptyRecordRemovesTheRow()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -91,7 +119,7 @@ public sealed class GoalsRecordTests
         var negative = full with { Goals = [full.Goals[0] with { Count = -1 }, .. full.Goals.Skip(1)] };
         Assert.Throws<DomainException>(negative.Validate);
 
-        var late = full with { Goals = [full.Goals[0] with { DeadlineDay = 0 }, .. full.Goals.Skip(1)] };
+        var late = full with { Goals = [full.Goals[0] with { DeadlineDay = GoalDeadline.Of(0) }, .. full.Goals.Skip(1)] };
         Assert.Throws<DomainException>(late.Validate);
 
         var unlisted = full with { Themes = [full.Themes[0] with { Members = [2] }] };

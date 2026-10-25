@@ -69,7 +69,7 @@ internal static class ThemesView
                 theme.Name,
                 theme.Preset,
                 theme.Importance.ToString(),
-                theme.DeadlineDay is { } day ? "day " + day.ToString(CultureInfo.InvariantCulture) : "",
+                DeadlineText(theme.DeadlineDay),
                 fraction,
                 total == 0 ? "nothing to pursue" : Math.Round(fraction * 100).ToString(CultureInfo.InvariantCulture) + "% of value met",
                 members));
@@ -77,10 +77,14 @@ internal static class ThemesView
         return views;
     }
 
+    /// <summary>"day N" for a deadline, empty for none.</summary>
+    internal static string DeadlineText(GoalDeadline deadline) =>
+        deadline is GoalDeadline.Due due ? "day " + due.Day.ToString(CultureInfo.InvariantCulture) : "";
+
     private static Importance EffectiveImportance(GoalsRecord record, ThemeMemberView member)
     {
         var goal = record.Goals.First(g => g.Id == member.GoalId);
-        return goal.ImportanceOverride ?? goal.Importance;
+        return goal.ImportanceOverride.Or(goal.Importance);
     }
 
     private static List<ThemeMemberView> AuthoredMembers(GoalsRecord record, ThemeRecord theme, IReadOnlyDictionary<int, GoalStatus> status) =>
@@ -93,11 +97,11 @@ internal static class ThemesView
         {
             if (member.Goal is { } template && FindGoal(record, theme, template) is { } stored)
             {
-                if (stored.ImportanceOverride is { } importance)
+                if (stored.ImportanceOverride is ImportanceChoice.Chosen { Value: var importance })
                 {
                     overrides.Add(new MemberOverride.ImportanceOf(member.Key, importance));
                 }
-                if (stored.DeadlineOverride is { } deadline)
+                if (stored.DeadlineOverride is GoalDeadline.Due { Day: var deadline })
                 {
                     overrides.Add(new MemberOverride.DeadlineOf(member.Key, deadline));
                 }
@@ -137,21 +141,21 @@ internal static class ThemesView
     private static ThemeMemberView GoalMember(string key, GoalRecord goal, ThemeRecord theme, IReadOnlyDictionary<int, GoalStatus> status)
     {
         var (state, detail) = status.TryGetValue(goal.Id, out var s) ? GoalsViewModel.Describe(s) : (GoalsViewModel.Pending, "");
-        var deadline = goal.DeadlineOverride ?? goal.DeadlineDay ?? theme.DeadlineDay;
+        var deadline = goal.DeadlineOverride.Or(goal.DeadlineDay).Or(theme.DeadlineDay);
         return new ThemeMemberView(
             key,
             GoalTitle(goal),
             state,
             detail,
-            (goal.ImportanceOverride ?? goal.Importance).ToString(),
-            deadline is { } day ? "day " + day.ToString(CultureInfo.InvariantCulture) : "",
+            goal.ImportanceOverride.Or(goal.Importance).ToString(),
+            DeadlineText(deadline),
             goal.Id,
             false);
     }
 
     /// <summary>The stored goal of <paramref name="theme"/> that a preset member's template minted: the same kind, target and qualifier.</summary>
     public static GoalRecord? FindGoal(GoalsRecord record, ThemeRecord theme, GoalRecord template) =>
-        record.Goals.FirstOrDefault(g => g.Theme == theme.Id && g.Kind == template.Kind && g.Target == template.Target && g.Qualifier == template.Qualifier);
+        record.Goals.FirstOrDefault(g => g.Theme.Is(theme.Id) && g.Kind == template.Kind && g.Target == template.Target && g.Qualifier == template.Qualifier);
 
     private static string MemberTitle(ResolvedMember m) => m.Goal is { } goal ? GoalTitle(goal) : Describe(m.Preference!);
 
@@ -198,7 +202,7 @@ public static class ThemeEdits
         {
             return new GoalEdit(record, $"{preset.Name} is already adopted");
         }
-        var theme = new ThemeRecord { Id = record.NextId, Name = preset.Name, Preset = preset.Id, Importance = importance, DeadlineDay = deadlineDay };
+        var theme = new ThemeRecord { Id = record.NextId, Name = preset.Name, Preset = preset.Id, Importance = importance, DeadlineDay = GoalDeadline.Of(deadlineDay) };
         var next = record.WithNewTheme(theme);
         var ids = new List<int>();
         foreach (var goal in PresetRules.Resolve(preset, book.Catalog, theme).Goals())
@@ -212,11 +216,11 @@ public static class ThemeEdits
     /// <summary>Sets (or, with both null, clears) one goal's importance and deadline within its theme; the other members keep the theme's.</summary>
     public static GoalEdit OverrideMember(GoalsRecord record, int goalId, Importance? importance, int? deadlineDay)
     {
-        if (record.Goals.FirstOrDefault(g => g.Id == goalId) is not { Theme: not null } goal)
+        if (record.Goals.FirstOrDefault(g => g.Id == goalId) is not { Theme: ThemeMembership.Member } goal)
         {
             return new GoalEdit(record, "that goal is not in a theme");
         }
-        return Check(record, record.With(goal with { ImportanceOverride = importance, DeadlineOverride = deadlineDay }));
+        return Check(record, record.With(goal with { ImportanceOverride = ImportanceChoice.Of(importance), DeadlineOverride = GoalDeadline.Of(deadlineDay) }));
     }
 
     /// <summary>Removes a preset member: the key is recorded and its goal, if minted, is deleted.</summary>
@@ -279,17 +283,17 @@ public static class ThemeEdits
             {
                 return new GoalEdit(record, $"goal {id} no longer exists");
             }
-            if (goal.Theme is not null)
+            if (goal.Theme is ThemeMembership.Member)
             {
                 return new GoalEdit(record, $"goal {id} already belongs to a theme");
             }
         }
-        var theme = new ThemeRecord { Id = record.NextId, Name = name.Trim(), Importance = importance, DeadlineDay = deadlineDay, Members = ids };
+        var theme = new ThemeRecord { Id = record.NextId, Name = name.Trim(), Importance = importance, DeadlineDay = GoalDeadline.Of(deadlineDay), Members = ids };
         var next = record.WithNewTheme(theme);
         foreach (var id in ids)
         {
             var goal = next.Goals.First(g => g.Id == id);
-            next = next.With(goal with { Theme = theme.Id, Importance = importance, DeadlineDay = goal.DeadlineDay ?? deadlineDay });
+            next = next.With(goal with { Theme = ThemeMembership.Of(theme.Id), Importance = importance, DeadlineDay = goal.DeadlineDay.Or(GoalDeadline.Of(deadlineDay)) });
         }
         return Check(record, next);
     }

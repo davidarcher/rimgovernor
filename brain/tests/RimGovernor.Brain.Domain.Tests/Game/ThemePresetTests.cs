@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests.Game;
 // #3493: the preset themes resolve over the installed definition catalog.
 public sealed class ThemePresetTests
 {
-    private static readonly ThemeRecord Theme = new() { Id = 7, Name = "Theme", Importance = Importance.High, DeadlineDay = 40 };
+    private static readonly ThemeRecord Theme = new() { Id = 7, Name = "Theme", Importance = Importance.High, DeadlineDay = GoalDeadline.Of(40) };
 
     private static IEnumerable<PresetDefRef> AllRequirements() =>
         ThemePresetCatalog.All.SelectMany(p => p.Members).Where(m => m.Goal is not null).SelectMany(m => PresetRules.Requirements(m.Goal!)).Distinct();
@@ -62,8 +62,8 @@ public sealed class ThemePresetTests
             Assert.All(resolved.Goals(), g =>
             {
                 Assert.Equal(Importance.High, g.Importance);
-                Assert.Equal(40, g.DeadlineDay);
-                Assert.Equal(7, g.Theme);
+                Assert.Equal(GoalDeadline.Of(40), g.DeadlineDay);
+                Assert.Equal(ThemeMembership.Of(7), g.Theme);
             });
         }
     }
@@ -104,10 +104,10 @@ public sealed class ThemePresetTests
         Assert.Equal(preset.Members.Count - 1, resolved.Members.Count);
         var mortar = resolved.Members.Single(m => m.Key == "built.Turret_Mortar").Goal!;
         Assert.Equal(Importance.Low, mortar.Importance);
-        Assert.Equal(90, mortar.DeadlineDay);
+        Assert.Equal(GoalDeadline.Of(90), mortar.DeadlineDay);
         var other = resolved.Members.Single(m => m.Key == "built.Turret_MiniTurret").Goal!;
         Assert.Equal(Importance.High, other.Importance);
-        Assert.Equal(40, other.DeadlineDay);
+        Assert.Equal(GoalDeadline.Of(40), other.DeadlineDay);
     }
 
     [Fact]

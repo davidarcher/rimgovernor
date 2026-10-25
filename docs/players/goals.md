@@ -97,7 +97,7 @@ plays, always:
 
 - **Risk profile** (Cautious, Normal, Bold) and **Pace** (Wellbeing, Balanced, Development).
 - **Apparel**: Dressed (default), Nude, or ArmorOnly. The governor stops tailoring clothing nobody will wear.
-- **Drug policy**: None, SocialOnly or Medical.
+- **Drug policy**: Unmanaged (default: the governor writes no drug policy), None, SocialOnly or Medical.
 - **Forbidden methods**: human butchery, organ harvest, drugs, slavery, insect meat, human leather. The governor never
   proposes what you forbid.
 - **Diet**: Cannibal, Insect meat, Vegetarian.

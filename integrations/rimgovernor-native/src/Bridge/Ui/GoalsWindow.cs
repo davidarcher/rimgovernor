@@ -196,8 +196,8 @@ namespace HomeBridge.BridgeTools
                 {
                     var goal = model.Record.Goals.FirstOrDefault(g => g.Id == goalId);
                     overrideGoalId = goalId;
-                    overrideImportance = goal?.ImportanceOverride ?? goal?.Importance ?? Importance.Normal;
-                    overrideDeadlineText = goal?.DeadlineOverride is { } d ? d.ToString(CultureInfo.InvariantCulture) : "";
+                    overrideImportance = goal == null ? Importance.Normal : goal.ImportanceOverride.Or(goal.Importance);
+                    overrideDeadlineText = goal?.DeadlineOverride is GoalDeadline.Due due ? due.Day.ToString(CultureInfo.InvariantCulture) : "";
                 }
                 if (theme.PresetId.Length > 0)
                 {
@@ -320,7 +320,7 @@ namespace HomeBridge.BridgeTools
             target = draft.Target;
             qualifier = draft.Qualifier;
             countText = draft.Count > 0 ? draft.Count.ToString(CultureInfo.InvariantCulture) : "";
-            deadlineText = draft.DeadlineDay is { } day ? day.ToString(CultureInfo.InvariantCulture) : "";
+            deadlineText = draft.DeadlineDay is GoalDeadline.Due due ? due.Day.ToString(CultureInfo.InvariantCulture) : "";
             importance = draft.Importance;
             formError = "";
         }
@@ -348,7 +348,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!TryNumber(countText, out var count) || count is null or < 0) { formError = "Count must be a whole number."; return; }
             if (!TryNumber(deadlineText, out var deadline)) { formError = "Deadline must be a whole game day or blank."; return; }
-            var draft = new GoalDraft { Kind = kind, Target = target, Qualifier = qualifier, Count = count ?? 0, Importance = importance, DeadlineDay = deadline };
+            var draft = new GoalDraft { Kind = kind, Target = target, Qualifier = qualifier, Count = count ?? 0, Importance = importance, DeadlineDay = GoalDeadline.Of(deadline) };
             var id = editingId;
             panel.Submit(r => id is { } goalId ? GoalEdits.Edit(r, goalId, draft) : GoalEdits.Add(r, draft));
             editingId = null;
@@ -388,8 +388,8 @@ namespace HomeBridge.BridgeTools
             Text.Font = GameFont.Small;
             Pick(list, "Risk profile", prefs.RiskProfile.ToString(), Enum.GetValues(typeof(RiskProfile)).Cast<RiskProfile>(), v => v.ToString(), v => Save(prefs with { RiskProfile = v }));
             Pick(list, "Pace", prefs.Pace.ToString(), Enum.GetValues(typeof(Pace)).Cast<Pace>(), v => v.ToString(), v => Save(prefs with { Pace = v }));
-            Pick(list, "Apparel", prefs.Apparel?.ToString() ?? "No preference", Choices<ApparelPreference>(), v => v?.ToString() ?? "No preference", v => Save(prefs with { Apparel = v }));
-            Pick(list, "Drug policy", prefs.DrugPolicy?.ToString() ?? "No preference", Choices<DrugPolicyPreference>(), v => v?.ToString() ?? "No preference", v => Save(prefs with { DrugPolicy = v }));
+            Pick(list, "Apparel", prefs.Apparel.ToString(), Enum.GetValues(typeof(ApparelPreference)).Cast<ApparelPreference>(), v => v.ToString(), v => Save(prefs with { Apparel = v }));
+            Pick(list, "Drug policy", prefs.DrugPolicy.ToString(), Enum.GetValues(typeof(DrugPolicyPreference)).Cast<DrugPolicyPreference>(), v => v.ToString(), v => Save(prefs with { DrugPolicy = v }));
             list.Label("Forbidden methods");
             foreach (var method in Enum.GetValues(typeof(ForbiddenMethod)).Cast<ForbiddenMethod>())
             {
@@ -411,10 +411,6 @@ namespace HomeBridge.BridgeTools
             if (list.ButtonText("Apply protected lists"))
                 Save(prefs with { ProtectedThings = Ids(protectedThings), ProtectedPawns = Ids(protectedPawns) });
         }
-
-        // A nullable choice: null first, then every value.
-        private static IEnumerable<T?> Choices<T>() where T : struct, Enum
-            => new T?[] { null }.Concat(Enum.GetValues(typeof(T)).Cast<T>().Select(v => (T?)v));
 
         private static IReadOnlyList<T> Toggled<T>(IReadOnlyList<T> current, T item, bool on) where T : struct, Enum
             => current.Where(v => !v.Equals(item)).Concat(on ? new[] { item } : Array.Empty<T>()).OrderBy(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToList();

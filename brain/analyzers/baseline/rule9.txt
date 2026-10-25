@@ -79,7 +79,7 @@ BuildingRuntime/Rounds/RoundsComfort.cs|Fact|10
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|12
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|12
-BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|3
+BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|2
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDeepDrill.cs|Fact|8
 BuildingRuntime/Rounds/RoundsDefenseEntities.cs|Unknown|1
@@ -263,14 +263,14 @@ Observation/Acquisition.cs|Unknown|1
 Observation/BiotechColony.cs|Fact|1
 Observation/Colony.cs|Fact|80
 Observation/Colony.cs|Unknown|4
-Observation/ColonyDecode.cs|Fact|37
+Observation/ColonyDecode.cs|Fact|36
 Observation/ColonyDecode.cs|Unknown|3
 Observation/ColonyFrames.cs|Fact|15
 Observation/ColonyFrames.cs|Unknown|3
 Observation/ColonyGear.cs|Fact|15
 Observation/ColonyGear.cs|Unknown|4
 Observation/ColonyGear.cs|ValueOrDefault|1
-Observation/ColonyProduction.cs|Fact|31
+Observation/ColonyProduction.cs|Fact|30
 Observation/ColonyProduction.cs|Unknown|5
 Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
@@ -292,7 +292,7 @@ Observation/RoundsContainment.cs|Fact|2
 Observation/RoundsContainment.cs|Unknown|1
 Observation/RoundsMood.cs|Fact|17
 Observation/RoundsMood.cs|Unknown|4
-Observation/RoundsRead.cs|Fact|28
+Observation/RoundsRead.cs|Fact|25
 Observation/RoundsRead.cs|Unknown|9
 Observation/RoundsWork.cs|Fact|4
 Observation/RoundsWork.cs|Unknown|2
@@ -324,7 +324,7 @@ Policy/BillWanted.cs|Fact|2
 Policy/Blight.cs|Fact|4
 Policy/Blight.cs|Unknown|1
 Policy/BuildingWork.cs|Fact|2
-Policy/Calendar.cs|Fact|39
+Policy/Calendar.cs|Fact|33
 Policy/Calendar.cs|Unknown|5
 Policy/ChildRooms.cs|Fact|2
 Policy/Climate.cs|Fact|1
@@ -453,8 +453,7 @@ Policy/Gear.cs|Fact|6
 Policy/GearClimate.cs|Fact|2
 Policy/GearSurplus.cs|Fact|1
 Policy/GoalValues.cs|Fact|2
-Policy/Goals.cs|NullableValue|9
-Policy/GoalsFamily.cs|Fact|23
+Policy/GoalsFamily.cs|Fact|19
 Policy/GrowerCrop.cs|Fact|6
 Policy/GrowerCrop.cs|ValueOrDefault|2
 Policy/Harm/HarmLedger.cs|Fact|6
@@ -601,7 +600,7 @@ Policy/RoomQualityUpgrade.cs|Fact|1
 Policy/Rooms.cs|Fact|1
 Policy/RoomsFamily.cs|Fact|16
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|139
+Policy/Rounds.cs|Fact|135
 Policy/Rounds.cs|Unknown|6
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7

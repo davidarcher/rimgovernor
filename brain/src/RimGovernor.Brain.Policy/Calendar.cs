@@ -44,22 +44,32 @@ public sealed record Calendar
     }
 }
 
+/// <summary>What stands in a growing zone: plants with their means, or nothing planted.</summary>
+public abstract record CropStand
+{
+    private CropStand() { }
+
+    /// <summary>
+    /// <paramref name="Planted"/> cells hold plants (at least one), <paramref name="FertilePlanted"/> of them on fertile soil;
+    /// <paramref name="GrowthMean"/> and <paramref name="FertilityMean"/> are the plants' mean growth fraction and fertility factor.
+    /// </summary>
+    public sealed record Sown(long Planted, long FertilePlanted, double GrowthMean, double FertilityMean) : CropStand;
+
+    /// <summary>No plant is sown: the zone grows nothing and has no harvest to wait for.</summary>
+    public sealed record Fallow : CropStand;
+}
+
 /// <summary>
-/// The raw state of one growing zone's crop as native mirrors it: the planted plants' mean growth fraction and
-/// fertility factor, the outdoor temperature and the crop's native growth range. Light is not part of it: the
+/// The raw state of one growing zone's crop as native mirrors it: what stands in the zone, the outdoor temperature and
+/// the crop's native growth range. Light is not part of it: the
 /// factor is an instantaneous reading that drops to zero every night, so it says nothing about days to harvest.
 /// </summary>
 public sealed record CropGrowth
 {
-    public long Planted { get; init; }
+    public required CropStand Stand { get; init; }
 
-    public long FertilePlanted { get; init; }
-
-    public Fact<double> GrowthMean { get; init; }
-
-    public Fact<double> FertilityMean { get; init; }
-
-    public Fact<double> Temperature { get; init; }
+    /// <summary>The outdoor temperature at the zone, finite.</summary>
+    public required double Temperature { get; init; }
 
     public Fact<double> MinGrowth { get; init; }
 
@@ -71,17 +81,17 @@ public sealed record CropGrowth
 
     /// <summary>
     /// The crop's growth-rate factor at the current outdoor temperature: 1 inside the optimal range, falling
-    /// linearly to 0 at the growth limits. Unknown while a temperature fact is missing or the range is not
+    /// linearly to 0 at the growth limits. Unknown while a range fact is missing or the range is not
     /// ordered.
     /// </summary>
     public Fact<double> TemperatureFactor()
     {
-        var tk = Temperature.TryGetValue(out var t);
+        var t = Temperature;
         var lk = MinGrowth.TryGetValue(out var lo);
         var l2k = MinOptimal.TryGetValue(out var lo2);
         var h2k = MaxOptimal.TryGetValue(out var hi2);
         var hk = MaxGrowth.TryGetValue(out var hi);
-        if (!tk || !lk || !l2k || !h2k || !hk || !(lo <= lo2 && lo2 <= hi2 && hi2 <= hi) || double.IsNaN(t) || double.IsInfinity(t))
+        if (!lk || !l2k || !h2k || !hk || !(lo <= lo2 && lo2 <= hi2 && hi2 <= hi))
         {
             return Unknown<double>();
         }
@@ -112,7 +122,7 @@ public sealed record CropGrowth
             return Unknown<long>();
         }
 
-        return factor <= 0 ? Known(0L) : Known(FertilePlanted);
+        return factor <= 0 || Stand is not CropStand.Sown sown ? Known(0L) : Known(sown.FertilePlanted);
     }
 }
 
@@ -213,24 +223,15 @@ public static class CalendarRules
     /// </summary>
     public static Fact<double> HarvestLeadDays(CropGrowth g, Fact<double> growDays, Fact<Calendar> calendar)
     {
-        var planted = g.Planted;
-        var gk = g.GrowthMean.TryGetValue(out var growth);
-        var fk = g.FertilityMean.TryGetValue(out var fertility);
         var dk = growDays.TryGetValue(out var days);
         var tk = g.TemperatureFactor().TryGetValue(out var factor);
         var ck = calendar.TryGetValue(out var c);
         if (
-            planted <= 0
-            || !gk
-            || !fk
+            g.Stand is not CropStand.Sown sown
             || !dk
             || !tk
             || !ck
             || !c!.Valid()
-            || double.IsNaN(growth)
-            || growth < 0
-            || double.IsNaN(fertility)
-            || fertility < 0
             || double.IsNaN(days)
             || double.IsInfinity(days)
             || days <= 0
@@ -239,7 +240,7 @@ public static class CalendarRules
             return Unknown<double>();
         }
 
-        var need = Math.Max(0, 1 - growth) * days / Math.Max(MinFertilityFactor, fertility);
+        var need = Math.Max(0, 1 - sown.GrowthMean) * days / Math.Max(MinFertilityFactor, sown.FertilityMean);
         if (factor <= 0)
         {
             if (c.GrowingDaysUntil <= 0)

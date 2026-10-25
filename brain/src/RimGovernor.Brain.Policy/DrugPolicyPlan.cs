@@ -19,8 +19,8 @@ public static class DrugPolicyPlanRules
     private const double DefaultDaysFrequency = 1;
     private const double DefaultThreshold = 1;
 
-    /// <summary>The preference the colony plans: forbidding drugs is the None preference whatever else is set; null for no preference.</summary>
-    public static DrugPolicyPreference? Effective(PreferencesRecord preferences) =>
+    /// <summary>The preference the colony plans: forbidding drugs is the None preference whatever else is set; Unmanaged when the player set none.</summary>
+    public static DrugPolicyPreference Effective(PreferencesRecord preferences) =>
         preferences.Forbids(ForbiddenMethod.Drugs) ? DrugPolicyPreference.None : preferences.DrugPolicy;
 
     /// <summary>
@@ -47,7 +47,8 @@ public static class DrugPolicyPlanRules
     public static DrugPolicyChanges Changes(PreferencesRecord preferences, ItemFacts items, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<OwnedDrugPolicy> policies)
     {
         var none = new DrugPolicyChanges(null, []);
-        if (Effective(preferences) is not { } preference)
+        var preference = Effective(preferences);
+        if (preference == DrugPolicyPreference.Unmanaged)
         {
             return none;
         }

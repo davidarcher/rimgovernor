@@ -137,7 +137,7 @@ public sealed partial class GoalsRounds
         {
             attrs["eta_day"] = eta.Value;
         }
-        if (status.Goal.Theme is { } theme && themes.TryGetValue(theme, out var progress))
+        if (status.Goal.Theme is ThemeMembership.Member { Id: var theme } && themes.TryGetValue(theme, out var progress))
         {
             attrs["theme"] = progress.Id;
             attrs["theme_met"] = progress.Met;

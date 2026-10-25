@@ -9,7 +9,7 @@ the [goals guide](../../players/goals.md); this note is the shape of the code. P
 ## Records and the blob
 
 `Goals.cs` in `brain/src/RimGovernor.Brain.Policy` holds the typed records: `GoalRecord` (a closed `GoalKind`, a
-target and qualifier, a count, importance, deadline, optional theme and overrides), `ThemeRecord` (preset id,
+target and qualifier, a count, importance, a `GoalDeadline`, a `ThemeMembership` (standalone or member of a theme) and an `ImportanceChoice` and `GoalDeadline` override a member may set), `ThemeRecord` (preset id,
 importance, deadline, member goal ids, removed preset-member keys) and `PreferencesRecord`. All validate on save, and
 an unknown kind is a save error. The whole set is one colony-scoped blob, `family/goals`, in the native save, with
 minted ids that are never reused, so a goal's Need id `goals/<kind>/<id>` is reproducible from the blob. The

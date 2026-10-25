@@ -58,9 +58,9 @@ public sealed class GoalsThemesTests
         Assert.Equal(theme.Members, record.Goals.Select(g => g.Id));
         Assert.All(record.Goals, g =>
         {
-            Assert.Equal(theme.Id, g.Theme);
+            Assert.Equal(ThemeMembership.Of(theme.Id), g.Theme);
             Assert.Equal(Importance.High, g.Importance);
-            Assert.Equal(30, g.DeadlineDay);
+            Assert.Equal(GoalDeadline.Of(30), g.DeadlineDay);
         });
         Assert.DoesNotContain(record.Goals, g => g.Target == "GhostTech");
     }
@@ -110,7 +110,7 @@ public sealed class GoalsThemesTests
         Assert.Equal(["Low", "High", "High"], members.Select(m => m.Importance));
         Assert.Equal(["day 5", "day 30", "day 30"], members.Select(m => m.Deadline));
         Assert.Equal(Importance.High, overridden.Goals.Single(g => g.Target == "Smithing").Importance);
-        Assert.Null(overridden.Goals.Single(g => g.Target == "Smithing").ImportanceOverride);
+        Assert.Equal(ImportanceChoice.Inherited, overridden.Goals.Single(g => g.Target == "Smithing").ImportanceOverride);
     }
 
     [Fact]
@@ -162,9 +162,9 @@ public sealed class GoalsThemesTests
         Assert.Equal("", theme.Preset);
         Assert.Equal("Expansion", theme.Name);
         Assert.Equal([1, 2, 3], theme.Members);
-        Assert.All(composed.Goals.Where(g => g.Id <= 3), g => Assert.Equal(theme.Id, g.Theme));
+        Assert.All(composed.Goals.Where(g => g.Id <= 3), g => Assert.Equal(ThemeMembership.Of(theme.Id), g.Theme));
         Assert.All(composed.Goals.Where(g => g.Id <= 3), g => Assert.Equal(Importance.High, g.Importance));
-        Assert.Null(composed.Goals.Single(g => g.Id == 4).Theme);
+        Assert.Equal(ThemeMembership.Alone, composed.Goals.Single(g => g.Id == 4).Theme);
         Assert.Equal([1, 2, 3], GoalsViewModel.From(new GoalsSnapshot(composed, [], []), Full).Themes.Single().Members.Select(m => m.GoalId!.Value));
         Assert.False(ThemeEdits.Compose(composed, "Again", Importance.Low, null, [1]).Ok);
         Assert.False(ThemeEdits.Compose(record, " ", Importance.Low, null, [1]).Ok);

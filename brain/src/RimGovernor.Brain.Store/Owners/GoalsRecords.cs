@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Store;
 /// <summary>
 /// The player's goals, themes and preferences (#3489), kept in the save as the <c>family/goals</c> blob: intent the
 /// world cannot show. Goal and theme ids are minted from <see cref="NextId"/> and never reused. The record is
-/// colony-scoped; a site-bound goal carries its map.
+/// colony-scoped.
 /// </summary>
 public sealed record GoalsRecord
 {
@@ -35,14 +35,14 @@ public sealed record GoalsRecord
             var goal = Goals[i];
             goal.Validate();
             DomainException.Require(goal.Id < NextId && (i == 0 || Goals[i - 1].Id < goal.Id), "duplicate or unordered goal id");
-            DomainException.Require(goal.Theme is not { } t || Themes.Any(x => x.Id == t && x.Members.Contains(goal.Id)), "goal theme does not list the goal");
+            DomainException.Require(goal.Theme is not ThemeMembership.Member { Id: var t } || Themes.Any(x => x.Id == t && x.Members.Contains(goal.Id)), "goal theme does not list the goal");
         }
         for (var i = 0; i < Themes.Count; i++)
         {
             var theme = Themes[i];
             theme.Validate();
             DomainException.Require(theme.Id < NextId && (i == 0 || Themes[i - 1].Id < theme.Id), "duplicate or unordered theme id");
-            DomainException.Require(theme.Members.All(m => Goals.Any(g => g.Id == m && g.Theme == theme.Id)), "theme member is not a goal of the theme");
+            DomainException.Require(theme.Members.All(m => Goals.Any(g => g.Id == m && g.Theme.Is(theme.Id))), "theme member is not a goal of the theme");
         }
         Preferences.Validate();
     }

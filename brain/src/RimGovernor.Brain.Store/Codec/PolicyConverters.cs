@@ -2404,11 +2404,10 @@ internal sealed class GoalRecordConverter : ObjectCodec<GoalRecord>
             Qualifier = e.Str("Qualifier"),
             Count = e.I32("Count"),
             Importance = e.Get<Importance>("Importance", o),
-            DeadlineDay = e.Get<int?>("DeadlineDay", o),
-            Theme = e.Get<int?>("Theme", o),
-            ImportanceOverride = e.Get<Importance?>("ImportanceOverride", o),
-            DeadlineOverride = e.Get<int?>("DeadlineOverride", o),
-            SiteMap = e.Get<MapId?>("SiteMap", o),
+            DeadlineDay = GoalDeadline.Of(e.Get<int?>("DeadlineDay", o)),
+            Theme = ThemeMembership.Of(e.Get<int?>("Theme", o)),
+            ImportanceOverride = ImportanceChoice.Of(e.Get<Importance?>("ImportanceOverride", o)),
+            DeadlineOverride = GoalDeadline.Of(e.Get<int?>("DeadlineOverride", o)),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, GoalRecord v, Codecs o)
@@ -2419,11 +2418,10 @@ internal sealed class GoalRecordConverter : ObjectCodec<GoalRecord>
         w.WriteString("Qualifier", v.Qualifier);
         w.WriteNum("Count", v.Count);
         w.Put("Importance", v.Importance, o);
-        w.Put("DeadlineDay", v.DeadlineDay, o);
-        w.Put("Theme", v.Theme, o);
-        w.Put("ImportanceOverride", v.ImportanceOverride, o);
-        w.Put("DeadlineOverride", v.DeadlineOverride, o);
-        w.Put("SiteMap", v.SiteMap, o);
+        w.Put("DeadlineDay", v.DeadlineDay.ToWire(), o);
+        w.Put("Theme", v.Theme.ToWire(), o);
+        w.Put("ImportanceOverride", v.ImportanceOverride.ToWire(), o);
+        w.Put("DeadlineOverride", v.DeadlineOverride.ToWire(), o);
     }
 }
 
@@ -2436,7 +2434,7 @@ internal sealed class ThemeRecordConverter : ObjectCodec<ThemeRecord>
             Name = e.Str("Name"),
             Preset = e.Str("Preset"),
             Importance = e.Get<Importance>("Importance", o),
-            DeadlineDay = e.Get<int?>("DeadlineDay", o),
+            DeadlineDay = GoalDeadline.Of(e.Get<int?>("DeadlineDay", o)),
             Members = e.Get<IReadOnlyList<int>>("Members", o),
             RemovedPresetMembers = e.Get<IReadOnlyList<string>>("RemovedPresetMembers", o),
         };
@@ -2447,7 +2445,7 @@ internal sealed class ThemeRecordConverter : ObjectCodec<ThemeRecord>
         w.WriteString("Name", v.Name);
         w.WriteString("Preset", v.Preset);
         w.Put("Importance", v.Importance, o);
-        w.Put("DeadlineDay", v.DeadlineDay, o);
+        w.Put("DeadlineDay", v.DeadlineDay.ToWire(), o);
         w.Put("Members", v.Members, o);
         w.Put("RemovedPresetMembers", v.RemovedPresetMembers, o);
     }
@@ -2460,20 +2458,18 @@ internal sealed class PreferencesRecordConverter : ObjectCodec<PreferencesRecord
         {
             RiskProfile = e.Get<RiskProfile>("RiskProfile", o),
             Pace = e.Get<Pace>("Pace", o),
-            WealthCap = e.Get<int?>("WealthCap", o),
             Forbidden = e.Get<IReadOnlyList<ForbiddenMethod>>("Forbidden", o),
             ProtectedThings = e.Get<IReadOnlyList<string>>("ProtectedThings", o),
             ProtectedPawns = e.Get<IReadOnlyList<string>>("ProtectedPawns", o),
             Diet = e.Get<IReadOnlyList<DietOverride>>("Diet", o),
-            Apparel = e.Get<ApparelPreference?>("Apparel", o),
-            DrugPolicy = e.Get<DrugPolicyPreference?>("DrugPolicy", o),
+            Apparel = e.Get<ApparelPreference>("Apparel", o),
+            DrugPolicy = e.Get<DrugPolicyPreference>("DrugPolicy", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PreferencesRecord v, Codecs o)
     {
         w.Put("RiskProfile", v.RiskProfile, o);
         w.Put("Pace", v.Pace, o);
-        w.Put("WealthCap", v.WealthCap, o);
         w.Put("Forbidden", v.Forbidden, o);
         w.Put("ProtectedThings", v.ProtectedThings, o);
         w.Put("ProtectedPawns", v.ProtectedPawns, o);

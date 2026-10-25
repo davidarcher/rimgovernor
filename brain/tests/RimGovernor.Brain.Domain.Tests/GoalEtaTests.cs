@@ -101,7 +101,7 @@ public sealed class GoalEtaTests
         var input = ProjectGraphTests.Colony();
         double Research(int? deadline)
         {
-            var goal = Worn() with { DeadlineDay = deadline };
+            var goal = Worn() with { DeadlineDay = GoalDeadline.Of(deadline) };
             var path = DevilstrandPath(input, goal);
             return Run(input, path).Goals[path.Terminal!.Goal].PerUnit["Devilstrand"];
         }

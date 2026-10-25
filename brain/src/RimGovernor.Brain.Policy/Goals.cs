@@ -119,9 +119,57 @@ public enum ApparelPreference
 
 public enum DrugPolicyPreference
 {
+    /// <summary>The player left the colony's drug policy alone: the autopilot writes none.</summary>
+    Unmanaged,
+
+    /// <summary>No drug is taken.</summary>
     None,
     SocialOnly,
     Medical,
+}
+
+/// <summary>Whether a goal belongs to a theme: it stands alone, or it is a member of one.</summary>
+public abstract record ThemeMembership
+{
+    private ThemeMembership() { }
+
+    /// <summary>The goal belongs to no theme.</summary>
+    public sealed record Standalone : ThemeMembership;
+
+    /// <summary>The goal is a member of theme <paramref name="Id"/>.</summary>
+    public sealed record Member(int Id) : ThemeMembership;
+
+    public static readonly ThemeMembership Alone = new Standalone();
+
+    /// <summary>The stored theme id, or null for a standalone goal: the one place membership becomes a nullable (the store's JSON shape).</summary>
+    public int? ToWire() => this is Member member ? member.Id : null;
+
+    public static ThemeMembership Of(int? theme) => theme is { } id ? new Member(id) : Alone;
+
+    /// <summary>Whether this is membership of theme <paramref name="theme"/>.</summary>
+    public bool Is(int theme) => this is Member member && member.Id == theme;
+}
+
+/// <summary>A member goal's importance: its theme's own, or one the player set for this member.</summary>
+public abstract record ImportanceChoice
+{
+    private ImportanceChoice() { }
+
+    /// <summary>The member takes its own importance (a standalone goal's, or the theme's).</summary>
+    public sealed record Own : ImportanceChoice;
+
+    /// <summary>The player set this member's importance.</summary>
+    public sealed record Chosen(Importance Value) : ImportanceChoice;
+
+    public static readonly ImportanceChoice Inherited = new Own();
+
+    /// <summary>The stored importance, or null for none set: the one place a choice becomes a nullable (the store's JSON shape).</summary>
+    public Importance? ToWire() => this is Chosen chosen ? chosen.Value : null;
+
+    public static ImportanceChoice Of(Importance? importance) => importance is { } value ? new Chosen(value) : Inherited;
+
+    /// <summary>The importance that applies: the one set, else <paramref name="fallback"/>.</summary>
+    public Importance Or(Importance fallback) => this is Chosen chosen ? chosen.Value : fallback;
 }
 
 /// <summary>
@@ -147,18 +195,16 @@ public sealed record GoalRecord
 
     public Importance Importance { get; init; } = Importance.Normal;
 
-    /// <summary>The game day the goal is due by; null for none.</summary>
-    public int? DeadlineDay { get; init; }
+    /// <summary>The game day the goal is due by, or none.</summary>
+    public GoalDeadline DeadlineDay { get; init; } = GoalDeadline.Unbounded;
 
-    /// <summary>The theme this goal is a member of; null for a standalone goal.</summary>
-    public int? Theme { get; init; }
+    /// <summary>The theme this goal is a member of, or standalone.</summary>
+    public ThemeMembership Theme { get; init; } = ThemeMembership.Alone;
 
-    public Importance? ImportanceOverride { get; init; }
+    public ImportanceChoice ImportanceOverride { get; init; } = ImportanceChoice.Inherited;
 
-    public int? DeadlineOverride { get; init; }
-
-    /// <summary>The map a site-bound goal belongs to; null for the colony.</summary>
-    public MapId? SiteMap { get; init; }
+    /// <summary>The deadline the player set for this member in place of its theme's; none keeps the theme's.</summary>
+    public GoalDeadline DeadlineOverride { get; init; } = GoalDeadline.Unbounded;
 
     public void Validate()
     {
@@ -166,10 +212,9 @@ public sealed record GoalRecord
         DomainException.Require(Wire.IsDefined(Kind) && Wire.IsDefined(Importance), "invalid goal kind or importance");
         DomainException.Require(Target.Length <= MaxText && Qualifier.Length <= MaxText, "goal text too long");
         DomainException.Require(Count >= 0, "negative goal count");
-        DomainException.Require(DeadlineDay is null or > 0, "goal deadline must be positive");
-        DomainException.Require(DeadlineOverride is null or > 0, "goal deadline override must be positive");
-        DomainException.Require(ImportanceOverride is not { } o || Wire.IsDefined(o), "invalid goal importance override");
-        DomainException.Require(SiteMap is not { } m || m.Value >= 0, "invalid goal map");
+        DomainException.Require(DeadlineDay is not GoalDeadline.Due { Day: <= 0 }, "goal deadline must be positive");
+        DomainException.Require(DeadlineOverride is not GoalDeadline.Due { Day: <= 0 }, "goal deadline override must be positive");
+        DomainException.Require(ImportanceOverride is not ImportanceChoice.Chosen { Value: var o } || Wire.IsDefined(o), "invalid goal importance override");
     }
 }
 
@@ -185,7 +230,7 @@ public sealed record ThemeRecord
 
     public Importance Importance { get; init; } = Importance.Normal;
 
-    public int? DeadlineDay { get; init; }
+    public GoalDeadline DeadlineDay { get; init; } = GoalDeadline.Unbounded;
 
     /// <summary>Goal ids, ascending.</summary>
     public IReadOnlyList<int> Members { get; init; } = [];
@@ -198,7 +243,7 @@ public sealed record ThemeRecord
         DomainException.Require(Id > 0, "invalid theme id");
         DomainException.Require(Name.Length is > 0 and <= GoalRecord.MaxText && Preset.Length <= GoalRecord.MaxText, "invalid theme name or preset");
         DomainException.Require(Wire.IsDefined(Importance), "invalid theme importance");
-        DomainException.Require(DeadlineDay is null or > 0, "theme deadline must be positive");
+        DomainException.Require(DeadlineDay is not GoalDeadline.Due { Day: <= 0 }, "theme deadline must be positive");
         DomainException.Require(Members.Zip(Members.Skip(1)).All(p => p.First < p.Second), "theme members not ascending");
         DomainException.Require(PreferencesRecord.OrdinalAscending(RemovedPresetMembers), "invalid removed preset members");
     }
@@ -210,9 +255,6 @@ public sealed record PreferencesRecord
     public RiskProfile RiskProfile { get; init; } = RiskProfile.Normal;
 
     public Pace Pace { get; init; } = Pace.Balanced;
-
-    /// <summary>The colony wealth the player does not want to exceed; null for none.</summary>
-    public int? WealthCap { get; init; }
 
     /// <summary>Methods the colony does not use, ascending by value.</summary>
     public IReadOnlyList<ForbiddenMethod> Forbidden { get; init; } = [];
@@ -226,9 +268,9 @@ public sealed record PreferencesRecord
     /// <summary>Diet overrides, ascending by value.</summary>
     public IReadOnlyList<DietOverride> Diet { get; init; } = [];
 
-    public ApparelPreference? Apparel { get; init; }
+    public ApparelPreference Apparel { get; init; } = ApparelPreference.Dressed;
 
-    public DrugPolicyPreference? DrugPolicy { get; init; }
+    public DrugPolicyPreference DrugPolicy { get; init; } = DrugPolicyPreference.Unmanaged;
 
     /// <summary>Whether the colony does not use <paramref name="method"/>.</summary>
     public bool Forbids(ForbiddenMethod method) => Forbidden.Contains(method);
@@ -241,17 +283,16 @@ public sealed record PreferencesRecord
 
     /// <summary>Whether every preference is at its default.</summary>
     public bool IsDefault =>
-        RiskProfile == RiskProfile.Normal && Pace == Pace.Balanced && WealthCap is null && Apparel is null && DrugPolicy is null
+        RiskProfile == RiskProfile.Normal && Pace == Pace.Balanced && Apparel == ApparelPreference.Dressed && DrugPolicy == DrugPolicyPreference.Unmanaged
         && Forbidden.Count == 0 && ProtectedThings.Count == 0 && ProtectedPawns.Count == 0 && Diet.Count == 0;
 
     public void Validate()
     {
         DomainException.Require(Wire.IsDefined(RiskProfile) && Wire.IsDefined(Pace), "invalid risk profile or pace");
-        DomainException.Require(WealthCap is null or >= 0, "negative wealth cap");
         DomainException.Require(Forbidden.All(Wire.IsDefined) && Ascending(Forbidden.Select(f => (int)f)), "invalid forbidden methods");
         DomainException.Require(Diet.All(Wire.IsDefined) && Ascending(Diet.Select(d => (int)d)), "invalid diet overrides");
-        DomainException.Require(Apparel is not { } a || Wire.IsDefined(a), "invalid apparel preference");
-        DomainException.Require(DrugPolicy is not { } d || Wire.IsDefined(d), "invalid drug policy");
+        DomainException.Require(Wire.IsDefined(Apparel), "invalid apparel preference");
+        DomainException.Require(Wire.IsDefined(DrugPolicy), "invalid drug policy");
         DomainException.Require(OrdinalAscending(ProtectedThings) && OrdinalAscending(ProtectedPawns), "invalid protected ids");
     }
 

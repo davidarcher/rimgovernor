@@ -27,7 +27,7 @@ public sealed record GoalDraft
 
     public Importance Importance { get; init; } = Importance.Normal;
 
-    public int? DeadlineDay { get; init; }
+    public GoalDeadline DeadlineDay { get; init; } = GoalDeadline.Unbounded;
 
     /// <summary>The draft of <paramref name="goal"/>, for the edit form.</summary>
     public static GoalDraft Of(GoalRecord goal) => new() { Kind = goal.Kind, Target = goal.Target, Qualifier = goal.Qualifier, Count = goal.Count, Importance = goal.Importance, DeadlineDay = goal.DeadlineDay };
@@ -55,35 +55,35 @@ public sealed record GoalsViewModel(GoalsRecord Record, IReadOnlyList<GoalGroupV
         var themeStatus = snapshot.Themes.ToDictionary(t => t.Id);
         var ordered = record.Goals
             .OrderByDescending(g => g.Importance)
-            .ThenBy(g => g.Theme ?? 0)
+            .ThenBy(g => g.Theme.ToWire() ?? 0)
             .ThenBy(g => g.Id)
             .ToList();
         var groups = new List<GoalGroupView>();
-        var standalone = ordered.Where(g => g.Theme is null).Select(g => Row(g, status, DeadlineOf(g, null))).ToList();
+        var standalone = ordered.Where(g => g.Theme is ThemeMembership.Standalone).Select(g => Row(g, status, DeadlineOf(g, null))).ToList();
         if (standalone.Count > 0)
         {
             groups.Add(new GoalGroupView(null, "Goals", "", standalone));
         }
         foreach (var theme in record.Themes)
         {
-            var rows = ordered.Where(g => g.Theme == theme.Id).Select(g => Row(g, status, DeadlineOf(g, theme))).ToList();
+            var rows = ordered.Where(g => g.Theme.Is(theme.Id)).Select(g => Row(g, status, DeadlineOf(g, theme))).ToList();
             var progress = themeStatus.TryGetValue(theme.Id, out var t) ? $"{t.Met}/{t.Total} met" : "not reviewed";
             groups.Add(new GoalGroupView(theme.Id, theme.Name, progress, rows));
         }
         return new GoalsViewModel(record, groups, ThemesView.Themes(record, book, status), ThemesView.Presets(record, book));
     }
 
-    private static int? DeadlineOf(GoalRecord goal, ThemeRecord? theme) => goal.DeadlineOverride ?? goal.DeadlineDay ?? theme?.DeadlineDay;
+    private static GoalDeadline DeadlineOf(GoalRecord goal, ThemeRecord? theme) => goal.DeadlineOverride.Or(goal.DeadlineDay).Or(theme?.DeadlineDay ?? GoalDeadline.Unbounded);
 
-    private static GoalRowView Row(GoalRecord goal, Dictionary<int, GoalStatus> status, int? deadline)
+    private static GoalRowView Row(GoalRecord goal, Dictionary<int, GoalStatus> status, GoalDeadline deadline)
     {
         var (state, detail) = status.TryGetValue(goal.Id, out var s) ? Describe(s) : (Pending, "");
         return new GoalRowView(
             goal.Id,
             Words(goal.Kind.ToString()),
             TargetText(goal),
-            (goal.ImportanceOverride ?? goal.Importance).ToString(),
-            deadline is { } day ? "day " + day.ToString(CultureInfo.InvariantCulture) : "",
+            goal.ImportanceOverride.Or(goal.Importance).ToString(),
+            ThemesView.DeadlineText(deadline),
             state,
             detail);
     }

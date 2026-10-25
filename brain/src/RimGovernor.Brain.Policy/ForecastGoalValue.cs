@@ -26,8 +26,17 @@ public abstract record GoalDeadline
     /// <summary>The goal is due on <paramref name="Day"/>; its worth decays per day past it.</summary>
     public sealed record Due(int Day) : GoalDeadline;
 
+    /// <summary>The goal has no deadline.</summary>
+    public static readonly GoalDeadline Unbounded = new Open();
+
     /// <summary>The deadline the player set, where none set is <see cref="Open"/>.</summary>
-    public static GoalDeadline Of(int? day) => day is { } due ? new Due(due) : new Open();
+    public static GoalDeadline Of(int? day) => day is { } due ? new Due(due) : Unbounded;
+
+    /// <summary>The stored day, or null for none: the one place a deadline becomes a nullable (the store's JSON shape).</summary>
+    public int? ToWire() => this is Due due ? due.Day : null;
+
+    /// <summary>The deadline that applies: this one when set, else <paramref name="fallback"/>.</summary>
+    public GoalDeadline Or(GoalDeadline fallback) => this is Due ? this : fallback;
 }
 
 /// <summary>

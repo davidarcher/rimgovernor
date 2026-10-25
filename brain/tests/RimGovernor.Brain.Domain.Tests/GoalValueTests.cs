@@ -167,11 +167,11 @@ public sealed class GoalValueTests
     [Fact]
     public void AGoalsValueRowsFollowItsEffectiveImportanceDeadlineAndRemainingResearch()
     {
-        var goal = new GoalRecord { Id = 4, Kind = GoalKind.ResearchProject, Target = "Smithing", Theme = 9 };
-        var theme = new ThemeRecord { Id = 9, Name = "t", DeadlineDay = 30, Members = [4] };
+        var goal = new GoalRecord { Id = 4, Kind = GoalKind.ResearchProject, Target = "Smithing", Theme = ThemeMembership.Of(9) };
+        var theme = new ThemeRecord { Id = 9, Name = "t", DeadlineDay = GoalDeadline.Of(30), Members = [4] };
         var facts = new GoalsFacts
         {
-            Goals = [goal with { ImportanceOverride = Importance.High }],
+            Goals = [goal with { ImportanceOverride = ImportanceChoice.Of(Importance.High) }],
             Themes = [theme],
             Research = new ResearchFacts
             {

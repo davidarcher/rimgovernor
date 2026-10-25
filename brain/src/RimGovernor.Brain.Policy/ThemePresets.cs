@@ -94,13 +94,13 @@ public static class PresetRules
 
             var mine = overrides?.Where(o => string.Equals(o.Key, member.Key, StringComparison.Ordinal)).ToList() ?? [];
             var importance = mine.OfType<MemberOverride.ImportanceOf>().Select(o => o.Importance).Cast<Importance?>().FirstOrDefault() ?? theme.Importance;
-            var deadline = mine.OfType<MemberOverride.DeadlineOf>().Select(o => o.Day).Cast<int?>().FirstOrDefault() ?? theme.DeadlineDay;
+            var deadline = mine.OfType<MemberOverride.DeadlineOf>().Select(o => GoalDeadline.Of(o.Day)).FirstOrDefault() ?? theme.DeadlineDay;
             var goal = member.Goal is { } template
                 ? template with
                 {
                     Importance = importance,
                     DeadlineDay = deadline,
-                    Theme = theme.Id,
+                    Theme = ThemeMembership.Of(theme.Id),
                 }
                 : null;
             var missing = goal is null ? [] : Requirements(goal).Where(r => !catalog.Has(r.Class, r.Name)).Select(r => $"{r.Class} {r.Name}").ToList();

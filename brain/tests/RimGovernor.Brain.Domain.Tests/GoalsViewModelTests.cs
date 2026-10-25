@@ -59,12 +59,12 @@ public sealed class GoalsViewModelTests
         var record = Record(
             new GoalRecord { Kind = GoalKind.Colonists, Count = 1 },
             new GoalRecord { Kind = GoalKind.Colonists, Count = 2, Importance = Importance.High },
-            new GoalRecord { Kind = GoalKind.Colonists, Count = 3, Theme = 100, DeadlineOverride = 12 },
-            new GoalRecord { Kind = GoalKind.Colonists, Count = 4, Theme = 100, Importance = Importance.High });
+            new GoalRecord { Kind = GoalKind.Colonists, Count = 3, Theme = ThemeMembership.Of(100), DeadlineOverride = GoalDeadline.Of(12) },
+            new GoalRecord { Kind = GoalKind.Colonists, Count = 4, Theme = ThemeMembership.Of(100), Importance = Importance.High });
         record = record with
         {
             NextId = 101,
-            Themes = [new ThemeRecord { Id = 100, Name = "Start", Members = [3, 4], DeadlineDay = 20 }],
+            Themes = [new ThemeRecord { Id = 100, Name = "Start", Members = [3, 4], DeadlineDay = GoalDeadline.Of(20) }],
         };
 
         var model = GoalsViewModel.From(new GoalsSnapshot(record, [], [new ThemeStatus(100, 1, 2)]));
@@ -80,20 +80,20 @@ public sealed class GoalsViewModelTests
     public void AddEditAndRemoveProduceValidRecordsAndRemoveLeavesTheTheme()
     {
         var start = Record();
-        var added = GoalEdits.Add(start, new GoalDraft { Kind = GoalKind.StockCount, Target = " Steel ", Count = 50, Importance = Importance.High, DeadlineDay = 9 });
+        var added = GoalEdits.Add(start, new GoalDraft { Kind = GoalKind.StockCount, Target = " Steel ", Count = 50, Importance = Importance.High, DeadlineDay = GoalDeadline.Of(9) });
         Assert.True(added.Ok);
         added.Record.Validate();
         var goal = Assert.Single(added.Record.Goals);
         Assert.Equal(("Steel", 1), (goal.Target, goal.Id));
         Assert.Equal(2, added.Record.NextId);
 
-        var edited = GoalEdits.Edit(added.Record, 1, GoalDraft.Of(goal) with { Count = 75, DeadlineDay = null });
+        var edited = GoalEdits.Edit(added.Record, 1, GoalDraft.Of(goal) with { Count = 75, DeadlineDay = GoalDeadline.Unbounded });
         Assert.True(edited.Ok);
         edited.Record.Validate();
-        Assert.Equal((75, (int?)null), (edited.Record.Goals[0].Count, edited.Record.Goals[0].DeadlineDay));
+        Assert.Equal((75, GoalDeadline.Unbounded), (edited.Record.Goals[0].Count, edited.Record.Goals[0].DeadlineDay));
 
         var themed = edited.Record.WithNewTheme(new ThemeRecord { Name = "T", Members = [1] });
-        themed = themed with { Goals = [themed.Goals[0] with { Theme = themed.Themes[0].Id }] };
+        themed = themed with { Goals = [themed.Goals[0] with { Theme = ThemeMembership.Of(themed.Themes[0].Id) }] };
         var removed = GoalEdits.Remove(themed, 1);
         Assert.True(removed.Ok);
         removed.Record.Validate();
