@@ -49,6 +49,23 @@ owns class responsibilities, the local objective and search limits. `RGARCH010`
 enforces its dependency boundaries without a baseline; it is not universal
 enforcement for older planners or proof of exhaustive candidate generation.
 
+## Family admission
+
+Policy owns family permissions and supported Method shapes in
+`FamilyAdmissionRules`: bill ownership, zone and acquisition batches, assignment
+companions and area-only moves, dialog ownership, and unsupported self-treatment
+or mood casts. Proposal checks and journal admission use these definitions.
+Reserve hold/release direction is also shared between proposal selection and
+the review's supply evidence; a release takes precedence if both are requested.
+
+Store supplies the current enabled review and its supply cohorts from inside the
+commit transaction, then applies those same pure rules. Earlier proposal checks
+do not authorize a commit. Store still owns action/Method identity, atomic claim
+and resource checks, and final Safeguard vetoes. A changed review, competing claim
+or changed supply cohort can reject a previously valid proposal. Existing
+unsupported-feature refusals remain normal refusal results; malformed supported
+plan shapes remain conflicts. The review row remains the sole journal owner of
+supply evidence.
 ## Keep intent and progress separate
 
 The specification records what is wanted. Progress records attempted writes,

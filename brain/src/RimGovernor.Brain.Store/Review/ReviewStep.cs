@@ -300,15 +300,7 @@ public sealed partial class Store
             var reserveSupplies = new List<ReserveSupply>();
             if (request.Facts.FoodReserve is FoodReserveState.Reviewed { Review: var reserve })
             {
-                var wanted = new Dictionary<string, bool>(StringComparer.Ordinal);
-                foreach (var id in reserve.Hold)
-                {
-                    wanted[id] = true;
-                }
-                foreach (var id in reserve.Release)
-                {
-                    wanted[id] = false;
-                }
+                var wanted = FoodStoresRules.ReserveDirections(reserve);
                 foreach (var row in request.Facts.FoodStorageUpkeep.Stocks)
                 {
                     if (wanted.TryGetValue(row.Stock.Id, out var forbid) && FoodReserveRules.ReserveFoodDefinition(new Resource(row.Stock.DefName)))
@@ -318,7 +310,7 @@ public sealed partial class Store
                 }
             }
             r = r with { ReserveSupplies = EquatableArray.From(reserveSupplies) };
-            // The biotech/pollution Need's allows are admitted against this cohort (AdmitSupplyMethod).
+            // The biotech/pollution Need's allows are admitted against this cohort (FamilyAdmissionRules.SupplyConflict).
             r = r with { PollutionSupplies = EquatableArray.From(PollutionRules.PollutionAllowSupplies(request.Facts.Biotech).Take(MaxPollutionSupplies)) };
             var choice = CorpseLarderRules.SelectCorpseLarder(request.Facts.FoodStorageUpkeep);
             if (choice is { Kind: "allow" or "forbid", Stock: { } stock, Handling: { } handling })

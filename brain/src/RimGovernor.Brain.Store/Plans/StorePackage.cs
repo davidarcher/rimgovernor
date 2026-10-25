@@ -6,9 +6,6 @@ namespace RimGovernor.Brain.Store;
 /// <summary>The store package's free functions.</summary>
 public static class StorePackage
 {
-    /// <summary>Bounds one batched bill plan to a round's reconcile.</summary>
-    public const int MaxBillPlanActions = 64;
-
     /// <summary>
     /// <see cref="BuildingWorkRules.PlanWorkOpen"/> for a stored plan: an applied building intent is terminal in the
     /// journal, but its plan stays open while the census still shows its blueprint or frame (or cannot say). Only

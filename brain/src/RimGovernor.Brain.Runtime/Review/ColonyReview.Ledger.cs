@@ -434,7 +434,7 @@ public sealed partial class AdminReview
         var keys = new List<string>();
         foreach (var b in p.Remove)
         {
-            if (actions.Count >= StorePackage.MaxBillPlanActions)
+            if (actions.Count >= FamilyAdmissionRules.MaxBillPlanActions)
             {
                 break;
             }
@@ -448,7 +448,7 @@ public sealed partial class AdminReview
 
         foreach (var placement in p.Place)
         {
-            if (actions.Count >= StorePackage.MaxBillPlanActions)
+            if (actions.Count >= FamilyAdmissionRules.MaxBillPlanActions)
             {
                 break;
             }

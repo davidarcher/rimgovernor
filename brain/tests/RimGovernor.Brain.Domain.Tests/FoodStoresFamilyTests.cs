@@ -262,6 +262,29 @@ public sealed class FoodStoresFamilyTests
     }
 
     [Fact]
+    public void AReserveProposalIsCheckedAgainstTheCurrentCohortAgainAtCommit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open(larder: false);
+        var family = new FoodStoresFamily(Policy, true, false);
+        var candidate = Assert.Single(family.Propose(family.Derive(colony.Facts), colony.Facts));
+        var plan = candidate.Plan(new("reserve-plan"));
+        var reviewed = colony.Journal.LoadReview(ct);
+        Assert.Null(FamilyAdmissionRules.SupplyConflict(candidate.Need, plan, true, reviewed.LarderSupplies,
+            reviewed.ReserveSupplies, reviewed.EventLoot.Pending, reviewed.PollutionSupplies));
+
+        // A new review releases the reserve while the old proposal is still waiting to commit.
+        colony.Journal.Review(new() { Revision = reviewed.Revision, Current = World, Tick = new(101), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b", "c") }, ct);
+        var current = colony.Journal.LoadReview(ct);
+        var reason = FamilyAdmissionRules.SupplyConflict(candidate.Need, plan, true, current.LarderSupplies,
+            current.ReserveSupplies, current.EventLoot.Pending, current.PollutionSupplies);
+        Assert.Equal("supply pem-1 at reserve-plan-0 is not the review's cohort row", reason);
+        Assert.Equal(new ConflictException(reason!).Message, Assert.Throws<ConflictException>(() => colony.Journal.CommitClaimedMethod(
+            candidate.Need, World, candidate.Method, candidate.Reason, plan, ct)).Message);
+        Assert.Empty(colony.Journal.LoadNeed(candidate.Need, World, ct).Methods);
+    }
+    [Fact]
     public void WithoutStockProtectionOrReserveStacksTheUnmetNeedHasNoMethod()
     {
         using var colony = Open(larder: false);

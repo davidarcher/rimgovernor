@@ -127,15 +127,7 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
             throw new RequiredFactException("reserve supply targets");
         }
         var targets = read.Values;
-        var wanted = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var id in reserve.Hold)
-        {
-            wanted[id] = true;
-        }
-        foreach (var id in reserve.Release)
-        {
-            wanted[id] = false;
-        }
+        var wanted = FoodStoresRules.ReserveDirections(reserve);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         return [.. targets.Where(t => wanted.TryGetValue(t.Thing, out var hold) && hold == t.Forbidden && seen.Add(t.Thing)).Take(ReserveActionLimit)];
     }
@@ -146,6 +138,16 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
 
 public static class FoodStoresRules
 {
+    /// <summary>The reserve's requested access direction per stack. Release wins if a stack is in both lists,
+    /// matching proposal selection and the journal's current-evidence census.</summary>
+    public static IReadOnlyDictionary<string, bool> ReserveDirections(FoodReserveReview reserve)
+    {
+        var wanted = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var id in reserve.Hold) wanted[id] = true;
+        foreach (var id in reserve.Release) wanted[id] = false;
+        return wanted;
+    }
+
     public const string FoodStoresFamilyId = "food-stores";
 
     /// <summary>The food stores family's storage Need (#3251).</summary>

@@ -492,6 +492,9 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             throw new ControlException($"need {candidate.Need} method {candidate.Method.Value} built a plan under another id");
         }
         step.Fence();
+        if (FamilyAdmissionRules.UnsupportedReason(candidate.Need, plan) is { } unsupported)
+            return (Verdict.Committed(new NeedCommit(ClaimOutcome.Refused, owner,
+                Refusal: new(RefusalKind.SharedAdmission, unsupported))), null);
         // A refused commit (a Safeguard, the shared work resources) is this Need's
         // verdict; its siblings still run.
         var commit = step.Journal.CommitClaimedMethod(candidate.Need, step.World, candidate.Method, candidate.Reason, plan, call);

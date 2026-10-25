@@ -50,7 +50,8 @@ public sealed class IncidentVoluntaryAdmissionTests
         var plan = new PlanSpec(new("plan"), new(1), [DomainAction.NewAbilityAction(new("action"), ability)]);
         var commit = journal.CommitClaimedMethod(mood, World, new("mood-cast"), "", plan, ct);
         Assert.Equal(ClaimOutcome.Refused, commit.Outcome);
-        Assert.Contains("unsupported_forecast_mood_cast", commit.Refusal!.Message);
+        Assert.Equal("unsupported_forecast_mood_cast", FamilyAdmissionRules.UnsupportedReason(mood, plan));
+        Assert.Equal(FamilyAdmissionRules.UnsupportedReason(mood, plan), commit.Refusal!.Reason);
         Assert.Empty(journal.LoadNeed(mood, World, ct).Methods);
     }
 

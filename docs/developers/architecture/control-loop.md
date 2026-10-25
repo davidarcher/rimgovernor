@@ -282,7 +282,7 @@ change is due, or less than `TargetStoredFraction` (0.9) of at-risk perishable
 nutrition is stored; an unread census raises `RequiredFactException`; otherwise met. Its
 Methods are `food-reserve` (at most eight hold/release supply actions) and
 `corpse-larder-{allow|forbid}-{corpse}`, admitted under the Need owner with the
-supply stacks as claims; `AdmitSupplyMethod` binds the Need owner to the stacks the
+supply stacks as claims; `FamilyAdmissionRules.SupplyConflict` checks the Need against the stacks the
 review lists. The stock-target meal order and the PreserveFood bill declare to the
 ledger under the Need's filing key, and the ledger reads the Need's standing for
 them instead of open work.
@@ -489,7 +489,7 @@ has no forecast adapter an unmet Need is held as `unsupported_forecast_equipment
 Pests (Wellbeing) is unmet while the wild-animal census lists a pest or a hunt of
 the Need's own has lost its animal; its Method is the next hunt selection,
 `pest-hunt-<hash of the rows>`, admitted under the Need owner with each animal as
-a claim (`AdmitAcquisitionMethod`), so hunts of other animals run side by side; the
+a claim (`FamilyAdmissionRules.AcquisitionConflict`), so hunts of other animals run side by side; the
 work step cancels hunts whose animal is gone. Training (Development) is unmet
 while an assigned combat-capability holder is forecast below requirement; its
 work step builds the range and ring rooms under the Need (the review reads their

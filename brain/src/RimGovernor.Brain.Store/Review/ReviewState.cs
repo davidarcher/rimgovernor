@@ -4,12 +4,6 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// Binds identity and access direction. Its current position is resolved by the supply census and checked by
-/// Hands before a write.
-/// </summary>
-public sealed record ReserveSupply(string Thing, string Definition, bool Forbid);
-
-/// <summary>
 /// The review's combat standing (#3311): what the <c>military/combat</c> Need's fight runner (the defense entry) answers.
 /// <see cref="Situation"/> is <see cref="Rules.CombatSituation"/> over the review's hostiles and hunt
 /// request; <see cref="Prey"/> is the food plan's hunt prey while no hostile stands and <see cref="Hunters"/> the gunners of the
