@@ -459,7 +459,9 @@ public static class ForecastNeeds
             var rate = choice.Gain / (choice.End - choice.Start);
             if (!double.IsFinite(rate) || rate <= 0 || !double.IsFinite(level) || !double.IsFinite(fall) || fall < 0)
             { findings.Add("unknown_sleep_recovery:" + choice.Id); return null; }
-            var serviceEnd = Math.Min(end, choice.Start + Math.Max(0, wake - level) / rate);
+            // RestUtility.ShouldWakeUp never ends deathrest; a full rest need still sleeps until the observed deathrest ends.
+            var serviceEnd = continuing && pawn.LyingIn?.Deathrest is LyingInDeathrest.Wakes or LyingInDeathrest.Held or LyingInDeathrest.Paused
+                ? end : Math.Min(end, choice.Start + Math.Max(0, wake - level) / rate);
             result.Add(choice.Id, serviceEnd);
             level = Math.Min(1, level + rate * (serviceEnd - choice.Start));
             level = Math.Max(0, level - fall * (end - serviceEnd));

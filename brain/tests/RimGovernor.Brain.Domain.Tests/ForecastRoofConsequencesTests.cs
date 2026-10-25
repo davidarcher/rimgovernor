@@ -9,6 +9,31 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>Roof and room consequences of a planned room (#3339): bed thoughts, the outdoors need, deterioration and bench speed.</summary>
 public sealed class ForecastRoofConsequencesTests
 {
+    [Theory]
+    [InlineData(false, 6000, false, 3)]
+    [InlineData(true, 0, false, 3)]
+    [InlineData(false, 6000, true, 2)]
+    [InlineData(true, 0, true, 3)]
+    public void ADeathrestChamberThoughtStartsAtItsActualWakeIncludingInterruption(bool interrupted, double wake, bool closes, double offset)
+    {
+        var pawn = NeedsFixtures.Pawn() with
+        {
+            Awake = false, Mood = NeedsFixtures.Mood, Needs = [NeedsFixtures.Rate("rest", 1, 0, .3)],
+            LyingIn = new(new("bed", false, false, .00002, 0, 20), false, new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Shaded())) { DeathrestWakeStage = 5 },
+            ThoughtStages = [new("DeathrestChamber", ForecastDeathrest.ChamberThoughtRole, 4, 2, NeedsFixtures.Situational),
+                new("DeathrestChamber", ForecastDeathrest.ChamberThoughtRole, 5, 3, NeedsFixtures.Situational)],
+        };
+        ForecastNeedChoice[] choices = interrupted ? [] : [new("need/pawn/observed_sleep", "pawn", "rest", "bed", "", 0, 0, 0, 6000, .12, [])];
+        if (!interrupted)
+            Assert.Equal(wake, ForecastNeeds.SleepServiceEnds(pawn, choices, null, new SortedSet<string>(StringComparer.Ordinal))![choices[0].Id]);
+        ForecastClosedRoom[] rooms = closes ? [new([pawn.Location], Closed("Bedroom", 3), 3000, 3000)] : [];
+        var mood = ForecastRoofConsequences.RoofMoodOf(pawn, NeedsFixtures.Empty, choices, rooms,
+            new Dictionary<string, EquatableArray<MoodThought>> { ["pawn"] = [] }, 10000);
+        var thought = Assert.Single(mood.Banded);
+        Assert.Equal("DeathrestChamber", thought.Thought);
+        Assert.Equal((wake, 10000d, offset), Assert.Single(thought.Spans));
+    }
+
     internal const double Horizon = 30000;
     internal static readonly Cell Inside = new(1, 1);
     private static readonly Cell WallCell = new(0, 1);
@@ -200,7 +225,7 @@ public sealed class ForecastRoofConsequencesTests
         var asleep = NeedsFixtures.Pawn() with
         {
             Awake = false, BedThoughts = new BedThoughtOnset.Given(), OwnedBed = "bed", OwnedBedRoom = NeedsFixtures.BedRoom("Bedroom", 2, false),
-            LyingIn = new(new("bed", true, false, .00005, 0, 20), false, new LyingInDeathrest.None()), ThoughtStages = EquatableArray.From(BedStages),
+            LyingIn = new(new("bed", true, false, .00005, 0, 20), false, new LyingInDeathrest.None()) { DeathrestWakeStage = -1 }, ThoughtStages = EquatableArray.From(BedStages),
         };
         var renewal = Assert.Single(ForecastRoofConsequences.RoofMoodOf(asleep, NeedsFixtures.Empty, [], [], NoThoughts(asleep), Horizon).Renewals);
         Assert.Equal((0d, 1d), (renewal.At, renewal.Chance));

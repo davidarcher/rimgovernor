@@ -391,7 +391,6 @@ public static partial class ForecastCoupled
             {
                 end = DeathrestEnd(lying.Deathrest, rooms, horizon, reason => Finding(reason, pawn.Pawn))
                     ?? throw new RequiredFactException("deathrest sunlight past the scanned year:" + pawn.Pawn);
-                if (end < horizon) Finding("deathrest_chamber_thought_at_wake_not_modelled", pawn.Pawn);
             }
             else
             {

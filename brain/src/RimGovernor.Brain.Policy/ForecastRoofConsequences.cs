@@ -271,6 +271,32 @@ public static class ForecastRoofConsequences
         double Current(string def) => (observed.TryGetValue(pawn.Pawn, out var rows) ? rows : throw Unread("observed thoughts"))
             .Where(t => t.Def == def).Sum(t => t.Offset);
 
+        // FinalizeLayingJob updates the chamber stage even when an order interrupts the observed deathrest at tick zero.
+        // The thought is inactive during deathrest and remains at the resulting stage after waking.
+        if (!pawn.Awake && pawn.Mood is not null && pawn.LyingIn is { Deathrest: not LyingInDeathrest.None } lyingDeathrest)
+        {
+            var continuing = choices.FirstOrDefault(c => c.Id == "need/" + pawn.Pawn + "/observed_sleep");
+            var wake = continuing?.End ?? 0;
+            if (wake < horizon)
+            {
+                var stage = lyingDeathrest.DeathrestWakeStage;
+                var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Interior.Contains(pawn.Location));
+                if (closed is not null)
+                {
+                    var open = wake >= closed.RoofedAt ? 0 : closed.Prediction.OpenRoofCells;
+                    stage = ClosedPsychologicallyOutdoors(closed.Prediction, open) ? 0 : pawn.Ascetic ? -1 : closed.Prediction.Stage + 1;
+                }
+                var rows = stages.Where(s => s.Role == ForecastDeathrest.ChamberThoughtRole).ToArray();
+                if (rows.Length == 0) throw Unread("deathrest chamber thought stages");
+                foreach (var def in rows.Select(s => s.Thought).Distinct(StringComparer.Ordinal))
+                {
+                    var offset = stage < 0 ? 0 : rows.FirstOrDefault(s => s.Thought == def && s.Stage == stage)?.Offset
+                        ?? throw Unread("deathrest chamber thought stage " + stage);
+                    banded.Add((def, new[] { (wake, horizon, offset - Current(def)) }));
+                }
+            }
+        }
+
         // The outdoors need along the known spans (Need_Outdoors.NeedInterval), its category held between them.
         if (pawn.Outdoors is NeedLevel.Has { Level: var level } && !pawn.OutdoorsDisabled && stages.Any(r => r.Role == "need_outdoors" && r.Offset != 0))
         {

@@ -397,7 +397,18 @@ internal static class NativeNeedsForecast
     /// (#3883). Null when it is not laying (GetPosture), has no rest need or is not spawned.
     /// </summary>
     private static RimGovernor.Brain.GameFacts.Observations.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
-        : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), DeathrestOf(pawn, map));
+        : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), DeathrestOf(pawn, map))
+        { DeathrestWakeStage = pawn.Deathresting ? DeathrestWakeStageOf(pawn) : -1 };
+
+    // Toils_LayDown.UpdateDeathrestThoughtIndex is private and mutates the gene. Read its typed inputs without changing it.
+    private static int DeathrestWakeStageOf(Pawn pawn)
+    {
+        var room = pawn.GetRoom();
+        if (pawn.needs.mood == null || room == null) return -1;
+        if (!pawn.IsWildMan() && room.PsychologicallyOutdoors) return 0;
+        if (pawn.story.traits.HasTrait(TraitDefOf.Ascetic)) return -1;
+        return RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)) + 1;
+    }
     /// <summary>
     /// The deathrest the pawn lies in now (#3883, RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest), as Hediff_Deathrest.PostTickInterval runs
     /// Gene_Deathrest.TickDeathresting: paused while SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead (Hediff_Deathrest.Paused's

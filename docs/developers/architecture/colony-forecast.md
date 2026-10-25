@@ -344,8 +344,12 @@ observed state holds.
   unless the outcome's planned roof (`CellStateAt`) covers every open bed cell first;
   weather, lightning and sky-affecting things are `deathrest_sunlight_weather_not_modelled`,
   an `Unlit` scan that ends before the wake is a `RequiredFactException`, and the
-  DeathrestChamber thought that starts at the wake is
-  `deathrest_chamber_thought_at_wake_not_modelled`. Woken at tick 0, its
+  DeathrestChamber thought starts at the wake. Its stage is read from the current
+  room using `Toils_LayDown.UpdateDeathrestThoughtIndex`'s inputs, or from the
+  outcome's closed-room prediction if that room encloses the sleeper by then.
+  Outdoors gives stage 0, an indoor ascetic no thought, and other indoor sleepers
+  the room's Impressiveness score stage plus one. Missing stage evidence throws.
+  Woken at tick 0, its
   `FinalizeLayingJob` gives the bed thoughts again when they were given (from the
   lie-down's `LyingIn` place and the owned bed's room), and the mood timeline has it
   awake from then. A continuing sleep off the rest targets (on the ground) keeps its

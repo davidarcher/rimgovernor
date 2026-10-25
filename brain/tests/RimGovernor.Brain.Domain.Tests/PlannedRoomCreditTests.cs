@@ -478,7 +478,7 @@ public sealed class PlannedRoomCreditTests
     }
 
     /// <summary>The builder's lie-down in its owned bed in the open (ForecastRoofConsequencesTests.Review), as native reads it.</summary>
-    private static readonly NeedLyingIn LyingInBed = new(new("bed", true, false, .00005, 0, 20), false, new LyingInDeathrest.None());
+    private static readonly NeedLyingIn LyingInBed = new(new("bed", true, false, .00005, 0, 20), false, new LyingInDeathrest.None()) { DeathrestWakeStage = -1 };
 
     /// <summary>
     /// #3882 acceptance: a pawn asleep now on an outcome that does not continue its sleep, the production way
@@ -530,17 +530,24 @@ public sealed class PlannedRoomCreditTests
             "sunlit" => new LyingInDeathrest.Held(new DeathrestSunlight.Sunlit(EquatableArray.From([ForecastRoofConsequencesTests.Inside]), 3000)),
             _ => new LyingInDeathrest.Paused(),
         };
-        var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => pawn with
+        ForecastCoupledOutcome AtStage(int stage)
         {
-            Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(),
-            LyingIn = LyingInBed with { Place = LyingInBed.Place with { GainPerTick = .00002 }, Deathrest = deathrest },
-        }, WithEveryShippedRoom);
-        var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
+            var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => pawn with
+            {
+                Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(),
+                ThoughtStages = [.. pawn.ThoughtStages, new("DeathrestChamber", ForecastDeathrest.ChamberThoughtRole, 4, 2, NeedsFixtures.Situational)],
+                LyingIn = LyingInBed with { Place = LyingInBed.Place with { GainPerTick = .00002 }, Deathrest = deathrest, DeathrestWakeStage = stage },
+            }, WithEveryShippedRoom);
+            return CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+                facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
+        }
+        var baseline = AtStage(4);
         Assert.Equal(rest, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Number(), 9);
         baseline.Needs["pawn"].Mood.Assessed();
         Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_continuation_unassessed");
-        Assert.Equal(wakes, baseline.Findings.Any(f => f.Reason == "deathrest_chamber_thought_at_wake_not_modelled"));
+        Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_chamber_thought_at_wake_not_modelled");
+        Assert.Equal(wakes ? .02 : 0, baseline.Needs["pawn"].Mood.Projected().TerminalMood - AtStage(-1).Needs["pawn"].Mood.Projected().TerminalMood, 6);
+        if (wakes) Assert.Throws<RequiredFactException>(() => AtStage(99));
         Assert.Equal(state == "sunlit", baseline.Findings.Any(f => f.Reason == "deathrest_sunlight_weather_not_modelled"));
     }
 

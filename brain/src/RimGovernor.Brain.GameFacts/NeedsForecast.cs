@@ -438,7 +438,12 @@ public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double Gai
 /// wakes the pawn once its rest reaches the wake threshold or at once while <see cref="HediffBlocksSleeping"/>
 /// (HasHediffBlocksSleeping), and never while it deathrests (<see cref="Deathrest"/>, #3883).
 /// </summary>
-public sealed record NeedLyingIn(NeedSleep Place, bool HediffBlocksSleeping, LyingInDeathrest Deathrest);
+public sealed record NeedLyingIn(NeedSleep Place, bool HediffBlocksSleeping, LyingInDeathrest Deathrest)
+{
+    /// <summary>Toils_LayDown's chamber stage if the observed deathrest ended in its current room; -1 means no thought.
+    /// Also -1 for a lie-down that is not a deathrest.</summary>
+    public required int DeathrestWakeStage { get; init; }
+}
 /// <summary>
 /// The deathrest the pawn lies in now (#3883), as Hediff_Deathrest ticks Gene_Deathrest.TickDeathresting. <see cref="None"/>: not
 /// deathresting (Pawn.Deathresting, the Deathrest hediff). <see cref="Paused"/>: Hediff_Deathrest.Paused
