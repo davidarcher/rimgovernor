@@ -52,13 +52,17 @@ public static partial class MethodClaimsRules
     {
         var work = WorkRules.WorkClaimsOf(evidence, actions, footprint: true);
         var targets = new HashSet<string>(work.Targets, StringComparer.Ordinal);
+        var pawns = new HashSet<string>(work.Pawns, StringComparer.Ordinal);
         foreach (var row in actions)
         {
             var v = row.Progress;
             if (!(v.Unresolved || v.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation)) continue;
             targets.UnionWith(ActionSubjects(row.Action).Where(t => t.Length != 0));
+            if (row.Action.CommsTradeRequest is { } request) pawns.Add(request.Negotiator);
+            if (row.Action.CaravanDeparture is { } departure) pawns.UnionWith(departure.Crew.Select(p => p.Value));
+            if (row.Action.Trade is { Kind: TradeOperationKind.Open } trade && trade.Participant.Kind != TradeParticipantKind.Settlement) pawns.Add(trade.Negotiator.Value);
         }
-        return new(work.Pawns, EquatableArray.From(targets.Order(StringComparer.Ordinal)), work.Shared);
+        return new(EquatableArray.From(pawns.Order(StringComparer.Ordinal)), EquatableArray.From(targets.Order(StringComparer.Ordinal)), work.Shared);
     }
 
     /// <summary>
@@ -163,7 +167,13 @@ public static partial class MethodClaimsRules
         else if (a.DialogAnswer is { } answer) yield return (answer.LetterToken.Length == 0 ? "dialog/" : "letter/") + answer.WindowId;
         else if (a.Tend is { } tend) { yield return "care/" + tend.Doctor.Value; yield return "care/" + tend.Patient.Value; }
         else if (a.Rescue is { } rescue) { yield return "care/" + rescue.Rescuer.Value; yield return "care/" + rescue.Patient.Value; }
-        else if (a.Trade is { } trade) yield return "trade/" + trade.Participant.Key();
-        else if (a.CaravanDeparture is { } departure) { foreach (var pawn in departure.Crew) yield return "caravan/" + pawn.Value; }
+        else foreach (var subject in TradeSubjects(a.Payload)) yield return subject;
+    }
+    /// <summary>The same external subjects shared work, forecast generation and Method overlap reserve.</summary>
+    public static IEnumerable<string> TradeSubjects(IActionPayload payload)
+    {
+        if (payload is Trade trade) yield return "trade/" + trade.Participant.Key();
+        else if (payload is CommsTradeRequest request) { yield return "trade/request/" + request.Faction; yield return request.Console; }
+        else if (payload is CaravanDeparture departure) foreach (var pawn in departure.Crew) yield return "caravan/" + pawn.Value;
     }
 }

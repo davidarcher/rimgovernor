@@ -85,11 +85,14 @@ public sealed record StockArrival
 
     /// <summary>Exact-pack settlement alternatives, independent of supply demand.</summary>
     public EquatableArray<ForecastSettlementMission> Missions { get; init; }
+    public EquatableArray<ForecastTradeVisit> Visits { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
 
     /// <summary>The medicine the routine trade buys over the horizon (#3907); null buys none. Set by <see cref="WithMedicineClaim"/>.</summary>
     public MedicineTrade? MedicineTrade { get; init; }
+    /// <summary>Today's medical reserve gap, claimed before replacement parts.</summary>
+    public long MedicineReplenish { get; init; }
 
     /// <summary>The fact the boundary could not read to build the model; empty when it is built.</summary>
     public string Unread { get; init; } = "";
@@ -238,9 +241,11 @@ public sealed record StockArrival
         var units = buying.Count == 0 ? 0 : Math.Floor(buying.Max(s => s.Silver) / price);
         return this with
         {
+            MedicineReplenish = replenish,
             Trade = EquatableArray.From(parts),
             Requests = EquatableArray.From(Requests.Select(r => r with { Sources = EquatableArray.From(r.Sources.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) })) })),
             Missions = EquatableArray.From(Missions.Select(r => r with { Sources = EquatableArray.From(r.Sources.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) })) })),
+            Visits = EquatableArray.From(Visits.Select(r => r with { Sources = EquatableArray.From(r.Sources.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) })) })),
             MedicineTrade = visits.Count == 0 || !(units > 0)
                 ? null
                 : new MedicineTrade(kind, EquatableArray.From(visits), units, replenish, items.BestMedicine(), colonists, reserve, review.Active, EquatableArray.From(tiers.Take(tiers.IndexOf(kind)))),

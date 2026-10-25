@@ -49,7 +49,7 @@ namespace RimGovernor.Native
         {
             var now = Find.TickManager.TicksGame;
             var consoles = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>()
-                .Where(c => c.CanUseCommsNow).ToList();
+                .Where(c => c.CanUseCommsNow).OrderBy(c => c.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             var eligible = map.mapPawns.FreeColonistsSpawned.Where(p => consoles.Any(c => ConsoleNegotiator(c, p)))
                 .OrderBy(p => p.GetUniqueLoadID()).ToList();
             var ships = map.passingShipManager.passingShips;
@@ -70,6 +70,8 @@ namespace RimGovernor.Native
                         var negotiators = eligible.Where(p => kind.TitleRequiredToTrade == null ||
                             p.royalty != null && p.GetCurrentTitleSeniorityIn(faction) >= kind.TitleRequiredToTrade.seniority)
                             .Select(p => p.GetUniqueLoadID()).ToList();
+                        var console = consoles.FirstOrDefault(c => eligible.Any(p => negotiators.Contains(p.GetUniqueLoadID()) && ConsoleNegotiator(c, p)));
+                        if (console is not null) negotiators = eligible.Where(p => negotiators.Contains(p.GetUniqueLoadID()) && ConsoleNegotiator(console, p)).Select(p => p.GetUniqueLoadID()).ToList();
                         var ready = faction.PlayerRelationKind == FactionRelationKind.Ally && relation == "Ally"
                             && cooldown <= 0 && !(orbital && ships.Count != 0)
                             && (orbital || faction.def.allowedArrivalTemperatureRange.ExpandedBy(-4f).Includes(map.mapTemperature.SeasonalTemp))
@@ -78,7 +80,8 @@ namespace RimGovernor.Native
                             Kind = orbital ? RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital : RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan,
                             TraderKind = kind.defName, Goodwill = faction.PlayerGoodwill, GoodwillCost = -delta,
                             RelationAfterPayment = relation, LastRequestTick = last, CooldownRemainingTicks = cooldown,
-                            ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital), Eligible = ready, NegotiatorIds = [.. negotiators] });
+                            ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital), Eligible = ready, NegotiatorIds = [.. negotiators],
+                            ConsoleId = console?.GetUniqueLoadID() ?? "", ConsoleCell = console is null ? default : new(console.InteractionCell.x, console.InteractionCell.z) });
                     }
                 }
             }

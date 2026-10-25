@@ -1,6 +1,5 @@
 # Rule 5 (numbers): file|Type.Member|token in Policy and Runtime. Delete a line when fixed; never add one.
 Runtime/Review/DefensePlanner.PostFight.cs|DefensePlanner.Stripper|sentinel 1<<40
-Runtime/ColonyReview.TradeMissionOptions.cs|ColonyReview.SettlementAcquisitionOptionsAsync|double.MaxValue
 Policy/Combat/CombatMortar.cs|CombatMortarRules.CounterBattery|double.MaxValue
 Policy/Combat/CombatPermit.cs|CombatPermitRules.AidCell|double.MaxValue
 Policy/CombatGrenade.cs|CombatGrenadeRules.BestGround|double.MaxValue

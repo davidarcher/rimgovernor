@@ -20,29 +20,7 @@ partial class TradePlanner
 /// <summary>The exported trade mission calculations of the package.</summary>
 partial class TradePlanner
 {
-    /// <summary>
-    /// A read-only exact-pack calculation. The caller feeds its returned option to the existing acquisition
-    /// planner. No planner registers automatic departure until the complete purchase/return driver is
-    /// installed. Throws <see cref="DomainException"/> with the failure reason when the mission cannot be
-    /// prepared.
-    /// </summary>
-    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(GameClient source, GenerationSnapshot world, int homeTile, RimGovernor.Brain.GameFacts.Observations.Settlement settlement, Pol.ReviewFacts facts, Pol.PlannerSettings thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
-    {
-        var (departure, option, _) = await PrepareTradeMissionOptionAsync(source, world, homeTile, settlement, facts, thresholds, silverBudget, claimed, ct).ConfigureAwait(false);
-        if (!CaravanDeparture.TryCreate(departure.Crew, demand, settlement.Tile, out var canonicalDemand))
-            throw new DomainException("invalid_trade_demand");
-        var mission = new TradeMission
-        {
-            HomeColony = world.Colony, HomeMap = world.Map, HomeTile = homeTile,
-            Settlement = settlement.Id, SettlementTile = settlement.Tile, Crew = departure.Crew,
-            Negotiator = departure.Crew[0], SilverBudget = silverBudget, Demand = canonicalDemand.Cargo,
-            Pack = departure.Cargo, Phase = TradeMissionPhase.Planned, ReturnHome = true,
-        };
-        mission.Validate();
-        return (mission, option);
-    }
-
-    internal static async Task<(CaravanDeparture Departure, Pol.TradeAcquisitionOption Option, RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed Pack)> PrepareTradeMissionOptionAsync(GameClient source, GenerationSnapshot world, int homeTile, RimGovernor.Brain.GameFacts.Observations.Settlement settlement, Pol.ReviewFacts facts, Pol.PlannerSettings thresholds, long silverBudget, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
+    internal static async Task<(CaravanDeparture Departure, RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed Pack)> PrepareTradeMissionOptionAsync(GameClient source, GenerationSnapshot world, int homeTile, RimGovernor.Brain.GameFacts.Observations.Settlement settlement, Pol.ReviewFacts facts, Pol.PlannerSettings thresholds, long silverBudget, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
     {
         if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Relation == RimGovernor.Brain.GameFacts.Observations.SettlementRelation.Player || settlement.TraderKind.Length == 0)
         {
@@ -128,28 +106,11 @@ async
             throw new DomainException("invalid_trade_pack");
         }
         if (await PreviewAsync(departure).ConfigureAwait(false) is not RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed final
-            || !Pol.TradePolicyRules.SafeTradeMissionPack(final)
-            || (final.Outbound, final.Home) is not (RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable outbound, RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable home))
+            || !Pol.TradePolicyRules.SafeTradeMissionPack(final))
         {
             throw new DomainException("unsafe_trade_pack");
         }
-        (days, _) = Pol.TradePolicyRules.TradeMissionRouteDays(final);
-        var option = new Pol.TradeAcquisitionOption
-        {
-            ID = "settlement:" + settlement.Id,
-            Kind = Pol.TradeAcquisitionKind.Settlement,
-            Participant = new TradeParticipant(TradeParticipantKind.Settlement, settlement.Id),
-            TraderKind = settlement.TraderKind,
-            Negotiator = domainCrew[0].Value,
-            Eligible = true,
-            LeadDays = days,
-            OutboundDays = (double)outbound.EstimatedTicks / GameTime.TicksPerDay,
-            ReturnDays = (double)home.EstimatedTicks / GameTime.TicksPerDay,
-            FoodDays = final.FoodDays,
-            RotDays = final.FoodRotDays,
-            LaborTicks = days * GameTime.TicksPerDay * crew.Count,
-        };
-        return (departure, option, final);
+        return (departure, final);
     }
 
     /// <summary>

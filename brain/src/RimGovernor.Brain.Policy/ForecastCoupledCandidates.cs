@@ -107,7 +107,8 @@ public sealed partial record ForecastCoupledCandidates
         // name can have moved in between. The frame's count wins; planned lots add only the stacks the frame does not name.
         var framed = lotGroups.Select(g => g.Key).ToHashSet();
         lots.AddRange(planned.Lots.Where(l => framed.Add((l.Lot, l.Location, l.Resource))));
-        var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>(facts.StockArrival.Requests.Select(r => r.Commitment()).Concat(facts.StockArrival.Missions.Select(m => m.Commitment())));
+        var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>((NeedEnabled(EconomyFamily.Caravan) ? facts.StockArrival.Requests.Select(r => r.Commitment()).Concat(facts.StockArrival.Visits.Select(v => v.Commitment())) : [])
+            .Concat(NeedEnabled(EconomyFamily.TradeMission) ? facts.StockArrival.Missions.Where(m => m.Departure is not null).Select(m => m.Commitment()) : []));
         var findings = new SortedSet<string>(plannedFindings, StringComparer.Ordinal); findings.UnionWith(planned.Findings);
         foreach (var lot in conflicting) findings.Add("lot_count_conflict:" + lot);
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
@@ -125,6 +126,22 @@ public sealed partial record ForecastCoupledCandidates
         void Option(string id, string pawn, double ticks, string? equipment = null)
             => options.Add(new(id, pawn, ticks, 0) { Equipment = equipment is null ? [] : [equipment] });
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
+        var availableTrade = ForecastTradeExecution.Work(facts.StockArrival);
+        var blockedTrade = availableTrade.Where(w => MethodClaimsRules.TradeSubjects(w.Action).Any(resources.Claims.Targets.Contains))
+            .Select(w => w.Root).ToHashSet(StringComparer.Ordinal);
+        alternatives.RemoveAll(a => blockedTrade.Contains(a.Id));
+        var tradeRoots = alternatives.Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
+        var tradeWork = EquatableArray.From(availableTrade.Where(w => tradeRoots.Contains(w.Root)));
+        foreach (var group in tradeWork.GroupBy(w => w.Task, StringComparer.Ordinal))
+        {
+            var first = group.First();
+            var request = facts.StockArrival.Requests.FirstOrDefault(r => r.Id == first.Root);
+            var visit = facts.StockArrival.Visits.FirstOrDefault(v => v.Id == first.Root);
+            var place = request is not null ? Location(request.Native.ConsoleCell) : visit is not null ? Location(visit.Native.Visit!.Location) : "start";
+            tasks.Add(new(group.Key, place, place, []));
+            foreach (var work in group)
+                options.Add(new(work.Task, work.Pawn, 0, 0) { AbsenceTicks = work.Mission?.Days * GameTime.TicksPerDay ?? 0, FromCurrentLocation = work.Mission is not null });
+        }
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources,
             FlooringRules.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal),
@@ -394,6 +411,8 @@ public sealed partial record ForecastCoupledCandidates
             ComfortCurve = facts.ComfortCurve,
             HospitalBed = facts.HospitalBed,
             Stock = facts.StockArrival,
+            TradeWork = tradeWork,
+            NonproductiveOccupancy = EquatableArray.From(tradeWork.Where(w => w.Mission is not null).Select(w => w.Task)),
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,
             Roamers = facts.AnimalUpkeep.Roamers,

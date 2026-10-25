@@ -393,6 +393,8 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     public double PriceFactor { get; init; }
 
     public long Silver { get; init; }
+    /// <summary>The selected outcome's bounded stock-wait authorization; unlimited before its purchase comparison.</summary>
+    public long Authorized { get; init; } = long.MaxValue;
 
     /// <summary>A selected request sends one visit at From, rather than a recurring incident stream.</summary>
     public bool Once { get; init; }
@@ -407,6 +409,7 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     /// <summary>The chance one visit supplies <paramref name="count"/> units the colony can pay for.</summary>
     public double Supplies(long count)
     {
+        if (count > Authorized) return 0;
         var chance = 0.0;
         foreach (var kind in Kinds)
         {

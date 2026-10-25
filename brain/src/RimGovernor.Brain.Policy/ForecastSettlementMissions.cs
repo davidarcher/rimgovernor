@@ -5,8 +5,12 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A demand-independent visit on an exact safe native pack; purchase authorization follows selection.</summary>
 public sealed record ForecastSettlementMission(string Settlement, EquatableArray<string> Crew, double Days, EquatableArray<TradeSource> Sources)
 {
+    /// <summary>The exact native-validated departure; retained by the option rather than rebuilt after selection.</summary>
+    public CaravanDeparture? Departure { get; init; }
+    public int HomeTile { get; init; } = -1;
     public string Id => "trade/mission/" + Settlement;
-    public ForecastCommitment Commitment() => new(Id, []) { TradeMission = Id, ExclusiveOutcome = "trade/mission" };
+    public ForecastCommitment Commitment() => new(Id, []) { TradeMission = Id, ExclusiveOutcome = "trade/mission",
+        ActivityCompletions = Departure is null ? [] : EquatableArray.From(Crew.Select(p => Id + "/depart/" + p)) };
 }
 
 public static class ForecastSettlementMissions

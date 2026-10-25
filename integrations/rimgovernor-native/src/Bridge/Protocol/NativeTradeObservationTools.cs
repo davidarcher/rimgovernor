@@ -6,6 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
+using Verse.AI;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Native
@@ -30,6 +31,17 @@ namespace RimGovernor.Native
         internal static RimGovernor.Brain.GameFacts.Observations.TradersSnapshot Traders(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var traders = new List<RimGovernor.Brain.GameFacts.Observations.Trader>();
+            var negotiators = map.mapPawns.FreeColonistsSpawned.Where(EligibleNegotiator)
+                .OrderByDescending(p => p.GetStatValue(StatDefOf.TradePriceImprovement)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+            RimGovernor.Brain.GameFacts.Observations.TradeVisit? Visit(ITrader trader, IntVec3 location, Pawn? negotiator)
+            {
+                if (negotiator is null || trader.TraderKind.orbital && !Building_OrbitalTradeBeacon.AllPowered(map).Any()) return null;
+                var gain = negotiator.GetStatValue(StatDefOf.TradePriceImprovement);
+                var stock = trader.Goods.Where(t => t is not Pawn && t.stackCount > 0 && t.def != ThingDefOf.Silver)
+                    .Select(t => new RimGovernor.Brain.GameFacts.Observations.SettlementStockItem(t.def.defName, t.stackCount,
+                        TradeUtility.GetPricePlayerBuy(t, trader.TraderKind.PriceTypeFor(t.def, TradeAction.PlayerBuys).PriceMultiplier(), 1, gain, trader.TradePriceImprovementOffsetForPlayer)));
+                return new(new PawnId(negotiator.GetUniqueLoadID()), new(location.x, location.z), RimGovernor.Brain.Domain.EquatableArray.From(stock));
+            }
             foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {
                 var tracker = pawn.trader;
@@ -43,6 +55,8 @@ namespace RimGovernor.Native
                 {
                     Id = pawn.GetUniqueLoadID(), Orbital = false, Kind = tracker.traderKind.defName, FactionId = FactionId(pawn.Faction),
                     CanTrade = pawn.CanTradeNow && !dismissed && !travelling, Travelling = travelling, GoodsStacks = tracker.Goods.Count(),
+                    Visit = !dismissed && !travelling && pawn.CanTradeNow ? Visit(pawn, pawn.Position,
+                        negotiators.FirstOrDefault(p => p.CanTradeWith(pawn.Faction, tracker.traderKind).Accepted && p.CanReach(pawn, PathEndMode.Touch, Danger.Some))) : null,
                 });
             }
             foreach (var ship in map.passingShipManager.passingShips.OfType<TradeShip>())
@@ -50,19 +64,17 @@ namespace RimGovernor.Native
                 var usable = ship.CanTradeNow && Building_OrbitalTradeBeacon.AllPowered(map).Any()
                     && map.mapPawns.FreeColonistsSpawned.Any(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted
                         && map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().Any(c => NativeTradeAcquisition.ConsoleNegotiator(c, p)));
+                var console = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>()
+                    .OrderBy(c => c.GetUniqueLoadID(), StringComparer.Ordinal).FirstOrDefault(c => negotiators.Any(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted && NativeTradeAcquisition.ConsoleNegotiator(c, p)));
                 traders.Add(new RimGovernor.Brain.GameFacts.Observations.Trader
                 {
                     Id = ship.GetUniqueLoadID(), Orbital = true, Kind = ship.TraderKind.defName, FactionId = FactionId(ship.Faction),
                     CanTrade = usable, Travelling = false, GoodsStacks = ship.Goods.Count(),
+                    Visit = usable && console is not null ? Visit(ship, console.InteractionCell,
+                        negotiators.FirstOrDefault(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted && NativeTradeAcquisition.ConsoleNegotiator(console, p))) : null,
                 });
             }
             traders.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
-            var negotiators = map.mapPawns.FreeColonistsSpawned.Where(EligibleNegotiator).ToList();
-            negotiators.Sort((x, y) =>
-            {
-                var c = y.GetStatValue(StatDefOf.TradePriceImprovement).CompareTo(x.GetStatValue(StatDefOf.TradePriceImprovement));
-                return c != 0 ? c : string.CompareOrdinal(x.GetUniqueLoadID(), y.GetUniqueLoadID());
-            });
             return new RimGovernor.Brain.GameFacts.Observations.TradersSnapshot
             {
                 Context = context, Traders = [.. traders], Negotiators = [.. negotiators.Select(p => new PawnId(p.GetUniqueLoadID()))],

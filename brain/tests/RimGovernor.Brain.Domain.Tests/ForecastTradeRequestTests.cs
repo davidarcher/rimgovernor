@@ -8,7 +8,7 @@ public sealed class ForecastTradeRequestTests
 {
     internal static TradeRequestOption Request(string faction = "ally", string kind = "exotic") => new()
     {
-        FactionId = faction, TraderKind = kind, Kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan,
+        ConsoleId = "console", ConsoleCell = new(1, 1), FactionId = faction, TraderKind = kind, Kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan,
         Goodwill = 80, GoodwillCost = 15, RelationAfterPayment = "Ally", LastRequestTick = -240000,
         CooldownRemainingTicks = 0, ArrivalMaxTicks = 120000, Eligible = true, NegotiatorIds = ["pawn"],
     };

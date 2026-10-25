@@ -311,6 +311,8 @@ public sealed class StockArrivalCatalogTests
         var settlement = ForecastSettlementMissionTests.Destination("Caravan_Outlander_Exotic");
         var pack = ForecastSettlementMissionTests.Pack(settlement.TraderKind);
         var option = Assert.IsType<ForecastSettlementMission>(ForecastSettlementMissions.Option(catalog.TraderStock(), settlement, pack, ["pawn"], 1700));
+        Assert.True(CaravanDeparture.TryCreate([new("pawn")], [new("Silver", 1700)], settlement.Tile, out var departure));
+        option = option with { Departure = departure, HomeTile = 1 };
         stock = stock with { Missions = [option] };
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: GameTime.TicksPerDay) with { StockArrival = stock };
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));

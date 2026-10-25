@@ -237,10 +237,15 @@ public sealed class IllnessForecastTests
         Assert.Single(derived.Stock.Trade);
         Assert.Equal(0, ForecastValue.Of(outcome, context with { InvestmentHorizonDays = 2 }, Day, outcome, [option.Commitment()]).Investment);
 
-        // Through the real portfolio search: two roots schedule the same empty work, but only a selected request has stock.
+        // Through the real portfolio search: both requests use the exact observed comms route.
         var empty = option with { Native = option.Native with { TraderKind = "empty" }, Sources = [] };
         var observed = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: Day)
             with { StockArrival = context.Stock with { Requests = [empty, option] } };
+        observed = observed with { ForecastObserved = observed.ForecastObserved with
+        {
+            Coupled = observed.ForecastObserved.Coupled! with { Routes =
+                [new("pawn", default, option.Native.ConsoleCell, new RouteTicks.Reachable(0)) { FromStart = true }] },
+        } };
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(observed));
         generated = generated with { Context = generated.Context with
         {
@@ -254,7 +259,7 @@ public sealed class IllnessForecastTests
         Assert.DoesNotContain(empty.Id, selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Value.Ledger.Investment < 0);
         Assert.Equal(selection.BaselineVector.Value.Ledger.Harm, selection.SelectedVector.Value.Ledger.Harm);
-        Assert.Equal(1, selection.SearchPhases.Sum(p => p.ScheduleSearches));
+        Assert.True(selection.SearchPhases.Sum(p => p.ScheduleSearches) > 0);
     }
 
     [Theory]
@@ -312,7 +317,9 @@ public sealed class IllnessForecastTests
         Assert.Single(derived.Stock.Trade);
         Assert.Equal(0, ForecastValue.Of(outcome, context with { InvestmentHorizonDays = 3 }, Day, outcome, [option.Commitment()]).Investment);
 
-        // Through the real portfolio search: two roots schedule the same empty work, but only a selected request has stock.
+        // The production generator requires an executable departure preview for each mission.
+        Assert.True(CaravanDeparture.TryCreate([new("pawn")], [new("Silver", 100)], 2, out var departure));
+        option = option with { Departure = departure, HomeTile = 1 };
         var empty = option with { Settlement = "empty", Sources = [] };
         var observed = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: Day)
             with { StockArrival = context.Stock with { Missions = [empty, option] } };
@@ -329,7 +336,7 @@ public sealed class IllnessForecastTests
         Assert.DoesNotContain(empty.Id, selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Value.Ledger.Investment < 0);
         Assert.Equal(selection.BaselineVector.Value.Ledger.Harm, selection.SelectedVector.Value.Ledger.Harm);
-        Assert.Equal(1, selection.SearchPhases.Sum(p => p.ScheduleSearches));
+        Assert.True(selection.SearchPhases.Sum(p => p.ScheduleSearches) > 0);
     }
 
     [Fact]

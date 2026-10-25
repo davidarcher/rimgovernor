@@ -11,14 +11,14 @@ public sealed class IncidentVoluntaryAdmissionTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     [Theory]
-    [InlineData(TradeParticipantKind.Map, false)]
-    [InlineData(TradeParticipantKind.Orbital, false)]
+    [InlineData(TradeParticipantKind.Map, true)]
+    [InlineData(TradeParticipantKind.Orbital, true)]
     [InlineData(TradeParticipantKind.Settlement, true)]
-    public void TradeOpenDistinguishesPawnLaborFromExistingCaravanSession(TradeParticipantKind kind, bool allowed)
+    public void SelectedTradeOpenUsesTheSharedLaborAdmission(TradeParticipantKind kind, bool allowed)
     {
         var trade = Trade.NewTradeOpen("trader", new("pawn"), false)
             .WithParticipant(new(kind, "trader", kind == TradeParticipantKind.Settlement ? "caravan" : ""));
-        VerifyCaravan(DomainAction.NewTradeAction(new("action"), trade), allowed, "unsupported_shared_trade_labor");
+        VerifyCaravan(DomainAction.NewTradeAction(new("action"), trade), allowed, "");
     }
 
     [Theory]

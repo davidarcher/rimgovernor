@@ -224,7 +224,6 @@ committing orders. Their Concerns remain unmet:
 | Quest gift delivery | unsupported_forecast_quest_gift |
 | Comms trade request | unsupported_forecast_trade_request |
 | Door-to-wall replacement | unsupported_forecast_wall_replacement |
-| Map/orbital trade opening | unsupported_shared_trade_labor |
 | Preventative mood cast | unsupported_forecast_mood_cast |
 | Caravan formation | unsupported_forecast_caravan_formation |
 | Shuttle explicit loading / autoload enabled | unsupported_forecast_shuttle_loading |

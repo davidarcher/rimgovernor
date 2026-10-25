@@ -49,7 +49,7 @@ public sealed class ForecastSettlementMissionTests
         var context = ForecastValueTests.Context(ForecastValueTests.Pawn()) with { Stock = stock };
         Assert.Same(context, ForecastTradeRequests.Context(outcome, [], context, Day));
         var selected = ForecastTradeRequests.Context(outcome, [option.Commitment()], context, Day);
-        Assert.Equal(3, selected.Stock.ExpectedWait([new([new("arm")], 1)], 10));
+        Assert.Equal(10, selected.Stock.ExpectedWait([new([new("arm")], 1)], 10)); // No chosen StockWait authorizes a purchase.
         Assert.Empty(context.Stock.Trade);
     }
 

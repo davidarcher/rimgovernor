@@ -258,7 +258,6 @@ public sealed class EconomyFamilyTests
         // The trade-mission Need: a mission under way or a proposed trip; unknown while the record is unread.
         Assert.Equal(Satisfaction.Met, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = false }).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = true }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = false, Proposed = true }).Satisfaction);
 
         // The toggles compose them: the trade Need alone, or the caravan and trade-mission Needs together.
         var facts = new EconomyFacts { Trade = new TradeReview.Assessed(1.0, false), Missions = new TradeMissionFacts { Active = false } };

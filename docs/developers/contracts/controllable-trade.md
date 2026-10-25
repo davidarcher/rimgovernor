@@ -25,13 +25,12 @@ native `CanTradeNow` and trader kind. Existing WorldRoute and CaravanState reads
 own routes, caravan crew, mass, food, rot and inventory.
 
 
-The `economy/caravan` Need's work (#3316) reports unsupported_shared_trade_labor
-before opening map or orbital trade: negotiator travel and comms work require
-shared participant and opportunity alternatives. The Need's claim admission
-rejects those Open actions as well. Already-open session operations and visiting-caravan
-settlement sessions remain available; explicit native operations still exercise
-map/orbital legality. Incident classification alone does not make a trade
-opportunity emergency labor.
+Current map/orbital traders provide their exact eligible negotiator, approach
+cell and already-held priced stock. Opening is a coupled portfolio alternative:
+the selected participant uses the existing `economy/caravan` Method and `Trade`
+Open action. Shared claim admission reserves that pawn during the native walk or
+comms job. Existing session operations drive the resulting native session.
+
 An optional existing FormCaravanIntent is a read-only packing calculation input:
 the exact crew/cargo are selected using the same native formation calculation.
 The reply contains mass, food/rot and crew-sensitive outbound/home WorldRoutes.
@@ -108,10 +107,23 @@ horizon stays unchanged; avoided later harm is booked in the existing Investment
 term only through `InvestmentHorizonDays`, subtracting any benefit already in
 the immediate harm term. See [stock arrival](forecast-contracts.md#stock-arrival-3868).
 
-This is the portfolio comparison path. Selection-to-request execution and the
-authorization of purchases from the selected waits remain the explicit work of
-[#3919](https://github.com/davidarcher/rimgovernor/issues/3919); current supply
-request proposals retain their hold until that hand-off exists.
+A selected request binds the exact native console and an eligible negotiator to
+the shared schedule. A selected settlement option retains its exact native
+validated crew, cargo and destination. Existing actions run when the external
+task is first for each participant. Earlier shared work runs first; later work
+is replanned from fresh observations after external completion. The existing
+Method journal is the single execution owner; there is no acquisition proposal
+cache or second request executor.
+
+The selected outcome exports the medicine and part targets of its chosen
+`StockWait`s, including raid losses, illness and existing surgical conditions.
+One pure purchase rule allocates today's spendable silver once, medicine first,
+across those targets. The forecast applies that authorization to availability;
+current map/orbital trade applies it to the exact native sheet. A requested
+caravan receives a fresh portfolio comparison when it arrives: requests do not
+freeze colony needs or infer a trader identity from faction/kind. The current
+snapshot's waits live only in `ColonyReview.TradeWaits` (see
+[persistence](persistence-contracts.md)).
 
 `CommsTradeRequestIntent` is closed to caravan/orbital requests and names faction,
 kind, console, negotiator and expected last request tick. Its effect distinguishes
@@ -124,8 +136,7 @@ be retried merely to obtain a charge receipt. Arrival is reconciled separately.
 
 The outbound mission, saved in the `family/economy/trade_missions` record (#3316), records home colony/map, settlement target, exact crew,
 silver budget, demanded definitions/counts and mission phase/return intent. The
-record must persist before departure, and departure remains inactive until return
-and completion exist. Native inventory, trade stock/prices, goodwill, cooldown,
+record and departure Method are committed atomically. Native inventory, trade stock/prices, goodwill, cooldown,
 caravan position and routes stay native facts. Action attempts remain in the
 session journal. Goods bought away count as away inventory until native delivery
 at home is observed; request/scouting intent supplies no secured yield.
@@ -155,18 +166,17 @@ receipt or load. Missing/overlapping crew evidence never resets a departing
 mission to planned. A stopped player caravan on the settlement tile is available
 to the shared session through vanilla `SettlementVisitedNow`; arrival does not
 require an extra order. The `economy/trade-mission` Need drives the saved mission before
-considering a new request or visit. Completed home staffing/defense facts admit
-exact packing options; the existing acquisition planner chooses without stock
-credit. Departure runs only after the mission has been recorded.
+considering a new visit. The coupled portfolio selects exact packing options;
+departure records `Departing` and its existing Hands action together. A restored
+`Planned` mission uses the same existing departure action and immediately
+records `Departing`.
 
-Settlement purchases use live prices and current home demand, bounded by saved
-authorization, mission silver and native carry capacity. The existing supply
-ranker opens these candidates privately; away offers stay excluded from home
-stock. A mission authorized to buy food holds in Buying while the shared food
-plan is absent: it neither buys a partial plan nor records a return or
-completion. This is an explicit food-plan refusal, not measured zero demand.
-Known zero demand still closes trading and returns, as do empty/unavailable
-sheets. Resource-only missions do not require a food-demand measurement.
+Settlement purchases use live prices, bounded by the selected-wait authorization
+saved in the existing mission demand, its silver budget and native carry
+capacity. They use the same medicine-first purchase rule as forecast availability
+and map/orbital sessions. Missing stock, insufficient cash or capacity buys fewer
+units, never unrelated resource targets. Empty/unavailable sheets close trading
+and return. Away purchases remain away inventory until observed home delivery.
 Commitment precedes accept dispatch, so a reload never rebuys.
 
 Return uses the same FormCaravan intent on exact observed crew, with a fresh
@@ -210,5 +220,9 @@ of one definition use their highest observed unit price as an affordability boun
 Avoided later harm is credited only inside `InvestmentHorizonDays`, excluding
 benefit already counted by the one-day immediate harm term. Crew absence costs
 the free work those colonists could supply to this outcome's `ShortfallOf`, at
-their observed speeds, for the round trip inside that same horizon. Selection
-and purchase/departure authorization are separate: the latter remains #3919.
+their observed speeds, for the round trip inside that same horizon. The shared
+schedule reserves the crew from actual departure through the slice using native
+roundtrip absence, not continuous awake work. This occupancy adds no labor price;
+`LostWork` owns that cost. The safe native pack proves food and rot coverage;
+the forecast does not invent caravan eating or rest timings. Immediate physiological
+limits remain explicit in the needs timeline.

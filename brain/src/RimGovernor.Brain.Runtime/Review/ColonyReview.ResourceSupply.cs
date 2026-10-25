@@ -372,7 +372,6 @@ public sealed partial class ColonyReview
             throw new ControlException("buildResourceSupply", e);
         }
 
-        await PlanTradeAcquisitionAsync(state.Snapshot, "resources", projection, output.Plan.Plan.Demands, null, call).ConfigureAwait(false);
         return output;
     }
 }

@@ -100,8 +100,7 @@ internal sealed record MissionStep(Sto.NeedOwner Owner, Sto.TradeMissionsRecord 
 public sealed partial class TradePlanner
 {
     /// <summary>
-    /// The economy/trade-mission Need's work (#3316): with no mission under way, start the settlement trip the supply
-    /// plan proposed; otherwise advance the mission in <c>family/economy/trade_missions</c> one phase edge from the
+    /// The economy/trade-mission Need advances the selected mission in <c>family/economy/trade_missions</c> one phase edge from the
     /// world progression read. A mission leaves the record once delivered or ended, which meets the Need.
     /// </summary>
     internal async Task<TradeResult> MissionAsync(NeedWork work, CancellationToken call)
@@ -119,7 +118,7 @@ public sealed partial class TradePlanner
         var record = player.Journal.LoadTradeMissions(Player.PlayerWorld(state.Snapshot), call);
         if (record.Missions.Count == 0)
         {
-            return CreateMission(record, call);
+            return new TradeResult { Verdict = BuildingReasonNoDeficit };
         }
         var step = new MissionStep(work.Owner, record, record.Missions[0].Id);
         var m = record.Missions[0].Mission;
@@ -139,8 +138,9 @@ public sealed partial class TradePlanner
         {
             var (observedPhase, observed) = TradePlanner.TradeMissionDepartureEvidence(m, world);
             if (observed) return MissionRecord(step, m with { Phase = observedPhase }, call);
-            return new TradeResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
-                "Caravan packing and departure require shared forecast labor admission.") };
+            var departureId = PlanIds.MintPlanId();
+            return MissionCommit(state, step, m with { Phase = TradeMissionPhase.Departing }, departureId,
+                DomainAction.NewCaravanDepartureAction(new ActionId(departureId + "-departure"), m.Departure()), "trade-depart", call, work.Epoch);
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
         {
@@ -225,17 +225,6 @@ public sealed partial class TradePlanner
     internal TradeResult MissionRecord(MissionStep step, TradeMission m, CancellationToken ct)
     {
         Reviewer.Player.Journal.SaveTradeMissions(step.Record.With(step.Id, m), ct);
-        if (m.Over)
-        {
-            var memory = Reviewer.TradeAcquisition;
-            lock (memory.Mu)
-            {
-                foreach (var owner in memory.Active.Where(kv => kv.Value.EndsWith(":settlement:" + m.Settlement, StringComparison.Ordinal)).Select(kv => kv.Key).ToList())
-                {
-                    memory.Active.Remove(owner);
-                }
-            }
-        }
         return new TradeResult { Verdict = BuildingReasonExistingWork };
     }
 
@@ -300,7 +289,7 @@ public sealed partial class TradePlanner
             return new TradeResult { Verdict = BuildingReasonExistingWork };
         }
         var sheet = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-        var (lines, goods) = await MissionPurchasesAsync(state, review, m, sheet, caravan, call).ConfigureAwait(false);
+        var (lines, goods) = await MissionPurchasesAsync(state, m, sheet, caravan, call).ConfigureAwait(false);
         if (TradeTarget.TradeParticipantOf(sheet.Target).Key() != trader || !sheet.CanTradeNow || lines.Count == 0)
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
@@ -327,47 +316,13 @@ public sealed partial class TradePlanner
     }
 
     /// <summary>
-    /// Feeds live priced candidates through the existing ranker. Demand comes from the current owning
-    /// food/resource plans, bounded by saved authorization. It does not publish away goods into home supply
+    /// Feeds live priced rows through the shared purchase rule, bounded by the saved selected-wait authorization.
+    /// It does not publish away goods into home supply
     /// candidates.
     /// </summary>
-    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.ReviewState review, TradeMission m, RimGovernor.Brain.GameFacts.Observations.TradeSheet sheet, RimGovernor.Brain.GameFacts.Observations.CaravanState caravan, CancellationToken ct)
+    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, TradeMission m, RimGovernor.Brain.GameFacts.Observations.TradeSheet sheet, RimGovernor.Brain.GameFacts.Observations.CaravanState caravan, CancellationToken ct)
     {
-        var reply = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        var tables = await Native.FrameTablesAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        if (Native is not IDefinitionSource definitions)
-        {
-            throw new ControlException("missionPurchases: frame tables carry no catalog");
-        }
-        var catalog = await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        var projection = ColonyPlanningReads.Compose(
-            reply,
-            new ObservationIdentity
-            {
-                Context = reply.Context with { Identity = Boundary.Identity(state.Snapshot), NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(state.Snapshot.Native.Value) },
-            },
-            tables,
-            catalog);
-        Reviewer.PlanFood(ref projection);
-        var targets = Reviewer.ResourceTargets(state.Snapshot);
-        var nutrition = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var item in m.Demand)
-        {
-            if (MissionCatalogStat(catalog, item.Definition, CatalogStats.Nutrition, out var shown))
-            {
-                nutrition[item.Definition] = shown;
-            }
-        }
-        var foodGap = 0.0;
-        if (nutrition.Values.Any(n => n > 0))
-        {
-            // A food mission sizes its purchase from the food plan's gap.
-            if (projection.Facts.FoodPlan is not { } food)
-            {
-                throw new Pol.RequiredFactException("food plan");
-            }
-            foodGap = food.GapPerDay;
-        }
+        var catalog = await Native.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         var rows = new List<Pol.MissionPurchaseRow>();
         foreach (var row in sheet.Lines)
         {
@@ -396,11 +351,7 @@ public sealed partial class TradePlanner
         return Pol.TradePolicyRules.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
         {
             Mission = m,
-            Targets = targets,
-            Stock = projection.Facts.ObservedStock(),
-            FoodGapPerDay = foodGap,
-            FoodTargetDays = Reviewer.Policy.FoodTargetDays,
-            Nutrition = nutrition,
+            Medicines = catalog.ItemFacts().MedicineTiers(),
             Rows = rows,
             Silver = silver,
             Mass = caravan.MassUsage,
@@ -408,40 +359,4 @@ public sealed partial class TradePlanner
         });
     }
 
-    /// <summary>
-    /// Starts the settlement trip the supply plan proposed for food or resources: claims the acquisition and records
-    /// the planned mission in <c>family/economy/trade_missions</c> under a minted id.
-    /// </summary>
-    internal TradeResult CreateMission(Sto.TradeMissionsRecord record, CancellationToken ct)
-    {
-        foreach (var owner in new[] { "food", "resources" })
-        {
-            if (ProposedMission(owner) is not { } proposed || !Reviewer.ClaimTradeAcquisition(owner, proposed.Option))
-            {
-                continue;
-            }
-            Reviewer.Player.Journal.SaveTradeMissions(record.With(PlanIds.MintPlanId().Value, proposed.Mission), ct);
-            return new TradeResult { Verdict = BuildingReasonExistingWork };
-        }
-        return new TradeResult { Verdict = BuildingReasonNoDeficit };
-    }
-
-    /// <summary>
-    /// Whether the supply plan proposes a settlement trip for food or resources with a planned mission: the
-    /// economy/trade-mission Need's want while no mission is under way.
-    /// </summary>
-    internal bool MissionProposed() => ProposedMission("food") is not null || ProposedMission("resources") is not null;
-
-    private (string Option, TradeMission Mission)? ProposedMission(string owner)
-    {
-        var proposal = Reviewer.TradeAcquisitionPlan(owner).Proposal;
-        if (proposal is null || proposal.Option.Kind != Pol.TradeAcquisitionKind.Settlement)
-        {
-            return null;
-        }
-        lock (Reviewer.TradeAcquisition.Mu)
-        {
-            return Reviewer.TradeAcquisition.Missions.TryGetValue(proposal.Option.ID, out var m) && m is not null ? (proposal.Option.ID, m) : null;
-        }
-    }
 }

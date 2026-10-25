@@ -48,6 +48,7 @@ public sealed record ForecastPlannedRoomOutcome(int Room, EquatableArray<string>
 
 public sealed record ForecastCoupledContext
 {
+    public EquatableArray<ForecastTradeWork> TradeWork { get; init; }
     public required ForecastActivityProblem Activities { get; init; }
     public ForecastModelBasis? ModelBasis { get; init; }
     /// <summary>Each skill stock's next level and the days a raise lasts (<see cref="ProjectMarginals.SkillRaises"/>, #3912); what <see cref="SkillValue"/> prices work speed by.</summary>
@@ -321,7 +322,7 @@ public static partial class ForecastCoupled
         var all = cache.Tasks(context.Activities);
         foreach (var id in context.NonproductiveOccupancy)
             if (!all.TryGetValue(id, out var wait) || wait.Inputs.Count != 0 || wait.Outputs.Count != 0
-                || wait.Location != wait.EndLocation || wait.NotBefore != 0 || wait.LatestStart != 0
+                || wait.Location != wait.EndLocation || wait.NotBefore != 0 || wait.LatestStart != 0 && !context.TradeWork.Any(w => w.Task == id && w.Mission is not null)
                 || context.NeedTasks.Any(n => n.Task == id) || context.Bindings.Keys.Any(k => k.Task == id))
                 throw new DomainException("retained waiting cannot carry productive or need effects");
         var included = new HashSet<string>(StringComparer.Ordinal);

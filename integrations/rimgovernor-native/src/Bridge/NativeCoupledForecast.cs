@@ -53,6 +53,8 @@ internal static class NativeCoupledForecast
         var families = new[] {
             practice.Workers.Select(w => w.Location),
             research.Workers.Select(w => w.Location),
+            map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().Where(c => c.CanUseCommsNow).Select(c => new Cell(c.InteractionCell.x, c.InteractionCell.z)),
+            map.mapPawns.AllPawnsSpawned.Where(p => p.trader?.traderKind is not null && p.CanTradeNow).Select(p => new Cell(p.Position.x, p.Position.z)),
             food.Options.SelectMany(o => new[] { o.Origin,o.Destination }),
             construction.Options.SelectMany(o => new[] { o.Origin,o.Location }),
             future.Conversions.SelectMany(o => new[] { o.SourceCell,o.BenchCell,o.Destination }),

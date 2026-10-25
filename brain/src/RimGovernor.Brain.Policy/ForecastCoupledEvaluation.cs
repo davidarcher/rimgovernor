@@ -498,7 +498,8 @@ public static partial class ForecastCoupled
             // not start is one the autopilot never runs, so it is refused: the binding starts none of a dispatch with an unbound placed
             // allocation, and a review that releases an incumbent it cannot release dispatches nothing.
             var (dispatchedIds, dispatched) = context.IncumbentHold.Dispatched(commitments.Keys, plan.Allocations, tasks);
-            if (Methods.Binding.CoordinatedActivityBinding.Unbound(dispatchedIds, dispatched, context.Bindings, pawns.Unplaced) is { } unbound)
+            var ordinary = Methods.Binding.CoordinatedActivityBinding.BeforeExternalWork(plan with { Allocations = dispatched }, context);
+            if (Methods.Binding.CoordinatedActivityBinding.Unbound(dispatchedIds, ordinary.Allocations, context.Bindings, pawns.Unplaced) is { } unbound)
                 Refuse("dispatch_allocation_unbound", unbound.Activity);
             foreach (var incumbent in context.IncumbentHold.Unreleased(commitments.Keys, plan.Allocations, context.Bindings))
                 Refuse("incumbent_release_unavailable", incumbent.Commitment);
@@ -804,7 +805,8 @@ public static partial class ForecastCoupled
             HashSet<string>? rejectedWork = null;
             IReadOnlySet<string>? ordered = null;
             // Whom the binding orders at tick 0, on the outcome as the review dispatches it.
-            IReadOnlySet<string> Ordered() => Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(dispatchedIds, dispatched, context.Bindings, pawns.Unplaced);
+            IReadOnlySet<string> Ordered() => Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(dispatchedIds, ordinary.Allocations, context.Bindings, pawns.Unplaced)
+                .Concat(ForecastTradeExecution.Ready(new(dispatchedIds, plan with { Allocations = dispatched }, [], 0, false), context).Select(w => w.Pawn)).ToHashSet(StringComparer.Ordinal);
             // Per pawn, the cached timelines are looked up by their inputs; a timeline's capacity input is built only on a miss (#3468).
             for (var p = 0; p < pawns.Pawns.Length; p++)
             {

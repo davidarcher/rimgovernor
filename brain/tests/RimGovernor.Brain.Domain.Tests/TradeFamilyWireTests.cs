@@ -31,7 +31,8 @@ public sealed class TradeFamilyWireTests
         Context = Context,
         Traders =
         [
-            new RimGovernor.Brain.GameFacts.Observations.Trader { Id = "Human7", Orbital = false, Kind = "Caravan_Outlander_BulkGoods", FactionId = "Faction_3", CanTrade = true, Travelling = false, GoodsStacks = 40 },
+            new RimGovernor.Brain.GameFacts.Observations.Trader { Id = "Human7", Orbital = false, Kind = "Caravan_Outlander_BulkGoods", FactionId = "Faction_3", CanTrade = true, Travelling = false, GoodsStacks = 40,
+                Visit = new(new("Human1"), new(2, 3), [new("MedicineHerbal", 5, 10)]) },
             new RimGovernor.Brain.GameFacts.Observations.Trader { Id = "Ship_2", Orbital = true, Kind = "Orbital_Exotic", FactionId = "", CanTrade = false, Travelling = false, GoodsStacks = 12 },
         ],
         Negotiators = [new PawnId("Human1")],
@@ -71,7 +72,7 @@ public sealed class TradeFamilyWireTests
         [
             new RimGovernor.Brain.GameFacts.Observations.TradeRequestOption
             {
-                FactionId = "Faction_3", Kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan, TraderKind = "Caravan_Outlander_BulkGoods",
+                ConsoleId = "Console_1", ConsoleCell = new(1, 2), FactionId = "Faction_3", Kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan, TraderKind = "Caravan_Outlander_BulkGoods",
                 Goodwill = 40, GoodwillCost = 15, RelationAfterPayment = "Neutral", LastRequestTick = 0,
                 CooldownRemainingTicks = 0, ArrivalMaxTicks = 60000, Eligible = true, NegotiatorIds = ["Human1"],
             },

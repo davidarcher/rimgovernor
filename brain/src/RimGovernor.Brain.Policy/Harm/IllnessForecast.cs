@@ -408,7 +408,7 @@ public static class IllnessForecast
             return (true, 0, null);
         }
 
-        var replacement = new OrganReplacement(organ.Part, organ.Pick, organ.Reason, probability);
+        var replacement = new OrganReplacement(organ.Part, organ.Pick, organ.Reason, probability) { Wait = organ.Wait };
         Span<double> left = stackalloc double[levels.Length];
         for (var i = 0; i < levels.Length; i++)
         {

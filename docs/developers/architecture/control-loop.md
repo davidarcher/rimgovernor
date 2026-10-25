@@ -417,13 +417,12 @@ Method is open.
 the work ledger's, filed under the Need (`economy/trade/bills`). The caravan
 Incident is now the `economy/caravan` Need: each session phase is a Method
 `trade-<phase>-<trader>`, an ended open re-admitted as the MethodId's next
-attempt, and claim admission refuses a map or orbital open under it
-(`unsupported_shared_trade_labor`). A caravan is settled for the load, not the
+attempt. Coupled portfolio alternatives schedule map/orbital opening and share
+the negotiator claim with ordinary work. A caravan is settled for the load, not the
 occurrence. The trade-mission Standard is now the `economy/trade-mission` Need
 over the `family/economy/trade_missions` record (its Methods
 `<phase>-<mission id>`); an older save's trade-mission Standard is dropped on
-load (decision 12), so an in-flight mission is not resumed. The forecast trade
-request hold is the resource Need's work. The `trade` clock slot is deleted.
+load (decision 12), so an in-flight mission is not resumed. Selected trade requests use the caravan Need; departure and purchases use the existing saved mission owner. The `trade` clock slot is deleted.
 The trade export bills are filed under `economy/trade` and the workshop resource bills under `economy/resource`, and the Labor table tags the trade Need with the crafting benches' work types.
 
 **Food, cooking (#3254).** EnsureCooking (a Once) is now the `food/cooking` Need

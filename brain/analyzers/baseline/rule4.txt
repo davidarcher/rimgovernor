@@ -48,7 +48,6 @@ Runtime/Review/AcquisitionPlanner.cs|AcquisitionPlanner.StepAsync
 Runtime/Review/AnimalContainment.cs|AnimalContainment.ShellSharedStuff
 Runtime/Review/DefenseLayoutPlanner.Tiers.cs|DefenseLayoutPlanner.ProposeAsync
 Runtime/Review/DefenseLayoutPlanner.DefenseTiers.cs|DefenseLayoutPlanner.AdviseBlocksAsync
-Runtime/ColonyReview.TradeAcquisition.cs|ColonyReview.PlanFoodAcquisitionAsync
 Runtime/Worker.cs|Worker.Flush
 Runtime/Worker.cs|Worker.RunStep
 Runtime/Worker.cs|Worker.Steps

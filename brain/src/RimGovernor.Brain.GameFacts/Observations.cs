@@ -4473,6 +4473,8 @@ public sealed record GearStock
 /// </summary>
 public sealed record Trader
 {
+    /// <summary>Exact current browse participant, approach location and already-held priced stock. Null when no legal participant exists.</summary>
+    public TradeVisit? Visit { get; init; }
     public required string Id { get; init; }
 
     public required bool Orbital { get; init; }
@@ -4487,6 +4489,9 @@ public sealed record Trader
 
     public required int GoodsStacks { get; init; }
 }
+
+public sealed record TradeVisit(PawnId Negotiator, Cell Location,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SettlementStockItem>))] EquatableArray<SettlementStockItem> Stock);
 
 /// <summary>
 /// The map's traders, in id order, and the colonists eligible to negotiate (not dead, downed, in a mental state or
@@ -4690,6 +4695,8 @@ public sealed record PassingTradeShip
 /// </summary>
 public sealed record TradeRequestOption
 {
+    public string ConsoleId { get; init; } = "";
+    public Cell ConsoleCell { get; init; }
     public required string FactionId { get; init; }
 
     public required RimGovernor.Brain.GameFacts.Common.TradeRequestKind Kind { get; init; }

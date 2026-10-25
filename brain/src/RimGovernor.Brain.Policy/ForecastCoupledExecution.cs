@@ -33,7 +33,8 @@ public sealed partial record ForecastCoupledExecution
             activities?.ToDictionary(a => a.Id, StringComparer.Ordinal));
         var deferred = selection.Deferred.Where(d => !hold.Pawns.Contains(d)).ToArray();
         // Retention with future work for its own pawn and nothing else to start keeps the incumbent alone.
-        if (allocations.Length == 0) return new(EquatableArray.From(releases), null);
+        var external = candidates is not null && candidates.Context.TradeWork.Any(w => selected.Contains(w.Root, StringComparer.Ordinal));
+        if (allocations.Length == 0 && !external) return new(EquatableArray.From(releases), null);
         return new(EquatableArray.From(releases), selection with
         {
             Selection = selection.Selection with { Selected = selected, Plan = plan with { Allocations = allocations } },

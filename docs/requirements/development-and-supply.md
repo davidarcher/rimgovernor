@@ -95,11 +95,11 @@ probability estimate an opportunity; they do not guarantee a trader will arrive.
 
 ### S6 — Known forecast limits
 
-Existing issues [#3917](https://github.com/davidarcher/rimgovernor/issues/3917),
-[#3918](https://github.com/davidarcher/rimgovernor/issues/3918) and
-[#3919](https://github.com/davidarcher/rimgovernor/issues/3919) track brain-started
-trade stock, settlement missions and selection handoff. They qualify forecast
-claims independently of the supported native deal path. The zero-stock bootstrap
+Comms requests, current trader visits and exact native settlement packs enter
+the shared portfolio and execute through its selected waits and existing journal
+owners. The forecast keeps its one-day immediate horizon and values later harm
+only through the investment horizon.
+The zero-stock bootstrap
 in [#3641](https://github.com/davidarcher/rimgovernor/issues/3641) also crosses food,
 workshops, clothing and shelter; prepared production cases do not establish it.
 

@@ -75,7 +75,10 @@ public sealed record RaidPartInputs
 /// <see cref="Loss"/> capability-days, over the replacement's wait when the autopilot would replace it (<see cref="Pick"/>, otherwise
 /// null with the reason) and over the horizon when not.
 /// </summary>
-internal sealed record PartLossEvent(string Part, double Probability, bool Kills, double Loss, OrganReplacementRead? Pick, SurgeryWantReason Reason);
+internal sealed record PartLossEvent(string Part, double Probability, bool Kills, double Loss, OrganReplacementRead? Pick, SurgeryWantReason Reason)
+{
+    public StockWait? Wait { get; init; }
+}
 
 /// <summary>
 /// The parts one raid destroys on one pawn (#3847, epic #3650 P1), from the game's damage rules over the pawn's own parts
@@ -140,7 +143,7 @@ internal static class RaidPartLoss
             StockWait.Name(inputs.Stock, reason, wait, findings);
             double[] after = [part.Consciousness, part.Moving, part.Manipulation, part.Sight, part.Talking];
             var without = wait is { } waiting ? waiting.Expected(days) : days;
-            events.Add(new PartLossEvent(part.Part, lost, false, without * (1 - ForecastValue.CapabilityFactor(levels, after, movingMin)), pick, reason));
+            events.Add(new PartLossEvent(part.Part, lost, false, without * (1 - ForecastValue.CapabilityFactor(levels, after, movingMin)), pick, reason) { Wait = wait });
         }
 
         return events;

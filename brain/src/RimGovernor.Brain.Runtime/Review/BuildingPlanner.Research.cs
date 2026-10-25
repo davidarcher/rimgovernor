@@ -130,7 +130,7 @@ public sealed class EconomyReview
         if (_caravan is not null)
         {
             var missions = await p.Journal.LoadTradeMissionsAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
-            facts = facts with { Missions = new TradeMissionFacts { Active = missions.Missions.Count != 0, Proposed = _caravan.MissionProposed() } };
+            facts = facts with { Missions = new TradeMissionFacts { Active = missions.Missions.Count != 0 } };
         }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
@@ -172,7 +172,7 @@ public sealed class EconomyReview
         if (work.Need.Id == EconomyFamily.Resource && _resource is { } steps)
         {
             // A held resource Need (the research gate) has no work of its own: its pure hold stands.
-            return EconomyRules.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, _caravan, ct).ConfigureAwait(false);
+            return EconomyRules.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, ct).ConfigureAwait(false);
         }
         if (work.Need.Id == EconomyFamily.Trade)
         {
@@ -214,16 +214,11 @@ public sealed class EconomyReview
 
     /// <summary>
     /// The resource Need's steps, independent work under one Need: each runs, held only by its claims and its own
-    /// MethodIds. The Need reports the first admission, else the first step's reason; a forecast trade request the
-    /// supply plan proposed is held first (<see cref="TradePlanner.RequestHold"/>).
+    /// MethodIds. The Need reports the first admission, else the first step's reason.
     /// </summary>
-    private static async Task<Verdict> ResourceWorkAsync(NeedWork work, EconomyResourceSteps steps, TradePlanner? trade, CancellationToken ct)
+    private static async Task<Verdict> ResourceWorkAsync(NeedWork work, EconomyResourceSteps steps, CancellationToken ct)
     {
         var verdicts = new List<Verdict>();
-        if (trade?.RequestHold(work, ct) is { } hold)
-        {
-            verdicts.Add(hold);
-        }
         if (steps.Resource is { } resource)
         {
             verdicts.Add((await resource.StepAsync(work.Arbiter!, work.Owner, ct, work.Epoch).ConfigureAwait(false)).Verdict);

@@ -17,18 +17,38 @@ internal static class CoordinatedActivityBinding
         : [new(PawnActivityKind.Work, task.Target, "RemoveRoofs", "RemoveRoof", task.RoofCells.Count, task.Deadline) { Cells = task.RoofCells }];
     internal static PawnActivities? StartSelected(ForecastActivityOutcomeComparison selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
-        IEnumerable<ForecastPlannedSite>? planned = null)
+        IEnumerable<ForecastPlannedSite>? planned = null, ForecastCoupledContext? context = null)
     {
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         if (selection.Plan is not { } plan) return null;
+        if (context is not null) plan = BeforeExternalWork(plan, context);
         var ordered = OrderedAtStart(selection.Selected, plan.Allocations, bindings, unplaced);
         if (ordered.Count == 0) return null;
         var active = Start(plan, bindings, authority, method, tick, unplaced);
         if (active.Orders.All(o => ordered.Contains(o.Pawn))) return active;
         return new(active.AuthorityGeneration, active.Orders.Where(o => ordered.Contains(o.Pawn)).ToArray())
             { Tasks = EquatableArray.From(active.Tasks.Where(t => ordered.Contains(t.Pawn))) };
+    }
+
+    /// <summary>Only work before the participant's external boundary is installed in PawnActivities. Installing later work
+    /// would interrupt the comms or formation job. Its receipt/native progress releases the claim and the next review replans it.</summary>
+    internal static ForecastActivityPlan BeforeExternalWork(ForecastActivityPlan plan, ForecastCoupledContext context)
+    {
+
+        var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
+        var boundaries = plan.Allocations.Where(a => external.Contains((a.Activity, a.Pawn))).GroupBy(a => a.Pawn)
+            .ToDictionary(g => g.Key, g => g.Min(a => a.Depart), StringComparer.Ordinal);
+        var dropped = plan.Allocations.Where(a => boundaries.TryGetValue(a.Pawn, out var start) && a.Depart >= start)
+            .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
+        for (var grew = true; grew;)
+        {
+            grew = false;
+            foreach (var task in context.Activities.Activities)
+                if (task.Prerequisites.Any(dropped.Contains)) grew |= dropped.Add(task.Id);
+        }
+        return plan with { Allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray() };
     }
 
     /// <summary>

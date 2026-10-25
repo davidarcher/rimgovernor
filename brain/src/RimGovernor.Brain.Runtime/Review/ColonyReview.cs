@@ -42,6 +42,8 @@ public sealed partial class ColonyReview
 
     /// <summary>The latest review's derived resource demand (derived state, empty until the first review after a restart).</summary>
     internal ReviewMemory<DerivedDemand> Demand = new(new());
+    /// <summary>The current selected outcome's purchase waits; derived once per review, never saved as a request promise.</summary>
+    internal ReviewMemory<(EquatableArray<StockNeed> Needs, EquatableArray<Resource> Medicines)> TradeWaits = new(([], []));
 
     /// <summary>Whether the review turns the player's goals into demand (Capabilities.Goals, #3494).</summary>
     internal bool Goals;
@@ -694,7 +696,9 @@ public sealed partial class ColonyReview
         // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.
         reading = reading.WithFacts(rf => rf with { CreepJoiners = CreepJoiner.CreepJoinerHarmOf(reading.Reading, reading.Frame, reading.Catalog), PreviousPawnValues = PawnValueMemory.Get(state.Snapshot) });
         var settlementOptions = await SettlementForecastOptionsAsync(state.Snapshot, reading.Reading, reading.Catalog, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { StockArrival = (rf.StockArrival with { Missions = settlementOptions }).WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
+        reading = reading.WithFacts(rf => rf with { StockArrival = (rf.StockArrival with { Missions = settlementOptions,
+            Visits = ForecastTradeVisits.Options(rf.Traders, TradePolicyRules.SpendableSilver(rf.Silver(), rf.Census.ColonistCount)) })
+                .WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Reading.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });
         fine.Lap("derive/incumbents");
@@ -743,7 +747,6 @@ public sealed partial class ColonyReview
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading);
         Lap("derive");
-        await PlanFoodAcquisitionAsync(state.Snapshot, reading.Reading, ct).ConfigureAwait(false);
         stages.Lap("acquisition");
         var result = await p.Journal.ReviewAsync(new ReviewRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Reading.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Reading.Facts }, ct).ConfigureAwait(false);
         stages.Lap("review");

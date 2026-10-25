@@ -22,10 +22,6 @@ public sealed partial class Store
         if (owner.Need == AdminFamily.WorkAssignments
             && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
             return new(RefusalKind.SharedAdmission, "unsupported_assignment_self_tend_policy");
-        // A visiting trader's session draws a negotiator off the shared forecast; only a mission's settlement trade is ours.
-        if (owner.Need == EconomyFamily.Caravan && plan.Actions.Any(a => a.Trade is
-            { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
-            return new(RefusalKind.SharedAdmission, "unsupported_shared_trade_labor");
         // A people/mood Need casts nothing: a preventative cast needs shared caster time and psyfocus (#3304).
         if (PeopleFamily.IsMood(owner.Need) && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
             return new(RefusalKind.SharedAdmission, "unsupported_forecast_mood_cast");

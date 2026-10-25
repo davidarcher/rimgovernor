@@ -9,6 +9,7 @@ public sealed record ForecastTradeRequest(TradeRequestOption Native, EquatableAr
 
     public ForecastCommitment Commitment() => new(Id, [])
     {
+        ActivityCompletions = Native.ConsoleId.Length == 0 ? [] : [Id + "/comms"],
         TradeRequest = Id,
         // All kinds use the faction's same lastTraderRequestTick.
         ExclusiveOutcome = "trade/request/" + Native.FactionId,
@@ -26,7 +27,7 @@ public static class ForecastTradeRequests
             if (request.Kind != RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan || !request.Eligible
                 || request.CooldownRemainingTicks != 0 || request.RelationAfterPayment != "Ally" || request.NegotiatorIds.Count == 0)
                 continue;
-            if (request.GoodwillCost < 0 || request.ArrivalMaxTicks <= 0)
+            if (request.GoodwillCost < 0 || request.ArrivalMaxTicks <= 0 || request.ConsoleId.Length == 0)
                 throw new RequiredFactException("trade_request_cost_or_arrival:" + request.FactionId);
             if (!catalog.Kinds.TryGetValue(request.TraderKind, out var kind))
                 throw new RequiredFactException("trader_kind_unknown:" + request.TraderKind);
@@ -43,24 +44,56 @@ public static class ForecastTradeRequests
         return EquatableArray.From(result);
     }
 
-    private static readonly PerOutcome<ForecastCoupledContext> Contexts = new((_, chosen, context, _) =>
+    private static readonly PerOutcome<ForecastCoupledContext> Contexts = new((outcome, chosen, context, horizon) =>
     {
         var ids = chosen.Where(c => c.TradeRequest.Length != 0).Select(c => c.TradeRequest).ToHashSet(StringComparer.Ordinal);
         var missionIds = chosen.Where(c => c.TradeMission.Length != 0).Select(c => c.TradeMission).ToHashSet(StringComparer.Ordinal);
-        if (ids.Count == 0 && missionIds.Count == 0) return context;
+        var visitIds = chosen.Where(c => c.TradeVisit.Length != 0).Select(c => c.TradeVisit).ToHashSet(StringComparer.Ordinal);
+        if (ids.Count == 0 && missionIds.Count == 0 && visitIds.Count == 0 && context.Stock.Trade.Count == 0) return context;
         var requests = context.Stock.Requests.Where(r => ids.Contains(r.Id)).ToArray();
         if (requests.Length != ids.Count) throw new RequiredFactException("trade_request_option");
         var missions = context.Stock.Missions.Where(m => missionIds.Contains(m.Id)).ToArray();
         if (missions.Length != missionIds.Count) throw new RequiredFactException("trade_mission_option");
-        return context with
+        var visits = context.Stock.Visits.Where(v => visitIds.Contains(v.Id)).ToArray();
+        if (visits.Length != visitIds.Count) throw new RequiredFactException("trade_visit_option");
+        double At(string root, bool completes) => outcome.Plan.Allocations.Where(a => context.TradeWork.Any(w => w.Root == root && w.Task == a.Activity))
+            .Select(a => completes ? a.End : a.Depart).DefaultIfEmpty(0).Max() / GameTime.TicksPerDay;
+        var selected = context with
         {
             StockBeforeRequests = context.Stock,
-            Stock = context.Stock with { Trade = EquatableArray.From(context.Stock.Trade.Concat(requests.SelectMany(r => r.Sources)).Concat(missions.SelectMany(m => m.Sources))) },
+            Stock = context.Stock with { Trade = EquatableArray.From(context.Stock.Trade
+                .Concat(requests.SelectMany(r => r.Sources.Select(s => s with { From = s.From + At(r.Id, true) })))
+                .Concat(missions.SelectMany(m => m.Sources.Select(s => s with { From = s.From + At(m.Id, false) })))
+                .Concat(visits.SelectMany(v => v.Sources.Select(s => s with { From = s.From + At(v.Id, true) })))) },
         };
+        var needs = TradeStockPurchases.Waits(outcome, selected, chosen, Math.Max(horizon, context.InvestmentHorizonDays * GameTime.TicksPerDay));
+        var authorization = Authorize(selected.Stock, needs);
+        return selected with { Stock = selected.Stock with
+        {
+            Trade = EquatableArray.From(selected.Stock.Trade.Select(s => s with { Authorized = authorization.Where(p => p.Resource == s.Resource).Sum(p => p.Count) })),
+        } };
     });
+
+    /// <summary>Forecast affordability uses each definition's highest observed/generated buy price. The same purchase rule
+    /// consumes medicine, silver and the outcome's waits on a live sheet; stock randomness remains in TradeSource.</summary>
+    public static EquatableArray<StockPurchase> Authorize(StockArrival stock, IReadOnlyList<StockNeed> needs)
+    {
+        var offers = stock.Trade.GroupBy(s => s.Resource).Select(g => new StockPurchaseOffer(g.Key.Value, g.Key, long.MaxValue,
+            g.SelectMany(s => s.Kinds.Select(k => s.UnitPrice(k.Offer.UnitValue))).Max(), 0)).ToArray();
+        return TradeStockPurchases.Plan(needs, stock.Medicines, offers, stock.Trade.Select(s => s.Silver).DefaultIfEmpty(0).Max());
+    }
 
     internal static ForecastCoupledContext Context(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> chosen,
         ForecastCoupledContext context, double horizon) => context.StockBeforeRequests is not null ? context : Contexts.Of(outcome, chosen, context, horizon);
+
+    public static EquatableArray<StockNeed> SelectedWaits(ForecastCoupledSelection selection, ForecastCoupledCandidates candidates)
+    {
+        var ids = selection.Selection.Selected.ToHashSet(StringComparer.Ordinal);
+        var chosen = candidates.Alternatives.Concat(candidates.Incumbents).Where(c => ids.Contains(c.Id)).ToArray();
+        var context = Context(selection.Selected, chosen, candidates.Context, selection.Horizon);
+        return TradeStockPurchases.Waits(selection.Selected, context, chosen,
+            Math.Max(selection.Horizon, context.InvestmentHorizonDays * GameTime.TicksPerDay));
+    }
 
     private sealed record RequestCredit(EquatableArray<ForecastInvestmentContribution> Rows, EquatableArray<string> Findings);
     private static readonly PerOutcome<RequestCredit> Credits = new((outcome, chosen, context, horizon) =>
@@ -78,12 +111,25 @@ public static class ForecastTradeRequests
             findings.UnionWith(term.Findings);
             return term.Loss is LedgerTerm.Priced(var loss) ? loss : throw new RequiredFactException("trade_request_harm");
         }
+        var needs = TradeStockPurchases.Waits(outcome, context, chosen, Math.Max(horizon, context.InvestmentHorizonDays * GameTime.TicksPerDay));
+        StockArrival Append(StockArrival before, string root, IEnumerable<TradeSource> sources, bool completes)
+        {
+            var at = outcome.Plan.Allocations.Where(a => context.TradeWork.Any(w => w.Root == root && w.Task == a.Activity))
+                .Select(a => completes ? a.End : a.Depart).DefaultIfEmpty(0).Max() / GameTime.TicksPerDay;
+            var after = before with { Trade = EquatableArray.From(before.Trade.Concat(sources.Select(s => s with { From = s.From + at }))) };
+            var authorization = Authorize(after, needs);
+            return after with { Trade = EquatableArray.From(after.Trade.Select(s => s with
+                { Authorized = authorization.Where(p => p.Resource == s.Resource).Sum(p => p.Count) })) };
+        }
+        var initial = Authorize(basis, needs);
+        basis = basis with { Trade = EquatableArray.From(basis.Trade.Select(s => s with
+            { Authorized = initial.Where(p => p.Resource == s.Resource).Sum(p => p.Count) })) };
         foreach (var request in requests)
         {
             // Goodwill pays the native request, no silver fee. Losing the alliance is infeasible at the native read;
             // the per-faction exclusion prices the shared cooldown as a constraint, never as invented capability-days.
             findings.Add("trade_request_goodwill:" + request.Id + ":" + request.Native.GoodwillCost);
-            var after = basis with { Trade = EquatableArray.From(basis.Trade.Concat(request.Sources)) };
+            var after = Append(basis, request.Id, request.Sources, true);
             var days = context.InvestmentHorizonDays;
             if (days > horizon / GameTime.TicksPerDay && request.Sources.Any(s => s.From < days))
             {
@@ -96,7 +142,7 @@ public static class ForecastTradeRequests
         var missionIds = chosen.Select(c => c.TradeMission).ToHashSet(StringComparer.Ordinal);
         foreach (var mission in basis.Missions.Where(m => missionIds.Contains(m.Id)).OrderBy(m => m.Id, StringComparer.Ordinal))
         {
-            var after = basis with { Trade = EquatableArray.From(basis.Trade.Concat(mission.Sources)) };
+            var after = Append(basis, mission.Id, mission.Sources, false);
             var days = context.InvestmentHorizonDays;
             double gain = 0;
             if (days > horizon / GameTime.TicksPerDay && mission.Sources.Any(s => s.From < days))
@@ -105,6 +151,15 @@ public static class ForecastTradeRequests
             var lost = ForecastSettlementMissions.LostWork(mission, outcome, chosen, context, horizon);
             rows.Add(new(mission.Id, "", mission.Id, 1, gain + lost));
             findings.Add("trade_mission_lost_work:" + mission.Id);
+            basis = after;
+        }
+        var visitIds = chosen.Select(c => c.TradeVisit).ToHashSet(StringComparer.Ordinal);
+        foreach (var visit in basis.Visits.Where(v => visitIds.Contains(v.Id)).OrderBy(v => v.Id, StringComparer.Ordinal))
+        {
+            var after = Append(basis, visit.Id, visit.Sources, true);
+            var ticks = context.InvestmentHorizonDays * GameTime.TicksPerDay;
+            if (ticks > horizon)
+                rows.Add(new(visit.Id, "", visit.Id, 1, Loss(after, ticks) - Loss(basis, ticks) - (Loss(after, horizon) - Loss(basis, horizon))));
             basis = after;
         }
         return new(EquatableArray.From(rows), EquatableArray.From(findings));

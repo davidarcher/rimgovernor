@@ -57,6 +57,10 @@ public sealed record ForecastProjectProgress(string Project, double PointsPerTic
 }
 public sealed record ForecastActivityOption(string Activity, string Pawn, double WorkTicks, double RecoveryLaborTicks)
 {
+    /// <summary>Native roundtrip absence after departure. Reserves the participant through the slice; it is not awake labor.</summary>
+    public double AbsenceTicks { get; init; }
+    /// <summary>The existing external action can start wherever the participant finished earlier work (caravan formation).</summary>
+    public bool FromCurrentLocation { get; init; }
     public RimGovernor.Brain.GameFacts.Observations.ProductiveSkillWork? SkillWork { get; init; }
     /// <summary>A tend's learning, paid once at completion; the observed WorkTicks stay the duration (#3632).</summary>
     public RimGovernor.Brain.GameFacts.Observations.TendLearning? TendLearning { get; init; }
@@ -238,7 +242,7 @@ public static class ForecastActivities
                         if (from is null)
                         { if (!SpendExpansion()) return; findings.Add("unknown_window_location:" + pawn.Pawn); continue; }
                         // A walk the problem carries no route for is not planned (#3338); one native found no path for is Unreachable.
-                        RouteTicks? route = from == task.Location ? new RouteTicks.Reachable(0)
+                        RouteTicks? route = option.FromCurrentLocation || from == task.Location ? new RouteTicks.Reachable(0)
                             : routes.TryGetValue((pawn.Pawn, from, task.Location), out var observed) ? observed.Ticks : null;
                         if (route is not RouteTicks.Reachable(var travel))
                         {
@@ -260,15 +264,15 @@ public static class ForecastActivities
                                 var learning = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, assigned, start);
                                 if (learning is not ForecastProductiveDuration.Timed(var work, var evidence, _))
                                 { findings.Add("productive_work_unassessed:" + task.Id + ":" + ((ForecastProductiveDuration.Unprojectable)learning).Reason); continue; }
-                                var end = start + work;
-                                var cost = (end - depart) * rate + recovery;
+                                var end = start + work + Math.Min(option.AbsenceTicks, Math.Max(0, deadline - start - work));
+                                var cost = (start + work - depart) * rate + recovery;
                                 if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
                                 if (end > window.End || end > deadline || start > task.LatestStart || end > task.LatestFinish)
                                 { Reject(3, taskAt, pawn.Pawn); continue; }
                                 if (EquipmentOccupied(option, equipment, shared, start, end))
                                 { Reject(4, taskAt, pawn.Pawn); continue; }
                                 assigned.Add(placed[taskAt] = new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
-                                    (end - depart) * rate, recovery) { Learning = evidence });
+                                    (start + work - depart) * rate, recovery) { Learning = evidence });
                                 var (low, high) = PrefixHash(taskAt, pawnIndex[pawn.Pawn], depart, start, end);
                                 prefixLow += low; prefixHigh += high;
                                 Search(assigned);
@@ -315,7 +319,7 @@ public static class ForecastActivities
         if (!pawns.TryGetValue(option.Pawn, out var pawn)) return double.PositiveInfinity;
         var rate = pawn.OpportunityCostPerTick;
         var travel = 0d;
-        if (pawn.Location != task.Location)
+        if (!option.FromCurrentLocation && pawn.Location != task.Location)
         {
             if (!routes.TryGetValue((option.Pawn, pawn.Location, task.Location), out var route) || route.Ticks is not RouteTicks.Reachable(var walk))
                 return double.PositiveInfinity;
@@ -526,7 +530,7 @@ public static class ForecastActivities
             if (option.Equipment.Any(e => !Id(e)) || option.Equipment.Distinct().Count() != option.Equipment.Count)
                 throw new DomainException("invalid equipment requirement");
             if (!tasks.ContainsKey(option.Activity) || !pawns.Contains(option.Pawn)) throw new DomainException("unknown activity option identity");
-            Number(option.WorkTicks); Number(option.RecoveryLaborTicks);
+            Number(option.WorkTicks); Number(option.RecoveryLaborTicks); Number(option.AbsenceTicks);
         }
         if (routeIndex is null) ValidateRoutes(p);
         else _ = routeIndex.Get(p);

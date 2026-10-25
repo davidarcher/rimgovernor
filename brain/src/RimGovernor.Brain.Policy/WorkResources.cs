@@ -220,6 +220,13 @@ public static partial class WorkRules
         {
             var progress = row.Progress;
             if (ActionAbsent(progress)) continue;
+            if (progress.Unresolved || progress.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation)
+            {
+                foreach (var subject in MethodClaimsRules.TradeSubjects(row.Action.Payload)) Take(subject);
+                if (row.Action.CommsTradeRequest is { } request) pawns.Add(request.Negotiator);
+                if (row.Action.CaravanDeparture is { } departure) pawns.UnionWith(departure.Crew.Select(p => p.Value));
+                if (row.Action.Trade is { Kind: TradeOperationKind.Open } trade && trade.Participant.Kind != TradeParticipantKind.Settlement) pawns.Add(trade.Negotiator.Value);
+            }
             if (row.Action.ProductionBill is { Mode: BillMode.GearBatch } bill
                 && evidence.Promises is ProductionPromiseSet.Assessed(var promises)
                 && (progress.Attempt.Value == 0 || progress.Tick > evidence.Tick || promises.Any(p => p.Id == "production/" + row.Action.Id.Value)))

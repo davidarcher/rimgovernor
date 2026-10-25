@@ -20,10 +20,10 @@ public sealed partial class ColonyReview
         {
             try
             {
-                var (departure, _, pack) = await TradePlanner.PrepareTradeMissionOptionAsync(source, world, home.Tile, settlement,
+                var (departure, pack) = await TradePlanner.PrepareTradeMissionOptionAsync(source, world, home.Tile, settlement,
                     reading.Facts, Seasonal(reading.Facts), budget, null, ct).ConfigureAwait(false);
                 var option = Pol.ForecastSettlementMissions.Option(catalog.TraderStock(), settlement, pack, departure.Crew.Select(p => p.Value).ToArray(), budget);
-                if (option is not null) result.Add(option);
+                if (option is not null) result.Add(option with { Departure = departure, HomeTile = home.Tile });
             }
             catch (DomainException e) when (e is not Pol.RequiredFactException)
             {

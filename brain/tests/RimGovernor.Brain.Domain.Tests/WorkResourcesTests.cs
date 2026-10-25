@@ -40,7 +40,7 @@ internal static class WorkResourceTestFacts
         BasicComfort = ComfortTests.NoComfortObservation,
         MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() },
         Tick = new(100),
-        AvailableNeeds = [AdminFamily.WorkAssignments, FoodRules.FoodSupplyNeed, ShelterFamily.Sleeping, ShelterFamily.SafeArea, ShelterFamily.Temperature, MilitaryFamily.Equipment, EconomyFamily.Research],
+        AvailableNeeds = [AdminFamily.WorkAssignments, FoodRules.FoodSupplyNeed, ShelterFamily.Sleeping, ShelterFamily.SafeArea, ShelterFamily.Temperature, MilitaryFamily.Equipment, EconomyFamily.Research, EconomyFamily.Caravan, EconomyFamily.TradeMission],
         WorkProfiles = [new() { Observed = PawnFixtures.Row("artist") with { Biography = PawnFixtures.Row("artist").Biography with
             { Skills = [new() { DefName = "Art", Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Level = 8 }] } },
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },

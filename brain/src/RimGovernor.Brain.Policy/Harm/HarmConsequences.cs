@@ -41,7 +41,10 @@ public sealed record HarmDistribution
 /// One organ or part an event destroys with <see cref="Probability"/> (#3830, #3847): of def <see cref="Part"/>, and the replacement the autopilot
 /// would queue (<see cref="SurgeryRules.RestorePick"/>), or null with the reason none would be (the loss then lasts the horizon).
 /// </summary>
-public sealed record OrganReplacement(string Part, OrganReplacementRead? Recipe, SurgeryWantReason Reason, double Probability);
+public sealed record OrganReplacement(string Part, OrganReplacementRead? Recipe, SurgeryWantReason Reason, double Probability)
+{
+    public StockWait? Wait { get; init; }
+}
 
 /// <summary>
 /// The health consequences of a raid's hits (harm model, step 5): injury through pain, the course of healing, bleeding until
@@ -450,7 +453,7 @@ public static class HarmConsequences
 
         /// <summary>The parts whose loss does not kill, each at its chance a raid times the share of the raid's mass alive to lose it.</summary>
         public IReadOnlyList<OrganReplacement> Replacements() =>
-            [.. partEvents.Where(e => !e.Kills).Select(e => new OrganReplacement(e.Part, e.Pick, e.Reason, e.Probability * partScale * alive))];
+            [.. partEvents.Where(e => !e.Kills).Select(e => new OrganReplacement(e.Part, e.Pick, e.Reason, e.Probability * partScale * alive) { Wait = e.Wait })];
 
         // A point the raid's injuries leave alive at `loss`: its part losses split it (#3847); returns the share that lives.
         private double Alive(List<HarmPoint> points, double loss, double mass, ref double death)

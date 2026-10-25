@@ -294,24 +294,6 @@ public static partial class TradePolicyRules
         return !n.Any() && !browse;
     }
 
-    /// <summary>Picks the caravan to open with: tradeable, not already settled this epoch, most goods first, id order on ties; null when none is.</summary>
-    public static Trader? SelectTrader(IReadOnlyList<Trader> traders, IReadOnlySet<string> settled)
-    {
-        Trader? best = null;
-        foreach (var row in traders)
-        {
-            if (!row.CanTrade || settled.Contains(row.Key()))
-            {
-                continue;
-            }
-            if (best is null || row.GoodsStacks > best.GoodsStacks || (row.GoodsStacks == best.GoodsStacks && string.CompareOrdinal(row.Key(), best.Key()) < 0))
-            {
-                best = row;
-            }
-        }
-        return best;
-    }
-
     /// <summary>
     /// Turns the measured need into SelectTrade's ordered targets against one live sheet: food first, medicine
     /// (the cheapest definition the trader carries), then components, then each surplus sale. Purchases are

@@ -224,7 +224,7 @@ summed into `hop_run_ms`).
 
 | Colony review stage | Before p50 | After p50 | What changed |
 | --- | --- | --- | --- |
-| acquisition | 1584 ms, 859 MB | 63 ms, 28 MB | the settlement loop asked every ThingDef three uncached catalog questions per settlement, one of them a stat read that threw per definition; the supply definitions are now built once per trader kind per catalog (`TradeAcquisitionMemory.SupplyDefinitions`) and the stat read asks `ShownStatValue` |
+| acquisition | 1584 ms, 859 MB | 63 ms, 28 MB | the settlement loop asked every ThingDef three uncached catalog questions per settlement, one of them a stat read that threw per definition; the obsolete demand-driven acquisition cache was removed; selected portfolio options use the shared definition catalog and exact native packing facts |
 | derive, all laps | 1169 ms | 1070 ms (`d_planned` 684, `derive` 154, `d_stock` 150, `d_file` 47, the rest under 20) | the owed diff over every built room (`PlannedOwedOf`) is taken once per review instead of four times (pricing, planned sites, and twice in the store-room report); the firebreak's tile reads go out in one frame and overlap the planned-site reads; the stockpile review overlaps the consumption window; the surface-ore reads go out in one frame |
 | layout | 1005 ms | 1029 ms at the hourly check (8 of 15 reviews), 5 ms otherwise | the cost is unchanged; the key now bands the expected mood (below) |
 | review | 328 ms | 354 ms | unchanged |

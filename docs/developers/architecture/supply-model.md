@@ -34,26 +34,12 @@ that labor.
 
 ## The ranker
 
-Unpriced controllable trade uses `policy.PlanTradeAcquisition` within the
-same supply owner, after local and live-priced coverage is calculated. Its
-typed proposal names a request or an exact-crew settlement scout, carries the
-remaining demand, and earns zero coverage. It orders eligible attempts within
-the demand's horizon by native bounded lead, away labor, then stable ID.
-Request goodwill remains an explicit native cost; it is never converted to
-labor or risk. Requests require a post-payment Ally, an expired cooldown,
-reachable console/negotiator, and no passing ships for orbital requests.
-Catalog sell generators establish compatibility only; unsupported forms
-remain unknown, and no stock or price is inferred.
-
-The ColonyReview retains proposals for food and resources in derived memory. An
-executor claims one before admitting Hands work, holds the claim through
-reconciliation, and releases it after the attempt resolves. Native queued
-arrivals and comms work also block request proposals after restart. This
-does not close local production or reduce the supply gap. Mission planners
-provide exact native packing/crew options: known outbound and return routes,
-food and rot covering the round trip, and safe away labor. Live settlement
-purchases remain away inventory; only observed home delivery changes home
-stock. See [controllable trade](../contracts/controllable-trade.md).
+Controllable trade requests, exact native settlement packs and current traders
+are coupled portfolio alternatives, independent of unmet supply demand. Their
+selected stock waits authorize purchases under one medicine-first silver budget.
+The shared schedule and Method claims own participant labor; existing comms,
+caravan and trade actions execute the result. Away purchases become home stock
+only after native delivery. See [controllable trade](../contracts/controllable-trade.md).
 
 `policy.PlanSupply(SupplyPlanRequest)` (`SupplyPlan.cs`) is one pure function
 over a **demand vector** and the candidates. It budgets projected rates and

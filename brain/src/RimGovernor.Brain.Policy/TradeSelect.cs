@@ -74,6 +74,8 @@ public sealed record TradeRowPawn
 /// </summary>
 public sealed record TradeSelectionFacts
 {
+    public EquatableArray<StockNeed> StockNeeds { get; init; }
+    public EquatableArray<Resource> StockMedicines { get; init; }
     public IReadOnlyDictionary<string, long> CropSurplusFloors { get; init; } = new Dictionary<string, long>();
 
     public bool Complete { get; init; }
@@ -187,8 +189,8 @@ public static partial class TradePolicyRules
     {
         static TradeSelection Refuse() => new() { Refused = true };
 
-        // Art or animals alone sell without a catalog target.
-        if (p.Targets.Count > 0 || facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
+        // Selected stock waits and sale rows authorize trade without a separate catalog target.
+        if (p.Targets.Count > 0 || facts.StockNeeds.Count == 0 && facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
         {
             try
             {
@@ -225,12 +227,21 @@ public static partial class TradePolicyRules
         double budget = budgetCap;
         double traderCash = facts.TraderSilver;
         var selected = new List<TradeSelectionLine>();
+        var waited = TradeStockPurchases.Plan(facts.StockNeeds, facts.StockMedicines,
+            facts.Rows.Where(r => !r.Currency && r.Pawn is null && r.TraderWillTrade && r.TraderCount > 0
+                && r.BuyPrice > 0 && Finite(r.BuyPrice)).Select(r => new StockPurchaseOffer(r.LineID, new(r.DefName), r.TraderCount, r.BuyPrice, 0)), budget);
+        foreach (var purchase in waited)
+        {
+            selected.Add(new(purchase.Id, purchase.Count));
+            budget -= purchase.Count * facts.Rows.Single(r => r.LineID == purchase.Id).BuyPrice;
+        }
         if (facts.ArtFirst)
         {
             SellArt(selected, facts, stopped, ref traderCash);
         }
         foreach (var target in p.Targets)
         {
+            if (waited.Any(purchase => purchase.Resource.Value == target.Item)) continue;
             TradeSheetRowFact? row = null;
             var ambiguous = false;
             foreach (var candidate in facts.Rows)
@@ -272,7 +283,7 @@ public static partial class TradePolicyRules
                 floor = Math.Max(floor, cropFloor);
             }
             var count = 0L;
-            if (stock < floor && target.MaxBuy > 0)
+            if (stock < floor && target.MaxBuy > 0 && !facts.StockNeeds.Any(n => n.AnyOf.Contains(new Resource(target.Item))))
             {
                 if (!Finite(row.BuyPrice) || row.BuyPrice < 0)
                 {

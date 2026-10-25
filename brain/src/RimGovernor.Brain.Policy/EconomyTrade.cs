@@ -14,14 +14,11 @@ public abstract record TradeReview
 
 /// <summary>
 /// What the economy/trade-mission Need reads (#3316): whether the colony's <c>family/economy/trade_missions</c> record
-/// holds a mission still under way (unknown when the record was not read), and whether a supply plan proposed a
-/// settlement trip with a prepared mission.
+/// holds a mission still under way. Selected portfolio departures create that existing record atomically with their Method.
 /// </summary>
 public sealed record TradeMissionFacts
 {
     public bool Active { get; init; }
-
-    public bool Proposed { get; init; }
 }
 
 public sealed partial class EconomyFamily
@@ -61,12 +58,12 @@ public sealed partial class EconomyFamily
     }
 
     /// <summary>
-    /// The trade-mission Need: unmet while the record holds a mission under way or a supply plan proposed one, met
+    /// The trade-mission Need: unmet while the record holds a mission under way, met
     /// otherwise; an unread record raises <see cref="RequiredFactException"/>. Its work drives the mission one phase at a time.
     /// </summary>
     public static Need TradeMissionNeed(TradeMissionFacts f)
     {
         var active = f.Active;
-        return FoodRules.WholeNeed(TradeMission, NeedTier.Development, !active && !f.Proposed);
+        return FoodRules.WholeNeed(TradeMission, NeedTier.Development, !active);
     }
 }

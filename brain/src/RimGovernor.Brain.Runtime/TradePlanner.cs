@@ -139,7 +139,6 @@ public sealed partial class TradePlanner
             return new TradeResult { Verdict = verdict };
         }
         var owner = work.Owner;
-        var arbiter = work.Arbiter ?? throw new ControlException("caravan: no arbiter");
         var epoch = work.Epoch;
         if (OpenWork(owner, call))
         {
@@ -196,73 +195,8 @@ public sealed partial class TradePlanner
             }
             return await DriveAsync(state, owner, review, row.Key(), traders, engaged.Negotiator, started, call, epoch).ConfigureAwait(false);
         }
-        var settled = new HashSet<string>();
-        var waiting = arriving;
-        foreach (var row in traders)
-        {
-            var over = TradeSettled(owner, row.Key(), row.Key() == engagedTrader, state.Snapshot, call);
-            if (over)
-            {
-                settled.Add(row.Key());
-            }
-            // A settled caravan is waited out: the occurrence closes when it leaves, and only game time takes it away.
-            waiting = waiting || (over && row.CanTrade);
-        }
-        if (Pol.TradePolicyRules.SelectTrader(traders, settled) is not { } trader)
-        {
-            if (waiting)
-            {
-                return new TradeResult { Verdict = WaitFor(Pol.Cause.ExistingWork, "caravan_departure") };
-            }
-            return new TradeResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "caravan_trade") };
-        }
-        if (census.Negotiators.Count == 0)
-        {
-            return new TradeResult { Verdict = NoWorker("negotiator") };
-        }
-        var negotiator = await NegotiatorAsync(state, review, census.Negotiators, call).ConfigureAwait(false);
-        return await OpenAsync(state, owner, trader.Key(), negotiator, arbiter, started, trader.Participant(), call, epoch).ConfigureAwait(false);
+        return new TradeResult { Verdict = arriving ? WaitFor(Pol.Cause.ExistingWork, "caravan_arrival") : BuildingReasonNoDeficit };
     }
-
-    /// <summary>
-    /// Picks the colonist to open with: TraderFor over the roster profiles, restricted to the pawns native listed
-    /// as eligible (alive, undrafted, able to talk). Native's own first row (best trade price improvement) stands
-    /// when the roster is unknown or no profile qualifies -- native has already vetted every listed row.
-    /// </summary>
-    private async Task<PawnId> NegotiatorAsync(ControlState state, Sto.ReviewState review, EquatableArray<PawnId> eligible, CancellationToken call)
-    {
-        var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
-        if (!BuildingPlanner.BuildingBoundary(expected, state.Snapshot, review.Tick))
-        {
-            throw new ControlException("negotiator: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
-        }
-        var read = await Reviewer.ObserveOwnedAsync((IReviewSource)Reviewer.Native, expected, call).ConfigureAwait(false);
-        var pawns = read.Reading.Facts.ForecastObserved.WorkPawns.Pawns;
-        if (Pol.PawnRules.TraderFor(Pol.PawnRules.Among(Pol.PawnRules.Profiles(pawns), eligible)) is not { } chosen)
-        {
-            return eligible[0];
-        }
-        return eligible.Contains(chosen) ? chosen : eligible[0];
-    }
-
-    /// <summary>
-    /// Commits the Open phase: the census already vetted the negotiator's eligibility and the trader's
-    /// tradeability, and native checks reachability when the open applies and walks the negotiator over.
-    /// </summary>
-    private async Task<TradeResult> OpenAsync(ControlState state, Sto.NeedOwner owner, string trader, PawnId negotiator, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant, CancellationToken call, CancellationToken epoch)
-    {
-        if (participant.Kind != TradeParticipantKind.Settlement)
-            return new TradeResult { Verdict = Verdict.AwaitingPlan("unsupported_shared_trade_labor",
-                "Negotiator travel and comms work require shared participant and opportunity alternatives.") };
-        if (!arbiter.TryClaim([], "pawn:" + negotiator.Value))
-        {
-            return new TradeResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "negotiator_claim") };
-        }
-        var value = Trade.NewTradeOpen(trader, negotiator, false);
-        value = value.WithParticipant(participant);
-        return await CommitAsync(state, owner, TradeOperationKind.Open, trader, value, started, call, epoch).ConfigureAwait(false);
-    }
-
     /// <summary>Advances one caravan's open session: stage the selected lines from its sheet, confirm and accept them, or cancel.</summary>
     private async Task<TradeResult> DriveAsync(ControlState state, Sto.NeedOwner owner, Sto.ReviewState review, string trader, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Trader> traders, Domain.PawnId negotiator, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
@@ -307,7 +241,7 @@ public sealed partial class TradePlanner
             // The tribute collector pays favor: only gold sells, with no silver budget, reserve or purchase.
             selection = Pol.TradePolicyRules.SelectFavorSale(facts, facts.FavorKeep);
         }
-        else if (economic.Targets.Count == 0 && facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
+        else if (economic.Targets.Count == 0 && facts.StockNeeds.Count == 0 && facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
         {
             // Nothing to buy or sell by the resource catalog: only a pawn purchase can still stage, against the same silver reserve.
             var (currency, _) = Pol.TradePolicyRules.TradeCurrency(facts.Rows);
@@ -446,9 +380,11 @@ public sealed partial class TradePlanner
         // An unread food plan opened no nutrition to buy.
         var plannedNutrition = projection.Facts.FoodPlan is { } foodPlan ? Pol.TradePolicyRules.PlannedTradeNutrition(foodPlan, trader) : 0;
         need = TradeOfferBook.RestrictToPlan(need, planned, plannedNutrition);
-        var economic = Pol.TradePolicyRules.TradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Census.ColonistCount);
+        var economic = Pol.TradePolicyRules.TradeTargets(projection.Facts.Items, need with { MedicineReplenish = 0, SurgeryParts = [] }, rows, targets, projection.Facts.Census.ColonistCount);
         var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Lines);
         var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.TradePolicyRules.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
+        var waits = Reviewer.TradeWaits.Require(state.Snapshot, "selected trade waits");
+        facts = facts with { StockNeeds = waits.Needs, StockMedicines = waits.Medicines };
         facts = facts with { MaxSilverSpend = Math.Max(0, facts.ColonySilver) };
         facts = facts with { Favor = sheet.CurrencyKind == RimGovernor.Brain.GameFacts.Defs.TradeCurrency.Favor };
         facts = facts with { FavorKeep = Pol.TradePolicyRules.FavorGoldKeep(targets, floors, retained) };
