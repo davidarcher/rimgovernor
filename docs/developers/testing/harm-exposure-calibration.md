@@ -56,7 +56,9 @@ RimGovernor.cmd acceptance sweep lab-open -root <dir> -output <dir> -seeds 1 -ex
 
 appends one JSON line per seed and colonist: `fixture`, `seed`, `ratio` (raid points over defense capacity; null with no
 capacity, which falls in the top bin), `role`, `hits`, `downed`, `dead`. Appending lets several fixtures and sweeps
-share one file. A real-game sweep costs minutes per seed: run one seed to check a change, and the full 20 seeds only
+share one file. A failed seed, or one with no elapsed game ticks, combat contact or issued planner orders,
+contributes no exposure rows. A served fight still includes colonists who received zero hits.
+A real-game sweep costs minutes per seed: run one seed to check a change, and the full 20 seeds only
 for a calibration (H5).
 
 ## Table

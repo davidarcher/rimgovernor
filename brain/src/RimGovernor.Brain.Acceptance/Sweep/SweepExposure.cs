@@ -36,12 +36,12 @@ public static class SweepExposure
 
     private static readonly JsonSerializerOptions RowJson = new(JsonSerializerDefaults.Web);
 
-    /// <summary>The rows of a sweep: one per seed and staged colonist. A seed that failed, or a run scored without a stamped staging, has none.</summary>
+    /// <summary>The rows of a served fight: one per seed and staged colonist. Failed seeds and runs with no clock, contact or planner orders have none.</summary>
     internal static IEnumerable<ExposureRow> Rows(Sweep sweep)
     {
         foreach (var seed in sweep.Rows)
         {
-            if (seed.Metrics is not { Colonists: { } colonists } m)
+            if (!string.IsNullOrEmpty(seed.Error) || seed.Metrics is not { Ticks: > 0, FirstContactTick: >= 0, OrdersIssued: > 0, Colonists: { } colonists } m)
             {
                 continue;
             }

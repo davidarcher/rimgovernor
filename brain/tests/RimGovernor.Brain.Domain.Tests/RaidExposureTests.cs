@@ -277,6 +277,7 @@ public sealed class RaidExposureTests
     {
         var metrics = SimMetrics.New("lab-test") with
         {
+            Ticks = 100, FirstContactTick = 10, OrdersIssued = 1,
             RaidPoints = 60,
             DefenseCapacity = 30,
             Colonists = [new ColonistMetrics { Id = "a", Role = ExposureRoles.Gunner, Hits = 2, Downed = true }, new ColonistMetrics { Id = "b", Role = ExposureRoles.Melee }],
@@ -288,5 +289,21 @@ public sealed class RaidExposureTests
         Assert.Equal(2, rows.Length);
         Assert.All(rows, r => Assert.Equal((2.0, 3), (r.Ratio, r.Seed)));
         Assert.Equal((ExposureRoles.Gunner, 2, true), (rows[0].Role, rows[0].Hits, rows[0].Downed));
+    }
+
+    [Theory]
+    [InlineData(0, 0, 1, "")]
+    [InlineData(100, -1, 1, "")]
+    [InlineData(100, 10, 0, "")]
+    [InlineData(100, 10, 1, "failed after scoring")]
+    public void AnUnservedOrFailedSeedWritesNoExposureTrials(int ticks, int contact, int orders, string error)
+    {
+        var metrics = SimMetrics.New("lab-test") with
+        {
+            Ticks = ticks, FirstContactTick = contact, OrdersIssued = orders,
+            Colonists = [new ColonistMetrics { Id = "a", Role = ExposureRoles.Gunner }],
+        };
+        var sweep = Sweep.NewSweep("lab-test", 1, "", 0, [new SeedRow { Seed = 3, Metrics = metrics, Error = error }]);
+        Assert.Empty(SweepExposure.Rows(sweep));
     }
 }
