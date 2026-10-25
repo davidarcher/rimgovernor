@@ -65,7 +65,7 @@ internal static class ColonyModelFixtures
         {
             ResourceThings = ["m1"],
             Gear = Known(NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] }),
-            Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
+            Calendar = new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 },
             Research = new ResearchFacts
             {
                 Current = new ResearchProjectId(Project),

@@ -62,8 +62,8 @@ public sealed class FoodChannelPolicyTests
         var lastGrowing = new Calendar { GrowingDays = 30, GrowingDaysRemaining = 1, GrowingDaysUntil = 0, NonGrowingDays = stretch };
         var firstFrost = lastGrowing with { GrowingDaysRemaining = 0, GrowingDaysUntil = stretch };
 
-        var before = CalendarRules.HarvestGapDays(Fact.Known(lastGrowing), default(EquatableArray<DisasterCondition>)).ValueOrDefault;
-        var after = CalendarRules.HarvestGapDays(Fact.Known(firstFrost), default(EquatableArray<DisasterCondition>)).ValueOrDefault;
+        var before = CalendarRules.HarvestGapDays(lastGrowing, default(EquatableArray<DisasterCondition>)).ValueOrDefault;
+        var after = CalendarRules.HarvestGapDays(firstFrost, default(EquatableArray<DisasterCondition>)).ValueOrDefault;
 
         Assert.True(before > 0);
         Assert.Equal(before, after, 9);

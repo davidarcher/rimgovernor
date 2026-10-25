@@ -26,12 +26,8 @@ internal static class FarmCalendar
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        if (facts.Issues.FirstOrDefault(i => i.Field == "food_climate") is { } issue)
-        {
-            throw new AcceptanceException($"food_climate unavailable: {issue}");
-        }
 
-        var climate = facts.FoodClimate ?? throw new AcceptanceException("colony facts carry no foodClimate");
+        var climate = facts.FoodClimate;
         s.RecordWire("food_climate", climate);
         var remaining = climate.GrowingDaysRemaining;
         var until = climate.GrowingDaysUntil;

@@ -19,9 +19,10 @@ public sealed record FieldCrop
 
 public static class FieldCapacityRules
 {
-    public static Fact<double> FieldCoverage(long colonists, Fact<EquatableArray<FieldCrop>> crops, double reserveDays)
+    public static Fact<double> FieldCoverage(long colonists, EquatableArray<FieldCrop> crops, double reserveDays)
     {
-        if (!crops.TryGetValue(out var rows) || !FieldPositive(reserveDays))
+        var rows = crops;
+        if (!FieldPositive(reserveDays))
         {
             return Unknown<double>();
         }

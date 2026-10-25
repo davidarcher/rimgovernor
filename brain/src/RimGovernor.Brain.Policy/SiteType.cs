@@ -69,7 +69,7 @@ public sealed record SiteTypeRequest
 
     public FieldRequest Field { get; init; } = new();
 
-    public Fact<ControlledEnvironment> Environment { get; init; }
+    public ControlledEnvironment Environment { get; init; }
 
     public Fact<Infrastructure> Lamp { get; init; }
 
@@ -300,7 +300,7 @@ public static partial class SiteRules
             }
         }
         var urgent = field.Urgent;
-        if (r.Environment.TryGetValue(out var env))
+        var env = r.Environment;
         {
             var (viables, excluded, vk) = CropChoiceRules.ViableCrops(r.Field, true);
             if (vk)

@@ -38,18 +38,6 @@ public static class ColonyDecodeReads
     /// <summary>A reference's id, unknown without a reference.</summary>
     internal static Fact<string> OptionalRef(C.Ref? r) => r is null ? Unknown<string>() : Optional(r.Id is not null, (r.Id ?? ""));
 
-    internal static bool HasIssue(IEnumerable<O.ReadIssue> issues, string field)
-    {
-        foreach (var issue in issues)
-        {
-            if ((issue.Field ?? "") == field)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /// <summary>
     /// The accessible colony stock census by definition, summed over the rows that carry units; a definition absent from
     /// it is zero.
@@ -122,6 +110,8 @@ public static class ColonyDecodeReads
     /// </summary>
     public static ColonyProjection DecodeColony(O.ColonyFactsSnapshot v, Identity expected, Tables tables, DefinitionCatalog? catalog)
     {
+        var climate = v.FoodClimate ?? throw new BridgeContractException("missing total food climate census");
+        var environment = v.ControlledEnvironment ?? throw new BridgeContractException("missing total controlled environment census");
         var buildings = tables.Buildings;
         expected.Validate();
         var identity = DecodeReads.ContextIdentity(v.Context);
@@ -344,9 +334,8 @@ public static class ColonyDecodeReads
             };
             f = f with { ShortCircuit = development.ShortCircuit is O.ObservedShortCircuit.Seen shorted ? new DisasterShortCircuit.Seen(new Tick(shorted.Tick)) : new DisasterShortCircuit.NoneSeen() };
         }
-        // The biome is read on every frame; the season facts only with a clean food climate read.
+        // The biome and food climate are total on every frame.
         r = r with { CropClimate = new CropClimate { Biome = v.Biome } };
-        if (v.FoodClimate is { } climate && !HasIssue(v.Issues, "food_climate"))
         {
             r = r with
             {
@@ -457,12 +446,9 @@ public static class ColonyDecodeReads
             });
         }
         f = f with { EventLoot = EquatableArray.From(lootRows) };
-        if (v.Planning is O.Planning.Requested { Facts: var planningObserved }
-            && Headed(buildings, planningObserved.Environment.Lights, l => l.Building) && Headed(buildings, planningObserved.Environment.Growers, g => g.Building))
-        {
-            var environment = ColonyEnvironment(planningObserved.Environment, v.OutdoorTemperatureC, buildings, catalog);
-            r = r with { Environment = Known(environment) };
-        }
+        if (!Headed(buildings, environment.Lights, l => l.Building) || !Headed(buildings, environment.Growers, g => g.Building))
+            throw new BridgeContractException("controlled environment building has no head");
+        r = r with { Environment = ColonyEnvironment(environment, v.OutdoorTemperatureC, buildings, catalog) };
         // Facts.Gear needs the catalog: ObserveColony fills it.
         return r with { Facts = f };
     }

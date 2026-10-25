@@ -170,9 +170,6 @@ public static class Boundary
         throw new DomainException($"unlisted receipt outcome {receipt?.Outcome}");
     }
 
-    /// <summary>Whether issues names field: the shared "unresolved native issue" check of every pawn-order boundary.</summary>
-    public static bool IssueField(IEnumerable<PbObservations.ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
-
     /// <summary>
     /// Whether the observed timetable slots are exactly the wanted hour-indexed assignment list: every hour present
     /// once with that def, nothing else.

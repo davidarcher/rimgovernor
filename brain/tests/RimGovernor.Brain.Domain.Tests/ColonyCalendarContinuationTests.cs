@@ -120,8 +120,8 @@ public sealed class ColonyCalendarContinuationTests
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.FoodClimate>(WireJson.Serialize(wire));
         var calendar = ColonyProductionReads.ColonyCalendar(decoded);
-        Assert.Equal(year, calendar.Value.GrowingYear);
-        var input = Input(year, 25) with { Calendar = calendar.Value };
+        Assert.Equal(year, calendar.GrowingYear);
+        var input = Input(year, 25) with { Calendar = calendar };
         var policy = Policy(1);
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 20 }, Cycles(), policy);

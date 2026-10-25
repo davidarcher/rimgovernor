@@ -515,10 +515,9 @@ public sealed record RoundsFacts
 
     /// <summary>
     /// The tile's native growing calendar (policy.Calendar). InspectRounds widens the policy's food and wood
-    /// targets by its harvest gap (RoundsPolicy.Seasonal) before measuring any latch; an unknown calendar
-    /// keeps the configured flat targets.
+    /// targets by its harvest gap (RoundsPolicy.Seasonal) before measuring any latch. Every colony read carries it.
     /// </summary>
-    public Fact<Calendar> Calendar { get; init; }
+    public Calendar Calendar { get; init; }
 
     /// <summary>The coldest and warmest eligible sleeping room: <see cref="SleepingTemperature.Indoor"/>, or <see cref="SleepingTemperature.NoIndoorBed"/> when no sleeping room is measured.</summary>
     public SleepingTemperature SleepingTemperature { get; init; } = new SleepingTemperature.NoIndoorBed();
@@ -887,7 +886,7 @@ public static partial class RoundsRules
 
     public static RoundsFindings InspectRounds(RoundsFacts f, RoundsLatches previous, RoundsPolicy p, Func<double>? clockMs = null)
     {
-        if (f.Calendar.TryGetValue(out var calendar) && !calendar.Valid())
+        if (!f.Calendar.Valid())
         {
             throw new DomainException("invalid calendar fact");
         }

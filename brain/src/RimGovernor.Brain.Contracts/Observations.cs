@@ -309,11 +309,6 @@ public sealed record SnapshotRef
     public string? Token { get; init; }
 }
 
-public sealed record ReadIssue
-{
-    public string? Field { get; init; }
-}
-
 public sealed record Rectangle
 {
     public Common.Cell? Minimum { get; init; }
@@ -5979,8 +5974,6 @@ public sealed record PlanningFacts
 {
     public required GearSnapshot Gear { get; init; }
 
-    public required ControlledEnvironment Environment { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<EdibleCrop>))]
     public EquatableArray<EdibleCrop> Crops { get; init; }
 }
@@ -7249,7 +7242,9 @@ public sealed record ColonyFactsSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<EnvironmentCondition>))]
     public EquatableArray<EnvironmentCondition> Environment { get; init; }
 
-    public FoodClimate? FoodClimate { get; init; }
+    public required FoodClimate FoodClimate { get; init; }
+
+    public required ControlledEnvironment ControlledEnvironment { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CookingFacts>))]
     public EquatableArray<CookingFacts> Cooking { get; init; }
@@ -7275,9 +7270,6 @@ public sealed record ColonyFactsSnapshot
     public required WasteSnapshot Waste { get; init; }
 
     public required BlightSnapshot Blight { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     /// <summary>The wild animals designated for hunting.</summary>
     public required uint PendingHunts { get; init; }

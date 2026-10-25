@@ -10,8 +10,9 @@ namespace RimGovernor.Brain.Policy;
 /// while the tile never leaves the range, equal to GrowingDaysUntil while crops do not grow).
 /// GrowingDays, Season and DayOfYear are informational.
 /// </summary>
-public sealed record Calendar
+public readonly record struct Calendar
 {
+    public Calendar() { }
     /// <summary>Native growing eligibility sampled daily from this review origin; preserves every seasonal window.</summary>
     public EquatableArray<bool> GrowingYear { get; init; }
 
@@ -150,25 +151,18 @@ public static class CalendarRules
     /// reading as a deficit. The phase-in is complete on the last growing day (one day remaining), so the
     /// thresholds the frost brings are the ones the colony already held. Either way one grow cycle of the
     /// fastest starter crop is added, because a harvest lags the first growing day, and the whole is capped
-    /// at one year. Unknown while the calendar is unknown or invalid.
+    /// at one year. An invalid calendar fails the policy contract.
     ///
     /// An observed growth pause (CropPauseDays: an eclipse, volcanic winter or cold snap with a
     /// remaining-duration read) extends the gap. While crops grow it is added outright, since the next harvest
     /// waits for the pause to lift; while they do not, the pause plus the first harvest cycle stands in for a
-    /// shorter seasonal wait. A pause on an unknown calendar is the whole gap.
+    /// shorter seasonal wait.
     /// </summary>
-    public static Fact<double> HarvestGapDays(Fact<Calendar> calendar, EquatableArray<DisasterCondition> conditions)
+    public static Fact<double> HarvestGapDays(Calendar calendar, EquatableArray<DisasterCondition> conditions)
     {
         var pause = CropRiskRules.CropPauseDays(conditions);
-        if (!calendar.TryGetValue(out var c) || !c.Valid())
-        {
-            if (pause <= 0)
-            {
-                return Unknown<double>();
-            }
-
-            return Known(Math.Min(YearDays, pause + FirstHarvestDays));
-        }
+        var c = calendar;
+        if (!c.Valid()) throw new DomainException("invalid calendar");
 
         if (c.GrowingDaysUntil > 0)
         {
@@ -190,10 +184,10 @@ public static class CalendarRules
     /// Returns the policy with its stored-food thresholds widened by the harvest gap the calendar
     /// reports: FoodMinDays and FoodTargetDays both grow by the gap, so a colony fills its fields and larder against the coming winter
     /// instead of holding the flat summer thresholds into the first frost. FootholdFoodDays and every other
-    /// field are unchanged, an unknown calendar with no observed growth pause leaves the policy as
+    /// field are unchanged, a calendar with no harvest gap leaves the policy as
     /// configured, and the result still satisfies Validate.
     /// </summary>
-    public static RoundsPolicy Seasonal(this RoundsPolicy p, Fact<Calendar> calendar, EquatableArray<DisasterCondition> conditions)
+    public static RoundsPolicy Seasonal(this RoundsPolicy p, Calendar calendar, EquatableArray<DisasterCondition> conditions)
     {
         if (!HarvestGapDays(calendar, conditions).TryGetValue(out var gap) || gap <= 0 || p.FoodTargetDays <= 0)
         {
@@ -221,17 +215,16 @@ public static class CalendarRules
     /// missing, no plant is sown, or the crop cannot grow at the current temperature with no growing day
     /// ahead on the calendar.
     /// </summary>
-    public static Fact<double> HarvestLeadDays(CropGrowth g, Fact<double> growDays, Fact<Calendar> calendar)
+    public static Fact<double> HarvestLeadDays(CropGrowth g, Fact<double> growDays, Calendar calendar)
     {
         var dk = growDays.TryGetValue(out var days);
         var tk = g.TemperatureFactor().TryGetValue(out var factor);
-        var ck = calendar.TryGetValue(out var c);
+        var c = calendar;
         if (
             g.Stand is not CropStand.Sown sown
             || !dk
             || !tk
-            || !ck
-            || !c!.Valid()
+            || !c.Valid()
             || double.IsNaN(days)
             || double.IsInfinity(days)
             || days <= 0

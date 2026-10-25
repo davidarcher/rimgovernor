@@ -144,10 +144,7 @@ internal static class RoundsColonyModel
             gaps.Add("climate: the review frame carries no seasonal temperatures");
         }
 
-        if (!facts.Calendar.TryGetValue(out var calendar))
-        {
-            gaps.Add("calendar: the review frame carries no growing calendar");
-        }
+        var calendar = facts.Calendar;
 
         var recipes = default(EquatableArray<ProductionRecipeInput>);
         if (facts.WorkAdmission.Recipes.TryGetValue(out var recipeRows))
@@ -181,7 +178,7 @@ internal static class RoundsColonyModel
         {
             OtherNutritionPerDay = otherDemand,
             Climate = climate!,
-            Calendar = calendar!,
+            Calendar = calendar,
             Land = land,
             Crops = crops,
             Research = research!,

@@ -20,6 +20,8 @@ public sealed class ColonyFactsCoreTests
     /// <summary>A colony facts read with every section present and empty: no planning, no indoor bed, nothing pending.</summary>
     internal static ColonyFactsSnapshot Snapshot(C.ObservationContext? context = null) => new()
     {
+        FoodClimate = new FoodClimate { GrowingYear = [], GrowingDays = 0, GrowingDaysRemaining = 0, SowingNow = false, GrowingDaysUntil = 60, Season = "Winter", DayOfYear = 0, NonGrowingDays = 60 },
+        ControlledEnvironment = ControlledEnvironmentTests.NoWireEnvironment,
         Resources = [],
         Context = context ?? new C.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
@@ -110,7 +112,7 @@ public sealed class ColonyFactsCoreTests
     [Fact]
     public void PlanningReadHandsPlannerItsFacts()
     {
-        var planning = new PlanningFacts { Gear = GearFixtures.NoSnapshot, Environment = ControlledEnvironmentTests.NoWireEnvironment, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] };
+        var planning = new PlanningFacts { Gear = GearFixtures.NoSnapshot, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] };
         var facts = Snapshot() with { Planning = new Planning.Requested(planning) };
         Assert.Same(planning, PlanningWindowReads.RequirePlanning(facts));
     }
@@ -123,7 +125,7 @@ public sealed class ColonyFactsCoreTests
             Snapshot(),
             Snapshot() with
             {
-                Planning = new Planning.Requested(new PlanningFacts { Gear = GearFixtures.NoSnapshot, Environment = ControlledEnvironmentTests.NoWireEnvironment, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] }),
+                Planning = new Planning.Requested(new PlanningFacts { Gear = GearFixtures.NoSnapshot, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] }),
                 SleepingTemperature = new SleepingTemperature.Indoor(12.5, 21),
                 PendingFoodNutrition = 3.5,
                 PendingHunts = 2,
@@ -138,6 +140,67 @@ public sealed class ColonyFactsCoreTests
             Assert.Equal(facts.Planning.GetType(), back.Planning.GetType());
             Assert.Equal(facts.SleepingTemperature, back.SleepingTemperature);
         }
+    }
+
+    [Theory]
+    [InlineData("foodClimate")]
+    [InlineData("controlledEnvironment")]
+    public void TotalCensusCannotBeOmittedFromJson(string member)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(Snapshot()))!.AsObject();
+        Assert.True(node.Remove(member));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
+    }
+
+    [Fact]
+    public void MissingClimateFailsTheDecoder()
+    {
+        var read = Snapshot() with { FoodClimate = null! };
+        Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(read, new Identity(), default!, null));
+    }
+
+    [Fact]
+    public void MissingEnvironmentFailsTheDecoderEvenWithoutPlanning()
+    {
+        var read = Snapshot() with { ControlledEnvironment = null! };
+        Assert.IsType<Planning.NotRequested>(read.Planning);
+        Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(read, new Identity(), default!, null));
+    }
+
+    [Fact]
+    public void InvalidClimateCannotBecomeAnUnknownCalendar()
+    {
+        var climate = Snapshot().FoodClimate with { GrowingDaysRemaining = double.NaN };
+        Assert.Throws<BridgeContractException>(() => ColonyProductionReads.ColonyCalendar(climate));
+    }
+
+    [Fact]
+    public async Task MissingZoneSourceFailsInsteadOfCertifyingEmptyFields()
+    {
+        await Assert.ThrowsAsync<BridgeUnavailableException>(() =>
+            ZonesReads.FillZones(null, Snapshot().Context.Identity, new Identity(), Projection(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ZoneSnapshotFillsBothTotalCropArrays()
+    {
+        var context = Snapshot().Context with { NativeGeneration = new C.ObservedGeneration.AtCase(7) };
+        var expected = DecodeReads.ContextIdentity(context);
+        var read = new ZonesSnapshot
+        {
+            Context = context,
+            Zones = [ZoneFixtures.Growing("field", "Plant_Rice", usableCells: 12, edible: true)],
+        };
+        var projection = await ZonesReads.FillZones(new ZoneSource(read), context.Identity, expected, Projection(expected), CancellationToken.None);
+
+        Assert.Same(read, projection.Zones!.Value);
+        Assert.Single(projection.FieldCrops);
+        Assert.Equal(12L, Assert.Single(projection.FieldCapacityCrops).GrowingCells.Value);
+    }
+
+    private sealed class ZoneSource(ZonesSnapshot read) : IZonesNative
+    {
+        public Task<ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(read);
     }
 
     [Fact]

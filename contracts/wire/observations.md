@@ -101,8 +101,7 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   expected identity only; advancing ticks or revoked authority never blocks
   reconciliation reads. Identity mismatch is stale, never silently rebound.
 - Optional facts distinguish unavailable from observed zero/false. An omitted
-  requested fact or repeated section requires a `ReadIssue` naming its record member
-  path. Omitted unrequested detail is not an empty observed section. Known-empty
+  requested total section fails the read. Omitted unrequested detail is not an empty observed section. Known-empty
   collections have explicit complete metadata and zero counts. The helper section
   choices preserve whole-section failure independently of sibling facts.
 - Common unavailable reasons distinguish NOT_REQUESTED, NOT_APPLICABLE, HIDDEN,
@@ -214,8 +213,10 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   equipment needs. The complete candidate list belongs to that exact loadout
   token. PlanningFacts carries no read issues: a failed gear or
   controlled-environment read fails the colony facts read.
-- PlanningFacts.environment is the controlled-growing census inside the 45x45
-  planning region, every row whole: sun lamps with the native growth cells
+- ColonyFactsSnapshot.foodClimate is required on every read. Its native source
+  throws on failure; no food_climate read issue suppresses its calendar.
+- ColonyFactsSnapshot.controlledEnvironment is the required map-wide
+  controlled-growing census on every read, every row whole: sun lamps with the native growth cells
   (specialDisplayRadius, not glow radius), schedule-aware litNow, and their room
   and power network (null when none); plant growers with their current crop
   (null when set to none) and canSow; proper indoor rooms that have an unfogged
@@ -425,8 +426,7 @@ carries no Odyssey block.
 `BuildingState.odyssey` carries a building's hack progress, defence, hacked,
 locked-out and autohack state (`CompHackable`) and a portal's pocket map
 existence and id, plus an ancient hatch's stockpile type and layout. An absent
-scalar is unknown; a failed sub-read leaves its block absent and adds a
-`ReadIssue` named `hackable` or `portal`. The brain lifts the blocks into
+scalar is unknown; a failed read fails the observation. The brain lifts the blocks into
 `policy.Hack` and `policy.Portal` (`bridge.BuildingHack`, `BuildingPortal`);
 all of it is derived state held in memory (persistence-contracts.md) and
 adds no store.

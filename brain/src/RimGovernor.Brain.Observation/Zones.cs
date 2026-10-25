@@ -43,15 +43,7 @@ public static class ZonesReads
     /// <summary>Supplies the policy facts intentionally omitted by <see cref="DecodeColony"/>.</summary>
     public static async Task<ColonyProjection> FillZones(IZonesNative? native, C.Identity id, Identity expected, ColonyProjection p, CancellationToken cancellationToken)
     {
-        Held<O.ZonesSnapshot> held;
-        try
-        {
-            held = await ReadZoneSection(native, id, cancellationToken).ConfigureAwait(false);
-        }
-        catch (BridgeUnavailableException)
-        {
-            return p;
-        }
+        var held = await ReadZoneSection(native, id, cancellationToken).ConfigureAwait(false);
         var actual = DecodeReads.ContextIdentity(held.Value.Context) with { Paused = expected.Paused };
         if (!ColonyReads.SameColonyContext(actual, expected))
         {

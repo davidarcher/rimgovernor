@@ -246,9 +246,9 @@ public sealed partial record ColonyProjection
     /// <summary>The colony's mechanitors and mechs from the pawn table; unknown without a table.</summary>
     public Fact<MechFleet> Mechs { get; init; }
 
-    public Fact<EquatableArray<FieldCrop>> FieldCrops { get; init; }
+    public EquatableArray<FieldCrop> FieldCrops { get; init; }
 
-    public Fact<EquatableArray<FieldCrop>> FieldCapacityCrops { get; init; }
+    public EquatableArray<FieldCrop> FieldCapacityCrops { get; init; }
 
     /// <summary>The cooking benches and the rooms they stand in.</summary>
     public required EquatableArray<CookingBench> CookingBenches { get; init; }
@@ -324,7 +324,7 @@ public sealed partial record ColonyProjection
     public IReadOnlyList<O.ZoneState.Growing> Farms { get; init; } = [];
 
     /// <summary>The controlled-growing census inside the planning region.</summary>
-    public Fact<ControlledEnvironment> Environment { get; init; }
+    public ControlledEnvironment Environment { get; init; }
 
     public IReadOnlyList<PlanningDefinition> Definitions { get; init; } = [];
 

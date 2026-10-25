@@ -13,6 +13,14 @@ thoughts nor authorize execution. Selected input provenance extends only the
 existing disposable Method task payload; no save preference or progress owner
 is added.
 
+The growing calendar and controlled-environment census are total on every colony
+read, including reads without planning. Native failures fail the whole read; a
+missing section is a bridge contract failure. The environment census scans
+colonist buildings, proper rooms and power networks, so it is computed directly
+rather than request-gated. Field production and capacity crops come from the
+required zones snapshot before the projection reaches planners; an unavailable
+zones read fails the observation instead of certifying empty fields.
+
 Forecasts are read-only and use native definitions and rates. One forecast
 implementation serves deterministic facts and player fact inspection.
 

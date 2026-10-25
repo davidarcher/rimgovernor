@@ -30,7 +30,7 @@ public sealed record MealTierRequest
     public Fact<bool> HighExpectations { get; init; }
     public MealTier Previous { get; init; }
     public Fact<Infrastructure> Paste { get; init; }
-    public Fact<ControlledEnvironment> Environment { get; init; }
+    public ControlledEnvironment Environment { get; init; }
 }
 
 public sealed record MealRecipeChoice
@@ -329,15 +329,15 @@ public static partial class MealRules
     private static (string Network, bool Known) MealPasteNetwork(MealTierRequest r)
     {
         var ik = r.Paste.TryGetValue(out var infra);
-        var ek = r.Environment.TryGetValue(out var env);
-        if (!ik || !ek || !infra!.PowerW.TryGetValue(out var watts) || !FoodForecastRules.FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldCapacityRules.FieldPositive(watts))
+        var env = r.Environment;
+        if (!ik || !infra!.PowerW.TryGetValue(out var watts) || !FoodForecastRules.FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldCapacityRules.FieldPositive(watts))
         {
             return ("", false);
         }
         var best = "";
         var headroom = 0.0;
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var network in env!.Networks)
+        foreach (var network in env.Networks)
         {
             if (!FoodForecastRules.FoodId(network.Id) || seen.Contains(network.Id))
             {

@@ -89,7 +89,7 @@ public static class ColonyProductionReads
     /// delivery of edible stock. Exposure reads each zone's roofs from the planning window's cells (unknown
     /// without the window or with an unread roof) and its blight from the zone's planted and blighted counts.
     /// </summary>
-    internal static Fact<EquatableArray<FoodField>> ColonyFoodFields(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, Fact<Calendar> calendar, IReadOnlyList<SiteCell> cells)
+    internal static Fact<EquatableArray<FoodField>> ColonyFoodFields(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, Calendar calendar, IReadOnlyList<SiteCell> cells)
     {
         var zones = ZoneRoofs(cells);
         var rows = new List<FoodField>();
@@ -172,7 +172,7 @@ public static class ColonyProductionReads
         return output;
     }
 
-    internal static Fact<EquatableArray<FieldCrop>> ColonyFieldCrops(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
+    internal static EquatableArray<FieldCrop> ColonyFieldCrops(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
     {
         var rows = new List<FieldCrop>(farms.Count);
         foreach (var farm in farms)
@@ -192,7 +192,7 @@ public static class ColonyProductionReads
             }
             rows.Add(row);
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     internal static RoundsFacts ColonyProduction(O.ColonyFactsSnapshot v, RoundsFacts facts)
@@ -374,7 +374,7 @@ public static class ColonyProductionReads
     /// <summary>
     /// Projects the native food climate into the routine calendar fact. Every count is a required wire value.
     /// </summary>
-    internal static Fact<Calendar> ColonyCalendar(O.FoodClimate climate)
+    internal static Calendar ColonyCalendar(O.FoodClimate climate)
     {
         var c = new Calendar
         {
@@ -386,7 +386,7 @@ public static class ColonyProductionReads
             GrowingDaysUntil = climate.GrowingDaysUntil,
             NonGrowingDays = climate.NonGrowingDays,
         };
-        return c.Valid() ? Known(c) : Unknown<Calendar>();
+        return c.Valid() ? c : throw new BridgeContractException("invalid total food climate census");
     }
 
     internal static RoundsFacts ZoneProduction(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, RoundsFacts facts)

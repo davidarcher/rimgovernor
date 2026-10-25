@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 /// price greenhouse reuse, new lamps, basins and dark rooms against outdoor soil; nothing here is planned or
 /// written natively. Every row is whole.
 /// </summary>
-public sealed record ControlledEnvironment
+public readonly record struct ControlledEnvironment
 {
     public required EquatableArray<GrowLight> Lights { get; init; }
 

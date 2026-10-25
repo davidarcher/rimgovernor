@@ -114,8 +114,6 @@ namespace HomeBridge.BridgeTools
             var royalty = NativeRoyaltyColony.Read();
             var anomaly = NativeAnomalyColony.Read();
             Span("cf.deep");
-            var issues = new List<Obs.ReadIssue>();
-            if (demand <= 0) issues.Add(Issue("food_runway_days"));
             // No eligible indoor sleeping place is a named state, not a missing read.
             Obs.SleepingTemperature sleeping = temperatures.Count > 0
                 ? new Obs.SleepingTemperature.Indoor(temperatures.Min(), temperatures.Max()) : new Obs.SleepingTemperature.NoIndoorBed();
@@ -145,9 +143,8 @@ namespace HomeBridge.BridgeTools
             Span("cf.recovery");
             var waste = HomeWasteTools.Project(map);
             Span("cf.waste");
-            issues.Add(Issue("food_corpses"));
-            Obs.FoodClimate? foodClimate = null;
-            try {
+            Obs.FoodClimate foodClimate;
+            {
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);
                 var year = GrowingCalendar.GrowingYear(map);
                 var remaining = GrowingCalendar.Until(year, 0, false);
@@ -156,13 +153,14 @@ namespace HomeBridge.BridgeTools
                 SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); issues.Add(Issue("food_climate")); }
             Span("cf.climate");
             // The pending harvest, wood and hunt values are required: a read that cannot make them fails the colony read.
             var acquisition = NativePlantAcquisition.Read(map, center, humanFood, request, context);
             Span("cf.acquisition");
             Obs.Planning planning = request.Planning ? new Obs.Planning.Requested(Planning(map, center, request, context)) : new Obs.Planning.NotRequested();
             Span("cf.planning");
+            var environment = Environment(map);
+            Span("cf.environment");
             return new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
                 ResourceThings = RimGovernor.Brain.Domain.EquatableArray.From(items.Select(t => t.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)),
                 WorkResources = workResources,
@@ -180,10 +178,11 @@ namespace HomeBridge.BridgeTools
                 Resources = [.. resources], EventLoot = eventLoot, Cooking = [.. cooking], Butchering = [.. butchering],
                 JoinerLetters = [.. joiners], Dialog = dialog != null ? ChoiceDialogTools.Snapshot(dialog) : null,
                 Environment = [.. conditions.Select(EnvironmentCondition)],
-                Recovery = recovery, Waste = waste, Blight = NativeBlightCensus.Read(map, things), FoodClimate = foodClimate,
+                Recovery = recovery, Waste = waste, Blight = NativeBlightCensus.Read(map, things), FoodClimate = foodClimate, ControlledEnvironment = environment,
+
                 Acquisition = [.. acquisition.Rows], PendingFoodNutrition = acquisition.PendingFoodNutrition,
                 PendingHunts = acquisition.PendingHunts, HuntCensus = acquisition.HuntCensus,
-                Planning = planning, Issues = [.. issues] };
+                Planning = planning };
         }
 
         // Whether the biome keeps the sky dark for the map's whole life:
@@ -355,9 +354,7 @@ namespace HomeBridge.BridgeTools
             var gear = NativeGearFacts.Read(map);
             ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var result = new Obs.PlanningFacts { Gear = gear, Environment = Environment(map) };
-            ObservationWork.Detail("cf.environment", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            began = System.Diagnostics.Stopwatch.GetTimestamp();
+            var result = new Obs.PlanningFacts { Gear = gear };
             result = result with { Crops = [.. result.Crops, .. Crops(map)] };
             ObservationWork.Detail("cf.crops", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             return result;
@@ -489,6 +486,5 @@ namespace HomeBridge.BridgeTools
             return result;
         }
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field) => new Obs.ReadIssue { Field = field };
     }
 }

@@ -351,6 +351,7 @@ public sealed partial class RoundsTradePlanner
             },
             tables,
             catalog);
+        projection = await ZonesReads.FillZones(Native as Observation.IZonesNative, reply.Context.Identity, projection.Identity, projection, ct).ConfigureAwait(false);
         Reviewer.PlanFood(ref projection);
         var targets = Reviewer.ResourceTargets(state.Snapshot);
         var nutrition = new Dictionary<string, double>(StringComparer.Ordinal);

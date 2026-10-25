@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record CropSeason
 {
-    public Fact<Calendar> Calendar { get; init; }
+    public Calendar Calendar { get; init; }
 
     public EquatableArray<DisasterCondition> Conditions { get; init; }
 }
@@ -72,12 +72,12 @@ public static class CropRiskRules
     /// under open sky. Zero while the harvest lands before the frost. Unknown while the lead, the calendar or
     /// the roof data is.
     /// </summary>
-    public static Fact<double> FrostRisk(Fact<double> lead, Fact<Calendar> calendar, FieldExposure e)
+    public static Fact<double> FrostRisk(Fact<double> lead, Calendar calendar, FieldExposure e)
     {
         var dk = lead.TryGetValue(out var days);
-        var ck = calendar.TryGetValue(out var c);
+        var c = calendar;
         var ok = Share(e.UnroofedCells, e.ZoneCells).TryGetValue(out var open);
-        if (!dk || !ck || !ok || !c!.Valid() || double.IsNaN(days) || days <= 0)
+        if (!dk || !ok || !c.Valid() || double.IsNaN(days) || days <= 0)
         {
             return Unknown<double>();
         }

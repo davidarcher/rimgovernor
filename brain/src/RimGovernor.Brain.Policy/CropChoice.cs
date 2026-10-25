@@ -130,7 +130,7 @@ public sealed record FieldRequest
 
     public Fact<int> Cooks { get; init; }
 
-    public Fact<Calendar> Calendar { get; init; }
+    public Calendar Calendar { get; init; }
 
     public EquatableArray<DisasterCondition> Conditions { get; init; }
 

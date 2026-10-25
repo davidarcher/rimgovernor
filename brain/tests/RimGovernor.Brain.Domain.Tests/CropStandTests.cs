@@ -51,7 +51,7 @@ public sealed class CropStandTests
         var growth = Growth(new CropStand.Fallow());
 
         Assert.Equal(0L, growth.GrowingCells().Value);
-        Assert.False(CalendarRules.HarvestLeadDays(growth, Known(6.0), Known(Summer)).TryGetValue(out _));
+        Assert.False(CalendarRules.HarvestLeadDays(growth, Known(6.0), Summer).TryGetValue(out _));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class CropStandTests
         var growth = Growth(new CropStand.Sown(8, 0.5, 1.0));
 
         Assert.Equal(8L, growth.GrowingCells().Value);
-        Assert.Equal(3.0, CalendarRules.HarvestLeadDays(growth, Known(6.0), Known(Summer)).Value, 9);
+        Assert.Equal(3.0, CalendarRules.HarvestLeadDays(growth, Known(6.0), Summer).Value, 9);
     }
 
     [Fact]

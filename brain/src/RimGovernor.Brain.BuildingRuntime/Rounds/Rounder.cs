@@ -967,10 +967,8 @@ partial class Rounder
         {
             attrs.Add(("food_days", days));
         }
-        if (f.Calendar.TryGetValue(out var c))
-        {
-            attrs.AddRange([("season", c.Season), ("day_of_year", c.DayOfYear), ("growing_days_remaining", c.GrowingDaysRemaining), ("growing_days_until", c.GrowingDaysUntil), ("non_growing_days", c.NonGrowingDays)]);
-        }
+        var c = f.Calendar;
+        attrs.AddRange([("season", c.Season), ("day_of_year", c.DayOfYear), ("growing_days_remaining", c.GrowingDaysRemaining), ("growing_days_until", c.GrowingDaysUntil), ("non_growing_days", c.NonGrowingDays)]);
         return attrs;
     }
 

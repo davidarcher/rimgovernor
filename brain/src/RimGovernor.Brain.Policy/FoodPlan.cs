@@ -404,11 +404,11 @@ public static class FoodPlanRules
     /// across the calendar, so growth that outlasts the growing days left waits out the non-growing stretch. A
     /// crop is sown only while it grows, so the walk starts at the current temperature factor 1.
     /// </summary>
-    public static Fact<double> NewFieldLeadDays(Fact<double> growDays, Fact<Calendar> calendar)
+    public static Fact<double> NewFieldLeadDays(Fact<double> growDays, Calendar calendar)
     {
         var dk = growDays.TryGetValue(out var days);
-        var ck = calendar.TryGetValue(out var c);
-        if (!dk || !ck || !c!.Valid() || !FieldCapacityRules.FieldPositive(days))
+        var c = calendar;
+        if (!dk || !c.Valid() || !FieldCapacityRules.FieldPositive(days))
         {
             return Unknown<double>();
         }

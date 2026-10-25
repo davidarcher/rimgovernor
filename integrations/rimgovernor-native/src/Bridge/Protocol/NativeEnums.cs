@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
         };
 
         // The Anomaly enums fail loudly on a value the wire does not
-        // name: the caller turns the exception into a ReadIssue.
+        // name: the exception fails the native observation.
         internal static Obs.EntityContainmentModeKind ContainmentMode(EntityContainmentMode mode) => mode switch
         {
             EntityContainmentMode.MaintainOnly => Obs.EntityContainmentModeKind.MaintainOnly,

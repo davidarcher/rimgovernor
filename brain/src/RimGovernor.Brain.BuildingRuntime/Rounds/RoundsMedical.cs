@@ -344,8 +344,6 @@ partial class RoundsMedicalPlanner
 {
     internal const long AmputationRequeueTicks = GameTime.TicksPerHour;
 
-    internal static bool MedicalIssue(IReadOnlyList<O.ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
-
     internal static string UnreadMedicalFact(MedicalReserveObservation facts)
     {
         if (!facts.Items.IsKnown)

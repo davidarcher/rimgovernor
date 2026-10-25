@@ -107,7 +107,7 @@ public sealed partial class RoundsFieldPlanner
         var reserveDays = _reviewer.Seasonal(projection.Facts).FoodTargetDays;
         var (request, choices) = FieldSiteRequest(projection, protectedCells, reserveDays);
         var (selection, known) = SiteRules.PlanSiteType(request);
-        if (projection.Environment.TryGetValue(out var env))
+        var env = projection.Environment;
         {
             var recrops = GrowerCropRules.PlanGrowerCrops(new GrowerCropRequest { Choices = choices, Growers = env.Growers, Urgent = selection.Urgent, Field = request.Field });
             foreach (var recropChoice in recrops)

@@ -18,7 +18,7 @@ BuildingRuntime/Layout/LayoutProtected.cs|Fact|3
 BuildingRuntime/Occupancy.cs|Fact|2
 BuildingRuntime/ReviewMemory.cs|Fact|7
 BuildingRuntime/ReviewMemory.cs|Unknown|3
-BuildingRuntime/Rounds/Rounder.cs|Fact|19
+BuildingRuntime/Rounds/Rounder.cs|Fact|18
 BuildingRuntime/Rounds/Rounder.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|16
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Unknown|1
@@ -44,7 +44,7 @@ BuildingRuntime/Rounds/RoundsCensus.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|1
 BuildingRuntime/Rounds/RoundsClearance.cs|Fact|3
 BuildingRuntime/Rounds/RoundsClearance.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|8
+BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|7
 BuildingRuntime/Rounds/RoundsComfort.cs|Fact|5
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|7
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
@@ -63,7 +63,7 @@ BuildingRuntime/Rounds/RoundsDisease.cs|Fact|3
 BuildingRuntime/Rounds/RoundsDisease.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsField.cs|Discard|1
-BuildingRuntime/Rounds/RoundsField.cs|Fact|5
+BuildingRuntime/Rounds/RoundsField.cs|Fact|4
 BuildingRuntime/Rounds/RoundsFirebreak.cs|Fact|1
 BuildingRuntime/Rounds/RoundsFishing.cs|Fact|1
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|5
@@ -168,16 +168,16 @@ Executor/SnapshotRounds.cs|Unknown|1
 Host/HostProviders.cs|Fact|1
 Host/HostSnapshots.cs|Fact|1
 Observation/BiotechColony.cs|Fact|1
-Observation/Colony.cs|Fact|63
+Observation/Colony.cs|Fact|60
 Observation/Colony.cs|Unknown|3
-Observation/ColonyDecode.cs|Fact|16
+Observation/ColonyDecode.cs|Fact|15
 Observation/ColonyDecode.cs|Unknown|2
 Observation/ColonyFrames.cs|Fact|8
 Observation/ColonyFrames.cs|Unknown|1
 Observation/ColonyGear.cs|Fact|14
 Observation/ColonyGear.cs|Unknown|3
-Observation/ColonyProduction.cs|Fact|25
-Observation/ColonyProduction.cs|Unknown|4
+Observation/ColonyProduction.cs|Fact|20
+Observation/ColonyProduction.cs|Unknown|3
 Observation/ColonyRead.cs|Fact|2
 Observation/Construction.cs|Fact|2
 Observation/Decode.cs|Fact|3
@@ -219,8 +219,8 @@ Policy/BasicComfort.cs|Fact|4
 Policy/BasicComfort.cs|Unknown|1
 Policy/BasicDefense.cs|Fact|6
 Policy/BillWanted.cs|Fact|2
-Policy/Calendar.cs|Fact|33
-Policy/Calendar.cs|Unknown|5
+Policy/Calendar.cs|Fact|27
+Policy/Calendar.cs|Unknown|4
 Policy/ChildRooms.cs|Fact|2
 Policy/Climate.cs|Fact|1
 Policy/ClothingDemand.cs|Fact|4
@@ -244,10 +244,10 @@ Policy/ConstructionOwnership.cs|Fact|4
 Policy/ConstructionOwnership.cs|Unknown|1
 Policy/ContainmentCell.cs|Fact|2
 Policy/ControlledEnvironment.cs|Fact|1
-Policy/CropChoice.cs|Fact|59
+Policy/CropChoice.cs|Fact|58
 Policy/CropChoice.cs|Unknown|3
 Policy/CropResilience.cs|Fact|11
-Policy/CropRisk.cs|Fact|29
+Policy/CropRisk.cs|Fact|26
 Policy/CropRisk.cs|Unknown|2
 Policy/DashEstimate.cs|Fact|9
 Policy/DashEstimate.cs|Unknown|2
@@ -270,7 +270,7 @@ Policy/EssentialServices.cs|Fact|9
 Policy/EssentialServices.cs|UnknownMember|2
 Policy/ExportOrders.cs|Fact|17
 Policy/FacilityUpkeep.cs|Fact|2
-Policy/FieldCapacity.cs|Fact|19
+Policy/FieldCapacity.cs|Fact|17
 Policy/FieldCapacity.cs|Unknown|7
 Policy/FieldResource.cs|Fact|15
 Policy/FieldResource.cs|ValueOrDefault|4
@@ -282,7 +282,7 @@ Policy/Flooring.cs|ValueOrDefault|3
 Policy/Food.cs|Fact|9
 Policy/FoodOrders.cs|Discard|1
 Policy/FoodOrders.cs|Fact|1
-Policy/FoodPlan.cs|Fact|33
+Policy/FoodPlan.cs|Fact|31
 Policy/FoodPlan.cs|Unknown|4
 Policy/FoodStorageStuck.cs|Fact|2
 Policy/FoodStores.cs|Fact|4
@@ -352,7 +352,7 @@ Policy/LootRelease.cs|Fact|2
 Policy/MaterialBudget.cs|Fact|7
 Policy/MaterialBudget.cs|Unknown|1
 Policy/MealStock.cs|Discard|1
-Policy/MealTier.cs|Fact|10
+Policy/MealTier.cs|Fact|8
 Policy/MechChargerConcern.cs|Fact|4
 Policy/Medical.cs|Fact|20
 Policy/Medical.cs|Unknown|1
@@ -421,7 +421,7 @@ Policy/Ritual.cs|Unknown|1
 Policy/RoomQualityBeauty.cs|Fact|3
 Policy/RoomsFamily.cs|Fact|16
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|95
+Policy/Rounds.cs|Fact|93
 Policy/Rounds.cs|Unknown|4
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7
@@ -434,7 +434,7 @@ Policy/SilverGap.cs|Fact|20
 Policy/SilverGap.cs|Unknown|6
 Policy/SiteHydroponicsUnit.cs|Fact|6
 Policy/SiteType.cs|Discard|2
-Policy/SiteType.cs|Fact|29
+Policy/SiteType.cs|Fact|27
 Policy/SleepingBedroom.cs|Fact|2
 Policy/SleepingMethod.cs|Fact|3
 Policy/SleepingMigrate.cs|Fact|2

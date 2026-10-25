@@ -51,7 +51,7 @@ public sealed class ColonyModelTests
     private static ColonyTrajectory Run(ColonyModelInput input, ColonyModelPolicy? policy = null) => ColonyModel.Run(input, Cycles(input), policy ?? new ColonyModelPolicy { MedicineTendsPerDay = 0.0 });
 
     private static double Lead(ColonyModelInput input) =>
-        CalendarRules.HarvestGapDays(Known(input.Calendar), EquatableArray.From(Array.Empty<DisasterCondition>())).Value;
+        CalendarRules.HarvestGapDays(input.Calendar, EquatableArray.From(Array.Empty<DisasterCondition>())).Value;
 
     [Fact]
     public void BetweenEventsEachStockChangesByItsIntegratedFlow()

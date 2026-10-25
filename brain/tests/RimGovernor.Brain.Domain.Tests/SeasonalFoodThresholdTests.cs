@@ -23,7 +23,7 @@ public sealed class SeasonalFoodThresholdTests
         NonGrowingDays = NonGrowing,
     };
 
-    private static RoundsPolicy Seasonal(Calendar calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(Known(calendar), default(EquatableArray<DisasterCondition>));
+    private static RoundsPolicy Seasonal(Calendar calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(calendar, default(EquatableArray<DisasterCondition>));
 
     [Fact]
     public void ThresholdsDoNotJumpAtTheFrost()

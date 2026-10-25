@@ -1,5 +1,4 @@
 using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Observations;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -28,9 +27,4 @@ public static class FactHelpers
         }
     }
 
-    /// <summary>Whether a read issue names the field.</summary>
-    internal static bool IssueNames(IEnumerable<ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
-
-    /// <summary>The fields the read issues name.</summary>
-    internal static HashSet<string> FailedFields(IEnumerable<ReadIssue> issues) => new(issues.Select(issue => (issue.Field ?? "")), StringComparer.Ordinal);
 }
