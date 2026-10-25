@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 /// <summary>
 /// One planner step's own colony read: the projection a building or bill planner decided from, which carries what

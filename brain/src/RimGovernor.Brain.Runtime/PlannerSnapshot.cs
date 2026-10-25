@@ -10,7 +10,7 @@ internal static class PlannerSnapshot
         if (!string.IsNullOrEmpty(dir))
         {
             var record = SnapshotLaterReplay.MirrorRecorder(dir);
-            store.SetRecorder(published => SnapshotLaterReplay.Later(() => record(published)));
+            store.SetRecorder(published => SnapshotLaterReplay.Later(() => record(published), "section", new Tick(published.AsOf.Tick)));
         }
     }
 
@@ -26,17 +26,7 @@ internal static class PlannerSnapshot
         {
             return;
         }
-        SnapshotLaterReplay.Later(() =>
-        {
-            try
-            {
-                SnapshotStepReplay.RecordStep(dir, planner, goal, current, reading);
-            }
-            catch (Exception)
-            {
-                // recording is best effort
-            }
-        });
+        SnapshotLaterReplay.Later(() => SnapshotStepReplay.RecordStep(dir, planner, goal, current, reading), "step", reading.Identity.Tick);
     }
 
     /// <summary>
@@ -60,9 +50,9 @@ internal sealed class PlannerRecording(IDisposable recording, GenerationSnapshot
         {
             SnapshotPlannerReplay.Finish(recording, current, tick);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // recording is best effort
+            Tel.Decide(SnapshotSkip.SnapshotSkipDecision("recording", "planner", ex, tick));
         }
     }
 

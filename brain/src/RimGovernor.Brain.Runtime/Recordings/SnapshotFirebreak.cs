@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 /// <summary>
 /// One firebreak ring review (the layout/firebreak Need's read) as recorded: the ring request it planned from, the dwell clock it carried in, and
@@ -31,7 +31,7 @@ public sealed class SnapshotFirebreak
     public List<Cell> Open { get; set; } = [];
 
     /// <summary>Plans the ring from the recorded request and dwell and returns the plan and the work the recorded census leaves owed.</summary>
-    public (FirebreakPlan Plan, FirebreakWork Work) Replay()
+    public (Policy.FirebreakPlan Plan, FirebreakWork Work) Replay()
     {
         var ground = new Dictionary<Cell, FirebreakGround>();
         foreach (var g in Ground)

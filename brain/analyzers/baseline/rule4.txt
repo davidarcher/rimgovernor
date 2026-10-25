@@ -37,8 +37,6 @@ Runtime/Worker.ArrivalHold.cs|Worker.ResendMoveAsync
 Runtime/Clock/PlannerScheduler.cs|PlannerScheduler.RunPlannerWaveAsync
 Runtime/Colony/ColonyReview.ColonyPlan.cs|ColonyReview.DrawLayoutOverlayAsync
 Runtime/Colony/ColonyReview.ColonyStationAdvice.cs|StationFactsBuilder.StationFactsOf
-Runtime/PlannerSnapshot.cs|PlannerRecording.Finish
-Runtime/PlannerSnapshot.cs|PlannerSnapshot.RecordStepRead
 Runtime/Player.cs|Player.Player
 Runtime/Review/ColonyReview.cs|ColonyReview.ReviewStepAsync
 Runtime/Review/AcquisitionPlanner.cs|AcquisitionPlanner.StepAsync
@@ -59,6 +57,5 @@ Host/SchedulerLoop.cs|SchedulerLoop.WaitOrWake
 HttpChannel/EndpointFile.cs|EndpointFile.Remove
 HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
-Executor/SnapshotLater.cs|SnapshotLaterReplay.Later
 Store/Core/StoreTransaction.cs|StoreTransaction.Dispose
 Telemetry/Otlp/OtlpFileWriter.cs|OtlpFileWriter.MetricLoopAsync

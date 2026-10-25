@@ -3,18 +3,10 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
-// The snapshot package (#3052). It records the colony facts a ReviewState pass planned against so a
-// test can replay them. Recording is evidence for replay, never part of a decision.
-//
-// What is ported: the recorded value types, the planner-step recorder and its Note* hooks, the review
-// detection replay (SnapshotReview.Detect / Assessment, SnapshotFirebreak.Replay), and the background queue.
-//
-// There is no file persistence layer: recordings through a reflection codec over the
-// whole policy value graph (about 400 types); the port conventions forbid reflection-based JSON, and a
-// source-generated context over that graph is a separate decision. Writing goes through ISnapshotSink, which the
-// host supplies; with none set every Record* call is a no-op.
+// Planning recordings retain the exact inputs used by a review or planner decision.
+// The optional host sink owns encoding and storage; recordings never affect policy.
 
 /// <summary>Where recorded evidence goes. The host implements it with a source-generated codec; none is set by default.</summary>
 public interface ISnapshotSink

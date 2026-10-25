@@ -7,10 +7,10 @@ facts, never native behavior.
 
 ## Current state
 
-The recorder types live in `brain/src/RimGovernor.Brain.Executor`
+The recorder types live in `brain/src/RimGovernor.Brain.Runtime/Recordings`
 (`SnapshotReview`, `SnapshotPlanner`, `SnapshotStep`, `SnapshotDefense`,
 `SnapshotLayout`, `SnapshotCombatStop`, `SnapshotFirebreak`, and the background
-queue `SnapshotLater`). Writing goes through `ISnapshotSink`
+queue `SnapshotLaterReplay`). Writing goes through `ISnapshotSink`
 (`SnapshotRecorder.Sink`), which the host supplies; none is installed, so nothing
 is written today, and the remote workflow and fixture factory do not collect
 snapshot streams (the observe SQLite feed and Grafana dashboards were dropped, #3144). There is no

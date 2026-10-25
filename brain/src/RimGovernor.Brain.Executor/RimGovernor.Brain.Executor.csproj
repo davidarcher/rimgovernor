@@ -11,11 +11,12 @@
     <ProjectReference Include="../RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.GameOrders/RimGovernor.Brain.GameOrders.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.GameAccess/RimGovernor.Brain.GameAccess.csproj" />
-    <!-- Awaiting #3053: the journal store (ReviewState, ReviewResult, DefenseLayoutRecord). -->
+    <!-- Hands uses the admitted plan and attempt/receipt journal contracts. -->
     <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The host's native client (#3113) reads the frames the recorder types decode. -->
+    <!-- Runtime coordinates execution eligibility and evidence with Hands. -->
     <InternalsVisibleTo Include="RimGovernor.Brain.Runtime" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
   </ItemGroup>
 </Project>

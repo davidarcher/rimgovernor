@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 /// <summary>
 /// One planner step as recorded: the pure decisions it made and the inputs each took, the native site reads among
@@ -95,7 +95,7 @@ public static class SnapshotPlannerReplay
     internal static void Restore(PlannerRecorder? previous) => Current.Value = previous;
 
     /// <summary>
-    /// Starts a recorder for one planner step when <see cref="DirEnv"/> is set; dispose the result to end the scope
+    /// Starts a recorder for one planner step when <see cref="SnapshotRecorder.DirEnv"/> is set; dispose the result to end the scope
     /// and pass it to <see cref="Finish"/> to write what the step recorded. With the variable unset it records
     /// nothing and the result is a no-op scope.
     /// </summary>

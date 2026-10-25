@@ -4,7 +4,7 @@ using RimGovernor.Brain.Policy;
 using StoreReview = RimGovernor.Brain.Store.ReviewState;
 using StoreReviewResult = RimGovernor.Brain.Store.ReviewResult;
 
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 /// <summary>One enabled review's canonical reading, policy inputs and committed cursor, retained for replay.</summary>
 public sealed class SnapshotReview

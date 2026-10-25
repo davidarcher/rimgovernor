@@ -990,7 +990,7 @@ partial class ColonyReview
                     Tel.Decide(SnapshotSkip.SnapshotSkipDecision("routine", "colony", ex, tick));
                 }
             }
-        });
+        }, "colony", tick);
     }
 
     /// <summary>

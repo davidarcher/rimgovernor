@@ -28,6 +28,7 @@
    <Using Include="RimGovernor.Brain.GameAccess" />
     <Using Include="RimGovernor.Brain.GameAccess.Result" Alias="BridgeResult" />
     <Using Include="RimGovernor.Brain.Executor" />
+    <Using Include="RimGovernor.Brain.Runtime.Recordings" />
     <Using Include="RimGovernor.Brain.Facts" />
     <Using Include="RimGovernor.Brain.GameFacts" />
     <Using Include="RimGovernor.Brain.Runtime.Verdict" Static="true" />

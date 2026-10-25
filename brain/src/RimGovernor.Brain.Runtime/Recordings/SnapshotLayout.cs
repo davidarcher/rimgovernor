@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 /// <summary>One decision of the defensive layout planner as recorded: the policy request it built from the native defense-site and combat-pawn reads, and the stored layout it decided against.</summary>
 public sealed class SnapshotLayout

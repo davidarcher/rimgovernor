@@ -5,7 +5,7 @@ using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using StoreDefenseLayoutRecord = RimGovernor.Brain.Store.DefenseLayoutRecord;
 
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 /// <summary>
 /// One DefensePlanner step as recorded: the native replies the step read (the emergency census, the combat

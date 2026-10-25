@@ -5,7 +5,7 @@ using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using System.Threading.Channels;
 
-namespace RimGovernor.Brain.Executor;
+namespace RimGovernor.Brain.Runtime.Recordings;
 
 public static class SnapshotLaterReplay
 {
@@ -14,18 +14,17 @@ public static class SnapshotLaterReplay
     // the player gate and the planner steps never wait on it. Jobs keep what they were handed (a mirror table's rows are
     // never mutated after publishing; a colony reading is read-only once taken), so a job reads it later.
     private static readonly object LaterLock = new();
-    private static Channel<Action>? _jobs;
+    private static Channel<(Action Job, string Target, Tick Tick)>? _jobs;
     private static Task _drain = Task.CompletedTask;
-    private static int _pending;
 
     /// <summary>Queues job behind the recordings already queued.</summary>
-    public static void Later(Action job)
+    public static void Later(Action job, string target, Tick tick)
     {
         lock (LaterLock)
         {
             if (_jobs is null)
             {
-                _jobs = Channel.CreateUnbounded<Action>(new UnboundedChannelOptions { SingleReader = true });
+                _jobs = Channel.CreateUnbounded<(Action Job, string Target, Tick Tick)>(new UnboundedChannelOptions { SingleReader = true });
                 var reader = _jobs.Reader;
                 _drain = Task.Run(async () =>
                 {
@@ -33,21 +32,16 @@ public static class SnapshotLaterReplay
                     {
                         try
                         {
-                            j();
+                            j.Job();
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
-                            // recording is best effort
-                        }
-                        finally
-                        {
-                            Interlocked.Decrement(ref _pending);
+                            Tel.Decide(SnapshotSkip.SnapshotSkipDecision("recording", j.Target, ex, j.Tick));
                         }
                     }
                 });
             }
-            Interlocked.Increment(ref _pending);
-            _jobs.Writer.TryWrite(job);
+            _jobs.Writer.TryWrite((job, target, tick));
         }
     }
 
