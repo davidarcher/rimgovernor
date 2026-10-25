@@ -32,7 +32,7 @@ public sealed class TradeFamilyWireTests
         Traders =
         [
             new RimGovernor.Brain.GameFacts.Observations.Trader { Id = "Human7", Orbital = false, Kind = "Caravan_Outlander_BulkGoods", FactionId = "Faction_3", CanTrade = true, Travelling = false, GoodsStacks = 40,
-                Visit = new(new("Human1"), new(2, 3), [new("MedicineHerbal", 5, 10)]) },
+                Visit = new(new("Human1"), new(2, 3), 40000, [new("MedicineHerbal", 5, 10)]) },
             new RimGovernor.Brain.GameFacts.Observations.Trader { Id = "Ship_2", Orbital = true, Kind = "Orbital_Exotic", FactionId = "", CanTrade = false, Travelling = false, GoodsStacks = 12 },
         ],
         Negotiators = [new PawnId("Human1")],

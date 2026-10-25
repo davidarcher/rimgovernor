@@ -33,14 +33,14 @@ namespace RimGovernor.Native
             var traders = new List<RimGovernor.Brain.GameFacts.Observations.Trader>();
             var negotiators = map.mapPawns.FreeColonistsSpawned.Where(EligibleNegotiator)
                 .OrderByDescending(p => p.GetStatValue(StatDefOf.TradePriceImprovement)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-            RimGovernor.Brain.GameFacts.Observations.TradeVisit? Visit(ITrader trader, IntVec3 location, Pawn? negotiator)
+            RimGovernor.Brain.GameFacts.Observations.TradeVisit? Visit(ITrader trader, IntVec3 location, Pawn? negotiator, int availableTicks)
             {
-                if (negotiator is null || trader.TraderKind.orbital && !Building_OrbitalTradeBeacon.AllPowered(map).Any()) return null;
+                if (availableTicks <= 0 || negotiator is null || trader.TraderKind.orbital && !Building_OrbitalTradeBeacon.AllPowered(map).Any()) return null;
                 var gain = negotiator.GetStatValue(StatDefOf.TradePriceImprovement);
                 var stock = trader.Goods.Where(t => t is not Pawn && t.stackCount > 0 && t.def != ThingDefOf.Silver)
                     .Select(t => new RimGovernor.Brain.GameFacts.Observations.SettlementStockItem(t.def.defName, t.stackCount,
                         TradeUtility.GetPricePlayerBuy(t, trader.TraderKind.PriceTypeFor(t.def, TradeAction.PlayerBuys).PriceMultiplier(), 1, gain, trader.TradePriceImprovementOffsetForPlayer)));
-                return new(new PawnId(negotiator.GetUniqueLoadID()), new(location.x, location.z), RimGovernor.Brain.Domain.EquatableArray.From(stock));
+                return new(new PawnId(negotiator.GetUniqueLoadID()), new(location.x, location.z), availableTicks, RimGovernor.Brain.Domain.EquatableArray.From(stock));
             }
             foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {
@@ -56,7 +56,7 @@ namespace RimGovernor.Native
                     Id = pawn.GetUniqueLoadID(), Orbital = false, Kind = tracker.traderKind.defName, FactionId = FactionId(pawn.Faction),
                     CanTrade = pawn.CanTradeNow && !dismissed && !travelling, Travelling = travelling, GoodsStacks = tracker.Goods.Count(),
                     Visit = !dismissed && !travelling && pawn.CanTradeNow ? Visit(pawn, pawn.Position,
-                        negotiators.FirstOrDefault(p => p.CanTradeWith(pawn.Faction, tracker.traderKind).Accepted && p.CanReach(pawn, PathEndMode.Touch, Danger.Some))) : null,
+                        negotiators.FirstOrDefault(p => p.CanTradeWith(pawn.Faction, tracker.traderKind).Accepted && p.CanReach(pawn, PathEndMode.Touch, Danger.Some)), DepartureTicks(pawn)) : null,
                 });
             }
             foreach (var ship in map.passingShipManager.passingShips.OfType<TradeShip>())
@@ -71,7 +71,7 @@ namespace RimGovernor.Native
                     Id = ship.GetUniqueLoadID(), Orbital = true, Kind = ship.TraderKind.defName, FactionId = FactionId(ship.Faction),
                     CanTrade = usable, Travelling = false, GoodsStacks = ship.Goods.Count(),
                     Visit = usable && console is not null ? Visit(ship, console.InteractionCell,
-                        negotiators.FirstOrDefault(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted && NativeTradeAcquisition.ConsoleNegotiator(console, p))) : null,
+                        negotiators.FirstOrDefault(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted && NativeTradeAcquisition.ConsoleNegotiator(console, p)), ship.ticksUntilDeparture) : null,
                 });
             }
             traders.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
@@ -79,6 +79,24 @@ namespace RimGovernor.Native
             {
                 Context = context, Traders = [.. traders], Negotiators = [.. negotiators.Select(p => new PawnId(p.GetUniqueLoadID()))],
             };
+        }
+
+        // Vanilla resets the sampled timer when its stationary source toil becomes active.
+        // Reading the live trigger therefore includes both elapsed time and any such extension.
+        private static int DepartureTicks(Pawn trader)
+        {
+            var lord = trader.GetLord() ?? throw new InvalidOperationException("Required trader lord is unavailable.");
+            if (lord.CurLordToil is LordToil_ExitMap || lord.CurLordToil is LordToil_ExitMapAndEscortCarriers
+                || lord.LordJob is LordJob_VisitColony visit && visit.exitSubgraph.lordToils.Contains(lord.CurLordToil)) return 0;
+            if (lord.LordJob is not LordJob_TradeWithColony && lord.LordJob is not LordJob_VisitColony)
+                throw new InvalidOperationException("Required trader departure timer is unavailable for " + lord.LordJob.GetType().Name);
+            var timers = lord.Graph.transitions.Where(t => t.sources.Contains(lord.CurLordToil))
+                .SelectMany(t => t.triggers).OfType<Trigger_TicksPassed>().ToArray();
+            // Combat and taking wounded guests suspend the stationary timer. Neither
+            // gives a dated opportunity; a later stationary census can plan it again.
+            if (timers.Length == 0) return 0;
+            if (timers.Length != 1) throw new InvalidOperationException("Required active trader departure timer is unavailable.");
+            return timers[0].TicksLeft;
         }
 
         /// <summary>

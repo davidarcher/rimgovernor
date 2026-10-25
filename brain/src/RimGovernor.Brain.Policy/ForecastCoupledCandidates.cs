@@ -136,7 +136,7 @@ public sealed partial record ForecastCoupledCandidates
             var request = facts.StockArrival.Requests.FirstOrDefault(r => r.Id == first.Root);
             var visit = facts.StockArrival.Visits.FirstOrDefault(v => v.Id == first.Root);
             var place = request is not null ? Location(request.Native.ConsoleCell) : visit is not null ? Location(visit.Native.Visit!.Location) : "start";
-            tasks.Add(new(group.Key, place, place, []));
+            tasks.Add(visit is not null ? visit.Opening(place) : new(group.Key, place, place, []));
             foreach (var work in group)
                 options.Add(new(work.Task, work.Pawn, 0, 0) { AbsenceTicks = work.Mission?.Days * GameTime.TicksPerDay ?? 0, FromCurrentLocation = work.Mission is not null });
         }

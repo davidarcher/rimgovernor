@@ -460,6 +460,11 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     /// <summary>A selected request sends one visit at From, rather than a recurring incident stream.</summary>
     public bool Once { get; init; }
 
+    /// <summary>The current seller's departure on this want's timeline. A selected purchase must complete before it;
+    /// goods bought before departure remain colony stock for later wants. Future visits buy on arrival and have no current departure deadline.</summary>
+    public double PurchaseUntil { get; init; } = double.PositiveInfinity;
+    public bool CanPurchase => From < PurchaseUntil;
+
     /// <summary>The buy price of one unit at <paramref name="unitValue"/>.</summary>
     public static double UnitPrice(double unitValue, double priceFactor)
     {
@@ -470,6 +475,7 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     /// <summary>The chance one visit supplies <paramref name="count"/> units the colony can pay for.</summary>
     public double Supplies(long count)
     {
+        if (!CanPurchase) return 0;
         if (count > Authorized) return 0;
         var chance = 0.0;
         foreach (var kind in Kinds)

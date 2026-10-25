@@ -4490,7 +4490,9 @@ public sealed record Trader
     public required int GoodsStacks { get; init; }
 }
 
-public sealed record TradeVisit(PawnId Negotiator, Cell Location,
+/// <summary>A dated current opportunity. AvailableTicks is the native remaining stationary visit/ship timer;
+/// opening must finish strictly before it. Departing or conditionally paused caravan states supply no visit.</summary>
+public sealed record TradeVisit(PawnId Negotiator, Cell Location, int AvailableTicks,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<SettlementStockItem>))] EquatableArray<SettlementStockItem> Stock);
 
 /// <summary>

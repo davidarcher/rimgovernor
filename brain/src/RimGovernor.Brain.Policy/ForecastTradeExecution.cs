@@ -33,6 +33,7 @@ public static class ForecastTradeExecution
         if (selection.Plan is not { } plan) return [];
         var rows = context.TradeWork.Where(w => selection.Selected.Contains(w.Root, StringComparer.Ordinal)
             && plan.Allocations.Any(a => a.Activity == w.Task && a.Pawn == w.Pawn && a.Depart <= 0
+                && (context.Stock.Visits.FirstOrDefault(v => v.Id == w.Root) is not { } visit || a.End < visit.Native.Visit!.AvailableTicks)
                 && plan.Allocations.Where(before => before.Pawn == a.Pawn).OrderBy(before => before.Depart)
                     .ThenBy(before => before.Activity, StringComparer.Ordinal).First().Activity == a.Activity)).ToArray();
         return EquatableArray.From(rows.Where(w => w.Mission is null || w.Mission.Crew.All(p => rows.Any(r => r.Root == w.Root && r.Pawn == p))));

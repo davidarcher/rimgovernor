@@ -31,6 +31,24 @@ the selected participant uses the existing `economy/caravan` Method and `Trade`
 Open action. Shared claim admission reserves that pawn during the native walk or
 comms job. Existing session operations drive the resulting native session.
 
+Each current opportunity carries the native remaining departure ticks. Ships
+read `PassingShip.ticksUntilDeparture`; stationary caravan and visitor lords read
+the active departure transition's sampled `Trigger_TicksPassed.TicksLeft`.
+Vanilla's timer reset on re-entering that toil is therefore observed directly.
+Dismissed, departing, combat-paused and taking-wounded states offer no dated
+opening. Missing lord/timer structure refuses the read rather than supplying an
+unlimited visit. The shared schedule must finish the walk/comms opening before
+departure, including the negotiator's earlier work and availability. Dispatch
+checks the same bound. Current orbital purchases spend today's beacon silver;
+map purchases spend today's map silver, each after the routine reserve and
+shared medicine-first claims.
+
+Held stock contributes only through a selected opening and affordable purchase
+before departure. It cannot satisfy later wants merely because it appeared in
+the census. A selected pre-departure purchase remains available to later wants
+after the seller leaves; shifting the want clock preserves both the purchase
+date and its deadline. No second inventory store or expiry clock is kept.
+
 An optional existing FormCaravanIntent is a read-only packing calculation input:
 the exact crew/cargo are selected using the same native formation calculation.
 The reply contains mass, food/rot and crew-sensitive outbound/home WorldRoutes.

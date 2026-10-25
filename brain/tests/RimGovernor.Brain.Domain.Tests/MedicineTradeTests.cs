@@ -18,9 +18,9 @@ public sealed class MedicineTradeTests
         {
             Id = "arrived", Kind = "medic", FactionId = "ally", Orbital = false, CanTrade = true,
             Travelling = false, GoodsStacks = 2,
-            Visit = new(new("pawn"), new(2, 3), [new(Herbal.Value, 2, 14), new(arm.Value, 1, 20)]),
+            Visit = new(new("pawn"), new(2, 3), 40000, [new(Herbal.Value, 2, 14), new(arm.Value, 1, 20)]),
         };
-        var visits = ForecastTradeVisits.Options([trader], 100);
+        var visits = ForecastTradeVisits.Options([trader], 100, 100);
         var stock = new StockArrival { Medicines = [Herbal, Industrial], Visits = visits,
             Trade = EquatableArray.From(visits.SelectMany(v => v.Sources)) };
         var claimed = stock.WithMedicineClaim(ItemFactsFixtureRules.CoreItemFacts(),

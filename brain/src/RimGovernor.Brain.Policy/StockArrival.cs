@@ -96,6 +96,7 @@ public sealed record StockArrival
         Trade = EquatableArray.From(Trade.Select(s => s with
         {
             From = s.From - day,
+            PurchaseUntil = s.PurchaseUntil - day,
             Timing = s.Timing is IncidentTiming.Scheduled timed ? timed with { OriginDay = timed.OriginDay + day } : s.Timing,
         })),
     };

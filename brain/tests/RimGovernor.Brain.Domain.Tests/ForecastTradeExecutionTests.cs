@@ -113,17 +113,31 @@ public sealed class ForecastTradeExecutionTests
         Assert.Equal(1, mission.HomeTile);
     }
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void FreshColonyGeneratedExternalRootSurvivesTheProductionForecastAndClaimAdmission(bool settlement)
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void FreshColonyGeneratedExternalRootSurvivesTheProductionForecastAndClaimAdmission(int channel)
     {
+        var settlement = channel == 1;
+        var present = channel >= 2;
         var ct = TestContext.Current.CancellationToken;
         var request = Request();
         Assert.True(CaravanDeparture.TryCreate([new("pawn")], [new("Silver", 800)], 2, out var departure));
         var option = Assert.IsType<ForecastSettlementMission>(ForecastSettlementMissions.Option(
             ForecastTradeRequestTests.Catalog(Arm), ForecastSettlementMissionTests.Destination(),
             ForecastSettlementMissionTests.Pack(), ["pawn"], 800)) with { Departure = departure, HomeTile = 1 };
-        var stock = new StockArrival { Requests = settlement ? [] : [request], Missions = settlement ? [option] : [] };
+        var census = new TradersSnapshot
+        {
+            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(),
+                Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Negotiators = [new("pawn")],
+            Traders = [new() { Id = "actual", Orbital = channel == 3, Kind = "exotic", FactionId = "ally",
+                CanTrade = true, Travelling = false, GoodsStacks = 1,
+                Visit = new(new("pawn"), request.Native.ConsoleCell, 40000, [new(Arm.Value, 1, 100)]) }],
+        };
+        var stock = new StockArrival { Requests = settlement || present ? [] : [request], Missions = settlement ? [option] : [],
+            Visits = present ? ForecastTradeVisits.Options(RimGovernor.Brain.Bridge.FrameReads.FrameTraders(census), 800, 800) : [] };
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: GameTime.TicksPerDay);
         facts = facts with { StockArrival = stock, ForecastObserved = facts.ForecastObserved with
         {
@@ -131,7 +145,7 @@ public sealed class ForecastTradeExecutionTests
                 [new("pawn", default, request.Native.ConsoleCell, new RouteTicks.Reachable(0)) { FromStart = true }] },
         } };
         var candidates = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
-        var root = Assert.Single(candidates.Alternatives, c => settlement ? c.TradeMission.Length != 0 : c.TradeRequest.Length != 0);
+        var root = Assert.Single(candidates.Alternatives, c => present ? c.TradeVisit.Length != 0 : settlement ? c.TradeMission.Length != 0 : c.TradeRequest.Length != 0);
         var loss = RaidPartLossTests.ArmLoss();
         var pawn = ForecastValueTests.HarmPawn() with { PartLoss = loss with
         { Replacements = EquatableArray.From(loss.Replacements.Select(r => r with { PartThing = Arm.Value, PartOnMap = false, MedicineOnMap = true })) } };
@@ -168,6 +182,12 @@ public sealed class ForecastTradeExecutionTests
                 [DomainAction.NewCaravanDepartureAction(new("departure"), mission.Departure())]), record.With(id.Value, mission), ct);
             Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, admitted.Outcome);
             Assert.Equal(TradeMissionPhase.Departing, Assert.Single(journal.LoadTradeMissions(record.World, ct).Missions).Mission.Phase);
+        }
+        else if (present)
+        {
+            var admitted = journal.CommitClaimedMethod(EconomyFamily.Caravan, world, new("selected"), "", new(id, new(1),
+                [DomainAction.NewTradeAction(new("open"), Assert.IsType<Trade>(work.Action))]), ct);
+            Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, admitted.Outcome);
         }
         else
         {
@@ -210,9 +230,9 @@ public sealed class ForecastTradeExecutionTests
     {
         var trader = new Trader { Id = "actual-arrival", Kind = "exotic", FactionId = "ally", Orbital = false,
             CanTrade = true, Travelling = false, GoodsStacks = 2,
-            Visit = new(new("pawn"), new(5, 6), [new("Arm", 1, 700), new("Medicine", 2, 100)]) };
+            Visit = new(new("pawn"), new(5, 6), 40000, [new("Arm", 1, 700), new("Medicine", 2, 100)]) };
         var other = trader with { Id = "same-faction-other-trader", Visit = trader.Visit! with { Stock = [new("unneeded", 1, 1)] } };
-        var visits = ForecastTradeVisits.Options([other, trader], 800);
+        var visits = ForecastTradeVisits.Options([other, trader], 800, 800);
         var visit = Assert.Single(visits, v => v.Native.Id == trader.Id);
         Assert.Same(trader, visit.Native);
         Assert.NotEqual(visits[0].Id, visits[1].Id);

@@ -78,9 +78,10 @@ public static class ForecastTradeRequests
     /// consumes medicine, silver and the outcome's waits on a live sheet; stock randomness remains in TradeSource.</summary>
     public static EquatableArray<StockPurchase> Authorize(StockArrival stock, IReadOnlyList<StockNeed> needs)
     {
-        var offers = stock.Trade.GroupBy(s => s.Resource).Select(g => new StockPurchaseOffer(g.Key.Value, g.Key, long.MaxValue,
+        var available = stock.Trade.Where(s => s.CanPurchase).ToArray();
+        var offers = available.GroupBy(s => s.Resource).Select(g => new StockPurchaseOffer(g.Key.Value, g.Key, long.MaxValue,
             g.SelectMany(s => s.Kinds.Select(k => TradeSource.UnitPrice(k.Offer.UnitValue, s.PriceFactor))).Max(), 0)).ToArray();
-        return TradeStockPurchases.Plan(needs, stock.Medicines, offers, stock.Trade.Select(s => s.Silver).DefaultIfEmpty(0).Max());
+        return TradeStockPurchases.Plan(needs, stock.Medicines, offers, available.Select(s => s.Silver).DefaultIfEmpty(0).Max());
     }
 
     internal static ForecastCoupledContext Context(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> chosen,
