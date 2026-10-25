@@ -29,17 +29,17 @@ public sealed record InjectedProgress(string Node, double Work);
 /// <summary>The tier-2 engine's constants and hooks (#3529 of #3470).</summary>
 public sealed record ColonyModelPolicy
 {
+    public const double DefaultHorizonDays = CalendarRules.YearDays;
     /// <summary>The simulated span in days: one game year.</summary>
-    public double HorizonDays { get; init; } = CalendarRules.YearDays;
+    public double HorizonDays { get; init; } = DefaultHorizonDays;
 
     /// <summary>The event budget; a run that reaches it is truncated. Events are counted, never timed.</summary>
     public int MaxEvents { get; init; } = 4_096;
 
     /// <summary>
     /// Medicine tended a day: the treatments the harm model's raid wounds and illnesses imply (<see cref="ColonyValue.TreatmentsPerDay"/>, #3634, #3829).
-    /// Unknown leaves medicine unconsumed by tending and is reported, never defaulted.
     /// </summary>
-    public Fact<double> MedicineTendsPerDay { get; init; }
+    public required double MedicineTendsPerDay { get; init; }
 
     /// <summary>
     /// The medicine the colony crafts toward its stock target (#3868, <see cref="StockArrival.MedicineCraft"/>): below the target it

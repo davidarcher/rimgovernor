@@ -19,7 +19,7 @@ public sealed class ForecastHandoffTests
             Stocks = new() { Nutrition = 5d, Materials = stock, Medicine = [new(Medicine, 3)] },
             Pawns = [],
         };
-        var policy = new ColonyModelPolicy { Projects = new() { Nodes = [new() { Id = ProjectGraph.ResearchId(new("Research")), Kind = ProjectKind.Research, Work = 100 }] } };
+        var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0, Projects = new() { Nodes = [new() { Id = ProjectGraph.ResearchId(new("Research")), Kind = ProjectKind.Research, Work = 100 }] } };
         var evidence = new WorkAdmissionEvidence { Stock = stock, Standing = new([], new Dictionary<Resource, long>()),
             Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
         return new() { Origin = new(0), HorizonDays = 1,

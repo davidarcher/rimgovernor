@@ -1,5 +1,3 @@
-using static RimGovernor.Brain.Domain.Fact;
-
 namespace RimGovernor.Brain.Policy;
 
 // The tier-2 colony model's engine (#3529 of #3470): an event-driven stock-flow simulation. Stocks move at piecewise-constant
@@ -37,8 +35,7 @@ public static class ColonyModel
         var otherNutrition = input.OtherNutritionPerDay;
         if (!double.IsFinite(otherNutrition) || otherNutrition < 0)
         {
-            findings.Add("colony_model_input_invalid");
-            return new ColonyTrajectory { Findings = EquatableArray.From(findings) };
+            throw new RequiredFactException("colony model other nutrition demand");
         }
 
         if (start.Gap(policy.Projects) is { } stateGap)
@@ -98,7 +95,7 @@ public static class ColonyModel
             }
             else
             {
-                findings.Add($"food_fall_unknown:{pawns[i].Pawn}");
+                throw new RequiredFactException($"food fall:{pawns[i].Pawn}");
             }
         }
 
@@ -110,20 +107,14 @@ public static class ColonyModel
         }
 
         net[(int)ModelStock.Nutrition] -= consumption;
-        if (policy.MedicineTendsPerDay.TryGetValue(out var tends))
-        {
-            net[(int)ModelStock.Medicine] -= tends;
-        }
-        else
-        {
-            findings.Add("medicine_tend_rate_unknown");
-        }
+        DomainException.Require(double.IsFinite(policy.MedicineTendsPerDay) && policy.MedicineTendsPerDay >= 0, "invalid medicine tend rate");
+        net[(int)ModelStock.Medicine] -= policy.MedicineTendsPerDay;
 
         var medicineBase = net[(int)ModelStock.Medicine];
 
         var calendar = input.Calendar;
-        var calendarKnown = calendar.Valid() && calendar.GrowingYear.Count == CalendarRules.YearDays;
-        if (!calendarKnown) findings.Add("food_lead_unknown");
+        if (!calendar.Valid() || calendar.GrowingYear.Count != CalendarRules.YearDays)
+            throw new RequiredFactException("colony model growing year");
         var graph = new ProjectRun(input, start, [.. pawns], cycles, policy.Projects, policy.Injected, start.EndDay, findings);
         var scheduled = policy.Scheduled.Where(e => start.Day == 0 ? e.Day >= 0 : e.Day > start.Day).OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
         var starved = new List<StarvationSpan>();
@@ -261,7 +252,7 @@ public static class ColonyModel
 
             // Stocks and the seasonal reserve both move. Scan its native daily segments up to the next
             // physical event, including phase-in knees; a restart uses the same review-relative calendar.
-            if (runway is null && calendarKnown && CalendarRunway.Crossing(calendar, now, when,
+            if (runway is null && CalendarRunway.Crossing(calendar, now, when,
                 levels[(int)ModelStock.Nutrition], net[(int)ModelStock.Nutrition], consumption) is { } crossing)
             {
                 Consider(crossing, ModelEventKind.FoodRunway, "");
@@ -377,7 +368,7 @@ public static class ColonyModel
             Skills = graph.Skills,
             MedicineKinds = EquatableArray.From(kinds),
             StartMedicine = startMedicine,
-            FoodRunwayDay = runway,
+            FoodRunwayDay = runway is { } runwayDay ? new ModelEventTime.AtDay(runwayDay) : new ModelEventTime.NotReached(),
             Findings = EquatableArray.From(findings),
         };
     }

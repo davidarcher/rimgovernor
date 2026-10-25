@@ -448,7 +448,7 @@ internal sealed partial class Clusterer
         double wall, double door, double wallWork, double doorWork, int builders, double floor)
     {
         private readonly Dictionary<int, double> _heat = [];
-        private readonly double _horizon = new ColonyModelPolicy().HorizonDays;
+        private readonly double _horizon = ColonyModelPolicy.DefaultHorizonDays;
 
         /// <summary>
         /// The pool's value less its rooms' cost: a barracks of k beds in the block barracks (a bedroom when k is 1) and

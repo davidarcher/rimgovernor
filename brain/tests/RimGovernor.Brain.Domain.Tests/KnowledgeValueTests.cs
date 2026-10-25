@@ -33,9 +33,9 @@ public sealed class KnowledgeValueTests
     private sealed class Completion(string node) : ITrajectoryValue
     {
         public ColonyValueResult Price(ColonyTrajectory trajectory) =>
-            new(Known(trajectory.Events.Any(e => e.Kind == ModelEventKind.ProjectCompletion && e.Id == node) ? Worth : 0), []);
+            new(trajectory.Events.Any(e => e.Kind == ModelEventKind.ProjectCompletion && e.Id == node) ? Worth : 0, []);
 
-        public double GoalValue(GoalTerminal goal, double? completionDay) => 0;
+        public double GoalValue(GoalTerminal goal, ModelEventTime completionDay) => 0;
 
         public bool Reads(SkillTrack track) => false;
     }
@@ -47,7 +47,7 @@ public sealed class KnowledgeValueTests
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
         var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Research;
         var input = ProjectGraphTests.Colony() with { Research = research };
-        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat) };
+        var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat) };
         return (input, ProjectMarginalValue.Of(input, policy, new Completion(ProjectGraph.ResearchId(new ResearchProjectId(Bioferrite)))));
     }
 
@@ -73,7 +73,7 @@ public sealed class KnowledgeValueTests
         // The node is the 3 knowledge points still to give (4 less the quarter given), and no researcher works it: study alone gives them.
         var node = Assert.Single(ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat).Nodes, n => n.Kind == ProjectKind.Knowledge);
         Assert.Equal(3, node.Work, 9);
-        Assert.Equal(0, marginals.Value.Value);
+        Assert.Equal(0, marginals.Value);
         Assert.DoesNotContain(marginals.Trajectory.Events, e => e.Id == node.Id);
         // Finishing it now is worth Worth, so each of its 3 points is worth a third of that, in both categories.
         Assert.Equal(Worth / 3, marginals.PerUnit[ProjectGraph.KnowledgeKey(Basic)], 9);
@@ -133,7 +133,7 @@ public sealed class KnowledgeValueTests
         var pawn = ForecastValueTests.HarmPawn() with { Pawn = "Anna" };
         var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), new Dictionary<string, EquatableArray<GearOption>>(StringComparer.Ordinal) { ["Anna"] = worn })
             with { Needs = NeedsFixtures.Empty with { Pawns = [pawn] } };
-        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, options, ColonyModelFixtures.NoThreat) };
+        var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = ProjectGraph.Standing(input, options, ColonyModelFixtures.NoThreat) };
         return ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, CalendarRules.YearDays, default, new ItemFacts()));
     }
 

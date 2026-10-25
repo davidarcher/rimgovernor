@@ -61,14 +61,14 @@ public sealed class MedicineValueTests
         Illness = new() { Assessed = true, Comps = [(0, perDay)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, Flu)] },
     };
 
-    internal static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = Known(tends) };
+    internal static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = tends };
 
     private static double Priced(ColonyModelInput input, HarmInputs? harm = null, double tends = 0)
     {
         var trajectory = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], Policy(tends));
         var result = Value(input, harm).Price(trajectory);
         Assert.Empty(result.Unpriced);
-        return result.Value.Value;
+        return result.Value;
     }
 
     private static ProjectMarginals Marginals(ColonyModelInput input, HarmInputs? harm = null, double tends = 0) =>
@@ -268,7 +268,7 @@ public sealed class MedicineValueTests
         var flu = IllnessForecast.Of(Sick(0.1).Illness, Anna, ForecastValueTests.HarmTables(), new HarmConsequences.Care(true, 0.8, 0, 1), 1,
             new ForecastValuePolicy(), CalendarRules.YearDays * GameTime.TicksPerDay, new StockArrival());
         Assert.True(flu.Treatments > 0);
-        Assert.Equal(raids.Value + (0.1 * flu.Treatments), sick.Value, 9);
+        Assert.Equal(raids + (0.1 * flu.Treatments), sick, 9);
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public sealed class MedicineValueTests
         var sick = Marginals(input, ForecastValueTests.RaidDay() with { Illness = illness });
 
         Assert.True(sick.PerUnit[Key] > Marginals(input).PerUnit[Key], string.Join(',', sick.Findings));
-        Assert.True(Value(input, ForecastValueTests.RaidDay() with { Illness = illness }).TreatmentsPerDay(input).Value > Value(input).TreatmentsPerDay(input).Value);
+        Assert.True(Value(input, ForecastValueTests.RaidDay() with { Illness = illness }).TreatmentsPerDay(input) > Value(input).TreatmentsPerDay(input));
     }
 
     [Fact]
@@ -316,7 +316,7 @@ public sealed class MedicineValueTests
         Assert.Contains($"{RaidExposure.CellUncalibrated}:1-2/{ExposureRoles.Noncombatant}", cell.Findings);
         Assert.DoesNotContain(Key, cell.PerUnit.Keys);
         Assert.DoesNotContain(ProjectGraph.MedicineKey(new Resource(Industrial)), cell.PerUnit.Keys);
-        Assert.True(cell.Value.IsKnown);
+        Assert.True(double.IsFinite(cell.Value));
 
         var unqualified = Marginals(Colony(3, 100_000, curve: false));
 

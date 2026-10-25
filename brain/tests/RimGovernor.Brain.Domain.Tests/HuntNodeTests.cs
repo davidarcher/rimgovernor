@@ -55,7 +55,7 @@ public sealed class HuntNodeTests
 
         // Five deer at the hunt planner's 7,500 pursuit ticks each, worked by Bo alone in the daylight hours of twelfth 4.
         var bo = PawnCycle.Year(input, input.Pawns[1]).ToArray()[4];
-        var arrival = 5 * FoodPlanRules.FoodHuntWorkTicks / (bo.OutdoorHours.Value * GameTime.TicksPerHour);
+        var arrival = 5 * FoodPlanRules.FoodHuntWorkTicks / (Assert.IsType<PawnCycle.Scheduled>(bo).OutdoorHours * GameTime.TicksPerHour);
         var hunted = trajectory.Events.Single(e => e.Id == node.Id);
         Assert.Equal(ModelEventKind.ProjectCompletion, hunted.Kind);
         Assert.Equal(arrival, hunted.Day, 6);

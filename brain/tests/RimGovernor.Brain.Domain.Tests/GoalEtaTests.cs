@@ -41,7 +41,7 @@ public sealed class GoalEtaTests
     };
 
     private static ProjectMarginals Run(ColonyModelInput input, GoalPath path) => ProjectMarginalValue.Of(
-        input, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = path.Graph },
+        input, new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = path.Graph },
         new ColonyValue(Context(), [BillDuster()], CalendarRules.YearDays, default, new ItemFacts()), [path.Terminal!]);
 
     // The completion day of the ProjectGraphTests hand calculation: 600 research points left, 12 cells of 400 sow work, growth to 0.65 of
@@ -62,6 +62,20 @@ public sealed class GoalEtaTests
     private static GoalPath DevilstrandPath(ColonyModelInput input, GoalRecord? goal = null) => GoalPaths.Of(goal ?? Worn(), Facts(goal ?? Worn()), input);
 
     [Fact]
+    public void GoalNotCompletedInTheRunHasNoCompletionDate()
+    {
+        var input = ProjectGraphTests.Colony();
+        var path = DevilstrandPath(input);
+        var value = new ColonyValue(Context(), [BillDuster()], 1, default, new ItemFacts());
+        var marginals = ProjectMarginalValue.Of(input,
+            new ColonyModelPolicy { MedicineTendsPerDay = 0, HorizonDays = 1, Projects = path.Graph }, value, [path.Terminal!]);
+        var projection = marginals.Goals[path.Terminal!.Goal];
+        Assert.IsType<ModelEventTime.NotReached>(projection.CompletionDay);
+        Assert.False(projection.Priced);
+        Assert.Equal(0, value.GoalValue(path.Terminal, projection.CompletionDay));
+    }
+
+    [Fact]
     public void ADevilstrandDusterGoalReportsTheDayTheTailoringFinishesAfterResearchSowingAndGrowth()
     {
         var input = ProjectGraphTests.Colony();
@@ -74,8 +88,8 @@ public sealed class GoalEtaTests
         var marginals = Run(input, path);
         var projection = marginals.Goals[path.Terminal.Goal];
 
-        Assert.Equal(WorkedTableCraftDay(), projection.CompletionDay!.Value, 6);
-        Assert.InRange(projection.CompletionDay.Value, 29, 31);
+        Assert.Equal(WorkedTableCraftDay(), Assert.IsType<ModelEventTime.AtDay>(projection.CompletionDay).Day, 6);
+        Assert.InRange(Assert.IsType<ModelEventTime.AtDay>(projection.CompletionDay).Day, 29, 31);
         Assert.True(projection.Priced);
     }
 

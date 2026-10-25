@@ -30,14 +30,16 @@ public sealed class ColonyCalendarContinuationTests
         Stocks = new ModelStocks { Nutrition = nutrition, Materials = EquatableArray.From<Amount>([]), Medicine = EquatableArray.From<Amount>([]) },
     };
 
-    private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle
+    private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle.Scheduled
     {
-        Pawn = "Anna", Twelfth = t, IndoorHours = Known(0d), OutdoorHours = Known(0d),
+        Pawn = "Anna", Twelfth = t, IndoorHours = 0d, OutdoorHours = 0d,
+        SleepHours = 24, EatingHours = 0, RecreationHours = 0, DaylightHours = 0, FreeHours = 0,
+        OutdoorThermal = new(0, 0, 20, 20, 16, 26),
     }).ToArray()];
 
     private static ColonyModelPolicy Policy(double production, double end = 60) => new()
     {
-        HorizonDays = end, MedicineTendsPerDay = Known(0d), FixedProduction = EquatableArray.From(new[] { production }),
+        HorizonDays = end, MedicineTendsPerDay = 0d, FixedProduction = EquatableArray.From(new[] { production }),
     };
 
     [Theory]
@@ -54,8 +56,8 @@ public sealed class ColonyCalendarContinuationTests
         var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
         // Twenty stored days meet the rising 23-day winter reserve after 5.021739 days.
         var expected = 9 - 30.5 * (1 - 20d / 23);
-        Assert.Equal(expected, whole.FoodRunwayDay!.Value, 9);
-        Assert.Equal(expected, resumed.FoodRunwayDay!.Value, 9);
+        Assert.Equal(expected, Assert.IsType<ModelEventTime.AtDay>(whole.FoodRunwayDay).Day, 9);
+        Assert.Equal(expected, Assert.IsType<ModelEventTime.AtDay>(resumed.FoodRunwayDay).Day, 9);
         Assert.Equal(whole.Events.Where(e => e.Day > cut), resumed.Events);
         Assert.Equal(60, resumed.Events[^1].Day);
     }
@@ -70,8 +72,8 @@ public sealed class ColonyCalendarContinuationTests
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = 24 - 2 * cut };
         var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
-        Assert.Equal(1, whole.FoodRunwayDay!.Value, 9);
-        Assert.Equal(whole.FoodRunwayDay!.Value, resumed.FoodRunwayDay!.Value, 9);
+        Assert.Equal(1, Assert.IsType<ModelEventTime.AtDay>(whole.FoodRunwayDay).Day, 9);
+        Assert.Equal(Assert.IsType<ModelEventTime.AtDay>(whole.FoodRunwayDay).Day, Assert.IsType<ModelEventTime.AtDay>(resumed.FoodRunwayDay).Day, 9);
         var expected = whole.Events.Where(e => e.Day > cut).ToArray();
         Assert.Equal(expected.Length, resumed.Events.Count);
         foreach (var pair in expected.Zip(resumed.Events))
@@ -95,8 +97,8 @@ public sealed class ColonyCalendarContinuationTests
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = 45 - .3 * cut };
         var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
-        Assert.InRange(whole.FoodRunwayDay!.Value, 60.5, 95);
-        Assert.Equal(whole.FoodRunwayDay.Value, resumed.FoodRunwayDay!.Value, 9);
+        Assert.InRange(Assert.IsType<ModelEventTime.AtDay>(whole.FoodRunwayDay).Day, 60.5, 95);
+        Assert.Equal(Assert.IsType<ModelEventTime.AtDay>(whole.FoodRunwayDay).Day, Assert.IsType<ModelEventTime.AtDay>(resumed.FoodRunwayDay).Day, 9);
         var expected = whole.Events.Where(e => e.Day > cut).ToArray();
         Assert.Equal(expected.Select(e => (e.Kind, e.Id)), resumed.Events.Select(e => (e.Kind, e.Id)));
         foreach (var pair in expected.Zip(resumed.Events))
@@ -123,7 +125,7 @@ public sealed class ColonyCalendarContinuationTests
         var policy = Policy(1);
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 20 }, Cycles(), policy);
-        Assert.InRange(whole.FoodRunwayDay!.Value, 20, 30);
+        Assert.InRange(Assert.IsType<ModelEventTime.AtDay>(whole.FoodRunwayDay).Day, 20, 30);
         Assert.Equal(whole.FoodRunwayDay, resumed.FoodRunwayDay);
     }
 
@@ -133,18 +135,15 @@ public sealed class ColonyCalendarContinuationTests
         var input = Input(Enumerable.Range(0, 60).Select(d => d < 50).ToArray(), 1);
         var policy = Policy(1);
         var run = ColonyModel.Run(input, Cycles(), policy);
-        Assert.Equal(28.5 + 20.5 / 13, run.FoodRunwayDay!.Value, 9);
+        Assert.Equal(28.5 + 20.5 / 13, Assert.IsType<ModelEventTime.AtDay>(run.FoodRunwayDay).Day, 9);
         var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 28.5 }, Cycles(), policy);
-        Assert.Equal(run.FoodRunwayDay!.Value, resumed.FoodRunwayDay!.Value, 9);
+        Assert.Equal(Assert.IsType<ModelEventTime.AtDay>(run.FoodRunwayDay).Day, Assert.IsType<ModelEventTime.AtDay>(resumed.FoodRunwayDay).Day, 9);
     }
 
     [Fact]
-    public void MissingAnnualReadIsUnknownRatherThanAnOriginBasedCrossing()
+    public void MissingAnnualReadFails()
     {
         var input = Input([], 20);
-        Assert.Contains(input.Gaps(), gap => gap.Contains("daily growing year", StringComparison.Ordinal));
-        var run = ColonyModel.Run(input, Cycles(), Policy(0));
-        Assert.Contains("food_lead_unknown", run.Findings);
-        Assert.Null(run.FoodRunwayDay);
+        Assert.Equal("colony model growing year", Assert.Throws<RequiredFactException>(() => ColonyModel.Run(input, Cycles(), Policy(0))).Fact);
     }
 }

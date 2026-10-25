@@ -39,7 +39,7 @@ public sealed class SkillStockTests
         return input with { Pawns = EquatableArray.From(new[] { WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), mechanics, others) }) };
     }
 
-    private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = Known(0.0), Projects = graph };
+    private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = 0.0, Projects = graph };
 
     private static SkillStock Stock(SkillLearning mechanics) =>
         SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Medicine", Learning = mechanics } }), Consciousness = 1.0, Moving = 1.0, Manipulation = 1.0, Sight = 1.0, Talking = 1.0, ComfortableMin = 16.0, ComfortableMax = 26.0, ResearchSpeed = 1.0, PlantWorkSpeed = 1.0, Hunts = false }, new SortedSet<string>()).Single();
@@ -59,10 +59,10 @@ public sealed class SkillStockTests
         }
 
 
-        private ColonyValueResult Value(ColonyTrajectory trajectory) => new(Known(trajectory.Skills.Where(t => t.Skill == "Medicine").Sum(t =>
-            (t.StoredLevel * horizon) + t.Dates.Select((d, i) => (d.StoredLevel - (i == 0 ? t.StoredLevel : t.Dates[i - 1].StoredLevel)) * (horizon - d.Day)).Sum())), []);
+        private ColonyValueResult Value(ColonyTrajectory trajectory) => new(trajectory.Skills.Where(t => t.Skill == "Medicine").Sum(t =>
+            (t.StoredLevel * horizon) + t.Dates.Select((d, i) => (d.StoredLevel - (i == 0 ? t.StoredLevel : t.Dates[i - 1].StoredLevel)) * (horizon - d.Day)).Sum()), []);
 
-        public double GoalValue(GoalTerminal goal, double? completionDay) => 0;
+        public double GoalValue(GoalTerminal goal, ModelEventTime completionDay) => 0;
     }
 
     // A value of the medicine left at the horizon, each kind at its own weight.
@@ -71,9 +71,9 @@ public sealed class SkillStockTests
         public bool Reads(SkillTrack track) => false;
 
         public ColonyValueResult Price(ColonyTrajectory trajectory) =>
-            new(Known(trajectory.MedicineKinds.Select((k, i) => weights[k.Value] * trajectory.Events[^1].Medicine[i]).Sum()), []);
+            new(trajectory.MedicineKinds.Select((k, i) => weights[k.Value] * trajectory.Events[^1].Medicine[i]).Sum(), []);
 
-        public double GoalValue(GoalTerminal goal, double? completionDay) => 0;
+        public double GoalValue(GoalTerminal goal, ModelEventTime completionDay) => 0;
     }
 
     [Fact]

@@ -21,14 +21,16 @@ public sealed class ColonyModelContinuationTests
         Stocks = new ModelStocks { Nutrition = 100d, Materials = EquatableArray.From(new[] { new Amount(Steel, 20) }), Medicine = EquatableArray.From<Amount>([]) },
     };
 
-    private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle
+    private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle.Scheduled
     {
-        Pawn = "Anna", Twelfth = t, IndoorHours = Known(t == 0 ? 1d : 2d), OutdoorHours = Known(0d),
+        Pawn = "Anna", Twelfth = t, IndoorHours = t == 0 ? 1d : 2d, OutdoorHours = 0d,
+        SleepHours = t == 0 ? 23 : 22, EatingHours = 0, RecreationHours = 0, DaylightHours = 0, FreeHours = t == 0 ? 1 : 2,
+        OutdoorThermal = new(0, 0, 20, 20, 16, 26),
     }).ToArray()];
 
     private static ColonyModelPolicy Policy() => new()
     {
-        HorizonDays = 8, MedicineTendsPerDay = Known(0d),
+        HorizonDays = 8, MedicineTendsPerDay = 0d,
         Projects = new ProjectGraph { Nodes = EquatableArray.From(new[]
         {
             new ProjectNode { Id = "a", Kind = ProjectKind.Craft, ProductsToStock = true, Work = 6 * Hour, Ingredients = EquatableArray.From(new[] { new Amount(Steel, 5) }) },

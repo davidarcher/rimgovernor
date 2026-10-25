@@ -1387,12 +1387,18 @@ speed of 0, and the research benches are a count that limits the researchers.
 
 **Pawn cycle.** `PawnCycle.Year` derives, per pawn, twelve entries (one per twelfth of the year) of sleep, recreation, eating,
 outdoor-capable and indoor labor hours from the pawn's need rates and the twelfth's daylight, and the skill gates of tasks
-(devilstrand sowing needs Plants 10). Timetables are not modelled.
+(devilstrand sowing needs Plants 10). Timetables are not modelled. Each entry is a scheduled day with measured hours,
+`NoMealService` when a falling food need has no observed meal service, or `Overbooked` when the measured overheads exceed
+24 hours. The latter states supply no modeled labor and are omitted from free-hours valuation. Missing need mechanics
+or seasonal facts raise `RequiredFactException`; they cannot turn into zero work hours.
 
 **Event loop.** `ColonyModel.Run` (`ColonyModel.cs`, `ColonyEvent.cs`, `ColonyTrajectory.cs`) steps stocks at piecewise-constant
 rates and jumps from event to event: a twelfth boundary, a scheduled project completion or harvest, a stock reaching zero, the
 food runway, the horizon. Its cost is the number of events (budget `ColonyModelPolicy.MaxEvents`, 4,096; a run that reaches it
-is `truncated`), never ticks, and the same input gives the same events.
+is `truncated`), never ticks, and the same input gives the same events. Food-runway crossings and goal completion use
+`ModelEventTime.AtDay` or `NotReached`. `NotReached` describes only that run, including a truncated run, and does not
+claim that completion is impossible. The annual growing read and medicine tend rate are required inputs; missing pricing
+facts such as the malnutrition table fail the computation.
 
 **Project graph.** `ProjectGraph.Standing` (`ProjectGraph.cs`, `ProjectNode.cs`, `ProjectRun.cs`, `CropGrowthModel.cs`) builds the
 nodes in labor-priority order: the current research chain, and per standing field with a crop the sow, grow and harvest nodes;

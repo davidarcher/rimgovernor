@@ -48,7 +48,7 @@ public sealed class ColonyModelTests
 
     private static PawnCycle[][] Cycles(ColonyModelInput input) => [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())];
 
-    private static ColonyTrajectory Run(ColonyModelInput input, ColonyModelPolicy? policy = null) => ColonyModel.Run(input, Cycles(input), policy ?? new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0) });
+    private static ColonyTrajectory Run(ColonyModelInput input, ColonyModelPolicy? policy = null) => ColonyModel.Run(input, Cycles(input), policy ?? new ColonyModelPolicy { MedicineTendsPerDay = 0.0 });
 
     private static double Lead(ColonyModelInput input) =>
         CalendarRules.HarvestGapDays(Known(input.Calendar), EquatableArray.From(Array.Empty<DisasterCondition>())).Value;
@@ -59,7 +59,7 @@ public sealed class ColonyModelTests
         var input = Colony(1_000);
         var policy = new ColonyModelPolicy
         {
-            MedicineTendsPerDay = Known(0.1),
+            MedicineTendsPerDay = 0.1,
             FixedProduction = EquatableArray.From(new[] { 2.0, 1.5, 0, 3 }),
             Scheduled = EquatableArray.From(new[] { new ScheduledEffect { Day = 7, Kind = ModelEventKind.Harvest, Id = "h", Stock = ModelStock.Nutrition, Amount = 40 } }),
         };
@@ -90,11 +90,11 @@ public sealed class ColonyModelTests
         ScheduledEffect Effect(ModelEventKind kind, string id) => new() { Day = 7, Kind = kind, Id = id, Stock = ModelStock.Materials, Amount = 1 };
         var effects = new[] { Effect(ModelEventKind.Harvest, "b"), Effect(ModelEventKind.ProjectCompletion, "z"), Effect(ModelEventKind.Harvest, "a") };
 
-        var forward = Run(input, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Scheduled = EquatableArray.From(effects) });
-        var reversed = Run(input, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Scheduled = EquatableArray.From(effects.Reverse()) });
+        var forward = Run(input, new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Scheduled = EquatableArray.From(effects) });
+        var reversed = Run(input, new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Scheduled = EquatableArray.From(effects.Reverse()) });
 
         Assert.Equal(forward, reversed);
-        Assert.Equal(forward, Run(input, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Scheduled = EquatableArray.From(effects) }));
+        Assert.Equal(forward, Run(input, new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Scheduled = EquatableArray.From(effects) }));
         Assert.Equal(["z", "a", "b"], forward.Events.Where(e => e.Day == 7).Select(e => e.Id));
     }
 
@@ -103,7 +103,7 @@ public sealed class ColonyModelTests
     {
         var input = Colony(100);
         var cycles = Cycles(input);
-        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0) };
+        var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0.0 };
         ColonyModel.Run(input, cycles, policy);
 
         var clock = Stopwatch.StartNew();
@@ -125,16 +125,16 @@ public sealed class ColonyModelTests
 
         var trajectory = Run(input);
 
-        Assert.Equal(100 / ColonyConsumption - lead, trajectory.FoodRunwayDay!.Value, 1);
+        Assert.Equal(100 / ColonyConsumption - lead, Assert.IsType<ModelEventTime.AtDay>(trajectory.FoodRunwayDay).Day, 1);
         var runway = trajectory.Events.Single(e => e.Kind == ModelEventKind.FoodRunway);
-        Assert.Equal(trajectory.FoodRunwayDay!.Value, runway.Day, 9);
+        Assert.Equal(Assert.IsType<ModelEventTime.AtDay>(trajectory.FoodRunwayDay).Day, runway.Day, 9);
         Assert.Equal(ColonyConsumption * lead, runway.Levels[(int)ModelStock.Nutrition], 6);
     }
 
     [Fact]
     public void ARunPastTheEventBudgetIsTruncatedWithItsPartialTrajectory()
     {
-        var trajectory = Run(Colony(1_000), new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), MaxEvents = 3 });
+        var trajectory = Run(Colony(1_000), new ColonyModelPolicy { MedicineTendsPerDay = 0.0, MaxEvents = 3 });
 
         Assert.True(trajectory.Truncated);
         Assert.Equal(3, trajectory.Events.Count);
@@ -157,24 +157,17 @@ public sealed class ColonyModelTests
     [Fact]
     public void ProductionAboveConsumptionNeverStarvesOrCrossesTheRunway()
     {
-        var trajectory = Run(Colony(10), new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), FixedProduction = EquatableArray.From(new[] { ColonyConsumption + 1 }) });
+        var trajectory = Run(Colony(10), new ColonyModelPolicy { MedicineTendsPerDay = 0.0, FixedProduction = EquatableArray.From(new[] { ColonyConsumption + 1 }) });
 
         Assert.Empty(trajectory.Starvation);
-        Assert.Null(trajectory.FoodRunwayDay);
+        Assert.IsType<ModelEventTime.NotReached>(trajectory.FoodRunwayDay);
     }
 
     [Fact]
-    public void UnknownRatesAreReportedNeverDefaulted()
+    public void MissingNeedFailsTheRun()
     {
         var input = Colony(100);
         var noFall = input with { Pawns = EquatableArray.From(input.Pawns.Select((p, i) => i == 0 ? p with { Needs = default } : p)) };
-
-        var trajectory = Run(noFall, new ColonyModelPolicy());
-
-        Assert.Contains("medicine_tend_rate_unknown", trajectory.Findings);
-        Assert.Contains("food_fall_unknown:Anna", trajectory.Findings);
-        Assert.Contains(ColonyTrajectory.MoodUnassessedFinding, trajectory.Findings);
-        Assert.Equal(100 / 3.6, trajectory.Events.Single(e => e.Kind == ModelEventKind.StockZero).Day, 9);
+        Assert.Throws<RequiredFactException>(() => Run(noFall));
     }
-
 }

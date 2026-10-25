@@ -11,6 +11,15 @@ namespace RimGovernor.Brain.Domain.Tests;
 // an hour more of the duster's daily harm avoided.
 public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void MissingHungerTableFailsPricing()
+    {
+        var context = Context();
+        var value = new ColonyValue(context with { CapacityPenalties = context.CapacityPenalties with { Malnutrition = new() } },
+            [], CalendarRules.YearDays, default, new ItemFacts());
+        Assert.Equal("capacity penalty table:Malnutrition", Assert.Throws<RequiredFactException>(() => value.Price(new ColonyTrajectory())).Fact);
+    }
+
     private const double Hour = GameTime.TicksPerHour;
 
     // Anna researches and Bo sows and harvests; both craft. A pawn has 14.1 free hours a day, so an hour of work is 1 / 14.1 of a day.
@@ -33,7 +42,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         };
     }
 
-    private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = Known(0.0), Projects = graph };
+    private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = 0.0, Projects = graph };
 
     private static ProjectMarginals Marginals(ColonyModelInput input, ProjectGraph graph, ForecastCoupledContext? context = null) =>
         ProjectMarginalValue.Of(input, Policy(graph), new ColonyValue(context ?? Context(), [BillDuster()], CalendarRules.YearDays, input.Pawns, new ItemFacts()));
@@ -45,12 +54,12 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var marginals = Marginals(input, ProjectGraphTests.Chain(input));
 
         var craft = marginals.Trajectory.Events.Single(e => e.Id == "craft:" + ColonyModelFixtures.Recipe).Day;
-        Assert.True(marginals.Value.IsKnown);
-        Assert.True(marginals.Value.Value > 0);
+        Assert.True(double.IsFinite(marginals.Value));
+        Assert.True(marginals.Value > 0);
         Assert.DoesNotContain(ColonyValue.ApparelHarmUnassessed, marginals.Findings);
         // The chain's value is the duster's harm avoided a day times the days it is worn; an hour of the chain's bottleneck work moves every
         // later completion an hour of that pawn's day earlier, so it is worth that many days of the same daily harm.
-        var perDay = marginals.Value.Value / (CalendarRules.YearDays - craft);
+        var perDay = marginals.Value / (CalendarRules.YearDays - craft);
         var expected = perDay * HourInDays;
         Assert.Equal(expected, marginals.PerHour["research:Devilstrand"], expected * 0.02);
         Assert.Equal(expected, marginals.PerHour["sow:zone1"], expected * 0.02);
@@ -68,7 +77,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var input = ProjectGraphTests.Colony();
         input = input with
         {
-            Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns[0], SkillStockTests.Mechanics(0, 0)), input.Pawns[1] }),
+            Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns[0], SkillStockTests.Mechanics(0, 0), "Plants"), input.Pawns[1] }),
         };
         var marginals = Marginals(input, ProjectGraphTests.Chain(input));
 
@@ -163,10 +172,10 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var starving = ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, new ItemFacts()));
         var fed = ProjectMarginalValue.Of(ProjectGraphTests.Colony(), Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, new ItemFacts()));
 
-        Assert.Equal(0, fed.Value.Value);
+        Assert.Equal(0, fed.Value);
         var died = 2 + (1 / ForecastValue.MalnutritionSeverityPerDay);
         var perPawn = CalendarRules.YearDays - died + context.Value.DeathTerminalValue;
-        Assert.True(starving.Value.Value < -2 * perPawn);
+        Assert.True(starving.Value < -2 * perPawn);
         Assert.Contains(starving.Findings, f => f.StartsWith("lethal_severity_reached:Malnutrition:", StringComparison.Ordinal));
     }
 

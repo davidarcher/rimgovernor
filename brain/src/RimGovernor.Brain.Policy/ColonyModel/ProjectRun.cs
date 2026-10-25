@@ -104,8 +104,16 @@ internal sealed class ProjectRun
         var outdoor = new double[pawns.Length];
         for (var p = 0; p < pawns.Length; p++)
         {
-            indoor[p] = cycles[p][twelfth].IndoorHours.TryGetValue(out var i) ? i : 0;
-            outdoor[p] = cycles[p][twelfth].OutdoorHours.TryGetValue(out var o) ? o : 0;
+            switch (cycles[p][twelfth])
+            {
+                case PawnCycle.Scheduled day:
+                    indoor[p] = day.IndoorHours;
+                    outdoor[p] = day.OutdoorHours;
+                    break;
+                case PawnCycle.NoMealService:
+                case PawnCycle.Overbooked:
+                    break; // This day has no serviceable labor to allocate.
+            }
         }
 
         var byId = nodes.ToDictionary(n => n.Node.Id, StringComparer.Ordinal);
@@ -396,9 +404,13 @@ internal sealed class ProjectRun
 
                 findings.Add($"craft_work_speed_unknown:{pawn.Pawn}:{node.WorkSpeedStat}");
                 return null;
-            default:
+            case ProjectKind.Knowledge:
+            case ProjectKind.Grow:
+            case ProjectKind.Milestone:
                 throw new InvalidOperationException($"a {node.Kind} node takes no labor");
         }
+
+        throw new ArgumentOutOfRangeException(nameof(node), node.Kind, "invalid project kind");
     }
 
     /// <summary>The research benches, one researcher each.</summary>

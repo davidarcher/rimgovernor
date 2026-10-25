@@ -94,7 +94,7 @@ public sealed class ClassroomCreditTests
                 [ProjectGraph.SkillKey("child", "Shooting")] = new(1000, Horizon), [ProjectGraph.SkillKey("other", "Shooting")] = new(1000, Horizon),
                 [ProjectGraph.SkillKey("child", "Construction")] = new(1000, Horizon),
             },
-            ModelBasis = new(Colony(), new()),
+            ModelBasis = new(Colony(), new() { MedicineTendsPerDay = 0 }),
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Classroom },
             RoomCredits = PlannedRoomCredits.Shipped,
             Closures = [new(1, "", [], [], [], PlannedRoomPredictionTests.Closed("1", "", "Classroom", 40d, 3, 9, 0, false) with { Desks = [.. Enumerable.Repeat(new PlannedRoomDesk(1.4), desks)] })],
@@ -103,7 +103,7 @@ public sealed class ClassroomCreditTests
         {
             // The production way (#3822): tier 2 runs over the colony model and hands its marginals and the raise of each stock to the
             // context, as Rounder does; nothing is set by hand.
-            var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0) };
+            var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0.0 };
             var marginals = ProjectMarginalValue.Of(Colony(true), policy, new SkillStockTests.LevelDays(CalendarRules.YearDays));
             context = context with { Investment = marginals.PerUnit, SkillRaises = marginals.SkillRaises, ModelBasis = new(Colony(true), policy) };
         }

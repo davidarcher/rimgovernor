@@ -100,14 +100,10 @@ public sealed class ColonyModelWiringTests
     }
 
     [Fact]
-    public void WhileTheExposureTableIsAPlaceholderTheNodeExistsHarmIsUnassessedAndTheInvestmentIsZero()
+    public void MissingRaidTreatmentFactsFailTheReview()
     {
-        var review = RoundsColonyModel.Review(Frame(), Context(new HarmInputs()), null);
-
-        Assert.True(review.Marginals.Trajectory.Events.Any(e => e.Id == Garment), string.Join(',', review.Marginals.Findings));
-        Assert.Contains(ColonyValue.ApparelHarmUnassessed, review.Marginals.Findings);
-        Assert.Equal(0, review.Marginals.PerHour["research:Devilstrand"]);
-        Assert.Equal(0, review.Marginals.PerUnit["Devilstrand"]);
+        Assert.Equal("raid treatments per day", Assert.Throws<RequiredFactException>(() =>
+            RoundsColonyModel.Review(Frame(), Context(new HarmInputs()), null)).Fact);
     }
 
     [Fact]

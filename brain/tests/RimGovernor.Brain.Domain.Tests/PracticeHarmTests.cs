@@ -46,7 +46,7 @@ public sealed class PracticeHarmTests
 
     private static PracticeTrainees Of(params PracticeTrainee[] trainees) => new(EquatableArray.From(trainees), 0);
 
-    private static ColonyModelPolicy Policy() => new() { MedicineTendsPerDay = Known(0d) };
+    private static ColonyModelPolicy Policy() => new() { MedicineTendsPerDay = 0d };
 
     private static ProjectMarginals Marginals(ColonyValue value) => ProjectMarginalValue.Of(Colony(), Policy(), value);
 
@@ -64,7 +64,7 @@ public sealed class PracticeHarmTests
         {
             Skills = EquatableArray.From(baseline.Skills.Select(t => t.Key == MeleeKey ? t with { Dates = [new SkillLevelDate(0, 4)] } : t)),
         };
-        Assert.Equal((value.Price(raised).Value.Value - value.Price(baseline).Value.Value) / RequiredXp, marginals.PerUnit[MeleeKey], 12);
+        Assert.Equal((value.Price(raised).Value - value.Price(baseline).Value) / RequiredXp, marginals.PerUnit[MeleeKey], 12);
     }
 
     [Fact]

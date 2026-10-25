@@ -73,7 +73,7 @@ public sealed class ProjectGraphTests
     internal static ColonyTrajectory Run(ColonyModelInput input, ProjectGraph graph)
     {
         var cycles = input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
-        return ColonyModel.Run(input, cycles, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = graph });
+        return ColonyModel.Run(input, cycles, new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = graph });
     }
 
     private static ModelEvent At(ColonyTrajectory t, string id) => t.Events.Single(e => e.Id == id);

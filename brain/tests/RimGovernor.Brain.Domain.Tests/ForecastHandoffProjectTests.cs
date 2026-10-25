@@ -26,7 +26,7 @@ public sealed class ForecastHandoffProjectTests
         var end = duration.WorkTicks;
         var plan = new ForecastActivityPlan([new(task.Id, "Bo", 0, 0, 0, end, 0, 0, end, 0, 0) { Learning = duration.Evidence }], end, 0);
         var context = Context(generated.Tasks) with { Bindings = generated.Bindings };
-        var result = ForecastHandoffProjects.Project(new(input, new() { Projects = graph }), context,
+        var result = ForecastHandoffProjects.Project(new(input, new() { MedicineTendsPerDay = 0, Projects = graph }), context,
             new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), new Dictionary<string, double> { [task.Id] = end }, 1, []);
         var sow = result.States[ProjectGraph.SowId("zone1")];
         Assert.True(sow.Remaining > 0);
@@ -41,9 +41,9 @@ public sealed class ForecastHandoffProjectTests
         }
         else Assert.True(result.States[grown[0].Id].Remaining < result.States[grown[1].Id].Remaining);
         Assert.All(grown, g => Assert.True(result.States[g.Id].GrowthInitialized));
-        var state = ColonyModelState.Observed(input, new() { Projects = result.Graph }) with { Day = 1, Projects = EquatableArray.From(result.States.Values) };
+        var state = ColonyModelState.Observed(input, new() { MedicineTendsPerDay = 0, Projects = result.Graph }) with { Day = 1, Projects = EquatableArray.From(result.States.Values) };
         var cycles = input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
-        var continuation = ColonyModel.Run(input, state, cycles, new() { Projects = result.Graph, MedicineTendsPerDay = Known(0d) });
+        var continuation = ColonyModel.Run(input, state, cycles, new() { MedicineTendsPerDay = 0, Projects = result.Graph });
         Assert.False(continuation.Truncated);
         var first = Assert.Single(continuation.Events, e => e.Id == "harvest:zone1/cohort/0");
         var residual = Assert.Single(continuation.Events, e => e.Id == "harvest:zone1/cohort/2");
@@ -65,7 +65,7 @@ public sealed class ForecastHandoffProjectTests
         { Recipe = new("bill", ColonyModelFixtures.Recipe, []) { Unfinished = unfinished ? "native-unfinished-item" : "" } };
         var context = Context([task]) with { Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("craft", "Anna")] = binding } };
         var outcome = new ForecastCoupledOutcome(new([new("craft", "Anna", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0), true, new Dictionary<string, ForecastNeedsResult>(), []);
-        var projected = ForecastHandoffProjects.Project(new(input, new() { Projects = graph }), context, outcome,
+        var projected = ForecastHandoffProjects.Project(new(input, new() { MedicineTendsPerDay = 0, Projects = graph }), context, outcome,
             new Dictionary<string, double> { ["craft"] = 100 }, 1, []);
         Assert.Equal(ModelProjectStatus.Done, projected.States[node.Id].Status);
         Assert.Equal(ModelProjectInputs.Consumed, projected.States[node.Id].Inputs);
@@ -87,7 +87,7 @@ public sealed class ForecastHandoffProjectTests
         var task = new ForecastActivity("harvest", "field", "field", []);
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("harvest", "Bo", [], PawnActivityKind.Work, "plant-7", "Grower", "Harvest", 0, 60000, new(7, 1));
         var context = Context([task]) with { Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("harvest", "Bo")] = binding } };
-        var result = ForecastHandoffProjects.Project(new(input, new() { Projects = graph }), context,
+        var result = ForecastHandoffProjects.Project(new(input, new() { MedicineTendsPerDay = 0, Projects = graph }), context,
             new(new([new("harvest", "Bo", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0), true, new Dictionary<string, ForecastNeedsResult>(), []),
             new Dictionary<string, double> { ["harvest"] = 100 }, 1, []);
         Assert.All(result.Graph.Nodes.Where(n => n.Field == "zone1"), n => Assert.Equal(11, n.Cells));

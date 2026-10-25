@@ -57,7 +57,7 @@ public sealed class GarmentNodeTests
     private static ApparelMade Made(string def, Resource stuff, double day) =>
         new() { Day = day, Node = ProjectGraph.GarmentId(stuff, GearSlot.Outer), Products = [new Amount(new Resource(def), 1)], Ingredients = [new Amount(stuff, 80)] };
 
-    private static double Of(ColonyValue value, params ApparelMade[] made) => value.Price(new ColonyTrajectory { Apparel = EquatableArray.From(made) }).Value.Value;
+    private static double Of(ColonyValue value, params ApparelMade[] made) => value.Price(new ColonyTrajectory { Apparel = EquatableArray.From(made) }).Value;
 
     [Fact]
     public void AGrowingFieldWithNoClothInStockValuesTheClothGarmentOnlyFromItsHarvest()
@@ -79,9 +79,9 @@ public sealed class GarmentNodeTests
         Assert.True(made.Day > harvest.Day);
 
         // The value is a daily gain times the days from the craft: two horizons give the same gain a day.
-        var value = Value([option]).Price(trajectory).Value.Value - Value([option]).Price(new ColonyTrajectory()).Value.Value;
+        var value = Value([option]).Price(trajectory).Value - Value([option]).Price(new ColonyTrajectory()).Value;
         var midway = (made.Day + Horizon) / 2;
-        var shorter = Value([option], midway).Price(trajectory).Value.Value - Value([option], midway).Price(new ColonyTrajectory()).Value.Value;
+        var shorter = Value([option], midway).Price(trajectory).Value - Value([option], midway).Price(new ColonyTrajectory()).Value;
         Assert.True(value > 0);
         Assert.Equal(value / (Horizon - made.Day), shorter / (midway - made.Day), 9);
     }
@@ -106,7 +106,7 @@ public sealed class GarmentNodeTests
         var made = Assert.Single(trajectory.Apparel);
         Assert.Equal(ProjectGraph.GarmentId(Leather, GearSlot.Outer), made.Node);
         Assert.True(made.Day > hunt.Day);
-        Assert.True(Value([option]).Price(trajectory).Value.Value > Value([option]).Price(new ColonyTrajectory()).Value.Value);
+        Assert.True(Value([option]).Price(trajectory).Value > Value([option]).Price(new ColonyTrajectory()).Value);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class GarmentNodeTests
         var option = Bill("Apparel_Duster", Devilstrand, 0.8);
         var recipe = Recipe("Apparel_Duster", Devilstrand, 80);
         ProjectMarginals Marginals(ColonyModelInput input) => ProjectMarginalValue.Of(input,
-            new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat) }, Value([option]));
+            new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat) }, Value([option]));
 
         var bare = Marginals(Colony(8, 0, recipe));
         var stocked = Marginals(Colony(80, 0, recipe));
@@ -162,7 +162,7 @@ public sealed class GarmentNodeTests
         // Without the stock the duster waits on the harvest, so sowing earlier is worth its days; the stock makes it now, and the field adds nothing.
         Assert.True(bare.PerHour["sow:zone1"] > 0);
         Assert.Equal(0, stocked.PerHour["sow:zone1"]);
-        Assert.True(stocked.Value.Value > bare.Value.Value);
+        Assert.True(stocked.Value > bare.Value);
         Assert.True(stocked.Trajectory.Apparel.Single().Day < stocked.Trajectory.Events.Single(e => e.Id == "harvest:zone1").Day);
     }
 

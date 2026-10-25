@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -8,8 +7,8 @@ namespace RimGovernor.Brain.Policy;
 // malnutrition stage table for starvation, the harm model for the apparel the chain makes. Higher is better. The marginal value
 // of a project is the difference of two of these (ProjectMarginalValue), so a part that is unassessed in both runs cancels.
 
-/// <summary>A trajectory's value in capability-days (higher is better), unknown when its hunger cannot be priced, and what was left unassessed.</summary>
-public sealed record ColonyValueResult(Fact<double> Value, EquatableArray<string> Findings)
+/// <summary>A trajectory's value in capability-days (higher is better), and the parts left unassessed.</summary>
+public sealed record ColonyValueResult(double Value, EquatableArray<string> Findings)
 {
     /// <summary>
     /// The <see cref="ProjectMarginals.PerUnit"/> keys (skill stocks, medicine kinds) whose worth this value leaves out (#3635): their
@@ -73,7 +72,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         var hunger = HungerLoss(trajectory, findings);
         var apparel = ApparelGain(trajectory, findings);
         var harm = TendedHarm(trajectory, findings, unpriced);
-        return new(hunger is { } lost ? Known(apparel - lost - (harm ?? 0)) : default, EquatableArray.From(findings)) { Unpriced = EquatableArray.From(unpriced) };
+        return new(apparel - hunger - (harm ?? 0), EquatableArray.From(findings)) { Unpriced = EquatableArray.From(unpriced) };
     }
 
     /// <summary>
@@ -421,35 +420,37 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// (importance, with the deadline's decay) for the part of the horizon it then stands, as the apparel is worth its harm avoided for
     /// the days it is worn. Zero for a goal not completed inside the horizon. Advancing the completion is what an hour of its work earns.
     /// </summary>
-    public double GoalValue(GoalTerminal goal, double? completionDay)
+    public double GoalValue(GoalTerminal goal, ModelEventTime completionDay)
     {
-        if (completionDay is not { } day || day >= horizonDays)
+        switch (completionDay)
         {
-            return 0;
+            case ModelEventTime.NotReached: return 0;
+            case ModelEventTime.AtDay time:
+                if (time.Day >= horizonDays) return 0;
+                var gameDay = ((double)context.Needs.Tick.Value / GameTime.TicksPerDay) + time.Day;
+                return context.Value.GoalWorthOn(goal.Importance, goal.Deadline, gameDay) * (horizonDays - time.Day) / horizonDays;
         }
-
-        var gameDay = ((double)context.Needs.Tick.Value / GameTime.TicksPerDay) + day;
-        return context.Value.GoalWorthOn(goal.Importance, goal.Deadline, gameDay) * (horizonDays - day) / horizonDays;
+        throw new ArgumentOutOfRangeException(nameof(completionDay), completionDay, "undeclared model event time");
     }
 
     /// <summary>
     /// The medicine tending uses up a day (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>): the treatments the harm model's raid
     /// wounds take at each pawn's worn outfit (#3634), and the illness term's tends a day (<see cref="IllnessTerm.TendsPerDay"/>, #3829)
     /// at the tending a wound gets at the start of <paramref name="input"/>'s run (the day-0 tend quality of its skill stocks and
-    /// medicine on hand): TendUtility.DoTend uses up one medicine a treatment and tends a disease alone. Unknown when the raid harm
-    /// model, a doctor's curve or a medicine's potency cannot say; throws a RequiredFactException when the illness term is unassessed.
+    /// medicine on hand): TendUtility.DoTend uses up one medicine a treatment and tends a disease alone. Missing raid harm,
+    /// doctor curves, medicine potency or illness facts raise RequiredFactException.
     /// </summary>
-    public Fact<double> TreatmentsPerDay(ColonyModelInput input)
+    public double TreatmentsPerDay(ColonyModelInput input)
     {
         if (!HarmLedger.TreatmentsPerDay(context, rows).TryGetValue(out var raids))
         {
-            return default;
+            throw new RequiredFactException("raid treatments per day");
         }
 
         // No incident over the horizon takes no tend, whoever would tend it.
         if (context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0)
         {
-            return Known(raids);
+            return raids;
         }
 
         var findings = new SortedSet<string>(StringComparer.Ordinal);
@@ -462,20 +463,19 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         };
         if (TendingNow(start, findings) is not { } tending || HarmAt(tending.Tended ? tending.Quality : -1).Detail?.Illness is not { } illness)
         {
-            return default;
+            throw new RequiredFactException("illness treatments per day");
         }
 
-        return Known(raids + illness.TendsPerDay);
+        return raids + illness.TendsPerDay;
     }
 
-    /// <summary>The colony's capability-days lost to malnutrition over the horizon; null when a table or a pawn's capacities are unobserved.</summary>
-    private double? HungerLoss(ColonyTrajectory trajectory, SortedSet<string> findings)
+    /// <summary>The colony's capability-days lost to malnutrition; a missing table fails the computation.</summary>
+    private double HungerLoss(ColonyTrajectory trajectory, SortedSet<string> findings)
     {
         var tables = context.CapacityPenalties;
         if (!tables.Malnutrition.Valid())
         {
-            findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Malnutrition));
-            return null;
+            throw new RequiredFactException("capacity penalty table:" + nameof(tables.Malnutrition));
         }
 
         var table = tables.Malnutrition;

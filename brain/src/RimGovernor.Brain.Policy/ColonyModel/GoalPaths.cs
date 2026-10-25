@@ -13,8 +13,8 @@ public sealed record GoalPath(ProjectGraph Graph, GoalTerminal? Terminal, string
 /// <summary>What tier 2 says about one modelled goal.</summary>
 public sealed record GoalProjection
 {
-    /// <summary>Days from now the goal's last node completes in the run as it is; null when the run does not complete it inside the horizon.</summary>
-    public double? CompletionDay { get; init; }
+    /// <summary>When the goal's last node completes, or NotReached in this run.</summary>
+    public ModelEventTime CompletionDay { get; init; } = new ModelEventTime.NotReached();
 
     /// <summary>Capability-days a unit of progress on a node adds to the goal (<see cref="ProjectGraph.ProgressKey"/>): the goal's value at its completion day moved earlier by what the unit advances it. Unknown while the run could not be priced.</summary>
     public IReadOnlyDictionary<string, double> PerUnit { get; init; } = new Dictionary<string, double>();
@@ -99,12 +99,19 @@ public static class GoalPaths
             && r.Slots.Count > 0 && r.Slots[0].Any(a => a.Resource == stuff && a.Count > 0));
 
     /// <summary>The path of <paramref name="goal"/>; a kind with no path through the project graph is unmodelled.</summary>
-    public static GoalPath Of(GoalRecord goal, GoalsFacts f, ColonyModelInput input) => goal.Kind switch
+    public static GoalPath Of(GoalRecord goal, GoalsFacts f, ColonyModelInput input)
     {
-        GoalKind.ResearchProject or GoalKind.ResearchTier => Research(goal, f, input),
-        GoalKind.WornCount => Worn(goal, f, input),
-        _ => Unmodelled("no_tier2_path:" + GoalRules.KindSlug(goal.Kind)),
-    };
+        switch (goal.Kind)
+        {
+        case GoalKind.ResearchProject or GoalKind.ResearchTier: return Research(goal, f, input);
+        case GoalKind.WornCount: return Worn(goal, f, input);
+        case GoalKind.StockCount or GoalKind.BuiltCount or GoalKind.Colonists or GoalKind.Animals or GoalKind.RoomRole
+            or GoalKind.PowerSurplus or GoalKind.Precept or GoalKind.Meme or GoalKind.VeneratedAnimal or GoalKind.Believers
+            or GoalKind.NamedPrisoner or GoalKind.NamedQuest or GoalKind.Ritual or GoalKind.Skill or GoalKind.Health
+            or GoalKind.Territory or GoalKind.Ending or GoalKind.Caravan: return Unmodelled("no_tier2_path:" + GoalRules.KindSlug(goal.Kind));
+        }
+        throw new ArgumentOutOfRangeException(nameof(goal), goal.Kind, "undeclared goal kind");
+    }
 
     private static GoalTerminal Terminal(GoalRecord goal, GoalsFacts f, string[] nodes) =>
         new(GoalRules.NeedOf(goal).Value, GoalRules.ImportanceOf(goal), GoalRules.DeadlineOf(goal, f.Themes), EquatableArray.From(nodes));

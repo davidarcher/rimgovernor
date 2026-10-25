@@ -233,7 +233,7 @@ public sealed class PawnValueTests
         Assert.Equal(ColonyModelFixtures.OutdoorShares, joy.OutdoorShares);
         Assert.Equal(0, joy.ShelteredGain);
         var walk = 24 * joy.Fall / (joy.Fall + joy.Gain);
-        Assert.Equal(0.8 * walk, PawnCycle.Of(input, pawn, 6).RecreationHours.Value, 9);
+        Assert.Equal(0.8 * walk, Assert.IsType<PawnCycle.Scheduled>(PawnCycle.Of(input, pawn, 6)).RecreationHours, 9);
         Assert.Contains("joy_unserved:" + pawn.Pawn, PawnCycle.Of(input, pawn, 0).Findings);
         double Free(double share) => PawnCycle.FreeHoursByPawn(input with { Pawns = EquatableArray.From(new[] { pawn with
         {
@@ -305,7 +305,7 @@ public sealed class PawnValueTests
         {
             CoupledAlternatives = coupled with
             {
-                Context = coupled.Context with { ModelBasis = new(input, new()), Bed = new(true, 0), FoodHaul = haul, InvestmentHorizonDays = 30 },
+                Context = coupled.Context with { ModelBasis = new(input, new() { MedicineTendsPerDay = 0 }), Bed = new(true, 0), FoodHaul = haul, InvestmentHorizonDays = 30 },
             },
         };
         return RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());

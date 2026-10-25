@@ -92,7 +92,7 @@ public sealed class PrisonCreditTests
         input = input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = "pawn" })) };
         var context = coupled.Context with
         {
-            ModelBasis = new(input, new()),
+            ModelBasis = new(input, new() { MedicineTendsPerDay = 0 }),
             Joiners = new() { Roots = [.. coupled.Alternatives, .. coupled.Incumbents], Work = facts.WorkSpeeds, Food = facts.FoodWork },
             ColonistThoughts = new Dictionary<string, EquatableArray<MoodThought>>(StringComparer.Ordinal) { ["pawn"] = [] },
             Bed = new(true, 0), FoodHaul = planned ? Legs : null, InvestmentHorizonDays = Horizon,

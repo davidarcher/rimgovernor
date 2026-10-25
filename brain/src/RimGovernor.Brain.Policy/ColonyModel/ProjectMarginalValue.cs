@@ -18,8 +18,8 @@ public interface ITrajectoryValue
 {
     ColonyValueResult Price(ColonyTrajectory trajectory);
 
-    /// <summary>A goal's worth completed on <paramref name="completionDay"/> (null: not inside the horizon).</summary>
-    double GoalValue(GoalTerminal goal, double? completionDay);
+    /// <summary>A goal's worth at its modeled completion time.</summary>
+    double GoalValue(GoalTerminal goal, ModelEventTime completionDay);
 
     /// <summary>
     /// Whether <see cref="Price"/> reads the stock's level (#3664). A stock no price reads is worth 0 per XP by construction, so
@@ -37,8 +37,8 @@ public sealed record ProjectMarginals
     /// <summary>The run as it is.</summary>
     public ColonyTrajectory Trajectory { get; init; } = new();
 
-    /// <summary>The run's value in capability-days; unknown when its hunger could not be priced (then there are no marginals).</summary>
-    public Fact<double> Value { get; init; }
+    /// <summary>The run's value in capability-days; missing required pricing facts fail the computation.</summary>
+    public double Value { get; init; }
 
     /// <summary>The run's gaps, its project graph's and the value's unassessed parts, sorted.</summary>
     public EquatableArray<string> Findings { get; init; }
@@ -88,96 +88,90 @@ public static class ProjectMarginalValue
         var perUnit = new SortedDictionary<string, double>(StringComparer.Ordinal);
         var before = goals.ToDictionary(g => g.Goal, g => CompletionDay(baseline, g), StringComparer.Ordinal);
         var goalUnits = goals.ToDictionary(g => g.Goal, _ => new SortedDictionary<string, double>(StringComparer.Ordinal), StringComparer.Ordinal);
-        var completes = goals.ToDictionary(g => g.Goal, g => before[g.Goal] is not null, StringComparer.Ordinal);
-        if (value.Value.IsKnown || goals.Count > 0)
+        var completes = goals.ToDictionary(g => g.Goal, g => before[g.Goal] is ModelEventTime.AtDay, StringComparer.Ordinal);
+        foreach (var node in policy.Projects.Nodes.Where(n => n.Kind is ProjectKind.Research or ProjectKind.Sow && n.Work > 0))
         {
-            foreach (var node in policy.Projects.Nodes.Where(n => n.Kind is ProjectKind.Research or ProjectKind.Sow && n.Work > 0))
+            // One hour of one pawn at work speed 1: research points for research, work units for sowing.
+            var hour = node.Kind == ProjectKind.Research ? ProjectGraph.ResearchPointsPerWorkTick * GameTime.TicksPerHour : GameTime.TicksPerHour;
+            var units = node.Kind == ProjectKind.Research ? hour : hour * node.Cells / node.Work;
+            var run = ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(node.Id, hour) });
+            var baseValue = value.Value;
+            var after = valuation.Price(run).Value;
             {
-                // One hour of one pawn at work speed 1: research points for research, work units for sowing.
-                var hour = node.Kind == ProjectKind.Research ? ProjectGraph.ResearchPointsPerWorkTick * GameTime.TicksPerHour : GameTime.TicksPerHour;
-                var units = node.Kind == ProjectKind.Research ? hour : hour * node.Cells / node.Work;
-                var run = ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(node.Id, hour) });
-                if (value.Value.TryGetValue(out var baseValue) && valuation.Price(run).Value.TryGetValue(out var after))
-                {
-                    var gain = Math.Abs(after - baseValue) < Negligible ? 0 : after - baseValue;
-                    perHour[node.Id] = gain;
-                    perUnit[ProjectGraph.ProgressKey(node)] = gain / units;
-                }
+                var gain = Math.Abs(after - baseValue) < Negligible ? 0 : after - baseValue;
+                perHour[node.Id] = gain;
+                perUnit[ProjectGraph.ProgressKey(node)] = gain / units;
+            }
 
-                foreach (var goal in goals)
-                {
-                    var day = CompletionDay(run, goal);
-                    completes[goal.Goal] |= day is not null;
-                    var gain = valuation.GoalValue(goal, day) - valuation.GoalValue(goal, before[goal.Goal]);
-                    goalUnits[goal.Goal][ProjectGraph.ProgressKey(node)] = (Math.Abs(gain) < Negligible ? 0 : gain) / units;
-                }
+            foreach (var goal in goals)
+            {
+                var day = CompletionDay(run, goal);
+                completes[goal.Goal] |= day is ModelEventTime.AtDay;
+                var gain = valuation.GoalValue(goal, day) - valuation.GoalValue(goal, before[goal.Goal]);
+                goalUnits[goal.Goal][ProjectGraph.ProgressKey(node)] = (Math.Abs(gain) < Negligible ? 0 : gain) / units;
             }
         }
 
-        if (value.Value.TryGetValue(out var asIs))
+        var asIs = value.Value;
+        // The value a unit of <amount> injected at time zero on the node or stock <node> adds.
+        double Gain(string node, double amount)
         {
-            // The value a unit of <amount> injected at time zero on the node or stock <node> adds; null when that run cannot be priced.
-            double? Gain(string node, double amount) =>
-                valuation.Price(ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(node, amount) })).Value.TryGetValue(out var after)
-                    ? (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount
-                    : null;
+            var after = valuation.Price(ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(node, amount) })).Value;
+            return (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount;
+        }
 
-            // A stock the value cannot price (ColonyValueResult.Unpriced) is left out with its findings: its marginal is not a number.
-            void Perturb(string key, double amount)
+        // A stock the value cannot price (ColonyValueResult.Unpriced) is left out with its findings: its marginal is not a number.
+        void Perturb(string key, double amount)
+        {
+            if (!value.Unpriced.Contains(key))
             {
-                if (!value.Unpriced.Contains(key) && Gain(key, amount) is { } gain)
-                {
-                    perUnit[key] = gain;
-                }
+                perUnit[key] = Gain(key, amount);
+            }
+        }
+
+        // Each pawn's stock of each skill the value reads one level higher, over the XP that level takes; a stock at the top level
+        // gains nothing by XP, nor does a priced stock the value does not read (#3664: its run would change nothing).
+        foreach (var track in baseline.Skills)
+        {
+            if (track.NextLevel is not SkillNextLevel.Takes { Xp: var levelXp })
+            {
+                perUnit[track.Key] = 0;
+            }
+            else if (valuation.Reads(track))
+            {
+                Perturb(track.Key, levelXp);
+            }
+            else if (!value.Unpriced.Contains(track.Key))
+            {
+                perUnit[track.Key] = 0;
+            }
+        }
+
+        foreach (var kind in baseline.MedicineKinds)
+        {
+            Perturb(ProjectGraph.MedicineKey(kind), 1);
+        }
+
+        // Each knowledge category's point (#3843) funds its node (ProjectGraph.Funding). Study is not in the run, so that node completes
+        // only once all its points are given: it is run again with them given now, and a point is worth its share of what finishing the
+        // project now adds. A category that funds no project, or one whose points are all given, is worth nothing a point. Two
+        // categories funding one project (Advanced overflowing into Basic's) share its run.
+        var perPoint = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var funding in policy.Projects.Funding)
+        {
+            var key = ProjectGraph.KnowledgeKey(funding.Category);
+            if (policy.Projects.Nodes.FirstOrDefault(n => n.Kind == ProjectKind.Knowledge && n.Id == funding.Node) is not { Work: > 0 } node)
+            {
+                perUnit[key] = 0;
+                continue;
             }
 
-            // Each pawn's stock of each skill the value reads one level higher, over the XP that level takes; a stock at the top level
-            // gains nothing by XP, nor does a priced stock the value does not read (#3664: its run would change nothing).
-            foreach (var track in baseline.Skills)
+            if (!perPoint.TryGetValue(node.Id, out var point))
             {
-                if (track.NextLevel is not SkillNextLevel.Takes { Xp: var levelXp })
-                {
-                    perUnit[track.Key] = 0;
-                }
-                else if (valuation.Reads(track))
-                {
-                    Perturb(track.Key, levelXp);
-                }
-                else if (!value.Unpriced.Contains(track.Key))
-                {
-                    perUnit[track.Key] = 0;
-                }
+                perPoint[node.Id] = point = Gain(node.Id, node.Work);
             }
 
-            foreach (var kind in baseline.MedicineKinds)
-            {
-                Perturb(ProjectGraph.MedicineKey(kind), 1);
-            }
-
-            // Each knowledge category's point (#3843) funds its node (ProjectGraph.Funding). Study is not in the run, so that node completes
-            // only once all its points are given: it is run again with them given now, and a point is worth its share of what finishing the
-            // project now adds. A category that funds no project, or one whose points are all given, is worth nothing a point. Two
-            // categories funding one project (Advanced overflowing into Basic's) share its run.
-            var perPoint = new Dictionary<string, double?>(StringComparer.Ordinal);
-            foreach (var funding in policy.Projects.Funding)
-            {
-                var key = ProjectGraph.KnowledgeKey(funding.Category);
-                if (policy.Projects.Nodes.FirstOrDefault(n => n.Kind == ProjectKind.Knowledge && n.Id == funding.Node) is not { Work: > 0 } node)
-                {
-                    perUnit[key] = 0;
-                    continue;
-                }
-
-                if (!perPoint.TryGetValue(node.Id, out var point))
-                {
-                    perPoint[node.Id] = point = Gain(node.Id, node.Work);
-                }
-
-                if (point is { } price)
-                {
-                    perUnit[key] = price;
-                }
-            }
+            perUnit[key] = point;
         }
 
         // A goal no run completes inside the horizon cannot be priced by the model: it keeps its flat value.
@@ -201,20 +195,20 @@ public static class ProjectMarginalValue
         return raises;
     }
 
-    /// <summary>The day, from now, the last node of the goal completes in <paramref name="trajectory"/>; null when a node does not.</summary>
-    private static double? CompletionDay(ColonyTrajectory trajectory, GoalTerminal goal)
+    /// <summary>When the last node of the goal completes in this run, or NotReached.</summary>
+    private static ModelEventTime CompletionDay(ColonyTrajectory trajectory, GoalTerminal goal)
     {
         var last = 0.0;
         foreach (var node in goal.Nodes)
         {
             if (trajectory.Events.FirstOrDefault(e => e.Id == node && e.Kind is ModelEventKind.ProjectCompletion or ModelEventKind.Harvest) is not { } done)
             {
-                return null;
+                return new ModelEventTime.NotReached();
             }
 
             last = Math.Max(last, done.Day);
         }
 
-        return last;
+        return new ModelEventTime.AtDay(last);
     }
 }

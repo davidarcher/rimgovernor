@@ -35,14 +35,14 @@ internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyLi
             (ColonyModelTelemetry.FindingsKey, Marginals.Findings.Concat(Unknowns.Select(u => "input:" + u)).ToArray()),
             (ColonyModelTelemetry.ElapsedKey, ElapsedMs),
         };
-        if (trajectory.FoodRunwayDay is { } runway)
+        if (trajectory.FoodRunwayDay is ModelEventTime.AtDay { Day: var runway })
         {
             attrs.Add((ColonyModelTelemetry.RunwayKey, runway));
         }
 
-        if (Marginals.Value.TryGetValue(out var value))
+        if (Unknowns.Count == 0)
         {
-            attrs.Add((ColonyModelTelemetry.ValueKey, value));
+            attrs.Add((ColonyModelTelemetry.ValueKey, Marginals.Value));
         }
 
         if (trajectory.Events.Count > 0)
@@ -85,12 +85,12 @@ internal static class RoundsColonyModel
         var options = colony.Facts.Gear.TryGetValue(out var gear)
             ? gear.Pawns.SelectMany(p => p.Model?.Options ?? []).Where(o => o.Source == GearSource.Bill).Concat(gear.KnowledgeBills).DistinctBy(o => o.ID).ToArray()
             : [];
-        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear?.Threat), (graph, p) => graph.Then(p.Path.Graph)) };
-        var valuation = new ColonyValue(context, options, policy.HorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
+        var valuation = new ColonyValue(context, options, ColonyModelPolicy.DefaultHorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
         // The medicine the colony crafts toward the reserve's stock target (#3868): the best kind a crafter can make.
         var reserve = colony.Facts.MedicalReserve;
-        policy = policy with
+        var policy = new ColonyModelPolicy
         {
+            Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear?.Threat), (graph, p) => graph.Then(p.Path.Graph)),
             MedicineTendsPerDay = valuation.TreatmentsPerDay(input),
             MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Colonists * MedicalReservePolicy.Default().TargetPerColonist),
             MedicineTrade = context.Stock.MedicineTrade,
@@ -104,7 +104,7 @@ internal static class RoundsColonyModel
             {
                 notes.Add($"{goal}=unmodelled:{path.Unmodelled}");
             }
-            else if (marginals.Goals[goal].CompletionDay is { } day)
+            else if (marginals.Goals[goal].CompletionDay is ModelEventTime.AtDay { Day: var day })
             {
                 // The game day, counted the way the deadline is (days passed since the game began).
                 etas[goal] = (int)((context.Needs.Tick.Value + (long)(day * GameTime.TicksPerDay)) / GameTime.TicksPerDay);
@@ -123,7 +123,7 @@ internal static class RoundsColonyModel
 
     /// <summary>The review of a frame that left the input unready: no run, no basis, and the gaps named.</summary>
     private static ColonyModelReview Unready(IReadOnlyList<string> gaps, System.Diagnostics.Stopwatch clock) =>
-        new(new ProjectMarginals { Findings = [UnreadyFinding] }, gaps, new ColonyModelPolicy().HorizonDays,
+        new(new ProjectMarginals { Findings = [UnreadyFinding] }, gaps, ColonyModelPolicy.DefaultHorizonDays,
             clock.Elapsed.TotalMilliseconds, new Dictionary<string, int>(), [], new Dictionary<(PawnId Pawn, GearSlot Slot), Resource>());
 
     /// <summary>

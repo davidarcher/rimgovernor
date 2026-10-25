@@ -59,8 +59,8 @@ public sealed record ColonyTrajectory
     /// <summary>The medicine on hand by kind at time zero, indexed by <see cref="MedicineKinds"/> (a perturbed kind's unit included).</summary>
     public EquatableArray<double> StartMedicine { get; init; }
 
-    /// <summary>The day nutrition falls to the stock that bridges the lead days at the consumption then (stock over consumption, less the lead); null when it does not within the run.</summary>
-    public double? FoodRunwayDay { get; init; }
+    /// <summary>When nutrition falls to the stock that bridges the seasonal lead, or NotReached in this run.</summary>
+    public ModelEventTime FoodRunwayDay { get; init; } = new ModelEventTime.NotReached();
 
     /// <summary>Each gap or limit of the run, one finding each, sorted.</summary>
     public EquatableArray<string> Findings { get; init; }

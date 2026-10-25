@@ -497,7 +497,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 }
             }
         }
-        var horizon = new ColonyModelPolicy().HorizonDays;
+        var horizon = ColonyModelPolicy.DefaultHorizonDays;
         string first = string.Empty, best = string.Empty;
         double firstWork = 0, bestWork = 0, bestPrice = double.PositiveInfinity;
         var priced = true;

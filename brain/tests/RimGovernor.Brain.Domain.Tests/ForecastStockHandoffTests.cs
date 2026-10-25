@@ -31,7 +31,7 @@ public sealed class ForecastStockHandoffTests
         var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(facts.Food, []).Value, Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food).Value, Medicine = [new(Medicine, 5)] }, Pawns = [] };
         return new() { Origin = new(0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
-            Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
+            Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new() { MedicineTendsPerDay = 0 }),
             FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],
             Resources = new(new() { Stock = physical, Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
         } };
@@ -83,7 +83,7 @@ public sealed class ForecastStockHandoffTests
         request = request with { Coupled = request.Coupled! with
         {
             Activities = new() { Deadline = 0, Activities = [task] }, ModelBasis = request.Coupled.ModelBasis! with { Policy = new()
-            { Scheduled = [new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "medicine", Stock = ModelStock.Medicine, Resource = Medicine, Amount = 2 },
+            { MedicineTendsPerDay = 0, Scheduled = [new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "medicine", Stock = ModelStock.Medicine, Resource = Medicine, Amount = 2 },
                 new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "food", Stock = ModelStock.Nutrition, Resource = Meal, Amount = 1 },
                 new() { Day = .5, Kind = ModelEventKind.ProjectCompletion, Id = "research", Stock = ModelStock.ResearchPoints, Amount = 3 }] } }
         } };
@@ -152,7 +152,7 @@ public sealed class ForecastStockHandoffTests
     {
         var request = Request();
         request = request with { Coupled = request.Coupled! with { ModelBasis = request.Coupled.ModelBasis! with { Policy = new()
-        { Scheduled = [new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "arrival", Stock = ModelStock.Nutrition, Amount = 2 }] } } } };
+        { MedicineTendsPerDay = 0, Scheduled = [new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "arrival", Stock = ModelStock.Nutrition, Amount = 2 }] } } } };
         var outcome = Evaluate(request);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);
