@@ -27,7 +27,7 @@ public sealed class SleepingPlannerTests
         Id = id, Definition = new("Bed"), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
     };
 
-    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
+    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = bed };
 
     private static BedroomStep Step(LayoutPlan plan, (RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping, Dictionary<string, RoomTarget>? targets = null) =>
         SleepingRules.NextBedroomStep(plan, RoomFixtures.Census(rooms), sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
@@ -96,7 +96,7 @@ public sealed class SleepingPlannerTests
             Colonists = 1,
             People = [Person(A, "b1")],
             Beds = [Bed("b1", "std", A)],
-            Rooms = Known<EquatableArray<UpkeepRoom>>([Quality("std", 30)]),
+            Rooms = [Quality("std", 30)],
         };
         var greedyTargets = new Dictionary<string, RoomTarget> { ["std"] = Target(50, "greedy", "tier") };
 
@@ -121,7 +121,7 @@ public sealed class SleepingPlannerTests
             Colonists = 1,
             People = [Person(A, "b2")],
             Beds = [Bed("b1", "std"), Bed("b2", "suite", A)],
-            Rooms = Known<EquatableArray<UpkeepRoom>>([Quality("std", 30), Quality("suite", 55)]),
+            Rooms = [Quality("std", 30), Quality("suite", 55)],
         };
         var baron = new Dictionary<string, RoomTarget> { ["suite"] = Target(70, "greedy", "tier", "title") };
         var outgrown = Assert.Single(RoomQualityRules.SuiteClaims(plan, rooms, inSuite, baron, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
@@ -134,7 +134,7 @@ public sealed class SleepingPlannerTests
         var second = Step(replanned, standing, inSuite, baron);
         Assert.Equal((BedroomStepKind.Reconcile, Larger.Id), (second.Kind, second.Room.Id));
         Assert.True(Larger.Region.Area() > Suite.Region.Area());
-        var slept = SleepingRules.SleptBedrooms(replanned, Known(rooms), Known(inSuite));
+        var slept = SleepingRules.SleptBedrooms(replanned, Known(rooms), inSuite);
         Assert.Equal([Suite.Id], slept);
         Assert.Contains(Suite.Id, LayoutPlan.TilePinned(replanned, new RoomGrowth { Fixed = [], Slept = slept }));
 
@@ -281,7 +281,7 @@ public sealed class SleepingPlannerTests
     {
         static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new()
         {
-            Id = id, OwnedBed = Known(bed), ComfortableMin = 6.0, ComfortableMax = 30.0, Partners = [other], BedSharingAllowed = willing,
+            Id = id, OwnedBed = bed, ComfortableMin = 6.0, ComfortableMax = 30.0, Partners = [other], BedSharingAllowed = willing,
         };
         var dbl = new SleepingBed
         {
@@ -290,11 +290,11 @@ public sealed class SleepingPlannerTests
         };
         var sleeping = new SleepingObservation
         {
-            Colonists = 2, People = [Partner(A, B, "double", willing), Partner(B, A, "", willing)], Beds = [dbl], BedBuildable = Known(true),
+            Colonists = 2, People = [Partner(A, B, "double", willing), Partner(B, A, "", willing)], Beds = [dbl], BedBuildable = true,
         };
 
-        var review = SleepingRules.ReviewSleeping(Known(sleeping), new SleepingHistory(), new Tick(600));
-        var choice = SleepingRules.SelectSleepingMethod(new SleepingRequest { Targets = review.Targets, Sleeping = Known(sleeping) });
+        var review = SleepingRules.ReviewSleeping(sleeping, new SleepingHistory(), new Tick(600));
+        var choice = SleepingRules.SelectSleepingMethod(new SleepingRequest { Targets = review.Targets, Sleeping = sleeping, Rooms = Known(RoomFixtures.Census(Array.Empty<RimGovernor.Contracts.Wire.Observations.RoomState>())) });
 
         if (willing)
         {

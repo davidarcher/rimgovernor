@@ -80,7 +80,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
         var stock = facts.Resources.TryGetValue(out var known) ? known : throw new RequiredFactException("resources");
         var rooms = facts.Rooms.TryGetValue(out var room) ? room : throw new RequiredFactException("rooms");
         var census = facts.Facts.CurrentConstruction ?? throw new RequiredFactException("construction census");
-        var obs = facts.Facts.Sleeping.TryGetValue(out var sleeping) ? sleeping : throw new RequiredFactException("sleeping census");
+        var obs = facts.Facts.Sleeping;
         var traits = RoundsSleepingUpkeepPlanner.SleepingTraits(facts) ?? throw new RequiredFactException("sleeping traits");
         facts.TechTier.TryGetValue(out var tier);
         return ArtRules.NewArtDemand(obs, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);

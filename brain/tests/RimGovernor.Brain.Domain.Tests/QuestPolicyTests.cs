@@ -57,10 +57,9 @@ public sealed class QuestPolicyTests
         // Every bed owned (#3749): the joiner sleeps on a stand-in spot and the next replan adds their bed.
         var owned = Calm() with
         {
-            Sleeping = Known(new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Owners = [new PawnId("a")] }] }),
+            Sleeping = new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Owners = [new PawnId("a")] }] },
         };
         Assert.Equal(Known(true), PopulationRules.JoinerCapacity(owned.JoinerCapacity()));
-        Assert.Equal(Known(true), PopulationRules.JoinerCapacity((owned with { Sleeping = Unknown<SleepingObservation>() }).JoinerCapacity()));
     }
 
     private static readonly Pb.QuestObjective Produce = QuestStateTests.Objective(Pb.QuestObjectiveKind.ProduceItem) with

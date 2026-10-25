@@ -8,9 +8,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || !sk || traits is null)
+        if (!rk || census is null || traits is null)
         {
             return Unknown<bool>();
         }
@@ -37,11 +37,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>SaleSculptures over a routine projection and the packed items read; null when a room input is unknown.</summary>
     internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(FacadeNativeClient native, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || census is null || traits is null)
+        if (!rk || census is null || traits is null)
         {
             return null;
         }
@@ -82,11 +82,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || census is null || traits is null)
+        if (!rk || census is null || traits is null)
         {
             return none;
         }

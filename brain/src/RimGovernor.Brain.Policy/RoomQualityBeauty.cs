@@ -179,10 +179,7 @@ public static partial class RoomQualityRules
     internal static List<string> BeautyRooms(SleepingObservation obs, IReadOnlyDictionary<string, RoomTarget> targets)
     {
         var output = new List<string>();
-        if (!obs.Rooms.TryGetValue(out var census))
-        {
-            return output;
-        }
+        var census = obs.Rooms;
         foreach (var r in census)
         {
             var tk = targets.TryGetValue(r.Id, out var t);

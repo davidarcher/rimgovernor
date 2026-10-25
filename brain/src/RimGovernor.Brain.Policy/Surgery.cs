@@ -25,7 +25,7 @@ public static class RoundsFactsSurgeryExtensions
         return new SurgeryContext
         {
             Profiles = profiles,
-            HospitalBed = RoundsRules.Positive(SurgeryRules.HospitalBedReady(f.Sleeping)),
+            HospitalBed = SurgeryRules.HospitalBedReady(f.Sleeping),
             Goals = f.GoalSurgeries.Items,
         };
     }
@@ -246,21 +246,8 @@ public static partial class SurgeryRules
     }
 
     /// <summary>Some humanlike, non-prisoner bed is flagged medical.</summary>
-    public static Fact<bool> HospitalBedReady(Fact<SleepingObservation> sleeping)
-    {
-        if (!sleeping.TryGetValue(out var obs))
-        {
-            return Unknown<bool>();
-        }
-        foreach (var bed in obs.Beds)
-        {
-            if (bed.Medical && bed.Humanlike && !bed.Prisoners)
-            {
-                return Known(true);
-            }
-        }
-        return Known(false);
-    }
+    public static bool HospitalBedReady(SleepingObservation sleeping) =>
+        sleeping.Beds.Any(bed => bed.Medical && bed.Humanlike && !bed.Prisoners);
 
     /// <summary>
     /// Ranks every living patient's served operations. A patient with a queued bill or an open surgery action

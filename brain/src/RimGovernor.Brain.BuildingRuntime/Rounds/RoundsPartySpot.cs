@@ -25,11 +25,11 @@ partial class RoundsBuildingPlanner
 
     internal static PartySpotNeed PartySpotReview(ColonyProjection facts, Func<bool, string, bool>? spent)
     {
-        var sleeping = facts.Facts.Sleeping.TryGetValue(out var read) ? read : throw new RequiredFactException("sleeping census");
+        var sleeping = facts.Facts.Sleeping;
         return PartySpotRules.ReviewPartySpot(new PartySpotInput
         {
             Rooms = facts.Rooms.TryGetValue(out var rooms) ? rooms : throw new RequiredFactException("rooms"),
-            Qualities = sleeping.Rooms.TryGetValue(out var qualities) ? qualities : throw new RequiredFactException("room qualities"),
+            Qualities = sleeping.Rooms,
             Levels = facts.Impressiveness,
             Census = facts.Facts.CurrentConstruction,
             Cells = facts.Cells,

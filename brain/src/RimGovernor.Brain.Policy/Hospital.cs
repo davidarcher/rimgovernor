@@ -35,7 +35,7 @@ public enum HospitalMethod
 public sealed record HospitalRequest
 {
     public Fact<EquatableArray<CarePawn>> Patients { get; init; }
-    public Fact<SleepingObservation> Sleeping { get; init; }
+    public SleepingObservation Sleeping { get; init; } = new();
     public Fact<RoomObservation> Rooms { get; init; }
     public IReadOnlyList<BenchDefinition> Definitions { get; init; } = [];
 
@@ -48,7 +48,6 @@ public sealed record HospitalRequest
     /// </summary>
     public long Colonists { get; init; }
 
-    public Fact<long> HousingTarget { get; init; }
     public long BedCapacity { get; init; }
     public long IndoorCapacity { get; init; }
 
@@ -113,22 +112,18 @@ public static class HospitalRules
     private static bool Eligible(SleepingBed bed, HashSet<string> hosted, bool surgical) =>
         hosted.Contains(bed.Id) && !(surgical && bed.Definition.Value == SleepingRules.SleepingSpotDefinition.ToString()) && bed.Humanlike && !bed.Prisoners;
 
-    /// <summary>The hosted medical beds standing; not ok while the sleeping census is unread.</summary>
-    public static (int Beds, bool Ok) HostedMedicalBeds(RoomObservation rooms, Fact<SleepingObservation> sleeping, bool surgical)
+    /// <summary>The hosted medical beds standing.</summary>
+    public static int HostedMedicalBeds(RoomObservation rooms, SleepingObservation sleeping, bool surgical)
     {
         var hosted = HostedBeds(rooms);
-        if (!sleeping.TryGetValue(out var census))
-        {
-            return (0, false);
-        }
-        return (census.Beds.Count(b => b.Medical && Eligible(b, hosted, surgical)), true);
+        return sleeping.Beds.Count(b => b.Medical && Eligible(b, hosted, surgical));
     }
 
     /// <summary>
     /// Whether the hosted medical beds fall below a Hospital goal's bed floor, the unmet half of the care Need when no
-    /// patient is sick (#3496); a known false without a floor, unknown while the censuses are unread.
+    /// patient is sick (#3496); a known false without a floor, unknown while the room census is unread.
     /// </summary>
-    public static Fact<bool> BedsShort(int floor, Fact<RoomObservation> rooms, Fact<SleepingObservation> sleeping, bool surgical)
+    public static Fact<bool> BedsShort(int floor, Fact<RoomObservation> rooms, SleepingObservation sleeping, bool surgical)
     {
         if (floor <= 0)
         {
@@ -138,8 +133,7 @@ public static class HospitalRules
         {
             return Fact.Unknown<bool>();
         }
-        var (beds, ok) = HostedMedicalBeds(census, sleeping, surgical);
-        return ok ? Fact.Known(beds < floor) : Fact.Unknown<bool>();
+        return Fact.Known(HostedMedicalBeds(census, sleeping, surgical) < floor);
     }
 
     /// <summary>
@@ -165,9 +159,9 @@ public static class HospitalRules
         {
             return choice with { Method = HospitalMethod.Unavailable };
         }
-        var sk = r.Sleeping.TryGetValue(out var sleeping);
+        var sleeping = r.Sleeping;
         var rk = r.Rooms.TryGetValue(out var rooms);
-        if (!sk || !rk)
+        if (!rk)
         {
             return choice with { Method = HospitalMethod.Unknown };
         }
@@ -257,17 +251,13 @@ public static class HospitalRules
 
     /// <summary>
     /// Reports whether one regular bed can turn medical without dropping bed or indoor sleeping capacity below
-    /// max(colonists, housing target). Native IndoorSleepingCapacity excludes medical beds, so converting a needed
+    /// the colonist count. Native IndoorSleepingCapacity excludes medical beds, so converting a needed
     /// bed deadlocks the sleeping gate; a new bed is staged instead (and converted once it stands, when
     /// the surplus it adds allows).
     /// </summary>
     private static bool HospitalConversionSpare(HospitalRequest r, SleepingObservation sleeping)
     {
         var required = Math.Max(sleeping.Colonists, r.Colonists);
-        if (r.HousingTarget.TryGetValue(out var target))
-        {
-            required = Math.Max(required, target);
-        }
         return Math.Min(r.BedCapacity, r.IndoorCapacity) - 1 >= required;
     }
 }

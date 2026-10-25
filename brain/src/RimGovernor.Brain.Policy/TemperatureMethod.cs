@@ -1,3 +1,4 @@
+using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -231,8 +232,7 @@ public static partial class TemperatureMethodRules
         var banded = false;
         foreach (var p in sleepers)
         {
-            var bk = p.OwnedBed.TryGetValue(out var bed);
-            if (!bk || !beds.Contains(bed!))
+            if (!beds.Contains(p.OwnedBed))
             {
                 continue;
             }
@@ -247,14 +247,8 @@ public static partial class TemperatureMethodRules
     /// Holds shelter/temperature unmet past the fixed thresholds: a heat campfire owes its refuel switch, or a
     /// sleeping room with no campfire or heater sits below its sleepers' comfort minimum.
     /// </summary>
-    public static Fact<bool> TemperatureOwed(Fact<RoomObservation> rooms, Fact<SleepingObservation> sleeping, IReadOnlyList<HeatCampfire> heatCampfires)
-    {
-        if (!rooms.TryGetValue(out var v) || !sleeping.TryGetValue(out var s))
-        {
-            return default;
-        }
-        return Known(TemperatureOwed(v, heatCampfires, [.. s.People, .. s.Slaves]));
-    }
+    public static bool TemperatureOwed(Fact<RoomObservation> rooms, SleepingObservation s, IReadOnlyList<HeatCampfire> heatCampfires) =>
+        rooms.TryGetValue(out var v) && TemperatureOwed(v, heatCampfires, [.. s.People, .. s.Slaves]);
 
     private static bool TemperatureOwed(RoomObservation v, IReadOnlyList<HeatCampfire> heatCampfires, IReadOnlyList<SleepingPerson> sleepers)
     {
@@ -379,13 +373,10 @@ public static partial class TemperatureMethodRules
 
     public static void Validate(this RoomObservation v)
     {
-        if (v.EligibleBeds.TryGetValue(out var eligible))
+        var seenBed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in v.EligibleBeds)
         {
-            var seenBed = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var id in eligible)
-            {
-                DomainException.Require(FoodForecastRules.FoodId(id) && seenBed.Add(id), "invalid sleeping bed census");
-            }
+            DomainException.Require(FoodForecastRules.FoodId(id) && seenBed.Add(id), "invalid sleeping bed census");
         }
         var rooms = new HashSet<string>(StringComparer.Ordinal);
         var beds = new HashSet<string>(StringComparer.Ordinal);
@@ -421,9 +412,9 @@ public static partial class TemperatureMethodRules
     /// Uses actual sleeping rooms, including beds whose safe reachability disappears during a temperature
     /// emergency. Missing room evidence cannot become a comfortable temperature or a reason to claim recovery.
     /// </summary>
-    public static (Fact<double> Minimum, Fact<double> Maximum) TemperatureRange(Fact<RoomObservation> fact)
+    public static SleepingTemperature TemperatureRange(Fact<RoomObservation> fact)
     {
-        var none = (default(Fact<double>), default(Fact<double>));
+        SleepingTemperature none = new SleepingTemperature.NoIndoorBed();
         if (!fact.TryGetValue(out var v))
         {
             return none;
@@ -436,7 +427,8 @@ public static partial class TemperatureMethodRules
         {
             return none;
         }
-        if (!v.EligibleBeds.TryGetValue(out var eligible) || eligible.Count == 0)
+        var eligible = v.EligibleBeds;
+        if (eligible.Count == 0)
         {
             return none;
         }
@@ -477,10 +469,14 @@ public static partial class TemperatureMethodRules
         }
         if (seen.Count == wanted.Count && have)
         {
-            return (Known(low), Known(high));
+            return new SleepingTemperature.Indoor(low, high);
         }
         return none;
     }
+
+    /// <summary>The cold and warm bounds of the sleeping rooms as facts: unread for <see cref="SleepingTemperature.NoIndoorBed"/>, which has no sleeping room to measure.</summary>
+    public static (Fact<double> Cold, Fact<double> Hot) SleepingBand(SleepingTemperature band) =>
+        band is SleepingTemperature.Indoor indoor ? (Known(indoor.MinC), Known(indoor.MaxC)) : (default, default);
 
     private sealed class ThermalChoice(RoomState room, IReadOnlyList<Cell> cells, string bed, TemperatureMethod method, double temperature)
     {

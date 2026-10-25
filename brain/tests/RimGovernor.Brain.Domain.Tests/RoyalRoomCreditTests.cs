@@ -121,9 +121,9 @@ public sealed class RoyalRoomCreditTests
     private static SleepingObservation Sleeping(RoyalTitle? title) => new()
     {
         Colonists = 1,
-        People = [new() { Id = A, OwnedBed = Known("b1"), Title = title }],
+        People = [new() { Id = A, OwnedBed = "b1", Title = title }],
         Beds = [new() { Id = "b1", Definition = new("Bed"), Humanlike = true, Room = "std", Owners = [A], AccessibleTo = [A] }],
-        Rooms = Known<EquatableArray<UpkeepRoom>>([new() { Id = "std", Role = RoomRole.None, Quality = new RoomQuality(30, 0, 0, 0, 30), Cells = 12, Beds = [] }]),
+        Rooms = [new() { Id = "std", Role = RoomRole.None, Quality = new RoomQuality(30, 0, 0, 0, 30), Cells = 12, Beds = [] }],
     };
 
     private static IReadOnlyDictionary<int, RoyalRoomNeed> ProductionRooms(SleepingObservation sleeping, RoyaltyFacts? royalty, TraitEffects? effects = null)

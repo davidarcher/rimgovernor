@@ -540,7 +540,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, one);
         }
-        return SurgeryRules.HospitalBedReady(f.Rounds.Sleeping).TryGetValue(out var bed) && !bed
+        return !SurgeryRules.HospitalBedReady(f.Rounds.Sleeping)
             ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_hospital_bed", owner, one)
             : Pursued(goal, f, owner, one);
     }
@@ -601,11 +601,7 @@ public static partial class GoalRules
         double deficit;
         if (role == RoomRole.Hospital)
         {
-            var (hosted, known) = HospitalRules.HostedMedicalBeds(rooms, f.Rounds.Sleeping, false);
-            if (!known)
-            {
-                throw new RequiredFactException("hosted medical beds");
-            }
+            var hosted = HospitalRules.HostedMedicalBeds(rooms, f.Rounds.Sleeping, false);
             deficit = Math.Max(0, HospitalBedsOf(goal) - hosted);
         }
         else

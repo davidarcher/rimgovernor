@@ -161,10 +161,6 @@ public sealed partial class RoundsBuildingPlanner
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"sleeping-{Definition}-{Sleeping.Unhoused}")), default);
             }
             var capacity = facts.Facts.IndoorCapacity;
-            if (facts.Facts.HousingTarget.TryGetValue(out var target))
-            {
-                count = Math.Max(count, target);
-            }
             var missing = count - capacity;
             if (missing <= 0)
             {

@@ -14,7 +14,7 @@ public sealed record RoomObservation
     /// <summary>A census of a map with no rooms.</summary>
     public static RoomObservation NoRooms { get; } = new() { Rooms = [], Cells = new Dictionary<string, IReadOnlyList<Cell>>(StringComparer.Ordinal) };
 
-    public Fact<EquatableArray<string>> EligibleBeds { get; init; }
+    public EquatableArray<string> EligibleBeds { get; init; }
 
     /// <summary>The dining and recreation furniture the catalog rows name; it rides with the rooms because the interior plans read it per room.</summary>
     public DiningFurniture Dining { get; init; } = new();

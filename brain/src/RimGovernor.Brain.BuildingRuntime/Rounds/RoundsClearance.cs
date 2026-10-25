@@ -189,12 +189,9 @@ partial class HomeUpkeepReader
     internal static List<ClearanceTarget> StampPacking(IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony)
     {
         var inUse = new Dictionary<string, bool>(StringComparer.Ordinal);
-        if (colony.Facts.Sleeping.TryGetValue(out var sleeping))
+        foreach (var bed in colony.Facts.Sleeping.Beds)
         {
-            foreach (var bed in sleeping.Beds)
-            {
-                inUse[bed.Id] = (inUse.TryGetValue(bed.Id, out var was) && was) || bed.Owners.Count > 0;
-            }
+            inUse[bed.Id] = (inUse.TryGetValue(bed.Id, out var was) && was) || bed.Owners.Count > 0;
         }
         foreach (var bench in colony.ProductionBenches)
         {

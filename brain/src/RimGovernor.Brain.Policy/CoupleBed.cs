@@ -77,7 +77,7 @@ public static class CoupleBedRules
         var owned = new Dictionary<PawnId, string>();
         foreach (var p in obs.People)
         {
-            owned[p.Id] = p.OwnedBed.TryGetValue(out var bed) ? bed : "";
+            owned[p.Id] = p.OwnedBed;
         }
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
         foreach (var b in obs.Beds)

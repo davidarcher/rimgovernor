@@ -42,12 +42,8 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (null, FieldUnavailable("rooms"));
         }
-        if (!rooms.EligibleBeds.TryGetValue(out var eligible))
-        {
-            return (null, FieldUnavailable("eligible_beds"));
-        }
         var cooling = TemperatureCooling(facts);
-        var proposal = TemperatureMethodRules.SelectTemperatureMethod(rooms, eligible, cooling, Reviewer.Policy);
+        var proposal = TemperatureMethodRules.SelectTemperatureMethod(rooms, rooms.EligibleBeds, cooling, Reviewer.Policy);
         switch (proposal.Method)
         {
             case Pol.TemperatureMethod.Heat or Pol.TemperatureMethod.HeatElectric or Pol.TemperatureMethod.Cool or Pol.TemperatureMethod.CoolPowered or Pol.TemperatureMethod.RefuelOff or Pol.TemperatureMethod.RefuelOn:
@@ -86,10 +82,7 @@ partial class RoundsBuildingPlanner
     /// </summary>
     internal static Pol.TemperatureCooling TemperatureCooling(Observation.ColonyProjection facts)
     {
-        if (!facts.Facts.Sleeping.TryGetValue(out var sleeping))
-        {
-            throw new RequiredFactException("sleeping census");
-        }
+        var sleeping = facts.Facts.Sleeping;
         var heater = facts.Shapes.Furniture.Heater;
         Pol.ClimateGear cooler = new Pol.ClimateGear.NotPlaceable();
         Pol.ClimateGear heaterGear = new Pol.ClimateGear.NotPlaceable();

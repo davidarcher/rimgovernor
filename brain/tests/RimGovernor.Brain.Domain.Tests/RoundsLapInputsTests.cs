@@ -2,6 +2,7 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using Xunit;
+using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -96,11 +97,11 @@ public sealed class RoundsLapInputsTests
         var was = ColonyFactsCoreTests.Projection();
         var facts = new RoundsFacts
         {
-            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = Known(1.0), Colonists = 1L, HousingTarget = Known(1L), BedCapacity = 1L,
+            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = Known(1.0), Colonists = 1L, BedCapacity = 1L,
             IndoorCapacity = 1L, GrowingCells = Known(1L), Armed = Known(1L), Unarmed = Known(1L), Wood = Known(1L), Hostiles = Known(1L),
-            CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingMin = Known(1.0), SleepingMax = Known(1.0), OutdoorTemperature = 1.0,
-            PowerHeadroom = Known(1.0), OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = Known(true),
-            MealClosetOwed = Known(true), CampfireRetireOwed = Known(true), TemperatureOwed = Known(true), ButcherTableAffordable = Known(true),
+            CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingTemperature = new SleepingTemperature.Indoor(1.0, 1.0), OutdoorTemperature = 1.0,
+            PowerHeadroom = Known(1.0), OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = true,
+            MealClosetOwed = Known(true), CampfireRetireOwed = Known(true), TemperatureOwed = true, ButcherTableAffordable = Known(true),
             CleanupPawns = true, WorkCoverage = WorkCoverageState.Matched,
         };
         var names = RoundsLapInputs.Differences(was, was with { Facts = facts });

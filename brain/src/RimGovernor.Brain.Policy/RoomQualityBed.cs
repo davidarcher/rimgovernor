@@ -162,10 +162,7 @@ public static partial class RoomQualityRules
         BedMaterials materials,
         PreferencesRecord preferences)
     {
-        if (!obs.Rooms.TryGetValue(out var census))
-        {
-            return (new BedReplacement(), false);
-        }
+        var census = obs.Rooms;
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var r in census)
         {
@@ -198,7 +195,7 @@ public static partial class RoomQualityRules
         }
         // A vacant bed beside a lone owner is a bedless colonist's to take (#3592): a barracks of one owned bed reads as
         // that owner's solo bedroom, so the stand-in spot or the bunk staged for the bedless one is never torn down.
-        var bedless = obs.People.Any(p => p.OwnedBed.TryGetValue(out var bed) && bed == "");
+        var bedless = obs.People.Any(p => p.OwnedBed == "");
         foreach (var s in SoloBedrooms(obs))
         {
             var owned = beds.GetValueOrDefault(s.Bed) ?? new SleepingBed();

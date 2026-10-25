@@ -211,8 +211,6 @@ public static class ColonyDecodeReads
         }
         // The biome's permanent darkness is its map conditions': a frame without a biome row or a catalog fails, never counts as lit.
         var outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
-        // No eligible indoor bed (SleepingTemperature.NoIndoorBed) leaves the rounds' indoor sleeping range unknown.
-        var (indoor, sleepingMin, sleepingMax) = v.SleepingTemperature is O.SleepingTemperature.Indoor(var min, var max) ? (true, min, max) : (false, 0d, 0d);
         var f = new RoundsFacts
         {
             Tick = identity.Tick,
@@ -220,8 +218,7 @@ public static class ColonyDecodeReads
             Colonists = v.ColonistCount,
             BedCapacity = v.BedCapacity,
             IndoorCapacity = v.IndoorSleepingCapacity,
-            SleepingMin = Optional(indoor, sleepingMin),
-            SleepingMax = Optional(indoor, sleepingMax),
+            SleepingTemperature = v.SleepingTemperature,
             OutdoorTemperature = v.OutdoorTemperatureC,
         };
         f = f with

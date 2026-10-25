@@ -24,11 +24,11 @@ public sealed class BedroomTraitTargetTests
             new SleepingBed { Id = "bed-owner", Humanlike = true, Room = "room-owner", Owners = [Owner] },
             new SleepingBed { Id = "bed-other", Humanlike = true, Room = "room-other", Owners = [Other] },
         ],
-        Rooms = Known<EquatableArray<UpkeepRoom>>(
+        Rooms =
         [
             new UpkeepRoom { Id = "room-owner", Role = RoomRole.Bedroom, Beds = ["bed-owner"], Quality = new RoomQuality(0, 0, 0, 0, ownerRoom), Cells = 0 },
             new UpkeepRoom { Id = "room-other", Role = RoomRole.Bedroom, Beds = ["bed-other"], Quality = new RoomQuality(0, 0, 0, 0, otherRoom), Cells = 0 },
-        ]),
+        ],
     };
 
     private static RoomTarget Target(TraitEffects owner, double otherRoom = 0, TraitEffects? other = null) =>

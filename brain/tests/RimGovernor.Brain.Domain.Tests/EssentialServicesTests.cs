@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
+using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -10,7 +11,7 @@ public sealed class EssentialServicesTests
     private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]) };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
-    private static RoundsFacts Warm() => Facts() with { SleepingMin = Known(20.0), SleepingMax = Known(22.0) };
+    private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
     private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128) =>
         EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
             MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }) }, budget);
@@ -23,7 +24,7 @@ public sealed class EssentialServicesTests
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
         Assert.Contains(known.Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Adequate);
-        Assert.Contains(Review(Facts()).Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Unknown);
+        Assert.Contains(Review(Facts()).Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(known.Stress, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Unknown);
         Assert.DoesNotContain(known.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey);
     }
@@ -31,8 +32,8 @@ public sealed class EssentialServicesTests
     [Fact]
     public void HeatedShelterUsesExistingOwnerPredicatesAndStableIdentityUntilObservedRecovery()
     {
-        var cold = Review(Warm() with { SleepingMin = Known(-5.0) });
-        var later = Review(Warm() with { Tick = new(200), SleepingMin = Known(-20.0) });
+        var cold = Review(Warm() with { SleepingTemperature = new SleepingTemperature.Indoor(-5.0, 22.0) });
+        var later = Review(Warm() with { Tick = new(200), SleepingTemperature = new SleepingTemperature.Indoor(-20.0, 22.0) });
         var proposal = Assert.Single(cold.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey);
         Assert.Equal(proposal.Id, Assert.Single(later.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey).Id);
         Assert.DoesNotContain(Review(Warm()).Proposals, p => p.Id == proposal.Id);

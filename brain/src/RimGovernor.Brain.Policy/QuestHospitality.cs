@@ -77,38 +77,35 @@ public static class QuestHospitality
             }
             if (profile.Family != QuestFamily.HospitalityAnimals && profile.Family != QuestFamily.HospitalityPrisoners && profile.Family != QuestFamily.ShuttleRescue)
             {
-                var review = SleepingRules.ReviewSleeping(f.Sleeping, new SleepingHistory(), tick);
-                if (review.Targets.TryGetValue(out var targets))
+                var sleeping = f.Sleeping;
+                var review = SleepingRules.ReviewSleeping(sleeping, new SleepingHistory(), tick);
+                var guests = new HashSet<PawnId>();
+                foreach (var guest in sleeping.Guests)
                 {
-                    f.Sleeping.TryGetValue(out var sleeping);
-                    var guests = new HashSet<PawnId>();
-                    foreach (var guest in sleeping!.Guests)
+                    guests.Add(guest.Id);
+                }
+                if (offer.State == QuestStatus.NotYetAccepted)
+                {
+                    foreach (var person in sleeping.People)
                     {
-                        guests.Add(guest.Id);
-                    }
-                    if (offer.State == QuestStatus.NotYetAccepted)
-                    {
-                        foreach (var person in sleeping.People)
+                        if (person.Title is not null)
                         {
-                            if (person.Title is not null)
-                            {
-                                guests.Add(person.Id);
-                            }
+                            guests.Add(person.Id);
                         }
                     }
-                    foreach (var target in targets)
+                }
+                foreach (var target in review.Targets)
+                {
+                    if (!guests.Contains(target.Pawn) || target.Available.Count == 0)
                     {
-                        if (!guests.Contains(target.Pawn) || target.Available.Count == 0)
-                        {
-                            continue;
-                        }
-                        var previous = PreviousAssignment.ClearPrevious();
-                        if (target.PreviousBed.Length != 0)
-                        {
-                            previous = PreviousAssignment.KnownPrevious(target.PreviousBed);
-                        }
-                        return work with { Assign = new Assign((Domain.PawnId)target.Pawn, target.Available[0], previous) };
+                        continue;
                     }
+                    var previous = PreviousAssignment.ClearPrevious();
+                    if (target.PreviousBed.Length != 0)
+                    {
+                        previous = PreviousAssignment.KnownPrevious(target.PreviousBed);
+                    }
+                    return work with { Assign = new Assign((Domain.PawnId)target.Pawn, target.Available[0], previous) };
                 }
             }
             if (offer.State != QuestStatus.Ongoing)
@@ -189,10 +186,7 @@ public static class QuestHospitality
             }
             return "guest_count_unknown";
         }
-        if (!f.Sleeping.TryGetValue(out var sleeping))
-        {
-            return "guest_beds_unknown";
-        }
+        var sleeping = f.Sleeping;
         long spare = 0;
         foreach (var bed in sleeping.Beds)
         {

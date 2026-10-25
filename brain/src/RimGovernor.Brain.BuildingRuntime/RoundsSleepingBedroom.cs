@@ -14,8 +14,8 @@ partial class RoundsSleepingUpkeepPlanner
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!pk || !rk || !sk)
+        var sleeping = facts.Facts.Sleeping;
+        if (!pk || !rk)
         {
             return new Pol.BedroomStep();
         }
@@ -31,7 +31,8 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (IReadOnlyDictionary<int, EquatableArray<string>> Bedrooms, IReadOnlyDictionary<int, Pol.RoyalRoomNeed> Royal) PlannedOccupantsOf(
         Observation.ColonyProjection facts, ISet<string> findings)
     {
-        if (facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.Sleeping.TryGetValue(out var sleeping))
+        var sleeping = facts.Facts.Sleeping;
+        if (facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms))
         {
             return (new Dictionary<int, EquatableArray<string>>(), new Dictionary<int, Pol.RoyalRoomNeed>());
         }
@@ -50,8 +51,8 @@ partial class RoundsSleepingUpkeepPlanner
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!pk || !rk || !sk)
+        var sleeping = facts.Facts.Sleeping;
+        if (!pk || !rk)
         {
             return new Pol.BedroomStep();
         }
@@ -61,9 +62,9 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The rooms' quality targets, so a bedroom move leaves an ascetic's NeverUpgrade room alone; null while the census is unknown.</summary>
     internal static Dictionary<string, Pol.RoomTarget>? BedroomTargets(Observation.ColonyProjection facts)
     {
-        var known = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!known || traits is null)
+        if (traits is null)
         {
             return null;
         }
@@ -78,9 +79,9 @@ partial class RoundsSleepingUpkeepPlanner
     internal static IReadOnlyList<Pol.SuiteWish>? SuiteWishesOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan)
     {
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
+        var sleeping = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!rk || !sk || traits is null)
+        if (!rk || traits is null)
         {
             return null;
         }
@@ -95,9 +96,9 @@ partial class RoundsSleepingUpkeepPlanner
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
+        var sleeping = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!pk || !rk || !sk || traits is null)
+        if (!pk || !rk || traits is null)
         {
             return targets ?? new Dictionary<string, Pol.RoomTarget>();
         }
@@ -106,36 +107,25 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>
-    /// The review's BedroomsOwed fact for the projection. A due room quality swap or wing migration owes a
+    /// The review's BedroomsOwed for the projection. A due room quality swap or wing migration owes a
     /// bedroom too, so the sleeping Need stays unmet until it is done.
     /// </summary>
-    internal static Fact<bool> BedroomsOwedOf(Observation.ColonyProjection facts)
+    internal static bool BedroomsOwedOf(Observation.ColonyProjection facts)
     {
-        var owed = SleepingRules.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
-        if (owed.TryGetValue(out var v) && !v)
+        if (SleepingRules.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts)))
         {
-            if (BedroomSwapOf(facts).Ok)
-            {
-                return Known<bool>(true);
-            }
-            if (MigrateStep(facts).Kind != Pol.BedroomStepKind.None)
-            {
-                return Known<bool>(true);
-            }
-            if (RoomUpgradeOf(facts).Due)
-            {
-                return Known<bool>(true);
-            }
-            if (CompanionBed(facts).Due)
-            {
-                return Known<bool>(true);
-            }
-            if (ThroneStepOf(facts).Owed || ChildRoomStep(facts).Owed())
-            {
-                return Known<bool>(true);
-            }
+            return true;
         }
-        return owed;
+        if (facts.LayoutPlan is null || !facts.Rooms.IsKnown)
+        {
+            return false;
+        }
+        return BedroomSwapOf(facts).Ok
+            || MigrateStep(facts).Kind != Pol.BedroomStepKind.None
+            || RoomUpgradeOf(facts).Due
+            || CompanionBed(facts).Due
+            || ThroneStepOf(facts).Owed
+            || ChildRoomStep(facts).Owed();
     }
 
     /// <summary>
@@ -178,10 +168,6 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var request = SleepingRequest(facts, review);
         var (bed, method) = SleepingRules.SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);
-        if (method == Pol.SleepingMethod.Unknown)
-        {
-            return new RoundsBuildingResult { Verdict = FieldUnavailable("bed_definitions") };
-        }
         if (method != Pol.SleepingMethod.Build)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonSleepingUnavailable };

@@ -22,10 +22,10 @@ public sealed class JoinersAnomalyFamilyTests
     {
         Population = PopulationFixtures.Census(),
         FoodDays = new FoodRunway.Days(20.0),
-        Sleeping = Known(new SleepingObservation
+        Sleeping = new SleepingObservation
         {
             Beds = [new SleepingBed { Id = "bed", Humanlike = true }],
-        }),
+        },
     };
 
     private static RimGovernor.Contracts.Wire.Observations.JoinerLetter Letter(int id) => new() { Id = id, Token = "t" + id, Label = "Accept", CanAccept = true };

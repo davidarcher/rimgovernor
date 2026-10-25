@@ -220,8 +220,8 @@ partial class RoundsBuildingPlanner
     {
         var (plan, rooms, known) = PlannedLayout(facts);
         var construction = facts.Facts.CurrentConstruction;
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!known || construction is null || !sk || facts.Stations.Stations.Count == 0)
+        var sleeping = facts.Facts.Sleeping;
+        if (!known || construction is null || facts.Stations.Stations.Count == 0)
         {
             return [];
         }

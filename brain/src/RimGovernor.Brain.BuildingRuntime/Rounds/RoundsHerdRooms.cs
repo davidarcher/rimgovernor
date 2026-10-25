@@ -96,8 +96,8 @@ internal static class RoundsHerdRooms
         var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!pk || !rk || census is null || !sk)
+        var sleeping = facts.Facts.Sleeping;
+        if (!pk || !rk || census is null)
         {
             return (default!, false);
         }
@@ -124,8 +124,8 @@ internal static class RoundsHerdRooms
         var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        if (!pk || !rk || census is null || !sk)
+        var sleeping = facts.Facts.Sleeping;
+        if (!pk || !rk || census is null)
         {
             return false;
         }

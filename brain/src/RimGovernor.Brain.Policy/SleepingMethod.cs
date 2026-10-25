@@ -7,9 +7,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public enum SleepingMethod
 {
-    /// <summary>A native fact the choice depends on is unobserved.</summary>
-    Unknown,
-
     /// <summary>Every colonist owns a suitable bed; the goal waits on observed use.</summary>
     NoDemand,
 
@@ -28,9 +25,9 @@ public enum SleepingMethod
 
 public sealed record SleepingRequest
 {
-    public Fact<EquatableArray<SleepingTarget>> Targets { get; init; }
+    public EquatableArray<SleepingTarget> Targets { get; init; }
 
-    public Fact<SleepingObservation> Sleeping { get; init; }
+    public SleepingObservation Sleeping { get; init; } = new();
 
     public Fact<RoomObservation> Rooms { get; init; }
 
@@ -55,9 +52,6 @@ public sealed record SleepingRequest
 public sealed record SleepingChoice
 {
     public SleepingMethod Method { get; init; }
-
-    /// <summary>Names the unobserved fact behind SleepingMethod.Unknown.</summary>
-    public string Missing { get; init; } = "";
 
     /// <summary>
     /// Waiting counts the colonists still without observed use of a suitable owned bed; Unhoused counts those
@@ -94,7 +88,8 @@ public static partial class SleepingRules
 
     /// <summary>
     /// The best buildable rung of the ladder: the first available definition, a bedroll only when Stocked
-    /// names it. Unknown is returned when an unknown row precedes it and nothing is buildable. A sleeping spot
+    /// names it. Throws RequiredFactException when a ladder row is unread (a missing definition or one whose
+    /// availability native did not describe) and no row is buildable. A sleeping spot
     /// is never a suitable bed, so only spot true, a bedroom furnished to move a spot owner in, walks down to it.
     /// </summary>
     public static (string Definition, SleepingMethod Method) SleepingDefinition(
@@ -105,47 +100,38 @@ public static partial class SleepingRules
         {
             byName[d.Name] = d;
         }
-        var unknown = false;
+        var unread = false;
         foreach (var name in furniture.SleepingLadder(couple))
         {
             if (name == SleepingSpotDefinition && !spot)
             {
                 continue;
             }
-            var exists = byName.TryGetValue(name, out var d);
-            var ak = exists && d!.Available.TryGetValue(out var available);
-            if (!exists || !ak)
+            if (!byName.TryGetValue(name, out var d) || !d.Available.TryGetValue(out var avail))
             {
-                unknown = true;
+                unread = true;
                 continue;
             }
-            d!.Available.TryGetValue(out var avail);
             if (avail && (!SleepingBedrolls.Contains(name) || (stocked is not null && stocked.Contains(name))))
             {
                 return (name, SleepingMethod.Build);
             }
         }
-        if (unknown)
-        {
-            return ("", SleepingMethod.Unknown);
-        }
-        return ("", SleepingMethod.Unavailable);
+        return unread ? throw new RequiredFactException("bed_definitions") : ("", SleepingMethod.Unavailable);
     }
 
     /// <summary>Filters and orders the vacant beds offered to t.</summary>
     private static List<string> SleepingBedOrder(SleepingRequest r, SleepingTarget t, List<string> beds)
     {
-        if (!r.Sleeping.TryGetValue(out var sleeping) || (r.RoomTargets is null && r.Traits is null))
+        var sleeping = r.Sleeping;
+        if (r.RoomTargets is null && r.Traits is null)
         {
             return beds;
         }
         var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (sleeping.Rooms.TryGetValue(out var rooms))
+        foreach (var room in sleeping.Rooms)
         {
-            foreach (var room in rooms)
-            {
-                impressiveness[room.Id] = room.Quality.Impressiveness;
-            }
+            impressiveness[room.Id] = room.Quality.Impressiveness;
         }
         var quality = new Dictionary<string, double>(StringComparer.Ordinal);
         var roomOf = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -192,10 +178,7 @@ public static partial class SleepingRules
     /// </summary>
     public static SleepingChoice SelectSleepingMethod(SleepingRequest r)
     {
-        if (!r.Targets.TryGetValue(out var targets))
-        {
-            return new SleepingChoice { Method = SleepingMethod.Unknown, Missing = "sleeping_targets" };
-        }
+        var targets = r.Targets;
         var choice = new SleepingChoice { Waiting = targets.Count };
         if (choice.Waiting == 0)
         {
@@ -203,12 +186,9 @@ public static partial class SleepingRules
         }
         // A hosted guest is assigned after every colonist, and never causes a bed to be built.
         var guests = new HashSet<PawnId>();
-        if (r.Sleeping.TryGetValue(out var census))
+        foreach (var g in r.Sleeping.Guests)
         {
-            foreach (var g in census.Guests)
-            {
-                guests.Add(g.Id);
-            }
+            guests.Add(g.Id);
         }
         var ordered = targets
             .OrderBy(t => guests.Contains(t.Pawn) ? 1 : 0)
@@ -235,10 +215,7 @@ public static partial class SleepingRules
         // Everyone still waiting either has a bed to use or has nothing to be assigned; only the latter needs a bed built.
         double lo = -1e9, hi = 1e9;
         bool needsBed = false, couple = false;
-        if (!r.Sleeping.TryGetValue(out var sleeping))
-        {
-            return choice with { Method = SleepingMethod.Unknown, Missing = "sleeping_census" };
-        }
+        var sleeping = r.Sleeping;
         var (pawn, markBed, marked) = SlaveBedToMark(ordered, sleeping);
         if (marked)
         {
@@ -272,10 +249,7 @@ public static partial class SleepingRules
             return choice with { Method = SleepingMethod.NoDemand };
         }
         var facility = RoomsRules.Facility(RoomRole.Bedroom);
-        if (!r.Rooms.TryGetValue(out var rooms))
-        {
-            return choice with { Method = SleepingMethod.Unknown, Missing = "rooms" };
-        }
+        var rooms = r.Rooms.TryGetValue(out var census) ? census : throw new RequiredFactException("rooms");
         var cells = new List<Cell>();
         foreach (var room in rooms.Rooms)
         {
@@ -291,12 +265,7 @@ public static partial class SleepingRules
             cells.AddRange(rooms.CellsOf(room));
         }
         var (definition, method) = SleepingDefinition(r.Furniture, r.Definitions, r.Stocked, couple, false);
-        choice = choice with { Cells = EquatableArray.From(cells), Definition = definition, Method = method };
-        if (method == SleepingMethod.Unknown)
-        {
-            choice = choice with { Missing = "bed_definitions" };
-        }
-        return choice;
+        return choice with { Cells = EquatableArray.From(cells), Definition = definition, Method = method };
     }
 
     /// <summary>

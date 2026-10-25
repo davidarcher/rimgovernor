@@ -164,8 +164,7 @@ public static partial class SleepingRules
         {
             if (NextOpenBed(unhoused, free, beds, priced ? gains : null, null) is { } next)
             {
-                next.Pawn.OwnedBed.TryGetValue(out var previous);
-                return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
+                return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = next.Pawn.OwnedBed, Unhoused = unhoused.Count };
             }
         }
         var owed = OwedRoomsOf(plan, rooms, census.Spots);
@@ -302,10 +301,7 @@ public static partial class SleepingRules
         var unhoused = new List<SleepingPerson>();
         foreach (var p in people)
         {
-            if (!p.OwnedBed.TryGetValue(out var bed))
-            {
-                return null;
-            }
+            var bed = p.OwnedBed;
             // A colonist with no bed is unhoused too: with nothing better buildable they get a bedroom shell and a spot.
             if (bed == "")
             {
@@ -511,7 +507,7 @@ public static partial class SleepingRules
     public static IReadOnlyList<string> BedResearchRequest(
         IReadOnlyList<string> needs, LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyDictionary<string, RoomTarget>? targets)
     {
-        if (!sleeping.BedBuildable.TryGetValue(out var buildable) || buildable)
+        if (sleeping.BedBuildable)
         {
             return needs;
         }
@@ -521,7 +517,7 @@ public static partial class SleepingRules
         }
         foreach (var p in sleeping.People)
         {
-            if (!p.OwnedBed.TryGetValue(out var bed) || bed == "")
+            if (p.OwnedBed == "")
             {
                 return needs;
             }
@@ -534,11 +530,11 @@ public static partial class SleepingRules
         return [.. needs, BedResearch];
     }
 
-    /// <summary>The review's bedroom deficit: known true while a bedroom step is due, unknown while the plan, room or sleeping census is.</summary>
-    public static Fact<bool> BedroomsOwed(
+    /// <summary>The review's bedroom deficit: true while a bedroom step is due; false while the layout plan or the room census is unread, which leave no step to take.</summary>
+    public static bool BedroomsOwed(
         LayoutPlan? plan,
         Fact<RoomObservation> rooms,
-        Fact<SleepingObservation> sleeping,
+        SleepingObservation sleeping,
         IReadOnlyDictionary<string, RoomTarget>? targets,
         IReadOnlyDictionary<PawnId, TraitEffects>? traits,
         IReadOnlyDictionary<PawnId, double>? pressure)
@@ -546,11 +542,10 @@ public static partial class SleepingRules
         var p = plan;
         var pk = p is not null;
         var rk = rooms.TryGetValue(out var r);
-        var sk = sleeping.TryGetValue(out var s);
-        if (!pk || !rk || !sk)
+        if (!pk || !rk)
         {
-            return Unknown<bool>();
+            return false;
         }
-        return Known(NextBedroomStep(p!, r!, s!, targets, traits, pressure).Kind != BedroomStepKind.None);
+        return NextBedroomStep(p!, r!, sleeping, targets, traits, pressure).Kind != BedroomStepKind.None;
     }
 }

@@ -1,3 +1,4 @@
+using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -10,7 +11,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ShelterFacts
 {
     /// <summary>Whether every colonist owns, and was seen using, a suitable bed and no bedroom step is due.</summary>
-    public Fact<bool> SleepingRecovered { get; init; }
+    public bool SleepingRecovered { get; init; }
 
     /// <summary>The coldest and warmest sleeping room, each read as the outdoor temperature when no sleeping room is measured.</summary>
     public double SleepingMin { get; init; }
@@ -18,7 +19,7 @@ public sealed record ShelterFacts
     public double SleepingMax { get; init; }
 
     /// <summary>A heat campfire owes its refuel switch, or a sleeping room sits below its sleepers' band.</summary>
-    public Fact<bool> TemperatureOwed { get; init; }
+    public bool TemperatureOwed { get; init; }
 
     /// <summary>A door held open to vent a hot room, or to close again, is owed.</summary>
     public Fact<bool> HeatDoorOwed { get; init; }
@@ -40,8 +41,8 @@ public sealed record ShelterFacts
             ColdExit = p.ColdExit,
             HotExit = p.HotExit,
             SleepingRecovered = f.SleepingRecovered,
-            SleepingMin = f.SleepingMin.TryGetValue(out var coldest) ? coldest : f.OutdoorTemperature,
-            SleepingMax = f.SleepingMax.TryGetValue(out var warmest) ? warmest : f.OutdoorTemperature,
+            SleepingMin = f.SleepingTemperature is SleepingTemperature.Indoor indoor ? indoor.MinC : f.OutdoorTemperature,
+            SleepingMax = f.SleepingTemperature is SleepingTemperature.Indoor room ? room.MaxC : f.OutdoorTemperature,
             TemperatureOwed = f.TemperatureOwed,
             HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes ?? throw new RequiredFactException("routes census"), p).Any(d => d.Heat)) : Unknown<bool>(),
             SafeAreaOwed = f.SafeAreaOwed,
@@ -103,10 +104,10 @@ public static partial class ShelterRules
 {
     /// <summary>
     /// Bed ownership and bedrooms: met once every colonist was seen using a suitable bed they own and no bedroom step
-    /// is due, unmet while one is not; an unread sleeping census raises <see cref="RequiredFactException"/>. No hysteresis: an open bedroom plan does
+    /// is due, unmet while one is not. No hysteresis: an open bedroom plan does
     /// not hold it unmet. Its deficit is whole. Its work places the stand-in sleeping spots first (#3659).
     /// </summary>
-    public static Need SleepingNeedOf(ShelterFacts f) => Whole(ShelterFamily.Sleeping, NeedTier.Wellbeing, f.SleepingRecovered, "sleeping census");
+    public static Need SleepingNeedOf(ShelterFacts f) => FoodRules.WholeNeed(ShelterFamily.Sleeping, NeedTier.Wellbeing, f.SleepingRecovered);
 
     /// <summary>
     /// The sleeping rooms' temperature, a plain threshold at the exit bars (decision 16): unmet while the coldest
@@ -117,7 +118,7 @@ public static partial class ShelterRules
     public static Need TemperatureNeedOf(ShelterFacts f)
     {
         var band = f.SleepingMin >= f.ColdExit && f.SleepingMax <= f.HotExit;
-        var met = !RoundsRules.Positive(f.TemperatureOwed) && !RoundsRules.Positive(f.HeatDoorOwed) && band;
+        var met = !f.TemperatureOwed && !RoundsRules.Positive(f.HeatDoorOwed) && band;
         return FoodRules.WholeNeed(ShelterFamily.Temperature, NeedTier.Wellbeing, met);
     }
 

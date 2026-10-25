@@ -87,13 +87,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         // swapping flags a bedroom swap: native evicts the bed's owner.
         var swapping = false;
         // A couple's double bed comes before any other bed change.
-        if (choice.Method != Pol.SleepingMethod.Unknown)
+        var (couple, coupleDue) = await CoupleBedAsync(stock, state, review, goal, reading, call, epoch).ConfigureAwait(false);
+        if (coupleDue)
         {
-            var (couple, due) = await CoupleBedAsync(stock, state, review, goal, reading, call, epoch).ConfigureAwait(false);
-            if (due)
-            {
-                return couple;
-            }
+            return couple;
         }
         if (BedroomsFirst(choice.Method) && BedroomStepOf(facts).Kind != Pol.BedroomStepKind.None)
         {
@@ -101,8 +98,6 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         switch (choice.Method)
         {
-            case Pol.SleepingMethod.Unknown:
-                return new RoundsBuildingResult { Verdict = FieldUnavailable(choice.Missing) };
             case Pol.SleepingMethod.NoDemand:
             {
                 // A bed replacement under way finishes first: its new bed stands unowned until the owner moves.
@@ -324,8 +319,6 @@ public sealed partial class RoundsBuildingPlanner
         var choice = SleepingRules.SelectSleepingMethod(request);
         switch (choice.Method)
         {
-            case Pol.SleepingMethod.Unknown:
-                return (null, FieldUnavailable(choice.Missing));
             case Pol.SleepingMethod.NoDemand:
                 return (null, BuildingReasonSleepingUseNeeded);
             case Pol.SleepingMethod.Assign:
@@ -383,12 +376,8 @@ partial class RoundsSleepingUpkeepPlanner
             Stocked = stocked,
             Traits = SleepingTraits(facts),
         };
-        if (facts.Facts.Sleeping.TryGetValue(out var obs))
-        {
-            facts.TechTier.TryGetValue(out var tier);
-            request = request with { RoomTargets = RoomQualityRules.RoomQualityTargets(obs, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
-        }
-        return request;
+        facts.TechTier.TryGetValue(out var tier);
+        return request with { RoomTargets = RoomQualityRules.RoomQualityTargets(facts.Facts.Sleeping, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
     }
 
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>
@@ -409,9 +398,9 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The next room quality swap: a jealous colonist into the best solo bedroom, an ascetic into the plainest.</summary>
     internal static (Pol.BedroomSwap Swap, bool Ok) BedroomSwapOf(Observation.ColonyProjection facts)
     {
-        var known = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!known || traits is null)
+        if (traits is null)
         {
             return (new Pol.BedroomSwap(), false);
         }
@@ -419,7 +408,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.BedroomSwap(), false);
         }
-        return RoomQualityRules.NextBedroomSwap(obs!, traits, RoomQualityRules.SuiteRoomIds(plan, rooms));
+        return RoomQualityRules.NextBedroomSwap(obs, traits, RoomQualityRules.SuiteRoomIds(plan, rooms));
     }
 
     /// <summary>

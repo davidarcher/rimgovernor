@@ -96,7 +96,7 @@ public sealed class SkillHealthGoalTests
         {
             Recipes = new RecipeFacts { AddedHediffs = new Dictionary<string, string> { [Recipe] = "BionicEye" } },
             MedicalPawns = Known(EquatableArray.From([patient])),
-            Sleeping = Known(bed ? Hospital : new SleepingObservation()),
+            Sleeping = bed ? Hospital : new SleepingObservation(),
         },
     };
 

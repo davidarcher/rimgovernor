@@ -6,7 +6,7 @@ public static class SleepingUpkeepReads
     /// The sleeping census: the upkeep people, slaves, guests and beds, each bed joined to its building table row and
     /// its def's catalog rows. A bed the building table does not hold, or a def the catalog cannot answer for, throws.
     /// </summary>
-    internal static Fact<SleepingObservation> ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
+    internal static SleepingObservation ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
         var u = v.Upkeep;
         EquatableArray<SleepingPerson> People(IEnumerable<O.UpkeepPerson> rows)
@@ -17,7 +17,7 @@ public static class SleepingUpkeepReads
                 output.Add(new SleepingPerson
                 {
                     Id = p.Pawn,
-                    OwnedBed = Known(p.OwnedBed ?? ""),
+                    OwnedBed = p.OwnedBed ?? "",
                     ComfortableMin = p.ComfortableMinC,
                     ComfortableMax = p.ComfortableMaxC,
                     Partners = p.Partners,
@@ -26,6 +26,10 @@ public static class SleepingUpkeepReads
                 });
             }
             return EquatableArray.From(output);
+        }
+        if (u.People.Count != v.ColonistCount)
+        {
+            throw new ObservationContractException($"sleeping census lists {u.People.Count} colonists for a colony of {v.ColonistCount}");
         }
         var r = new SleepingObservation
         {
@@ -80,7 +84,7 @@ public static class SleepingUpkeepReads
                 Cell = ColonyDecodeReads.MapCellOf(head),
             });
         }
-        return Known(r with { Beds = EquatableArray.From(beds) });
+        return r with { Beds = EquatableArray.From(beds) };
     }
 
     /// <summary>
@@ -88,7 +92,7 @@ public static class SleepingUpkeepReads
     /// medical, not for prisoners) or carrying a common role (dining, rec room) and not fogged, with its native
     /// stats.
     /// </summary>
-    internal static Fact<EquatableArray<UpkeepRoom>> UpkeepRooms(O.RoomsSnapshot census, EquatableArray<SleepingBed> beds)
+    internal static EquatableArray<UpkeepRoom> UpkeepRooms(O.RoomsSnapshot census, EquatableArray<SleepingBed> beds)
     {
         var owned = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var b in beds)
@@ -114,7 +118,7 @@ public static class SleepingUpkeepReads
             var quality = new RoomQuality(RoomStat(r, "Space"), RoomStat(r, "Beauty"), RoomStat(r, "Cleanliness"), RoomStat(r, "Wealth"), RoomStat(r, "Impressiveness"));
             rows.Add(new UpkeepRoom { Id = r.Id, Role = r.Role, Quality = quality, Cells = (int)r.CellCount, Beds = EquatableArray.From(held) });
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     /// <summary>One named native room stat; the census carries every quality stat for every room.</summary>

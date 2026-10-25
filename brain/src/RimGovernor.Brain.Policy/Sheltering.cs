@@ -156,8 +156,9 @@ public static partial class ShelterRules
         if (weather)
         {
             var outside = f.OutdoorTemperature;
-            var lk = f.SleepingMin.TryGetValue(out var lo);
-            var hk0 = f.SleepingMax.TryGetValue(out var hi);
+            var (cold, hot) = TemperatureMethodRules.SleepingBand(f.SleepingTemperature);
+            var lk = cold.TryGetValue(out var lo);
+            var hk0 = hot.TryGetValue(out var hi);
             tempKnown = lk && hk0;
             if (tempKnown && (outside < lo || outside > hi))
             {

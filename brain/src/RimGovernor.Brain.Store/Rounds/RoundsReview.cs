@@ -219,11 +219,7 @@ public sealed partial class Store
             };
             var sleepingReview = SleepingRules.ReviewSleeping(facts.Sleeping, sleeping, request.Tick);
             sleeping = sleepingReview.History;
-            facts = facts with { SleepingRecovered = sleepingReview.Recovered() };
-            if (facts.BedroomsOwed.TryGetValue(out var owed) && owed)
-            {
-                facts = facts with { SleepingRecovered = Known(false) };
-            }
+            facts = facts with { SleepingRecovered = sleepingReview.Recovered() && !facts.BedroomsOwed };
             // The rooms family reads hosting recovery from this proof-of-use history.
             comfort = ComfortRules.ReviewComfort(facts.Comfort, comfort, request.Tick).History;
             var (lootCensus, held) = LootReachFilter(request with { Facts = facts });

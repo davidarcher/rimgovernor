@@ -154,11 +154,8 @@ public static class RoundsReads
             },
         };
         p = p with { Facts = p.Facts with { Containment = RoundsContainmentReads.ContainmentPlanningOf(frame, catalog, p.Definitions) } };
-        if (p.Facts.Sleeping.TryGetValue(out var sleeping))
-        {
-            sleeping = sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()) };
-            p = p with { Facts = p.Facts with { Sleeping = Known(sleeping), VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
-        }
+        var sleeping = p.Facts.Sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()).TryGetValue(out var buildable) && buildable };
+        p = p with { Facts = p.Facts with { Sleeping = sleeping, VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
         var census = frame.Buildings ?? throw new ObservationContractException("a routine frame carries no building census");
         p = p with { Facts = p.Facts with { CurrentConstruction = ConstructionReads.ConstructionFromCensus(census) } };
         p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
@@ -260,14 +257,9 @@ public static class RoundsReads
         };
         // The frame's rooms census is the one room table: room quality reads it on every reading, the room census
         // sections only when asked.
-        if (frame.Rooms is { } frameRooms)
-        {
-            if (p.Facts.Sleeping.TryGetValue(out var bedded))
-            {
-                bedded = bedded with { Rooms = SleepingUpkeepReads.UpkeepRooms(frameRooms, bedded.Beds) };
-                p = p with { Facts = p.Facts with { Sleeping = Known(bedded) } };
-            }
-        }
+        var frameRooms = frame.Rooms ?? throw new ObservationContractException("a routine frame carries no room census");
+        var bedded = p.Facts.Sleeping with { Rooms = SleepingUpkeepReads.UpkeepRooms(frameRooms, p.Facts.Sleeping.Beds) };
+        p = p with { Facts = p.Facts with { Sleeping = bedded } };
         O.RoomsSnapshot? roomCensus = null;
         if (rooms)
         {
@@ -279,18 +271,15 @@ public static class RoundsReads
                 {
                     Rooms = roomCensus.Rooms,
                     Cells = frame.RoomCells,
-                    EligibleBeds = p.Facts.Sleeping.TryGetValue(out var sleepers)
-                        ? Known(EquatableArray.From(sleepers.Beds.Where(bed => bed.Humanlike && !bed.Medical && !bed.Prisoners).Select(bed => bed.Id)))
-                        : Unknown<EquatableArray<string>>(),
+                    EligibleBeds = EquatableArray.From(p.Facts.Sleeping.Beds.Where(bed => bed.Humanlike && !bed.Medical && !bed.Prisoners).Select(bed => bed.Id)),
                     Dining = catalog.DiningFurniture(),
                     Shapes = p.Shapes,
                 });
             }
-            var (sleepingMin, sleepingMax) = TemperatureMethodRules.TemperatureRange(temperature);
             p = p with
             {
                 Rooms = temperature,
-                Facts = p.Facts with { SleepingMin = sleepingMin, SleepingMax = sleepingMax, Comfort = HostedComfort(p.Facts.Comfort, temperature) },
+                Facts = p.Facts with { SleepingTemperature = TemperatureMethodRules.TemperatureRange(temperature), Comfort = HostedComfort(p.Facts.Comfort, temperature) },
             };
         }
         // The reading is observed once the frame lands, under the age bound.

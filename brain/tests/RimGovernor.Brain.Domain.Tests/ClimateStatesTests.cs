@@ -63,7 +63,7 @@ public sealed class ClimateStatesTests
     [Fact]
     public void ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire()
     {
-        var sleeper = new SleepingPerson { Id = new PawnId("p"), OwnedBed = Known("bed"), ComfortableMin = 16, ComfortableMax = 26 };
+        var sleeper = new SleepingPerson { Id = new PawnId("p"), OwnedBed = "bed", ComfortableMin = 16, ComfortableMax = 26 };
         var burning = HeatCampfire.Of("fire", Known("room"), Known(true));
         var cooling = Cooling(campfires: [burning!], sleepers: [sleeper]);
         var off = TemperatureMethodRules.SelectTemperatureMethod(Rooms(30, true, "bed"), ["bed"], cooling, Limits);
@@ -82,12 +82,11 @@ public sealed class ClimateStatesTests
     }
 
     [Fact]
-    public void TemperatureOwedStaysUnreadWhileTheRoomOrSleeperCensusIs()
+    public void TemperatureOwedIsFalseWhileTheRoomCensusIsUnread()
     {
-        var sleeping = Known(new SleepingObservation());
-        Assert.False(TemperatureMethodRules.TemperatureOwed(default, sleeping, []).IsKnown);
-        Assert.False(TemperatureMethodRules.TemperatureOwed(Known(Rooms(21, true, "bed")), default, []).IsKnown);
-        Assert.False(Assert.IsType<bool>(TemperatureMethodRules.TemperatureOwed(Known(Rooms(21, true, "bed")), sleeping, []).Value));
+        var sleeping = new SleepingObservation();
+        Assert.False(TemperatureMethodRules.TemperatureOwed(default, sleeping, []));
+        Assert.False(TemperatureMethodRules.TemperatureOwed(Known(Rooms(21, true, "bed")), sleeping, []));
     }
 
     [Fact]

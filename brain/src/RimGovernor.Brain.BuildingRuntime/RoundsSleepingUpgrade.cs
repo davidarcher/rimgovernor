@@ -9,11 +9,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The next room quality upgrade: one template piece for an owned bedroom below its target.</summary>
     internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(Observation.ColonyProjection facts)
     {
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || census is null || traits is null)
+        if (!rk || census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -30,11 +30,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The next bed replacement step, read from the same census as RoomUpgradeOf.</summary>
     internal static (Pol.BedReplacement Replacement, bool Due) BedReplacementOf(Observation.ColonyProjection facts)
     {
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || census is null || traits is null)
+        if (!rk || census is null || traits is null)
         {
             return (new Pol.BedReplacement(), false);
         }
@@ -72,10 +72,10 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The next unmet royal bedroom thing.</summary>
     internal static (Pol.RoomUpgrade Upgrade, bool Due) TitleFurniture(Observation.ColonyProjection facts)
     {
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        if (!sk || !rk || census is null)
+        if (!rk || census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -85,11 +85,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The next animal sleeping spot for a master's solo bedroom: none while the definition is unavailable or unsized.</summary>
     internal static (Pol.RoomUpgrade Upgrade, bool Due) CompanionBed(Observation.ColonyProjection facts)
     {
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var animals = facts.Facts.AnimalUpkeep.Animals;
-        if (!sk || !rk || census is null)
+        if (!rk || census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -110,11 +110,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The next beauty lever: a plant pot or a prettier floor for a bedroom whose weakest stat is beauty.</summary>
     internal static (Pol.RoomUpgrade Upgrade, bool Due) BeautyUpgrade(Observation.ColonyProjection facts)
     {
-        var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
+        var obs = facts.Facts.Sleeping;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!sk || !rk || census is null || traits is null)
+        if (!rk || census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }

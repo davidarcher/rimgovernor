@@ -1,3 +1,4 @@
+using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 namespace RimGovernor.Brain.Policy;
 
 public sealed record RoundsPolicy
@@ -138,8 +139,8 @@ public sealed record RoundsFacts
     /// <summary>When a part, an organ or a medicine a rule waits on arrives (#3868, StockArrivalReads.Of); built empty without the read.</summary>
     public StockArrival StockArrival { get; init; } = new();
 
-    /// <summary>The colonist beds no one owns (SleepingRules.VacantColonistBed) by id, which make a pawn's bed free (#3825, V6); null while the sleeping census is unread.</summary>
-    public IReadOnlyList<string>? VacantColonistBeds { get; init; }
+    /// <summary>The colonist beds no one owns (SleepingRules.VacantColonistBed) by id, which make a pawn's bed free (#3825, V6).</summary>
+    public IReadOnlyList<string> VacantColonistBeds { get; init; } = [];
 
     /// <summary>Per research bench def, its ResearchSpeedFactor as the def data states it (DefinitionCatalog.ResearchBenchSpeeds, #3800); empty without a catalog.</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
@@ -258,12 +259,14 @@ public sealed record RoundsFacts
     public WorkResourceClaims? WorkClaims { get; init; }
     public WorkResourceView? WorkView { get; init; }
 
-    public Fact<SleepingObservation> Sleeping { get; init; }
+    /// <summary>The sleeping census (people, slaves, guests, beds, room quality); read every tick, so always present.</summary>
+    public SleepingObservation Sleeping { get; init; } = new();
 
-    public Fact<bool> SleepingRecovered { get; init; }
+    /// <summary>Every colonist owns, and was seen using, a suitable bed and no bedroom step is due.</summary>
+    public bool SleepingRecovered { get; init; }
 
     /// <summary>A planned individual bedroom step is due; it keeps the shelter/sleeping Need unmet once everyone owns a shelter bed.</summary>
-    public Fact<bool> BedroomsOwed { get; init; }
+    public bool BedroomsOwed { get; init; }
 
     /// <summary>The stock covers the butcher table's build cost (its cheapest stuff choice).</summary>
     public Fact<bool> ButcherTableAffordable { get; init; }
@@ -278,7 +281,7 @@ public sealed record RoundsFacts
     public Fact<bool> CampfireRetireOwed { get; init; }
 
     /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it keeps the shelter/temperature Need unmet.</summary>
-    public Fact<bool> TemperatureOwed { get; init; }
+    public bool TemperatureOwed { get; init; }
 
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
     public Fact<bool> SculptureRoomsOwed { get; init; }
@@ -485,8 +488,6 @@ public sealed record RoundsFacts
 
     public long Colonists { get; init; }
 
-    public Fact<long> HousingTarget { get; init; }
-
     public long BedCapacity { get; init; }
 
     public long IndoorCapacity { get; init; }
@@ -519,9 +520,8 @@ public sealed record RoundsFacts
     /// </summary>
     public Fact<Calendar> Calendar { get; init; }
 
-    public Fact<double> SleepingMin { get; init; }
-
-    public Fact<double> SleepingMax { get; init; }
+    /// <summary>The coldest and warmest eligible sleeping room: <see cref="SleepingTemperature.Indoor"/>, or <see cref="SleepingTemperature.NoIndoorBed"/> when no sleeping room is measured.</summary>
+    public SleepingTemperature SleepingTemperature { get; init; } = new SleepingTemperature.NoIndoorBed();
 
     public double OutdoorTemperature { get; init; }
 
@@ -747,9 +747,8 @@ public static partial class RoundsRules
     // (InspectRounds), and the disaster services (DisasterServiceFacts)
     // and the food ladder (FoodProgress) read the ones they need.
 
-    /// <summary>The colonist count the foothold sizes for: the housing target when it is larger.</summary>
-    internal static long FootholdCount(RoundsFacts f) =>
-        f.HousingTarget.TryGetValue(out var target) ? Math.Max(f.Colonists, target) : f.Colonists;
+    /// <summary>The colonist count the foothold sizes for.</summary>
+    internal static long FootholdCount(RoundsFacts f) => f.Colonists;
 
     internal static Fact<bool> FootholdSleeping(RoundsFacts f) => CountCapacity(Known(f.BedCapacity), FootholdCount(f), 1);
 
@@ -762,8 +761,11 @@ public static partial class RoundsRules
     /// <summary>Whether the runway reaches <paramref name="days"/>; unread when no runway was read.</summary>
     internal static Fact<bool> Reached(FoodRunway? runway, double days) => runway is null ? default : Known(runway.Reaches(days));
 
-    internal static Fact<bool> FootholdTemperature(RoundsFacts f, RoundsPolicy p) =>
-        AllFacts(Measured(f.SleepingMin, v => v >= p.ColdEnter), Measured(f.SleepingMax, v => v <= p.HotEnter));
+    internal static Fact<bool> FootholdTemperature(RoundsFacts f, RoundsPolicy p)
+    {
+        var (cold, hot) = TemperatureMethodRules.SleepingBand(f.SleepingTemperature);
+        return AllFacts(Measured(cold, v => v >= p.ColdEnter), Measured(hot, v => v <= p.HotEnter));
+    }
 
     internal static Fact<bool> FootholdPower(RoundsFacts f)
     {
@@ -907,14 +909,14 @@ public static partial class RoundsRules
         var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         // The colonist and capacity counts are native unsigned counts and need no check.
-        foreach (var fact in new[] { f.HousingTarget, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
+        foreach (var fact in new[] { f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
             if (fact.TryGetValue(out var v) && (v < 0 || v > long.MaxValue / 10))
             {
                 throw new DomainException("invalid routine count");
             }
         }
-        foreach (var fact in new[] { f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.PowerHeadroom })
+        foreach (var fact in new[] { f.FieldCoverage, f.PowerHeadroom })
         {
             if (fact.TryGetValue(out var v) && (double.IsNaN(v) || double.IsInfinity(v)))
             {

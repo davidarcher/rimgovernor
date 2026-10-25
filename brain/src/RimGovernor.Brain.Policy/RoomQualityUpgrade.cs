@@ -100,10 +100,7 @@ public static partial class RoomQualityRules
         IReadOnlyList<FurnitureRoom> rooms,
         Func<string, bool> available)
     {
-        if (!obs.Rooms.TryGetValue(out var census))
-        {
-            return (new RoomUpgrade(), false);
-        }
+        var census = obs.Rooms;
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var r in census)
         {

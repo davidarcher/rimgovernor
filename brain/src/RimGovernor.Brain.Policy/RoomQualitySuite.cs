@@ -86,10 +86,7 @@ public static partial class RoomQualityRules
         IReadOnlyDictionary<PawnId, TraitEffects> traits,
         IReadOnlyDictionary<PawnId, double> pressure)
     {
-        if (!sleeping.Rooms.TryGetValue(out var census))
-        {
-            return [];
-        }
+        var census = sleeping.Rooms;
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var r in census)
         {

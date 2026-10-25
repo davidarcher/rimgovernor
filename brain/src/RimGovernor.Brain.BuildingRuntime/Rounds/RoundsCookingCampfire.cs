@@ -159,8 +159,8 @@ partial class RoundsBuildingPlanner
         return output;
     }
 
-    /// <summary>Whether a heat campfire owes its refuel switch or an unheated sleeping room sits cold; unread while the room or sleeper census is.</summary>
-    internal static Fact<bool> TemperatureOwed(ColonyProjection facts) =>
+    /// <summary>Whether a heat campfire owes its refuel switch or an unheated sleeping room sits cold; false while the room census is unread.</summary>
+    internal static bool TemperatureOwed(ColonyProjection facts) =>
         TemperatureMethodRules.TemperatureOwed(facts.Rooms, facts.Facts.Sleeping, HeatCampfires(facts));
 
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)

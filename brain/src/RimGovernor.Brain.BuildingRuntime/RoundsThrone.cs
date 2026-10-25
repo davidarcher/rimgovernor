@@ -60,22 +60,19 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return [];
         }
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
+        var sleeping = facts.Facts.Sleeping;
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        if (!sk || !pk || !rk || census is null)
+        if (!pk || !rk || census is null)
         {
             return [];
         }
         var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (sleeping!.Rooms.TryGetValue(out var upkeep))
+        foreach (var room in sleeping.Rooms)
         {
-            foreach (var room in upkeep)
-            {
-                impressiveness[room.Id] = room.Quality.Impressiveness;
-            }
+            impressiveness[room.Id] = room.Quality.Impressiveness;
         }
         var claim = TitleClaimRules.NextTitleClaim(new Pol.TitleClaimFacts
         {

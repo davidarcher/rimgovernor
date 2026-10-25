@@ -94,10 +94,7 @@ public static partial class RoomQualityRules
     public static Dictionary<string, RoomTarget> CommonRoomTargets(SleepingObservation obs, TechTier tier, ImpressivenessLevels levels)
     {
         var targets = new Dictionary<string, RoomTarget>(StringComparer.Ordinal);
-        if (!obs.Rooms.TryGetValue(out var rooms))
-        {
-            return targets;
-        }
+        var rooms = obs.Rooms;
         var floor = levels.Baseline(tier);
         foreach (var room in rooms)
         {
@@ -141,10 +138,7 @@ public static partial class RoomQualityRules
         SleepingObservation obs, IReadOnlyDictionary<PawnId, TraitEffects> traits, TechTier tier, ImpressivenessLevels levels)
     {
         var targets = new Dictionary<string, RoomTarget>(StringComparer.Ordinal);
-        if (!obs.Rooms.TryGetValue(out var rooms))
-        {
-            return targets;
-        }
+        var rooms = obs.Rooms;
         var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var room in rooms)
         {

@@ -104,7 +104,7 @@ public sealed class SleepingStandInTests
         var sleeping = new SleepingObservation
         {
             Colonists = 1,
-            People = [new SleepingPerson { Id = A, OwnedBed = Known("x") }],
+            People = [new SleepingPerson { Id = A, OwnedBed = "x" }],
             Beds = [Bed("x", SleepingRules.SleepingSpotDefinition, "bedroom", A)],
         };
 
@@ -120,7 +120,7 @@ public sealed class SleepingStandInTests
         var sleeping = new SleepingObservation
         {
             Colonists = 1,
-            People = [new SleepingPerson { Id = A, OwnedBed = Known("w1") }],
+            People = [new SleepingPerson { Id = A, OwnedBed = "w1" }],
             Beds = [outdoors, Bed("w1", "Bed", "bedroom", A)],
         };
 
@@ -128,7 +128,7 @@ public sealed class SleepingStandInTests
         Assert.Equal((BedroomStepKind.Clear, "x"), (clear.Kind, clear.Bed));
 
         // With no enclosed bed yet the stand-in is the colonist's place to sleep, and stays.
-        var early = sleeping with { People = [new SleepingPerson { Id = A, OwnedBed = Known("") }], Beds = [outdoors] };
+        var early = sleeping with { People = [new SleepingPerson { Id = A, OwnedBed = "" }], Beds = [outdoors] };
         Assert.NotEqual(BedroomStepKind.Clear, Step(OneBedroom, [], early).Kind);
     }
 }

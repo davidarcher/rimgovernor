@@ -103,9 +103,9 @@ public sealed class PrisonersRounds
     internal static JailStep JailStep(ColonyProjection facts)
     {
         var (plan, rooms, known) = RoundsBuildingPlanner.PlannedLayout(facts);
-        var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
+        var sleeping = facts.Facts.Sleeping;
         var built = facts.Facts.CurrentConstruction;
-        if (!known || !sk || built is null)
+        if (!known || built is null)
         {
             return new JailStep();
         }

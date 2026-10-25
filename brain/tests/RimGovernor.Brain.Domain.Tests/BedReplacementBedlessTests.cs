@@ -17,18 +17,18 @@ public sealed class BedReplacementBedlessTests
 
     private static SleepingObservation Barracks(string otherBed) => new()
     {
-        People = [new SleepingPerson { Id = Owner, OwnedBed = Known("bed-owner") }, new SleepingPerson { Id = Other, OwnedBed = Known(otherBed) }],
+        People = [new SleepingPerson { Id = Owner, OwnedBed = "bed-owner" }, new SleepingPerson { Id = Other, OwnedBed = otherBed }],
         Beds =
         [
             new SleepingBed { Id = "bed-owner", Definition = new Resource("Bed"), Humanlike = true, Room = "dorm", Owners = [Owner] },
             new SleepingBed { Id = "spot", Definition = new Resource(SleepingRules.SleepingSpotDefinition), Humanlike = true, Room = "dorm", Owners = [] },
             new SleepingBed { Id = "bed-other", Definition = new Resource("Bed"), Humanlike = true, Room = "other-room", Owners = otherBed == "" ? [] : [Other] },
         ],
-        Rooms = Known<EquatableArray<UpkeepRoom>>(
+        Rooms =
         [
             new UpkeepRoom { Id = "dorm", Role = RoomRole.Bedroom, Beds = ["bed-owner", "spot"], Quality = new RoomQuality(0, 0, 0, 0, 0), Cells = 0 },
             new UpkeepRoom { Id = "other-room", Role = RoomRole.Bedroom, Beds = ["bed-other"], Quality = new RoomQuality(0, 0, 0, 0, 0), Cells = 0 },
-        ]),
+        ],
     };
 
     private static (BedReplacement Step, bool Ok) Next(SleepingObservation obs) =>

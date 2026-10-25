@@ -133,7 +133,7 @@ public sealed class PlannedBarracksTests
         Id = id, Definition = new(Bed), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
     };
 
-    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
+    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = bed };
 
     private static BedroomStep Step((RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping) =>
         SleepingRules.NextBedroomStep(Plan, RoomFixtures.Census(rooms) with { Shapes = new PieceShapes { Furniture = Furniture } }, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());

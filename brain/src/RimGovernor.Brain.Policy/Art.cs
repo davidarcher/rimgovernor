@@ -353,13 +353,10 @@ public static class ArtRules
     {
         var output = new List<SculptureRoom>();
         var gaps = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (obs.Rooms.TryGetValue(out var census))
+        foreach (var r in obs.Rooms)
         {
-            foreach (var r in census)
-            {
-                var min = targets.TryGetValue(r.Id, out var target) ? target.Min : 0;
-                gaps[r.Id] = min - r.Quality.Impressiveness;
-            }
+            var min = targets.TryGetValue(r.Id, out var target) ? target.Min : 0;
+            gaps[r.Id] = min - r.Quality.Impressiveness;
         }
 
         foreach (var id in RoomQualityRules.BeautyRooms(obs, targets))

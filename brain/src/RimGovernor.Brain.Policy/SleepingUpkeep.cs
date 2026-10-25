@@ -6,7 +6,8 @@ public sealed record SleepingPerson
 {
     public PawnId Id { get; init; }
 
-    public Fact<string> OwnedBed { get; init; }
+    /// <summary>The id of the bed the pawn owns, "" when it owns none.</summary>
+    public string OwnedBed { get; init; } = "";
 
     public double ComfortableMin { get; init; }
 
@@ -86,14 +87,14 @@ public sealed record SleepingObservation
 
     public EquatableArray<SleepingBed> Beds { get; init; }
 
-    /// <summary>The room quality census, unknown when its section is.</summary>
-    public Fact<EquatableArray<UpkeepRoom>> Rooms { get; init; }
+    /// <summary>The room quality census: every room holding a colonist bed or carrying a common role.</summary>
+    public EquatableArray<UpkeepRoom> Rooms { get; init; }
 
     /// <summary>
-    /// Bed's native availability: while it is known false a bedroll is a suitable bed, and while it is true an
-    /// upgrade target. Unknown keeps a bedroll suitable. A spot is never suitable.
+    /// Bed's native availability: while it is false a bedroll is a suitable bed, and while it is true an
+    /// upgrade target. A spot is never suitable.
     /// </summary>
-    public Fact<bool> BedBuildable { get; init; }
+    public bool BedBuildable { get; init; }
 }
 
 public sealed record SleepingUse(PawnId Pawn, string Bed, Tick Tick);
@@ -150,16 +151,10 @@ public sealed record SleepingReview
 {
     public SleepingHistory History { get; init; } = new();
 
-    public Fact<EquatableArray<SleepingTarget>> Targets { get; init; }
+    public EquatableArray<SleepingTarget> Targets { get; init; }
 
-    public Fact<bool> Recovered()
-    {
-        if (!Targets.TryGetValue(out var rows))
-        {
-            return Fact.Unknown<bool>();
-        }
-        return Fact.Known(rows.Count == 0);
-    }
+    /// <summary>Every colonist owns, and was seen using, a suitable bed.</summary>
+    public bool Recovered() => Targets.Count == 0;
 }
 
 public static partial class SleepingRules
@@ -215,7 +210,7 @@ public static partial class SleepingRules
     /// Use is retained only for the same pawn and exact bed identity. The journal resets history when the
     /// colony/load/map changes or time moves backwards. Throws DomainException on an invalid census or history.
     /// </summary>
-    public static SleepingReview ReviewSleeping(Fact<SleepingObservation> observed, SleepingHistory previous, Tick tick)
+    public static SleepingReview ReviewSleeping(SleepingObservation v, SleepingHistory previous, Tick tick)
     {
         var r = new SleepingReview { History = new SleepingHistory { Uses = previous.Uses } };
         var invalid = new DomainException("invalid sleeping census");
@@ -233,20 +228,11 @@ public static partial class SleepingRules
             }
             uses[use.Pawn] = use;
         }
-        if (!observed.TryGetValue(out var v))
-        {
-            return r;
-        }
-        if (v.Colonists < 0)
+        if (v.Colonists < 0 || v.People.Count != v.Colonists)
         {
             throw invalid;
         }
-        if (v.People.Count != v.Colonists)
-        {
-            return r;
-        }
         var people = new HashSet<PawnId>();
-        var complete = true;
         // Slaves sleep only in beds set for slaves, colonists never in one.
         var everyone = v.People.Concat(v.Slaves).Concat(v.Guests).ToList();
         var slave = new HashSet<PawnId>();
@@ -265,18 +251,13 @@ public static partial class SleepingRules
             {
                 throw invalid;
             }
-            var bk = p.OwnedBed.TryGetValue(out var bed);
-            if (bk && bed != "" && !FoodForecastRules.FoodId(bed!))
+            if (p.OwnedBed != "" && !FoodForecastRules.FoodId(p.OwnedBed))
             {
                 throw invalid;
             }
             if (!double.IsFinite(p.ComfortableMin) || !double.IsFinite(p.ComfortableMax) || p.ComfortableMin > p.ComfortableMax)
             {
                 throw invalid;
-            }
-            if (!bk)
-            {
-                complete = false;
             }
         }
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
@@ -306,16 +287,11 @@ public static partial class SleepingRules
                 }
             }
         }
-        if (!complete)
-        {
-            return r;
-        }
         var couples = SleepingCouples(v.People);
         var ownedBy = new Dictionary<PawnId, string>();
         foreach (var p in v.People)
         {
-            p.OwnedBed.TryGetValue(out var ob);
-            ownedBy[p.Id] = ob ?? "";
+            ownedBy[p.Id] = p.OwnedBed;
         }
         (string Id, bool Known) RoomOf(string bed)
         {
@@ -356,8 +332,7 @@ public static partial class SleepingRules
                 return b.Humanlike && !b.Medical && !b.Prisoners && b.Slaves == slave.Contains(p.Id) && b.Roofed && b.AccessibleTo.Contains(p.Id) && temperature >= lo && temperature <= hi;
             }
             bool Suitable(SleepingBed b) => Safe(b) && SleepingRung(b.Definition, v.BedBuildable) && b.RestEffectiveness > 0;
-            p.OwnedBed.TryGetValue(out var ownedId);
-            var bedId = ownedId ?? "";
+            var bedId = p.OwnedBed;
             var exists = beds.TryGetValue(bedId, out var owned);
             if (guest.Contains(p.Id))
             {
@@ -468,7 +443,7 @@ public static partial class SleepingRules
         return new SleepingReview
         {
             History = new SleepingHistory { Uses = EquatableArray.From(next) },
-            Targets = Known(EquatableArray.From(targets)),
+            Targets = EquatableArray.From(targets),
         };
     }
 
@@ -476,16 +451,15 @@ public static partial class SleepingRules
     /// Whether a bed of this definition is a suitable bed on the ladder: a bedroll only while Bed is
     /// unavailable, a spot never, so a spot owner stays a bedroom and bedroll target.
     /// </summary>
-    internal static bool SleepingRung(Resource definition, Fact<bool> bed)
+    internal static bool SleepingRung(Resource definition, bool buildable)
     {
-        var known = bed.TryGetValue(out var buildable);
         switch (definition.Value)
         {
             case SleepingSpotDefinition:
                 return false;
             case SleepingBedrollDefinition:
             case SleepingCoupleBedrollDefinition:
-                return !known || !buildable;
+                return !buildable;
         }
         return true;
     }
@@ -498,12 +472,9 @@ public static partial class SleepingRules
     private static List<string> GuestBeds(SleepingObservation v, SleepingPerson p, Func<SleepingBed, bool> suitable)
     {
         var rooms = new Dictionary<string, UpkeepRoom>(StringComparer.Ordinal);
-        if (v.Rooms.TryGetValue(out var census))
+        foreach (var r in v.Rooms)
         {
-            foreach (var r in census)
-            {
-                rooms[r.Id] = r;
-            }
+            rooms[r.Id] = r;
         }
         int Met(SleepingBed b)
         {

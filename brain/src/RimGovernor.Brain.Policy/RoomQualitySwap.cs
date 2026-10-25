@@ -34,10 +34,7 @@ public static partial class RoomQualityRules
 {
     internal static List<SoloBedroom> SoloBedrooms(SleepingObservation obs)
     {
-        if (!obs.Rooms.TryGetValue(out var rooms))
-        {
-            return [];
-        }
+        var rooms = obs.Rooms;
         var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var room in rooms)
         {

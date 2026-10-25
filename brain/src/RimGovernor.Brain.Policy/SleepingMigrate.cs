@@ -60,21 +60,17 @@ public static partial class SleepingRules
 
     /// <summary>
     /// The bedrooms a successor replaces that a pawn still owns a bed in: they stay in the plan until the pawn
-    /// has moved. With the census or the sleeping read unknown every replaced bedroom counts, so none leaves unseen.
+    /// has moved. With the room census unknown every replaced bedroom counts, so none leaves unseen.
     /// </summary>
-    public static HashSet<int> SleptBedrooms(LayoutPlan plan, Fact<RoomObservation> rooms, Fact<SleepingObservation> sleeping)
+    public static HashSet<int> SleptBedrooms(LayoutPlan plan, Fact<RoomObservation> rooms, SleepingObservation sleeping)
     {
         var rk = rooms.TryGetValue(out var census);
-        var sk = sleeping.TryGetValue(out var obs);
         var owned = new HashSet<string>(StringComparer.Ordinal);
-        if (sk)
+        foreach (var b in sleeping.Beds)
         {
-            foreach (var b in obs!.Beds)
+            if (b.Owners.Count > 0)
             {
-                if (b.Owners.Count > 0)
-                {
-                    owned.Add(b.Id);
-                }
+                owned.Add(b.Id);
             }
         }
         var gone = plan.Superseded();
@@ -85,8 +81,8 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            var slept = !rk || !sk;
-            if (rk && sk)
+            var slept = !rk;
+            if (rk)
             {
                 var (room, ok) = PlannedRoom.CensusRoomIn(r, census!);
                 if (ok)
@@ -131,7 +127,7 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            if (p.OwnedBed.TryGetValue(out var bed) && old.ContainsKey(bed))
+            if (old.ContainsKey(p.OwnedBed))
             {
                 movers.Add(p);
             }
@@ -181,8 +177,7 @@ public static partial class SleepingRules
         }
         foreach (var p in movers)
         {
-            p.OwnedBed.TryGetValue(out var previous);
-            previous ??= "";
+            var previous = p.OwnedBed;
             if (vacant.TryGetValue(old[previous], out var ids))
             {
                 foreach (var id in ids)
@@ -196,8 +191,8 @@ public static partial class SleepingRules
         }
         foreach (var p in movers)
         {
-            p.OwnedBed.TryGetValue(out var previous);
-            var role = old[previous ?? ""];
+            var previous = p.OwnedBed;
+            var role = old[previous];
             var candidates = new List<PlannedRoom>();
             if (empty.TryGetValue(role, out var e))
             {

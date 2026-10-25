@@ -14,10 +14,10 @@ public sealed class ShelterFamilyTests
 {
     private static readonly ShelterFacts Housed = new()
     {
-        SleepingRecovered = Known(true),
+        SleepingRecovered = true,
         SleepingMin = 20.0,
         SleepingMax = 22.0,
-        TemperatureOwed = Known(false),
+        TemperatureOwed = false,
         HeatDoorOwed = Known(false),
         SafeAreaOwed = Known(false),
         ColdExit = 10,
@@ -41,8 +41,7 @@ public sealed class ShelterFamilyTests
     [Fact]
     public void SleepingFollowsTheBedReviewAndWaitsOnNothing()
     {
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingRecovered = Known(false) }, ShelterFamily.Sleeping).Satisfaction);
-        Assert.Equal("sleeping census", Assert.Throws<RequiredFactException>(() => Of(Housed with { SleepingRecovered = Unknown<bool>() }, ShelterFamily.Sleeping)).Fact);
+        Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingRecovered = false }, ShelterFamily.Sleeping).Satisfaction);
         Assert.Empty(Of(Housed, ShelterFamily.Sleeping).Preconditions);
     }
 
@@ -66,7 +65,7 @@ public sealed class ShelterFamilyTests
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMin = 9.9 }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Met, Of(Housed with { SleepingMin = 10.0 }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMax = 30.1 }, ShelterFamily.Temperature).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { TemperatureOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(Housed with { TemperatureOwed = true }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { HeatDoorOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
     }
 

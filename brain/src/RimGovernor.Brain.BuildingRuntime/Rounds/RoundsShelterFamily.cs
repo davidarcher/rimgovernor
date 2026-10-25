@@ -85,11 +85,7 @@ public sealed class ShelterRounds
         var projection = reading.Projection;
         var f = projection.Facts;
         // The bed-use review the store retains, with a due bedroom step holding sleeping unmet (as the review does).
-        var recovered = SleepingRules.ReviewSleeping(f.Sleeping, review.Sleeping, expected.Tick).Recovered();
-        if (RoundsBuildingPlanner.PositiveFact(RoundsSleepingUpkeepPlanner.BedroomsOwedOf(projection)))
-        {
-            recovered = Known(false);
-        }
+        var recovered = SleepingRules.ReviewSleeping(f.Sleeping, review.Sleeping, expected.Tick).Recovered() && !RoundsSleepingUpkeepPlanner.BedroomsOwedOf(projection);
         f = f with
         {
             SleepingRecovered = recovered,

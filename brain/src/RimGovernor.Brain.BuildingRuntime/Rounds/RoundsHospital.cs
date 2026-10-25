@@ -50,7 +50,6 @@ partial class RoundsHospitalPlanner
             Definitions = definitions,
             Furniture = facts.Shapes.Furniture,
             Colonists = f.Colonists,
-            HousingTarget = f.HousingTarget,
             BedCapacity = f.BedCapacity,
             IndoorCapacity = f.IndoorCapacity,
             Doctors = doctors,
