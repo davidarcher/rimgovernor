@@ -35,6 +35,9 @@ public sealed record ResourceArrival
 /// <summary>The tier-2 run's output: the events in order, the starvation spans, the apparel made, the resource arrivals, the skill stocks and the food runway.</summary>
 public sealed record ColonyTrajectory
 {
+    public double StartDay { get; init; }
+    /// <summary>The carried state's completed prefix, needed to replay treatments before this continuation's start.</summary>
+    public ColonyTrajectory? TreatmentHistory { get; init; }
     /// <summary>The finding of a run that reached <see cref="ColonyModelPolicy.MaxEvents"/> before the horizon; the trajectory is the partial run.</summary>
     public const string TruncatedFinding = "colony_model_truncated";
 

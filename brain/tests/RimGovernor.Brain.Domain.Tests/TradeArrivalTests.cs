@@ -11,6 +11,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class TradeArrivalTests
 {
     private static readonly Resource Arm = new("BionicArm");
+    private static readonly IncidentCycleTimes[] Cycles = [new(0, 60, [3, 20]), new(1, 60, [4, 19, 34, 49])];
+
+    [Fact]
+    public void AScheduledCompRequiresItsOwnNativeRowAndKeepsNativeAllyAcceptance()
+    {
+        Assert.Throws<RequiredFactException>(() => TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 5000, []));
+        var source = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 5000, Cycles).Sources.Single(s => s.From > 0);
+        Assert.Equal(1, Assert.IsType<IncidentTiming.Scheduled>(source.Timing).Chance);
+        Assert.Equal(1 - source.Supplies(1), source.NotArrived(1, 3), 12);
+    }
 
     [Fact]
     public void AGeneratorPicksTheDefByItsDrawOfDistinctCandidates()
@@ -92,7 +102,7 @@ public sealed class TradeArrivalTests
         Comps =
         [
             new TradeVisitComp(TradeCompRate.FactionInteraction, 5) { Incident = "TraderCaravanArrival", IncidentsPerDay = 5 / 60.0 },
-            new TradeVisitComp(TradeCompRate.OnOffCycle, 0) { Incident = "OrbitalTraderArrival", Cycle = new ThreatCycleComp(0, 7, 8, 1, 1, []) },
+            new TradeVisitComp(TradeCompRate.OnOffCycle, 0) { Incident = "OrbitalTraderArrival", CompIndex = 1 },
         ],
         Unmodelled = ["StorytellerCompProperties_Modded"],
     };
@@ -116,19 +126,21 @@ public sealed class TradeArrivalTests
     [Fact]
     public void TheVisitsAreTheCompsRatesFromTheirStartWithTheKindDrawnAsTheIncidentDrawsIt()
     {
-        var (sources, findings, unread) = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var (sources, findings, unread) = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 5000, Cycles);
 
         Assert.Empty(unread);
         // The caravans start in three days, the orbital cycle now.
         var caravan = sources.Single(s => s.From > 0);
         // 5 a 60-day year times the 0.6 ally fraction, from day 5, three days after now.
-        Assert.Equal((Arm, 3.0, 5 / 60.0 * 0.6), (caravan.Resource, caravan.From, caravan.VisitsPerDay));
+        Assert.Equal((Arm, 3.0, 0.0), (caravan.Resource, caravan.From, caravan.VisitsPerDay));
+        Assert.Same(Cycles[0], Assert.IsType<IncidentTiming.Scheduled>(caravan.Timing).Cycle);
         // A faction drawn of two, then the outlander kind 1 of 4: an eighth; the royal kind trades for favor and is named.
         Assert.Equal([new TradeKindChance(0.125, Outlander.Offers[Arm]) { Stock = Outlander }], caravan.Kinds);
         Assert.Equal(0.9, caravan.PriceFactor, 12);
         // The orbital cycle: one incident each 15 days.
         var orbital = sources.Single(s => s.From == 0);
-        Assert.Equal((0.0, 1 / 15.0), (orbital.From, orbital.VisitsPerDay));
+        Assert.Equal((0.0, 0.0), (orbital.From, orbital.VisitsPerDay));
+        Assert.Same(Cycles[1], Assert.IsType<IncidentTiming.Scheduled>(orbital.Timing).Cycle);
         Assert.Equal(1, Assert.Single(orbital.Kinds).Chance);
         Assert.Equal([TradeArrivalRules.CompUnmodelled + ":StorytellerCompProperties_Modded", TradeArrivalRules.FavorUnmodelled + ":Royal", TradeArrivalRules.SilverIncomeUnmodelled],
             findings);
@@ -137,45 +149,45 @@ public sealed class TradeArrivalTests
     [Fact]
     public void ABlockedIncidentAnOrbitalWithoutCommsAndAColonyWithoutANegotiatorAreNamedZeros()
     {
-        var noComms = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts() with { CommsConsole = false }, new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var noComms = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts() with { CommsConsole = false }, 0, 5000, 5000, Cycles);
         Assert.DoesNotContain(noComms.Sources, s => s.From == 0);
         Assert.Contains(TradeArrivalRules.OrbitalNoComms, noComms.Findings);
 
         var blocked = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "TraderCaravanArrival" ? i with { Blocked = ["no_faction"] } : i)] };
-        var none = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, blocked, new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var none = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, blocked, 0, 5000, 5000, Cycles);
         Assert.DoesNotContain(none.Sources, s => s.From > 0);
         Assert.Contains(TradeArrivalRules.Blocked + ":TraderCaravanArrival:no_faction", none.Findings);
 
-        var alone = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts() with { Negotiator = false }, new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var alone = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts() with { Negotiator = false }, 0, 5000, 5000, Cycles);
         Assert.Empty(alone.Sources);
         Assert.Contains(TradeArrivalRules.NoNegotiator, alone.Findings);
 
         // No ally: the faction interaction comp sends nothing; below a comp's min wealth neither, nor below its min danger.
-        var lonely = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts() with { AllyFraction = -1 }, new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var lonely = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts() with { AllyFraction = -1 }, 0, 5000, 5000, Cycles);
         Assert.DoesNotContain(lonely.Sources, s => s.From > 0);
         var rich = Cassandra with { Comps = [Cassandra.Comps[0] with { MinWealth = 20_000 }] };
-        Assert.Empty(TradeArrivalRules.Sources(Schedule, rich, Stock, Facts(), new CycleNow(30, 0, 0, false), 10_000, 5000, 5000).Sources);
+        Assert.Empty(TradeArrivalRules.Sources(Schedule, rich, Stock, Facts(), 10_000, 5000, 5000, Cycles).Sources);
         var danger = Cassandra with { Comps = [Cassandra.Comps[0] with { MinDanger = StoryDangerLevel.High }] };
-        Assert.Empty(TradeArrivalRules.Sources(Schedule, danger, Stock, Facts() with { Danger = StoryDangerLevel.Low }, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources);
-        Assert.Single(TradeArrivalRules.Sources(Schedule, danger, Stock, Facts() with { Danger = StoryDangerLevel.High }, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources);
+        Assert.Empty(TradeArrivalRules.Sources(Schedule, danger, Stock, Facts() with { Danger = StoryDangerLevel.Low }, 0, 5000, 5000, Cycles).Sources);
+        Assert.Single(TradeArrivalRules.Sources(Schedule, danger, Stock, Facts() with { Danger = StoryDangerLevel.High }, 0, 5000, 5000, Cycles).Sources);
 
         // An orbital incident with no kind that can spawn fires empty: named.
         var empty = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "OrbitalTraderArrival" ? i with { Sources = [new() { Kinds = [] }] } : i)] };
-        Assert.Contains(TradeArrivalRules.NoTraderKind + ":OrbitalTraderArrival", TradeArrivalRules.Sources(Schedule, Cassandra, Stock, empty, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Findings);
+        Assert.Contains(TradeArrivalRules.NoTraderKind + ":OrbitalTraderArrival", TradeArrivalRules.Sources(Schedule, Cassandra, Stock, empty, 0, 5000, 5000, Cycles).Findings);
     }
 
     [Fact]
     public void AnIncidentTheReadDoesNotCarryOrAKindTheCatalogDoesNotKnowLeavesTheTradeUnread()
     {
         var withoutOrbital = Facts() with { Incidents = [.. Facts().Incidents.Where(i => i.Incident != "OrbitalTraderArrival")] };
-        Assert.Equal("trade_incident_unread:OrbitalTraderArrival", TradeArrivalRules.Sources(Schedule, Cassandra, Stock, withoutOrbital, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Unread);
+        Assert.Equal("trade_incident_unread:OrbitalTraderArrival", TradeArrivalRules.Sources(Schedule, Cassandra, Stock, withoutOrbital, 0, 5000, 5000, Cycles).Unread);
         var stranger = Facts() with
         {
             Incidents = [.. Facts().Incidents.Select(i => i.Incident == "TraderCaravanArrival" ? i with { Sources = [new() { Kinds = [new TraderKindWeight("Modded", 1)] }] } : i)],
         };
-        Assert.Equal("trader_kind_unknown:Modded", TradeArrivalRules.Sources(Schedule, Cassandra, Stock, stranger, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Unread);
+        Assert.Equal("trader_kind_unknown:Modded", TradeArrivalRules.Sources(Schedule, Cassandra, Stock, stranger, 0, 5000, 5000, Cycles).Unread);
         var unknown = Cassandra with { Comps = [Cassandra.Comps[0] with { Incident = "ModdedArrival" }] };
-        Assert.Equal("trade_incident_unknown:ModdedArrival", TradeArrivalRules.Sources(Schedule, unknown, Stock, Facts(), new CycleNow(30, 0, 0, false), 0, 5000, 5000).Unread);
+        Assert.Equal("trade_incident_unknown:ModdedArrival", TradeArrivalRules.Sources(Schedule, unknown, Stock, Facts(), 0, 5000, 5000, Cycles).Unread);
     }
 
     // #3909: Randy's RandomMain comp, vanilla-shaped: mtbDays 1.35, ThreatBig forced after 13 days, the categories by weight.
@@ -204,7 +216,7 @@ public sealed class TradeArrivalTests
     [Fact]
     public void ARandomMainDrawSendsEachTraderIncidentWithItsCategoryShareAfterThreatBigAndItsSelectChance()
     {
-        var (sources, _, unread) = TradeArrivalRules.Sources(Schedule, Randy, Stock, Facts(), new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var (sources, _, unread) = TradeArrivalRules.Sources(Schedule, Randy, Stock, Facts(), 0, 5000, 5000, Cycles);
         Assert.Empty(unread);
 
         // ThreatBig's long-run fraction: p = 1.4 ÷ 9.22 of the drawn events, one forced after 13 days without one.
@@ -228,12 +240,12 @@ public sealed class TradeArrivalTests
 
         // A blocked caravan leaves the category to visitors and travelers; a blocked category (no usable incident) is redrawn.
         var noCaravan = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "TraderCaravanArrival" ? i with { Blocked = ["no_faction"] } : i)] };
-        var visitorAlone = TradeArrivalRules.Sources(Schedule, Randy, Stock, noCaravan, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources.Single(s => s.Kinds.Any(k => k.Chance == 0.75));
+        var visitorAlone = TradeArrivalRules.Sources(Schedule, Randy, Stock, noCaravan, 0, 5000, 5000, Cycles).Sources.Single(s => s.Kinds.Any(k => k.Chance == 0.75));
         Assert.Equal(factionArrival / 2, visitorAlone.VisitsPerDay, 12);
         var noOrbital = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "OrbitalTraderArrival" ? i with { Blocked = ["ships_full"] } : i)] };
         var others = 7.82 - 1.1;
         var redrawn = 1 - TradeArrivalRules.ThreatBigFraction(1.4 / (1.4 + others), lambda, 13);
-        var caravanRedrawn = TradeArrivalRules.Sources(Schedule, Randy, Stock, noOrbital, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources.Single(s => s.Kinds.Any(k => k.Chance == 0.125));
+        var caravanRedrawn = TradeArrivalRules.Sources(Schedule, Randy, Stock, noOrbital, 0, 5000, 5000, Cycles).Sources.Single(s => s.Kinds.Any(k => k.Chance == 0.125));
         Assert.Equal(lambda * redrawn * 2.4 / others / 3, caravanRedrawn.VisitsPerDay, 12);
     }
 
@@ -252,31 +264,21 @@ public sealed class TradeArrivalTests
         {
             Comps = [new TradeVisitComp(TradeCompRate.Mtb, 0) { IncidentsPerDay = 0.1, Draw = new TradeCategoryDraw(TradeDrawRule.CategoryMtb) { Categories = [new("FactionArrival", 1, true)], MinPopulationIntentFactor = 0.05 } }],
         };
-        var sources = TradeArrivalRules.Sources(withoutTravelers, mtb, Stock, facts, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources;
+        var sources = TradeArrivalRules.Sources(withoutTravelers, mtb, Stock, facts, 0, 5000, 5000, Cycles).Sources;
         Assert.Equal(0.1 * 0.7, sources.Single(s => s.Kinds.Any(k => k.Chance == 0.125)).VisitsPerDay, 12);
         Assert.Equal(0.1 * 0.3, sources.Single(s => s.Kinds.Any(k => k.Chance == 0.75)).VisitsPerDay, 12);
 
         // An on-off cycle by category draws by weight alone.
         var cycle = new StorytellerTrade
         {
-            Comps = [new TradeVisitComp(TradeCompRate.OnOffCycle, 0) { Cycle = new ThreatCycleComp(0, 5, 5, 1, 1, []), Draw = new TradeCategoryDraw(TradeDrawRule.OnOffCycle) { Categories = [new("FactionArrival", 1, true)] } }],
+            Comps = [new TradeVisitComp(TradeCompRate.OnOffCycle, 0) { CompIndex = 0, Draw = new TradeCategoryDraw(TradeDrawRule.OnOffCycle) { Categories = [new("FactionArrival", 1, true)] } }],
         };
-        var cycled = TradeArrivalRules.Sources(withoutTravelers, cycle, Stock, facts, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources;
-        Assert.Equal(0.1 / 2, cycled.Single(s => s.Kinds.Any(k => k.Chance == 0.75)).VisitsPerDay, 12);
-        // The same retained colony cycle inputs price trader cycles, including progress and the no-tree day substitution.
-        var progressed = cycle with
-        {
-            Comps = [cycle.Comps[0] with
-            {
-                Cycle = cycle.Comps[0].Cycle! with { AcceptByProgressScore = [(0, 1), (10, 2)], OnDaysNoTreeConnectors = 2 },
-            }],
-        };
-        var adjusted = TradeArrivalRules.Sources(withoutTravelers, progressed, Stock, facts, new CycleNow(30, 0, 5, true), 0, 5000, 5000).Sources;
-        Assert.Equal(1.5 / 7 / 2, adjusted.Single(s => s.Kinds.Any(k => k.Chance == 0.75)).VisitsPerDay, 12);
+        var cycled = TradeArrivalRules.Sources(withoutTravelers, cycle, Stock, facts, 0, 5000, 5000, Cycles).Sources;
+        Assert.Equal(0.5, Assert.IsType<IncidentTiming.Scheduled>(cycled.Single(s => s.Kinds.Any(k => k.Chance == 0.75)).Timing).Chance, 12);
 
         // A visitor faction whose Peaceful groups hold a child kind supplies nothing, named.
         var child = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "VisitorGroup" ? i with { Sources = [new() { Faction = "TribeCivil", Kinds = [new TraderKindWeight("Outlander", 1)] }] } : i)] };
-        var (childSources, childFindings, _) = TradeArrivalRules.Sources(Schedule, Randy, Stock, child, new CycleNow(30, 0, 0, false), 0, 5000, 5000);
+        var (childSources, childFindings, _) = TradeArrivalRules.Sources(Schedule, Randy, Stock, child, 0, 5000, 5000, Cycles);
         Assert.DoesNotContain(childSources, s => s.Kinds.Any(k => k.Chance == 0.75));
         Assert.Contains(TradeArrivalRules.VisitorChildUnmodelled + ":TribeCivil", childFindings);
     }
@@ -285,14 +287,14 @@ public sealed class TradeArrivalTests
     public void AnOrbitalTraderIsPaidFromTheSilverWithinBeaconRangeAndACaravanFromTheMaps()
     {
         // #3910: the orbital source prices a unit against the beacon's silver (1260 unaffordable from 100), the caravan against the map's.
-        var (sources, _, unread) = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), new CycleNow(30, 0, 0, false), 0, 5000, 100);
+        var (sources, _, unread) = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 100, Cycles);
         Assert.Empty(unread);
         var orbital = sources.Single(s => s.From == 0);
         var caravan = sources.Single(s => s.From > 0);
         Assert.Equal((100L, 5000L), (orbital.Silver, caravan.Silver));
         Assert.Equal(0, orbital.Supplies(1));
         Assert.Equal(0.125 * 0.3, caravan.Supplies(1), 12);
-        Assert.Equal(0.3, TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), new CycleNow(30, 0, 0, false), 0, 5000, 1260).Sources.Single(s => s.From == 0).Supplies(1), 12);
+        Assert.Equal(0.3, TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 1260, Cycles).Sources.Single(s => s.From == 0).Supplies(1), 12);
     }
 
     [Fact]
@@ -321,7 +323,7 @@ public sealed class TradeArrivalTests
                 ? i with { Sources = [new() { Kinds = [new TraderKindWeight("Orbital", 1), new TraderKindWeight("Outlander", 3) { Qualifies = 0.5 }] }] }
                 : i)],
         };
-        var orbital = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, facts, new CycleNow(30, 0, 0, false), 0, 5000, 5000).Sources.Single(s => s.From == 0);
+        var orbital = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, facts, 0, 5000, 5000, Cycles).Sources.Single(s => s.From == 0);
         Assert.Equal(0.625, orbital.Kinds.Single(k => k.Chance > 0.5).Chance, 12);
         Assert.Equal(0.1875, orbital.Kinds.Single(k => k.Chance < 0.5).Chance, 12);
     }

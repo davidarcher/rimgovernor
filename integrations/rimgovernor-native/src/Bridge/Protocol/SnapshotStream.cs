@@ -31,7 +31,7 @@ namespace RimGovernor.Native
 
         /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames.
         internal static readonly RimGovernor.Brain.Bridge.FrameHandoff Handoff = new RimGovernor.Brain.Bridge.FrameHandoff();
-        private static RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest subscription = new RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest { RoutePathBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited(), LinesOfFireBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited() };
+        private static RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest subscription = new RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest { IncidentHorizonDays = RimGovernor.Brain.Policy.ColonyModelPolicy.DefaultHorizonDays, RoutePathBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited(), LinesOfFireBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited() };
 
         // The pull subscriber (the acceptance harness's observations_read_snapshot tool): the newest published
         // frame and how many were published since the first read. Guarded by Gate.

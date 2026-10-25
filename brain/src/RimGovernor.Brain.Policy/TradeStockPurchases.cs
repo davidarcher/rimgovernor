@@ -44,8 +44,8 @@ public static class TradeStockPurchases
     public static EquatableArray<StockNeed> Waits(ForecastCoupledOutcome outcome, ForecastCoupledContext context,
         IReadOnlyList<ForecastCommitment> chosen, double horizon)
     {
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> fights = new();
-        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> illnesses = new();
+        ConcurrentDictionary<HarmFightKey, HarmDistribution> fights = new();
+        ConcurrentDictionary<IllnessHarmKey, HarmDistribution> illnesses = new();
         _ = HarmLedger.Of(outcome, context, horizon, fights, context.Needs.Pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal), chosen, illnesses);
         var needs = fights.Values.Concat(illnesses.Values).SelectMany(d => d.Replacements)
             .Where(r => r.Probability > 0 && r.Wait is not null).SelectMany(r => r.Wait!.Needs).ToList();

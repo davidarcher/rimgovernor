@@ -28,7 +28,7 @@ namespace RimGovernor.Native
         internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity required.");
-            return request?.Scope?.ExpectedIdentity != null;
+            return request?.Scope?.ExpectedIdentity != null && double.IsFinite(request.IncidentHorizonDays) && request.IncidentHorizonDays >= 0;
         }
 
         // The colony facts as a frame section: a read that throws fails the frame.
@@ -104,7 +104,7 @@ namespace RimGovernor.Native
             Span("cf.fc.wrap");
             var upkeep = ReadUpkeep(map, things, routePathBudgetMs);
             Span("cf.upkeep");
-            var threat = ReadThreat(map);
+            var threat = ReadThreat(map, request.IncidentHorizonDays);
             var development = new RimGovernor.Brain.GameFacts.Observations.DevelopmentSection { Outcome = ReadPower(map) };
             Span("cf.power");
             var foodChannels = NativeFoodChannels.Read(map, center, workers, humanFood);
@@ -220,7 +220,7 @@ namespace RimGovernor.Native
         // the storyteller scales by and the points a default threat incident
         // would draw for this map now, with the adaptation and difficulty
         // factors already inside that figure. A failure fails the census.
-        internal static RimGovernor.Brain.GameFacts.Observations.ThreatSection ReadThreat(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.ThreatSection ReadThreat(Map map, double incidentHorizonDays)
         {
             var wealth = map.wealthWatcher;
             var facts = new RimGovernor.Brain.GameFacts.Observations.ThreatFacts {
@@ -229,10 +229,9 @@ namespace RimGovernor.Native
                 RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
                 HostileFactions = [.. HostileRaidFactions()], Raids = [.. NativeDefenseObservationTools.RaidTracks(map)],
                 Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedSinceSettleFloat),
-                ProgressScore = Finite(NativeStorytellerFacts.ProgressScore(map)), NoTreeConnection = NativeStorytellerFacts.NoTreeConnection(),
-                ThreatScale = Finite(Find.Storyteller.difficulty.threatScale), Biome = Find.WorldGrid[map.Tile].PrimaryBiome.defName,
+                Biome = Find.WorldGrid[map.Tile].PrimaryBiome.defName,
                 Generator = [.. NativeStorytellerFacts.GeneratorIncidents(map)],
-                GeneratorStartDays = (double)GenDate.TickGameToSettled(map.generationTick) / GenDate.TicksPerDay,
+                Cycles = [.. NativeStorytellerFacts.Cycles(map, incidentHorizonDays)],
                 BiomeIncidents = [.. NativeStorytellerFacts.BiomeIncidents(map)],
                 Disease = NativeDiseaseFacts.Read(map),
                 Trade = NativeTradeVisitFacts.Read(map),

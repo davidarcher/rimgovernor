@@ -14,6 +14,66 @@ namespace RimGovernor.Native;
 /// </summary>
 internal static class NativeStorytellerFacts
 {
+    internal static IEnumerable<RimGovernor.Brain.GameFacts.Observations.IncidentCycleTimes> Cycles(Map map, double horizon)
+    {
+        var points = StorytellerUtility.DefaultThreatPointsNow(map);
+        var score = StorytellerUtility.GetProgressScore(map);
+        var noTree = NoTreeConnection();
+        var worldSeed = Find.World.info.persistentRandomValue;
+        var targetSeed = ((IIncidentTarget)map).ConstantRandSeed;
+        var now = Find.TickManager.TicksSinceSettle;
+        for (var index = 0; index < Find.Storyteller.def.comps.Count; index++)
+        {
+            var comp = Find.Storyteller.def.comps[index];
+            var liveIndex = Find.Storyteller.storytellerComps.FindIndex(c => c.props == comp);
+            if (liveIndex < 0) continue;
+            if (comp.disallowedTargetTags?.Contains(IncidentTargetTagDefOf.Map_PlayerHome) == true
+                || comp.allowedTargetTags is { Count: > 0 } tags && !tags.Contains(IncidentTargetTagDefOf.Map_PlayerHome)) continue;
+            IncidentCycleReader.Parameters? input = null;
+            if (comp.GetType() == typeof(StorytellerCompProperties_OnOffCycle) && comp is StorytellerCompProperties_OnOffCycle cycle)
+            {
+                var factor = (cycle.acceptPercentFactorPerThreatPointsCurve?.Evaluate(points) ?? 1)
+                    * (cycle.acceptPercentFactorPerProgressScoreCurve?.Evaluate(score) ?? 1);
+                input = new()
+                {
+                    CompIndex = index, Salt = liveIndex, StartDays = cycle.minDaysPassed, MinDaysPassed = cycle.minDaysPassed,
+                    OnDays = noTree && cycle.onDaysNoTreeConnectors != 0 ? cycle.onDaysNoTreeConnectors : cycle.onDays,
+                    OffDays = noTree && cycle.offDaysNoTreeConnectors != 0 ? cycle.offDaysNoTreeConnectors : cycle.offDays,
+                    SpacingDays = cycle.minSpacingDays, Min = cycle.numIncidentsRange.min, Max = cycle.numIncidentsRange.max,
+                    Accept = factor,
+                    AcceptAtDay = cycle.acceptFractionByDaysPassedCurve is { } curve ? day => factor * curve.Evaluate((float)day) : null,
+                };
+            }
+            else if (comp.GetType() == typeof(StorytellerCompProperties_ThreatsGenerator) && comp is StorytellerCompProperties_ThreatsGenerator { parms: { } generator })
+            {
+                var count = IncidentCycleReader.GeneratorCountFactor(Find.Storyteller.difficulty.threatScale);
+                input = new()
+                {
+                    CompIndex = index, Salt = generator.randSeed, StartDays = GenDate.TickGameToSettled(map.generationTick) / 60000f, MinDaysPassed = comp.minDaysPassed,
+                    OnDays = generator.onDays, OffDays = generator.offDays, SpacingDays = generator.minSpacingDays,
+                    Min = generator.numIncidentsRange.min * (float)count, Max = generator.numIncidentsRange.max * (float)count,
+                };
+            }
+            else if (comp.GetType() == typeof(StorytellerCompProperties_FactionInteraction) && comp is StorytellerCompProperties_FactionInteraction interaction)
+            {
+                var fraction = StorytellerUtility.AllyIncidentFraction(interaction.fullAlliesOnly);
+                if (fraction <= 0 || interaction.minWealth > 0 && map.wealthWatcher.WealthTotal < interaction.minWealth
+                    || interaction.minDanger != StoryDanger.None && (int)map.dangerWatcher.DangerRating < (int)interaction.minDanger)
+                {
+                    yield return new(index, horizon, []);
+                    continue;
+                }
+                input = new()
+                {
+                    CompIndex = index, Salt = liveIndex, StartDays = interaction.minDaysPassed, MinDaysPassed = interaction.minDaysPassed,
+                    OnDays = GenDate.DaysPerYear, OffDays = 0, SpacingDays = interaction.minSpacingDays,
+                    Min = interaction.baseIncidentsPerYear, Max = interaction.baseIncidentsPerYear, Accept = fraction,
+                };
+            }
+            if (input is not null) yield return IncidentCycleReader.Read(input, worldSeed, targetSeed, now, horizon);
+        }
+    }
+
     /// <summary>
     /// CategoryIndividualMTBByBiome.GenerateParms delegates to DefaultParmsNow. Use the worker itself so base and worker-specific
     /// gates have one owner, including custom workers. CanFireNow maintains its normal per-tick cache; detached parms and an
@@ -34,7 +94,6 @@ internal static class NativeStorytellerFacts
         }
     }
 
-    internal static double ProgressScore(Map map) => StorytellerUtility.GetProgressScore(map);
 
     /// <summary>StorytellerComp_OnOffCycle: the player faction tracks ideoligions and none of them has the TreeConnection meme.</summary>
     internal static bool NoTreeConnection() =>

@@ -212,12 +212,20 @@ public sealed record DiseaseTable
 /// </summary>
 public sealed record IllnessIncident(string Incident, IReadOnlyList<(double StartDay, double PerDay)> Rates, double VictimChance, DiseaseCourse Course)
 {
+    public double ThroughDays { get; init; } = double.PositiveInfinity;
+    public IReadOnlyList<IncidentTiming.Scheduled> Scheduled { get; init; } = [];
     /// <summary>The incidents of this disease a day over <paramref name="days"/> from now: each comp's rate for the share of the days it runs.</summary>
     public double PerDay(double days)
     {
+        return days > 0 ? Occurrences(days).Sum(e => e.Chance) / days : 0;
+    }
+
+    public IEnumerable<(double Day, double Chance)> Occurrences(double days)
+    {
+        if (days > ThroughDays) throw new RequiredFactException("incident_cycle_window_unobserved");
         if (!(days > 0))
         {
-            return 0;
+            yield break;
         }
 
         var rate = 0.0;
@@ -226,7 +234,11 @@ public sealed record IllnessIncident(string Incident, IReadOnlyList<(double Star
             rate += perDay * Math.Clamp(days - Math.Max(0, start), 0, days) / days;
         }
 
-        return rate;
+        if (rate > 0) yield return (0, rate * days);
+        foreach (var timing in Scheduled)
+            foreach (var day in IncidentTiming.Covered(timing.Cycle, days + timing.OriginDay)
+                .Where(d => d >= Math.Max(timing.From, timing.OriginDay) && d < Math.Min(days + timing.OriginDay, timing.Until)))
+                yield return (day - timing.OriginDay, timing.Chance);
     }
 }
 
@@ -241,6 +253,7 @@ public sealed record IllnessIncident(string Incident, IReadOnlyList<(double Star
 /// </summary>
 public sealed record IllnessSchedule
 {
+    public double ThroughDays { get; init; } = double.PositiveInfinity;
     public bool Assessed { get; init; }
 
     /// <summary>Whether the schedule is unassessed for a colony fact left unread (the disease facts, an incident's victims or
@@ -252,7 +265,12 @@ public sealed record IllnessSchedule
     public IReadOnlyList<string> Findings { get; init; } = [];
 
     /// <summary>The incidents a day over <paramref name="days"/> from now: the sum of every usable disease's rate.</summary>
-    public double IncidentsPerDay(double days) => Incidents.Sum(i => i.PerDay(days));
+    public double IncidentsPerDay(double days)
+    {
+        if (!double.IsFinite(days) || days < 0 || days > ThroughDays)
+            throw new RequiredFactException("incident_cycle_window_unobserved");
+        return Incidents.Sum(i => i.PerDay(days));
+    }
 
     /// <summary>The share of the incidents over <paramref name="days"/> that are <paramref name="incident"/>.</summary>
     public double Share(IllnessIncident incident, double days)
@@ -264,7 +282,8 @@ public sealed record IllnessSchedule
     /// <summary>The schedule the table and the colony's disease facts give; see the type summary.</summary>
     public static IllnessSchedule Of(DiseaseTable table, ThreatFacts threat)
     {
-        var facts = threat?.Disease;
+        if (threat is null) throw new RequiredFactException("disease observation");
+        var facts = threat.Disease;
         if (facts is null)
         {
             throw new RequiredFactException("disease observation");
@@ -332,6 +351,7 @@ public sealed record IllnessSchedule
         List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)> OpenAt(double start) =>
             [.. open.Where(o => o.Rules.EarliestDay <= Math.Floor(start))];
         var rates = new Dictionary<string, List<(double StartDay, double PerDay)>>(StringComparer.Ordinal);
+        var scheduled = new Dictionary<string, List<IncidentTiming.Scheduled>>(StringComparer.Ordinal);
         void Send(string incident, double minDaysPassed, double perDay)
         {
             if (!(perDay > 0))
@@ -365,8 +385,22 @@ public sealed record IllnessSchedule
         foreach (var comp in teller.Draws)
         {
             var start = Math.Max(facts.DaysSinceSettle, comp.MinDaysPassed);
-            var now = new CycleNow(start, threat!.RaidPoints, threat.ProgressScore, threat.NoTreeConnection);
-            DrawComp(comp, table, OpenAt(start), now, threat.Trade.PopulationIntent, Send);
+            if (comp.Rule == DiseaseDrawRule.OnOffCycle)
+            {
+                var cycle = comp.Cycle ?? throw new DomainException("disease cycle comp without a cycle");
+                var times = IncidentTiming.RequireCycle(threat.Cycles, cycle.CompIndex);
+                foreach (var at in times.Days.Distinct().Where(d => d + facts.DaysSinceSettle >= comp.MinDaysPassed))
+                {
+                    DrawComp(comp, table, OpenAt(facts.DaysSinceSettle + at), start, threat.Trade.PopulationIntent, (name, _, chance) =>
+                    {
+                        if (!rates.ContainsKey(name)) rates[name] = [];
+                        if (!scheduled.TryGetValue(name, out var events)) scheduled[name] = events = [];
+                        events.Add(new IncidentTiming.Scheduled(times, chance) { From = at, Until = Math.BitIncrement(at) });
+                    });
+                }
+                continue;
+            }
+            DrawComp(comp, table, OpenAt(start), start, threat.Trade.PopulationIntent, Send);
         }
 
         foreach (var comp in teller.BiomeComps)
@@ -410,15 +444,26 @@ public sealed record IllnessSchedule
             }
 
             usable.Add(new IllnessIncident(rules.Incident, perDay,
-                VictimChance(facts.Candidates, read.Potential, rules.FractionMin, rules.FractionMax, rules.MaxVictims), rules.Course));
+                VictimChance(facts.Candidates, read.Potential, rules.FractionMin, rules.FractionMax, rules.MaxVictims), rules.Course)
+            {
+                Scheduled = scheduled.GetValueOrDefault(rules.Incident) ?? [],
+                ThroughDays = teller.Draws.Where(c => c.Rule == DiseaseDrawRule.OnOffCycle)
+                    .Select(c => IncidentTiming.RequireCycle(threat!.Cycles, c.Cycle!.CompIndex).ThroughDays).DefaultIfEmpty(double.PositiveInfinity).Min(),
+            });
         }
 
-        return new IllnessSchedule { Assessed = true, Findings = futureStart ? [.. unmodelled, "disease_future_state_unprojected"] : unmodelled, Incidents = usable };
+        return new IllnessSchedule
+        {
+            Assessed = true, Findings = futureStart ? [.. unmodelled, "disease_future_state_unprojected"] : unmodelled, Incidents = usable,
+            ThroughDays = teller.Draws.Where(c => c.Rule == DiseaseDrawRule.OnOffCycle)
+                .Select(c => IncidentTiming.RequireCycle(threat.Cycles, c.Cycle!.CompIndex).ThroughDays)
+                .DefaultIfEmpty(double.PositiveInfinity).Min(),
+        };
     }
 
     // A comp other than StorytellerComp_Disease: its rate and the chance each of its events is each open incident (#3860).
     private static void DrawComp(DiseaseDrawComp comp, DiseaseTable table, List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)> open,
-        CycleNow now, double populationIntent, Action<string, double, double> send)
+        double startDay, double populationIntent, Action<string, double, double> send)
     {
         // IncidentChanceFinal: the read weight (without the population-intent factor) times that factor.
         var usable = open.Select(o => (o.Rules.Incident, o.Rules.ChangesPopulation,
@@ -434,13 +479,12 @@ public sealed record IllnessSchedule
 
                 return;
             case DiseaseDrawRule.OnOffCycle:
-                var cycle = comp.Cycle ?? throw new DomainException("disease cycle comp without a cycle");
                 if (comp.Incident.Length > 0)
                 {
                     // A cycle of one incident fires it.
                     if (open.Any(o => o.Rules.Incident == comp.Incident))
                     {
-                        send(comp.Incident, comp.MinDaysPassed, ThreatSchedule.CyclePerDay(cycle, now));
+                        send(comp.Incident, comp.MinDaysPassed, 1);
                     }
 
                     return;
@@ -449,12 +493,12 @@ public sealed record IllnessSchedule
                 var total = usable.Sum(u => u.Weight);
                 foreach (var u in usable)
                 {
-                    send(u.Incident, comp.MinDaysPassed, ThreatSchedule.CyclePerDay(cycle, now) * u.Weight / total);
+                    send(u.Incident, comp.MinDaysPassed, u.Weight / total);
                 }
 
                 return;
             case DiseaseDrawRule.CategoryMtb:
-                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, now.Days);
+                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, startDay);
                 foreach (var (incident, chance) in TradeArrivalRules.SelectRandomIncident([.. usable], populationIntent, table.PopulationChanceByIntent))
                 {
                     send(incident, comp.MinDaysPassed, chance / (comp.MtbDays * factor));

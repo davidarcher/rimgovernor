@@ -183,6 +183,16 @@ as the trader comps do (#3909): by `IncidentChanceFinal` weight (read natively b
 applies from the comp's floor and the incident's `populationEffect`), through `TrySelectRandomIncident` and `RandomMain`'s forced
 `ThreatBig` as `TradeArrivalRules` states them. The incidents' gates are read at today's facts, as the disease comp's are.
 
+Native cycle placement (`IncidentCycleUtility.GenerateHitList`) draws
+`GenMath.RoundRandom(Rand.Range(minIncidents, maxIncidents))`. Each attempt samples integer positions in `[start, start + on)`
+and sorts them. `RelaxToSatisfyMinDiff` shifts a hit when its absolute difference from the preceding hit (or fixed previous hit)
+is below the rounded spacing. When a hit shifts, each later index `j` is raised to at least `values[i] + j`; success requires
+`values[^1] <= start + on`. The loop clears the list before testing `numTries++ > 100`, so exhaustion leaves zero hits.
+Successful placement is then thinned only when acceptance is below one, by stochastic rounding, shuffling and removing the
+remaining hits. Acceptance above one retains the original count. The prior fixed hit is the accepted list's last element,
+including its shuffled order, and survives empty cycles. The production reader invokes this native implementation, rather
+than duplicating its placement or retry algorithm. A hit on the next cycle boundary is not visited from the old list.
+
 ## Mirrored game literals: illness (#3824)
 
 `IllnessSchedule` and `IllnessForecast` (`brain/src/RimGovernor.Brain.Policy/Harm/`) mirror the disease rules no def carries. Read with

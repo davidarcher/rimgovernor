@@ -36,8 +36,8 @@ internal static class ForecastPractice
     {
         public readonly ConcurrentDictionary<(string Skill, double ServedAt, ForecastSupportConsequences Support, double Horizon), IReadOnlyList<RoomGain>> Credits = new();
         public readonly ConcurrentDictionary<(ForecastSupportConsequences Support, double Horizon, double Shift), double> Losses = new();
-        public readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> Harm = new();
-        public readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> Illness = new();
+        public readonly ConcurrentDictionary<HarmFightKey, HarmDistribution> Harm = new();
+        public readonly ConcurrentDictionary<IllnessHarmKey, HarmDistribution> Illness = new();
     }
 
     private static readonly ConditionalWeakTable<ForecastCoupledContext, Cache> Caches = new();

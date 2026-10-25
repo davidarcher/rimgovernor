@@ -298,10 +298,16 @@ public static partial class ForecastCoupled
             return at;
         }
 
-        private void ApplyExternal(double time)
+        private void ApplyExternal(double time, bool includeTreatmentAt = true)
         {
-            while (nextExternal < timedExternal.Length && timedExternal[nextExternal].Change.Day * GameTime.TicksPerDay <= time)
+            while (true)
             {
+                var externalAt = nextExternal < timedExternal.Length ? timedExternal[nextExternal].Change.Day * GameTime.TicksPerDay : double.PositiveInfinity;
+                var treatmentAt = nextMedicineTreatment < medicineTreatments.Length ? medicineTreatments[nextMedicineTreatment].Day * GameTime.TicksPerDay : double.PositiveInfinity;
+                // Stock arrivals at the same date precede tending, as they do in the colony model's kind order.
+                if (treatmentAt < externalAt && (treatmentAt < time || includeTreatmentAt && treatmentAt <= time))
+                { ApplyMedicineTreatment(medicineTreatments[nextMedicineTreatment++]); continue; }
+                if (externalAt > time) break;
                 var item = timedExternal[nextExternal++]; var change = item.Change; var at = change.Day * GameTime.TicksPerDay;
                 Expire(at);
                 if (string.IsNullOrEmpty(change.Resource.Value)) { ApplyNutrition(item.Owner + "/" + nextExternal, change.Units, at); continue; }
@@ -509,6 +515,7 @@ public static partial class ForecastCoupled
                 if (l.Freshness is FoodFreshness.Rots(var keeps)) expiry.TryAdd(l.Lot, keeps);
             }
             InitializeCensus(request);
+            InitializeMedicine(request, plan);
             var holds = Materials(request, commitments);
             billRows.Clear();
             foreach (var a in plan.Allocations)
@@ -604,7 +611,7 @@ public static partial class ForecastCoupled
                 if (resources > 1) Refuse("conflicting_bill_material_choices", bill);
             }
             var timed = External(commitments, request.HorizonDays);
-            var scheduled = context.ModelBasis?.Policy.Scheduled.Where(e => e.Day <= request.HorizonDays && (e.Stock == ModelStock.Nutrition || !string.IsNullOrEmpty(e.Resource.Value)))
+            var scheduled = context.ModelBasis?.Policy.Scheduled.Where(e => e.Kind != ModelEventKind.MedicineTreatment && e.Day <= request.HorizonDays && (e.Stock == ModelStock.Nutrition || !string.IsNullOrEmpty(e.Resource.Value)))
                 .Select(e => (Owner: "scheduled/" + e.Id, Change: new ForecastStockChange(e.Resource, e.Day, ScheduledUnits(e)))).ToArray() ?? [];
             if (scheduled.Length > 0)
             {
@@ -629,7 +636,8 @@ public static partial class ForecastCoupled
             foreach (var e in events)
             {
                 if (e.Time > horizon) { Finding("beyond_horizon", e.Allocation.Activity); continue; }
-                ApplyExternal(e.Time);
+                // All activity completions at this instant precede a medicine treatment at the same date.
+                ApplyExternal(e.Time, includeTreatmentAt: false);
                 Expire(e.Time);
                 var task = tasks[e.Allocation.Activity];
                 if (e.Start)
@@ -950,6 +958,7 @@ public static partial class ForecastCoupled
                     .Select(n => (Need: n, Allocation: allocations[n.Task]))
                     .OrderBy(p => p.Need.Pawn, StringComparer.Ordinal).ThenBy(p => p.Allocation.Arrive).ThenBy(p => p.Need.Kind, StringComparer.Ordinal)
                     .Select(p => FormattableString.Invariant($"{p.Need.Pawn}|{p.Need.Kind}|{tasks[p.Need.Task].Location}|{p.Allocation.Arrive:R}|{p.Allocation.End:R}"))));
+            var treatmentHistory = MedicineHistory(request.HorizonDays);
             var outcome = new ForecastCoupledOutcome(plan, feasible, needsByPawn, EquatableArray.Create<ForecastFinding>(CollectionsMarshal.AsSpan(findings)))
             {
                 Support = support,
@@ -964,7 +973,7 @@ public static partial class ForecastCoupled
                 ServedRooms = service,
             };
             return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, double>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds, new Dictionary<Resource, double>(inventoryWalk.Drawn))
-                { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread } };
+                { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread, TreatmentHistory = treatmentHistory } };
         }
 
         /// <summary>A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).

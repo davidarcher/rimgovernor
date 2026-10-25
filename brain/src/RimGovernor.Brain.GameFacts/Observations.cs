@@ -5823,6 +5823,10 @@ public sealed record UpkeepFacts
 /// </summary>
 public sealed record ThreatFacts
 {
+    /// <summary>The native seeded cycle occurrences over the requested forecast window, keyed by storyteller comp index.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<IncidentCycleTimes>))]
+    public required EquatableArray<IncidentCycleTimes> Cycles { get; init; }
+
     public required double WealthItems { get; init; }
 
     public required double WealthBuildings { get; init; }
@@ -5839,21 +5843,6 @@ public sealed record ThreatFacts
     /// <summary>GenDate.DaysPassedSinceSettleFloat, the day count storyteller comps read.</summary>
     public required double DaysPassed { get; init; }
 
-    /// <summary>
-    /// StorytellerUtility.GetProgressScore(map): the free colonists (not quest lodgers) plus the storyteller's wealth × 0.0001, which
-    /// an OnOffCycle comp's acceptPercentFactorPerProgressScoreCurve reads (#3860).
-    /// </summary>
-    public required double ProgressScore { get; init; }
-
-    /// <summary>
-    /// Whether an OnOffCycle comp runs its onDaysNoTreeConnectors / offDaysNoTreeConnectors: the player faction tracks ideoligions
-    /// (Faction.OfPlayer.ideos) and none of them has the TreeConnection meme (StorytellerComp_OnOffCycle, #3860).
-    /// </summary>
-    public required bool NoTreeConnection { get; init; }
-
-    /// <summary>Difficulty.threatScale: ThreatsGenerator scales its incident counts by it (#3860).</summary>
-    public required double ThreatScale { get; init; }
-
     /// <summary>The map's primary biome by def name: a CategoryIndividualMTBByBiome comp reads each incident's mtbDaysByBiome row of it (#3860).</summary>
     public required string Biome { get; init; }
 
@@ -5861,8 +5850,6 @@ public sealed record ThreatFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatIncidentRead>))]
     public required EquatableArray<ThreatIncidentRead> Generator { get; init; }
 
-    /// <summary>GenDate.TickGameToSettled(map.generationTick) / 60000: the generator cycle's native start in settled days.</summary>
-    public required double GeneratorStartDays { get; init; }
     /// <summary>Every home-map ThreatBig incident with biome MTB rows, with its native CanFireNow result at this census's default, unforced category parms. A false result is a real block, not an unread worker.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatBiomeIncidentRead>))]
     public required EquatableArray<ThreatBiomeIncidentRead> BiomeIncidents { get; init; }
@@ -5887,6 +5874,10 @@ public sealed record ThreatFacts
     /// <summary>What the storyteller's trader visits read of the colony now (#3869); every threat census reads it.</summary>
     public required TradeVisitFacts Trade { get; init; }
 }
+
+/// <summary>Native occurrence dates relative to this census, observed through the requested half-open horizon.</summary>
+public sealed record IncidentCycleTimes(int CompIndex, double ThroughDays,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<double>))] EquatableArray<double> Days);
 
 /// <summary>
 /// One incident a ThreatsGenerator draws (#3860). ThreatsGenerator.MakeThreat takes the incidents whose worker CanFireNow for its

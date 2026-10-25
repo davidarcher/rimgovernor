@@ -302,6 +302,9 @@ public sealed record TradeAcquisitionRequest
 /// </summary>
 public sealed record ColonyFactsRequest
 {
+    /// <summary>The requested window for native storyteller cycle times. Zero requests no future window.</summary>
+    public double IncidentHorizonDays { get; init; }
+
     public ReadScope? Scope { get; init; }
 
     public uint HerdRadius { get; init; } = 25;
@@ -321,6 +324,8 @@ public sealed record StatusRequest
 /// </summary>
 public sealed record SnapshotStreamRequest
 {
+    public double IncidentHorizonDays { get; init; }
+
     /// <summary>
     /// Main-thread time one frame may spend measuring route path costs
     /// (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs

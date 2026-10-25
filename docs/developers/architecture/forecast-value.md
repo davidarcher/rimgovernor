@@ -1146,7 +1146,10 @@ raid harm per day. The output feeds the currency and the death floor.
    - Phoebe: about one per 16 days from day 13.
    - Randy: about one per 9 days.
 
-   Every big threat before day 20 is a raid; after that, raids are about half.
+   Native cycle occurrence times include minimum spacing and failed placement draws. Each cycle's own forced-raid cutoff applies
+   at the occurrence day (day 20 in Core Cassandra and Phoebe); later cycle incidents retain the calibrated half-raid share.
+   Scheduled harm uses equipment and stock on that day and the remaining recovery horizon; MTB sources retain their continuous law.
+   See [native occurrence windows](../contracts/forecast-contracts.md#native-incident-occurrence-windows).
    Size is `StorytellerUtility.DefaultThreatPointsNow`: a wealth curve plus
    points per colonist, × adaptation, × difficulty `threatScale`, × a
    days-passed ramp, clamped to [35, 10,000]. The model holds the observed

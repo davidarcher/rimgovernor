@@ -37,11 +37,11 @@ public sealed class MedicineValueTests
         Disease = NeedsFixtures.Disease with { Contracts = [new("Disease_Flu", 1), new("Disease_GutWorms", 1), new("Disease_OrganDecay", 1)] },
     };
 
-    private static ColonyValue Value(ColonyModelInput input, HarmInputs? harm = null)
+    private static ColonyValue Value(ColonyModelInput input, HarmInputs? harm = null, double days = CalendarRules.YearDays)
     {
         var context = ForecastValueTests.Context(Anna, ForecastValueTests.HarmTables(),
             harm ?? ForecastValueTests.RaidDay(), new Dictionary<string, EquatableArray<GearOption>> { ["Anna"] = ForecastValueTests.Cloth });
-        return new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, ItemFactsFixtureRules.CoreItemFacts());
+        return new ColonyValue(context, [], days, input.Pawns, ItemFactsFixtureRules.CoreItemFacts());
     }
 
     // #3829: a flu at 0.2 rising 0.2 a day kills at 1 unless immunity (0.25 x u a day) comes first; a tend lowers it 0.15 x quality a
@@ -62,6 +62,138 @@ public sealed class MedicineValueTests
     };
 
     internal static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = tends };
+
+    private static HarmInputs RaidAt(double day)
+    {
+        var harm = ForecastValueTests.RaidDay();
+        return harm with { ScheduledRaids = [new(0, harm.Raid, harm.Composition)
+            { Timing = new IncidentTiming.Scheduled(new(0, CalendarRules.YearDays, [day]), 1) }] };
+    }
+
+    [Fact]
+    public void NativeRaidDatesConsumeTheSameTreatmentCountAtDifferentStockDates()
+    {
+        var input = Colony(6, 1000);
+        ColonyTrajectory At(double day)
+        {
+            var value = Value(input, RaidAt(day));
+            Assert.Equal(0, value.TreatmentsPerDay(input));
+            var scheduled = value.ScheduledTreatments();
+            var treatment = Assert.Single(scheduled);
+            Assert.Equal(day, treatment.Day);
+            return Run(input, Policy() with { Scheduled = scheduled });
+        }
+
+        var early = At(2);
+        var late = At(20);
+        Assert.Equal(early.Events[^1].Medicine.Sum(), late.Events[^1].Medicine.Sum(), 9);
+        var between = early.Events.First(e => e.Day > 2 && e.Day < 20).Day;
+        Assert.True(early.Events.First(e => e.Day == between).Medicine.Sum() < late.Events.First(e => e.Day == between).Medicine.Sum());
+        // The event's debit is instantaneous, not spread over the interval leading up to it.
+        var treatment = Assert.Single(late.Events, e => e.Kind == ModelEventKind.MedicineTreatment);
+        Assert.Equal(1000, treatment.Medicine.Sum() + treatment.MedicineConsumed.Sum(), 9);
+    }
+
+    [Fact]
+    public void MedicineArrivingAfterOneRaidGivesNoCreditUntilTheSameRaidOccursAfterArrival()
+    {
+        var input = Stocked(0, 0);
+        double Gain(double day)
+        {
+            var value = Value(input, RaidAt(day));
+            var policy = Policy(value.TreatmentsPerDay(input)) with { Scheduled = value.ScheduledTreatments() };
+            var before = value.Price(Run(input, policy));
+            var after = value.Price(Run(input, policy with { MedicineTrade = Trade(visits: (10, 2)) }));
+            Assert.Empty(before.Unpriced);
+            Assert.Empty(after.Unpriced);
+            return after.Value - before.Value;
+        }
+
+        Assert.Equal(0, Gain(2), 9);
+        Assert.True(Gain(20) > 0);
+    }
+
+    [Fact]
+    public void NativeDiseaseDatesRetainTheCourseRetendDatesAndContinuousMtbRemainsARate()
+    {
+        var input = Colony(6, 1000);
+        HarmInputs At(double day) => ForecastValueTests.RaidDay(raidsPerDay: 0) with
+        {
+            Illness = new() { Assessed = true, Incidents = [new IllnessIncident("Disease_Flu", [], 1, Flu)
+                { Scheduled = [new IncidentTiming.Scheduled(new(0, CalendarRules.YearDays, [day]), 1)] }] },
+        };
+        var early = Value(input, At(2));
+        var late = Value(input, At(20));
+        var first = Run(input, Policy() with { Scheduled = early.ScheduledTreatments() }).Events.Where(e => e.MedicineConsumed.Sum() > 0).ToArray();
+        var second = Run(input, Policy() with { Scheduled = late.ScheduledTreatments() }).Events.Where(e => e.MedicineConsumed.Sum() > 0).ToArray();
+        Assert.Equal(0, early.TreatmentsPerDay(input));
+        Assert.True(first.Length > 1);
+        Assert.Equal(2, first[0].Day);
+        Assert.Equal(2.5, first[1].Day);
+        Assert.Equal(first.Select(e => e.Day + 18), second.Select(e => e.Day));
+        Assert.Equal(first.Sum(e => e.MedicineConsumed.Sum()), second.Sum(e => e.MedicineConsumed.Sum()), 9);
+        Assert.Empty(Value(input, Sick(0.1)).ScheduledTreatments());
+        Assert.True(Value(input, Sick(0.1)).TreatmentsPerDay(input) > 0);
+    }
+
+    [Fact]
+    public void TreatmentSchedulesRequireNativeCoverageThroughTheRequestedHorizon()
+    {
+        var input = Colony(6, 1000);
+        var harm = RaidAt(2);
+        harm = harm with { ScheduledRaids = [harm.ScheduledRaids[0] with
+            { Timing = new IncidentTiming.Scheduled(new(0, 10, [2]), 1) }] };
+        Assert.Equal("incident_cycle_window_unobserved", Assert.Throws<RequiredFactException>(() => Value(input, harm).ScheduledTreatments()).Fact);
+    }
+
+    [Fact]
+    public void TreatmentSchedulesReadTheRequestedHorizonBeyondOneYear()
+    {
+        var input = Colony(6, 1000);
+        var harm = RaidAt(70);
+        harm = harm with { ScheduledRaids = [harm.ScheduledRaids[0] with
+            { Timing = new IncidentTiming.Scheduled(new(0, 90, [70]), 1) }] };
+        var value = Value(input, harm, 90);
+        Assert.Equal(0, value.TreatmentsPerDay(input));
+        Assert.Equal(70, Assert.Single(value.ScheduledTreatments()).Day);
+    }
+
+    [Fact]
+    public void ActualRetendQualityChangesRecoveryAndTheMedicineDebitedByTheProductionRun()
+    {
+        var chronic = Flu with
+        {
+            Table = Flu.Table with { Immunizable = null, Lethality = new Lethality.Harmless() },
+            Tend = new TendCourse(0, 0.5, 0.75, 1.5),
+        };
+        var harm = ForecastValueTests.RaidDay(raidsPerDay: 0) with
+        {
+            Illness = new() { Assessed = true, Incidents = [new IllnessIncident("Disease_Flu", [], 1, chronic)
+                { Scheduled = [new IncidentTiming.Scheduled(new(0, CalendarRules.YearDays, [2]), 1)] }] },
+        };
+        ColonyTrajectory Treat(ColonyModelInput input) => Run(input, Policy() with { Scheduled = Value(input, harm).ScheduledTreatments() });
+        var industrial = Treat(Stocked(100, 0));
+        var switches = Treat(Stocked(1, 100));
+        // Two industrial tends at .8 cure it. After the first industrial unit, herbal tends at .48 take two further tends.
+        Assert.Equal(2, industrial.Events.Sum(e => e.MedicineConsumed.Sum()), 9);
+        Assert.Equal(3, switches.Events.Sum(e => e.MedicineConsumed.Sum()), 9);
+        Assert.Equal(98, industrial.Events[^1].Medicine.Sum(), 9);
+        Assert.Equal(98, switches.Events[^1].Medicine.Sum(), 9);
+
+        var input = Stocked(1, 100);
+        var policy = Policy() with { HorizonDays = 4, Scheduled = Value(input, harm).ScheduledTreatments() };
+        var whole = Run(input, policy);
+        var cut = whole.Events.Single(e => e.Day == 2.5 && e.Kind == ModelEventKind.MedicineTreatment);
+        var carried = ColonyModelState.Observed(input, policy) with
+        {
+            Day = cut.Day, Nutrition = cut.Levels[(int)ModelStock.Nutrition],
+            Medicine = EquatableArray.From(whole.MedicineKinds.Select((kind, k) => new ModelResourceStock(kind, cut.Medicine[k]))),
+            TreatmentHistory = whole with { Events = EquatableArray.From(whole.Events.Where(e => e.Day <= cut.Day)) },
+        };
+        var continued = ColonyModel.Run(input, carried, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+        Assert.Equal(whole.Events[^1].Medicine, continued.Events[^1].Medicine);
+        Assert.Equal(whole.Events.Where(e => e.Day > cut.Day).Sum(e => e.MedicineConsumed.Sum()), continued.Events.Sum(e => e.MedicineConsumed.Sum()), 9);
+    }
 
     private static double Priced(ColonyModelInput input, HarmInputs? harm = null, double tends = 0)
     {
@@ -264,10 +396,10 @@ public sealed class MedicineValueTests
         var pawn = ForecastValueTests.HarmPawn();
         var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay());
         var pawns = new Dictionary<string, NeedsForecastPawn> { [pawn.Pawn] = pawn };
-        Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(context with { Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) }, pawns));
-        Assert.Equal(0d, ((ForecastTerm.Assessed)HarmLedger.TreatmentsPerDay(context with { Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) }, pawns)).Value);
+        Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(context with { Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) }, pawns, 1));
+        Assert.Equal(0d, ((ForecastTerm.Assessed)HarmLedger.TreatmentsPerDay(context with { Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) }, pawns, 1)).Value);
         var missing = context with { Harm = context.Harm with { Schedule = new() } };
-        Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.IsType<ForecastTerm.Unassessed>(HarmLedger.TreatmentsPerDay(missing, pawns)).Reason);
+        Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.IsType<ForecastTerm.Unassessed>(HarmLedger.TreatmentsPerDay(missing, pawns, 1)).Reason);
         Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.Throws<RequiredFactException>(() => Value(input, missing.Harm).TreatmentsPerDay(input)).Fact);
     }
     [Fact]

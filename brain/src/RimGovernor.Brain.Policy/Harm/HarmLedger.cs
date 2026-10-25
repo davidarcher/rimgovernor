@@ -20,6 +20,7 @@ public sealed record HarmCatalog
 /// </summary>
 public sealed record HarmInputs
 {
+    public RaidOccurrence Occurrence { get; init; } = new RaidOccurrence.Continuous();
     /// <summary>Distinct scheduled raid budgets, composed independently before nonlinear harm is priced.</summary>
     public IReadOnlyList<ScheduledRaidInputs> ScheduledRaids { get; init; } = [];
     /// <summary>Major threats per day and the share that are raids (<see cref="ThreatSchedule.Of"/>).</summary>
@@ -60,7 +61,7 @@ public sealed record HarmInputs
         {
             Schedule = schedule,
             ScheduledRaids = schedule.Raids.Select(r => new ScheduledRaidInputs(r.PerDay, new RaidDefense(r.Points, facts.DefenseCapacity),
-                RaidCompositionRules.Of(r.Points, [.. facts.Census.Threat.Observed.HostileFactions], facts.HarmCatalog.Raid))).ToArray(),
+                RaidCompositionRules.Of(r.Points, [.. facts.Census.Threat.Observed.HostileFactions], facts.HarmCatalog.Raid)) { Timing = r.Timing }).ToArray(),
             Composition = composition,
             Raid = raid,
             Coverage = facts.HarmCatalog.Coverage,
@@ -73,7 +74,17 @@ public sealed record HarmInputs
     }
 }
 
-public sealed record ScheduledRaidInputs(double PerDay, RaidDefense Raid, RaidComposition Composition);
+public sealed record ScheduledRaidInputs(double PerDay, RaidDefense Raid, RaidComposition Composition)
+{
+    public IncidentTiming Timing { get; init; } = new IncidentTiming.Mtb();
+}
+
+public abstract record RaidOccurrence
+{
+    private RaidOccurrence() { }
+    public sealed record Continuous : RaidOccurrence;
+    public sealed record At(double Day) : RaidOccurrence;
+}
 
 /// <summary>
 /// The per-raid numbers behind a known harm term (#3546), reported by the decision's telemetry. The probabilities are expected
@@ -131,32 +142,44 @@ internal static class HarmLedger
     /// <summary>The harm of <paramref name="outcome"/> wearing the worn outfits changed by <paramref name="commitments"/>, with
     /// <paramref name="defenseShift"/> raid points of defense added to the observed capacity (the sparring ring's trained Melee, #3813).</summary>
     internal static HarmTerm Of(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
-        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? illnessCache = null, double defenseShift = 0)
+        ConcurrentDictionary<HarmFightKey, HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
+        ConcurrentDictionary<IllnessHarmKey, HarmDistribution>? illnessCache = null, double defenseShift = 0)
     {
         var findings = new SortedSet<string>(context.Harm.Schedule.Findings, StringComparer.Ordinal);
-        var terms = RaidContexts(context).Select(c => OfRaid(outcome, c, horizon, cache, pawns, commitments, defenseShift)).ToArray();
+        var terms = RaidContexts(context, horizon / GameTime.TicksPerDay).Select(c => OfRaid(outcome, c, horizon, cache, pawns, commitments, defenseShift)).ToArray();
         foreach (var term in terms) findings.UnionWith(term.Findings);
         if (terms.Any(t => t.Detail is null)) return new(new LedgerTerm.Unassessed(), null, [.. findings]);
         var details = terms.Select(t => t.Detail!).ToArray();
         var rate = details.Sum(d => d.RaidsPerDay);
         double Mean(Func<HarmDetail, double> value) => rate > 0 ? details.Sum(d => d.RaidsPerDay * value(d)) / rate : 0;
-        var combined = new HarmDetail(rate, details.Min(d => d.ExposureLo), details.Max(d => d.ExposureHi),
+        var combined = new HarmDetail(rate, details.Select(d => d.ExposureLo).DefaultIfEmpty(0).Min(), details.Select(d => d.ExposureHi).DefaultIfEmpty(0).Max(),
             Mean(d => d.DownProbability), Mean(d => d.DeathProbability), Mean(d => d.Cvar)) { RaidLoss = details.Sum(d => d.RaidLoss) };
         return WithIllness(combined, outcome.Needs.Keys.OrderBy(p => p, StringComparer.Ordinal).ToArray(), outcome, context, horizon, cache, pawns, commitments, illnessCache, findings);
     }
 
     // A context per budget preserves composition and exposure thresholds; no average-points raid is manufactured.
-    private static IEnumerable<ForecastCoupledContext> RaidContexts(ForecastCoupledContext context)
+    internal static IEnumerable<ForecastCoupledContext> RaidContexts(ForecastCoupledContext context, double days)
     {
         if (context.Harm.ScheduledRaids.Count == 0) { yield return context; yield break; }
         foreach (var raid in context.Harm.ScheduledRaids)
-            yield return context with { Harm = context.Harm with { Raid = raid.Raid, Composition = raid.Composition,
-                Schedule = context.Harm.Schedule with { MajorThreatsPerDay = raid.PerDay, RaidFraction = 1 } } };
+        {
+            ForecastCoupledContext Scenario(double rate, RaidOccurrence occurrence) => context with
+            {
+                Harm = context.Harm with { Raid = raid.Raid, Composition = raid.Composition, Occurrence = occurrence,
+                    ScheduledRaids = [], Schedule = context.Harm.Schedule with { Raids = [], MajorThreatsPerDay = rate, RaidFraction = 1 } },
+            };
+            if (raid.Timing is IncidentTiming.Scheduled timed)
+            {
+                foreach (var at in IncidentTiming.Covered(timed.Cycle, days + timed.OriginDay)
+                    .Where(d => d >= Math.Max(timed.From, timed.OriginDay) && d < Math.Min(days + timed.OriginDay, timed.Until)))
+                    yield return Scenario(timed.Chance / days, new RaidOccurrence.At(at - timed.OriginDay));
+            }
+            else yield return Scenario(raid.PerDay, new RaidOccurrence.Continuous());
+        }
     }
 
     private static HarmTerm OfRaid(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
+        ConcurrentDictionary<HarmFightKey, HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
         double defenseShift)
     {
         var inputs = context.Harm;
@@ -168,7 +191,7 @@ internal static class HarmLedger
         Array.Sort(ordered, StringComparer.Ordinal);
         // The schedule's findings: the comps it does not model when assessed (#3859), the unread fact otherwise.
         findings.UnionWith(inputs.Schedule.Findings);
-        if (RaidsPerDay(inputs) is { } expected)
+        if (RaidsPerDay(inputs, days) is { } expected)
         {
             raidsPerDay = expected;
             if (raidsPerDay == 0)
@@ -266,7 +289,7 @@ internal static class HarmLedger
     /// outfit change's timing or a distribution is unknown.
     /// </summary>
     private static Fight? PawnFight(string pawn, NeedsForecastPawn row, EquatableArray<GearOption> wearing, double ratio, WeaponBin[] bins, ForecastCoupledOutcome outcome,
-        ForecastCoupledContext context, double horizon, ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> cache,
+        ForecastCoupledContext context, double horizon, ConcurrentDictionary<HarmFightKey, HarmDistribution> cache,
         IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
     {
         var inputs = context.Harm;
@@ -278,21 +301,25 @@ internal static class HarmLedger
             return null;
         }
 
-        if (OutfitsOf(pawn, wearing, commitments, outcome.OutfitTicks, horizon) is not { } outfits)
+        var eventDay = inputs.Occurrence is RaidOccurrence.At occurred ? occurred.Day : 0;
+        if (OutfitsOf(pawn, wearing, commitments, outcome.OutfitTicks, inputs.Occurrence is RaidOccurrence.At ? Math.BitIncrement(eventDay * GameTime.TicksPerDay) : horizon) is not { } outfits)
         {
             findings.Add("outfit_change_timing_unknown:" + pawn);
             return null;
         }
+        if (inputs.Occurrence is RaidOccurrence.At) outfits = [(outfits[^1].Outfit, 1)];
+        var remaining = horizon - eventDay * GameTime.TicksPerDay;
+        var stock = context.Stock.At(eventDay);
 
         double risked = 0, down = 0, death = 0, cvar = 0;
         // Each outfit is worn for its share of the horizon, and the fights in that share meet it (#3621).
         foreach (var (outfit, share) in outfits)
         {
-            var key = (pawn, role, outfit, outcome.Support, hits, EquatableArray.From(bins));
+            HarmFightKey key = (pawn, role, outfit, outcome.Support, hits, EquatableArray.From(bins), eventDay, remaining, context.Stock);
             if (!cache.TryGetValue(key, out var distribution))
             {
                 var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
-                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, PartsOf(inputs, outfit, context.Stock), row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
+                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, PartsOf(inputs, outfit, stock), row, context.CapacityPenalties, outcome.Support, context.Value, remaining);
             }
 
             findings.UnionWith(distribution.Findings);
@@ -320,7 +347,7 @@ internal static class HarmLedger
     /// <see cref="RequiredFactException"/> naming the finding (#3835, replacing #3811's unassessed escape).
     /// </summary>
     internal static (double Loss, double Deaths) FightLoss(double points, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> cache,
+        ConcurrentDictionary<HarmFightKey, HarmDistribution> cache,
         IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
     {
         if (ordered.Length == 0)
@@ -360,7 +387,7 @@ internal static class HarmLedger
     /// cannot price, raise <see cref="RequiredFactException"/>.
     /// </summary>
     private static EscapeTerm Escapes(string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> cache,
+        ConcurrentDictionary<HarmFightKey, HarmDistribution> cache,
         IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
     {
         var held = ForecastContainment.EntitiesOf(context.Harm.Containment).Where(e => e.Platform is not null).OrderBy(e => e.Id, StringComparer.Ordinal).ToArray();
@@ -396,9 +423,9 @@ internal static class HarmLedger
     /// leaves the others alone with its findings.
     /// </summary>
     private static HarmTerm WithIllness(HarmDetail raids, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> fights,
+        ConcurrentDictionary<HarmFightKey, HarmDistribution> fights,
         IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
-        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
+        ConcurrentDictionary<IllnessHarmKey, HarmDistribution>? cache, SortedSet<string> findings)
     {
         var illness = IllnessForecast.Term(context.Harm.Illness, ordered, pawns, context.CapacityPenalties, outcome.Support, context.Value, horizon, context.Stock, cache, findings);
         var escape = Escapes(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
@@ -412,22 +439,22 @@ internal static class HarmLedger
     /// wounds take (<see cref="HarmConsequences.Treatments"/>) at the pawn's exposure and worn outfit. Zero when no raid is expected;
     /// unknown when the schedule, composition, ratio, a pawn's outfit or the exposure cell is.
     /// </summary>
-    internal static ForecastTerm TreatmentsPerDay(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns)
+    internal static ForecastTerm TreatmentsPerDay(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, double days)
     {
         double total = 0;
-        foreach (var scenario in RaidContexts(context))
+        foreach (var scenario in RaidContexts(context, days))
         {
-            var treatment = TreatmentsForRaid(scenario, pawns);
+            var treatment = TreatmentsForRaid(scenario, pawns, days);
             if (treatment is ForecastTerm.Assessed assessed) total += assessed.Value;
             else return treatment;
         }
         return new ForecastTerm.Assessed(total);
     }
 
-    private static ForecastTerm TreatmentsForRaid(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns)
+    internal static ForecastTerm TreatmentsForRaid(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, double days)
     {
         var inputs = context.Harm;
-        if (RaidsPerDay(inputs) is not { } raidsPerDay)
+        if (RaidsPerDay(inputs, days) is not { } raidsPerDay)
         {
             return new ForecastTerm.Unassessed(ThreatScheduleUnknown);
         }
@@ -456,8 +483,8 @@ internal static class HarmLedger
     }
 
     /// <summary>The raids a day the schedule expects: its major threats a day × the raid share; null when the schedule is unread.</summary>
-    internal static double? RaidsPerDay(HarmInputs inputs) =>
-        inputs.Schedule.Assessed ? inputs.Schedule.MajorThreatsPerDay * inputs.Schedule.RaidFraction : null;
+    internal static double? RaidsPerDay(HarmInputs inputs, double days) => !inputs.Schedule.Assessed ? null
+        : inputs.Schedule.Raids.Count > 0 ? inputs.Schedule.Raids.Sum(r => r.At(days)) : inputs.Schedule.MajorThreatsPerDay * inputs.Schedule.RaidFraction;
 
     /// <summary>The raid's points ÷ the colony's defense capacity plus <paramref name="shift"/> points (the sparring ring's trained
     /// Melee, #3813), the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
@@ -484,13 +511,14 @@ internal static class HarmLedger
     /// </summary>
     internal static (double Risk, double PatientDays, IReadOnlyList<OrganReplacement> Replacements) RaidOn(ForecastCoupledContext context, NeedsForecastPawn row, HarmConsequences.Care care, double horizon)
     {
-        var rate = RaidsPerDay(context.Harm) ?? throw new RequiredFactException(ThreatScheduleUnknown);
+        var days = horizon / GameTime.TicksPerDay;
+        var rate = RaidsPerDay(context.Harm, days) ?? throw new RequiredFactException(ThreatScheduleUnknown);
         if (rate == 0) return (0, 0, []);
         double risk = 0, patients = 0;
         var replacements = new List<OrganReplacement>();
-        foreach (var scenario in RaidContexts(context))
+        foreach (var scenario in RaidContexts(context, days))
         {
-            var share = RaidsPerDay(scenario.Harm)!.Value / rate;
+            var share = RaidsPerDay(scenario.Harm, days)!.Value / rate;
             var harm = RaidOnBudget(scenario, row, care, horizon);
             risk += share * harm.Risk;
             patients += share * harm.PatientDays;
@@ -514,15 +542,22 @@ internal static class HarmLedger
             throw new RequiredFactException("raid_exposure:" + row.Pawn);
         }
 
-        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), PartsOf(inputs, wearing, context.Stock), row,
-            context.CapacityPenalties, care, context.Value, horizon);
+        var eventDay = inputs.Occurrence is RaidOccurrence.At occurred ? occurred.Day : 0;
+        care = care with
+        {
+            RoomFromDays = Math.Max(0, care.RoomFromDays - eventDay), PatientFromDays = Math.Max(0, care.PatientFromDays - eventDay),
+            QualityAt = care.QualityAt is { } qualityAt ? day => qualityAt(eventDay + day) : null,
+        };
+        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), PartsOf(inputs, wearing, context.Stock.At(eventDay)), row,
+            context.CapacityPenalties, care, context.Value, horizon - eventDay * GameTime.TicksPerDay);
         if (!distribution.Known)
         {
             throw new RequiredFactException("raid_harm:" + row.Pawn);
         }
 
         var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
-        return (Risk(mean, tail, context.Value.HarmRiskWeight), distribution.PatientDays, distribution.Replacements);
+        return (Risk(mean, tail, context.Value.HarmRiskWeight), distribution.PatientDays,
+            [.. distribution.Replacements.Select(r => r with { Day = r.Day + eventDay })]);
     }
 
     /// <summary>The risk transform of one raid's loss: (1 − w) × mean + w × CVaR.</summary>

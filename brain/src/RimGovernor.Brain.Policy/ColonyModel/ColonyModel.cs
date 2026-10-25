@@ -80,6 +80,10 @@ public static class ColonyModel
         var bestHeld = trade is null ? -1 : Array.IndexOf(kinds, trade.Best);
         var tradeOn = trade?.Active ?? false;
         var tradeSilverLeft = trade?.Silver ?? 0;
+        var tradeDates = (trade?.Sources.SelectMany(source => source.Dates(start.EndDay).Select(day => (Day: day, Source: source))) ?? [])
+            .Where(visit => start.Day == 0 ? visit.Day >= 0 : visit.Day > start.Day)
+            .OrderBy(visit => visit.Day).ThenBy(visit => visit.Source.Kind.Value, StringComparer.Ordinal).ToArray();
+        var nextTrade = 0;
         var bought = 0.0;
         var unitsLeft = craft?.Units ?? 0;
         levels[(int)ModelStock.Medicine] = held.Sum();
@@ -168,6 +172,8 @@ public static class ColonyModel
             {
                 Consider(scheduled[next].Day, scheduled[next].Kind, scheduled[next].Id);
             }
+            if (nextTrade < tradeDates.Length)
+                Consider(tradeDates[nextTrade].Day, ModelEventKind.MedicineTrade, "arrival");
 
             // The routine trade (#3907): on the medical reserve's latch (below the entry, held to the target, the usable stock without the
             // best kind) the comps' visits bring medicine at their rates until the silver above the reserve is spent.
@@ -211,7 +217,7 @@ public static class ColonyModel
 
             if (trade is not null)
             {
-                foreach (var visits in trade.Sources.Where(s => s.From > now))
+                foreach (var visits in trade.Sources.Where(s => s.Timing is IncidentTiming.Mtb && s.From > now))
                 {
                     Consider(visits.From, ModelEventKind.MedicineTrade, "visits");
                 }
@@ -283,7 +289,7 @@ public static class ColonyModel
 
             if (buying > 0)
             {
-                foreach (var medicine in trade!.Sources.Where(s => s.From <= now))
+                foreach (var medicine in trade!.Sources.Where(s => s.Timing is IncidentTiming.Mtb && s.From <= now))
                     held[Array.IndexOf(kinds, medicine.Kind)] += medicine.PerDay * span;
                 tradeSilverLeft = Math.Max(0, tradeSilverLeft - (trade.SilverPerDayAt(now) * span));
                 bought += buying * span;
@@ -293,6 +299,7 @@ public static class ColonyModel
             graph.Advance(span);
 
             now = when;
+            EquatableArray<double> medicineConsumed = [];
             switch (kind)
             {
                 case ModelEventKind.TwelfthBoundary:
@@ -302,6 +309,7 @@ public static class ColonyModel
                     break;
                 case ModelEventKind.ProjectCompletion:
                 case ModelEventKind.Harvest:
+                case ModelEventKind.MedicineTreatment:
                     if (fromGraph)
                     {
                         graph.Complete(id, when, levels);
@@ -309,7 +317,26 @@ public static class ColonyModel
                     }
 
                     var effect = scheduled[next++];
-                    levels[(int)effect.Stock] = Math.Max(0, levels[(int)effect.Stock] + effect.Amount);
+                    var amount = effect.Amount;
+                    if (effect.MedicineDemand is { } demand)
+                    {
+                        var prefix = new ColonyTrajectory
+                        {
+                            StartDay = start.Day, TreatmentHistory = start.TreatmentHistory,
+                            Events = [.. events, new ModelEvent { Day = now, Kind = ModelEventKind.MedicineTreatment, Medicine = EquatableArray.From(held) }],
+                            Skills = graph.Skills, MedicineKinds = EquatableArray.From(kinds), StartMedicine = startMedicine,
+                        };
+                        var count = demand(prefix, now);
+                        DomainException.Require(double.IsFinite(count) && count >= 0 && effect.Stock == ModelStock.Medicine, "invalid scheduled medicine demand");
+                        amount -= count;
+                    }
+                    levels[(int)effect.Stock] = Math.Max(0, levels[(int)effect.Stock] + amount);
+                    if (effect.Stock == ModelStock.Medicine)
+                    {
+                        var before = held.ToArray();
+                        UseMedicine(held, levels[(int)ModelStock.Medicine]);
+                        medicineConsumed = EquatableArray.From(before.Select((count, k) => count - held[k]));
+                    }
                     break;
                 case ModelEventKind.StockZero:
                     levels[Array.IndexOf(StockNames, id)] = 0;
@@ -328,6 +355,30 @@ public static class ColonyModel
                 case ModelEventKind.MedicineCraft when craft is not null:
                     held[crafted] += craft.Target - levels[(int)ModelStock.Medicine];
                     levels[(int)ModelStock.Medicine] = craft.Target;
+                    break;
+                case ModelEventKind.MedicineTrade when id == "arrival" && trade is not null:
+                    var arrivals = new List<MedicineTradeSource>();
+                    while (nextTrade < tradeDates.Length && tradeDates[nextTrade].Day == now)
+                        arrivals.Add(tradeDates[nextTrade++].Source);
+                    tradeOn = Others(held, bestHeld) < trade.Reserve.Threshold(trade.Colonists, tradeOn) - Epsilon;
+                    if (tradeOn && tradeSilverLeft > Epsilon)
+                    {
+                        foreach (var visitGroup in arrivals.GroupBy(source => ((IncidentTiming.Scheduled)source.Timing).Cycle.CompIndex).OrderBy(group => group.Key))
+                        {
+                            var gap = Math.Max(0, trade.Reserve.Threshold(trade.Colonists, true) - Others(held, bestHeld));
+                            var purchases = visitGroup.Select(source =>
+                            {
+                                var visit = source.Visit ?? throw new RequiredFactException("medicine_scheduled_visit_stock");
+                                var cap = Math.Min(gap, Math.Floor(tradeSilverLeft / visit.Price));
+                                return (source.Kind, Units: visit.Units(source.Kind, cap), visit.Price);
+                            }).ToArray();
+                            foreach (var purchase in purchases)
+                                held[Array.IndexOf(kinds, purchase.Kind)] += purchase.Units;
+                            tradeSilverLeft = Math.Max(0, tradeSilverLeft - purchases.Sum(purchase => purchase.Units * purchase.Price));
+                            bought += purchases.Sum(purchase => purchase.Units);
+                        }
+                        levels[(int)ModelStock.Medicine] = held.Sum();
+                    }
                     break;
                 case ModelEventKind.MedicineTrade when id == "silver":
                     tradeSilverLeft = 0;
@@ -348,7 +399,7 @@ public static class ColonyModel
                     break;
             }
 
-            events.Add(new ModelEvent { Day = now, Kind = kind, Id = id, Levels = EquatableArray.From(levels), Medicine = EquatableArray.From(held) });
+            events.Add(new ModelEvent { Day = now, Kind = kind, Id = id, Levels = EquatableArray.From(levels), Medicine = EquatableArray.From(held), MedicineConsumed = medicineConsumed });
             if (kind == ModelEventKind.HorizonEnd)
             {
                 break;
@@ -363,6 +414,7 @@ public static class ColonyModel
         graph.Finish();
         return new ColonyTrajectory
         {
+            StartDay = start.Day, TreatmentHistory = start.TreatmentHistory,
             Events = EquatableArray.From(events),
             Starvation = EquatableArray.From(starved),
             Apparel = graph.Apparel,
@@ -379,7 +431,7 @@ public static class ColonyModel
     private static double Others(double[] held, int best) => held.Sum() - (best < 0 ? 0 : held[best]);
 
     /// <summary>Brings the kinds to <paramref name="total"/>: what was used up comes off the best kind first; a gain joins the best kind.</summary>
-    private static void UseMedicine(double[] held, double total)
+    internal static void UseMedicine(double[] held, double total)
     {
         if (held.Length == 0)
         {

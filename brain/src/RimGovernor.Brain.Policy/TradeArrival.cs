@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Policy;
 // Trader visits as a stock-arrival source (#3869 of #3650). The bridge decodes each storyteller's trader comps by comp class
 // (Catalog/Storyteller.cs) and each trader kind's stock generators by generator class (Catalog/TraderStock.cs); the native read gives
 // what a visit reads of the colony now (TradeVisitFacts). A visit carries a stock with the chance its trader kind's generators make
-// enough of it and today's silver pays the buy price (#3855 Q2 A); visits come at a steady rate from the day the comp starts, so a
-// trade source's not-arrived chance is exponential: 1 until From, e^(−rate × carry chance × (t − From)) after (#3855 Q3). A comp
+// enough of it and today's silver pays the buy price (#3855 Q2 A). MTB visits retain an exponential wait; native cycle visits
+// apply their carry chance at each observed date. A comp
 // that draws its incident from categories (#3909) sends each incident with the chance its draw gives at today's facts (#3909 Q3).
 
 /// <summary>
@@ -50,7 +50,7 @@ public enum TradeCompRate
     /// <summary>StorytellerComp_FactionInteraction: baseIncidentsPerYear over the 60-day year, the ally fraction, the minWealth and minDanger gates.</summary>
     FactionInteraction,
 
-    /// <summary>StorytellerComp_OnOffCycle: its cycle (ThreatSchedule.CyclePerDay).</summary>
+    /// <summary>StorytellerComp_OnOffCycle: the native cycle row indexed by the storyteller comp.</summary>
     OnOffCycle,
 
     /// <summary>StorytellerComp_RandomMain, CategoryMTB, SingleMTB: Rand.MTBEventOccurs, 1 ÷ (mtbDays × the days-passed factor) a day.</summary>
@@ -99,14 +99,14 @@ public sealed record TradeCategoryDraw(TradeDrawRule Rule)
 /// <summary>
 /// A storyteller comp that may send trader visits (#3869, #3909), from <see cref="MinDaysPassed"/> days after settling (with its
 /// incident's earliestDay, and before forceRaidEnemyBeforeDaysPassed an on-off cycle sends raids). Its <see cref="Rate"/>: a
-/// FactionInteraction comp sends <see cref="IncidentsPerDay"/> (baseIncidentsPerYear over the year IncidentCycleUtility cycles),
-/// scaled by StorytellerUtility.AllyIncidentFraction (full allies only when <see cref="FullAlliesOnly"/>), none while the colony's
-/// wealth is below <see cref="MinWealth"/> or the map's danger below <see cref="MinDanger"/>; an OnOffCycle comp its
-/// <see cref="Cycle"/>'s incidents; an MTB comp <see cref="IncidentsPerDay"/> (1 ÷ mtbDays) over its
+/// FactionInteraction and OnOffCycle comps consume native dates keyed by CompIndex. Native acceptance includes the ally fraction;
+/// <see cref="FullAlliesOnly"/>, <see cref="MinWealth"/> and <see cref="MinDanger"/> name today's zero-visit gates.
+/// MTB comps retain <see cref="IncidentsPerDay"/> (1 ÷ mtbDays) over
 /// <see cref="MtbFactorByDaysPassed"/>. Each event is <see cref="Incident"/>, or drawn as <see cref="Draw"/> says (one of the two).
 /// </summary>
 public sealed record TradeVisitComp(TradeCompRate Rate, double MinDaysPassed)
 {
+    public int CompIndex { get; init; }
     public string Incident { get; init; } = "";
 
     public TradeCategoryDraw? Draw { get; init; }
@@ -120,8 +120,6 @@ public sealed record TradeVisitComp(TradeCompRate Rate, double MinDaysPassed)
     public double MinWealth { get; init; }
 
     public StoryDangerLevel MinDanger { get; init; }
-
-    public ThreatCycleComp? Cycle { get; init; }
 }
 
 /// <summary>
@@ -449,6 +447,8 @@ public sealed record TradeKindChance(double Chance, TraderOffer Offer)
 /// </summary>
 public sealed record TradeSource(Resource Resource, double From, double VisitsPerDay)
 {
+    public IncidentTiming Timing { get; init; } = new IncidentTiming.Mtb();
+
     public EquatableArray<TradeKindChance> Kinds { get; init; }
 
     public double PriceFactor { get; init; }
@@ -489,10 +489,21 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     }
 
     /// <summary>The rate a day at which visits supply <paramref name="count"/> units.</summary>
-    public double Rate(long count) => Once ? 0 : VisitsPerDay * Supplies(count);
+    public double Rate(long count) => Once || Timing is IncidentTiming.Scheduled ? 0 : VisitsPerDay * Supplies(count);
 
-    /// <summary>The chance <paramref name="count"/> units have not arrived <paramref name="t"/> days after the want: 1 until From, then exponential.</summary>
-    public double NotArrived(long count, double t) => count <= 0 ? 0 : Once ? t < From ? 1 : 1 - Supplies(count) : t <= From ? 1 : Math.Exp(-Rate(count) * (t - From));
+    /// <summary>Native visit dates on this want's timeline. Earlier native visits cannot satisfy a later want.</summary>
+    public IEnumerable<double> Dates(double through)
+    {
+        if (Timing is not IncidentTiming.Scheduled timed) yield break;
+        foreach (var day in IncidentTiming.Covered(timed.Cycle, through + timed.OriginDay))
+            if (day >= Math.Max(timed.From, timed.OriginDay) && day < timed.Until && day - timed.OriginDay >= From && day - timed.OriginDay <= through)
+                yield return day - timed.OriginDay;
+    }
+
+    /// <summary>The chance stock has not arrived: an MTB exponential, discrete native visit misses, or one selected delivery.</summary>
+    public double NotArrived(long count, double t) => count <= 0 ? 0 : Once ? t < From ? 1 : 1 - Supplies(count)
+        : Timing is IncidentTiming.Scheduled timed ? Math.Pow(1 - timed.Chance * Supplies(count), Dates(t).Count())
+        : t <= From ? 1 : Math.Exp(-Rate(count) * (t - From));
 }
 
 public static class TradeArrivalRules
@@ -547,7 +558,8 @@ public static class TradeArrivalRules
     /// carry, or a kind the catalog does not know, leaves the trade unread (the returned Unread).
     /// </summary>
     public static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Sources(TradeScheduleTable schedule, StorytellerTrade storyteller,
-        TraderStockTable stock, TradeVisitFacts facts, CycleNow now, double wealth, long silver, long orbitalSilver)
+        TraderStockTable stock, TradeVisitFacts facts, double wealth, long silver, long orbitalSilver,
+        IReadOnlyList<IncidentCycleTimes> cycles)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal) { SilverIncomeUnmodelled };
         if (storyteller.Unmodelled.Count > 0)
@@ -577,7 +589,10 @@ public static class TradeArrivalRules
                 return ([], [], unread);
             }
 
-            var perDay = VisitsPerDay(comp, facts, now, wealth);
+            var perDay = comp.Rate == TradeCompRate.Mtb ? VisitsPerDay(comp, facts) : 0;
+            var allowed = comp.Rate != TradeCompRate.FactionInteraction ||
+                (!(comp.MinWealth > 0 && wealth < comp.MinWealth) && facts.Danger >= comp.MinDanger);
+            var fraction = comp.Rate == TradeCompRate.FactionInteraction ? (comp.FullAlliesOnly ? facts.FullAllyFraction : facts.AllyFraction) : 1;
             var from = Math.Max(0, comp.MinDaysPassed - facts.DaysSinceSettle);
             foreach (var (name, chance) in chances)
             {
@@ -594,7 +609,7 @@ public static class TradeArrivalRules
                     continue;
                 }
 
-                if (!(chance > 0) || !(perDay > 0))
+                if (!(chance > 0) || !allowed || !(fraction > 0) || comp.Rate == TradeCompRate.Mtb && !(perDay > 0))
                 {
                     continue;
                 }
@@ -643,7 +658,9 @@ public static class TradeArrivalRules
 
                 foreach (var (resource, list) in offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal))
                 {
-                    sources.Add(new TradeSource(resource, from, perDay * chance) { Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = incident.Worker == TradeWorker.Orbital ? orbitalSilver : silver });
+                    var timing = comp.Rate == TradeCompRate.Mtb ? (IncidentTiming)new IncidentTiming.Mtb()
+                        : new IncidentTiming.Scheduled(IncidentTiming.RequireCycle(cycles, comp.CompIndex), chance) { From = from };
+                    sources.Add(new TradeSource(resource, from, perDay * chance) { Timing = timing, Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = incident.Worker == TradeWorker.Orbital ? orbitalSilver : silver });
                 }
             }
         }
@@ -866,26 +883,10 @@ public static class TradeArrivalRules
 
     // StorytellerComp_FactionInteraction: no visits below minWealth or minDanger or without an ally fraction; IncidentCycleUtility's
     // count is RoundRandom(base) over a year, then RoundRandom(hits × fraction): unbiased, so the rates multiply. OnOffCycle:
-    // ThreatSchedule's cycle rate. MTB: Rand.MTBEventOccurs at 1 ÷ (mtbDays × the days-passed factor) a day.
-    private static double VisitsPerDay(TradeVisitComp comp, TradeVisitFacts facts, CycleNow now, double wealth)
+    // MTB retains its continuous rate; native cycle rows already contain cycle acceptance.
+    private static double VisitsPerDay(TradeVisitComp comp, TradeVisitFacts facts)
     {
-        switch (comp.Rate)
-        {
-            case TradeCompRate.OnOffCycle:
-                return comp.Cycle is { } cycle ? ThreatSchedule.CyclePerDay(cycle, now) : throw new DomainException("trade cycle comp without a cycle");
-            case TradeCompRate.Mtb:
-                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, facts.DaysSinceSettle);
-                return factor > 0 ? comp.IncidentsPerDay / factor : throw new DomainException("trade mtb comp factor " + factor);
-            case TradeCompRate.FactionInteraction:
-                if ((comp.MinWealth > 0 && wealth < comp.MinWealth) || facts.Danger < comp.MinDanger)
-                {
-                    return 0;
-                }
-
-                var fraction = comp.FullAlliesOnly ? facts.FullAllyFraction : facts.AllyFraction;
-                return fraction > 0 ? comp.IncidentsPerDay * fraction : 0;
-        }
-
-        throw new DomainException("trade comp rate " + comp.Rate);
+        var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, facts.DaysSinceSettle);
+        return factor > 0 ? comp.IncidentsPerDay / factor : throw new DomainException("trade mtb comp factor " + factor);
     }
 }

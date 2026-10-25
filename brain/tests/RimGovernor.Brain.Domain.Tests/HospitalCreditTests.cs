@@ -128,6 +128,93 @@ public sealed class HospitalCreditTests
     }
 
     [Fact]
+    public void AServedHospitalPricesNativeRaidDatesRatherThanProratingTheSameCount()
+    {
+        double Credit(double eventDay)
+        {
+            var patient = Patient();
+            // Isolate first-tend infection: later patient sleep can still benefit from the new hospital.
+            patient = patient with { ThoughtStages = EquatableArray.From(patient.ThoughtStages.Select(r =>
+                r.Role == ForecastHospital.PatientRole && r.Stage == 2 ? r with { Offset = -2 } : r)) };
+            var context = Context(0, pawn: patient);
+            var timing = new IncidentTiming.Scheduled(new(0, Horizon, [eventDay]), 1);
+            context = context with
+            {
+                Value = context.Value with { WellbeingWeight = 0 },
+                Harm = context.Harm with
+                {
+                    ScheduledRaids = [new(0, context.Harm.Raid, context.Harm.Composition) { Timing = timing }],
+                    Schedule = context.Harm.Schedule with { Raids = [new(500, 0) { Timing = timing }] },
+                },
+            };
+            return -Credits(ForecastValue.Of(Served(.05, Day), context, Day)).Sum(c => c.Value);
+        }
+        Assert.Equal(0, Credit(.5), 12); // Its first tending already used the old bedroom.
+        Assert.True(Credit(2) > 0);
+    }
+
+    [Fact]
+    public void NativeHospitalCareReadsTheExistingMedicineTrajectoryAtTheIncidentDate()
+    {
+        var context = Context(0);
+        var timing = new IncidentTiming.Scheduled(new(0, Horizon, [2]), 1);
+        context = context with
+        {
+            Value = context.Value with { WellbeingWeight = 0 },
+            Harm = context.Harm with
+            {
+                ScheduledRaids = [new(0, context.Harm.Raid, context.Harm.Composition) { Timing = timing }],
+                Schedule = context.Harm.Schedule with { Raids = [new(500, 0) { Timing = timing }] },
+            },
+        };
+        var input = MedicineValueTests.Colony(6, 1);
+        var value = new ColonyValue(context, [], Horizon, input.Pawns, ItemFactsFixtureRules.CoreItemFacts());
+        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())],
+            MedicineValueTests.Policy(1) with { HorizonDays = Horizon });
+        var average = value.TendingOverHorizon(trajectory, new SortedSet<string>(StringComparer.Ordinal))!;
+        var actual = value.TendingOn(trajectory, 2)!;
+        Assert.True(average.Quality > actual.Quality);
+        double Credit(ForecastTending tending) => -Credits(ForecastValue.Of(Served(.05), context with { Tending = tending }, Day)).Sum(c => c.Value);
+        var projected = average with { Timing = new ForecastTendingTiming.Projected(value, trajectory) };
+        Assert.Equal(Credit(actual), Credit(projected), 9);
+        Assert.NotEqual(Credit(average), Credit(projected));
+
+        var stocked = input with { Stocks = input.Stocks with { Medicine = [new(new Resource("MedicineIndustrial"), 100)] } };
+        var selectedHistory = ColonyModel.Run(stocked, [.. stocked.Pawns.Select(p => PawnCycle.Year(stocked, p).ToArray())],
+            MedicineValueTests.Policy(1) with { HorizonDays = Horizon });
+        ForecastCoupledOutcome WithHistory(ColonyTrajectory history) => Served(.05) with
+        {
+            Terminal = new(new() { Origin = new(0), HorizonDays = Horizon }, new Dictionary<string, ForecastCommitment>(),
+                new Dictionary<Resource, double>(), new Dictionary<string, double>(), null, new Dictionary<Resource, double>())
+                { TreatmentHistory = history },
+        };
+        var projectedContext = context with { Tending = projected };
+        double SelectedCredit(ColonyTrajectory history) => -Credits(ForecastValue.Of(WithHistory(history), projectedContext, Day)).Sum(c => c.Value);
+        Assert.Equal(Credit(actual), SelectedCredit(trajectory), 9);
+        Assert.Equal(Credit(value.TendingOn(selectedHistory, 2)!), SelectedCredit(selectedHistory), 9);
+        Assert.NotEqual(SelectedCredit(trajectory), SelectedCredit(selectedHistory));
+    }
+
+    [Fact]
+    public void AHospitalCompletedDuringANativeIllnessImprovesOnlyTheRemainingImmunityRace()
+    {
+        var context = Context(0);
+        var schedule = Flu(1) with
+        {
+            ThroughDays = Horizon,
+            Incidents = [Flu(1).Incidents.Single() with
+            {
+                Rates = [], Scheduled = [new(new(0, Horizon, [.25]), 1)], ThroughDays = Horizon,
+            }],
+        };
+        context = context with { Value = context.Value with { WellbeingWeight = 0 }, Harm = context.Harm with { Illness = schedule } };
+        double Credit(double servedDay) => -Credits(ForecastValue.Of(Served(.05, servedDay * Day), context, Day)).Sum(c => c.Value);
+        Assert.True(Credit(0) > Credit(1));
+        Assert.True(Credit(1) > 0);
+        Assert.Equal(0, Credit(9), 12);
+    }
+
+    [Fact]
     public void AModdedStorytellersUnknownCompIsNamedAndTheHospitalIsCreditedTheRaidsItsVanillaCompsSend()
     {
         // #3859 the production way (#3822): a storyteller of a ThreatBig on-off cycle (1 threat per 10 days) and a mod's comp
@@ -137,13 +224,16 @@ public sealed class HospitalCreditTests
             new Game.ThreatScheduleTests.StorytellerCompProperties_Test()));
         var schedule = HarmInputs.Of(new ReviewFacts
         {
-            ThreatTable = catalog.ThreatSchedule(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Modded", DaysPassed = 30.0, RaidPoints = 500.0 } } },
+            ThreatTable = catalog.ThreatSchedule(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with
+            { Storyteller = "Modded", DaysPassed = 30.0, RaidPoints = 500.0, Cycles = [new(0, 60, [0.5])] } } },
         }).Schedule;
         var finding = "threat_comp_unmodelled:" + nameof(Game.ThreatScheduleTests.StorytellerCompProperties_Test);
         Assert.True(schedule.Assessed);
         Assert.Equal([finding], schedule.Findings);
-        var context = Context(0) with { Harm = Context(0).Harm with { Schedule = schedule } };
-        Assert.Equal(0.1 * ThreatSchedule.RaidFractionAfterForced, HarmLedger.RaidsPerDay(context.Harm)!.Value, 12);
+        var context = Context(0);
+        context = context with { Harm = context.Harm with { Schedule = schedule,
+            ScheduledRaids = [.. schedule.Raids.Select(r => new ScheduledRaidInputs(r.PerDay, context.Harm.Raid, context.Harm.Composition) { Timing = r.Timing })] } };
+        Assert.Equal(ThreatSchedule.RaidFractionAfterForced, HarmLedger.RaidsPerDay(context.Harm, 1)!.Value, 12);
 
         var ledger = ForecastValue.Of(Served(0.05), context, Day);
 

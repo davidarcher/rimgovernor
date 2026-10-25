@@ -554,7 +554,7 @@ public sealed class ForecastValueTests
         Assert.Equal(Harmed(Cloth, first).HarmDetail!.DeathsPerDay + Harmed(Cloth, second).HarmDetail!.DeathsPerDay, result.HarmDetail!.DeathsPerDay, 9);
 
         var pawns = new Dictionary<string, NeedsForecastPawn> { ["pawn"] = HarmPawn() };
-        double Medicine(HarmInputs harm) => Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(HarmContext(Cloth, harm), pawns)).Value;
+        double Medicine(HarmInputs harm) => Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(HarmContext(Cloth, harm), pawns, 1)).Value;
         Assert.Equal(Medicine(first) + Medicine(second), Medicine(mixed), 9);
         var care = new HarmConsequences.Care(true, 0.8, 0, 1);
         var a = HarmLedger.RaidOn(HarmContext(Cloth, first), HarmPawn(), care, Day);
@@ -586,6 +586,26 @@ public sealed class ForecastValueTests
         var untimed = Crafted(null);
         Assert.False(untimed.Harm.IsPriced());
         Assert.Contains("outfit_change_timing_unknown:pawn", untimed.Findings);
+    }
+
+    [Fact]
+    public void OneNativeRaidBeforeArmorDeliveryGetsNoArmorCreditButTheSameCountAfterDeliveryDoes()
+    {
+        var baseHarm = RaidDay();
+        HarmInputs At(double day) => baseHarm with
+        {
+            ScheduledRaids = [new(0, baseHarm.Raid, baseHarm.Composition)
+            { Timing = new IncidentTiming.Scheduled(new(0, 1, [day]), 1) }],
+        };
+        var craft = new ForecastCommitment("craft", default)
+        { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", Devilstrand)] };
+        var outcome = Outcome(Calm()) with { OutfitTicks = [new("craft", Day / 2)] };
+        double Loss(double at, bool armor) => ForecastValue.Of(outcome, HarmContext(Cloth, At(at)), Day,
+            Outcome(Calm()), armor ? [craft] : []).Harm.Loss();
+        Assert.Equal(Loss(0.25, false), Loss(0.25, true), 9);
+        Assert.True(Loss(0.75, true) < Loss(0.75, false));
+        // Recovery and terminal capability loss use the time remaining after the event.
+        Assert.True(Loss(0.75, false) < Loss(0.25, false));
     }
 
     [Fact]

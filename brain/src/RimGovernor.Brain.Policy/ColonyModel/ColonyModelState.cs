@@ -29,6 +29,8 @@ public sealed record ColonyModelState
     public required EquatableArray<ModelResourceStock> ExternalHolds { get; init; }
     public required EquatableArray<ModelProjectState> Projects { get; init; }
     public required EquatableArray<ModelPawn> Pawns { get; init; }
+    /// <summary>Completed treatment history on the original review axis; referenced by continuation, never persisted.</summary>
+    public ColonyTrajectory? TreatmentHistory { get; init; }
 
     /// <summary>The ordinary observed-origin entry, shared by the production baseline and marginal perturbations.</summary>
     public static ColonyModelState Observed(ColonyModelInput input, ColonyModelPolicy policy) => new()

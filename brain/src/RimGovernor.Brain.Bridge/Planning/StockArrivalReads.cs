@@ -70,7 +70,7 @@ public static class StockArrivalReads
             return ([], [], "storyteller_unknown:" + threat.Storyteller);
         }
 
-        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, new CycleNow(facts.DaysSinceSettle, threat.RaidPoints, threat.ProgressScore, threat.NoTreeConnection), threat.WealthTotal,
-            TradePolicyRules.SpendableSilver(silver, colonists), TradePolicyRules.SpendableSilver(facts.BeaconSilver, colonists));
+        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, threat.WealthTotal,
+            TradePolicyRules.SpendableSilver(silver, colonists), TradePolicyRules.SpendableSilver(facts.BeaconSilver, colonists), threat.Cycles);
     }
 }

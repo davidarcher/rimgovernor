@@ -66,7 +66,7 @@ public sealed partial class DefinitionCatalog
                     var start = Math.Max(Decimal32(cycle.minDaysPassed), Decimal32(cycle.forceRaidEnemyBeforeDaysPassed));
                     if (cycle.incident is null ? cycle.IncidentCategory?.defName == human : cycle.incident.category?.defName == human)
                     {
-                        draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.OnOffCycle, start) { Cycle = CycleComp(cycle), Incident = cycle.incident?.defName ?? "" });
+                        draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.OnOffCycle, start) { Cycle = CycleComp(cycle, def.comps.IndexOf(cycle)), Incident = cycle.incident?.defName ?? "" });
                     }
 
                     break;

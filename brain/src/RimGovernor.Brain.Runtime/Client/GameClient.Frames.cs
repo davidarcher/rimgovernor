@@ -315,6 +315,7 @@ public sealed partial class GameClient : IDisposable
             }
             var request = new RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest
             {
+                IncidentHorizonDays = RimGovernor.Brain.Policy.ColonyModelPolicy.DefaultHorizonDays,
                 RoutePathBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis { Value = RoutePathBudgetMs },
                 LinesOfFireBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis { Value = LinesOfFireBudgetMs },
             };

@@ -31,6 +31,9 @@ public sealed record HarmDistribution
     /// <summary>The expected tends of one event; filled by the illness forecast (a raid's treatments are <see cref="HarmConsequences.Treatments"/>).</summary>
     public double Treatments { get; init; }
 
+    /// <summary>Expected disease treatments at their review-relative dates, normalized to one incident as <see cref="Treatments"/> is.</summary>
+    public IReadOnlyList<(double Day, double Count)> TreatmentDates { get; init; } = [];
+
     /// <summary>The organs and parts one event destroys and what follows: an illness's (#3830), a raid's whose loss does not kill (#3847).</summary>
     public IReadOnlyList<OrganReplacement> Replacements { get; init; } = [];
 
@@ -43,6 +46,7 @@ public sealed record HarmDistribution
 /// </summary>
 public sealed record OrganReplacement(string Part, OrganReplacementRead? Recipe, SurgeryWantReason Reason, double Probability)
 {
+    public double Day { get; init; }
     public StockWait? Wait { get; init; }
 }
 
@@ -236,6 +240,13 @@ public static class HarmConsequences
     internal readonly record struct Care(bool Tended, double Quality, double FirstCareDays, double RoomFactor)
     {
         public bool RoomUnobserved { get; init; }
+        public double RoomFromDays { get; init; }
+        public double BeforeRoomFactor { get; init; }
+        public double PatientFromDays { get; init; }
+        /// <summary>The quality at each actual tend, in days since this event; null keeps the scalar quality.</summary>
+        public Func<double, double>? QualityAt { get; init; }
+        /// <summary>Only walk disease treatment history through this day; infinity evaluates the complete course.</summary>
+        public double TreatmentThroughDays { get; init; } = double.PositiveInfinity;
     }
 
     /// <summary>
@@ -423,6 +434,7 @@ public static class HarmConsequences
         private readonly double tendQuality;
         private readonly double careRoomFactor;
         private readonly double firstCareDays;
+        private readonly double patientFromDays;
         private readonly bool bleedingPriced;
         private readonly bool infectionPriced;
 
@@ -489,14 +501,15 @@ public static class HarmConsequences
             this.horizon = horizon;
             days = horizon / GameTime.TicksPerDay;
             firstCareDays = double.PositiveInfinity;
+            patientFromDays = care.PatientFromDays;
             careRoomFactor = 1;
 
             if (care.Tended)
             {
                 tended = true;
-                tendQuality = Math.Clamp(care.Quality, 0, 1);
+                tendQuality = Math.Clamp(care.QualityAt?.Invoke(Math.Max(0, care.FirstCareDays)) ?? care.Quality, 0, 1);
                 firstCareDays = Math.Max(0, care.FirstCareDays);
-                careRoomFactor = Math.Max(0, care.RoomFactor);
+                careRoomFactor = Math.Max(0, firstCareDays < care.RoomFromDays ? care.BeforeRoomFactor : care.RoomFactor);
                 if (care.RoomUnobserved)
                 {
                     findings.Add("infection_room_factor_unobserved");
@@ -553,7 +566,7 @@ public static class HarmConsequences
             }
 
             var injury = Injury(severity, out var injuryDowned, out var healed);
-            patient += tended ? mass * Math.Max(0, healed - Math.Min(firstCareDays, healed)) : 0;
+            patient += tended ? mass * Math.Max(0, healed - Math.Max(firstCareDays, patientFromDays)) : 0;
             var baseLoss = Math.Min(days, bleed + injury);
             var downed = bleedDowned || injuryDowned;
             var infected = Infection(severity, out var infectionLoss, out var infectionDiedAt, out var infectionDowned);

@@ -97,9 +97,10 @@ public static partial class ForecastCoupled
         }
 
         /// <summary>Unbound debits use the same oldest-first physical lots, never an independent aggregate forecast.</summary>
-        private void DebitLots(Resource resource, double units)
+        private void DebitLots(Resource resource, double units, bool medicineOnly = false)
         {
-            foreach (var key in lots.Keys.Where(k => k.Resource == resource && !outsidePhysical.Contains(k.Lot))
+            foreach (var key in lots.Keys.Where(k => k.Resource == resource && !outsidePhysical.Contains(k.Lot)
+                && (!medicineOnly || census.TryGetValue(k.Lot, out var medicine) && medicine.Medicine))
                 .OrderBy(k => expiry.GetValueOrDefault(k.Lot, double.PositiveInfinity))
                 .ThenBy(k => k.Lot, StringComparer.Ordinal).ThenBy(k => k.Location, StringComparer.Ordinal).ToArray())
             {

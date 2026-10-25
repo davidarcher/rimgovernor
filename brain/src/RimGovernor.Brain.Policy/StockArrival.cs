@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // The stock-arrival model (#3868 of #3650): when a stock a rule waits on (a replacement part, an organ, a medicine kind) arrives
 // once it is wanted. Each source gives the chance a count of units has not arrived t days after the want; independent sources
 // multiply those chances, and a consumer prices the expected wait capped at the days it has left, E[min(W, R)]. Crafting is a step
-// source (StockArrivalRules.Craft); trader visits an exponential one from the day their comp starts (TradeArrivalRules.Sources, #3869).
+// source (StockArrivalRules.Craft); trader visits use the MTB exponential or native dated stock chances (TradeArrivalRules.Sources).
 
 /// <summary>
 /// One source of a resource (#3868): from the want on it makes <see cref="Batch"/> units an iteration at <see cref="PerDay"/> units a
@@ -46,26 +46,60 @@ public sealed record StockNeed(EquatableArray<Resource> AnyOf, long Count);
 public sealed record MedicineCraft(Resource Kind, double PerDay, double Units, double Target, EquatableArray<Resource> Better);
 
 /// <summary>A medicine kind's expected purchases and native silver cost per day from visits starting at From.</summary>
-public sealed record MedicineTradeSource(Resource Kind, double From, double PerDay, double SilverPerDay);
+public sealed record MedicineTradeSource(Resource Kind, double From, double PerDay, double SilverPerDay)
+{
+    public IncidentTiming Timing { get; init; } = new IncidentTiming.Mtb();
+    public MedicineVisit? Visit { get; init; }
+
+    public IEnumerable<double> Dates(double through)
+    {
+        if (Timing is not IncidentTiming.Scheduled timed) yield break;
+        foreach (var day in IncidentTiming.Covered(timed.Cycle, through + timed.OriginDay))
+            if (day >= Math.Max(timed.From, timed.OriginDay) && day < timed.Until && day - timed.OriginDay >= From && day - timed.OriginDay <= through)
+                yield return day - timed.OriginDay;
+    }
+}
+
+/// <summary>A scheduled purchase uses the same joint stock law, capped before its visit/draw chance is applied.</summary>
+public sealed record MedicineVisit(TraderKindStock Stock, EquatableArray<Resource> Medicines, double Chance, double Price, double PriceFactor)
+{
+    public double Units(Resource kind, double cap)
+    {
+        var whole = (long)Math.Min(Math.Floor(cap), long.MaxValue / 2.0);
+        var low = Stock.CheapestMedicineUnits(kind, Medicines, whole, PriceFactor);
+        // A projected fractional gap interpolates E[min(N, cap)] between adjacent integer caps.
+        return Chance * (low + (cap - whole) * (Stock.CheapestMedicineUnits(kind, Medicines, whole + 1, PriceFactor) - low));
+    }
+}
 
 /// <summary>Cheapest-carried purchases on the medical reserve latch, sharing today's spendable silver across all medicine kinds.</summary>
 public sealed record MedicineTrade(EquatableArray<MedicineTradeSource> Sources, double Silver, double Claimed, Resource Best, long Colonists,
     MedicalReservePolicy Reserve, bool Active, EquatableArray<Resource> KindsBestFirst)
 {
     public const string LaterBuysFinding = "medicine_trade_later_buys_unclaimed";
-    public double PerDayAt(double day) => Sources.Where(s => s.From <= day).Sum(s => s.PerDay);
-    public double SilverPerDayAt(double day) => Sources.Where(s => s.From <= day).Sum(s => s.SilverPerDay);
-    public double KindPerDayAt(Resource kind, double day) => Sources.Where(s => s.Kind == kind && s.From <= day).Sum(s => s.PerDay);
+    public double PerDayAt(double day) => Sources.Where(s => s.Timing is IncidentTiming.Mtb && s.From <= day).Sum(s => s.PerDay);
+    public double SilverPerDayAt(double day) => Sources.Where(s => s.Timing is IncidentTiming.Mtb && s.From <= day).Sum(s => s.SilverPerDay);
+    public double KindPerDayAt(Resource kind, double day) => Sources.Where(s => s.Timing is IncidentTiming.Mtb && s.Kind == kind && s.From <= day).Sum(s => s.PerDay);
 }
 /// <summary>
 /// The stock-arrival model (#3868), built at the read boundary (<see cref="StockArrivalRules.Craft"/>); each outcome adds only its
 /// selected requests (#3917) on <see cref="ForecastCoupledContext.Stock"/>. A craft source's not-arrived chance is a step: 1 until its arrival day, 0 after (crafting
-/// is a fixed delay once the bill and its inputs exist); a trade source's is 1 until its comp starts and exponential after (#3869); a
+/// is a fixed delay once the bill and its inputs exist); trade uses continuous MTB supply or discrete native visit chances; a
 /// resource no source makes never arrives. <see cref="Unread"/> names the fact the boundary could not read; a rule that then waits on
 /// stock raises <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record StockArrival
 {
+    /// <summary>Starts a future want on this frame's trade timeline; crafting remains a delay from that want.</summary>
+    public StockArrival At(double day) => day == 0 ? this : this with
+    {
+        Trade = EquatableArray.From(Trade.Select(s => s with
+        {
+            From = s.From - day,
+            Timing = s.Timing is IncidentTiming.Scheduled timed ? timed with { OriginDay = timed.OriginDay + day } : s.Timing,
+        })),
+    };
+
     public EquatableArray<StockSource> Sources { get; init; }
 
     /// <summary>The trader-visit sources (#3869), one per comp and resource.</summary>
@@ -130,6 +164,41 @@ public sealed record StockArrival
     /// <summary>Whether <paramref name="needs"/> may all arrive within <paramref name="days"/> of the want.</summary>
     public bool Arrives(IReadOnlyList<StockNeed> needs, double days) => NotReady(needs, days) < 1;
 
+    private double[] ArrivalCuts(IReadOnlyList<StockNeed> needs, double cap)
+    {
+        var steps = new SortedSet<double> { 0, cap };
+        foreach (var need in needs)
+        {
+            var days = Sources.Where(s => need.AnyOf.Contains(s.Resource)).Select(s => s.ArrivalDay(need.Count))
+                .Concat(Trade.Where(s => need.AnyOf.Contains(s.Resource)).SelectMany(s => s.Dates(cap).Prepend(s.From)));
+            steps.UnionWith(days.Where(day => day > 0 && day < cap));
+        }
+        return [.. steps];
+    }
+
+    /// <summary>Arrival probability by date: native and craft atoms remain exact; continuous MTB intervals use the harm grid.</summary>
+    internal IEnumerable<(double Day, double Chance)> Arrivals(IReadOnlyList<StockNeed> needs, double cap)
+    {
+        if (!(cap > 0)) yield break;
+        Require();
+        var cuts = ArrivalCuts(needs, cap);
+        for (var i = 0; i + 1 < cuts.Length; i++)
+        {
+            var at = cuts[i];
+            var before = at == 0 ? 1 : NotReady(needs, Math.BitDecrement(at));
+            var after = NotReady(needs, at);
+            if (before > after) yield return (at, before - after);
+            var until = Math.BitDecrement(cuts[i + 1]);
+            for (var j = 0; j < HarmConsequences.GridPoints; j++)
+            {
+                var left = at + (until - at) * j / HarmConsequences.GridPoints;
+                var right = at + (until - at) * (j + 1) / HarmConsequences.GridPoints;
+                var mass = NotReady(needs, left) - NotReady(needs, right);
+                if (mass > 0) yield return ((left + right) / 2, mass);
+            }
+        }
+    }
+
     /// <summary>
     /// E[min(W, cap)] for W the day all of <paramref name="needs"/> have arrived: the integral of <see cref="NotReady"/> from 0 to
     /// <paramref name="cap"/>, exact: between the craft sources' steps and the trade sources' starts each need's not-arrived chance is
@@ -144,15 +213,7 @@ public sealed record StockArrival
         }
 
         Require();
-        var steps = new SortedSet<double> { 0, cap };
-        foreach (var need in needs)
-        {
-            var days = Sources.Where(s => need.AnyOf.Contains(s.Resource)).Select(s => s.ArrivalDay(need.Count))
-                .Concat(Trade.Where(s => need.AnyOf.Contains(s.Resource)).Select(s => s.From));
-            steps.UnionWith(days.Where(day => day > 0 && day < cap));
-        }
-
-        var cuts = steps.ToArray();
+        var cuts = ArrivalCuts(needs, cap);
         var total = 0.0;
         for (var i = 0; i + 1 < cuts.Length; i++)
         {
@@ -246,7 +307,9 @@ public sealed record StockArrival
                 var stock = kind.Stock ?? throw new RequiredFactException("medicine_trader_stock:" + source.Resource.Value);
                 var units = stock.CheapestMedicineUnits(source.Resource, Medicines, cap, source.PriceFactor);
                 var perDay = source.VisitsPerDay * kind.Chance * units;
-                if (perDay > 0) visits.Add(new(source.Resource, source.From, perDay, perDay * price));
+                if (source.Timing is IncidentTiming.Scheduled timed && units > 0)
+                    visits.Add(new(source.Resource, source.From, 0, 0) { Timing = timed, Visit = new(stock, Medicines, timed.Chance * kind.Chance, price, source.PriceFactor) });
+                else if (perDay > 0) visits.Add(new(source.Resource, source.From, perDay, perDay * price));
             }
         }
         visits = visits.OrderBy(s => s.From).ThenBy(s => s.Kind.Value, StringComparer.Ordinal).ThenBy(s => s.PerDay).ToList();

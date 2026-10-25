@@ -128,7 +128,7 @@ namespace RimGovernor.Native
         }
 
         // The frame's colony facts request: the planning form.
-        private static RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest ColonyRequest(RimGovernor.Brain.GameFacts.Observations.ReadScope scope) => new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = scope };
+        private static RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest ColonyRequest(RimGovernor.Brain.GameFacts.Observations.ReadScope scope, double horizon) => new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = scope, IncidentHorizonDays = horizon };
 
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
@@ -138,7 +138,7 @@ namespace RimGovernor.Native
             RimGovernor.Brain.GameFacts.Observations.ReadScope Scope() => new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope()), context, request.RoutePathBudget is RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis route ? route.Value : (uint?)null)) };
+                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope(), request.IncidentHorizonDays), context, request.RoutePathBudget is RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis route ? route.Value : (uint?)null)) };
                 ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts?.Resources.Count ?? 0);
             }
             {

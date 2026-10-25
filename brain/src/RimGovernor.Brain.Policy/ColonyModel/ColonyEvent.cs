@@ -33,6 +33,8 @@ public enum ModelEventKind
     /// count, runs out ("best").
     /// </summary>
     MedicineTrade,
+    /// <summary>A scheduled incident's initial wound batch or one disease tend consumes medicine.</summary>
+    MedicineTreatment,
     HorizonEnd,
 }
 
@@ -51,4 +53,7 @@ public sealed record ModelEvent
 
     /// <summary>The medicine on hand by kind, indexed by <see cref="ColonyTrajectory.MedicineKinds"/>; they sum to the medicine level.</summary>
     public EquatableArray<double> Medicine { get; init; }
+
+    /// <summary>Medicine consumed at this event, by kind. Added back when reading the continuous interval ending just before this event.</summary>
+    public EquatableArray<double> MedicineConsumed { get; init; }
 }

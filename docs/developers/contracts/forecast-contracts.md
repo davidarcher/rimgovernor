@@ -642,10 +642,9 @@ copies are stored. An incomplete timetable retains the existing named stock-arri
 Trader visits are the second source (#3869, #3909, `TradeArrivalRules.Sources` into `StockArrival.Trade`). The catalog decodes the
 storyteller's trader comps by exact class (`DefinitionCatalog.TradeSchedule`), and the incidents they draw by exact worker class
 (`IncidentWorker_TraderCaravanArrival`, `_OrbitalTraderArrival`, `_VisitorGroup`, `_CaravanArrivalTributeCollector`,
-`_TravelerGroup`). A `StorytellerCompProperties_FactionInteraction` comp of one of them sends baseIncidentsPerYear ÷ 60 a day × the
-ally fraction (`StorytellerUtility.AllyIncidentFraction`, full allies when the comp says so; none at or below 0, below its minWealth
-or while the map's `DangerRating` is below its minDanger, taken at today's); an `OnOffCycle` comp sends its cycle's rate
-(`ThreatSchedule.CyclePerDay`, from forceRaidEnemyBeforeDaysPassed); a `SingleMTB` 1 ÷ mtbDays. A comp drawing a category that
+`_TravelerGroup`). FactionInteraction and OnOffCycle comps consume their canonical `ThreatFacts.Cycles` rows by storyteller comp index.
+The native seeded dates already include spacing, cycle acceptance, progress and ally acceptance. The pure source applies the incident and trader-kind draw chances once at each date;
+it never converts these visits to a Poisson rate. An unobserved comp row or an uncovered requested horizon raises `RequiredFactException`. MTB comps retain their continuous 1 ÷ mtbDays law. A comp drawing a category that
 holds a trader incident (#3909) draws as its class does, at today's facts (#3909 Q3): `RandomMain` at 1 ÷ mtbDays sends ThreatBig
 with its long-run fraction (a renewal from each ThreatBig, forced after maxThreatBigIntervalDays: 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷
 p) for ThreatBig's weight share p over the drawable weight), each other category with its weight over the drawable weight
@@ -673,31 +672,18 @@ A visit supplies n units when its kind makes n and n × the buy price (the def's
 colonists) kept, #3855 Q2 A, #3907; an orbital trader is paid only from the silver within a powered trade beacon's range
 (`TradeVisitFacts.BeaconSilver`, `TradeUtility.AllLaunchableThingsForTrade`, #3910) and the routine trade's reserve holds against that
 silver, the trade sheet's own, so the orbital sources see `SpendableSilver(BeaconSilver, colonists)` and the caravans and visitors
-the map's silver; silver income named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
-supply chance × (t − start)), multiplied with the craft steps, and the expected wait integrates the product exactly. True zeros are
+the map's silver; silver income named `stock_arrival_trade_silver_income_unmodelled`). MTB not-arrived chances remain exponential.
+Scheduled visits multiply one miss chance per dated visit. Expected waits integrate between every craft step, source start and native visit date.
+`StockArrival.At` keeps the original native row and excludes visits before a future want; a selected one-time delivery before the want remains held stock. True zeros are
 named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_console`, `stock_arrival_orbital_no_trade_beacon`,
 `stock_arrival_trade_blocked:<incident>:<gates>`, `stock_arrival_trade_no_trader_kind:<incident>` (it fires with no kind to
 send); a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
 [kept constants](kept-constants.md#mirrored-game-rules-trader-stock-3869).
 
-Medicine and parts share spendable silver in the autopilot's order (`StockArrival.WithMedicineClaim`): medicine first.
-Each trader kind claims the expected native cost of its cheapest carried medicine up to today's replenish, bounded by its
-stock and spendable silver. A kind carrying no medicine claims nothing. Parts see that kind's remaining silver.
-This remains a conditional expected-budget bound: it does not claim a full joint medicine-and-parts stock distribution.
-The medicine term of `SilverGap` remains a market-value demand estimate; it does not set purchase affordability.
+Medicine and parts share spendable silver in the autopilot's purchase order (`StockArrival.WithMedicineClaim`): medicine first, with the expected cost of today's reserve gap at native buy prices claimed from each trader kind before parts. The shared `TraderKindStock.CheapestMedicineUnits` law preserves joint generator choices; a visit buys each medicine only when it is the cheapest medicine actually carried. Current visits and settlement previews share `TraderKindStock.Held`.
 
-The colony model's medicine trajectory (`ColonyModelPolicy.MedicineTrade`, `StockArrival.MedicineTrade`) buys the cheapest
-medicine actually carried on each visit. The canonical `TraderKindStock` retains each generator's identity: MultiDef picks
-one entry, while Category and Tag pick distinct definitions uniformly. The joint draw conditions a kind's count distribution
-on every cheaper medicine being absent or generating zero units; multiplying independent marginal carry probabilities would
-misprice these mutually exclusive draws. Count draws are convolved across independent generators. Native buy prices include
-1.4, PriceType, difficulty and negotiator factors, the 0.5 floor and rounding above 99.5, including price ties after rounding.
+Medicine purchases enter `ColonyModelPolicy.MedicineTrade` on the medical reserve latch: start below one usable medicine per colonist, stop at three, counting stock without the best kind. MTB supply retains its continuous rates. Native cycle supply contributes expected units and native silver cost only at its actual visit dates. Each arrival observes the current latch, remaining silver and target gap before adding medicine. No medicine arrives before a scheduled visit or after the forecast horizon. Crafting retains its stock-target rule. Purchases beyond today's claimed gap retain the `medicine_trade_later_buys_unclaimed` finding.
 
-The reserve latch starts below 1 usable medicine per colonist and holds to 3, counting stock without the best kind.
-While active, each comp supplies a separate expected rate for every medicine it can buy, from that comp's start day.
-All kinds consume one shared silver budget at their native expected cost per day; no market-value unit cap credits extra stock.
-Visits remain a fluid expectation rather than sampled arrival events. Crafting retains the stock-target rule above.
-A model buy beyond today's claimed gap is named `medicine_trade_later_buys_unclaimed` (later replenishment is not charged to parts).
 A census the frame did not carry, or a crafter's unread speed stat, leaves the model
 unread (`StockArrival.Unread`: `stock_arrival_bills`, `stock_arrival_pawns`, `stock_arrival_resources`,
 `stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`, `stock_arrival_trade_facts`, `storyteller_unknown:<def>`,
@@ -803,8 +789,7 @@ costs each pawn.
 - `IllnessSchedule.Of(table, facts)`: each `StorytellerComp_Disease` comp's rate 1 ÷ (biome MTB × interval factor) a day from its
   `minDaysPassed` (none with random diseases off or the factor at the 100 cutoff), drawing among the open incidents (home map,
   `earliestDay` on whole days since settling, biome lists, `minPopulation`, not `Blocked`, a potential victim) by the biome's
-  commonality (> 0); and each other draw comp (#3860) at its own rate (an on-off cycle's count at the colony's `ProgressScore`,
-  `NoTreeConnection` and threat points retained on the canonical threat row; 1 ÷ `mtbDays` over its days-passed factor) drawing by the native `Weight` (`IncidentChanceFinal`
+  commonality (> 0); and each other draw comp (#3860) at its own rate (an on-off cycle's count from its canonical native occurrence row; 1 ÷ `mtbDays` over its days-passed factor) drawing by the native `Weight` (`IncidentChanceFinal`
   but the population-intent factor, which the brain applies from the incident's `populationEffect`, the comp's floor and
   `PopulationIntent`), `TrySelectRandomIncident` for `RandomMain` and `CategoryMTB` (a `RandomMain` also by its category weights and
   the forced `ThreatBig`). Each incident carries its rate per comp (`IllnessIncident.Rates`; its share of the incidents over a
@@ -925,11 +910,10 @@ The harm term's creepjoiner part (D12): what a colonist creepjoiner's hidden dow
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.
 
 - `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedSinceSettleFloat`) are read beside `RaidPoints`, and
-  `ProgressScore` (`StorytellerUtility.GetProgressScore`), `NoTreeConnection` (the player faction has ideoligions and none has the
-  `TreeConnection` meme), `ThreatScale` (the difficulty's), `Biome` and `Generator` (a `ThreatIncidentRead` of `RaidEnemy` and, with
+  `Biome`, canonical native `Cycles`, and `Generator` (a `ThreatIncidentRead` of `RaidEnemy` and, with
   Royalty, `MechCluster` (otherwise an explicitly ineligible row): its `BaseChanceThisGame` weight and whether its worker would fire for the forced parms at the map's raid
   points, #3860); generator rows are keyed by storyteller comp index and read at that generator's own points (#3993).
-  `GeneratorStartDays` reads `GenDate.TickGameToSettled(map.generationTick) / 60000`, the native cycle origin; the review retains the section in its canonical `Census.Threat.Observed` row; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
+  Native cycle sampling reads map generation tick as the generator origin. The review retains the section in its canonical `Census.Threat.Observed` row; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
 - `ThreatFacts.BiomeIncidents` is one required `ThreatBiomeIncidentRead` per home-map `ThreatBig` incident with biome MTB rows.
   Native reads `incident.Worker.CanFireNow(StorytellerUtility.DefaultParmsNow(incident.category, map))`, exactly the unforced
@@ -939,27 +923,55 @@ The harm model's first step ([harm model](../architecture/forecast-value.md#harm
   rate at the census's game state: future temperature, factions, game conditions, population, points and refire eligibility are
   not predicted. A fresh census recomputes the gate; this adds no persisted state or second legality model.
 - `ReviewFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by comp class in
-  `Catalog/Storyteller.cs` (#3859, #3860): on-off cycles of `ThreatBig` with their accept curves by days passed, threat points and
-  progress score and their tree-connector days, MTB comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs
-  with their days-passed factor, single MTBs of a `ThreatBig` incident), home-map `ThreatsGenerator`s (cycle, allowed threats, explicit points, minimum points and current-points factor), `ThreatBig`
+  `Catalog/Storyteller.cs` (#3859, #3860): on-off cycles of `ThreatBig` by their native comp index and forced-raid cutoff, MTB comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs
+  with their days-passed factor, single MTBs of a `ThreatBig` incident), home-map `ThreatsGenerator`s (native comp index, allowed threats, explicit points, minimum points and current-points factor), `ThreatBig`
   `CategoryIndividualMTBByBiome`s (each incident's `mtbDaysByBiome` rows), and the comps it does not model. Empty without a catalog.
-- `ThreatSchedule.Of(table, threat)`: `MajorThreatsPerDay`, the sum of the modelled comps' expected
-  incidents a day at that day (a threat-points curve at the observed `RaidPoints`, a progress-score curve at `ProgressScore`, a
-  generator drawn by weight among the incidents that can fire, scaled by the difficulty's `ThreatScale`, a biome comp at the colony's
-  biome), and `RaidFraction` (1 before day 20 for cycles, 0.5 after; a generator's by its `RaidEnemy` weight; a biome comp's by the
-  incident's worker). A comp it does not model (a mod's comp class, a `ThreatsGenerator` with an explicit faction) adds no threats and
-  is named, `threat_comp_unmodelled:<comps>`, on the assessed schedule; the harm term carries the finding. A biome incident adds
-  1 / its MTB only when its observed `CanFire` is true; a known blocked incident adds zero. A generator incident the read lacks
-  is a `RequiredFactException`, as is a missing biome incident (`threat_biome_incident_unobserved:<incident>`).
-  `Raids` retains each distinct points budget and its raids per day: generator points are
-  `max(threatPoints ?? RaidPoints * currentThreatPointsFactor, minThreatPoints)` when a minimum is set. The cycle starts at the
-  observed map generation day; its steady expected daily count is independent of the phase after that start. Harm composes and
-  prices each budget independently, then sums expected loss and deaths; hospital care, replacement demand and medicine use the
-  same mixture. Harm distribution caches include the weapon bins, so equal exposure ranges cannot mix different compositions.
-  The schedule is not `Assessed`, with
-  a finding (`threat_unobserved`, `days_passed_invalid`, `storyteller_unknown:<def>`,
-  `threat_comp_invalid:<shape>`), when a fact it reads is unread; the hospital credit then throws `RequiredFactException`. Non-raid
-  threats are not modelled. The mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).
+- `ThreatSchedule.Of(table, threat)`: `MajorThreatsPerDay` sums native cycle hits divided by their observed window and continuous
+  MTB rates at the census. `RaidFraction` is the corresponding raid share. Each cycle's own `forceRaidEnemyBeforeDaysPassed`
+  cutoff applies at the occurrence day; later cycle incidents retain the harm model's calibrated 0.5 raid share. Generators draw
+  among their observed eligible incidents by weight. Biome MTB incidents contribute only when native `CanFireNow` permits them.
+  Unknown comp shapes remain named findings; missing generator or biome eligibility rows raise `RequiredFactException`.
+  `Raids` preserves each points budget, with generator points
+  `max(threatPoints ?? RaidPoints * currentThreatPointsFactor, minThreatPoints)` when a minimum exists. Harm prices each native
+  event at its actual day, using equipment completed by then, stock arrivals relative to that day and the remaining recovery
+  horizon. Continuous MTB sources keep their continuous occurrence law. Fight caches include the budget's composition, event
+  day, remaining horizon and stock arrivals; illness caches include the remaining horizon and stock arrivals.
+
+### Native incident occurrence windows
+
+`ThreatFacts.Cycles` is the canonical observation of `IncidentCycleUtility` hit times for enabled home-map OnOffCycle,
+ThreatsGenerator and FactionInteraction comps. Rows use the original storyteller definition index; native RNG salts use the
+runtime enabled-comp index where the native comp does. `IncidentCycleTimes.ThroughDays` bounds the half-open relative-day
+window `[0, ThroughDays)`. `IncidentTiming` explicitly distinguishes scheduled native times from continuous MTB streams.
+Requests carry `IncidentHorizonDays`; the runtime requests its colony-model policy horizon. Other callers can request their
+actual horizon without a fixed maximum. Querying beyond coverage raises `incident_cycle_window_unobserved`, including an
+observed empty window. Missing required comp rows raise `incident_cycle_unobserved:<comp>`.
+
+The main-thread reader calls the game's actual private `GenerateHitList` through typed accessors. It isolates and restores
+both native scratch-list identity and the ordinary RNG stack in `finally`; no schedule or seed state is persisted. Native
+placement retries and complete failed draws therefore have their native effect on occurrence count. This avoids deriving a
+fictional rate by dividing configured count by spacing. Inputs and arithmetic are validated before entering native RNG state;
+fatal allocation failures are not a recoverable game execution path. Native failed placement can emit its normal ErrorOnce.
+
+Times use native interval rounding (`Mathf.RoundToInt(days * 60f)`) and 1000-tick storyteller intervals. The generator origin
+is map generation tick converted to settled days. The storyteller's strict `days > minDaysPassed` gate is retained. Day-based
+acceptance curves are reevaluated at each future interval, including their effect on native regeneration of previous cycles.
+Other inputs remain conditional on the current census: threat points, progress, tree connection, difficulty, factions, wealth,
+danger and incident eligibility. A later census recomputes them. There are no additional model calls or forecast horizons.
+The observed tick has already run its storyteller step, so the native reader excludes a hit exactly at that tick. Identical
+native float acceptance values share one historical cycle replay, including the constant portions of day curves.
+
+Hospital scheduled-event credit is a weighted once contribution, rather than a continuous rate prorated by room service time.
+The review retains its already computed valuation and trajectory in `ForecastTendingTiming.Projected`. Scheduled hospital
+care reads medicine and doctor skill on the actual incident, retend and surgery dates through `ColonyValue.TendingOn`;
+continuous MTB credit retains the horizon-average tending law. Pure constant-care scenarios use the explicit `Constant` case.
+A first tending before the hospital serves keeps its original room infection factor. Wound patient days include only care after
+service. A disease already in progress integrates immunity gained before and after bed availability through the same course
+walker. Replacement surgery retains its loss day and selects supply on that day; native visits before the want cannot fill it.
+The hospital values surgery only when supplies arrive while it serves, with the remaining recovery horizon at that arrival.
+`StockArrival` owns this arrival measure: native visit, selected delivery and craft probability masses remain at exact dates;
+continuous MTB intervals use the established 32-point harm grid for nonlinear surgery value. Its analytical expected-wait
+reader shares the same arrival cuts. These are derived policy values and introduce no persistent schedule or care store.
 
 ## Service positions
 
@@ -1864,6 +1876,38 @@ completion interval is sufficient). Its result retains identity, origin/target/r
 execution cohorts, timing mismatches and named unknowns. The case also requires a known per-resource food-stock prediction and native observation;
 when no shelter prediction exists, the report names that gap. This proves correlation, not prediction accuracy.
 The full retained-window report can also be generated with `RimGovernor.cmd forecastresiduals -logs <logs.jsonl>`.
+
+### Scheduled medicine consumption
+
+The colony model keeps continuous MTB treatment demand in `MedicineTendsPerDay`.
+Native cycle raids consume their existing initial wound-treatment batch on the
+observed occurrence date. Native cycle disease incidents schedule their own
+first tend and native retend cadence through the requested horizon. Each slot
+replays the existing disease course only through that instant, using the realized
+medicine and doctor skill history, and consumes its expected still-active tends.
+Healing, death and total-quality cures suppress later debits; a medicine change
+can therefore change the number of retends as well as their quality. Incidents
+with zero draw or victim chance generate no slots. The native occurrence window
+must cover the actual requested horizon; no year-length cap or uniform spacing
+substitutes for missing dates.
+
+The event records medicine consumed by kind alongside its remaining stock, so
+reading the interval before a treatment adds its instantaneous debit back rather
+than spreading that debit backward in time. Scheduled raid harm reads tending
+and defense at the raid date. Scheduled disease harm reads quality at every
+actual tend and retains it until the next tend. Only continuous MTB harm uses
+the existing average over medicine spans.
+
+Treatment replay introduces no additional native reads, colony model runs, LM calls, cache or
+clinical state owner. Its work grows quadratically with the number of retend
+slots per incident because each slot replays its realized prefix; the existing
+event budget remains the explicit truncation boundary. A carried run references
+the completed prefix owned by its invocation so a disease already treated before
+the split keeps that history.
+The detailed evaluator applies the same slots to its actual eligible medicine
+lots, using the shared best-first debit rule after arrivals and completed work
+at the same instant. Its terminal accounting references that treatment and
+skill history in the carried state; it does not rebuild a second baseline run.
 
 ### Carried long-term model state
 

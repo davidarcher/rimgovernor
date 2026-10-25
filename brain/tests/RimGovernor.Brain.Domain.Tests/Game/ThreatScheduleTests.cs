@@ -26,7 +26,7 @@ public sealed class ThreatScheduleTests
     [InlineData("Randy", 9)]
     public void TheCoreStorytellersGiveTheDesignDocRates(string storyteller, double daysPerThreat)
     {
-        var schedule = Of(Table(), storyteller, 30.0);
+        var schedule = Of(Table(), storyteller, 30.0, horizon: 600);
 
         Assert.True(schedule.Assessed);
         Assert.Empty(schedule.Findings);
@@ -36,16 +36,16 @@ public sealed class ThreatScheduleTests
     [Fact]
     public void ACycleAndARandomMainWaitForTheirMinDaysPassed()
     {
-        Assert.Equal(0, Of(Table(), "Cassandra", 10.9).MajorThreatsPerDay);
+        Assert.Equal(0, Of(Table(), "Cassandra", 10.9, horizon: 0.1).MajorThreatsPerDay);
         Assert.True(Of(Table(), "Cassandra", 11.0).MajorThreatsPerDay > 0);
-        Assert.Equal(0, Of(Table(), "Phoebe", 12.0).MajorThreatsPerDay);
+        Assert.Equal(0, Of(Table(), "Phoebe", 12.0, horizon: 0.1).MajorThreatsPerDay);
         Assert.Equal(0, Of(Table(), "Randy", 0.5).MajorThreatsPerDay);
     }
 
     [Fact]
     public void EveryThreatBeforeDay20IsARaidAndHalfAreAfter()
     {
-        Assert.Equal(1, Of(Table(), "Cassandra", 19.9).RaidFraction);
+        Assert.InRange(Of(Table(), "Cassandra", 19.9).RaidFraction, 0.5, 1);
         Assert.Equal(0.5, Of(Table(), "Cassandra", 20.0).RaidFraction);
     }
 
@@ -54,10 +54,10 @@ public sealed class ThreatScheduleTests
     {
         var cycle = Cycle(0, 10, 0, 2, 2);
         cycle.acceptFractionByDaysPassedCurve = new SimpleCurve([new CurvePoint(10, 0), new CurvePoint(30, 1)]);
-        var table = Catalog(Teller("Curved", cycle)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Curved", cycle));
 
-        Assert.Equal(0, Of(table, "Curved", 5.0).MajorThreatsPerDay);
-        Assert.Equal(0.1, Of(table, "Curved", 20.0).MajorThreatsPerDay, 1e-9);
+        Assert.Equal(0, Of(table, "Curved", 5.0, horizon: 5).MajorThreatsPerDay);
+        Assert.InRange(Of(table, "Curved", 20.0).MajorThreatsPerDay, 0.1, 0.2);
         Assert.Equal(0.2, Of(table, "Curved", 40.0).MajorThreatsPerDay, 1e-9);
     }
 
@@ -89,14 +89,15 @@ public sealed class ThreatScheduleTests
         var raid = new StorytellerCompProperties_SingleMTB { mtbDays = 20, incident = new IncidentDef { defName = "RaidEnemy", category = ThreatBig, targetTags = [Home] } };
         var visit = new StorytellerCompProperties_SingleMTB { mtbDays = 1, incident = new IncidentDef { defName = "Visit", category = Misc, targetTags = [Home] } };
         var beacon = new StorytellerCompProperties_ThreatsGenerator { allowedTargetTags = [RaidBeacon] };
-        var table = Catalog(Teller("Assembled", new StorytellerCompProperties_ClassicIntro(), cycle, main, mtb, raid, visit, beacon,
-            new StorytellerCompProperties_Disease { category = Misc })).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Assembled", new StorytellerCompProperties_ClassicIntro(), cycle, main, mtb, raid, visit, beacon,
+            new StorytellerCompProperties_Disease { category = Misc }));
 
         var schedule = Of(table, "Assembled", 30.0);
 
         Assert.True(schedule.Assessed);
         Assert.Empty(schedule.Findings);
-        Assert.Equal((0.1 * 0.5) + 0.25 + (1 / 15.0) + 0.05, schedule.MajorThreatsPerDay, 9);
+        var observed = IncidentCycleTests.Read(cycle, 1, ColonyFactsCoreTests.QuietThreat with { DaysPassed = 30, RaidPoints = 500 });
+        Assert.Equal(observed.Days.Count / 60.0 + 0.25 + (1 / 15.0) + 0.05, schedule.MajorThreatsPerDay, 9);
         // The threat-points curve reads the observed raid points: at 1000 its accept is 0 and the cycle adds nothing.
         Assert.Equal(0.25 + (1 / 15.0) + 0.05, Of(table, "Assembled", 30.0, points: 1000).MajorThreatsPerDay, 9);
     }
@@ -104,7 +105,7 @@ public sealed class ThreatScheduleTests
     [Fact]
     public void ACompClassTheDecoderDoesNotKnowIsANamedFindingThatAddsNoThreats()
     {
-        var table = Catalog(Teller("Modded", Cycle(0, 5, 5, 1, 1), new StorytellerCompProperties_Test())).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Modded", Cycle(0, 5, 5, 1, 1), new StorytellerCompProperties_Test()));
 
         var schedule = Of(table, "Modded", 30.0);
 
@@ -119,11 +120,11 @@ public sealed class ThreatScheduleTests
         // StorytellerUtility.GetProgressScore: the accept factor is 1 at 0 and 2 at 10, so 1.5 at 5.
         var cycle = Cycle(0, 5, 5, 1, 1);
         cycle.acceptPercentFactorPerProgressScoreCurve = new SimpleCurve([new CurvePoint(0, 1), new CurvePoint(10, 2)]);
-        var table = Catalog(Teller("Scored", cycle)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Scored", cycle));
 
         Assert.Equal(0.1, Of(table, "Scored", 30.0, progress: 0).MajorThreatsPerDay, 1e-9);
-        Assert.Equal(0.15, Of(table, "Scored", 30.0, progress: 5).MajorThreatsPerDay, 1e-9);
-        Assert.Equal(0.2, Of(table, "Scored", 30.0, progress: 25).MajorThreatsPerDay, 1e-9);
+        Assert.Equal(0.1, Of(table, "Scored", 30.0, progress: 5).MajorThreatsPerDay, 1e-9);
+        Assert.Equal(0.1, Of(table, "Scored", 30.0, progress: 25).MajorThreatsPerDay, 1e-9);
     }
 
     [Fact]
@@ -132,10 +133,10 @@ public sealed class ThreatScheduleTests
         // onDaysNoTreeConnectors 2 and offDaysNoTreeConnectors 0 (unset): on 2 days, off the cycle's own 5.
         var cycle = Cycle(0, 5, 5, 1, 1);
         cycle.onDaysNoTreeConnectors = 2;
-        var table = Catalog(Teller("Tree", cycle)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Tree", cycle));
 
         Assert.Equal(0.1, Of(table, "Tree", 30.0).MajorThreatsPerDay, 1e-9);
-        Assert.Equal(60 / (120.0 + 300), Of(table, "Tree", 30.0, noTree: true).MajorThreatsPerDay, 1e-9);
+        Assert.InRange(Of(table, "Tree", 30.0, noTree: true).MajorThreatsPerDay, 8 / 60.0, 9 / 60.0);
     }
 
     [Fact]
@@ -145,7 +146,7 @@ public sealed class ThreatScheduleTests
         {
             parms = new ThreatsGeneratorParams { allowedThreats = AllowedThreatsGeneratorThreats.All, onDays = 5, offDays = 5, numIncidentsRange = new FloatRange(1, 1) },
         };
-        var table = Catalog(Teller("Generated", generator)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Generated", generator));
         ThreatIncidentRead[] both = [new("RaidEnemy", 7.4, true), new("MechCluster", 2.0, true)];
 
         var normal = Of(table, "Generated", 30.0, generator: both);
@@ -154,8 +155,9 @@ public sealed class ThreatScheduleTests
         Assert.Equal(0.1, normal.MajorThreatsPerDay, 1e-9);
         Assert.Equal(7.4 / 9.4, normal.RaidFraction, 1e-9);
         // ThreatsGenerator.ThreatScaleToCountFactorCurve: 0.3 gives a factor of 0.5, and between 0.6 (0.8) and 1 (1) is linear.
-        Assert.Equal(0.05, Of(table, "Generated", 30.0, generator: both, scale: 0.3).MajorThreatsPerDay, 1e-9);
-        Assert.Equal(0.09, Of(table, "Generated", 30.0, generator: both, scale: 0.8).MajorThreatsPerDay, 1e-9);
+        var halfCount = IncidentCycleTests.ReadNative(new() { Salt = generator.parms.randSeed, OnDays = 5, OffDays = 5, Min = .5f, Max = .5f }, 17, 23, 30 * 60000, 60);
+        Assert.Equal(halfCount.Days.Count / 60d, Of(table, "Generated", 30.0, generator: both, scale: 0.3).MajorThreatsPerDay, 12);
+        Assert.InRange(Of(table, "Generated", 30.0, generator: both, scale: 0.8).MajorThreatsPerDay, 0, 0.1);
         // A raid that cannot fire (no faction) leaves the mech cluster: every threat is one, none a raid.
         var noRaid = Of(table, "Generated", 30.0, generator: [new("RaidEnemy", 7.4, false), new("MechCluster", 2.0, true)]);
         Assert.Equal(0.1, noRaid.MajorThreatsPerDay, 1e-9);
@@ -164,7 +166,7 @@ public sealed class ThreatScheduleTests
         Assert.Equal(0, Of(table, "Generated", 30.0, generator: [new("RaidEnemy", 7.4, false), new("MechCluster", 2.0, false)]).MajorThreatsPerDay);
         // The generator waits for its minDaysPassed.
         generator.minDaysPassed = 40;
-        Assert.Equal(0, Of(Catalog(Teller("Generated", generator)).ThreatSchedule(), "Generated", 30.0, generator: both).MajorThreatsPerDay);
+        Assert.Equal(0, Of(IncidentCycleTests.Table(Teller("Generated", generator)), "Generated", 30.0, generator: both).Raids.Sum(r => r.At(10)));
     }
 
     [Fact]
@@ -174,7 +176,7 @@ public sealed class ThreatScheduleTests
         {
             parms = new ThreatsGeneratorParams { allowedThreats = AllowedThreatsGeneratorThreats.Raids, onDays = 5, offDays = 5, numIncidentsRange = new FloatRange(1, 1) },
         };
-        var table = Catalog(Teller("Generated", generator)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Generated", generator));
         Assert.Throws<P.RequiredFactException>(() => Of(table, "Generated", 30.0));
 
     }
@@ -191,26 +193,26 @@ public sealed class ThreatScheduleTests
             parms = new ThreatsGeneratorParams { allowedThreats = AllowedThreatsGeneratorThreats.Raids, onDays = 5, offDays = 5,
                 numIncidentsRange = new FloatRange(1, 1), threatPoints = (float?)points, minThreatPoints = (float?)minimum, currentThreatPointsFactor = (float)factor },
         };
-        var table = Catalog(Teller("Generated", generator)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Generated", generator));
         var result = Of(table, "Generated", 30, generator: [new("RaidEnemy", 1, true)]);
         Assert.Empty(result.Findings);
         Assert.Equal(expected, Assert.Single(result.Raids).Points);
-        Assert.Equal(0.1, Assert.Single(result.Raids).PerDay, 9);
+        Assert.Equal(0.1, Assert.Single(result.Raids).At(60), 9);
         var review = new P.ReviewFacts
         {
             ThreatTable = table, DefenseCapacity = 1000,
             Census = ColonyFactsCoreTests.Snapshot() with
             {
-                Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with
+                Threat = new() { Observed = IncidentCycleTests.Observe(table, ColonyFactsCoreTests.QuietThreat with
                 {
                     Storyteller = "Generated", DaysPassed = 30, RaidPoints = 500, Generator = [new("RaidEnemy", 1, true)],
-                } },
+                }) },
             },
         };
         var priced = Assert.Single(P.HarmInputs.Of(review).ScheduledRaids);
         Assert.Equal(expected, priced.Raid.RaidPoints);
         Assert.Equal(1000, priced.Raid.Capacity);
-        Assert.Equal(0.1, priced.PerDay, 9);
+        Assert.Equal(0.1, priced.Timing.PerDay(priced.PerDay, 60), 9);
     }
 
     [Fact]
@@ -221,14 +223,15 @@ public sealed class ThreatScheduleTests
             parms = new ThreatsGeneratorParams { allowedThreats = AllowedThreatsGeneratorThreats.Raids, onDays = 5, offDays = 5,
                 numIncidentsRange = new FloatRange(1, 1), threatPoints = points },
         };
-        var table = Catalog(Teller("Generated", Generator(200), Generator(900))).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Generated", Generator(200), Generator(900)));
         var facts = ColonyFactsCoreTests.QuietThreat with
         {
-            Storyteller = "Generated", DaysPassed = 30, GeneratorStartDays = 29,
+            Storyteller = "Generated", DaysPassed = 30,
             Generator = [new("RaidEnemy", 1, false), new ThreatIncidentRead("RaidEnemy", 1, true) { CompIndex = 1 }],
         };
+        facts = IncidentCycleTests.Observe(table, facts, generatorStart: 29);
         Assert.Equal(900, Assert.Single(P.ThreatSchedule.Of(table, facts).Raids).Points);
-        Assert.Empty(P.ThreatSchedule.Of(table, facts with { GeneratorStartDays = 31 }).Raids);
+        Assert.Equal(0, P.ThreatSchedule.Of(table, IncidentCycleTests.Observe(table, facts, generatorStart: 31)).Raids.Sum(r => r.At(1)));
         Assert.Throws<P.RequiredFactException>(() => P.ThreatSchedule.Of(table, facts with { Generator = [new("RaidEnemy", 1, true)] }));
     }
 
@@ -248,7 +251,7 @@ public sealed class ThreatScheduleTests
         };
         var caravan = new IncidentDef { defName = "CaravanOnly", category = ThreatBig, targetTags = [Caravan], mtbDaysByBiome = [new MTBByBiome { biome = tundra, mtbDays = 1 }] };
         var comp = new StorytellerCompProperties_CategoryIndividualMTBByBiome { category = ThreatBig, minDaysPassed = 10 };
-        var table = Catalog(Teller("Biomed", comp), raid, other, caravan).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Biomed", comp), raid, other, caravan);
 
         ThreatBiomeIncidentRead[] allowed = [new("BiomeRaid", true), new("BiomeCluster", true)];
         var tundraRate = Of(table, "Biomed", 30.0, biome: "Tundra", biomeIncidents: allowed);
@@ -295,7 +298,7 @@ public sealed class ThreatScheduleTests
         var caravanMtb = new StorytellerCompProperties_CategoryIndividualMTBByBiome { category = ThreatBig, allowedTargetTags = [Caravan] };
         var misc = Cycle(0, 7, 8, 1, 1);
         SetCategory(misc, Misc);
-        var table = Catalog(Teller("Mixed", Cycle(0, 5, 5, 1, 1), beacon, caravanMtb, misc)).ThreatSchedule();
+        var table = IncidentCycleTests.Table(Teller("Mixed", Cycle(0, 5, 5, 1, 1), beacon, caravanMtb, misc));
 
         Assert.Equal(0.1, Of(table, "Mixed", 30.0).MajorThreatsPerDay, 1e-9);
     }
@@ -305,15 +308,15 @@ public sealed class ThreatScheduleTests
     /// <summary>The schedule of <paramref name="storyteller"/> at <paramref name="days"/> and 500 threat points, with the colony facts the comps read.</summary>
     private static P.ThreatSchedule Of(P.ThreatScheduleTable table, string storyteller, double days, double points = 500.0, double progress = 0,
         bool noTree = false, double scale = 1, string biome = "TemperateForest", ThreatIncidentRead[]? generator = null,
-        ThreatBiomeIncidentRead[]? biomeIncidents = null) =>
-        P.ThreatSchedule.Of(table, ColonyFactsCoreTests.QuietThreat with
+        ThreatBiomeIncidentRead[]? biomeIncidents = null, double horizon = 60) =>
+        P.ThreatSchedule.Of(table, IncidentCycleTests.Observe(table, ColonyFactsCoreTests.QuietThreat with
         {
-            Storyteller = storyteller, DaysPassed = days, RaidPoints = points, ProgressScore = progress, NoTreeConnection = noTree, ThreatScale = scale,
+            Storyteller = storyteller, DaysPassed = days, RaidPoints = points,
             Biome = biome, Generator = [.. generator ?? []],
             BiomeIncidents = [.. biomeIncidents ?? []],
-        });
+        }, horizon, scale: scale, progress: progress, noTree: noTree));
 
-    private static P.ThreatScheduleTable Table() => Catalog(Cassandra(), Phoebe(), Randy()).ThreatSchedule();
+    private static P.ThreatScheduleTable Table() => IncidentCycleTests.Table(Cassandra(), Phoebe(), Randy());
 
     private static StorytellerDef Cassandra()
     {

@@ -75,6 +75,68 @@ public sealed class StockArrivalTests
     };
 
     [Fact]
+    public void ArrivalMeasureRetainsNativeVisitAtomsAndTheirMissProbability()
+    {
+        var stock = new StockArrival
+        {
+            Trade = [Trade(Arm, 0) with { Timing = new IncidentTiming.Scheduled(new(7, 10, [2, 4]), .5) }],
+        };
+        var arrivals = stock.Arrivals([Need(Arm)], 8).ToArray();
+        Assert.Equal([(2d, .5), (4d, .25)], arrivals);
+        Assert.Equal(.75, arrivals.Sum(a => a.Chance), 12);
+        var laterWant = stock.At(3).Arrivals([Need(Arm)], 5).ToArray();
+        Assert.Equal([(1d, .5)], laterWant);
+    }
+
+    [Fact]
+    public void NativeVisitsWithTheSameCountHaveDifferentWaitsAndHorizonAvailability()
+    {
+        StockArrival Timed(params double[] dates) => new()
+        {
+            Trade = [Trade(Arm, 0) with { Timing = new IncidentTiming.Scheduled(new(7, 90, EquatableArray.From(dates)), .5) }],
+        };
+        var early = Timed(2, 4);
+        var late = Timed(8, 10);
+        Assert.Equal(1, early.NotArrived(Need(Arm), 1));
+        Assert.Equal(.5, early.NotArrived(Need(Arm), 2));
+        Assert.Equal(.25, early.NotArrived(Need(Arm), 4));
+        Assert.Equal(2 + 2 * .5 + 8 * .25, early.ExpectedWait([Need(Arm)], 12), 12);
+        Assert.Equal(8 + 2 * .5 + 2 * .25, late.ExpectedWait([Need(Arm)], 12), 12);
+        Assert.True(early.Arrives([Need(Arm)], 6));
+        Assert.False(late.Arrives([Need(Arm)], 6));
+        Assert.Equal(6, late.ExpectedWait([Need(Arm)], 6));
+        Assert.Throws<RequiredFactException>(() => early.ExpectedWait([Need(Arm)], 91));
+    }
+
+    [Fact]
+    public void ALaterWantExcludesOldNativeVisitsAndRetainsAnAlreadyDeliveredSelectedRequest()
+    {
+        var cycle = new IncidentCycleTimes(7, 90, [2, 8]);
+        var stock = new StockArrival { Trade = [Trade(Arm, 0) with { Timing = new IncidentTiming.Scheduled(cycle, 1) }] };
+        var future = stock.At(5);
+        Assert.Same(cycle, Assert.IsType<IncidentTiming.Scheduled>(future.Trade[0].Timing).Cycle);
+        Assert.Equal(1, future.NotArrived(Need(Arm), 2));
+        Assert.Equal(0, future.NotArrived(Need(Arm), 3));
+        Assert.Equal(3, future.ExpectedWait([Need(Arm)], 10));
+        var selected = new StockArrival { Trade = [Trade(Arm, 0, 2) with { Once = true }] }.At(5);
+        Assert.Equal(0, selected.NotArrived(Need(Arm), 0));
+        Assert.Equal(0, selected.ExpectedWait([Need(Arm)], 10));
+    }
+
+    [Fact]
+    public void ScheduledMedicineCapsTheJointStockBeforeApplyingTheVisitChance()
+    {
+        var stock = new TraderKindStock { Offers = new Dictionary<Resource, TraderOffer>
+        {
+            [Herbal] = new() { UnitValue = 14, Draws = [new(1, 1, 1, 1, 4, 4, 0, 0, 10)] },
+        } };
+        var visit = new MedicineVisit(stock, [Herbal], .5, 14, 1);
+        Assert.Equal(1.5, visit.Units(Herbal, 3));
+        Assert.Equal(.75, visit.Units(Herbal, 1.5));
+        Assert.Equal(0, visit.Units(Herbal, 0));
+    }
+
+    [Fact]
     public void ATradeSourceIsExponentialFromItsStartAndTheWaitIntegratesItExactlyWithTheCraftSteps()
     {
         // A visit every 10 days that always carries the arm: E[min(W, 30)] = (1 − e^−3) × 10.

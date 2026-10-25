@@ -5,7 +5,25 @@ using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>The tending a wound gets over the horizon (#3804, <see cref="ColonyValue.TendingOverHorizon"/>): whether anyone tends it, and the tend quality.</summary>
-public sealed record ForecastTending(bool Tended, double Quality);
+public sealed record ForecastTending(bool Tended, double Quality)
+{
+    public ForecastTendingTiming Timing { get; init; } = new ForecastTendingTiming.Constant();
+    public ForecastTending On(double day) => Timing switch
+    {
+        ForecastTendingTiming.Constant => this,
+        ForecastTendingTiming.Projected projected => projected.Value.TendingOn(projected.Trajectory, day)
+            ?? throw new RequiredFactException("tend_quality"),
+        var invalid => throw new ArgumentOutOfRangeException(nameof(day), invalid, "Invalid tending timing."),
+    };
+}
+
+/// <summary>Constant-care scenarios or the existing review run's timed medicine and doctor skills; no additional model run.</summary>
+public abstract record ForecastTendingTiming
+{
+    private ForecastTendingTiming() { }
+    public sealed record Constant : ForecastTendingTiming;
+    public sealed record Projected(ColonyValue Value, ColonyTrajectory Trajectory) : ForecastTendingTiming;
+}
 
 /// <summary>
 /// The Hospital role's credit (#3804, epic #3650 P1): what a patient gains from lying in the planned hospital's bed rather than in
@@ -15,8 +33,8 @@ public sealed record ForecastTending(bool Tended, double Quality);
 /// <item>Wound infection: raids a day × (the risk-transformed harm of one raid tended in its owned bed's room, less tended in the
 /// hospital, HarmLedger.RaidOn), the wound's stored InfectionChanceFactor the only difference (the owned bed room's now,
 /// <see cref="NeedBedRoom.InfectionChanceFactor"/>, against the hospital's at its predicted steady cleanliness,
-/// <see cref="PlannedRoomCleanlinessRules.InfectionChance"/>), at the tend quality the colony's best doctor gives now
-/// (<see cref="ForecastCoupledContext.Tending"/>, first care at once, as ColonyValue's raid loss).</item>
+/// <see cref="PlannedRoomCleanlinessRules.InfectionChance"/>), with first care at once. Native scheduled incidents read actual
+/// date-specific tending from <see cref="ForecastCoupledContext.Tending"/>; continuous MTB streams use its horizon average.</item>
 /// <item>Illness: disease incidents a day × (one incident's risk-transformed cost with its immunity gained at the owned bed's
 /// ImmunityGainSpeedFactor, less at the hospital bed's, <see cref="ForecastCoupledContext.HospitalBed"/>, #3824).</item>
 /// <item>Mood: the patient-days a day (raids a day × one raid's tended days to healed, plus the illness's
@@ -81,7 +99,11 @@ internal static class ForecastHospital
     /// Surgeries a future event queues on <see cref="Patient"/> at <see cref="PerDay"/> a day: the replacements of the organs illness
     /// destroys (#3830), of the parts a raid destroys (#3847) and of the organs a creepjoiner's organ decay may destroy (#3844). Each is credited at the rate, as a queued bill's once gain a day.
     /// </summary>
-    internal sealed record SurgeryRate(string Patient, SurgeryModel Surgery, double PerDay);
+    internal sealed record SurgeryRate(string Patient, SurgeryModel Surgery, double PerDay)
+    {
+        public double Day { get; init; }
+        public StockWait? Wait { get; init; }
+    }
 
     /// <summary>
     /// The surgery rates of one pawn's event (an illness's, #3830, or a raid's, #3847): events a day × each stocked replacement's
@@ -89,8 +111,8 @@ internal static class ForecastHospital
     /// </summary>
     internal static IEnumerable<SurgeryRate> Surgeries(string pawn, IReadOnlyList<OrganReplacement> replacements, double eventsPerDay) =>
         replacements.Where(r => r.Recipe is { Environment: true, Outcomes.Count: > 0 })
-            .GroupBy(r => r.Recipe!.Recipe, StringComparer.Ordinal)
-            .Select(g => new SurgeryRate(pawn, ModelOf(g.First().Recipe!), eventsPerDay * g.Sum(r => r.Probability)));
+            .GroupBy(r => (r.Recipe!.Recipe, r.Day, r.Wait))
+            .Select(g => new SurgeryRate(pawn, ModelOf(g.First().Recipe!), eventsPerDay * g.Sum(r => r.Probability)) { Day = g.Key.Day, Wait = g.Key.Wait });
 
     private static SurgeryModel ModelOf(OrganReplacementRead read) => new(read.Outcomes, read.QualityMin, read.QualityMax, read.Quality);
 
@@ -104,35 +126,49 @@ internal static class ForecastHospital
     /// <summary>The served hospital's gains (<see cref="RoomCredit"/>, see the class summary): a row per colonist under its id, and a row per queued surgery under <c>surgery:{demand}</c>.</summary>
     internal static IReadOnlyList<RoomGain> HospitalCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
-        var part = Cache.GetValue(context, _ => new()).GetOrAdd((room.Room, room.Stuff), key => PartOf(context, key.Room, key.Stuff));
         var gains = new List<RoomGain>();
-        foreach (var patient in part.Patients)
+        foreach (var scheduled in new[] { false, true })
         {
-            var mood = 0.0;
-            if (patient.PatientDaysPerDay > 0 && patient.MoodDelta != 0)
+            var from = scheduled ? Math.Max(0, room.ServedAt / GameTime.TicksPerDay) : 0;
+            var careContext = context;
+            if (scheduled && outcome.Terminal is { } terminal && context.Tending is { Timing: ForecastTendingTiming.Projected projected } tending)
             {
-                mood = PlannedRoomCredits.MoodGain(patient.MoodDelta, patient.Pawn, outcome, context, horizon);
+                var history = terminal.TreatmentHistory ?? throw new RequiredFactException("colony_model_treatment_history_unobserved");
+                careContext = context with { Tending = tending with { Timing = projected with { Trajectory = history } } };
+            }
+            // Scheduled care depends on this outcome's realized medicine and skill history, so a context-only cache cannot own it.
+            var part = scheduled ? PartOf(careContext, room.Room, room.Stuff, true, from)
+                : Cache.GetValue(context, _ => new()).GetOrAdd((room.Room, room.Stuff), key => PartOf(context, key.Room, key.Stuff, false, 0));
+            foreach (var patient in part.Patients)
+            {
+                var mood = 0.0;
+                if (patient.PatientDaysPerDay > 0 && patient.MoodDelta != 0)
+                {
+                    mood = PlannedRoomCredits.MoodGain(patient.MoodDelta, patient.Pawn, outcome, context, horizon);
+                }
+
+                var perDay = patient.InfectionPerDay + patient.IllnessPerDay + patient.SurgeryPerDay + (patient.PatientDaysPerDay * mood);
+                if (perDay != 0)
+                {
+                    gains.Add(scheduled ? new(patient.Pawn, patient.Pawn, 0) { Once = perDay * context.InvestmentHorizonDays }
+                        : new(patient.Pawn, patient.Pawn, perDay));
+                }
             }
 
-            var perDay = patient.InfectionPerDay + patient.IllnessPerDay + patient.SurgeryPerDay + (patient.PatientDaysPerDay * mood);
-            if (perDay != 0)
+            foreach (var operation in part.Operations)
             {
-                gains.Add(new(patient.Pawn, patient.Pawn, perDay));
+                // A bill the schedule finishes before the hospital serves gains nothing from it.
+                var done = outcome.Plan.Allocations.Any(a => a.End <= room.ServedAt && context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
+                    && binding.SupportDemand == operation.Demand && binding.Job == "DoBill");
+                if (!done && operation.Once != 0)
+                {
+                    gains.Add(new("surgery:" + operation.Demand, operation.Pawn, 0) { Once = operation.Once });
+                }
             }
         }
 
-        foreach (var operation in part.Operations)
-        {
-            // A bill the schedule finishes before the hospital serves gains nothing from it.
-            var done = outcome.Plan.Allocations.Any(a => a.End <= room.ServedAt && context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
-                && binding.SupportDemand == operation.Demand && binding.Job == "DoBill");
-            if (!done && operation.Once != 0)
-            {
-                gains.Add(new("surgery:" + operation.Demand, operation.Pawn, 0) { Once = operation.Once });
-            }
-        }
-
-        return gains;
+        return [.. gains.GroupBy(g => (g.Subject, g.Pawn))
+            .Select(g => new RoomGain(g.Key.Subject, g.Key.Pawn, g.Sum(r => r.PerDay)) { Once = g.Sum(r => r.Once) })];
     }
 
     /// <summary>
@@ -220,8 +256,26 @@ internal static class ForecastHospital
 
     private static NeedBedRoom OwnedRoom(NeedsForecastPawn pawn) => pawn.OwnedBedRoom ?? throw new RequiredFactException("owned_bed_room:" + pawn.Pawn);
 
-    private static Part PartOf(ForecastCoupledContext context, int room, string stuff)
+    private static Part PartOf(ForecastCoupledContext context, int room, string stuff, bool scheduled, double from)
     {
+        var harm = context.Harm;
+        var hasBudgets = harm.ScheduledRaids.Count > 0 || harm.Schedule.Raids.Count > 0;
+        context = context with
+        {
+            Harm = harm with
+            {
+                ScheduledRaids = [.. harm.ScheduledRaids.Where(r => (r.Timing is IncidentTiming.Scheduled) == scheduled)],
+                Schedule = harm.Schedule with
+                {
+                    Raids = [.. harm.Schedule.Raids.Where(r => (r.Timing is IncidentTiming.Scheduled) == scheduled)],
+                    MajorThreatsPerDay = scheduled || hasBudgets ? 0 : harm.Schedule.MajorThreatsPerDay,
+                },
+                Illness = harm.Illness with
+                {
+                    Incidents = [.. harm.Illness.Incidents.Select(i => i with { Rates = scheduled ? [] : i.Rates, Scheduled = scheduled ? i.Scheduled : [] })],
+                },
+            },
+        };
         // A shape whose ring closes no room (no prediction row, #3834) is no hospital: it relieves nothing.
         if (PlannedRoomCredits.Prediction(context, room, stuff) is not { } closure)
         {
@@ -246,7 +300,7 @@ internal static class ForecastHospital
         var horizon = days * GameTime.TicksPerDay;
         var tending = context.Tending ?? throw new RequiredFactException("tend_quality");
         var bed = context.HospitalBed.Def.Length != 0 ? context.HospitalBed : throw new RequiredFactException("hospital_bed");
-        var raidsPerDay = HarmLedger.RaidsPerDay(context.Harm) ?? throw new RequiredFactException(HarmLedger.ThreatScheduleUnknown);
+        var raidsPerDay = HarmLedger.RaidsPerDay(context.Harm, days) ?? throw new RequiredFactException(HarmLedger.ThreatScheduleUnknown);
         var schedule = context.Harm.Illness;
         if (!schedule.Assessed)
         {
@@ -259,7 +313,14 @@ internal static class ForecastHospital
         double Roomless(IReadOnlyList<CurvePoint> curve, double score, string unread) => curve.Count != 0 ? score : throw new RequiredFactException(unread);
         double InfectionNow(NeedsForecastPawn pawn) => pawn.OwnedBed.Length == 0
             ? Roomless(filth.InfectionChance, filth.InfectionChanceRoomless, "infection_chance_curve") : OwnedRoom(pawn).InfectionChanceFactor;
-        HarmConsequences.Care Care(double roomFactor) => new(tending.Tended, tending.Quality, tending.Tended ? 0 : double.PositiveInfinity, roomFactor);
+        HarmConsequences.Care Care(double roomFactor, double at = 0)
+        {
+            var actual = scheduled ? tending.On(at) : tending;
+            return new(actual.Tended, actual.Quality, actual.Tended ? 0 : double.PositiveInfinity, roomFactor)
+            {
+                QualityAt = scheduled ? day => tending.On(at + day).Quality : null,
+            };
+        }
         double Risk(HarmDistribution distribution)
         {
             var (mean, tail) = HarmLedger.Moments(distribution, context.Value.HarmRiskAlpha);
@@ -273,7 +334,10 @@ internal static class ForecastHospital
             double infection = 0, patientDays = 0;
             if (raidsPerDay > 0)
             {
-                var hospital = HarmLedger.RaidOn(context, pawn, Care(HospitalInfection()), horizon);
+                var hospital = HarmLedger.RaidOn(context, pawn, Care(HospitalInfection()) with
+                {
+                    RoomFromDays = from, BeforeRoomFactor = InfectionNow(pawn), PatientFromDays = from,
+                }, horizon);
                 patientDays += raidsPerDay * hospital.PatientDays;
                 rates.AddRange(Surgeries(pawn.Pawn, hospital.Replacements, raidsPerDay));
                 if (tending.Tended)
@@ -287,7 +351,8 @@ internal static class ForecastHospital
             {
                 var immunityNow = pawn.OwnedBed.Length == 0 ? 1 : OwnedRoom(pawn).ImmunityGainSpeedFactor;
                 var now = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), immunityNow, context.Value, horizon, context.Stock);
-                var hospital = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), bed.ImmunityGainSpeedFactor, context.Value, horizon, context.Stock);
+                var hospital = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), bed.ImmunityGainSpeedFactor, context.Value, horizon, context.Stock,
+                    scheduled ? new IllnessForecast.BedChange(from, immunityNow) : null);
                 if (!now.Known || !hospital.Known)
                 {
                     throw new RequiredFactException("illness_harm:" + pawn.Pawn);
@@ -299,7 +364,7 @@ internal static class ForecastHospital
             }
 
             // A creepjoiner's organ decay books its replacements at their chance over the horizon, spread over its days (#3844).
-            if (horizon > 0)
+            if (!scheduled && horizon > 0)
             {
                 rates.AddRange(Surgeries(pawn.Pawn, CreepJoinerHarm.Surgeries(context, pawn, Care(1), horizon), GameTime.TicksPerDay / horizon));
             }
@@ -311,18 +376,27 @@ internal static class ForecastHospital
         var operations = new List<Operation>();
         double? hospitalSurgery = null;
         // A surgery fails less in the hospital bed: the failure cost at the owned bed's factor less at the hospital's (see the class summary).
-        double Saved(SurgeryModel surgery, NeedsForecastPawn patient)
+        double Saved(SurgeryModel surgery, NeedsForecastPawn patient, double at = 0)
         {
             var now = patient.OwnedBed.Length == 0
                 ? Roomless(filth.SurgeryCleanliness, filth.SurgeryCleanlinessRoomless, "surgery_cleanliness_curve") : OwnedRoom(patient).SurgerySuccessFactor;
             hospitalSurgery ??= bed.SurgerySuccessChanceFactor * PlannedRoomCleanlinessRules.SurgeryCleanliness(prediction, runs, filth);
-            return FailureCost(surgery, surgery.Quality * now, patient, context, Care(InfectionNow(patient)), horizon, days)
-                - FailureCost(surgery, surgery.Quality * hospitalSurgery.Value, patient, context, Care(HospitalInfection()), horizon, days);
+            var remaining = Math.Max(0, days - at);
+            return FailureCost(surgery, surgery.Quality * now, patient, context, Care(InfectionNow(patient), at), remaining * GameTime.TicksPerDay, remaining)
+                - FailureCost(surgery, surgery.Quality * hospitalSurgery.Value, patient, context, Care(HospitalInfection(), at), remaining * GameTime.TicksPerDay, remaining);
         }
 
-        var surgeries = rates.GroupBy(r => r.Patient, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Sum(r => r.PerDay * Saved(r.Surgery, rows[r.Patient])), StringComparer.Ordinal);
+        double SurgeryGain(SurgeryRate rate)
+        {
+            if (!scheduled) return Saved(rate.Surgery, rows[rate.Patient]);
+            var remaining = Math.Max(0, days - rate.Day);
+            IEnumerable<(double Day, double Chance)> arrivals = rate.Wait is { } wait ? wait.Stock.Arrivals(wait.Needs, remaining) : [(0, 1)];
+            return arrivals.Where(a => rate.Day + a.Day >= from && rate.Day + a.Day < days)
+                .Sum(a => a.Chance * Saved(rate.Surgery, rows[rate.Patient], rate.Day + a.Day));
+        }
+        var surgeries = rates.GroupBy(r => r.Patient, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Sum(r => r.PerDay * SurgeryGain(r)), StringComparer.Ordinal);
         patients = [.. patients.Select(p => p with { SurgeryPerDay = surgeries.TryGetValue(p.Pawn, out var perDay) ? perDay : 0 })];
-        foreach (var demand in context.Support.Demands.Where(d => d.Kind == "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
+        foreach (var demand in context.Support.Demands.Where(d => !scheduled && d.Kind == "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
         {
             // A surgery on a prisoner, a slave or an animal is no colonist's (named in Unmodelled); one without an outcome effect cannot
             // fail, and one that ignores its environment fails alike in either bed.

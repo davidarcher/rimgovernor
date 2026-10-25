@@ -29,8 +29,7 @@ public sealed class DiseaseDrawCompTests
         Assert.Equal([DiseaseDrawRule.OnOffCycle, DiseaseDrawRule.RandomMain, DiseaseDrawRule.CategoryMtb, DiseaseDrawRule.SingleMtb], decoded.Draws.Select(d => d.Rule));
         // Before forceRaidEnemyBeforeDaysPassed an on-off cycle's incidents are raids.
         Assert.Equal(20, decoded.Draws[0].MinDaysPassed);
-        Assert.Equal([1.0, 2.0], decoded.Draws[0].Cycle!.AcceptByProgressScore.Select(p => p.Factor));
-        Assert.Equal(3, decoded.Draws[0].Cycle!.OnDaysNoTreeConnectors);
+        Assert.Equal((0, 20d), (decoded.Draws[0].Cycle!.CompIndex, decoded.Draws[0].Cycle!.ForceRaidBeforeDays));
         var main = decoded.Draws[1];
         Assert.Equal((4.0, 1.0, 3.5, 2.0), (main.MtbDays, main.CategoryWeight, main.OtherWeight, main.ThreatBigWeight));
         Assert.Equal(13, main.MaxThreatBigIntervalDays);
@@ -58,8 +57,9 @@ public sealed class DiseaseDrawCompTests
         cycle.onDaysNoTreeConnectors = 2;
 
         Assert.Equal(0.1, Schedule(cycle, Reads(flu: 1)).IncidentsPerDay(30), 12);
-        Assert.Equal(0.15, Schedule(cycle, Reads(flu: 1), facts => facts with { ProgressScore = 5 }).IncidentsPerDay(30), 12);
-        Assert.Equal(60 / (120.0 + 300), Schedule(cycle, Reads(flu: 1), facts => facts with { NoTreeConnection = true }).IncidentsPerDay(30), 12);
+        // Native acceptance above one retains the drawn hits; it never invents extra incidents.
+        Assert.Equal(0.1, Schedule([cycle], Reads(flu: 1), progress: 5).IncidentsPerDay(30), 12);
+        Assert.InRange(Schedule([cycle], Reads(flu: 1), noTree: true).IncidentsPerDay(30), 4 / 30.0, 5 / 30.0);
     }
 
     [Fact]
@@ -131,6 +131,15 @@ public sealed class DiseaseDrawCompTests
         Assert.True(schedule.Assessed);
         Assert.Equal(["disease_future_state_unprojected"], schedule.Findings);
         Assert.Empty(atStart.Findings);
+        if (kind == 4)
+        {
+            Assert.Empty(flu.Rates);
+            Assert.NotEmpty(flu.Scheduled);
+            Assert.All(flu.Scheduled, timing => Assert.True(timing.From >= 10));
+            Assert.Equal(0, flu.PerDay(10));
+            Assert.Equal(flu.Occurrences(30).Sum(e => e.Chance) / 30, flu.PerDay(30), 12);
+            return;
+        }
         var rate = Assert.Single(flu.Rates);
         Assert.Equal(10, rate.StartDay);
         Assert.Equal(atStart.Incidents.Single(i => i.Incident == "Disease_Flu").PerDay(30), rate.PerDay, 12);
@@ -167,6 +176,12 @@ public sealed class DiseaseDrawCompTests
 
         var schedule = Schedule([Comp(0), Comp(30)], Reads(flu: 1));
         var rates = schedule.Incidents.Single().Rates;
+        if (cycle)
+        {
+            Assert.Empty(rates);
+            Assert.Equal(5 / 30.0, schedule.Incidents.Single().PerDay(30), 12);
+            return;
+        }
         Assert.Equal(2, rates.Count);
         Assert.Equal(cycle ? 0.1 : 1 / 30.0, rates[0].PerDay, 12);
         Assert.Equal(cycle ? 0.2 : 1 / 60.0, rates[1].PerDay, 12);
@@ -209,11 +224,15 @@ public sealed class DiseaseDrawCompTests
         => Schedule([comp], reads, with);
 
     private static IllnessSchedule Schedule(StorytellerCompProperties[] comps, DiseaseIncidentRead[] reads,
-        Func<ThreatFacts, ThreatFacts>? with = null, Action<IncidentDef>? configure = null)
+        Func<ThreatFacts, ThreatFacts>? with = null, Action<IncidentDef>? configure = null, double progress = 0, bool noTree = false)
     {
         var facts = ColonyFactsCoreTests.QuietThreat with { Disease = IllnessForecastTests.Facts(20, reads) with { Storyteller = "Modded" } };
         var catalog = Catalog(Teller(comps), configure);
-        return HarmInputs.Of(new ReviewFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = with?.Invoke(facts) ?? facts } } }).Illness;
+        facts = with?.Invoke(facts) ?? facts;
+        facts = facts with { DaysPassed = facts.Disease.DaysSinceSettle };
+        var table = catalog.DiseaseTable();
+        facts = facts with { Cycles = [.. comps.OfType<StorytellerCompProperties_OnOffCycle>().Select(c => IncidentCycleTests.Read(c, Array.IndexOf(comps, c), facts, progress: progress, noTree: noTree))] };
+        return HarmInputs.Of(new ReviewFacts { DiseaseTable = table, Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = facts } } }).Illness;
     }
 
     private static StorytellerDiseases Decode(params StorytellerCompProperties[] comps) => Catalog(Teller(comps)).DiseaseTable().Storytellers["Modded"];

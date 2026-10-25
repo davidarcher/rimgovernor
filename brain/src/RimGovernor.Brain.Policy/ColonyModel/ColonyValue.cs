@@ -46,7 +46,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     // The stub outcome the harm ledger prices a single pawn's outfit with: it reads the pawn set and the support only.
     private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastCapacityResult(default!, []), []);
 
-    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> harmCache = new();
+    private readonly ConcurrentDictionary<HarmFightKey, HarmDistribution> harmCache = new();
     private readonly Dictionary<string, NeedsForecastPawn> rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
@@ -54,11 +54,11 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private readonly Dictionary<(string, EquatableArray<GearOption>), LedgerTerm> losses = [];
 
     // The tending term's own cache: its raids are priced over the whole horizon, the apparel's over a day, and the keys omit it.
-    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> tendedCache = new();
+    private readonly ConcurrentDictionary<HarmFightKey, HarmDistribution> tendedCache = new();
 
     // The illness distributions of the two horizons (#3824), each by pawn and care.
-    private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> tendedIllness = new();
-    private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> dailyIllness = new();
+    private readonly ConcurrentDictionary<IllnessHarmKey, HarmDistribution> tendedIllness = new();
+    private readonly ConcurrentDictionary<IllnessHarmKey, HarmDistribution> dailyIllness = new();
 
     // The colony's raid and illness harm over the horizon at a tend quality (-1: untended) and a defense shift, with the harm model's findings.
     private readonly Dictionary<(double Quality, double Shift), HarmTerm> tendedHarm = [];
@@ -83,7 +83,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// </summary>
     public bool Reads(SkillTrack track) => HarmExpected
         && doctors.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill)
-        || HarmLedger.RaidsPerDay(context.Harm) is not 0 && Fighter(track) is not null;
+        || HarmLedger.RaidsPerDay(context.Harm, horizonDays) is not 0 && Fighter(track) is not null;
 
     /// <summary>
     /// The defense power of <paramref name="track"/>'s pawn at each stored level when the stock is one the defense capacity counts
@@ -118,7 +118,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private List<(SkillTrack Track, EquatableArray<double> Power)> Fighters(ColonyTrajectory trajectory)
     {
         var fighters = new List<(SkillTrack, EquatableArray<double>)>();
-        if (HarmLedger.RaidsPerDay(context.Harm) is 0)
+        if (HarmLedger.RaidsPerDay(context.Harm, horizonDays) is 0)
         {
             return fighters;
         }
@@ -147,7 +147,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// then 0); true otherwise, unread included.
     /// </summary>
     private bool HarmExpected =>
-        !(HarmLedger.RaidsPerDay(context.Harm) == 0 && context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0);
+        !(HarmLedger.RaidsPerDay(context.Harm, horizonDays) == 0 && context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0);
 
     /// <summary>
     /// Capability-days the colony loses to raid injuries and illness over the horizon at the tending the trajectory gives them (#3635,
@@ -198,6 +198,37 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             }
         }
 
+        double QualityOn(double day)
+        {
+            return QualityAt(trajectory, doctors, day, findings);
+        }
+
+        foreach (var scenario in HarmLedger.RaidContexts(context, horizonDays))
+        {
+            if (scenario.Harm.Occurrence is not RaidOccurrence.At at) continue;
+            var quality = QualityOn(at.Day);
+            var shifted = scenario with { Harm = scenario.Harm with { Raid = scenario.Harm.Raid with { Capacity = scenario.Harm.Raid.Capacity + DefenseShift(fighters, at.Day) } } };
+            var care = new HarmConsequences.Care(quality >= 0, Math.Max(0, quality), 0, 1);
+            var count = HarmLedger.RaidsPerDay(scenario.Harm, horizonDays)!.Value * horizonDays;
+            total += count * rows.Values.Sum(p => HarmLedger.RaidOn(shifted, p, care, horizonDays * GameTime.TicksPerDay).Risk);
+        }
+
+        var scheduledIllness = context.Harm.Illness with { Incidents = [.. context.Harm.Illness.Incidents.Select(i => i with { Rates = [] })] };
+        var incidents = scheduledIllness.IncidentsPerDay(horizonDays) * horizonDays;
+        if (incidents > 0)
+        {
+            foreach (var pawn in rows.Values.OrderBy(p => p.Pawn, StringComparer.Ordinal))
+            {
+                var care = new HarmConsequences.Care(doctors.Count > 0, 0, 0, 1) { QualityAt = QualityOn };
+                var distribution = IllnessForecast.Of(scheduledIllness, pawn, context.CapacityPenalties, care,
+                    pawn.OwnedBedRoom?.ImmunityGainSpeedFactor ?? 1, context.Value, horizonDays * GameTime.TicksPerDay, context.Stock);
+                findings.UnionWith(distribution.Findings);
+                if (!distribution.Known) return Unpriced();
+                var (mean, tail) = HarmLedger.Moments(distribution, context.Value.HarmRiskAlpha);
+                total += incidents * HarmLedger.Risk(mean, tail, context.Value.HarmRiskWeight);
+            }
+        }
+
         findings.Add(RaidFirstCareDelayUnmodelled);
         return total;
     }
@@ -238,7 +269,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             }
         }
 
-        return span > 0 ? new ForecastTending(true, total / span) : TendingNow(trajectory, findings);
+        return span > 0 ? new ForecastTending(true, total / span) : TendingOn(trajectory, trajectory.StartDay);
     }
 
     // The tending on day 0 with the best medicine the run starts with: what the treatments a day are counted at before the run.
@@ -339,10 +370,10 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private static IEnumerable<(double From, double To, int Kind)> MedicineSpans(ColonyTrajectory trajectory)
     {
         var held = trajectory.StartMedicine.ToArray();
-        var at = 0.0;
+        var at = trajectory.StartDay;
         foreach (var e in trajectory.Events)
         {
-            var next = e.Medicine.ToArray();
+            var next = e.Medicine.Select((count, k) => count + (e.MedicineConsumed.Count > k ? e.MedicineConsumed[k] : 0)).ToArray();
             if (e.Day > at)
             {
                 var used = held.Sum() - next.Sum();
@@ -379,8 +410,37 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
                 }
             }
 
-            (held, at) = (next, e.Day);
+            (held, at) = (e.Medicine.ToArray(), e.Day);
         }
+    }
+
+    private double QualityAt(ColonyTrajectory trajectory, List<(SkillTrack Track, SkillStatCurve Curve)> doctors, double day, SortedSet<string> findings)
+    {
+        if (day <= trajectory.StartDay && trajectory.StartDay > 0)
+        {
+            var history = trajectory.TreatmentHistory ?? throw new RequiredFactException("colony_model_treatment_history_unobserved");
+            var earlierDoctors = Doctors(history, findings, new SortedSet<string>(StringComparer.Ordinal))
+                ?? throw new RequiredFactException("illness treatment doctor history");
+            return QualityAt(history, earlierDoctors, day, findings);
+        }
+        var treatment = trajectory.Events.FirstOrDefault(e => Math.Abs(e.Day - day) < 1e-9 && e.Kind == ModelEventKind.MedicineTreatment);
+        var kind = trajectory.Events.Count == 0 ? Array.FindIndex(trajectory.StartMedicine.ToArray(), held => held > 0) : -1;
+        if (treatment is not null)
+            kind = Array.FindIndex(treatment.Medicine.Select((held, k) => held + (treatment.MedicineConsumed.Count > k ? treatment.MedicineConsumed[k] : 0)).ToArray(), held => held > 0);
+        else
+            foreach (var span in MedicineSpans(trajectory))
+                if (span.From <= day && day < span.To) { kind = span.Kind; break; }
+        return TendQuality(doctors, day, kind < 0 ? null : trajectory.MedicineKinds[kind], findings)
+            ?? throw new RequiredFactException("scheduled incident tend quality");
+    }
+
+    /// <summary>Tending at an actual review-relative incident or retend date, before that date's medicine debit.</summary>
+    public ForecastTending? TendingOn(ColonyTrajectory trajectory, double day)
+    {
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        if (Doctors(trajectory, findings, new SortedSet<string>(StringComparer.Ordinal)) is not { } doctors) return null;
+        var quality = QualityAt(trajectory, doctors, day, findings);
+        return quality < 0 ? new ForecastTending(false, 0) : new ForecastTending(true, quality);
     }
 
     /// <summary>
@@ -405,7 +465,18 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             var support = quality < 0 ? new ForecastSupportConsequences() : new ForecastSupportConsequences { CareServices = TendCare, TendQuality = quality };
             var needs = rows.Keys.ToDictionary(p => p, _ => NoNeeds, StringComparer.Ordinal);
             var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, needs, []) { Support = support };
-            tendedHarm[(quality, shift)] = term = HarmLedger.Of(outcome, context, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness, shift);
+            var raids = context.Harm.ScheduledRaids.Where(r => r.Timing is IncidentTiming.Mtb).ToArray();
+            var continuous = context with
+            {
+                Harm = context.Harm with
+                {
+                    ScheduledRaids = raids,
+                    Schedule = context.Harm.ScheduledRaids.Count > 0 && raids.Length == 0
+                        ? context.Harm.Schedule with { MajorThreatsPerDay = 0, RaidFraction = 0, Raids = [] } : context.Harm.Schedule,
+                    Illness = context.Harm.Illness with { Incidents = [.. context.Harm.Illness.Incidents.Select(i => i with { Scheduled = [] })] },
+                },
+            };
+            tendedHarm[(quality, shift)] = term = HarmLedger.Of(outcome, continuous, horizonDays * GameTime.TicksPerDay, tendedCache, rows, null, tendedIllness, shift);
         }
 
         if (term.Detail is { Illness: null })
@@ -435,24 +506,97 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
-    /// The medicine tending uses up a day (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>): the treatments the harm model's raid
-    /// wounds take at each pawn's worn outfit (#3634), and the illness term's tends a day (<see cref="IllnessTerm.TendsPerDay"/>, #3829)
+    /// The continuous MTB medicine use a day (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>): the treatments the harm model's raid
+    /// wounds take at each pawn's worn outfit, and the illness term's tends a day (<see cref="IllnessTerm.TendsPerDay"/>)
     /// at the tending a wound gets at the start of <paramref name="input"/>'s run (the day-0 tend quality of its skill stocks and
     /// medicine on hand): TendUtility.DoTend uses up one medicine a treatment and tends a disease alone. Missing raid harm,
     /// doctor curves, medicine potency or illness facts raise RequiredFactException.
     /// </summary>
     public double TreatmentsPerDay(ColonyModelInput input)
     {
-        var treatments = HarmLedger.TreatmentsPerDay(context, rows);
-        if (treatments is not ForecastTerm.Assessed(var raids))
-            throw new RequiredFactException(((ForecastTerm.Unassessed)treatments).Reason);
+        var raids = HarmLedger.RaidContexts(context, horizonDays).Where(c => c.Harm.Occurrence is RaidOccurrence.Continuous)
+            .Sum(c => RaidTreatments(c));
+        var illness = context.Harm.Illness with { Incidents = [.. context.Harm.Illness.Incidents.Select(i => i with { Scheduled = [] })] };
+        return raids + IllnessTreatments(input, illness).Sum(d => d.Count) / horizonDays;
+    }
 
-        // No incident over the horizon takes no tend, whoever would tend it.
-        if (context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0)
+    /// <summary>Scheduled raid wound batches and disease tends, at the native incident dates and the disease course's actual retend dates.</summary>
+    public EquatableArray<ScheduledEffect> ScheduledTreatments()
+    {
+        var dates = new Dictionary<double, double>();
+        foreach (var scenario in HarmLedger.RaidContexts(context, horizonDays))
         {
-            return raids;
+            if (scenario.Harm.Occurrence is RaidOccurrence.At at)
+            {
+                var count = RaidTreatments(scenario) * horizonDays;
+                if (count > 0) dates[at.Day] = dates.GetValueOrDefault(at.Day) + count;
+            }
         }
 
+        var illness = context.Harm.Illness;
+        if (!illness.Assessed) throw new RequiredFactException("illness_schedule");
+        _ = illness.IncidentsPerDay(horizonDays);
+        var slots = new HashSet<double>();
+        foreach (var incident in illness.Incidents.Where(i => i.VictimChance > 0 && i.Course.Tendable && i.Course.Tend is not null
+            && rows.Values.Any(p => p.Disease.Contracts.Any(c => c.Incident == i.Incident && c.Chance > 0))))
+        {
+            var scheduled = incident with { Rates = [] };
+            foreach (var occurrence in scheduled.Occurrences(horizonDays).Where(o => o.Chance > 0))
+            {
+                var tend = incident.Course.Tend!;
+                if (!(tend.FirstRetendDays > 0) || !(tend.RetendDays > 0)) throw new RequiredFactException("disease_tend_schedule:" + incident.Incident);
+                var day = occurrence.Day;
+                slots.Add(day);
+                day += tend.FirstRetendDays;
+                while (day < horizonDays && double.IsFinite(day))
+                {
+                    slots.Add(day);
+                    day += tend.RetendDays;
+                }
+            }
+        }
+        foreach (var day in slots) dates.TryAdd(day, 0);
+        return EquatableArray.From(dates.OrderBy(d => d.Key).Select(d => new ScheduledEffect
+        {
+            Day = d.Key, Kind = ModelEventKind.MedicineTreatment, Id = "medicine/tend", Stock = ModelStock.Medicine, Amount = -d.Value,
+            MedicineDemand = slots.Contains(d.Key) ? DiseaseTreatmentsAt : null,
+        }));
+    }
+
+    private double DiseaseTreatmentsAt(ColonyTrajectory trajectory, double day)
+    {
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var doctors = Doctors(trajectory, findings, new SortedSet<string>(StringComparer.Ordinal))
+            ?? throw new RequiredFactException("illness treatment doctor");
+        var illness = context.Harm.Illness with { Incidents = [.. context.Harm.Illness.Incidents.Select(i => i with { Rates = [] })] };
+        var incidents = illness.IncidentsPerDay(horizonDays) * horizonDays;
+        var total = 0.0;
+        foreach (var pawn in rows.Values.OrderBy(p => p.Pawn, StringComparer.Ordinal))
+        {
+            var care = new HarmConsequences.Care(doctors.Count > 0, 0, 0, 1)
+            {
+                QualityAt = at => QualityAt(trajectory, doctors, at, findings), TreatmentThroughDays = day,
+            };
+            var distribution = IllnessForecast.Of(illness, pawn, context.CapacityPenalties, care,
+                pawn.OwnedBedRoom?.ImmunityGainSpeedFactor ?? 1, context.Value, horizonDays * GameTime.TicksPerDay, context.Stock);
+            if (!distribution.Known) throw new RequiredFactException(string.Join(",", distribution.Findings));
+            total += incidents * distribution.TreatmentDates.Where(t => Math.Abs(t.Day - day) < 1e-9).Sum(t => t.Count);
+        }
+        return total;
+    }
+
+    private double RaidTreatments(ForecastCoupledContext scenario) => HarmLedger.TreatmentsForRaid(scenario, rows, horizonDays) switch
+    {
+        ForecastTerm.Assessed assessed => assessed.Value,
+        ForecastTerm.Unassessed unread => throw new RequiredFactException(unread.Reason),
+        var invalid => throw new ArgumentOutOfRangeException(nameof(scenario), invalid, "Invalid treatment reading."),
+    };
+
+    private IReadOnlyList<(double Day, double Count)> IllnessTreatments(ColonyModelInput input, IllnessSchedule illness)
+    {
+        if (!illness.Assessed) throw new RequiredFactException("illness_schedule");
+        var incidents = illness.IncidentsPerDay(horizonDays) * horizonDays;
+        if (incidents == 0) return [];
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var held = input.Stocks.Medicine;
         var start = new ColonyTrajectory
@@ -461,12 +605,22 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             MedicineKinds = EquatableArray.From(held.Select(a => a.Resource)),
             StartMedicine = EquatableArray.From(held.Select(a => (double)a.Count)),
         };
-        if (TendingNow(start, findings) is not { } tending || HarmAt(tending.Tended ? tending.Quality : -1).Detail?.Illness is not { } illness)
+        if (TendingNow(start, findings) is not { } tending)
         {
             throw new RequiredFactException("illness treatments per day");
         }
 
-        return raids + illness.TendsPerDay;
+        var dates = new Dictionary<double, double>();
+        foreach (var pawn in rows.Values.OrderBy(p => p.Pawn, StringComparer.Ordinal))
+        {
+            var distribution = IllnessForecast.Of(illness, pawn, context.CapacityPenalties,
+                new HarmConsequences.Care(tending.Tended, tending.Quality, 0, 1), pawn.OwnedBedRoom?.ImmunityGainSpeedFactor ?? 1,
+                context.Value, horizonDays * GameTime.TicksPerDay, context.Stock);
+            if (!distribution.Known) throw new RequiredFactException(string.Join(",", distribution.Findings));
+            foreach (var (day, count) in distribution.TreatmentDates)
+                dates[day] = dates.GetValueOrDefault(day) + count * incidents;
+        }
+        return [.. dates.Select(d => (d.Key, d.Value))];
     }
 
     /// <summary>The colony's capability-days lost to malnutrition; a missing table fails the computation.</summary>

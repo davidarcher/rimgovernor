@@ -92,6 +92,7 @@ internal static class ReviewColonyModel
         {
             Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear.Threat), (graph, p) => graph.Then(p.Path.Graph)),
             MedicineTendsPerDay = valuation.TreatmentsPerDay(input),
+            Scheduled = valuation.ScheduledTreatments(),
             MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Census.ColonistCount * MedicalReservePolicy.Default().TargetPerColonist),
             MedicineTrade = context.Stock.MedicineTrade,
         };
@@ -118,7 +119,11 @@ internal static class ReviewColonyModel
 
         return new(marginals, [], policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
             valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays))
-        { Basis = new(input, policy), Tending = valuation.TendingOverHorizon(marginals.Trajectory, new SortedSet<string>(StringComparer.Ordinal)) };
+        {
+            Basis = new(input, policy),
+            Tending = valuation.TendingOverHorizon(marginals.Trajectory, new SortedSet<string>(StringComparer.Ordinal)) is { } tending
+                ? tending with { Timing = new ForecastTendingTiming.Projected(valuation, marginals.Trajectory) } : null,
+        };
     }
 
     /// <summary>The review of a frame that left the input unready: no run, no basis, and the gaps named.</summary>

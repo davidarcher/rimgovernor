@@ -12,6 +12,12 @@ namespace RimGovernor.Brain.Domain.Tests.Game;
 // replacement's wait: a fresh colony without the bench waits on trade, which is named; one with it crafts the part at its rate.
 public sealed class StockArrivalCatalogTests
 {
+    private static double PurchasedUnits(MedicineTrade trade, MedicineTradeSource source)
+    {
+        var visit = Assert.IsType<MedicineVisit>(source.Visit);
+        return visit.Units(source.Kind, Math.Floor(trade.Silver / visit.Price));
+    }
+
     private static readonly StatDef Potency = new() { defName = "MedicalPotency" };
     private static readonly StatDef Labor = new() { defName = "GeneralLaborSpeed" };
     private static readonly SkillDef CraftingSkill = new() { defName = "Crafting" };
@@ -220,12 +226,12 @@ public sealed class StockArrivalCatalogTests
         // The caravans and visitors by faction interaction, the orbital traders by cycle; the travelers send no trader of their own.
         Assert.Equal(
             [
-                new TradeVisitComp(TradeCompRate.FactionInteraction, 5) { Incident = "TraderCaravanArrival", IncidentsPerDay = 5 / 60.0 },
-                new TradeVisitComp(TradeCompRate.FactionInteraction, 3) { Incident = "VisitorGroup", IncidentsPerDay = 4 / 60.0 },
+                new TradeVisitComp(TradeCompRate.FactionInteraction, 5) { Incident = "TraderCaravanArrival" },
+                new TradeVisitComp(TradeCompRate.FactionInteraction, 3) { CompIndex = 1, Incident = "VisitorGroup" },
             ],
             cassandra.Comps.Where(c => c.Rate == TradeCompRate.FactionInteraction));
         var orbital = Assert.Single(cassandra.Comps, c => c.Rate == TradeCompRate.OnOffCycle);
-        Assert.Equal(("OrbitalTraderArrival", 7.0, 8.0), (orbital.Incident, orbital.Cycle!.OnDays, orbital.Cycle.OffDays));
+        Assert.Equal(("OrbitalTraderArrival", 3), (orbital.Incident, orbital.CompIndex));
         Assert.Empty(cassandra.Unmodelled);
 
         // Randy's RandomMain draws both trader categories, ThreatBig apart.
@@ -262,11 +268,11 @@ public sealed class StockArrivalCatalogTests
     };
 
     // Three colonists (the routine trade's reserve is 300 silver) and the silver they hold.
-    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic", TradeVisitFacts? facts = null, IReadOnlyList<Resource>? medicines = null)
+    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic", TradeVisitFacts? facts = null, IReadOnlyList<Resource>? medicines = null, EquatableArray<IncidentCycleTimes>? cycles = null)
     {
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts ?? Visits(kind) } },
+            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts ?? Visits(kind), Cycles = cycles ?? [new(0, 60, [5, 20, 35, 50]), new(1, 60, [3, 10, 17, 24, 31, 38, 45, 52, 59]), new(3, 60, [4, 19, 34, 49])] } },
             Resources = [new Quantity { DefName = "Silver", Units = silver }],
             ColonistCount = 3,
         };
@@ -354,10 +360,8 @@ public sealed class StockArrivalCatalogTests
         var catalog = TradeCatalog();
         var (expected, stock) = ArmWait(catalog, "Cassandra");
 
-        // Visitors from day 3 at 4 a 60-day year, trading with 0.75; caravans from day 5 at 5 a year; each carries the arm, and 2000
-        // silver pays its 1400: no orbital trader without comms.
-        double visitor = 4 / 60.0 * 0.75, caravan = 5 / 60.0;
-        Assert.Equal(3 + ((1 - Math.Exp(-visitor * 2)) / visitor) + (Math.Exp(-visitor * 2) * (1 - Math.Exp(-(visitor + caravan) * 25)) / (visitor + caravan)), expected, 9);
+        // A visitor on day 3 trades with probability .75; the guaranteed caravan on day 5 ends the remaining wait.
+        Assert.Equal(3.5, expected, 9);
         Assert.Contains(TradeArrivalRules.OrbitalNoComms, stock.Findings);
         Assert.Contains(TradeArrivalRules.SilverIncomeUnmodelled, stock.Findings);
 
@@ -410,23 +414,48 @@ public sealed class StockArrivalCatalogTests
             source =>
             {
                 Assert.Equal((new Resource("MedicineHerbal"), 3d), (source.Kind, source.From));
-                Assert.Equal(4 / 60.0 * .75 * 4, source.PerDay, 12);
-                Assert.Equal(4 / 60.0 * .75 * 4 * 14, source.SilverPerDay, 12);
+                Assert.Equal(3, PurchasedUnits(trade, source), 12);
+                Assert.Equal(14, source.Visit!.Price, 12);
             },
             source =>
             {
                 Assert.Equal((new Resource("MedicineHerbal"), 5d), (source.Kind, source.From));
-                Assert.Equal(5 / 60.0 * 4, source.PerDay, 12);
-                Assert.Equal(5 / 60.0 * 4 * 14, source.SilverPerDay, 12);
+                Assert.Equal(4, PurchasedUnits(trade, source), 12);
+                Assert.Equal(14, source.Visit!.Price, 12);
             });
 
-        // The model buys from day 3 at 0.2 a day and from day 5 at 0.2 + 1/3: 0.4 by day 5, the 9 of the target on day 21.125.
+        // Dated visits buy 3 on day 3, 4 on day 5, 1.5 on day 10, then the remaining .5 on day 20.
         var input = MedicineValueTests.Colony(6, 0);
         var run = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], MedicineValueTests.Policy(0) with { MedicineTrade = trade });
-        var stop = run.Events.First(e => e is { Kind: ModelEventKind.MedicineTrade, Id: "stop" });
-        Assert.Equal(21.125, stop.Day, 9);
+        var stop = run.Events.First(e => e is { Kind: ModelEventKind.MedicineTrade, Id: "arrival" } && e.Levels[(int)ModelStock.Medicine] == 9);
+        Assert.Equal(20, stop.Day, 9);
         Assert.Equal(9, stop.Levels[(int)ModelStock.Medicine], 9);
         Assert.DoesNotContain(MedicineTrade.LaterBuysFinding, run.Findings);
+    }
+
+    [Fact]
+    public void TheNativeCensusVisitDatesControlMedicinePurchasesWithinTheActualHorizon()
+    {
+        var catalog = TradeCatalog();
+        var input = MedicineValueTests.Colony(6, 0);
+        ColonyTrajectory Forecast(double visitor, double caravan)
+        {
+            EquatableArray<IncidentCycleTimes> rows = [new(0, 90, [caravan]), new(1, 90, [visitor]), new(3, 90, [])];
+            var stock = FreshStock(catalog, "Cassandra", 1000, "Caravan_Outlander_Medic", cycles: rows);
+            Assert.All(stock.Trade, source => Assert.Same(rows.Single(row => row.CompIndex == Assert.IsType<IncidentTiming.Scheduled>(source.Timing).Cycle.CompIndex),
+                Assert.IsType<IncidentTiming.Scheduled>(source.Timing).Cycle));
+            var trade = stock.WithMedicineClaim(ItemFactsFixtureRules.CoreItemFacts(), new() { Active = true, Replenish = 9 }, 3, MedicalReservePolicy.Default()).MedicineTrade;
+            return ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())],
+                MedicineValueTests.Policy() with { HorizonDays = 6, MedicineTrade = trade });
+        }
+        var early = Forecast(3, 5);
+        var late = Forecast(8, 10);
+        Assert.Equal(7, early.Events[^1].Medicine.Sum(), 9);
+        Assert.Equal(0, late.Events[^1].Medicine.Sum(), 9);
+        Assert.Equal((double[])[3d, 5d], early.Events.Where(e => e.Kind == ModelEventKind.MedicineTrade && e.Id == "arrival").Select(e => e.Day));
+        Assert.DoesNotContain(late.Events, e => e.Kind == ModelEventKind.MedicineTrade && e.Id == "arrival");
+        Assert.DoesNotContain(ColonyTrajectory.TruncatedFinding, early.Findings);
+        Assert.DoesNotContain(ColonyTrajectory.TruncatedFinding, late.Findings);
     }
 
     [Fact]
@@ -437,13 +466,14 @@ public sealed class StockArrivalCatalogTests
         var claimed = stock.WithMedicineClaim(ItemFactsFixtureRules.CoreItemFacts(), new() { Active = true, Replenish = 9 }, 3, MedicalReservePolicy.Default());
         var trade = Assert.IsType<MedicineTrade>(claimed.MedicineTrade);
         // 42 spendable: half the visits sell 3 herbal at 14; the other half sell 1 industrial at 28.
-        var rate = (4 / 60.0 * .75) + (5 / 60.0);
-        Assert.Equal(rate * 1.5, trade.KindPerDayAt(herbal, 5), 9);
-        Assert.Equal(rate * .5, trade.KindPerDayAt(industrial, 5), 9);
-        Assert.Equal(rate * 35, trade.SilverPerDayAt(5), 9);
+        Assert.Equal(0, trade.KindPerDayAt(herbal, 5));
+        Assert.Equal(0, trade.KindPerDayAt(industrial, 5));
+        Assert.Equal(1.125 + 1.5, trade.Sources.Where(source => source.Kind == herbal).Sum(source => PurchasedUnits(trade, source)), 9);
+        Assert.Equal(.375 + .5, trade.Sources.Where(source => source.Kind == industrial).Sum(source => PurchasedUnits(trade, source)), 9);
+        Assert.Equal(26.25 + 35, trade.Sources.Sum(source => PurchasedUnits(trade, source) * source.Visit!.Price), 9);
         var input = MedicineValueTests.Colony(6, 0);
         var run = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], MedicineValueTests.Policy() with { MedicineTrade = trade });
-        Assert.Equal(2.4, run.Events[^1].Medicine.Sum(), 9);
+        Assert.Equal(2, run.Events[^1].Medicine.Sum(), 9);
         Assert.Contains(industrial, run.MedicineKinds);
         Assert.DoesNotContain(ColonyTrajectory.TruncatedFinding, run.Findings);
         var empty = stock with { Trade = EquatableArray.From(stock.Trade.Select(s => s with { Silver = 0 })) };

@@ -18,6 +18,9 @@ code and test evidence, and a prioritized review queue.
 
 ## Develop
 
+For dated native trader supply, stock waits and medicine purchases, see the [forecast contract](developers/contracts/forecast-contracts.md#stock-arrival-3868).
+For dated raid medicine use, disease retends and stock-dependent recovery, see [scheduled medicine consumption](developers/contracts/forecast-contracts.md#scheduled-medicine-consumption).
+
 Start with the [architecture](developers/architecture/overview.md) and
 [source map](developers/source-map.md). The [developer guide](developers/README.md)
 links the component guides; the [glossary](developers/glossary.md) defines terms.
@@ -58,6 +61,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Understand the tier-2 colony model (a game year of stocks, flows and projects) and the investment credit | [Tier 2 colony model](developers/architecture/colony-forecast.md#tier-2-colony-model), [tier-2 design and marginal value](developers/architecture/forecast-value.md#tier-2-event-driven-colony-model), [carried state and time](developers/contracts/forecast-contracts.md#carried-long-term-model-state), [`colony_model` event](developers/contracts/otel-signals.md#kinds), [why the colony starts long projects](players/goals.md#long-projects-when-food-is-secure) |
 | Account for material promises and exclusive equipment | [Forecast claims](developers/architecture/colony-forecast.md#material-promises-and-exclusive-equipment), [live fixed batches](developers/architecture/colony-forecast.md#live-fixed-batch-material-promises), [unfinished work](developers/architecture/colony-forecast.md#ingredients-inside-unfinished-work), [atomic batch admission](developers/architecture/colony-forecast.md#fixed-batch-material-admission), [joint material choices](developers/architecture/colony-forecast.md#joint-production-material-choices), [need valuation proof](developers/architecture/colony-forecast.md#need-based-production-valuation-proof), [live clothing recipe alternatives and acceptance](developers/contracts/equipment-upkeep.md#live-clothing-requirement-selection) |
 | Read the value currency and raid harm model (implemented, three calibrated exposure cells) and review the proposed long horizon | [Forecast value](developers/architecture/forecast-value.md), [joiner situational traits](developers/contracts/forecast-contracts.md#joiner-situational-traits), [raid exposure calibration](developers/testing/harm-exposure-calibration.md) |
+| Read native storyteller spacing, scheduled incident times and forecast coverage | [Native incident occurrence windows](developers/contracts/forecast-contracts.md#native-incident-occurrence-windows) |
 | Read dining and recreation memories, native joy-session limits and modded memory stacking | [Room credits](developers/architecture/forecast-value.md), [native forecast facts](developers/contracts/forecast-contracts.md) |
 | Price prison recruitment and conversion, bedless-memory renewal, cumulative chat memories and native projected warden round trips | [Prison credit](developers/architecture/forecast-value.md), [native prison reads](developers/contracts/forecast-contracts.md) |
 | Read nursery crib rest, heard-fit, sleeping-hearer disturbance, opinion-to-mood feedback and caretaker play credits, including exposure assumptions | [Nursery credit](developers/architecture/forecast-value.md), [native sleeping and baby reads](developers/contracts/forecast-contracts.md), [exact service positions and native choice bounds](developers/contracts/forecast-contracts.md#service-positions), [native baby care occupancy](developers/contracts/forecast-contracts.md#baby-care-occupancy) |
@@ -126,3 +130,4 @@ Workshop and laboratory productivity: [bench room credits](developers/contracts/
 
 Storyteller generator points and raid harm mixtures: [threat schedule contract](developers/contracts/forecast-contracts.md#threat-schedule-3539).
 Disease incident timing and conditional future comp inputs: [illness forecast](developers/contracts/forecast-contracts.md#illness-term-3824).
+Storyteller generator points and raid harm mixtures: [threat schedule contract](developers/contracts/forecast-contracts.md#threat-schedule-3539).

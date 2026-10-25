@@ -40,6 +40,36 @@ public sealed class ForecastStockHandoffTests
         new ForecastCoupled.CoupledSearchCache().Evaluate(request, changes.ToDictionary(c => c.Id), request.Coupled!.Activities, new([], 0, 0));
 
     [Fact]
+    public void ScheduledTreatmentReadsActualDetailedLotsAndCarriesItsSingleHistoryIntoContinuation()
+    {
+        var request = Request(Stock("food", 10));
+        var basis = request.Coupled!.ModelBasis!;
+        var policy = basis.Policy with
+        {
+            Scheduled = [new() { Day = .25, Kind = ModelEventKind.MedicineTreatment, Stock = ModelStock.Medicine, Id = "native/disease",
+                MedicineDemand = (history, _) => history.Events[^1].Medicine.Sum() > 3 ? 2 : 1 },
+                new() { Day = 2, Kind = ModelEventKind.MedicineTreatment, Stock = ModelStock.Medicine, Id = "native/retend",
+                    MedicineDemand = (history, _) => history.TreatmentHistory is null ? 2 : 1 }],
+        };
+        request = request with { Coupled = request.Coupled with { ModelBasis = basis with { Policy = policy } } };
+        var outcome = Evaluate(request);
+        var full = ForecastHandoffPolicy.Project(outcome)!;
+        var spent = ForecastHandoffPolicy.Project(Evaluate(request, new ForecastCommitment("surgery", [new(Medicine, .1, -3d)])))!;
+        Assert.Empty(full.Gaps);
+        Assert.Empty(spent.Gaps);
+        Assert.Equal(3, Assert.Single(full.State!.Medicine).Count);
+        Assert.Equal(1, Assert.Single(spent.State!.Medicine).Count);
+        var arrived = ForecastHandoffPolicy.Project(Evaluate(request, new ForecastCommitment("delivery", [new(Medicine, .25, 2d)])))!;
+        Assert.Equal(5, Assert.Single(arrived.State!.Medicine).Count);
+        Assert.Same(outcome.Terminal!.TreatmentHistory, full.State.TreatmentHistory);
+        var history = Assert.IsType<ColonyTrajectory>(full.State.TreatmentHistory);
+        Assert.Equal(2, Assert.Single(history.Events, e => e.Kind == ModelEventKind.MedicineTreatment).MedicineConsumed.Sum());
+        Assert.Equal(100, Assert.Single(Evaluate(request).Terminal!.Lots, l => l.Id == "barred-med").Count);
+        var continued = ColonyModel.Run(basis.Input, full.State with { EndDay = 3 }, [], policy);
+        Assert.Equal(2, continued.Events[^1].Medicine.Sum());
+    }
+
+    [Fact]
     public void FullEligibleCensusConsumesOtherPawnDemandAndExpiresOnlyRemainingUnits()
     {
         var request = Request(new HashSet<string> { "reserve" }, Stock("early", 4, 30000), Stock("late", 10), Stock("reserve", 100),

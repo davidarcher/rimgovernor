@@ -38,6 +38,7 @@ public sealed class ForecastTerminalAccounting
     internal ForecastCoupledMaterials.MaterialHolds? Holds { get; }
     public EquatableArray<ForecastTerminalLot> Lots { get; init; }
     public bool FoodUnread { get; init; }
+    public ColonyTrajectory? TreatmentHistory { get; init; }
 }
 
 public static class ForecastHandoffPolicy
@@ -58,7 +59,7 @@ public static class ForecastHandoffPolicy
         var dates = new List<ForecastProjectDate>();
         var needs = outcome.Needs.SelectMany(p => p.Value.Needs.Select(n => new ForecastTerminalNeed(p.Key, n.Kind, n.FinalLevel))).ToArray();
         foreach (var n in needs.Where(n => n.Level is ForecastTerm.Unassessed)) gaps.Add($"terminal_need_unknown:{n.Pawn}:{n.Kind}");
-        foreach (var e in basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock is ModelStock.Materials or ModelStock.Medicine && string.IsNullOrEmpty(e.Resource.Value)))
+        foreach (var e in basis.Policy.Scheduled.Where(e => e.Day <= day && e.Kind != ModelEventKind.MedicineTreatment && e.Stock is ModelStock.Materials or ModelStock.Medicine && string.IsNullOrEmpty(e.Resource.Value)))
             gaps.Add("terminal_scheduled_resource_unknown:" + e.Id);
         foreach (var pawn in basis.Input.Pawns)
             foreach (var need in pawn.Needs)
@@ -111,7 +112,7 @@ public static class ForecastHandoffPolicy
                 Outcome = null, UnsupportedEffects = [], ExclusiveOutcome = "" },
                 c.ActivityCompletions.Count == 0 ? 0 : c.ActivityCompletions.Max(id => finished[id]) / GameTime.TicksPerDay))
             .OrderBy(c => c.Day).ThenBy(c => c.Effect.Id, StringComparer.Ordinal));
-        var pawns = EquatableArray.From(Pawns(start.Pawns, context.PracticeTasks, outcome, finished, day, gaps).Select(p =>
+        var pawns = EquatableArray.From(Pawns(start.Pawns, context.PracticeTasks, outcome.Plan, finished, day, gaps).Select(p =>
         {
             var shifts = active.SelectMany(c => c.Effect.ComfortShifts).Where(s => s.Pawn == p.Pawn).ToArray();
             return p with { ComfortableMin = p.ComfortableMin + shifts.Sum(s => s.MinDelta), ComfortableMax = p.ComfortableMax + shifts.Sum(s => s.MaxDelta) };
@@ -122,7 +123,8 @@ public static class ForecastHandoffPolicy
             state = start with { Day = day, Nutrition = food, Materials = EquatableArray.From(stocks),
                 ResearchPoints = basis.Policy.Projects.Nodes.Where(n => n.Kind == ProjectKind.Research).Sum(n => n.Work - projects[n.Id].Remaining)
                     + basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock == ModelStock.ResearchPoints).Sum(e => e.Amount),
-                Medicine = medicineRows, ExternalHolds = holdRows, Projects = EquatableArray.From(nodes.Select(n => projects[n.Id])), Pawns = pawns };
+                Medicine = medicineRows, ExternalHolds = holdRows, Projects = EquatableArray.From(nodes.Select(n => projects[n.Id])), Pawns = pawns,
+                TreatmentHistory = terminal.TreatmentHistory };
             if (state.Gap(projected.Graph) is { } gap) gaps.Add(gap);
         }
         // A shelter whose shell completes carries on as a standing, closed room at its projected temperature; one with no
@@ -159,18 +161,20 @@ public static class ForecastHandoffPolicy
         }
         return total;
     }
-    private static ModelPawn[] Pawns(EquatableArray<ModelPawn> original, EquatableArray<ForecastPracticeTask> practice, ForecastCoupledOutcome outcome,
-        IReadOnlyDictionary<string, double> finished, double day, SortedSet<string> gaps)
+    internal static ModelPawn[] Pawns(EquatableArray<ModelPawn> original, EquatableArray<ForecastPracticeTask> practice, ForecastActivityPlan plan,
+        IReadOnlyDictionary<string, double> finished, double day, SortedSet<string> gaps, IReadOnlyDictionary<string, bool>? completion = null)
     {
         return original.Select(p =>
         {
             var projected = p.Skills.Select(s =>
             {
-                var events = outcome.Plan.Allocations.Where(a => a.Pawn == p.Pawn && finished.ContainsKey(a.Activity) && a.Learning?.Skill == s.DefName)
-                    .SelectMany(a => a.Learning!.Callbacks).ToList();
+                bool Active(ForecastActivityAllocation a) => finished.ContainsKey(a.Activity) || completion is not null
+                    && a.Start <= day * GameTime.TicksPerDay && (!completion.TryGetValue(a.Activity, out var done) || done);
+                var events = plan.Allocations.Where(a => a.Pawn == p.Pawn && Active(a) && a.Learning?.Skill == s.DefName)
+                    .SelectMany(a => a.Learning!.Callbacks).Where(e => e.Tick <= day * GameTime.TicksPerDay).ToList();
                 foreach (var task in practice.Where(t => t.Worker.Pawn == p.Pawn && t.Worker.Skill == s.DefName))
                 {
-                    var allocation = outcome.Plan.Allocations.FirstOrDefault(a => a.Activity == task.Task && finished.ContainsKey(a.Activity));
+                    var allocation = plan.Allocations.FirstOrDefault(a => a.Activity == task.Task && Active(a));
                     if (allocation is null) continue;
                     events.AddRange(ForecastMaintenancePolicy.PracticeCallbacks(task, allocation, (int)Math.Ceiling(day * GameTime.TicksPerDay)));
                     gaps.Add("terminal_practice_injury_recovery_unassessed:" + task.Task);

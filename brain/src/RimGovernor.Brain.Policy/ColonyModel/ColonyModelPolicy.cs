@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A lump a project completion or a harvest adds to one stock at a given day; the project graph (T4) schedules these, the engine only applies them in order.</summary>
+/// <summary>A stock change at a given day: a project completion, harvest or incident treatment. The engine applies them in order.</summary>
 public sealed record ScheduledEffect
 {
     public double Day { get; init; }
 
-    /// <summary>Only <see cref="ModelEventKind.ProjectCompletion"/> and <see cref="ModelEventKind.Harvest"/> are scheduled.</summary>
+    /// <summary>A project completion, harvest or <see cref="ModelEventKind.MedicineTreatment"/>.</summary>
     public ModelEventKind Kind { get; init; }
 
     public string Id { get; init; } = "";
@@ -13,6 +13,8 @@ public sealed record ScheduledEffect
     public ModelStock Stock { get; init; }
 
     public double Amount { get; init; }
+    /// <summary>Expected disease tends at this slot, evaluated from the realized stock and skill history immediately before it.</summary>
+    public Func<ColonyTrajectory, double, double>? MedicineDemand { get; init; }
     /// <summary>Physical resource for detailed handoff. Nutrition without a resource remains an aggregate model effect.</summary>
     public Resource Resource { get; init; }
 }
@@ -37,7 +39,7 @@ public sealed record ColonyModelPolicy
     public int MaxEvents { get; init; } = 4_096;
 
     /// <summary>
-    /// Medicine tended a day: the treatments the harm model's raid wounds and illnesses imply (<see cref="ColonyValue.TreatmentsPerDay"/>, #3634, #3829).
+    /// Continuous MTB medicine use a day (<see cref="ColonyValue.TreatmentsPerDay"/>). Native cycle incidents consume at their dates in <see cref="Scheduled"/>.
     /// </summary>
     public required double MedicineTendsPerDay { get; init; }
 
@@ -56,7 +58,7 @@ public sealed record ColonyModelPolicy
     /// <summary>Constant production in stock units a day, indexed by <see cref="ModelStock"/> (a missing entry is zero). The project graph (T4) replaces it with real production.</summary>
     public EquatableArray<double> FixedProduction { get; init; }
 
-    /// <summary>Project completions and harvests to apply, any order.</summary>
+    /// <summary>Project completions, harvests and incident treatments to apply, any order.</summary>
     public EquatableArray<ScheduledEffect> Scheduled { get; init; }
 
     /// <summary>The project graph (#3530): nodes in labor-priority order. Their completions and harvests are scheduled by the engine from the pawn cycles, not given.</summary>

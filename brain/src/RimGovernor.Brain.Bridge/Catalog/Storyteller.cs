@@ -58,7 +58,7 @@ public sealed partial class DefinitionCatalog
                 case StorytellerCompProperties_OnOffCycle cycle when kind == nameof(StorytellerCompProperties_OnOffCycle):
                     if (cycle.IncidentCategory?.defName == big)
                     {
-                        cycles.Add(CycleComp(cycle));
+                        cycles.Add(CycleComp(cycle, def.comps.IndexOf(cycle)));
                     }
 
                     break;
@@ -82,8 +82,7 @@ public sealed partial class DefinitionCatalog
                         allowed.Add(nameof(IncidentDefOf.MechCluster));
                     }
 
-                    generators.Add(new P.ThreatGeneratorComp(Decimal32(generator.minDaysPassed), Decimal32(parms.onDays), Decimal32(parms.offDays),
-                        Decimal32(parms.numIncidentsRange.min), Decimal32(parms.numIncidentsRange.max), allowed, nameof(IncidentDefOf.RaidEnemy))
+                    generators.Add(new P.ThreatGeneratorComp(allowed, nameof(IncidentDefOf.RaidEnemy))
                     {
                         CompIndex = def.comps.IndexOf(generator),
                         PointBasis = parms.threatPoints is { } points ? new P.GeneratorPoints.Fixed(Decimal32(points))
@@ -141,15 +140,7 @@ public sealed partial class DefinitionCatalog
     }
 
     // An OnOffCycle comp's cycle with its accept curves (days passed, threat points, progress score) and tree-connector days.
-    private static P.ThreatCycleComp CycleComp(StorytellerCompProperties_OnOffCycle cycle) => new(
-        Decimal32(cycle.minDaysPassed), Decimal32(cycle.onDays), Decimal32(cycle.offDays),
-        Decimal32(cycle.numIncidentsRange.min), Decimal32(cycle.numIncidentsRange.max), CurvePoints(cycle.acceptFractionByDaysPassedCurve))
-    {
-        AcceptByThreatPoints = CurvePoints(cycle.acceptPercentFactorPerThreatPointsCurve),
-        AcceptByProgressScore = CurvePoints(cycle.acceptPercentFactorPerProgressScoreCurve),
-        OnDaysNoTreeConnectors = Decimal32(cycle.onDaysNoTreeConnectors),
-        OffDaysNoTreeConnectors = Decimal32(cycle.offDaysNoTreeConnectors),
-    };
+    private static P.ThreatCycleComp CycleComp(StorytellerCompProperties_OnOffCycle cycle, int index) => new(index, Decimal32(cycle.forceRaidEnemyBeforeDaysPassed));
 
     // A CategoryIndividualMTBByBiome comp's incidents of the category (#3860): per biome, each incident that targets the player's home
     // map and has an mtbDaysByBiome row of it (the game takes the first row of the biome), with its MTB.
@@ -270,8 +261,8 @@ public sealed partial class DefinitionCatalog
 
                     comps.Add(new P.TradeVisitComp(P.TradeCompRate.FactionInteraction, Math.Max(Decimal32(interaction.minDaysPassed), caravan.earliestDay))
                     {
+                        CompIndex = def.comps.IndexOf(interaction),
                         Incident = caravan.defName,
-                        IncidentsPerDay = Decimal32(interaction.baseIncidentsPerYear) / GenDate.DaysPerYear,
                         FullAlliesOnly = interaction.fullAlliesOnly,
                         MinWealth = Decimal32(interaction.minWealth),
                         MinDanger = interaction.minDanger switch
@@ -302,7 +293,7 @@ public sealed partial class DefinitionCatalog
                         break;
                     }
 
-                    comps.Add(cycled with { Cycle = CycleComp(cycle) });
+                    comps.Add(cycled with { CompIndex = def.comps.IndexOf(cycle) });
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
                     const string big = nameof(IncidentCategoryDefOf.ThreatBig);
@@ -429,7 +420,7 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>The def's comps that run on the player's home map, each with its exact props class name.</summary>
     private static IEnumerable<(StorytellerCompProperties Comp, string Kind)> HomeMapComps(StorytellerDef def) =>
-        def.comps.Seq().Where(c => c is not null && OnHomeMap(c)).Select(c => (c, c.GetType().Name));
+        def.comps.Seq().Where(c => c is not null && c.Enabled && OnHomeMap(c)).Select(c => (c, c.GetType().Name));
 
     private static List<(double, double)> CurvePoints(SimpleCurve? curve) => [.. curve?.Points.Select(p => (Decimal32(p.x), Decimal32(p.y))) ?? []];
 

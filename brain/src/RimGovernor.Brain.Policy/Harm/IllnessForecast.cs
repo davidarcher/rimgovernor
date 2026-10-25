@@ -48,6 +48,7 @@ public sealed record IllnessTerm(double IncidentsPerDay, double Loss, IReadOnlyL
 /// </summary>
 public static class IllnessForecast
 {
+    internal readonly record struct BedChange(double FromDay, double BeforeFactor);
     // ImmunityRecord.ImmunityChangePerTick: immunityPerDaySick × Lerp(0.8, 1.2, a seeded Rand.Value) while sick.
     internal const double ImmunityFactorMin = 0.8;
     internal const double ImmunityFactorMax = 1.2;
@@ -67,7 +68,7 @@ public static class IllnessForecast
     /// </summary>
     internal static IllnessTerm? Term(IllnessSchedule schedule, IReadOnlyList<string> ordered, IReadOnlyDictionary<string, NeedsForecastPawn> pawns,
         CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon, StockArrival stock,
-        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? cache, SortedSet<string> findings)
+        ConcurrentDictionary<IllnessHarmKey, HarmDistribution>? cache, SortedSet<string> findings)
     {
         if (!schedule.Assessed)
         {
@@ -89,7 +90,7 @@ public static class IllnessForecast
                 throw new RequiredFactException("capacities_unobserved:" + pawn);
             }
 
-            var key = (pawn, support);
+            var key = new IllnessHarmKey(pawn, support, stock, horizon);
             if (cache is null || !cache.TryGetValue(key, out var distribution))
             {
                 // A sick pawn rests in the bed it owns (#3804): its immunity gains at that bed's ImmunityGainSpeedFactor.
@@ -121,7 +122,7 @@ public static class IllnessForecast
     /// minimum is unobserved. A lost organ's replacement waits on what <paramref name="stock"/> brings (#3868).
     /// </summary>
     internal static HarmDistribution Of(IllnessSchedule schedule, NeedsForecastPawn pawn, CapacityPenaltyTables tables,
-        HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon, StockArrival stock)
+        HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon, StockArrival stock, BedChange? bedChange = null)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var (disease, levels) = (pawn.Disease, ForecastValue.Levels(pawn));
@@ -137,7 +138,8 @@ public static class IllnessForecast
         findings.Add("illness_prior_immunity_unassessed");
         var days = horizon / GameTime.TicksPerDay;
         var points = new List<HarmPoint>();
-        var replacements = new Dictionary<(string, string, SurgeryWantReason), OrganReplacement>();
+        var treatmentDates = new Dictionary<double, double>();
+        var replacements = new Dictionary<(string, string, SurgeryWantReason, double, StockWait?), OrganReplacement>();
         double none = 1, down = 0, death = 0, patientDays = 0, tends = 0;
         foreach (var incident in schedule.Incidents)
         {
@@ -156,33 +158,51 @@ public static class IllnessForecast
                 return new HarmDistribution { Findings = [.. findings] };
             }
 
-            var sick = schedule.Share(incident, days) * incident.VictimChance * Math.Clamp(contract, 0, 1);
-            if (!(sick > 0))
+            var totalOccurrences = schedule.IncidentsPerDay(days) * days;
+            foreach (var occurrence in incident.Occurrences(days))
             {
-                continue;
-            }
-
-            var branches = Branches(incident, disease, levels, pawn.Pawn, stock, days, findings);
-            sick *= branches.Sum(b => b.Share);
-            if (!(sick > 0))
-            {
-                continue;
-            }
-
-            none -= sick;
-            var course = Course(incident.Course, branches, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), care, levels, movingMin, policy, days, pawn.Pawn, findings);
-            foreach (var outcome in course)
-            {
-                points.Add(new HarmPoint(outcome.Loss, sick * outcome.Probability));
-                down += outcome.Downed ? sick * outcome.Probability : 0;
-                death += outcome.Died ? sick * outcome.Probability : 0;
-                patientDays += sick * outcome.Probability * outcome.PatientDays;
-                tends += sick * outcome.Probability * outcome.Tends;
-                if (outcome.Replacement is { } lost)
+                if (occurrence.Day > care.TreatmentThroughDays) continue;
+                var remaining = days - occurrence.Day;
+                var sick = occurrence.Chance / totalOccurrences * incident.VictimChance * Math.Clamp(contract, 0, 1);
+                if (!(sick > 0))
                 {
-                    var key = (lost.Part, lost.Recipe?.Recipe ?? "", lost.Reason);
-                    var probability = sick * outcome.Probability + (replacements.TryGetValue(key, out var seen) ? seen.Probability : 0);
-                    replacements[key] = lost with { Probability = probability };
+                    continue;
+                }
+
+                var branches = Branches(incident, disease, levels, pawn.Pawn, stock.At(occurrence.Day), findings);
+                sick *= branches.Sum(b => b.Share);
+                if (!(sick > 0))
+                {
+                    continue;
+                }
+
+                none -= sick;
+                var changeAfter = bedChange is { } change ? Math.Max(0, change.FromDay - occurrence.Day) : 0;
+                var occurrenceCare = care with
+                {
+                    QualityAt = care.QualityAt is { } qualityAt ? day => qualityAt(occurrence.Day + day) : null,
+                    TreatmentThroughDays = care.TreatmentThroughDays - occurrence.Day,
+                };
+                var course = Course(incident.Course, branches, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), occurrenceCare, levels, movingMin, policy, remaining, pawn.Pawn, findings,
+                    changeAfter, disease.ImmunityGainSpeed * Math.Max(0, bedChange?.BeforeFactor ?? bedImmunity));
+                foreach (var outcome in course)
+                {
+                    points.Add(new HarmPoint(outcome.Loss, sick * outcome.Probability));
+                    down += outcome.Downed ? sick * outcome.Probability : 0;
+                    death += outcome.Died ? sick * outcome.Probability : 0;
+                    patientDays += sick * outcome.Probability * Math.Min(outcome.PatientDays, Math.Max(0, outcome.End - changeAfter));
+                    tends += sick * outcome.Probability * outcome.Tends;
+                    foreach (var tendDay in outcome.TendDays)
+                    {
+                        var day = occurrence.Day + tendDay;
+                        treatmentDates[day] = treatmentDates.GetValueOrDefault(day) + sick * outcome.Probability;
+                    }
+                    if (outcome.Replacement is { } lost)
+                    {
+                        var key = (lost.Part, lost.Recipe?.Recipe ?? "", lost.Reason, lost.Day + occurrence.Day, lost.Wait);
+                        var probability = sick * outcome.Probability + (replacements.TryGetValue(key, out var seen) ? seen.Probability : 0);
+                        replacements[key] = lost with { Probability = probability, Day = lost.Day + occurrence.Day };
+                    }
                 }
             }
         }
@@ -195,13 +215,18 @@ public static class IllnessForecast
         return new HarmDistribution
         {
             Known = true, Points = points, DownProbability = down, DeathProbability = death, PatientDays = patientDays, Treatments = tends,
+            TreatmentDates = [.. treatmentDates.OrderBy(p => p.Key).Select(p => (p.Key, p.Value))],
             Replacements = [.. replacements.Values.OrderBy(r => r.Part, StringComparer.Ordinal).ThenBy(r => r.Recipe?.Recipe ?? "", StringComparer.Ordinal).ThenBy(r => r.Reason)],
             Findings = [.. findings],
         };
     }
 
     /// <summary>One outcome of a course: its capability-day loss and probability, its days in care and tends, and the organ it destroyed (#3830).</summary>
-    internal readonly record struct CourseOutcome(double Loss, double Probability, bool Died, bool Downed, double PatientDays, double Tends, OrganReplacement? Replacement);
+    internal readonly record struct CourseOutcome(double Loss, double Probability, bool Died, bool Downed, double PatientDays, double Tends, OrganReplacement? Replacement)
+    {
+        public double End { get; init; }
+        public IReadOnlyList<double> TendDays { get; init; } = [];
+    }
 
     /// <summary>
     /// One part a disease may strike (#3830): its share of the incidents that take hold, whether the lethal severity kills on it, and
@@ -214,7 +239,8 @@ public static class IllnessForecast
     /// levels (null for a stage that offsets nothing), the factors once the organ is lost (null: the loss kills), and the replacement
     /// the autopilot would queue (null, with the reason, when none would be).
     /// </summary>
-    internal sealed record OrganEffect(string Part, double[]?[] Stages, double[]? Lost, OrganReplacementRead? Pick, SurgeryWantReason Reason, StockWait? Wait);
+    internal sealed record OrganEffect(string Part, double[]?[] Stages, double[]? Lost,
+        IReadOnlyList<(OrganReplacementRead Read, double Tier)> Candidates, StockArrival Stock);
 
     /// <summary>
     /// The parts <paramref name="incident"/>'s disease may strike on the pawn: one branch of share 1 for a disease of the whole body;
@@ -222,7 +248,7 @@ public static class IllnessForecast
     /// summing to 1 (none when no part is open: the disease does not take). Throws when the pawn's read lists no part of the
     /// incident's defs, or names a replacement recipe the catalog has no tier for.
     /// </summary>
-    internal static IReadOnlyList<Branch> Branches(IllnessIncident incident, PawnDiseaseFacts disease, double[] levels, string pawn, StockArrival stock, double days,
+    internal static IReadOnlyList<Branch> Branches(IllnessIncident incident, PawnDiseaseFacts disease, double[] levels, string pawn, StockArrival stock,
         SortedSet<string> findings)
     {
         var course = incident.Course;
@@ -245,14 +271,14 @@ public static class IllnessForecast
         foreach (var row in open)
         {
             var part = defs[row.Part];
-            branches.Add(new Branch(row.Coverage / cover, lethal && part.Threatened, Organ(course, part, row, rows, disease, levels, stock, days, findings)));
+            branches.Add(new Branch(row.Coverage / cover, lethal && part.Threatened, Organ(course, part, row, rows, disease, levels, stock, findings)));
         }
 
         return branches;
     }
 
     internal static OrganEffect? Organ(DiseaseCourse course, DiseasePart part, DiseasePartRead row, DiseasePartRead[] rows, PawnDiseaseFacts disease,
-        double[] levels, StockArrival stock, double days, SortedSet<string> findings)
+        double[] levels, StockArrival stock, SortedSet<string> findings)
     {
         if (part.Capacity.Length == 0)
         {
@@ -299,25 +325,32 @@ public static class IllnessForecast
 
         if (!course.DestroysOrgan)
         {
-            return new OrganEffect(part.Part, stages, null, null, SurgeryWantReason.None, null);
+            return new OrganEffect(part.Part, stages, null, [], stock);
         }
 
         var candidates = disease.Replacements.Where(r => r.Part == part.Part)
             .Select(r => (r, part.Recipes.TryGetValue(r.Recipe, out var tier) ? tier : throw new RequiredFactException("organ_replacement_tier:" + r.Recipe)))
             .ToArray();
-        var (pick, reason, wait) = SurgeryRules.RestorePick(candidates, stock, days);
-        StockWait.Name(stock, reason, wait, findings);
-        return new OrganEffect(part.Part, stages, At(0), pick, reason, wait);
+        return new OrganEffect(part.Part, stages, At(0), candidates, stock);
     }
 
     /// <summary>The outcomes of <paramref name="course"/> over its <paramref name="branches"/> (shares normalised) for a pawn of <paramref name="gain"/> ImmunityGainSpeed; probabilities sum to 1.</summary>
     internal static List<CourseOutcome> Course(DiseaseCourse course, IReadOnlyList<Branch> branches, double gain, HarmConsequences.Care care, double[] levels, double movingMin,
-        ForecastValuePolicy policy, double days, string pawn, SortedSet<string> findings)
+        ForecastValuePolicy policy, double days, string pawn, SortedSet<string> findings, double gainFrom = 0, double beforeGain = 0)
     {
         var outcomes = new List<CourseOutcome>();
         findings.UnionWith(course.Unpriced);
         var immunizable = course.Table.Immunizable;
         var immunityRate = immunizable is null ? 0 : Math.Max(0, immunizable.ImmunityPerDaySick * gain);
+        var beforeRate = immunizable is null ? 0 : Math.Max(0, immunizable.ImmunityPerDaySick * beforeGain);
+        double Immunity(double at) => beforeRate * Math.Min(at, gainFrom) + immunityRate * Math.Max(0, at - gainFrom);
+        double ImmuneAt(double factor)
+        {
+            var needed = 1 / factor;
+            var early = beforeRate * gainFrom;
+            return needed <= early && beforeRate > 0 ? needed / beforeRate
+                : immunityRate > 0 ? gainFrom + (needed - early) / immunityRate : double.PositiveInfinity;
+        }
         var gone = course.Table.Lifespan is Lifespan.EndsAfter ticks ? (ticks.MinTicks / GameTime.TicksPerDay, ticks.MaxTicks / GameTime.TicksPerDay) : (double.PositiveInfinity, double.PositiveInfinity);
         var total = branches.Sum(b => b.Share);
         foreach (var branch in branches)
@@ -337,7 +370,7 @@ public static class IllnessForecast
                     {
                         var weight = branch.Share / total * fw * pw * gw;
                         var run = new Run(course, care, factor, perDay, goneAt, lethal, organ, levels, movingMin, days);
-                        if (!(immunityRate > 0))
+                        if (!(immunityRate > 0) && !(beforeRate > 0 && gainFrom > 0))
                         {
                             Add(outcomes, run.Walk(double.PositiveInfinity), weight, policy, days, course, organ, levels, movingMin, pawn, findings);
                             continue;
@@ -349,7 +382,7 @@ public static class IllnessForecast
                         var never = run.Walk(double.PositiveInfinity);
                         if (never.Died)
                         {
-                            var threshold = 1 / (immunityRate * Math.Max(never.End, Epsilon));
+                            var threshold = 1 / Immunity(Math.Max(never.End, Epsilon));
                             var dies = Math.Clamp((threshold - ImmunityFactorMin) / (ImmunityFactorMax - ImmunityFactorMin), 0, 1);
                             if (dies > 0)
                             {
@@ -367,7 +400,7 @@ public static class IllnessForecast
 
                         foreach (var (u, uw) in Grid(lo, ImmunityFactorMax))
                         {
-                            Add(outcomes, run.Walk(1 / (immunityRate * u)), weight * uw, policy, days, course, organ, levels, movingMin, pawn, findings);
+                            Add(outcomes, run.Walk(ImmuneAt(u)), weight * uw, policy, days, course, organ, levels, movingMin, pawn, findings);
                         }
                     }
                 }
@@ -397,7 +430,7 @@ public static class IllnessForecast
         }
 
         var loss = died ? Math.Max(0, days - walked.End) + policy.DeathTerminalValue : Math.Min(days, walked.LostDays + after);
-        outcomes.Add(new CourseOutcome(loss, probability, died, walked.Downed, walked.PatientDays, walked.Tends, replacement));
+        outcomes.Add(new CourseOutcome(loss, probability, died, walked.Downed, walked.PatientDays, walked.Tends, replacement) { End = walked.End, TendDays = walked.TendDays });
     }
 
     private static (bool Died, double After, OrganReplacement? Replacement) Lost(Walked walked, OrganEffect organ, double probability, double[] levels,
@@ -408,15 +441,18 @@ public static class IllnessForecast
             return (true, 0, null);
         }
 
-        var replacement = new OrganReplacement(organ.Part, organ.Pick, organ.Reason, probability) { Wait = organ.Wait };
+        var rest = Math.Max(0, days - walked.End);
+        var stock = organ.Stock.At(walked.End);
+        var (pick, reason, wait) = SurgeryRules.RestorePick(organ.Candidates, stock, rest);
+        StockWait.Name(stock, reason, wait, findings);
+        var replacement = new OrganReplacement(organ.Part, pick, reason, probability) { Wait = wait, Day = walked.End };
         Span<double> left = stackalloc double[levels.Length];
         for (var i = 0; i < levels.Length; i++)
         {
             left[i] = levels[i] * lost[i];
         }
 
-        var rest = Math.Max(0, days - walked.End);
-        var without = organ.Wait is { } wait ? wait.Expected(rest) : rest;
+        var without = wait is not null ? wait.Expected(rest) : rest;
         return (false, without * (1 - ForecastValue.CapabilityFactor(levels, left, movingMin)), replacement);
     }
 
@@ -445,6 +481,7 @@ public static class IllnessForecast
         public double LostDays;
         public double PatientDays;
         public int Tends;
+        public List<double> TendDays = [];
         public ForecastValue.Course Severity;
 
         public void Report(string pawn, SortedSet<string> findings) => Severity.Report(pawn, findings);
@@ -460,7 +497,7 @@ public static class IllnessForecast
             var immunizable = table.Immunizable;
             var tend = care.Tended && course.Tendable ? course.Tend : null;
             var careAt = tend is null ? double.PositiveInfinity : Math.Max(0, care.FirstCareDays);
-            var tended = tend is null ? 0 : tend.SeverityPerDayTended * care.Quality;
+            var tended = 0.0;
             var lethalAt = lethal && table.Lethality is Lethality.Lethal { Severity: var l } ? l : double.PositiveInfinity;
             var top = Math.Min(lethalAt, course.MaxSeverity);
             var bottom = Math.Max(0, course.MinSeverity);
@@ -476,14 +513,23 @@ public static class IllnessForecast
                     return Finish(walked, Math.Min(t, days), careAt, died: false);
                 }
 
+                if (t >= care.TreatmentThroughDays - Epsilon && (tend is null || t < nextTend - Epsilon))
+                    return Finish(walked, t, careAt, died: false);
+
                 if (tend is not null && t >= nextTend - Epsilon)
                 {
                     walked.Tends++;
-                    quality += care.Quality;
+                    walked.TendDays.Add(t);
+                    var tendQuality = Math.Clamp(care.QualityAt?.Invoke(t) ?? care.Quality, 0, 1);
+                    tended = tend!.SeverityPerDayTended * tendQuality;
+                    quality += tendQuality;
                     if (tend.CureAtTotalQuality >= 0 && quality >= tend.CureAtTotalQuality - Epsilon)
                     {
                         return Finish(walked, t, careAt, died: false);
                     }
+
+                    if (t >= care.TreatmentThroughDays - Epsilon)
+                        return Finish(walked, t, careAt, died: false);
 
                     nextTend = t + (walked.Tends == 1 ? tend.FirstRetendDays : tend.RetendDays);
                     continue;
@@ -491,7 +537,7 @@ public static class IllnessForecast
 
                 var rate = (immunizable is null ? 0 : t >= immuneAt - Epsilon ? immunizable.SeverityPerDayImmune : immunizable.SeverityPerDayNotImmune * factor)
                     + perDay + (t >= careAt - Epsilon ? tended : 0);
-                var until = Math.Min(Math.Min(days, goneAt), nextTend);
+                var until = Math.Min(Math.Min(Math.Min(days, goneAt), nextTend), care.TreatmentThroughDays);
                 if (t < immuneAt - Epsilon)
                 {
                     until = Math.Min(until, immuneAt);

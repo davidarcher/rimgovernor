@@ -17,6 +17,7 @@ public sealed class ThreatFactsTests
     {
         WealthItems = 1200, WealthBuildings = 3400, WealthPawns = 900, WealthTotal = 5500, RaidPoints = 310.5,
         Storyteller = "Randy", DaysPassed = 12.5, HostileFactions = ["Pirate"],
+        Cycles = [new(3, 75, [.25, 12.5])],
         BiomeIncidents = [new("native-allowed", true), new("native-blocked", false)],
         Raids =
         [
@@ -38,6 +39,7 @@ public sealed class ThreatFactsTests
 
         Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(Raided, back.Threat.Observed);
+        Assert.Equal(Raided, FactsJson.Deserialize<ThreatFacts>(FactsJson.Serialize(Raided)));
     }
 
     [Fact]
