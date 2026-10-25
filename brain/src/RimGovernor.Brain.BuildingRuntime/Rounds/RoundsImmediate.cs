@@ -118,7 +118,7 @@ public sealed partial class Rounder
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         var (hostiles, critical) = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         var urgent = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick);
-        (critical, urgent) = EmergencyNeedsRules.AmputationNeeds(emergency, f.MedicalPawns, critical, urgent);
+        (critical, urgent) = EmergencyNeedsRules.PatientCounts(reading.Emergency, f.MedicalPawns);
         f = f with { Hostiles = hostiles, CriticalPatients = critical, UrgentPatients = urgent };
         f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, reading.Emergency.Threats) };
         f.DangerSeeds.TryGetValue(out var seeds);

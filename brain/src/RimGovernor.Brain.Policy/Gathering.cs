@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What the gathering review reads. A fact left unknown never starts a party.</summary>
 public sealed record GatheringInput
 {
-    public Fact<MoodLedger> Ledger { get; init; }
+    public MoodLedger Ledger { get; init; } = new();
 
     /// <summary>The mood census: the guests' state and the AttendedParty memory.</summary>
-    public Fact<EquatableArray<MoodPawn>> Pawns { get; init; }
+    public EquatableArray<MoodPawn> Pawns { get; init; }
 
     /// <summary>The AttendedParty mood effect from the catalog; a party whose memory is not positive repays nothing and is never held.</summary>
     public required double Benefit { get; init; }
@@ -67,8 +67,8 @@ public static class GatheringRules
     public static Fact<GatheringPlan> PlanGathering(GatheringInput input)
     {
         var none = Known(new GatheringPlan());
-        var pk = input.Pawns.TryGetValue(out var pawns);
-        var lk = input.Ledger.TryGetValue(out var ledger);
+        var pawns = input.Pawns;
+        var ledger = input.Ledger;
         var benefit = input.Benefit;
         var ck = input.Calm.TryGetValue(out var calm);
         var census = input.Census;
@@ -77,8 +77,7 @@ public static class GatheringRules
         {
             return none;
         }
-        if (pk)
-        {
+                {
             var alive = 0;
             foreach (var p in pawns!)
             {
@@ -105,7 +104,7 @@ public static class GatheringRules
         {
             return none;
         }
-        if (!pk || !lk || !ck)
+        if (!ck || census is null)
         {
             return Unknown<GatheringPlan>();
         }

@@ -31,8 +31,7 @@ clock still advances under the standing deficit.
 The `medical` family (`Medical.cs`, runtime `MedicalRounds`, #3258) derives one
 `medical/critical/<pawn>` Need (SeriousHarm) per critical patient: a living colonist
 or dependent who is bleeding, downed or needs a tend, or whom a life-saving
-amputation would save. An unread or stale emergency census is one Unknown
-`medical/critical` Need. The Needs run in the immediate pass on the emergency census
+amputation would save. The pawn and medical censuses are total. Native reads every spawned colonist each frame, without a cap; missing sections, unresolved colonist references and disagreeing rosters fail the read. A stale emergency census fails the planner boundary. The Needs run in the immediate pass on the emergency census
 and the doctors' and patients' pawn rows alone. Every patient's Need reads the same
 greedy pairing (`TendPairs`, `RescuePairs`) over the pawns no open tend or rescue
 holds, takes its own pair, and commits `tend-<patient>` or `rescue-<patient>` under
@@ -64,8 +63,7 @@ checks still decide whether an exact order is legal. Existing urgency thresholds
 are unchanged. The patient union does not enlarge the colonist doctor, rescuer or
 combat roster. Downed patient acknowledgements use the same observed identities.
 
-A missing census, unresolved pawn reference, or unknown capability/health fact is
-unknown care evidence, never an empty or recovered need. Duplicate membership and
+A missing census or unresolved colonist reference is a contract error, never an empty or recovered need. Native capability and health states retain their explicit applicability. Duplicate membership and
 unknown population groups are contract errors. The native frame adds health detail
 for these patients through the existing pawn table; no patient store is introduced.
 Neither the prisoners nor the anomaly family dispatches a parallel rescue or tend Method for these patients (`prisoners/custody` and `anomaly/tend` hold them). Capability-approved critical care uses the patient's critical Need; noncritical dependent care and unsupported custody transport remain unmet pending shared forecast support.
@@ -79,11 +77,10 @@ cleans the room under the Cleaning priority; there is no coupled cleaning and no
 automatic cleaning finalizer.
 
 The `medical/care` Need (Wellbeing, unmet while a sick colonist rests or is in bad
-condition, unknown while a tracked pawn is unread) retains native visible condition
+condition, unmet while a previously tracked pawn is absent or dead) retains native visible condition
 identities, severity, immunity, retend timing, care policy and medical-rest state.
 It enables ordinary Patient and PatientBedRest work when available and not
-disabled; native jobs choose beds. Missing observations, unavailable work or player
-restrictions produce explicit blockers. The same-tick native census separates
+disabled; native jobs choose beds. Unavailable work and player restrictions produce explicit blockers; missing native observations fail the read. Routine reads and direct colony reads derive medical, mood and work profiles from the same complete pawn table. The same-tick native census separates
 chronic conditions from urgent tending.
 
 - Tracked patient identities persist through Manual and restart. Missing or dead
@@ -117,7 +114,7 @@ stock:
 A serious condition raises the cap one tier, so a colonist may reach Best: a native
 life threat, Plague, an unimmune WoundInfection, Malaria at severity 0.5 or above,
 or any immunizable disease losing its immunity race. Harvest and execution targets
-are never raised. Unknown facts defer a change. Snapshot test
+are never raised. Invalid or unavailable medicine catalog data fails the review. Snapshot test
 `TestSnapshotDiseaseSelectsIndustrialCare` pins the Plague case (two patients,
 industrial medicine in stock: both and only they go to NormalOrWorse).
 
@@ -127,7 +124,7 @@ already set applies again. A refused write is replanned from fresh facts on the
 next review.
 
 The `medical/reserves` Need (Wellbeing) is unmet while the usable medicine stock is
-below its per-colonist target (no entry bar), unknown while the stock is unread. Its
+below its per-colonist target (no entry bar), fails the read if native stock or catalog facts are unavailable. Its
 work withdraws stalled healroot designations and harvests wild healroot under the
 Need owner; its stock-target bill is the work ledger's. While the medicine reserve
 is low it contributes the configured herbal target per colonist to

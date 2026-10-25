@@ -65,15 +65,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 
         var tables = await native.FrameTablesAsync(identity, call).ConfigureAwait(false);
         var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
-        Resource medicineResource;
-        try
-        {
-            medicineResource = items.MedicineAt(0);
-        }
-        catch (DomainException)
-        {
-            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("medicine_catalog") };
-        }
+        var medicineResource = items.MedicineAt(0);
 
         var sources = AcquisitionReads.ColonyAcquisition(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false));
         var stalledSources = new HashSet<string>();
@@ -142,32 +134,19 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 
     /// <summary>
     /// The reserves Need's medicine bill: while the stock is below the target bar, the stock-target bill
-    /// <see cref="MedicalRules.SelectMedicineMethod"/> picks; nothing while it is met; an abstain while the stock
-    /// or the medicine catalog is unread.
+    /// <see cref="MedicalRules.SelectMedicineMethod"/> picks; nothing while it is met. The medicine catalog is required.
     /// </summary>
     internal static Declared Declare(RoundsPolicy policy, ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
         var f = projection.Facts;
         var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, policy.Seasonal(f.Calendar, f.DisasterConditions).MedicalReserve);
-        if (reserve is null || !reserve.Stock.IsKnown)
-        {
-            return WorkRules.Abstaining(Cause.UnreadMedicine);
-        }
 
         if (!reserve.Active)
         {
             return new Declared();
         }
 
-        Resource medicine;
-        try
-        {
-            medicine = f.Items.MedicineAt(0);
-        }
-        catch (DomainException)
-        {
-            return WorkRules.Abstaining(Cause.UnreadMedicine);
-        }
+        var medicine = f.Items.MedicineAt(0);
 
         var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = [.. benches] });
         return CareOrdersRules.DeclareMedicine(choice, benches);
@@ -177,10 +156,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
     {
         var p = reviewer.Player;
         var state = work.State;
-        if (!medicalReview.Replenish.TryGetValue(out var replenish))
-        {
-            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable(RoundsMedicalPlanner.UnreadMedicalFact(facts)) };
-        }
+        var replenish = medicalReview.Replenish;
 
         if (replenish <= 0)
         {
@@ -301,10 +277,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var window = expected.Tick.Value / RoundsMedicalPlanner.AmputationRequeueTicks;
-        if (!read.Projection.Facts.MedicalPawns.TryGetValue(out var pawns))
-        {
-            return null;
-        }
+        var pawns = read.Projection.Facts.MedicalPawns;
 
         foreach (var pawn in pawns.Where(pawn => pawn.Id == patient))
         {
@@ -344,25 +317,11 @@ partial class RoundsMedicalPlanner
 {
     internal const long AmputationRequeueTicks = GameTime.TicksPerHour;
 
-    internal static string UnreadMedicalFact(MedicalReserveObservation facts)
-    {
-        if (!facts.Items.IsKnown)
-        {
-            return "medicine_items";
-        }
-
-        return "medicine_stock";
-    }
-
     internal static Verdict MedicineChoiceVerdict(MedicineMethodKind kind, Resource resource)
     {
         if (kind == MedicineMethodKind.Recovered)
         {
             return BuildingReasonNoDeficit;
-        }
-        if (kind == MedicineMethodKind.Unknown)
-        {
-            return FieldUnavailable("medicine_target");
         }
         if (kind == MedicineMethodKind.Blocked)
         {

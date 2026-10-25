@@ -332,9 +332,10 @@ public sealed class GoalsFamilyTests
         Assert.True(pursued.Is(Cause.AwaitingPlan));
         Assert.Equal("pursuing:economy/resource", pursued.Refusal.Subject);
 
-        // A goal whose facts are unread (the skill goal's pawn census) raises for the run.
+        // A skill target absent from the complete empty census has no method.
         current = Facts(skill, stock, done) with { Owners = owners };
-        Assert.Equal("pawn census", (await Assert.ThrowsAsync<RequiredFactException>(() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct))).Fact);
+        Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(skill, current).State);
+        Assert.Empty((await runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct)).UndeclaredReads);
     }
 
     [Fact]

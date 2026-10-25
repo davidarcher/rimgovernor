@@ -113,9 +113,8 @@ partial class RoundsSleepingUpkeepPlanner
         }
         // Everything stands and is assigned: keep its braziers lit.
         var lighting = facts.Facts.Upkeep.Lighting;
-        var workers = facts.WorkPawns is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
-        var wk = facts.WorkPawns is WorkPawnsRead.Read;
-        if (lighting is null || !wk)
+        var workers = facts.WorkPawns.Pawns;
+        if (lighting is null)
         {
             return step;
         }

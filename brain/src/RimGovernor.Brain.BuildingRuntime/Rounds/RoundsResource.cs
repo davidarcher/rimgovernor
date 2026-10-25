@@ -381,7 +381,7 @@ public sealed partial class RoundsResourcePlanner
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         f = f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick).Hostiles };
         f = f with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) };
-        f = f with { UrgentPatients = EmergencyNeedsRules.AmputationNeeds(emergency, f.MedicalPawns, Unknown<long>(), f.UrgentPatients).Urgent };
+        f = f with { UrgentPatients = EmergencyNeedsRules.PatientCounts(reading.Emergency, f.MedicalPawns).Urgent };
         var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         var request = new RemoteWorkRequest { Safety = RemoteRules.LootSafety(f), Extent = extent, Competition = RemoteRules.RemoteCompetition(f) };
         var (layout, ok) = await reviewer.LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);

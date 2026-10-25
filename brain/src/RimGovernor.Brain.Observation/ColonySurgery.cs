@@ -9,7 +9,7 @@ public sealed partial record ColonyProjection
     public SurgeryContext SurgeryContext()
     {
         var ctx = new SurgeryContext { Goals = Facts.GoalSurgeries.Items, HospitalBed = SurgeryRules.HospitalBedReady(Facts.Sleeping) };
-        if (WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
+        var pawns = WorkPawns.Pawns;
         {
             ctx = ctx with { Profiles = PawnRules.Profiles(pawns) };
         }

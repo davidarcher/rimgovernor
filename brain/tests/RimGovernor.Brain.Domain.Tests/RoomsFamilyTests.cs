@@ -34,7 +34,7 @@ public sealed class RoomsFamilyTests
     {
         Lighting = new LightingReview { Known = true },
         Flooring = new FlooringReview { Known = true },
-        Profiles = Known<EquatableArray<PawnProfile>>([]),
+        Profiles = [],
         SculptureRoomsOwed = false,
         BasicComfort = ComfortTests.NoComfortObservation,
         Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered },
@@ -48,7 +48,7 @@ public sealed class RoomsFamilyTests
         Id = new(id),
         WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Artistic" },
         Skills = new Dictionary<string, ProfileSkill> { ["Artistic"] = new() { Name = "Artistic", Level = 10 } },
-        Inspiration = Known(inspiration),
+        Inspiration = inspiration,
     };
 
     [Fact]
@@ -82,19 +82,18 @@ public sealed class RoomsFamilyTests
     [Fact]
     public void TheArtNeedIsUnmetWhileAnArtistIsInspiredOrABedroomIsOwedASculptureAnArtistCanCarve()
     {
-        var none = Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a")]), SculptureRoomsOwed = false }, RoomsFamily.Art);
+        var none = Of(new() { Profiles = [Artist("a")], SculptureRoomsOwed = false }, RoomsFamily.Art);
         Assert.Equal((RoomsFamily.Art, NeedTier.Development, Satisfaction.Met, 0.0), (none.Id, none.Tier, none.Satisfaction, none.Deficit));
 
-        var owed = Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a")]), SculptureRoomsOwed = true }, RoomsFamily.Art);
+        var owed = Of(new() { Profiles = [Artist("a")], SculptureRoomsOwed = true }, RoomsFamily.Art);
         Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit));
 
         // No colonist can sculpt: an owed bedroom has no remedy, so the Need is met.
-        Assert.Equal(Satisfaction.Met, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([]), SculptureRoomsOwed = true }, RoomsFamily.Art).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Of(new() { Profiles = [], SculptureRoomsOwed = true }, RoomsFamily.Art).Satisfaction);
 
         // An inspired artist decides the Need while the bedrooms are unread.
-        Assert.Equal(Satisfaction.Unmet, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a", ArtRules.InspiredCreativity)]) }, RoomsFamily.Art).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(new() { Profiles = [Artist("a", ArtRules.InspiredCreativity)] }, RoomsFamily.Art).Satisfaction);
 
-        Assert.Equal("colonist profiles", Assert.Throws<RequiredFactException>(() => Of(new() { SculptureRoomsOwed = true }, RoomsFamily.Art)).Fact);
     }
 
     [Fact]

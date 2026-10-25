@@ -19,15 +19,15 @@ public sealed class ProductionAdmissionTests
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
     private static RoundsFacts Facts => new()
     {
-        Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
+        MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new Tick(100),
         WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
-        ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
-        WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
+        ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
+        WorkProfiles = [new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
-            Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),
+            Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }],
         Resources = [new(Wood, 60), new(Other, 100)],
         CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
         BillReservations = [],

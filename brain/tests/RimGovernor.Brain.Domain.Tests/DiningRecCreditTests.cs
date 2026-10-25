@@ -187,7 +187,7 @@ public sealed class DiningRecCreditTests
             PlannedShelters = [dining, rec],
             PlannedRoomPredictions = [PlannedRoomPredictionTests.Closed("2", "", "DiningRoom", 30, 3, 25, 0, false), PlannedRoomPredictionTests.Closed("3", "", "RecRoom", 30, 4, 25, 0, false)],
             ForecastObserved = review.ForecastObserved with { Needs = needs with { Pawns = [.. needs.Pawns.Select(p => p with { ThoughtStages = EquatableArray.From(NativeRows) })] } },
-            MoodPawns = Known(EquatableArray.From(needs.Pawns.Select(p => new MoodPawn { Id = new(p.Pawn), Thoughts = [] }))),
+            MoodPawns = EquatableArray.From(needs.Pawns.Select(p => new MoodPawn { Id = new(p.Pawn), Thoughts = [] })),
             // The round reads the mood break curve (MoodBreak).
             MoodBreak = ForecastValueTests.Context(ForecastValueTests.Pawn()).MoodBreaks,
         };

@@ -39,7 +39,8 @@ partial class Rounder
     /// </summary>
     internal static async Task<MechGestation?> MechGestationAsync(object native, C.Identity identity, ColonyProjection projection, CancellationToken call)
     {
-        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony } || projection.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
+        var pawns = projection.WorkPawns.Pawns;
+        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony })
         {
             return null;
         }
@@ -92,7 +93,7 @@ partial class Rounder
     }
 
     /// <summary>The surgery parts the care pawns want and the production benches that could fabricate them.</summary>
-    internal static async Task<(IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches)> SurgeryPartDemandAsync(object native, C.Identity identity, Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, CancellationToken call)
+    internal static async Task<(IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches)> SurgeryPartDemandAsync(object native, C.Identity identity, EquatableArray<CarePawn> pawns, SurgeryContext ctx, CancellationToken call)
     {
         var parts = SurgeryRules.SurgeryParts(SurgeryRules.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants);
         var chosen = SurgeryRules.ChosenElectives(pawns, ctx);
@@ -109,7 +110,7 @@ partial class Rounder
         return SurgeryPartsOn(pawns, ctx, benches);
     }
 
-    internal static (IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches) SurgeryPartsOn(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, IReadOnlyList<GearBench> benches)
+    internal static (IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches) SurgeryPartsOn(EquatableArray<CarePawn> pawns, SurgeryContext ctx, IReadOnlyList<GearBench> benches)
     {
         var parts = SurgeryRules.SurgeryParts(SurgeryRules.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants).ToList();
         var chosen = SurgeryRules.ChosenElectives(pawns, ctx);

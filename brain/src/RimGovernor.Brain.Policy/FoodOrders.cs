@@ -315,7 +315,7 @@ public static class FoodOrdersRules
         var picked = MedicalRules.SelectMedicineMethod(
             new MedicinePlanningRequest
             {
-                Review = new MedicalReserveReview { Active = true, Target = Known(choice.Target) },
+                Review = new MedicalReserveReview { Active = true, Target = choice.Target },
                 Resource = choice.Resource,
                 Benches = EquatableArray.From(bare),
             }

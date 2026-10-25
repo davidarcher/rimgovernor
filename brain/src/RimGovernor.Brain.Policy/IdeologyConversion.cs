@@ -35,7 +35,7 @@ public static class ConversionRules
     /// <summary>
     /// How many believers the Believers goals still lack: the largest shortfall among them, with no goal 0. A goal's
     /// count is the believers it wants, 0 for every free colonist; believers and colonists are counted over the free
-    /// colonists whose rows show an ideoligion. With a Believers goal, an unread ideoligion or pawn census raises
+    /// colonists whose rows show an ideoligion. With a Believers goal, an unread ideoligion raises
     /// <see cref="RequiredFactException"/>.
     /// </summary>
     public static int Shortfall(IEnumerable<GoalRecord> goals, IdeologyMode ideology, WorkPawnsRead pawns)
@@ -53,7 +53,7 @@ public static class ConversionRules
     /// The conversion the goals owe now: none while no believer is lacking; otherwise the free colonist of another
     /// ideoligion with the lowest certainty (a colonist of no ideoligion last, then pawn id) who is able to be talked
     /// to, and the moral guide who converts. With nobody convertible the target is empty. With a Believers goal, an
-    /// unread ideoligion or pawn census raises <see cref="RequiredFactException"/>.
+    /// unread ideoligion raises <see cref="RequiredFactException"/>.
     /// </summary>
     public static ConversionOwed Owed(IEnumerable<GoalRecord> goals, IdeologyMode ideology, WorkPawnsRead pawns)
     {
@@ -109,7 +109,7 @@ public static class ConversionRules
 
     private static (Ideoligion Ideology, EquatableArray<WorkPawn> Pawns) Inputs(IdeologyMode ideology, WorkPawnsRead pawns) =>
         (ideology is IdeologyMode.Installed { Primary: var ideo } ? ideo : throw new RequiredFactException("ideoligion"),
-         pawns.Require());
+         pawns.Pawns);
 
     private static int Lacking(IReadOnlyList<int> wanted, Ideoligion ideo, EquatableArray<WorkPawn> rows)
     {

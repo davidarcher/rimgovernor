@@ -67,7 +67,7 @@ partial class RoundsSleepingUpkeepPlanner
     internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyProjection facts)
     {
         var needs = new List<ChildRoomNeed>();
-        if (facts.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
+        var pawns = facts.WorkPawns.Pawns;
         {
             needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.Facts.ForecastObserved.Needs?.Deathrest));
         }

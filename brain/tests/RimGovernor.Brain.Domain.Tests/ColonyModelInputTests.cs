@@ -45,7 +45,7 @@ public sealed class ColonyModelInputTests
     {
         var unknowns = ColonyModelFixtures.GapsOf(ColonyFactsCoreTests.Projection());
 
-        foreach (var section in new[] { "climate:", "crops:", "research:", "stocks:", "pawns:", "recipes:" })
+        foreach (var section in new[] { "climate:", "crops:", "research:", "pawns:", "recipes:" })
         {
             Assert.Contains(unknowns, u => u.StartsWith(section, StringComparison.Ordinal));
         }

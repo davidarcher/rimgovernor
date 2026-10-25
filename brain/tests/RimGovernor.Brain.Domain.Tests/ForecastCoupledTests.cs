@@ -581,7 +581,7 @@ public sealed class ForecastCoupledTests
                     FoodSources = [new("rice", "Rice", cells[0], 4, new FoodFreshness.Rots(1000.0))],
                     FoodConversions = [cook, cook with { Pawn = "helper", Cooking = new FoodCooking.Incapable(), CarryingCapacity = capacity, SupplyTicks = travel, Delivery = new FoodDelivery.Carried(travel) }],
                     FoodUses = [new("pawn", "Meal", cells[2], true, .8, 10.0, 1, new FoodFreshness.Rots(1000.0)) { Thoughts = [], Ingredient = "Rice" }],
-                    Routes = EquatableArray.From(((WorkPawnsRead.Read)roster.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value).SelectMany(p => cells.SelectMany(a => cells.Where(b => b != a)
+                    Routes = EquatableArray.From(((WorkPawnsRead)roster.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value).SelectMany(p => cells.SelectMany(a => cells.Where(b => b != a)
                         .Select(b => new CoupledRoute(p, a, b, new RouteTicks.Reachable(p == "helper" && a == cells[1] && b == cells[0] ? travel : 1.0)) { FromStart = false }))
                         .Concat(cells.Select(c => new CoupledRoute(p, new(0, 0), c, new RouteTicks.Reachable(1.0)) { FromStart = true }))))
                 }

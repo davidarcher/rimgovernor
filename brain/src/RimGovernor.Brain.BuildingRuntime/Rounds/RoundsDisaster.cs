@@ -87,7 +87,7 @@ public sealed partial class DisasterRounds
     {
         var changes = facts.Changes;
         var p = _reviewer.Player;
-        var workers = facts.Workers is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
+        var workers = facts.Workers.Pawns;
         foreach (var method in work.Owner.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);

@@ -196,11 +196,6 @@ public sealed partial class FoodStoresRounds
                     return WorkRules.Abstaining(Cause.UnreadRecipes);
                 }
 
-                if (kind == MedicineMethodKind.Unknown)
-                {
-                    return WorkRules.Abstaining(Cause.UnreadRecipes);
-                }
-
                 if (ok)
                 {
                     return new Declared { Orders = [spec] };

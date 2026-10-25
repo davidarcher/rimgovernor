@@ -36,7 +36,6 @@ public sealed class ForecastTerminalAccounting
     internal ForecastCoupledMaterials.MaterialHolds? Holds { get; }
     public EquatableArray<ForecastTerminalLot> Lots { get; init; }
     public bool FoodUnread { get; init; }
-    public bool MedicineComplete { get; init; }
 }
 
 public static class ForecastHandoffPolicy
@@ -74,18 +73,9 @@ public static class ForecastHandoffPolicy
         { stockKnown = false; gaps.Add("terminal_material_census_scope_mismatch"); }
         if (!stockKnown) gaps.Add("terminal_stock_unknown");
         var nutrition = Nutrition(terminal, gaps);
-        EquatableArray<ModelResourceStock>? medicine = null;
-        if (terminal.MedicineComplete)
-        {
-            var result = new List<ModelResourceStock>();
-            var medicineLots = terminal.Lots.Where(l => l.Medicine).ToArray();
-            foreach (var group in medicineLots.GroupBy(l => l.Resource).OrderByDescending(g => request.Facts.Items.MedicalPotency.GetValueOrDefault(g.Key)).ThenBy(g => g.Key))
-            {
-                result.Add(new(group.Key, group.Sum(l => l.Count)));
-            }
-            if (result.Count == medicineLots.Select(l => l.Resource).Distinct().Count()) medicine = EquatableArray.From(result);
-        }
-        if (medicine is null) gaps.Add("terminal_medicine_unknown");
+        var medicine = EquatableArray.From(terminal.Lots.Where(l => l.Medicine).GroupBy(l => l.Resource)
+            .OrderByDescending(g => request.Facts.Items.MedicalPotency.GetValueOrDefault(g.Key)).ThenBy(g => g.Key)
+            .Select(g => new ModelResourceStock(g.Key, g.Sum(l => l.Count))));
 
         var tasks = context.Activities.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         var projected = ForecastHandoffProjects.Project(basis, context, outcome, finished, day, gaps);

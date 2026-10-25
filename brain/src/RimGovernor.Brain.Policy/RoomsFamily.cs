@@ -16,7 +16,7 @@ public sealed record RoomsFacts
     public FlooringReview Flooring { get => field ?? throw new RequiredFactException("flooring census"); init; }
 
     /// <summary>The colonists' work profiles: who can sculpt and who is inspired to.</summary>
-    public Fact<EquatableArray<PawnProfile>> Profiles { get; init; }
+    public EquatableArray<PawnProfile> Profiles { get; init; }
 
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture.</summary>
     public bool SculptureRoomsOwed { get; init; }
@@ -144,28 +144,10 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     /// </summary>
     public static Need ArtNeed(RoomsFacts f)
     {
-        var pk = f.Profiles.TryGetValue(out var profiles);
-        var owed = f.SculptureRoomsOwed;
-        bool met;
-        if (pk && ArtRules.InspiredArtists(profiles!).Count > 0)
-        {
-            met = false;
-        }
-        else if (!owed)
-        {
-            met = true;
-        }
-        else if (pk)
-        {
-            met = ArtRules.Artists(profiles!).Count == 0;
-        }
-        else
-        {
-            throw new RequiredFactException("colonist profiles");
-        }
+        var met = ArtRules.InspiredArtists(f.Profiles).Count == 0
+            && (!f.SculptureRoomsOwed || ArtRules.Artists(f.Profiles).Count == 0);
         return FoodRules.WholeNeed(Art, NeedTier.Development, met);
     }
-
     /// <summary>The basic comfort review: unmet while dining, recreation or its variety is short; an unread census or variety catalog raises <see cref="RequiredFactException"/>. The deficit is the review's half per short kind.</summary>
     public static Need ComfortNeed(RoomsFacts f)
     {

@@ -399,7 +399,7 @@ public sealed partial class Store
         {
             return reset ? null : previous.Roster;
         }
-        _ = request.Facts.WorkProfiles.TryGetValue(out var profiles);
+        var profiles = request.Facts.WorkProfiles;
         return new WorkRosterReport
         {
             Tick = request.Tick,

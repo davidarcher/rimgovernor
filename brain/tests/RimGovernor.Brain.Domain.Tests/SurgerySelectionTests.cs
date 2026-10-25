@@ -67,7 +67,7 @@ public sealed class SurgerySelectionTests
         Conditions = EquatableArray.From(conditions ?? []),
     };
 
-    private static Fact<EquatableArray<CarePawn>> Census(CarePawn pawn) => Known(EquatableArray.From([pawn]));
+    private static EquatableArray<CarePawn> Census(CarePawn pawn) => EquatableArray.From([pawn]);
 
     /// <summary>A living prisoner the colony would not recruit, held under no interaction, with no faction goodwill at stake.</summary>
     private static PrisonerFacts Prisoner(IReadOnlyList<CareOperation> ops) => new()

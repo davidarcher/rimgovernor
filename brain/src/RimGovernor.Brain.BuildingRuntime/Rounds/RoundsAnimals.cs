@@ -53,9 +53,7 @@ public sealed class AnimalsReader
         var (_, reading) = await ReadingAsync(scope, call).ConfigureAwait(false);
         var projection = reading.Projection;
         var f = projection.Facts;
-        var handlers = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
-            ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
-            : Unknown<EquatableArray<PawnProfile>>();
+        var handlers = projection.Facts.WorkProfiles;
         var uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
         var (pen, penKnown) = RoundsHerdRooms.PenStepOf(projection);
         var (ward, wardKnown) = RoundsHerdRooms.WardStepOf(projection);
@@ -124,10 +122,7 @@ public sealed class AnimalsReader
             return await ReconcileAsync(work, review, reading, pen, call).ConfigureAwait(false);
         }
         var projection = reading.Projection;
-        if (projection.WorkPawns is not WorkPawnsRead.Read { Pawns: var workPawns })
-        {
-            return FieldUnavailable("work_pawns");
-        }
+        var workPawns = projection.WorkPawns.Pawns;
         var handler = RoundsAnimalContainment.AnimalHandlerAvailable(workPawns);
         var choice = AnimalUpkeepRules.SelectAnimalContainmentMethod(projection.Facts.AnimalUpkeep.Animals, handler, RoundsAnimalContainment.PensStand(projection));
         return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : RoundsAnimalContainment.ContainmentWait(choice.Reason);

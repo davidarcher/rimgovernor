@@ -165,12 +165,12 @@ public sealed class EffectSourceCandidatesTests
         var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true, LoadoutModel = new GearModel.NoOutfit() }] };
         var care = CareFixtures.Patient("pawn", [CareFixtures.Condition("Flu")]);
 
-        var facts = EffectSourcesRules.EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]), false);
+        var facts = EffectSourcesRules.EffectSourceFactsOf(gear, [care], false);
         var read = Assert.Single(facts.Pawns);
         Assert.Equal((EquatableArray<string>)["Flu"], read.Card.Hediffs);
         Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(facts).Roots).Id);
 
-        var unread = Generate(EffectSourcesRules.EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>(), false));
+        var unread = Generate(EffectSourcesRules.EffectSourceFactsOf(gear, [], false));
         Assert.Empty(unread.Roots);
         Assert.Equal(["effect_source_offset_unread:" + Def + "/pawn"], unread.Findings);
     }
@@ -182,7 +182,7 @@ public sealed class EffectSourceCandidatesTests
         var model = Pawn().Gear;
         model = model with { Role = model.Role with { Precepts = ["Temperature_Tough"] } };
         var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }] };
-        var medical = Known<EquatableArray<CarePawn>>([CareFixtures.Patient("pawn", [])]);
+        EquatableArray<CarePawn> medical = [CareFixtures.Patient("pawn", [])];
 
         var read = Assert.Single(EffectSourcesRules.EffectSourceFactsOf(gear, medical, true).Pawns).Card;
         Assert.True(read.IdeologyActive);

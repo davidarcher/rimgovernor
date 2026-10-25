@@ -51,7 +51,7 @@ public sealed record HerdPlanInput
     public IReadOnlyList<Resource> Offers { get; init; } = [];
 
     /// <summary>The colony's pawn profiles; an unread roster plans no leveling.</summary>
-    public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
+    public EquatableArray<PawnProfile> Handlers { get; init; }
 
     /// <summary>The head count per race the player's goals ask for (#3494): the band of each such race rises to it and the race is no longer retired.</summary>
     public IReadOnlyDictionary<Resource, long> Goals { get; init; } = new Dictionary<Resource, long>();
@@ -619,10 +619,7 @@ public static class HerdPlanRules
     private static Resource HerdLevelingRace(HerdPlanInput input, Dictionary<Resource, HerdRaceStats> stats, Dictionary<Resource, long> targets)
     {
         var none = new Resource("");
-        if (!input.Handlers.TryGetValue(out var profiles))
-        {
-            return none;
-        }
+        var profiles = input.Handlers;
         var gap = false;
         foreach (var (def, heads) in targets)
         {
@@ -750,7 +747,7 @@ public static class HerdPlanRules
         {
             return obtainable;
         }
-        input.Handlers.TryGetValue(out var profiles);
+        var profiles = input.Handlers;
         var @out = new HashSet<Resource>();
         foreach (var def in obtainable)
         {

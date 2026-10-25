@@ -96,8 +96,7 @@ public static partial class TradePolicyRules
     public static IReadOnlySet<PawnId> SurplusPrisoners(this RoundsFacts f, bool silverShort)
     {
         var census = f.Population;
-        var mk = f.MedicalPawns.TryGetValue(out _);
-        if (!mk || FavorPrisonersHeld(f.Ideology))
+        if (FavorPrisonersHeld(f.Ideology))
         {
             return new HashSet<PawnId>();
         }

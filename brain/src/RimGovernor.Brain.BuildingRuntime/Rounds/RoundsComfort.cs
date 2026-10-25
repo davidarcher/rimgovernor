@@ -216,10 +216,7 @@ partial class RoundsBuildingPlanner
         {
             return FieldUnavailable(definition + "_construction_skill");
         }
-        if (facts.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            return FieldUnavailable("work_pawns");
-        }
+        var pawns = facts.WorkPawns.Pawns;
         if (BuilderAvailable(pawns, (int)minimum))
         {
             return default;

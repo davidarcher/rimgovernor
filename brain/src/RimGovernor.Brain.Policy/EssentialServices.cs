@@ -85,8 +85,7 @@ public static class EssentialServicesRules
         var stress = new List<ServiceStressAssessment>();
         var truncated = false;
         var spent = 0;
-        var beneficiaries = facts.ForecastObserved.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
-            ? EquatableArray.From(pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal)) : default;
+        var beneficiaries = EquatableArray.From(facts.ForecastObserved.WorkPawns.Pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal));
         var inactive = facts.Colonists == 0;
         // An owner whose Need raises on an unread fact is an explicit evidence gap, never adequate,
         // with the owner named as the missing evidence. The review itself still commits.
@@ -208,11 +207,7 @@ public static class EssentialServicesRules
             return;
         }
         var benches = facts.EssentialInputs.Benches;
-        if (facts.ForecastObserved.WorkPawns is not WorkPawnsRead.Read { Pawns: var workers })
-        {
-            rows.Add(new(EssentialService.Cooking, target, ServiceCoverage.EvidenceGap, [], ["work_pawns"]));
-            return;
-        }
+        var workers = facts.ForecastObserved.WorkPawns.Pawns;
         // This is feasibility of one useful meal iteration, not a throughput or future-food claim.
         (ServiceCoverage, EquatableArray<string>) Assess(string excluded)
         {
@@ -258,7 +253,7 @@ public static class EssentialServicesRules
     private static void AssessServiceMedical(RoundsFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
-        if (!facts.MedicalPawns.TryGetValue(out var patients)) return;
+        var patients = facts.MedicalPawns;
         foreach (var patient in patients.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
             if (patient.QuestProtected || patient.Dead) continue;

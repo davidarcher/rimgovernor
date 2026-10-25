@@ -59,10 +59,7 @@ public static partial class ShelterRules
     /// <summary>The work pawns with Hauling enabled (priority 1..4). Unknown when any row's work is unknown.</summary>
     public static Fact<EquatableArray<PawnId>> DangerHaulers(WorkPawnsRead workers)
     {
-        if (workers is not WorkPawnsRead.Read { Pawns: var rows })
-        {
-            return Unknown<EquatableArray<PawnId>>();
-        }
+        var rows = workers.Pawns;
         var output = new List<PawnId>();
         foreach (var w in rows)
         {

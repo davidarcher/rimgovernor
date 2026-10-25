@@ -250,7 +250,7 @@ public static partial class MoodRules
     /// pressure is a present observation, never a prediction of a break or future mood benefit; a psychic drone thought
     /// widens the margin and the cause bar for its bearer alone.
     /// </summary>
-    public static MoodHistory ReviewMood(Fact<EquatableArray<MoodPawn>> observed, MoodHistory previous)
+    public static MoodHistory ReviewMood(EquatableArray<MoodPawn> observed, MoodHistory previous)
     {
         previous.Validate();
         var old = new Dictionary<PawnId, MoodState>();
@@ -258,10 +258,9 @@ public static partial class MoodRules
         {
             old[s.Pawn.Id] = s;
         }
-        var known = observed.TryGetValue(out var rows);
+        var rows = observed;
         var states = new List<MoodState>();
         var seen = new HashSet<PawnId>();
-        if (known)
         {
             foreach (var p in rows!)
             {

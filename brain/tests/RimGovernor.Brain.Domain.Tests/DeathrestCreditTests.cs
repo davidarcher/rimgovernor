@@ -212,10 +212,10 @@ public sealed class DeathrestCreditTests
         // defs on ForecastObserved and the catalog's role rows, through DeathrestFurnitureOf as the round sets the credit's context.
         Obs.PlanningDefinition Row(string name, FurnitureRole role) =>
             new() { Name = name, Available = Known(true), Size = Known(new P.Bounds(1, 2)), RoomRoles = [role.Value] };
-        var worker = PawnFixtures.Worker("pawn") with { Biotech = new PawnBiotechStatus.Active(RimGovernor.Brain.Policy.PawnBiotech.Of(new O.PawnBiotech { DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null, Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 1 } })) };
+        var worker = PawnFixtures.Worker("pawn") with { Biotech = new PawnBiotechStatus.Active(RimGovernor.Brain.Policy.PawnBiotech.Of(new O.PawnBiotech { DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null, Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 1 } }, new GeneEffects(), new Dictionary<WorkType, int>())) };
         var colony = ColonyFactsCoreTests.Projection() with
         {
-            WorkPawns = new WorkPawnsRead.Read(EquatableArray.From<WorkPawn>([worker])),
+            WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([worker])),
             Facts = new() { ForecastObserved = new() { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester()], Deathrest = Defs } } },
             Definitions = [Row("DeathrestCasket", FurnitureRole.DeathrestCasket), Row("DeathrestAccelerator", FurnitureRole.DeathrestAccelerator), Row("HemogenAmplifier", FurnitureRole.DeathrestAccelerator)],
         };
@@ -223,7 +223,7 @@ public sealed class DeathrestCreditTests
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
         Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, Assert.Single(Rows(Context(Deathrester(), furniture), Serving(0))).Value, 12);
         // Without Biotech no pawn row carries a block and the needs read no defs: no chamber is owed.
-        Assert.Empty(RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn")])), Facts = new() }));
+        Assert.Empty(RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn")])), Facts = new() }));
     }
 
     [Fact]

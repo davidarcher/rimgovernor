@@ -44,15 +44,16 @@ internal static class WorkResourceTestFacts
         Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
+        MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() },
         Tick = new(100),
-        WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
+        WorkProfiles = [new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
-            Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
+            Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }],
         Resources = [new(new("Rice"), 10)],
         CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
-        ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with
+        ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with
         { Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)) }))) },
         WorkAdmission = new()
         {
@@ -232,7 +233,7 @@ public sealed class WorkResourcesTests
         RoundsFacts Holding(bool preemptible)
         {
             var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
-            return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns
+            return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns
                 .Select(p => p.Id.Value != "helper" ? p : p with { Job = new PawnJob { Def = "HaulToCell", Work = WorkType.Hauling,
                     Target = new JobTarget.Spawned("stack", new Cell(1, 1)), Preemptible = preemptible } }))) } };
         }
@@ -282,13 +283,13 @@ public sealed class WorkResourcesTests
     public void UnknownCurrentWorkDurationIsNotAFreeDayAndZeroIsNotUnknown()
     {
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
-        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(
-            ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value == "cook-builder" ? p with { Job = new PawnJob { Def = "DoBill" } } : p))) } };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(
+            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value == "cook-builder" ? p with { Job = new PawnJob { Def = "DoBill" } } : p))) } };
         var view = View(facts);
         Assert.Contains("unknown_current_job_remaining", view.Capacity["cook-builder"].Findings);
         Assert.IsType<ForecastCapacityWindows.Read>(view.Capacity["helper"].Capacity.Windows);
-        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(
-            ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Available = false }))) } };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(
+            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Available = false }))) } };
         Assert.Equal(0, View(facts).Capacity["helper"].Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
     }
 
@@ -355,9 +356,9 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = [new(new("Rice"), 100)] };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("double-bench", Craft("first"), Craft("second"))));
-        var busy = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns[0] with
+        var busy = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns[0] with
         { Job = new PawnJob { Def = "DoBill", Target = new JobTarget.Spawned("bench", new Cell(1, 1)) } };
-        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read([busy]) } };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead([busy]) } };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("busy-bench", Craft("first"))));
         Assert.True(WorkRules.WorkResourcesFit(View(facts), Plan("other-work", Building("wall"))));
     }

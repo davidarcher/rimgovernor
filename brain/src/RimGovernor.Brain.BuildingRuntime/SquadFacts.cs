@@ -91,7 +91,7 @@ partial class Armament
             Drafted = row.Drafted,
             MentalState = row.MentalState is not null,
             DraftOwned = needed.Contains(id),
-            Deathresting = row.Biotech is ObservationsPb.PawnBiotechState.Active { Facts: var biotech } && Pol.PawnBiotech.Of(biotech).IsDeathresting(),
+            Deathresting = row.Biotech is ObservationsPb.PawnBiotechState.Active { Facts: var biotech } && biotech.Deathrest is { Deathresting: true },
             PlayerForced = row.Job.PlayerForced,
             QueuedJobs = row.Job.QueuedJobs,
             NeedsTend = row.Health.NeedsTend,

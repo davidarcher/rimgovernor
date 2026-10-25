@@ -2,13 +2,10 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The doctors, rescuers and patients one family read observed together for the critical Needs (#3258): the tend
-/// candidates with their reachability and the rescue candidates. <see cref="Wait"/> names an incomplete census
-/// (<c>colonist_census</c>); nothing is paired then.
+/// candidates with their reachability and the rescue candidates. A missing census fails the observation boundary.
 /// </summary>
 public sealed record CriticalCare
 {
-    public string Wait { get; init; } = "";
-
     public IReadOnlyList<TendDoctorFacts> Doctors { get; init; } = [];
 
     public IReadOnlyList<TendPatientFacts> TendPatients { get; init; } = [];
@@ -33,32 +30,32 @@ public sealed record CriticalCare
 /// </summary>
 public sealed record MedicalFacts
 {
-    /// <summary>The critical patients, by id; unknown while the emergency census is incomplete or stale.</summary>
-    public Fact<EquatableArray<PawnId>> Critical { get; init; }
+    /// <summary>The critical patients by id from the current emergency census.</summary>
+    public EquatableArray<PawnId> Critical { get; init; }
 
     /// <summary>The care candidates read for the critical patients; null when there are none or nothing was read.</summary>
     public CriticalCare? Care { get; init; }
 
-    /// <summary>The colony's care census: no sick colonist resting or in bad condition. Unknown while a tracked pawn is unread.</summary>
-    public Fact<bool> CareRecovered { get; init; }
+    /// <summary>The colony's care census: no sick colonist resting or in bad condition. Unresolved tracked patients keep recovery false.</summary>
+    public bool CareRecovered { get; init; }
 
     /// <summary>
     /// The hosted medical beds fall below a Hospital goal's bed floor (#3496). The hospital step runs only while the care
     /// Need is unmet, and with no patient sick the census alone would leave it met, so a short ward keeps it unmet.
-    /// Unknown without a goal read.
+    /// The goal reader supplies zero when no bed floor is requested.
     /// </summary>
     public bool HospitalShort { get; init; }
 
-    /// <summary>The medicine stock reaches the target bar (no hysteresis); unknown while the stock or the catalog is unread.</summary>
-    public Fact<bool> ReservesCovered { get; init; }
+    /// <summary>The medicine stock reaches the target bar (no hysteresis).</summary>
+    public bool ReservesCovered { get; init; }
 
     /// <summary>The usable medicine stock and its target bar, for evidence.</summary>
-    public Fact<long> MedicineStock { get; init; }
+    public long MedicineStock { get; init; }
 
-    public Fact<long> MedicineTarget { get; init; }
+    public long MedicineTarget { get; init; }
 
-    /// <summary>No operation the surgery work serves stands on a living patient; unknown while the care census is unread.</summary>
-    public Fact<bool> SurgeryRecovered { get; init; }
+    /// <summary>No operation the surgery work serves stands on a living patient.</summary>
+    public bool SurgeryRecovered { get; init; }
 
     /// <summary>
     /// The facts a review already holds. <paramref name="medicineActive"/> is the review's medicine latch the silver
@@ -72,9 +69,9 @@ public sealed record MedicalFacts
         return new()
         {
             CareRecovered = f.MedicalCareRecovered,
-            ReservesCovered = reserve is { } r && r.Stock.IsKnown ? Fact.Known(!r.Active) : Fact.Unknown<bool>(),
-            MedicineStock = reserve?.Stock ?? default,
-            MedicineTarget = reserve?.Target ?? default,
+            ReservesCovered = !reserve.Active,
+            MedicineStock = reserve.Stock,
+            MedicineTarget = reserve.Target,
             SurgeryRecovered = MedicalRules.SurgeryNeedRecovered(f, policy, medicineActive),
         };
     }
@@ -161,10 +158,7 @@ public static partial class MedicalRules
     /// </summary>
     public static IReadOnlyList<Need> CriticalNeedsOf(MedicalFacts f)
     {
-        if (!f.Critical.TryGetValue(out var patients))
-        {
-            throw new RequiredFactException("critical patients");
-        }
+        var patients = f.Critical;
         return [.. patients.Select(p => new Need
         {
             Id = CriticalNeed(p),
@@ -176,71 +170,62 @@ public static partial class MedicalRules
 
     /// <summary>
     /// The critical census as one Need, for a reader that counts the patients without naming them (the essential
-    /// services review): met with none, unmet with any; an unread count raises <see cref="RequiredFactException"/>.
+    /// services review): met with none, unmet with any.
     /// </summary>
-    public static Need CriticalCensusNeedOf(Fact<long> patients) =>
-        FoodRules.WholeNeed(CriticalCensusNeed, NeedTier.SeriousHarm, patients.TryGetValue(out var n) ? n == 0 : throw new RequiredFactException("critical patients"));
+    public static Need CriticalCensusNeedOf(long patients) =>
+        FoodRules.WholeNeed(CriticalCensusNeed, NeedTier.SeriousHarm, patients == 0);
 
     /// <summary>
     /// The care Need, a plain threshold over the care census: unmet while a sick colonist rests or is in bad condition
-    /// or the hospital is short; otherwise an unread tracked pawn raises <see cref="RequiredFactException"/>.
+    /// or the hospital is short. Unresolved tracked patients keep the Need unmet.
     /// </summary>
     public static Need MedicalCareNeedOf(MedicalFacts f)
     {
         var wardShort = f.HospitalShort;
         return FoodRules.WholeNeed(MedicalCareNeed, NeedTier.Wellbeing,
-            !wardShort && (f.CareRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("care census")));
+            !wardShort && f.CareRecovered);
     }
 
     /// <summary>
     /// The reserves Need, a plain threshold at the target bar (decision 16, no entry bar): unmet while the usable
-    /// medicine stock is below the colonists' target; an unread stock raises <see cref="RequiredFactException"/>. The
+    /// medicine stock is below the colonists' target. The
     /// deficit is the missing share of the target.
     /// </summary>
     public static Need MedicalReservesNeedOf(MedicalFacts f)
     {
-        var covered = f.ReservesCovered.TryGetValue(out var c) ? c : throw new RequiredFactException("medicine reserves");
+        var covered = f.ReservesCovered;
         return new Need
         {
             Id = MedicalReservesNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = covered ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = covered ? 0.0
-                : f.MedicineStock.TryGetValue(out var stock) && f.MedicineTarget.TryGetValue(out var target) && target > 0
-                    ? Math.Clamp((target - stock) / (double)target, 0, 1) : 1.0,
+                : f.MedicineTarget > 0
+                    ? Math.Clamp((f.MedicineTarget - f.MedicineStock) / (double)f.MedicineTarget, 0, 1) : 1.0,
         };
     }
 
-    /// <summary>The surgery Need, a plain threshold: unmet while an operation the surgery work serves stands; an unread care census raises <see cref="RequiredFactException"/>.</summary>
+    /// <summary>The surgery Need, a plain threshold: unmet while an operation the surgery work serves stands.</summary>
     public static Need SurgeryNeedOf(MedicalFacts f) =>
-        FoodRules.WholeNeed(SurgeryNeed, NeedTier.Wellbeing, f.SurgeryRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("surgery census"));
+        FoodRules.WholeNeed(SurgeryNeed, NeedTier.Wellbeing, f.SurgeryRecovered);
 
     /// <summary>
     /// Whether no operation the surgery work serves stands: no owed restore, no actionable elective upgrade, and no
     /// organ sale harvest (while the silver runway is short) or part recovery wanted.
     /// </summary>
-    public static Fact<bool> SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    public static bool SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
-        var recovered = RoundsRules.AllFacts(SurgeryRules.SurgeryRecovered(f.MedicalPawns), RoundsRules.Measured(SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
+        var recovered = SurgeryRules.SurgeryRecovered(f.MedicalPawns) && !SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts);
         if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f))
         {
-            return Known(false);
+            return false;
         }
         return recovered;
     }
 
-    /// <summary>The medicine reserve held to its target bar (decision 16): the review an unlatched restock reads. Null when the facts or thresholds are invalid.</summary>
-    public static MedicalReserveReview? MedicalReserveAtTarget(MedicalReserveObservation v, MedicalReservePolicy p)
-    {
-        try
-        {
-            return ReviewMedicalReserve(v, true, p);
-        }
-        catch (DomainException)
-        {
-            return null;
-        }
-    }
+    /// <summary>The medicine reserve held to its target bar (decision 16): the review an unlatched restock reads. Invalid facts or thresholds raise a contract error.</summary>
+    public static MedicalReserveReview MedicalReserveAtTarget(MedicalReserveObservation v, MedicalReservePolicy p) =>
+        ReviewMedicalReserve(v, true, p);
 
     /// <summary>
     /// The tend pairs for every patient at once: the most urgent patient a ranked doctor reaches first

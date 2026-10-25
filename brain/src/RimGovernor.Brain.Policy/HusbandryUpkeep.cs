@@ -304,7 +304,7 @@ public static class HusbandryUpkeepRules
     /// -- and only after that to the lowest-Id surplus candidate for the operator's chosen removal method
     /// -- so an operator who opts into tame or removal never loses the pre-existing training behavior.
     /// </summary>
-    public static HusbandryChoice SelectHusbandryMethod(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, Fact<bool> feedShort, HerdPolicy herd, Fact<EquatableArray<PawnProfile>> handlers)
+    public static HusbandryChoice SelectHusbandryMethod(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, Fact<bool> feedShort, HerdPolicy herd, EquatableArray<PawnProfile> handlers)
     {
         var unknownChoice = new HusbandryChoice.Unread();
         var sorted = animals.OrderBy(a => a.Id).ToList();
@@ -331,7 +331,8 @@ public static class HusbandryUpkeepRules
             var candidates = HerdTameCandidates(animals, wild, herd);
             if (candidates.Count > 0)
             {
-                if (!feedShort.TryGetValue(out var short_) || !handlers.TryGetValue(out var profiles))
+                var profiles = handlers;
+                if (!feedShort.TryGetValue(out var short_))
                 {
                     return unknownChoice;
                 }

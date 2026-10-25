@@ -68,7 +68,7 @@ public sealed class ProductionPromisesTests
     private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) =>
         new()
         {
-            Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
+            MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ProductionPromises = promises,
@@ -202,7 +202,7 @@ public sealed class ProductionPromisesTests
         var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
         {
             Tick = new Tick(100), Resources = [new(Material, 120)],
-            ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
+            ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Slots, false) { Products = [], WorkAmount = 0 }]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },

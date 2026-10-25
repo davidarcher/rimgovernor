@@ -112,7 +112,7 @@ public static partial class SurgeryRules
     /// path, ElectiveParts, takes it otherwise). Silver bounds the purchase through the trade's reserve.
     /// </summary>
     public static IReadOnlyList<SurgeryPart> SurgeryPurchaseParts(
-        Fact<EquatableArray<CarePawn>> pawns,
+        EquatableArray<CarePawn> pawns,
         SurgeryContext ctx,
         IReadOnlyList<SurgeryPart> served,
         IReadOnlySet<Resource> fabricable
@@ -210,9 +210,9 @@ public static partial class SurgeryRules
     /// takes the place of the patient's best elective and outranks every other. The purchase path and ElectiveParts both
     /// read this.
     /// </summary>
-    public static IReadOnlyList<SurgeryWant> ChosenElectives(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx)
+    public static IReadOnlyList<SurgeryWant> ChosenElectives(EquatableArray<CarePawn> pawns, SurgeryContext ctx)
     {
-        pawns.TryGetValue(out var rows);
+        var rows = pawns;
         if (!ctx.HospitalBed)
         {
             return [];

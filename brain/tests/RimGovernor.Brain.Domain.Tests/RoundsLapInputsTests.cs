@@ -32,7 +32,7 @@ public sealed class RoundsLapInputsTests
         inputs.Begin(World);
         var observedAgain = observed with { Identity = new Identity { Tick = new Tick(700) } };
         inputs.Left("observe", observedAgain);
-        var laidAgain = laid with { Identity = observedAgain.Identity, Facts = laid.Facts with { MoodPawns = Known<EquatableArray<MoodPawn>>([]) } };
+        var laidAgain = laid with { Identity = observedAgain.Identity, Facts = laid.Facts with { MoodPawns = [new MoodPawn { Id = new("pawn"), Mood = new MoodLevel.Has(.5, .4) }] } };
         inputs.Left("layout", laidAgain);
         inputs.Left("d_owed", laidAgain);
         var changed = inputs.Changed();
@@ -74,7 +74,7 @@ public sealed class RoundsLapInputsTests
         Assert.Contains("Shapes", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.Items", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.CurrentConstruction", RoundsLapInputs.Uncompared);
-        Assert.True(RoundsLapInputs.HasValueEquality(typeof(Fact<EquatableArray<MoodPawn>>)));
+        Assert.True(RoundsLapInputs.HasValueEquality(typeof(EquatableArray<MoodPawn>)));
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(Identity)));
         Assert.False(RoundsLapInputs.HasValueEquality(typeof(List<string>)));
         Assert.False(RoundsLapInputs.HasValueEquality(typeof(Fact<IReadOnlyList<string>>)));
@@ -99,8 +99,8 @@ public sealed class RoundsLapInputsTests
         var facts = new RoundsFacts
         {
             FoodDays = new FoodRunway.Days(1.0), FieldCoverage = Known(1.0), Colonists = 1L, BedCapacity = 1L,
-            IndoorCapacity = 1L, GrowingCells = Known(1L), Armed = Known(1L), Unarmed = Known(1L), Wood = 1L, Hostiles = Known(1L),
-            CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingTemperature = new SleepingTemperature.Indoor(1.0, 1.0), OutdoorTemperature = 1.0,
+            IndoorCapacity = 1L, GrowingCells = Known(1L), Armed = 1L, Unarmed = 1L, Wood = 1L, Hostiles = Known(1L),
+            CriticalPatients = 1L, UrgentPatients = 1L, SleepingTemperature = new SleepingTemperature.Indoor(1.0, 1.0), OutdoorTemperature = 1.0,
             PowerHeadroom = 1.0, OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = true,
             MealClosetOwed = Known(true), CampfireRetireOwed = Known(true), TemperatureOwed = true, ButcherTableAffordable = Known(true),
             CleanupPawns = true, WorkCoverage = WorkCoverageState.Matched,

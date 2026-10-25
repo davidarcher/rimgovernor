@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+    private static RoundsFacts Facts() => new() { CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
@@ -19,7 +19,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
-        var normal = RoundsRules.InspectRounds(new() { CurrentConstruction = CurrentConstruction.Empty, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
+        var normal = RoundsRules.InspectRounds(new() { CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
@@ -64,7 +64,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void MedicalResilienceUsesProcedureChanceNotGenericDoctorCount()
     {
-        var facts = Facts() with { MedicalPawns = Known<EquatableArray<CarePawn>>([Patient(("expert", .98), ("novice", .50))]) };
+        var facts = Facts() with { MedicalPawns = [Patient(("expert", .98), ("novice", .50))] };
         var review = Review(facts);
         var baseline = Assert.Single(review.Coverage, c => c.Target.Predicate == "served_procedure_feasible");
         Assert.Equal(ServiceCoverage.Adequate, baseline.Coverage);
@@ -73,21 +73,21 @@ public sealed class EssentialServicesTests
         Assert.Single(proposal.StressEvidence);
         Assert.Equal(DevelopmentReviewState.RetirementUnproven, EssentialServicesRules.ReassessDevelopment(proposal, Review(facts, 0)));
         Assert.Contains("stress_shortfall:served_procedure_feasible", proposal.Evidence);
-        var recovered = Review(facts with { MedicalPawns = Known<EquatableArray<CarePawn>>([Patient(("expert", .98), ("novice", .90))]) });
+        var recovered = Review(facts with { MedicalPawns = [Patient(("expert", .98), ("novice", .90))] });
         Assert.DoesNotContain(recovered.Proposals, p => p.Id == proposal.Id);
     }
 
     [Fact]
     public void QuestProtectedPatientsDoNotGenerateSurgeryPracticeGoals()
     {
-        var review = Review(Facts() with { MedicalPawns = Known<EquatableArray<CarePawn>>([Patient(("doctor", .9)) with { QuestProtected = true }]) });
+        var review = Review(Facts() with { MedicalPawns = [Patient(("doctor", .9)) with { QuestProtected = true }] });
         Assert.DoesNotContain(review.Coverage, c => c.Target.Predicate == "served_procedure_feasible");
     }
 
     private static RoundsFacts Kitchen(bool secondChain = false) => Facts() with
     {
         FoodPlan = new FoodPlan { Portfolio = [new() { Channel = CandidateRules.FoodCandidate(CandidateKind.Cook, "cooking-capacity", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] },
-        ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read([
+        ForecastObserved = new() { WorkPawns = new WorkPawnsRead([
             Cook("expert", 8), Cook("learner", 1)]) },
         WorkClaims = new([], [], [], []),
         WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([

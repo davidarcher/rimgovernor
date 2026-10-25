@@ -74,11 +74,11 @@ public static class LaborRules
 
     /// <summary>
     /// Counts the available pawns whose work settings enable <paramref name="work"/> (priority above zero and not
-    /// disabled). Any available pawn with an empty work-settings list makes the count unknown: native lists every
-    /// WorkTypeDef for a pawn whose work applies, so an empty list is an unobserved census, and partial labor
+    /// disabled). An available pawn with an empty work-settings list violates the census contract: native lists every
+    /// WorkTypeDef for a pawn whose work applies, and partial labor
     /// evidence must not admit or refuse work.
     /// </summary>
-    public static Fact<int> WorkersFor(IReadOnlyList<WorkPawn> pawns, WorkType work)
+    public static int WorkersFor(IReadOnlyList<WorkPawn> pawns, WorkType work)
     {
         var count = 0;
         foreach (var p in pawns)
@@ -89,7 +89,7 @@ public static class LaborRules
             }
             if (rows.Count == 0)
             {
-                return Unknown<int>();
+                throw new DomainException("empty available pawn work census");
             }
             foreach (var w in rows)
             {
@@ -99,6 +99,6 @@ public static class LaborRules
                 }
             }
         }
-        return Known(count);
+        return count;
     }
 }

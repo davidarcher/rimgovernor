@@ -49,10 +49,8 @@ public static partial class LayoutRoomsRules
                 }
             }
         }
-        var listKnown = pawns is WorkPawnsRead.Read;
-        var list = pawns is WorkPawnsRead.Read { Pawns: var listRows } ? listRows : default;
-        Add(listKnown && list.Count > 0, PlannedRole.Nursery, PlannedRole.Classroom);
-        Add(listKnown && list.Count > 0, PlannedRole.DeathrestChamber);
+        Add(true, PlannedRole.Nursery, PlannedRole.Classroom);
+        Add(true, PlannedRole.DeathrestChamber);
         Add(true, PlannedRole.Worship);
         Add(containment.Demand.Entities == 0, PlannedRole.ContainmentCell);
         Add(isolation.Pawns is IsolationCensus.Counted { Held.Count: 0 }, PlannedRole.IsolationRoom);

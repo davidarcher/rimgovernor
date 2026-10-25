@@ -86,19 +86,11 @@ public static partial class MedicalRules
 
     /// <summary>
     /// The colonists' standing cap: NormalOrWorse while stock of the normal-care medicine (potency rank 1) meets
-    /// the per-colonist target, else HerbalOrWorse. Unknown without the catalog's medicines.
+    /// the per-colonist target, else HerbalOrWorse. The catalog must identify the normal-care medicine.
     /// </summary>
-    public static (MedicalCare Care, bool Ok) ColonistCareBase(ItemFacts items, EquatableArray<Amount> resources, long colonists, MedicalReservePolicy p)
+    public static MedicalCare ColonistCareBase(ItemFacts items, EquatableArray<Amount> resources, long colonists, MedicalReservePolicy p)
     {
-        Resource normal;
-        try
-        {
-            normal = items.MedicineAt(1);
-        }
-        catch (DomainException)
-        {
-            return (MedicalCare.None, false);
-        }
+        var normal = items.MedicineAt(1);
         long industrial = 0;
         foreach (var row in resources)
         {
@@ -109,9 +101,9 @@ public static partial class MedicalRules
         }
         if (colonists > 0 && industrial >= colonists * p.TargetPerColonist)
         {
-            return (MedicalCare.Normal, true);
+            return MedicalCare.Normal;
         }
-        return (MedicalCare.Herbal, true);
+        return MedicalCare.Herbal;
     }
 
     /// <summary>A prisoner's standing cap and whether a serious condition may raise it.</summary>
@@ -176,21 +168,16 @@ public static partial class MedicalRules
             }
         }
 
-        if (f.MedicalPawns.TryGetValue(out var colonists))
+        var colonists = f.MedicalPawns;
+        if (colonists.Count != 0)
         {
             var living = colonists.LongCount(c => !c.Dead);
-            var (baseCare, ok) = ColonistCareBase(f.Items, f.Resources, living, p);
-            if (ok)
+            var baseCare = ColonistCareBase(f.Items, f.Resources, living, p);
+            foreach (var c in colonists)
             {
-                foreach (var c in colonists)
-                {
-                    if (c.Dead)
-                    {
-                        continue;
-                    }
-                    var (want, capOk) = Capped(baseCare, true, c.Conditions, c.LifeThreatening);
-                    Add(c.Id, c.Care != want, want, capOk);
-                }
+                if (c.Dead) continue;
+                var (want, capOk) = Capped(baseCare, true, c.Conditions, c.LifeThreatening);
+                Add(c.Id, c.Care != want, want, capOk);
             }
         }
         foreach (var row in f.Population.Prisoners)
@@ -221,8 +208,8 @@ public static partial class MedicalRules
         return output;
     }
 
-    /// <summary>The review's MedicalCareOwed fact: a care change is owed. Unknown pawns owe nothing.</summary>
-    public static Fact<bool> MedicalCareOwed(RoundsFacts f, MedicalReservePolicy p) => Known(MedicalCareChanges(f, p).Count > 0);
+    /// <summary>The review's MedicalCareOwed flag: a care change is owed.</summary>
+    public static bool MedicalCareOwed(RoundsFacts f, MedicalReservePolicy p) => MedicalCareChanges(f, p).Count > 0;
 
     private static bool FiniteUnit(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && v >= 0 && v <= 1;
 }

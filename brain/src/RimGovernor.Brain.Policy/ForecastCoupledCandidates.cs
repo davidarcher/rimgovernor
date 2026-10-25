@@ -180,7 +180,7 @@ public sealed partial record ForecastCoupledCandidates
         }
         else findings.Add("unknown_clothing_requirements");
         var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology),
-            facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0
+            facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients == 0
             && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level <= 0));
         tasks.AddRange(practice.Tasks); options.AddRange(practice.Options); alternatives.AddRange(practice.Roots);
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
@@ -401,7 +401,7 @@ public sealed partial record ForecastCoupledCandidates
                 : new Dictionary<string, CardPawnFacts>(),
             // The colonists' thoughts read whole (#3805). Two rows for one pawn are contradictory evidence: no row.
             // An unread census gives no pawn a row.
-            ColonistThoughts = (facts.MoodPawns.TryGetValue(out var moods) ? moods : []).GroupBy(m => m.Id.Value, StringComparer.Ordinal)
+            ColonistThoughts = facts.MoodPawns.GroupBy(m => m.Id.Value, StringComparer.Ordinal)
                 .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Thoughts, StringComparer.Ordinal),
         },
             EquatableArray.From(DistinctAlternatives(alternatives)), EquatableArray.From(findings), truncated)

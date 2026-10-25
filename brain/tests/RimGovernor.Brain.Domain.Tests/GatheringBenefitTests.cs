@@ -11,8 +11,8 @@ public sealed class GatheringBenefitTests
 
     private static GatheringInput Input(double benefit) => new()
     {
-        Ledger = Known(new MoodLedger { Pawns = Enumerable.Range(0, 4).Select(_ => new MoodPawnLoss { Lost = [new MoodThought("Hungry", -5)] }).ToList() }),
-        Pawns = Known(EquatableArray.From(Enumerable.Range(0, 4).Select(i => Colonist("p" + i)))),
+        Ledger = new MoodLedger { Pawns = Enumerable.Range(0, 4).Select(_ => new MoodPawnLoss { Lost = [new MoodThought("Hungry", -5)] }).ToList() },
+        Pawns = EquatableArray.From(Enumerable.Range(0, 4).Select(i => Colonist("p" + i))),
         Benefit = benefit,
         Calm = Known(true),
         Census = new CurrentConstruction

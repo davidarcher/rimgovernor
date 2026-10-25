@@ -21,7 +21,7 @@ public static class RoundsFactsSurgeryExtensions
     /// <summary>The surgery ranking context over f: the hospital bed, the work profiles and the health goals.</summary>
     public static SurgeryContext SurgeryContextOf(this RoundsFacts f)
     {
-        f.WorkProfiles.TryGetValue(out var profiles);
+        var profiles = f.WorkProfiles;
         return new SurgeryContext
         {
             Profiles = profiles,
@@ -106,13 +106,10 @@ public static partial class SurgeryRules
     public const double ElectiveFailureCap = 0.05;
 
     /// <summary>No living colonist has an operation the planner serves. A queued bill does not settle it; the health change does.</summary>
-    public static Fact<bool> SurgeryRecovered(Fact<EquatableArray<CarePawn>> pawns)
+    public static bool SurgeryRecovered(EquatableArray<CarePawn> pawns)
     {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        return Known(!rows.Any(pawn => !pawn.Dead && pawn.Operations.Any(op => ServedSurgery(pawn, op) > 0)));
+        var rows = pawns;
+        return !rows.Any(pawn => !pawn.Dead && pawn.Operations.Any(op => ServedSurgery(pawn, op) > 0));
     }
 
     /// <summary>The operation's part index; NoSurgeryPart for a whole-body recipe.</summary>
@@ -210,21 +207,18 @@ public static partial class SurgeryRules
     /// A chosen elective whose part is missing (ChosenElectives) also holds it open while a usable bench can
     /// fabricate the part: the part bill is the work. fabricable is FabricableParts; null fabricates nothing.
     /// </summary>
-    public static Fact<bool> ElectiveSurgeryOwed(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, IReadOnlySet<Resource>? fabricable)
+    public static bool ElectiveSurgeryOwed(EquatableArray<CarePawn> pawns, SurgeryContext ctx, IReadOnlySet<Resource>? fabricable)
     {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
+        var rows = pawns;
         if (!ctx.HospitalBed)
         {
-            return Known(false);
+            return false;
         }
         foreach (var want in ChosenElectives(pawns, ctx))
         {
             if (FabricableItems(want.Items, fabricable).Count > 0)
             {
-                return Known(true);
+                return true;
             }
         }
         foreach (var pawn in rows)
@@ -238,11 +232,11 @@ public static partial class SurgeryRules
             {
                 if ((ElectiveUpgrade(op) || GoalOperation(op, goals)) && op.Operation.IngredientsOnMap && SurgeryAcceptable(op.Operation, ElectiveFailureCap))
                 {
-                    return Known(true);
+                    return true;
                 }
             }
         }
-        return Known(false);
+        return false;
     }
 
     /// <summary>Some humanlike, non-prisoner bed is flagged medical.</summary>
@@ -256,11 +250,11 @@ public static partial class SurgeryRules
     /// part, weighted by its role (UpgradeRoleWeight). When electives are allowed, healthy parts compete with
     /// their gain over the natural part. A patient with a served operation queues that first; two patients never queue the same part item in one review.
     /// </summary>
-    public static SurgerySelection SelectSurgery(Fact<EquatableArray<CarePawn>> pawns, IReadOnlySet<PawnId>? inFlight, SurgeryContext ctx)
+    public static SurgerySelection SelectSurgery(EquatableArray<CarePawn> pawns, IReadOnlySet<PawnId>? inFlight, SurgeryContext ctx)
     {
         var wants = new List<SurgeryWant>();
         var queue = new List<SurgeryChoice>();
-        pawns.TryGetValue(out var rowList);
+        var rowList = pawns;
         var rows = rowList;
         var electives = ctx.HospitalBed;
         var profiles = new Dictionary<PawnId, PawnProfile>();
@@ -508,7 +502,7 @@ public static partial class SurgeryRules
         op.Chance is SurgeryChance.Rated rated && Acceptable(op, rated.IdealSuccess, failureCap);
 
     /// <summary>The living colonists whose served operation waits only on a better bed or room: the hospital planner's surgical demand, which needs a Bed, not a sleeping spot.</summary>
-    public static IReadOnlyList<PawnId> SurgeryBedShortPatients(Fact<EquatableArray<CarePawn>> pawns)
+    public static IReadOnlyList<PawnId> SurgeryBedShortPatients(EquatableArray<CarePawn> pawns)
     {
         var ids = new List<PawnId>();
         var seen = new HashSet<PawnId>();

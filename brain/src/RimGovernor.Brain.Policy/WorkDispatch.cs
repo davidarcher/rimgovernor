@@ -288,12 +288,12 @@ public static partial class WorkRules
             }
             var profile = PawnRules.BuildProfile(p);
             var speed = stat.Length == 0 ? 1 : p.WorkSpeeds.FirstOrDefault(s => s.Stat == stat)?.Value;
-            if (!profile.WorkHours.TryGetValue(out var h) || speed is not { } read)
+            if (speed is not { } read)
             {
                 workers = [];
                 return false;
             }
-            output.Add(new BenchWorker { WorkHoursPerDay = h, WorkSpeed = Math.Max(read, 0) });
+            output.Add(new BenchWorker { WorkHoursPerDay = profile.WorkHours, WorkSpeed = Math.Max(read, 0) });
         }
         return true;
     }

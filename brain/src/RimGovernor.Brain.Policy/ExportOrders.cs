@@ -5,7 +5,7 @@ public sealed record ExportRequest
 {
     public IReadOnlyList<GearBench> Benches { get; init; } = [];
 
-    public Fact<EquatableArray<PawnProfile>> Profiles { get; init; }
+    public EquatableArray<PawnProfile> Profiles { get; init; }
 
     public ItemFacts Items { get; init; } = new();
 
@@ -608,17 +608,14 @@ public static class ExportOrdersRules
         {
             return Plan();
         }
-        var pk = r.Profiles.TryGetValue(out var profiles);
+        var profiles = r.Profiles;
         var ck = r.CashCap.TryGetValue(out var cash);
-        if (!pk)
-        {
-            declared.Unread(Cause.UnreadWorkers);
-        }
+
         if (!ck)
         {
             declared.Unread(Cause.UnreadTraderCash);
         }
-        if (!pk || !ck)
+        if (!ck)
         {
             return Plan();
         }
@@ -773,7 +770,7 @@ public static class ExportOrdersRules
     public static IReadOnlyList<ExportCandidate> RankExports(ExportRequest r)
     {
         var recipes = ExportRecipes(r);
-        _ = r.Profiles.TryGetValue(out var profiles);
+        var profiles = r.Profiles;
         var result = new List<ExportCandidate>();
         foreach (var e in recipes)
         {

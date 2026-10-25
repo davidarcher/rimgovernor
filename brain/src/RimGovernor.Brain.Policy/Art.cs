@@ -127,7 +127,7 @@ public static class ArtRules
 
     /// <summary>The qualifying artists with Inspired_Creativity, in ID order.</summary>
     public static IReadOnlyList<PawnId> InspiredArtists(IEnumerable<PawnProfile> profiles) =>
-        [.. profiles.Where(p => p.Inspiration.TryGetValue(out var inspiration) && inspiration == InspiredCreativity && Artist(p)).Select(p => p.Id).Order()];
+        [.. profiles.Where(p => p.Inspiration == InspiredCreativity && Artist(p)).Select(p => p.Id).Order()];
 
     /// <summary>
     /// One large sculpture bill pinned to every inspired artist lacking an active one. The caller orders these

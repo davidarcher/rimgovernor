@@ -66,7 +66,7 @@ public static partial class PrisonerMedicineRules
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        var sale = OrganHarvestRules.OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], RoundsRules.Positive(silverShort), stock, f.Recipes);
+        var sale = OrganHarvestRules.OrganNeeds([], [], RoundsRules.Positive(silverShort), stock, f.Recipes);
         if (CareLimitedHarvest(f.Population, sale, [], null, f.Recipes) is null)
         {
             return needs;

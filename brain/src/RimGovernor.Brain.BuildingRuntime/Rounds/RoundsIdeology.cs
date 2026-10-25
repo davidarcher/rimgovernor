@@ -63,7 +63,7 @@ public sealed class IdeologyReader
             return facts;
         }
         var ideology = projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
-        var pawns = projection.WorkPawns.Require();
+        var pawns = projection.WorkPawns.Pawns;
         if (_roles)
         {
             facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(ideology, pawns, SelectedWork(read, scope.World, call)) };

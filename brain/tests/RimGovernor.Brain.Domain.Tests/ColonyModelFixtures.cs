@@ -79,11 +79,11 @@ internal static class ColonyModelFixtures
             },
             MedicalReserve = new MedicalReserveObservation
             {
-                Items = Known(EquatableArray.From(new[]
+                Items = EquatableArray.From(new[]
                 {
-                    new MedicineStackRow { Id = "m1", Definition = new Resource("MedicineHerbal"), Count = 4 },
-                    new MedicineStackRow { Id = "m2", Definition = new Resource("MedicineIndustrial"), Count = 9, Forbidden = true },
-                })),
+                    new MedicineStackRow { Id = "m1", Definition = new Resource("MedicineHerbal"), Count = 4, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
+                    new MedicineStackRow { Id = "m2", Definition = new Resource("MedicineIndustrial"), Count = 9, Forbidden = true, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
+                }),
             },
             NeedsAlternatives = new ForecastNeedsReview(NeedsFixtures.Empty with {
                 Pawns = [Pawn()],
@@ -108,7 +108,7 @@ internal static class ColonyModelFixtures
         Definitions = [CropRow()],
         Farms = [ZoneFixtures.Growing("zone1", Crop)],
         Cells = [.. Enumerable.Range(0, 4).Select(x => SiteCellFixtures.Ground with { Cell = new Cell(x, 0), Zone = true, ZoneId = "zone1", Fertility = 0.5 + (0.1 * x) })],
-        WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
+        WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
         Acquisition = [],
     };
 

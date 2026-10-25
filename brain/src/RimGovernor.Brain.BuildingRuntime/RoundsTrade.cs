@@ -237,10 +237,7 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException("negotiator: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var read = await Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)Reviewer.Native, expected, call).ConfigureAwait(false);
-        if (read.Projection.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            return eligible[0];
-        }
+        var pawns = read.Projection.WorkPawns.Pawns;
         if (Pol.PawnRules.TraderFor(Pol.PawnRules.Among(Pol.PawnRules.Profiles(pawns), eligible)) is not { } chosen)
         {
             return eligible[0];

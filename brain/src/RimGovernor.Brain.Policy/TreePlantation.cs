@@ -118,10 +118,7 @@ public static partial class TreePlantationRules
     /// <summary>The best Plants level among the colonists who sow: available, able to do growing work. Unknown while any pawn's availability, work or skills were not read.</summary>
     public static Fact<int> GrowerSkill(WorkPawnsRead fact)
     {
-        if (fact is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            return Unknown<int>();
-        }
+        var pawns = fact.Pawns;
         var best = 0;
         foreach (var pawn in pawns)
         {

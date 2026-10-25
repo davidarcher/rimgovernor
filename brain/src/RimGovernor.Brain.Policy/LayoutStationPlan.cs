@@ -31,7 +31,7 @@ public sealed record StationFacts
     public long Colonists { get; init; }
 
     /// <summary>Patients and Surgical size the hospital ward as SelectHospitalBed does.</summary>
-    public Fact<EquatableArray<CarePawn>> Patients { get; init; }
+    public EquatableArray<CarePawn> Patients { get; init; }
 
     public IReadOnlyList<PawnId> Surgical { get; init; } = [];
 
@@ -48,7 +48,7 @@ public sealed record StationFacts
     public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     /// <summary>Says who is a baby.</summary>
-    public WorkPawnsRead WorkPawns { get; init; } = WorkPawnsRead.NotRead;
+    public WorkPawnsRead WorkPawns { get; init; } = new WorkPawnsRead([]);
 
     /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread, which fails the disturbed-sleep price that needs it.</summary>
     public RestSchedule? Rest { get; init; }
@@ -101,7 +101,7 @@ public sealed record StationFacts
     public IReadOnlyList<SuiteWish> Suites { get; init; } = [];
 
     /// <summary>The colonists' mean mood level, 0 to 1, the mood price's baseline (#2975, #2878); unknown leaves the comfort tiers and the lost role effects unpriced.</summary>
-    public Fact<double> ExpectedMood { get; init; }
+    public StationMood ExpectedMood { get; init; } = new StationMood.NoMood();
 
     /// <summary>What the colony reads for the bed merge's price (#3658); its default reads nothing, which fails a chain with a free-bed pool naming the unread fact (#3747).</summary>
     public BedMergeFacts BedMerge { get; init; } = new BedMergeFacts.Unread("sleeper_mood");
@@ -481,19 +481,12 @@ public static partial class LayoutStationPlanRules
     public static StationPopulation StationPopulationOf(StationFacts f)
     {
         var colonists = f.Colonists;
-        var (ill, ok) = HospitalRules.IllPatients(f.Patients, f.Surgical);
-        if (!ok)
-        {
-            throw new RequiredFactException("patients");
-        }
+        var ill = HospitalRules.IllPatients(f.Patients, f.Surgical);
         if (!f.Prisoners.TryGetValue(out var prisoners))
         {
             throw new RequiredFactException("prisoners");
         }
-        if (f.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            throw new RequiredFactException("pawn stages");
-        }
+        var pawns = f.WorkPawns.Pawns;
         var babies = BabyCount(pawns);
         return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies, NurseryFloor(f)), Herds = f.Herds };
     }

@@ -578,7 +578,7 @@ public sealed partial class Rounder
                 && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
         reading = reading.WithFacts(rf => rf with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
-        var (amputationCritical, amputationUrgent) = EmergencyNeedsRules.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients);
+        var (amputationCritical, amputationUrgent) = EmergencyNeedsRules.PatientCounts(reading.Emergency, reading.Projection.Facts.MedicalPawns);
         reading = reading.WithFacts(rf => rf with { CriticalPatients = amputationCritical, UrgentPatients = amputationUrgent });
         // The admin/work-assignments Need is owed while a drafted colonist no live plan needs waits for the undraft sweep. A draft
         // its plan still holds is working, not stranded.
@@ -622,9 +622,9 @@ public sealed partial class Rounder
         }
         // The work goal's coverage reads the demand the last review derived: the value the work planner dispatches on.
         var resourceTargets = ResourceTargets(state.Snapshot);
-        if (reading.Projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
+        var pawns = reading.Projection.WorkPawns.Pawns;
         {
-            reading = reading.WithFacts(rf => rf with { WorkProfiles = Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)]) });
+            reading = reading.WithFacts(rf => rf with { WorkProfiles = [.. PawnRules.Profiles(pawns)] });
             var requiredFact = RoundsProjectBill.RoundsProjectWork(definitions, reading.Projection.Definitions);
             var known = requiredFact.TryGetValue(out var required);
             if (known)

@@ -47,9 +47,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.BundleSnapshot? ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             var statusBegan = Now();
-            Obs.StatusSnapshot emergency;
-            try { emergency = NativeObservationTools.Status(map, context); }
-            catch (System.Exception ex) { ObservationWork.Failed("emergency", ex); return null; }
+            var emergency = SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Emergency), () => NativeObservationTools.Status(map, context));
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
             observed = observed with { Emergency = emergency };
             ReadFamilies(map, context, ref observed, request);

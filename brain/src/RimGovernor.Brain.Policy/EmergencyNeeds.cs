@@ -6,7 +6,7 @@ public static class EmergencyNeedsRules
     /// Uses the same census and medical/threat rules as clock safety. Incomplete or
     /// conflicting evidence cannot become a recovered routine need.
     /// </summary>
-    public static (Fact<long> Hostiles, Fact<long> Patients) EmergencyNeeds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
+    public static (Fact<long> Hostiles, long Patients) EmergencyNeeds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
     {
         var decision = EmergencyRules.EvaluateEmergency(snapshot, current, tick);
         long threats = 0;
@@ -15,7 +15,7 @@ public static class EmergencyNeedsRules
             switch (hold.Reason)
             {
                 case EmergencyReason.StaleFacts:
-                    return (Unknown<long>(), Unknown<long>());
+                    throw new RequiredFactException("current emergency census");
                 case EmergencyReason.UnsafeThreat:
                     threats++;
                     break;
@@ -30,29 +30,29 @@ public static class EmergencyNeedsRules
         }
         // Patients are counted from the census, not the holds: a colonist who only needs tending is the tend
         // planner's patient although the emergency no longer holds dispatch for them.
-        return (Known(threats), Known(CountPatients(snapshot, true)));
+        return (Known(threats), CountPatients(snapshot.Facts, true));
     }
 
     /// <summary>
     /// Counts the critical patients who are bleeding or downed with a tend outstanding:
     /// the ones whose care cannot wait for ordinary work. A living colonist who merely needs tending, or who is
-    /// downed with nothing to tend, is a patient but not an urgent one. A stale census is unknown, exactly as
+    /// downed with nothing to tend, is a patient but not an urgent one. A stale census fails the read, exactly as
     /// <see cref="EmergencyNeeds"/> reports it.
     /// </summary>
-    public static Fact<long> UrgentPatients(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
+    public static long UrgentPatients(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
     {
         var (_, patients) = EmergencyNeeds(snapshot, current, tick);
-        return patients.IsKnown ? Known(CountPatients(snapshot, false)) : Unknown<long>();
+        return CountPatients(snapshot.Facts, false);
     }
 
     /// <summary>
     /// Counts the living colonists who are urgent patients and, with tending, every
     /// downed, bleeding or tend-needing colonist too.
     /// </summary>
-    private static long CountPatients(EmergencySnapshot snapshot, bool tending)
+    private static long CountPatients(EmergencyFacts facts, bool tending)
     {
         long patients = 0;
-        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(facts))
         {
             if (pawn.Dead)
             {
@@ -69,16 +69,12 @@ public static class EmergencyNeedsRules
     /// <summary>
     /// The critical patients by id (#3258): the living colonists and dependents <see cref="EmergencyNeeds"/> counts
     /// (urgent, downed, bleeding or needing a tend) and the colonists a life-saving amputation would save
-    /// (<see cref="AmputationNeeds"/>), sorted. Unknown exactly when the count is; an unknown care census adds
-    /// nobody.
+    /// (<see cref="PatientCounts"/>), sorted. A stale census raises a boundary failure.
     /// </summary>
-    public static Fact<EquatableArray<PawnId>> CriticalPatientIds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick, Fact<EquatableArray<CarePawn>> medical)
+    public static EquatableArray<PawnId> CriticalPatientIds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick, EquatableArray<CarePawn> medical)
     {
         var (_, patients) = EmergencyNeeds(snapshot, current, tick);
-        if (!patients.IsKnown)
-        {
-            return Unknown<EquatableArray<PawnId>>();
-        }
+
         var ids = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
@@ -91,35 +87,25 @@ public static class EmergencyNeedsRules
                 ids.Add(pawn.Id.Value);
             }
         }
-        if (medical.TryGetValue(out var pawns))
         {
+            var pawns = medical;
             foreach (var pawn in pawns.Where(p => EmergencyRules.LifeSavingAmputations(p).Count > 0))
             {
                 ids.Add(pawn.Id.Value);
             }
         }
-        return Known(EquatableArray.From(ids.Select(id => new PawnId(id))));
+        return EquatableArray.From(ids.Select(id => new PawnId(id)));
     }
 
-    /// <summary>
-    /// Adds the colonists a life-saving amputation would save to the critical and
-    /// urgent patient counts, never counting a colonist either already includes. Losing an immunity race is an
-    /// emergency: the amputation runs at CriticalMedical's priority. Unknown care facts add nobody; an unknown
-    /// count stays unknown.
-    /// </summary>
-    public static (Fact<long> Patients, Fact<long> Urgent) AmputationNeeds(
-        EmergencySnapshot snapshot,
-        Fact<EquatableArray<CarePawn>> medical,
-        Fact<long> patients,
-        Fact<long> urgent
-    )
+    /// <summary>The same-frame critical and urgent census, including patients whose life-saving amputation is owed.</summary>
+    public static (long Patients, long Urgent) PatientCounts(EmergencyFacts facts, EquatableArray<CarePawn> medical)
     {
-        if (!medical.TryGetValue(out var pawns))
-        {
-            return (patients, urgent);
-        }
+        if (facts.Unseen.Count != 0) throw new RequiredFactException("current emergency census");
+        var patients = CountPatients(facts, true);
+        var urgent = CountPatients(facts, false);
+        var pawns = medical;
         var byId = new Dictionary<PawnId, EmergencyPawn>();
-        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(facts))
         {
             byId[pawn.Id] = pawn;
         }
@@ -141,7 +127,7 @@ public static class EmergencyNeedsRules
                 critical++;
             }
         }
-        static Fact<long> Add(Fact<long> f, long n) => f.TryGetValue(out var v) ? Known(v + n) : f;
-        return (Add(patients, critical), Add(urgent, pressing));
+
+        return (patients + critical, urgent + pressing);
     }
 }

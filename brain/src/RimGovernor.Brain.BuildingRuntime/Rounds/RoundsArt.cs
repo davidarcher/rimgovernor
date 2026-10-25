@@ -35,7 +35,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var sculpting = ArtOrdersRules.SculptureInProgress(benches);
-        var pawns = projection.WorkPawns.Require();
+        var pawns = projection.WorkPawns.Pawns;
         var profiles = PawnRules.Profiles(pawns);
         var request = new ArtOrderRequest
         {
@@ -46,7 +46,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
             RoomsOwed = projection.Facts.SculptureRoomsOwed,
             Profiles = [.. profiles],
         };
-        var need = RoomsFamily.ArtNeed(new RoomsFacts { Profiles = Known(request.Profiles), SculptureRoomsOwed = request.RoomsOwed });
+        var need = RoomsFamily.ArtNeed(new RoomsFacts { Profiles = EquatableArray.From(request.Profiles), SculptureRoomsOwed = request.RoomsOwed });
         lock (_mu)
         {
             _sculpting = sculpting;

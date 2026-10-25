@@ -34,10 +34,10 @@ public sealed record MilitaryFacts
     /// </summary>
     public EquatableArray<PawnId> HuntPrey { get; init; }
 
-    public Fact<long> Armed { get; init; }
+    public long Armed { get; init; }
 
     /// <summary>Living, conscious colonists able to fight who hold no weapon.</summary>
-    public Fact<long> Unarmed { get; init; }
+    public long Unarmed { get; init; }
 
     /// <summary>The colonist count the foothold sizes for (<see cref="RoundsRules.FootholdCount"/>).</summary>
     public long Foothold { get; init; }
@@ -303,8 +303,8 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// </summary>
     public static Fact<bool> DefenseMet(MilitaryFacts f)
     {
-        var armed = RoundsRules.Measured(f.Armed, v => v >= Math.Min(2, f.Foothold));
-        return BasicDefenseRules.BasicDefenseRecovered(RoundsRules.AllFacts(armed, RoundsRules.Measured(f.Hostiles, v => v == 0)), f.Unarmed);
+        var armed = f.Armed >= Math.Min(2, f.Foothold);
+        return BasicDefenseRules.BasicDefenseRecovered(RoundsRules.Measured(f.Hostiles, v => v == 0 && armed), f.Unarmed);
     }
 
     private static Need DefenseNeed(MilitaryFacts f)
@@ -316,14 +316,15 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         }
         var deficit = ok ? 0.0 : 1.0;
         var n = f.Foothold;
-        if (!ok && f.Armed.TryGetValue(out var stock) && n > 0)
+        var stock = f.Armed;
+        if (!ok && n > 0)
         {
             // The armed shortfall's share of the target; with the target armed, the unarmed share of the fighters.
             var target = RoundsRules.ArmedTarget(n);
             var share = Math.Max(0, (double)(target - stock) / target);
-            if (f.Unarmed.TryGetValue(out var unarmed) && unarmed > 0 && share == 0)
+            if (f.Unarmed > 0 && share == 0)
             {
-                share = (double)unarmed / (unarmed + stock);
+                share = (double)f.Unarmed / (f.Unarmed + stock);
             }
             deficit = share;
         }

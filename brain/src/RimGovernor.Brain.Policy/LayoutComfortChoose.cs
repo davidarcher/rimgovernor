@@ -159,7 +159,7 @@ public static partial class LayoutComfortChooseRules
     internal static IReadOnlyList<ComfortChoice> AdviseComfort(StationFacts f, StationGraph graph, double steel)
     {
         var colonists = f.Colonists;
-        if (!f.ExpectedMood.TryGetValue(out var mood) || colonists <= 0 || !f.Catalog.Mood.Break.Valid() || LayoutLightRules.StationWorkDayOf(f) is not StationWorkDay.Priced day)
+        if (f.ExpectedMood is not StationMood.Expected { Level: var mood } || colonists <= 0 || !f.Catalog.Mood.Break.Valid() || LayoutLightRules.StationWorkDayOf(f) is not StationWorkDay.Priced day)
         {
             return [];
         }

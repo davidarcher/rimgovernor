@@ -259,10 +259,7 @@ public static partial class RecoveryRules
         {
             return Known(false);
         }
-        if (pawns is not WorkPawnsRead.Read { Pawns: var rows })
-        {
-            return Unknown<bool>();
-        }
+        var rows = pawns.Pawns;
         foreach (var pawn in rows)
         {
             if (!pawn.Id.Equals(service.Pawn))

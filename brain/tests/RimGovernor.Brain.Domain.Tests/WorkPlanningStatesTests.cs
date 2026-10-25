@@ -22,6 +22,11 @@ public sealed class WorkPlanningStatesTests
         [
             new Verse.ThingDef { defName = "Silver" },
             new Verse.TerrainDef { defName = "Soil" },
+            new Verse.ThingDef { defName = "Human", race = new Verse.RaceProperties { intelligence = Verse.Intelligence.Humanlike, lifeStageAges = [new() { minAge = 0 }] } },
+            new Verse.GeneDef { defName = "TestGene" },
+            new Verse.MechWorkModeDef { defName = nameof(RimWorld.MechWorkModeDefOf.Work) },
+            new Verse.MechWorkModeDef { defName = nameof(RimWorld.MechWorkModeDefOf.Escort) },
+            new Verse.MechWorkModeDef { defName = nameof(RimWorld.MechWorkModeDefOf.Recharge) },
             new Verse.HediffDef { defName = "BloodLoss", stages = [new Verse.HediffStage { label = "minor", minSeverity = 0.15f }, new Verse.HediffStage { label = "moderate", minSeverity = 0.5f }] },
         ],
         DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));

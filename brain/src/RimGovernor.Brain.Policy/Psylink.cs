@@ -32,7 +32,7 @@ public static partial class PsylinkRules
     /// </summary>
     public static EquatableArray<PawnId> PsylinkCandidates(RoyaltyFacts facts, WorkPawnsRead pawns)
     {
-        var rows = pawns.Require();
+        var rows = pawns.Pawns;
         var output = new List<PawnId>();
         if (!facts.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {
@@ -59,7 +59,7 @@ public static partial class PsylinkRules
     /// </summary>
     public static EquatableArray<PawnId> PsylinkLevelUps(RoyaltyFacts facts, WorkPawnsRead pawns)
     {
-        var rows = pawns.Require();
+        var rows = pawns.Pawns;
         var output = new List<PawnId>();
         if (!facts.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {

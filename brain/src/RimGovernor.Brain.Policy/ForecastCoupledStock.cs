@@ -10,8 +10,6 @@ public static partial class ForecastCoupled
         private FoodConsumer[] otherConsumers = [];
         private double consumedUntil;
         private readonly HashSet<string> outsidePhysical = new(StringComparer.Ordinal);
-        /// <summary>Whether every medicine row's freshness was read; a row whose was not is left out of the census.</summary>
-        private bool medicineRead;
 
         /// <summary>A scheduled effect's units: its amount, or a named resource's nutrition over that resource's nutrition per
         /// unit, which the item facts carry for every edible def the model schedules.</summary>
@@ -49,7 +47,6 @@ public static partial class ForecastCoupled
         {
             census.Clear(); outsidePhysical.Clear(); food = request.Facts.Food; items = request.Facts.Items; consumedUntil = 0;
             var physical = request.Facts.ResourceThings.ToHashSet(StringComparer.Ordinal);
-            medicineRead = true;
             // A consumer whose nutrition rate is not a finite non-negative number cannot be drawn against; the outcome is refused.
             foreach (var consumer in food.Consumers)
                 if (!double.IsFinite(consumer.NutritionPerDay) || consumer.NutritionPerDay < 0) Refuse("food_consumer_rate_unread", consumer.Id.Value);
@@ -68,13 +65,12 @@ public static partial class ForecastCoupled
                 Include(row.Id, row.DefName, count, fresh);
                 if (!physical.Contains(row.Id)) outsidePhysical.Add(row.Id);
             }
-            if (request.Facts.Medicine.Items.TryGetValue(out var medicine))
-                foreach (var row in medicine)
+            foreach (var row in request.Facts.Medicine.Items)
                 {
                     double fresh;
-                    if (row.Perishable == Known(false)) fresh = double.PositiveInfinity;
-                    else if (row.Perishable == Known(true) && row.RotTicks.TryGetValue(out var rot)) fresh = rot;
-                    else { medicineRead = false; continue; }
+                    if (row.Rot is RimGovernor.Contracts.Wire.Observations.ItemRot.Never) fresh = double.PositiveInfinity;
+                    else if (row.Rot is RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting rot) fresh = rot.Ticks;
+                    else throw new DomainException("invalid medicine rot state");
                     census[row.Id] = new(row.Id, row.Definition, row.Count, fresh, FoodEligibility.Ineligible, 0d, [], !row.Forbidden && physical?.Contains(row.Id) == true);
                     Include(row.Id, row.Definition, row.Count, fresh);
                     if (physical is null || !physical.Contains(row.Id)) outsidePhysical.Add(row.Id);

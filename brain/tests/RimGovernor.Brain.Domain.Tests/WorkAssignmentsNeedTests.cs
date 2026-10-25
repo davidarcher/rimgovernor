@@ -32,9 +32,8 @@ public sealed class WorkAssignmentsNeedTests
 
         Assert.Equal(WorkCoverageState.Unread, facts.WorkCoverage);
         Assert.IsType<WorkRosterRead.Unread>(facts.WorkRoster);
-        Assert.IsType<WorkPawnsRead.Unread>(WorkPawnsRead.NotRead);
         Assert.IsType<WorkRosterRead.Read>(new WorkRosterRead.Read([]));
-        Assert.IsType<WorkPawnsRead.Read>(new WorkPawnsRead.Read([]));
+        Assert.IsType<WorkPawnsRead>(new WorkPawnsRead([]));
         Assert.Equal(Known(false), RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false }, null));
         Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Unmatched, CleanupPawns = false }, null));
     }
@@ -47,11 +46,11 @@ public sealed class WorkAssignmentsNeedTests
         Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unmatched }, null));
         Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { CleanupPawns = true }, null));
         Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { HostilityOwed = true }, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { NamesOwed = Known(true) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { NamesOwed = true }, null));
         Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
         Assert.False(RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread }, null).IsKnown);
         // An owed setting is owed whatever the coverage read says.
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread, MedicalCareOwed = Known(true) }, null));
+        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread, MedicalCareOwed = true }, null));
     }
 
     [Fact]

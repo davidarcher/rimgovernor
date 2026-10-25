@@ -99,7 +99,7 @@ public sealed class MedicalRounds
         EmergencySnapshot? emergency = null;
         var emergencyTick = default(Tick);
         var emergencyFacts = new EmergencyFacts();
-        var medicalPawns = Unknown<EquatableArray<CarePawn>>();
+        EquatableArray<CarePawn> medicalPawns = [];
         if (!scope.Immediate)
         {
             var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, ct).ConfigureAwait(false);
@@ -130,9 +130,9 @@ public sealed class MedicalRounds
             }
             var critical = EmergencyNeedsRules.CriticalPatientIds(emergency, scope.World, emergencyTick, medicalPawns);
             facts = facts with { Critical = critical };
-            if (critical.TryGetValue(out var patients) && patients.Count > 0 && (_tend is not null || _rescue is not null))
+            if (critical.Count > 0 && (_tend is not null || _rescue is not null))
             {
-                facts = facts with { Care = await CareAsync(scope.World, emergencyFacts, patients, ct).ConfigureAwait(false) };
+                facts = facts with { Care = await CareAsync(scope.World, emergencyFacts, critical, ct).ConfigureAwait(false) };
             }
         }
         var elapsed = _reviewer.Clock.Now() - started;
@@ -168,10 +168,7 @@ public sealed class MedicalRounds
     /// </summary>
     private async Task<CriticalCare> CareAsync(GenerationSnapshot world, EmergencyFacts emergency, IReadOnlyList<PawnId> patients, CancellationToken ct)
     {
-        if (!emergency.AllSeen || emergency.Colonists.Count == 0)
-        {
-            return new CriticalCare { Wait = "colonist_census" };
-        }
+
         var identity = Boundary.Identity(world);
         var workers = emergency.Colonists.Select(pawn => pawn.Id).ToHashSet();
         var care = new CriticalCare { Busy = CareHeld(world, patients, ct) };
@@ -366,10 +363,7 @@ public sealed class MedicalRounds
         {
             return Verdict.WaitFor(Cause.MethodUsed, "medical_pair");
         }
-        if (care.Wait.Length > 0)
-        {
-            return Verdict.WaitFor(Cause.MethodUsed, care.Wait);
-        }
+
         if (_tend is not null)
         {
             var (doctor, ok) = MedicalRules.TendDoctorFor(care, patient);

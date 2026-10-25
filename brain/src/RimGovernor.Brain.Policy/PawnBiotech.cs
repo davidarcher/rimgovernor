@@ -19,10 +19,10 @@ public sealed record PawnBiotech
     public required EquatableArray<PawnGene> Genes { get; init; }
 
     /// <summary>The active genes' combined typed effects, resolved from the catalog by the work read.</summary>
-    public Fact<GeneEffects> Effects { get; init; }
+    public GeneEffects Effects { get; init; } = new();
 
-    /// <summary>The race's minimum age in years per work type, resolved from the catalog; known only for a child.</summary>
-    public Fact<IReadOnlyDictionary<WorkType, int>> WorkMinAges { get; init; }
+    /// <summary>The race's minimum age in years per work type, resolved from the catalog.</summary>
+    public IReadOnlyDictionary<WorkType, int> WorkMinAges { get; init; } = new Dictionary<WorkType, int>();
 
     /// <summary>The pawn's mechanitor tracker; null for a pawn that is no mechanitor.</summary>
     public required PawnMechanitor? Mechanitor { get; init; }
@@ -34,9 +34,11 @@ public sealed record PawnBiotech
     public required PawnDeathrest? Deathrest { get; init; }
 
     /// <summary>The pawn row's Biotech block as the policy reads it.</summary>
-    public static PawnBiotech Of(O.PawnBiotech b) => new()
+    public static PawnBiotech Of(O.PawnBiotech b, GeneEffects effects, IReadOnlyDictionary<WorkType, int> ages) => new()
     {
         DevelopmentalStage = b.DevelopmentalStage,
+        Effects = effects,
+        WorkMinAges = ages,
         Genes = EquatableArray.From(b.Genes.Select(g => new PawnGene { Name = g.DefName, Active = g.Active })),
         Mechanitor = b.Mechanitor is { } m ? PawnMechanitor.Of(m) : null,
         Mech = b.Mech is { } mech ? PawnMech.Of(mech) : null,
@@ -72,7 +74,7 @@ public sealed record PawnMechanitor
     /// <summary>The mechs under the pawn's control.</summary>
     public required IReadOnlyList<string> ControlledMechs { get; init; }
 
-    internal static PawnMechanitor Of(O.PawnMechanitor m) => new()
+    public static PawnMechanitor Of(O.PawnMechanitor m) => new()
     {
         UsedBandwidth = m.UsedBandwidth,
         TotalBandwidth = m.TotalBandwidth,
@@ -96,7 +98,7 @@ public sealed record PawnMech
 
     public required PawnMechGroup? Group { get; init; }
 
-    internal static PawnMech Of(O.PawnMech m) => new()
+    public static PawnMech Of(O.PawnMech m) => new()
     {
         Overseer = m.Overseer?.Id ?? "",
         WorkMode = m.WorkMode,

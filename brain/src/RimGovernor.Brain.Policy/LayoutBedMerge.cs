@@ -160,10 +160,7 @@ public static partial class LayoutClusterRules
     /// </summary>
     public static Fact<int> BuildersOf(WorkPawnsRead fact, Func<string, bool>? free = null)
     {
-        if (fact is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            return default;
-        }
+        var pawns = fact.Pawns;
         var n = 0;
         foreach (var pawn in pawns)
         {

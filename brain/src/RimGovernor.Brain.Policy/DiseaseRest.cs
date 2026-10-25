@@ -72,7 +72,7 @@ public static class DiseaseRestRules
     }
 
     /// <summary>Reviews the disease holds against a census. Throws on an invalid observation.</summary>
-    public static IReadOnlyList<DiseaseRest> ReviewDiseaseRest(Fact<EquatableArray<CarePawn>> observed, IReadOnlyList<DiseaseRest> previous)
+    public static IReadOnlyList<DiseaseRest> ReviewDiseaseRest(EquatableArray<CarePawn> observed, IReadOnlyList<DiseaseRest> previous)
     {
         ValidateDiseaseRest(previous);
         var held = new Dictionary<PawnId, HashSet<string>>();
@@ -80,10 +80,7 @@ public static class DiseaseRestRules
         {
             held[row.Pawn] = new HashSet<string>(row.Conditions, StringComparer.Ordinal);
         }
-        if (!observed.TryGetValue(out var pawns))
-        {
-            return previous.ToList();
-        }
+        var pawns = observed;
         var seen = new HashSet<PawnId>();
         foreach (var pawn in pawns)
         {

@@ -7,7 +7,7 @@ public sealed record ColonyForecastObserved
 {
     public RimGovernor.Contracts.Wire.Observations.NeedsForecastRead? Needs { get; init; }
     public RimGovernor.Contracts.Wire.Observations.CoupledForecastRead? Coupled { get; init; }
-    public WorkPawnsRead WorkPawns { get; init; } = WorkPawnsRead.NotRead;
+    public WorkPawnsRead WorkPawns { get; init; } = new WorkPawnsRead([]);
 }
 
 public static class ColonyForecastFactsRules

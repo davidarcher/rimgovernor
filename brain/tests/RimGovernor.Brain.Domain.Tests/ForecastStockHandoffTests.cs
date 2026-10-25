@@ -25,7 +25,7 @@ public sealed class ForecastStockHandoffTests
         {
             Stock = physical, ResourceThings = EquatableArray.From(stocks.Where(s => !s.Reserve && s.Holder.IsEmpty).Select(s => s.Id).Append("med")),
             Food = new() { Larder = new(), Stocks = stocks, Consumers = [new() { Id = new("animal"), NutritionPerDay = 1d }] },
-            Medicine = new() { Items = Known<EquatableArray<MedicineStackRow>>([new() { Id = "med", Definition = Medicine, Count = 5, Perishable = Known(false) }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Perishable = Known(false) }]) },
+            Medicine = new() { Items = [new() { Id = "med", Definition = Medicine, Count = 5, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() }] },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
         var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(facts.Food, []).Value, Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food).Value, Medicine = [new(Medicine, 5)] }, Pawns = [] };
@@ -139,8 +139,8 @@ public sealed class ForecastStockHandoffTests
     {
         var request = Request(Stock("food", 10));
         request = request with { Facts = request.Facts with { Medicine = request.Facts.Medicine with
-        { Items = Known(EquatableArray.From(request.Facts.Medicine.Items.Value.Append(new MedicineStackRow
-        { Id = "unreachable", Definition = Medicine, Count = 100, Perishable = Known(true), RotTicks = Known(30000L) }))) } } };
+        { Items = EquatableArray.From(request.Facts.Medicine.Items.Append(new MedicineStackRow
+        { Id = "unreachable", Definition = Medicine, Count = 100, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(30000) })) } } };
         var handoff = ForecastHandoffPolicy.Project(Evaluate(request))!;
         Assert.Empty(handoff.Gaps);
         Assert.Equal(5, Assert.Single(handoff.State!.Medicine).Count);

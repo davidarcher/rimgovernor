@@ -121,7 +121,7 @@ partial class Rounder
 {
     /// <summary>The colonists the projection reads too hungry to hunt (<see cref="HuntPlanningRules.Hungry"/>); none when the work census is unread.</summary>
     private static IReadOnlySet<string> HuntHungry(ColonyProjection p) =>
-        HuntPlanningRules.Hungry(p.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns } ? pawns.Items : []);
+        HuntPlanningRules.Hungry(p.WorkPawns.Pawns.Items);
 
     internal static FoodPlan ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
     {
@@ -129,7 +129,7 @@ partial class Rounder
 
         var sources = p.Acquisition;
 
-        var workers = p.WorkPawns is WorkPawnsRead.Read { Pawns: var workPawns } ? ResearchRules.RoundsWorkers(workPawns) : p.Workers;
+        var workers = ResearchRules.RoundsWorkers(p.WorkPawns.Pawns);
 
         var forecast = FoodForecastRules.ForecastFood(supply, null);
 
@@ -138,7 +138,7 @@ partial class Rounder
 
         var gunners = 0;
         var hunters = 0;
-        if (p.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
+        var pawns = p.WorkPawns.Pawns;
         {
             var profiles = PawnRules.Profiles(pawns);
             gunners = HuntSquadRules.ArmedHunters(profiles);

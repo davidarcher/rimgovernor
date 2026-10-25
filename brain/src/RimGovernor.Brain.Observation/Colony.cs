@@ -235,7 +235,7 @@ public sealed partial record ColonyProjection
 
     public required double PendingFoodNutrition { get; init; }
 
-    public WorkPawnsRead WorkPawns { get; init; } = WorkPawnsRead.NotRead;
+    public WorkPawnsRead WorkPawns { get; init; } = new WorkPawnsRead([]);
 
     /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread.</summary>
     public RestSchedule? Rest { get; init; }

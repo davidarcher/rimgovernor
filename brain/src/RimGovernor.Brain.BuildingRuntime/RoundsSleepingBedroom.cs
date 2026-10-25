@@ -143,7 +143,7 @@ partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
     internal static Dictionary<PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
-        facts.Facts.MoodPawns.TryGetValue(out var pawns) ? SuitePriorityRules.SuitePressure(pawns) : null;
+        SuitePriorityRules.SuitePressure(facts.Facts.MoodPawns);
 }
 
 public sealed partial class RoundsSleepingUpkeepPlanner

@@ -528,23 +528,7 @@ internal static class StationFactsBuilder
     /// baseline. Unknown while any colonist has no mood need, so the comfort tiers go unpriced rather than priced on
     /// part of the colony.
     /// </summary>
-    public static Fact<double> ExpectedMood(Fact<EquatableArray<MoodPawn>> pawns)
-    {
-        if (!pawns.TryGetValue(out var rows) || rows.Count == 0)
-        {
-            return Unknown<double>();
-        }
-        var sum = 0.0;
-        foreach (var p in rows)
-        {
-            if (p.Mood is not MoodLevel.Has { Target: var target })
-            {
-                return Unknown<double>();
-            }
-            sum += target;
-        }
-        return Known(sum / rows.Count);
-    }
+    public static StationMood ExpectedMood(EquatableArray<MoodPawn> pawns) => StationMood.Of(pawns);
 }
 
 internal static class FieldCrops

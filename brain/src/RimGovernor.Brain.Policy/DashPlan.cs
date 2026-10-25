@@ -235,9 +235,8 @@ public static class DashPlanRules
     {
         var hazards = OutdoorHazardRules.OutdoorHazardsOf(f);
         var ok = f.Hostiles.TryGetValue(out var hostiles);
-        var pk = pawns is WorkPawnsRead.Read;
-        var rows = pawns is WorkPawnsRead.Read { Pawns: var rowsRead } ? rowsRead : default;
-        if (!ok || !pk)
+        var rows = pawns.Pawns;
+        if (!ok)
         {
             return Unknown<DashWindow>();
         }

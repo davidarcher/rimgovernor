@@ -167,7 +167,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         var request = new Pol.ExportRequest
         {
             Benches = benches,
-            Profiles = Unknown<EquatableArray<Pol.PawnProfile>>(),
+            Profiles = projection.Facts.WorkProfiles,
             Items = f.Items,
             Gap = gap,
             Demand = demand,
@@ -177,10 +177,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             CashCap = Unknown<long>(),
             Sources = candidateSources,
         };
-        if (projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            request = request with { Profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Pol.PawnRules.Profiles(pawns)]) };
-        }
         request = request with { Stock = ExportStock(f) };
         if (review.Enabled && review.Snapshot == snapshot)
         {

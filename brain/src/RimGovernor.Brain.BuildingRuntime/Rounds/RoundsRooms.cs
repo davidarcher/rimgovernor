@@ -159,9 +159,7 @@ public sealed class RoomsRounds
         var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
         var floorReview = FlooringRules.ReviewFlooring(census, projection.Rooms, policy.Flooring);
         if (!floorReview.Known) throw new RequiredFactException("flooring census");
-        var profiles = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
-            ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
-            : Unknown<EquatableArray<PawnProfile>>();
+        var profiles = projection.Facts.WorkProfiles;
         var hosting = ComfortRules.ReviewComfort(projection.Facts.RequireComfort(), history, projection.Identity.Tick);
         return new RoomsFacts
         {

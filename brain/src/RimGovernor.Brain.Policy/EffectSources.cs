@@ -72,9 +72,9 @@ public static class EffectSourcesRules
     /// medical read holds no row for is listed in <see cref="EffectSourceFacts.Unread"/>: no card prices it, and the generator
     /// records a finding.
     /// </summary>
-    internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, Fact<EquatableArray<CarePawn>> medical, bool ideologyActive = false)
+    internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, EquatableArray<CarePawn> medical, bool ideologyActive = false)
     {
-        var rows = medical.TryGetValue(out var read) ? read : [];
+        var rows = medical;
         var pawns = new List<EffectSourcePawn>();
         var unread = new List<string>();
         foreach (var pawn in gear.Pawns)

@@ -59,8 +59,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 54 reads action progress and payloads whole (#3960): a building order persists its finishing-skill floor only when it names one, an owned-pawn setting is one arm per kind, a stockpile zone's setup is one record, the receipt and effect states are read by name (<c>Inconclusive</c> and <c>Unconfirmed</c> replace <c>Unknown</c>, <c>Unclassified</c> replaces an unknown refusal class).
     /// Version 55 reads a resource runway whole (#3926): a journaled runway persists its stock, surface ore and target as plain numbers and its rating as unrated, idle or burning (rate, stock days and days left together) with the deficit flag.
     /// Version 56 reads current work occupancy whole (#3896): the admission pawn row persists Occupied as a plain boolean.
+    /// Version 57 reads medical history and pawn profiles whole (#3989): unresolved patients persist by identity, and work hours, inspiration and biotech effects/minimum ages are direct values.
     /// </summary>
-    public const int SchemaVersion = 56;
+    public const int SchemaVersion = 57;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

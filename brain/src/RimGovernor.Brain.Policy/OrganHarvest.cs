@@ -134,13 +134,13 @@ public static partial class OrganHarvestRules
     /// of which is stocked.
     /// </summary>
     public static IReadOnlyList<OrganNeed> OrganNeeds(
-        Fact<EquatableArray<CarePawn>> pawns,
+        EquatableArray<CarePawn> pawns,
         IReadOnlyList<SurgeryWant> wants,
         bool silverShort,
         IReadOnlyDictionary<Resource, long> stock,
         RecipeFacts facts)
     {
-        pawns.TryGetValue(out var rows);
+        var rows = pawns;
         var byId = new Dictionary<PawnId, CarePawn>();
         foreach (var row in rows)
         {
@@ -314,7 +314,7 @@ public static partial class OrganHarvestRules
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        return SelectOrganHarvest(f.Population, OrganNeeds(Unknown<EquatableArray<CarePawn>>(), [], true, stock, f.Recipes), null) is not null;
+        return SelectOrganHarvest(f.Population, OrganNeeds([], [], true, stock, f.Recipes), null) is not null;
     }
 
     /// <summary>
@@ -362,9 +362,9 @@ public static partial class OrganHarvestRules
     // time rule; SelectOrganHarvest's harvest goes first.
 
     /// <summary>Lists the colonists' part-short wants an added part could serve: one need per install option, Organ the part item.</summary>
-    public static IReadOnlyList<OrganNeed> PartRecoveryNeeds(Fact<EquatableArray<CarePawn>> pawns, IReadOnlyList<SurgeryWant> wants, RecipeFacts facts)
+    public static IReadOnlyList<OrganNeed> PartRecoveryNeeds(EquatableArray<CarePawn> pawns, IReadOnlyList<SurgeryWant> wants, RecipeFacts facts)
     {
-        pawns.TryGetValue(out var rows);
+        var rows = pawns;
         var byId = new Dictionary<PawnId, CarePawn>();
         foreach (var row in rows)
         {
@@ -484,7 +484,7 @@ public static partial class OrganHarvestRules
     /// queue and each bill already queued holds back its best recipe item still in the surplus, so a
     /// harvested organ or recovered part is not sold before its install is queued.
     /// </summary>
-    public static Fact<TradeNeed> ReserveSurgeryStock(Fact<TradeNeed> need, Fact<EquatableArray<CarePawn>> pawns)
+    public static Fact<TradeNeed> ReserveSurgeryStock(Fact<TradeNeed> need, EquatableArray<CarePawn> pawns)
     {
         if (!need.TryGetValue(out var n) || n.Surplus.Count == 0)
         {
@@ -500,8 +500,8 @@ public static partial class OrganHarvestRules
         {
             options.Add([choice.Item]);
         }
-        if (pawns.TryGetValue(out var rows))
         {
+            var rows = pawns;
             foreach (var pawn in rows.Where(pawn => !pawn.Dead))
             {
                 foreach (var item in pawn.QueuedItems)

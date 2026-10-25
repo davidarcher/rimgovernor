@@ -64,10 +64,6 @@ public static class CareOrdersRules
     /// </summary>
     public static Declared DeclareMedicine(MedicineMethod m, IEnumerable<GearBench> benches)
     {
-        if (m.Kind == MedicineMethodKind.Unknown)
-        {
-            return WorkRules.Abstaining(Cause.UnreadMedicine);
-        }
         if (m.Kind != MedicineMethodKind.Produce)
         {
             return new Declared();

@@ -23,14 +23,14 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void DefenseIsMetUnmetOrUnknownByTheArmedFootholdHostilesAndUnarmed()
     {
-        var met = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(0L), Foothold = 3L }, MilitaryFamily.Defense);
+        var met = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = 3L, Unarmed = 0L, Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit, met.Tier));
 
-        var unarmed = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(1L), Foothold = 3L }, MilitaryFamily.Defense);
+        var unarmed = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = 3L, Unarmed = 1L, Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, unarmed.Satisfaction);
         Assert.True(unarmed.Deficit > 0);
 
-        var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L), Armed = Known(3L), Unarmed = Known(0L), Foothold = 3L }, MilitaryFamily.Defense);
+        var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L), Armed = 3L, Unarmed = 0L, Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, hostile.Satisfaction);
 
         Assert.Equal("armed fighters, hostiles or unarmed colonists", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Defense)).Fact);
@@ -223,8 +223,8 @@ public sealed class MilitaryFamilyTests
     {
         Hostiles = Known(0L),
         StrayDrafts = Known(0),
-        Armed = Known(0L),
-        Unarmed = Known(3L),
+        Armed = 0L,
+        Unarmed = 3L,
         Foothold = 3L,
         Pests = Known(2),
         Hunt = hunt,

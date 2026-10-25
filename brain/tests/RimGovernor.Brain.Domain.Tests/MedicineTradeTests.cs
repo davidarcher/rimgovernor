@@ -21,7 +21,7 @@ public sealed class MedicineTradeTests
         MedicalReserveReview Review(long herbal, bool active) => MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
             Colonists = 3, Catalog = items,
-            Items = Known(EquatableArray.From(new[] { new MedicineStackRow { Id = "h", Definition = Herbal, Count = herbal, Perishable = Known(false) } })),
+            Items = EquatableArray.From(new[] { new MedicineStackRow { Id = "h", Definition = Herbal, Count = herbal, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() } }),
             Resources = EquatableArray.From(new[] { new Amount(Herbal, herbal) }),
         }, active, policy);
 
@@ -29,7 +29,7 @@ public sealed class MedicineTradeTests
         Assert.False(Review(9, true).Active);
         Assert.False(Review(3, false).Active);
         Assert.True(Review(2, false).Active);
-        Assert.Equal(7, Review(2, false).Replenish.Value);
+        Assert.Equal(7, Review(2, false).Replenish);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class MedicineTradeTests
             ],
         };
         var items = ItemFactsFixtureRules.CoreItemFacts();
-        var review = new MedicalReserveReview { Active = true, Replenish = Known(9L) };
+        var review = new MedicalReserveReview { Active = true, Replenish = 9L };
         var claimed = stock.WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default());
 
         Assert.Equal([700L, 538L], claimed.Trade.Select(s => s.Silver));
@@ -96,12 +96,32 @@ public sealed class MedicineTradeTests
         Assert.Equal([new MedicineTradeSource(2, 0.5 * 4)], trade.Sources);
         Assert.Equal([new Resource("MedicineUltratech"), new Resource("MedicineIndustrial")], trade.Better);
 
-        // The gap costing more than the spendable leaves the part nothing; an unread reserve leaves the model unread.
-        Assert.Equal(0, stock.WithMedicineClaim(items, review with { Replenish = Known(100L) }, 3, MedicalReservePolicy.Default()).Trade[1].Silver);
-        var unread = stock.WithMedicineClaim(items, new MedicalReserveReview(), 3, MedicalReservePolicy.Default());
-        Assert.Throws<RequiredFactException>(() => unread.NotArrived(new StockNeed([arm], 1), 5));
+        // A medicine gap larger than the spendable silver leaves the part nothing.
+        Assert.Equal(0, stock.WithMedicineClaim(items, review with { Replenish = 100L }, 3, MedicalReservePolicy.Default()).Trade[1].Silver);
         // No visit of a kind carrying medicine, or no silver for a unit, buys none.
         Assert.Null((stock with { Trade = [stock.Trade[1]] }).WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default()).MedicineTrade);
         Assert.Null((stock with { Trade = [stock.Trade[0] with { Silver = 10 }, stock.Trade[1]] }).WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default()).MedicineTrade);
+    }
+    [Fact]
+    public void MedicineReserveRequiresItsCatalogAndCountsOnlyUnexpiredStacks()
+    {
+        Assert.Throws<DomainException>(() => MedicalRules.ReviewMedicalReserve(new(), false, MedicalReservePolicy.Default()));
+        Assert.Throws<DomainException>(() => MedicalRules.ColonistCareBase(new(), [], 1, MedicalReservePolicy.Default()));
+        Assert.Equal(MedicalCare.Herbal, MedicalRules.ColonistCareBase(ItemFactsFixtureRules.CoreItemFacts(), [], 1, MedicalReservePolicy.Default()));
+        Assert.Equal(MedicalCare.Normal, MedicalRules.ColonistCareBase(ItemFactsFixtureRules.CoreItemFacts(), [new(new Resource("MedicineIndustrial"), 3)], 1, MedicalReservePolicy.Default()));
+        var observation = new MedicalReserveObservation
+        {
+            Colonists = 1,
+            Catalog = ItemFactsFixtureRules.CoreItemFacts(),
+            Resources = [new(Herbal, 20)],
+            Items = [
+                new() { Id = "lasting", Definition = Herbal, Count = 1, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
+                new() { Id = "fresh", Definition = Herbal, Count = 1, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(1) },
+                new() { Id = "expired", Definition = Herbal, Count = 10, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(0) }],
+        };
+        var result = MedicalRules.ReviewMedicalReserve(observation, true, MedicalReservePolicy.Default());
+        Assert.Equal(2, result.Stock);
+        Assert.Equal(1, result.Replenish);
+        Assert.True(result.Active);
     }
 }

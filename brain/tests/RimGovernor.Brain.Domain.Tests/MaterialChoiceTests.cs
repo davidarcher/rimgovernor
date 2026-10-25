@@ -146,10 +146,10 @@ public sealed class MaterialChoiceTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = new RoundsFacts { Tick = new Tick(100),
-            Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
+            MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
-            ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
+            ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             Resources = [new(Metal, 10), new(Timber, 10)],
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },

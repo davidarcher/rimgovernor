@@ -37,7 +37,7 @@ public sealed record BedroomGainFacts
     {
         Pawns = (facts.ForecastObserved.Needs?.Pawns ?? []).GroupBy(p => p.Pawn, StringComparer.Ordinal).Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.Single(), StringComparer.Ordinal),
-        Thoughts = (facts.MoodPawns.TryGetValue(out var moods) ? moods : [])
+        Thoughts = facts.MoodPawns
             .GroupBy(m => m.Id.Value, StringComparer.Ordinal).Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Thoughts, StringComparer.Ordinal),
         Breaks = facts.MoodBreak,
         WellbeingWeight = ForecastValuePolicy.For(facts.Preferences).WellbeingWeight,

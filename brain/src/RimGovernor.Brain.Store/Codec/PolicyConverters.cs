@@ -1084,17 +1084,15 @@ internal sealed class MedicalCareHistoryConverter : ObjectCodec<MedicalCareHisto
         new()
         {
             Resting = e.Get<IReadOnlyList<DiseaseRest>>("Resting", o),
-            CensusKnown = e.Bool("CensusKnown"),
             Patients = e.Get<IReadOnlyList<RimGovernor.Brain.Domain.PawnId>>("Patients", o),
-            Unknown = e.Get<IReadOnlyList<RimGovernor.Brain.Domain.PawnId>>("Unknown", o),
+            Unresolved = e.Get<IReadOnlyList<RimGovernor.Brain.Domain.PawnId>>("Unresolved", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, MedicalCareHistory v, Codecs o)
     {
         w.Put("Resting", v.Resting, o);
-        w.WriteBoolean("CensusKnown", v.CensusKnown);
         w.Put("Patients", v.Patients, o);
-        w.Put("Unknown", v.Unknown, o);
+        w.Put("Unresolved", v.Unresolved, o);
     }
 }
 
@@ -1368,8 +1366,8 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
         {
             DevelopmentalStage = e.Get<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>("DevelopmentalStage", o),
             Genes = e.Get<EquatableArray<PawnGene>>("Genes", o),
-            Effects = e.Get<Fact<GeneEffects>>("Effects", o),
-            WorkMinAges = e.Get<Fact<IReadOnlyDictionary<WorkType, int>>>("WorkMinAges", o),
+            Effects = e.Get<GeneEffects>("Effects", o),
+            WorkMinAges = e.Get<IReadOnlyDictionary<WorkType, int>>("WorkMinAges", o),
             Mechanitor = Absent(e, "Mechanitor") ? null : e.Get<PawnMechanitor>("Mechanitor", o),
             Mech = Absent(e, "Mech") ? null : e.Get<PawnMech>("Mech", o),
             Deathrest = Absent(e, "Deathrest") ? null : e.Get<PawnDeathrest>("Deathrest", o),
@@ -1517,13 +1515,13 @@ internal sealed class PawnProfileConverter : ObjectCodec<PawnProfile>
             WorkSkill = e.Get<IReadOnlyDictionary<WorkType, string>>("WorkSkill", o),
             Age = e.Dbl("Age"),
             Child = e.Bool("Child"),
-            Biotech = e.Get<Fact<PawnBiotech>>("Biotech", o),
+            Biotech = e.Get<PawnBiotechStatus>("Biotech", o),
             Genes = e.Get<GeneEffects>("Genes", o),
             WorkMinAge = e.Get<IReadOnlyDictionary<WorkType, int>>("WorkMinAge", o),
             Ranged = e.Bool("Ranged"),
             Hunts = e.Bool("Hunts"),
-            Inspiration = e.Get<Fact<string>>("Inspiration", o),
-            WorkHours = e.Get<Fact<int>>("WorkHours", o),
+            Inspiration = e.Str("Inspiration"),
+            WorkHours = e.I32("WorkHours"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnProfile v, Codecs o)

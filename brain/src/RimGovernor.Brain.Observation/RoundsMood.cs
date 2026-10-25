@@ -95,11 +95,11 @@ public static class RoundsMoodReads
         {
             Emergency = new Held<EmergencyFacts> { Value = emergency, AsOf = tick, Complete = emergency.AllSeen, Source = "rimgovernor/observations_read_status" },
         };
-        if (projection.WorkPawns is WorkPawnsRead.Read { Pawns: var work })
+        var work = projection.WorkPawns.Pawns;
         {
-            projection.Facts.MedicalPawns.TryGetValue(out var medical);
-            projection.Facts.MoodPawns.TryGetValue(out var mood);
-            projection.Facts.Armed.TryGetValue(out var armed);
+            var medical = projection.Facts.MedicalPawns;
+            var mood = projection.Facts.MoodPawns;
+            var armed = projection.Facts.Armed;
             output = output with
             {
                 Pawns = new Held<RoundsPawns>
@@ -137,20 +137,20 @@ public static class RoundsMoodReads
     }
 
 
-    internal static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
+    internal static EquatableArray<MoodPawn> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
-        var unknown = Unknown<EquatableArray<MoodPawn>>();
-        if (!emergency.AllSeen || colony is null || snapshot is null
+
+        if (colony is null || snapshot is null
             || colony.ColonistCount != emergency.Colonists.Count)
         {
-            return unknown;
+            throw new ObservationContractException("mood pawn census disagrees with the colony roster");
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var p in snapshot.Pawns)
         {
             if (p is null || byId.ContainsKey((p.Pawn.Id ?? "")))
             {
-                return unknown;
+                throw new ObservationContractException("mood pawn census disagrees with the colony roster");
             }
             byId[(p.Pawn.Id ?? "")] = p;
         }
@@ -162,14 +162,14 @@ public static class RoundsMoodReads
         var rows = new List<MoodPawn>();
         foreach (var pawn in emergency.Colonists)
         {
-            // Exact missing IDs preserve prior active history.
+            // A colonist in the emergency roster must have its same-frame pawn row.
             if (!byId.TryGetValue(pawn.Id.Value, out var r))
             {
-                continue;
+                throw new ObservationContractException($"mood census misses {pawn.Id}");
             }
             if (r.Dead != pawn.Dead || r.Downed != pawn.Downed || !r.Colonist)
             {
-                return unknown;
+                throw new ObservationContractException("mood pawn census disagrees with the colony roster");
             }
             var n = r.Needs;
             rows.Add(new MoodPawn
@@ -190,7 +190,7 @@ public static class RoundsMoodReads
                 HighExpectations = r.Social.HighExpectations,
             });
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     /// <summary>
@@ -241,15 +241,12 @@ public static class RoundsMoodReads
 
     /// <summary>
     /// Builds the colony mood ledger from the review's mood census, each pawn's traits and precepts, and the
-    /// catalog's ThoughtFacts. The ledger is unknown when the census is; a census pawn the snapshot lacks is a
+    /// catalog's ThoughtFacts. A census pawn the snapshot lacks is a
     /// missing read.
     /// </summary>
-    internal static Fact<MoodLedger> RoundsMoodLedger(Fact<EquatableArray<MoodPawn>> census, O.PawnSnapshot snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
+    internal static MoodLedger RoundsMoodLedger(EquatableArray<MoodPawn> census, O.PawnSnapshot snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
     {
-        if (!census.TryGetValue(out var moods))
-        {
-            return Unknown<MoodLedger>();
-        }
+        var moods = census;
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var p in snapshot.Pawns)
         {
@@ -270,7 +267,7 @@ public static class RoundsMoodReads
                 Precepts = r.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member ideo ? [.. ideo.Precepts] : [],
             });
         }
-        return Known(MoodRules.BuildMoodLedger(pawns, facts));
+        return MoodRules.BuildMoodLedger(pawns, facts);
     }
 
 
@@ -280,12 +277,11 @@ public static class RoundsMoodReads
     /// to fight who hold no weapon: military/defense stays unmet while any remain, so a loose starting club is
     /// equipped (or a weapon crafted) for every one of them, not only the first two.
     /// </summary>
-    internal static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
+    internal static (long Armed, long Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
     {
-        var unknown = Unknown<long>();
         if (colony is null || pawns is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
-            return (unknown, unknown);
+            throw new ObservationContractException("armed pawn census disagrees with the colony roster");
         }
         var byId = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
@@ -298,7 +294,7 @@ public static class RoundsMoodReads
             byId.TryGetValue(pawn.Id.Value, out var row);
             if (row is null || row.Dead != pawn.Dead || row.Downed != pawn.Downed || !row.Colonist)
             {
-                return (unknown, unknown);
+                throw new ObservationContractException("armed pawn census disagrees with the colony roster");
             }
             if (pawn.Dead || pawn.Downed)
             {
@@ -325,7 +321,7 @@ public static class RoundsMoodReads
                 unarmed++;
             }
         }
-        return (Known(armed), Known(unarmed));
+        return (armed, unarmed);
     }
 
     /// <summary>

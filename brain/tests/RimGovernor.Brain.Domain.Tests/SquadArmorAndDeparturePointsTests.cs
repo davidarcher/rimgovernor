@@ -77,7 +77,7 @@ public sealed class SquadArmorAndDeparturePointsTests
     {
         var roster = Known(EquatableArray.From(new[] { Strength("fighter", 3, 11) }));
 
-        var (_, pawns) = QuestReads.FrameQuestPawns(Read(Worker("fighter", true), Worker("pacifist", false)), new MapId(0), new EmergencyFacts(), roster, new WorkPawnsRead.Read([]));
+        var (_, pawns) = QuestReads.FrameQuestPawns(Read(Worker("fighter", true), Worker("pacifist", false)), new MapId(0), new EmergencyFacts(), roster, new WorkPawnsRead([]));
 
         var rows = Assert.IsType<QuestPawns.Seen>(pawns).Departures;
         Assert.Equal((3 + 11) * DefenseCapacityPolicy.DefensePointsPerDps, rows.Single(r => r.Id.Value == "fighter").DefensePoints, 9);
@@ -89,7 +89,7 @@ public sealed class SquadArmorAndDeparturePointsTests
     {
         var roster = Known(EquatableArray.From(Array.Empty<DefenderStrength>()));
 
-        var (capacity, pawns) = QuestReads.FrameQuestPawns(Read(Worker("fighter", true)), new MapId(0), new EmergencyFacts(), roster, new WorkPawnsRead.Read([]));
+        var (capacity, pawns) = QuestReads.FrameQuestPawns(Read(Worker("fighter", true)), new MapId(0), new EmergencyFacts(), roster, new WorkPawnsRead([]));
 
         Assert.Single(capacity);
         Assert.IsType<QuestPawns.Unseen>(pawns);

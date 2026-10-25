@@ -85,7 +85,7 @@ public sealed record ColonyStatusReport
     public Fact<bool> ForbiddenSupplies { get; init; }
 
     /// <summary>Where the colony loses mood, as the last rounds built it; unknown until a review has filed.</summary>
-    public Fact<MoodLedger> MoodLedger { get; init; }
+    public MoodLedger? MoodLedger { get; init; }
 
     /// <summary>The living home colonist roster, sorted as native listed it.</summary>
     public IReadOnlyList<ColonyStatusPawn> Pawns { get; init; } = [];
@@ -143,7 +143,7 @@ public sealed class ColonyStatus
             TechTier = Unknown<TechTier>(),
             Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),
             ForbiddenSupplies = Unknown<bool>(),
-            MoodLedger = Unknown<MoodLedger>(),
+            MoodLedger = null,
         };
         if (_food is not null && FactStore.TryGet<ColonyProjection>(_food, FactSection.Colony, out var held))
         {

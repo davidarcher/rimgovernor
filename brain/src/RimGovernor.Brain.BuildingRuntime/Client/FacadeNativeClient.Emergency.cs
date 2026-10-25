@@ -52,6 +52,10 @@ public sealed partial class FacadeNativeClient
                 {
                     colonists.Add(pawn.Pawn);
                 }
+                else
+                {
+                    throw BridgeContractException.Contract($"colonist {reference.Id}: the pawn table holds no map row" );
+                }
             }
             var patients = new List<Policy.EmergencyDependentPatient>();
             foreach (var patient in v.DependentPatients.Patients)

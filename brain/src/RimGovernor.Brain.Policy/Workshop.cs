@@ -122,10 +122,7 @@ public static partial class WorkRules
     /// <summary>The highest Construction skill level among the pawns that are available, apply to work assignment and have the skill enabled; unknown while the roster is unread.</summary>
     public static Fact<int> BuilderSkill(WorkPawnsRead pawns)
     {
-        if (pawns is not WorkPawnsRead.Read { Pawns: var rows })
-        {
-            return Unknown<int>();
-        }
+        var rows = pawns.Pawns;
         var best = 0;
         foreach (var pawn in rows)
         {

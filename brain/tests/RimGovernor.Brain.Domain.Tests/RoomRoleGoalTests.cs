@@ -123,7 +123,8 @@ public sealed class RoomRoleGoalTests
 
     private static HospitalRequest Ward(int floor, params SleepingBed[] beds) => new()
     {
-        Patients = Known<EquatableArray<CarePawn>>([]),
+        Doctors = 1,
+        Patients = [],
         Sleeping = new SleepingObservation { Beds = [.. beds] },
         Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)])),
         Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
@@ -149,7 +150,7 @@ public sealed class RoomRoleGoalTests
 
         var sick = Ward(1, Bed("b1", true)) with
         {
-            Patients = Known<EquatableArray<CarePawn>>([.. SickIds.Select(id => CareFixtures.Patient(id) with { NeedsRest = true })]),
+            Patients = [.. SickIds.Select(id => CareFixtures.Patient(id) with { NeedsRest = true })],
         };
         Assert.Equal(3, HospitalRules.SelectHospitalBed(sick).Needed);
     }
@@ -163,12 +164,12 @@ public sealed class RoomRoleGoalTests
         Assert.False(HospitalRules.BedsShort(1, rooms, sleeping, false));
         Assert.False(HospitalRules.BedsShort(0, RoomTestFacts.NoRooms, new SleepingObservation(), false));
 
-        var recovered = new MedicalFacts { CareRecovered = Known(true) };
+        var recovered = new MedicalFacts { CareRecovered = true };
         Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = true }).Satisfaction);
         Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = false }).Satisfaction);
-        // An unread care census stays unknown whatever the ward.
-        Assert.Equal("care census", Assert.Throws<RequiredFactException>(() => MedicalRules.MedicalCareNeedOf(new MedicalFacts { HospitalShort = false })).Fact);
+        // An unrecovered care census keeps the Need unmet even with enough beds.
+        Assert.Equal(Satisfaction.Unmet, MedicalRules.MedicalCareNeedOf(new MedicalFacts { HospitalShort = false }).Satisfaction);
     }
 
     [Fact]
@@ -178,9 +179,9 @@ public sealed class RoomRoleGoalTests
         {
             Catalog = catalog,
             Colonists = 4L,
-            Patients = Known<EquatableArray<CarePawn>>([]),
+            Patients = [],
             Prisoners = Known(0),
-            WorkPawns = new WorkPawnsRead.Read([]),
+            WorkPawns = new WorkPawnsRead([]),
             GoalBuild = build,
         };
 

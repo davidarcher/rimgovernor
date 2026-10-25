@@ -24,35 +24,25 @@ public static class RoundsWorkReads
     {
         if (colony is null || (int)colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
-            return new WorkPawnsRead.Unread();
+            throw new ObservationContractException("work pawn census disagrees with the colony roster");
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
         {
             byId[row.Pawn.Id ?? ""] = row;
         }
-        var biotech = catalog?.Biotech;
         var rows = new List<WorkPawn>(snapshot.Pawns.Count);
         foreach (var p in emergency.Colonists)
         {
             if (!byId.TryGetValue(p.Id.Value, out var row)
                 || row.Dead != p.Dead || row.Downed != p.Downed || !row.Colonist)
             {
-                return new WorkPawnsRead.Unread();
+                throw new ObservationContractException("work pawn census disagrees with the colony roster");
             }
             var w = WorkPawnRow(row, catalog, things);
-            if (w.Biotech is PawnBiotechStatus.Active { Facts: var bt })
-            {
-                if (bt.IsChild())
-                {
-                    bt = bt with { WorkMinAges = Known(RequireBiotech(biotech).WorkMinAges(row.Pawn.DefName ?? "")) };
-                }
-                bt = bt with { Effects = Known(RequireBiotech(biotech).GeneEffects(bt.Genes)) };
-                w = w with { Biotech = new PawnBiotechStatus.Active(bt) };
-            }
             rows.Add(w);
         }
-        return new WorkPawnsRead.Read(EquatableArray.From(rows));
+        return new WorkPawnsRead(EquatableArray.From(rows));
     }
 
     private static BiotechCatalog RequireBiotech(BiotechCatalog? biotech) =>
@@ -73,7 +63,7 @@ public static class RoundsWorkReads
         var bio = row.Biography;
         var n = row.Needs;
         var biotech = row.Biotech is O.PawnBiotechState.Active { Facts: var facts }
-            ? new PawnBiotechStatus.Active(PawnBiotech.Of(facts))
+            ? new PawnBiotechStatus.Active(ResolvedBiotech(facts, defs, row.Pawn.DefName))
             : (PawnBiotechStatus)new PawnBiotechStatus.Inactive();
         var deathresting = biotech is PawnBiotechStatus.Active { Facts: var bt } && bt.IsDeathresting();
         return new WorkPawn
@@ -114,6 +104,12 @@ public static class RoundsWorkReads
         };
     }
 
+    private static PawnBiotech ResolvedBiotech(O.PawnBiotech facts, DefinitionCatalog catalog, string race)
+    {
+        var biotech = RequireBiotech(catalog.Biotech);
+        var genes = EquatableArray.From(facts.Genes.Select(g => new PawnGene { Name = g.DefName, Active = g.Active }));
+        return PawnBiotech.Of(facts, biotech.GeneEffects(genes), biotech.WorkMinAges(race));
+    }
     /// <summary>
     /// The planner's work table from the settings block. Another mod's work type has no planner meaning and nothing to
     /// write back: it is left out of the rows.

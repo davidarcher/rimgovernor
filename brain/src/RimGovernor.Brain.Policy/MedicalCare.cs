@@ -51,14 +51,13 @@ public sealed record CareOperation
 public sealed record MedicalCareHistory
 {
     public IReadOnlyList<DiseaseRest> Resting { get; init; } = [];
-    public bool CensusKnown { get; init; }
     public IReadOnlyList<PawnId> Patients { get; init; } = [];
-    public IReadOnlyList<PawnId> Unknown { get; init; } = [];
+    public IReadOnlyList<PawnId> Unresolved { get; init; } = [];
 
     public void Validate()
     {
         var seen = new HashSet<PawnId>();
-        foreach (var ids in new[] { Patients, Unknown })
+        foreach (var ids in new[] { Patients, Unresolved })
         {
             for (var i = 0; i < ids.Count; i++)
             {
@@ -73,38 +72,27 @@ public sealed record MedicalCareHistory
         DiseaseRestRules.ValidateDiseaseRest(Resting);
     }
 
-    public Fact<bool> Recovered()
-    {
-        if (Patients.Count > 0 || Resting.Count > 0)
-        {
-            return Known(false);
-        }
-        if (!CensusKnown || Unknown.Count > 0)
-        {
-            return Unknown<bool>();
-        }
-        return Known(true);
-    }
+    public bool Recovered() => Patients.Count == 0 && Resting.Count == 0 && Unresolved.Count == 0;
 }
 
 public static partial class MedicalRules
 {
 
-    public static MedicalCareHistory ReviewMedicalCare(Fact<EquatableArray<CarePawn>> observed, MedicalCareHistory previous)
+    public static MedicalCareHistory ReviewMedicalCare(EquatableArray<CarePawn> observed, MedicalCareHistory previous)
     {
         previous.Validate();
         var tracked = new HashSet<PawnId>();
-        foreach (var ids in new[] { previous.Patients, previous.Unknown })
+        foreach (var ids in new[] { previous.Patients, previous.Unresolved })
         {
             foreach (var id in ids)
             {
                 tracked.Add(id);
             }
         }
-        var known = observed.TryGetValue(out var rows);
+        var rows = observed;
         var resting = DiseaseRestRules.ReviewDiseaseRest(observed, previous.Resting);
         var patients = new List<PawnId>();
-        var unknown = new List<PawnId>();
+        var unresolved = new List<PawnId>();
         var seen = new HashSet<PawnId>();
         foreach (var pawn in rows)
         {
@@ -123,10 +111,10 @@ public static partial class MedicalRules
                 patients.Add(pawn.Id);
             }
         }
-        unknown.AddRange(tracked);
+        unresolved.AddRange(tracked);
         patients.Sort();
-        unknown.Sort();
-        var r = new MedicalCareHistory { CensusKnown = known, Resting = resting, Patients = patients, Unknown = unknown };
+        unresolved.Sort();
+        var r = new MedicalCareHistory { Resting = resting, Patients = patients, Unresolved = unresolved };
         r.Validate();
         return r;
     }

@@ -109,7 +109,7 @@ public sealed class PeopleFamilyTests
     {
         MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = new MoodLevel.Has(.15 + mood, .15 + mood) };
         bool Review(double mood, bool prior) =>
-            MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([Pawn(mood)]),
+            MoodRules.ReviewMood([Pawn(mood)],
                 new MoodHistory { States = prior ? [AtRisk("a")] : [] }).States.Any(s => s.Active);
 
         Assert.True(Review(.12, prior: false));
@@ -119,9 +119,9 @@ public sealed class PeopleFamilyTests
         // A need between the cause bar and the old retained bar is no cause, even for a pawn active before.
         var rested = Pawn(.12) with { Rest = new NeedLevel.Has(.4) };
         var tired = new MoodHistory { States = [AtRisk("a") with { Causes = [new MoodCause { Need = MoodNeed.Rest, Level = .2 }] }] };
-        Assert.Empty(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([rested]), tired).States).Causes);
+        Assert.Empty(Assert.Single(MoodRules.ReviewMood([rested], tired).States).Causes);
         var lacking = Pawn(.12) with { Rest = new NeedLevel.Lacks() };
-        Assert.Empty(Assert.Single(MoodRules.ReviewMood(Known<EquatableArray<MoodPawn>>([lacking]), tired).States).Causes);
+        Assert.Empty(Assert.Single(MoodRules.ReviewMood([lacking], tired).States).Causes);
     }
 
     private static MoodState AtRisk(string pawn) => new()

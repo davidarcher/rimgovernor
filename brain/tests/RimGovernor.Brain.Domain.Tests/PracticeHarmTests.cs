@@ -125,12 +125,12 @@ public sealed class PracticeHarmTests
         // (Rounder sets ForecastCoupledContext.Investment from them) price the XP. No Ideology role holds a requirement here.
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-        var roster = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
+        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
-        facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Hostiles = Known(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
         {
-            WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(roster)),
+            WorkPawns = new WorkPawnsRead(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
             { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
             Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }

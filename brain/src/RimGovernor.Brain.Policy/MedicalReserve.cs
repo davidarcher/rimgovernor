@@ -1,3 +1,4 @@
+using ItemRot = RimGovernor.Contracts.Wire.Observations.ItemRot;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>An observed medicine stack, not a recipe or promised output.</summary>
@@ -7,14 +8,13 @@ public sealed record MedicineStackRow
     public Resource Definition { get; init; }
     public long Count { get; init; }
     public bool Forbidden { get; init; }
-    public Fact<bool> Perishable { get; init; }
-    public Fact<long> RotTicks { get; init; }
+    public required ItemRot Rot { get; init; }
 }
 
 public sealed record MedicalReserveObservation
 {
     public long Colonists { get; init; }
-    public Fact<EquatableArray<MedicineStackRow>> Items { get; init; }
+    public EquatableArray<MedicineStackRow> Items { get; init; }
 
     /// <summary>The complete usable native stock census, excluding inaccessible and forbidden stock. It is capped again against the actual medicine stacks.</summary>
     public EquatableArray<Amount> Resources { get; init; }
@@ -38,16 +38,15 @@ public sealed record MedicalReservePolicy(long MinimumPerColonist, long TargetPe
 public sealed record MedicalReserveReview
 {
     public bool Active { get; init; }
-    public Fact<long> Stock { get; init; }
-    public Fact<long> Target { get; init; }
-    public Fact<long> Replenish { get; init; }
+    public long Stock { get; init; }
+    public long Target { get; init; }
+    public long Replenish { get; init; }
 }
 
 public enum MedicineMethodKind
 {
     [WireName("")]
     None = 0,
-    Unknown,
     Recovered,
     Produce,
 
@@ -83,7 +82,7 @@ public sealed record MedicinePlanningRequest
 public static partial class MedicalRules
 {
     /// <summary>
-    /// Preserves the latch through unavailable reads. Equal entry stock does not activate it; equal recovery stock
+    /// Equal entry stock does not activate the latch; equal recovery stock
     /// clears it. Future production and expired stacks never contribute to the current reserve.
     /// </summary>
     public static MedicalReserveReview ReviewMedicalReserve(MedicalReserveObservation v, bool active, MedicalReservePolicy p)
@@ -95,25 +94,13 @@ public static partial class MedicalRules
             throw new DomainException(Invalid);
         }
         var people = v.Colonists;
-        var ik = v.Items.TryGetValue(out var items);
+        var items = v.Items;
         if (people < 0 || (people > 0 && p.TargetPerColonist > long.MaxValue / people))
         {
             throw new DomainException(Invalid);
         }
-        // The best medicine is no reserve; without the catalog's medicines the reserve is unknown like any unread fact.
-        Resource best;
-        try
-        {
-            best = v.Catalog.BestMedicine();
-        }
-        catch (DomainException)
-        {
-            return r;
-        }
-        if (!ik)
-        {
-            return r;
-        }
+        // The best medicine is excluded from reserves; the catalog must identify its medicine tiers.
+        var best = v.Catalog.BestMedicine();
         var stockByDefinition = new Dictionary<Resource, long>();
         foreach (var q in v.Resources)
         {
@@ -128,20 +115,19 @@ public static partial class MedicalRules
         }
         var usable = new Dictionary<Resource, long>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in items!)
+        foreach (var item in items)
         {
             if (!FoodForecastRules.FoodId(item.Id) || seen.Contains(item.Id) || !AdmissionRules.ValidResource(item.Definition) || item.Count < 0)
             {
                 throw new DomainException(Invalid);
             }
             seen.Add(item.Id);
-            var known = item.Perishable.TryGetValue(out var perishable);
-            var tk = item.RotTicks.TryGetValue(out var ticks);
-            if (tk && ticks < 0)
+            var ticks = item.Rot is ItemRot.Rotting rot ? rot.Ticks : 0;
+            if (ticks < 0)
             {
                 throw new DomainException(Invalid);
             }
-            if (item.Definition == best || item.Forbidden || !((known && !perishable) || (tk && ticks > 0)))
+            if (item.Definition == best || item.Forbidden || item.Rot is ItemRot.Rotting { Ticks: <= 0 })
             {
                 continue;
             }
@@ -164,7 +150,7 @@ public static partial class MedicalRules
         var target = p.Threshold(people, true);
         var nowActive = people > 0 && stock < p.Threshold(people, active);
         var replenishment = nowActive ? Math.Max(0, target - stock) : 0;
-        return r with { Active = nowActive, Stock = Known(stock), Target = Known(target), Replenish = Known(replenishment) };
+        return r with { Active = nowActive, Stock = stock, Target = target, Replenish = replenishment };
     }
 
     private static MethodId MedicineMethodId(Resource resource, string bench, string recipe) =>
@@ -183,10 +169,8 @@ public static partial class MedicalRules
         {
             return new MedicineMethod { Kind = MedicineMethodKind.Recovered };
         }
-        if (!r.Review.Target.TryGetValue(out var target) || !AdmissionRules.ValidResource(r.Resource))
-        {
-            return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
-        }
+        var target = r.Review.Target;
+        if (!AdmissionRules.ValidResource(r.Resource)) throw new DomainException("invalid medicine resource" );
         if (target <= 0)
         {
             return new MedicineMethod { Kind = MedicineMethodKind.Recovered };

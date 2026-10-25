@@ -52,14 +52,14 @@ public static class QuestReads
             custody.Add(row with { QuestProtected = ids.Contains(row.Pawn) });
         }
         f = f with { Population = f.Population with { Custody = EquatableArray.From(custody) } };
-        if (f.MedicalPawns.TryGetValue(out var medical))
         {
+            var medical = f.MedicalPawns;
             var rows = new List<CarePawn>(medical.Count);
             foreach (var row in medical)
             {
                 rows.Add(row with { QuestProtected = ids.Contains(row.Id) });
             }
-            f = f with { MedicalPawns = Known(EquatableArray.From(rows)) };
+            f = f with { MedicalPawns = EquatableArray.From(rows) };
         }
         return f;
     }
@@ -95,7 +95,7 @@ public static class QuestReads
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
             var byId = defenders.TryGetValue(out var fighters) ? fighters.ToDictionary(f => f.Id) : null;
-            var seen = byId is not null && emergency.AllSeen && m.Home && workPawns is WorkPawnsRead.Read;
+            var seen = byId is not null && emergency.AllSeen && m.Home;
             foreach (var p in m.QuestWorkers)
             {
                 capacity.Add(new QuestWorkCapacity { Pawn = p.PawnId, HealthyAdult = p.HealthyAdult, Rates = p.Rates.ToDictionary(r => r.Stat, r => r.Rate, StringComparer.Ordinal) });
@@ -125,7 +125,7 @@ public static class QuestReads
             {
                 return (EquatableArray.From(capacity), new QuestPawns.Unseen());
             }
-            var workers = workPawns is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
+            var workers = workPawns.Pawns;
             return (EquatableArray.From(capacity), new QuestPawns.Seen { AtHome = ColonistsAtHome(read, m, emergency), Departures = EquatableArray.From(departures), Workers = workers });
         }
         return ([], new QuestPawns.Unseen());

@@ -164,25 +164,10 @@ public abstract record PawnBiotechStatus
 }
 
 /// <summary>
-/// The colony's workers as the routine pawn census read them: <see cref="Read"/> with every colonist's row, or
-/// <see cref="Unread"/> with the reason no whole census was served (no routine pawn frame, a colonist count or row that
-/// disagrees between the reads). A reader that needs the workers matches Read and refuses or defers on Unread.
+/// Every free colonist from a complete native pawn census. Missing or contradictory native data fails decoding.
 /// </summary>
-public abstract record WorkPawnsRead
+public sealed record WorkPawnsRead(EquatableArray<WorkPawn> Pawns)
 {
-    private WorkPawnsRead()
-    {
-    }
-
-    /// <summary>The state of a projection no routine pawn frame built.</summary>
-    public static readonly WorkPawnsRead NotRead = new Unread();
-
-    public sealed record Read(EquatableArray<WorkPawn> Pawns) : WorkPawnsRead;
-
-    public sealed record Unread : WorkPawnsRead;
-
-    /// <summary>The pawn rows of a whole census; throws <see cref="RequiredFactException"/> (pawn rows) while it is <see cref="Unread"/>.</summary>
-    public EquatableArray<WorkPawn> Require() => this is Read read ? read.Pawns : throw new RequiredFactException("pawn rows");
 }
 
 public sealed record WorkPawn

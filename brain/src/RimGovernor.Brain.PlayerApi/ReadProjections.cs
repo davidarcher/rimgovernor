@@ -252,7 +252,7 @@ internal static class ReadProjections
             Value(v.ForbiddenSupplies),
             downed,
             moodCount > 0 ? moodSum / moodCount : null,
-            v.MoodLedger.TryGetValue(out var ledger) ? MoodLedgerRow(ledger) : null,
+            v.MoodLedger is { } ledger ? MoodLedgerRow(ledger) : null,
             pawns);
     }
 

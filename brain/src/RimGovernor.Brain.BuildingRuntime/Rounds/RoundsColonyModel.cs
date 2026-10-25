@@ -340,11 +340,7 @@ internal static class RoundsColonyModel
 
         materials = EquatableArray.From(colony.Resources.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
 
-        if (!MedicineOf(colony.Facts.MedicalReserve, colony.Facts.ResourceThings, out medicine))
-        {
-            gaps.Add("stocks: the medicine census is unknown");
-            whole = false;
-        }
+        medicine = MedicineOf(colony.Facts.MedicalReserve, colony.Facts.ResourceThings);
 
         return whole ? new ModelStocks { Nutrition = nutrition, Materials = materials, Medicine = medicine } : null;
     }
@@ -354,21 +350,15 @@ internal static class RoundsColonyModel
 
     /// <summary>
     /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's
-    /// potency order, a kind it does not rank last), then by name. False while the census is unread.
+    /// potency order, a kind it does not rank last), then by name.
     /// </summary>
-    private static bool MedicineOf(MedicalReserveObservation reserve, EquatableArray<string> identities, out EquatableArray<Amount> medicine)
+    private static EquatableArray<Amount> MedicineOf(MedicalReserveObservation reserve, EquatableArray<string> identities)
     {
-        medicine = default;
-        if (!reserve.Items.TryGetValue(out var items))
-        {
-            return false;
-        }
-
+        var items = reserve.Items;
         var potency = reserve.Catalog.MedicalPotency;
-        medicine = EquatableArray.From(items.Where(i => !i.Forbidden && identities.Contains(i.Id)).GroupBy(i => i.Definition)
+        return EquatableArray.From(items.Where(i => !i.Forbidden && identities.Contains(i.Id)).GroupBy(i => i.Definition)
             .Select(g => new Amount(g.Key, g.Sum(i => i.Count)))
             .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource));
-        return true;
     }
 
     private static EquatableArray<ModelPawn> PawnsOf(ColonyProjection colony, List<string> gaps)
@@ -382,7 +372,7 @@ internal static class RoundsColonyModel
         var skills = new Dictionary<string, EquatableArray<WorkSkill>>(StringComparer.Ordinal);
         var hunters = new Dictionary<string, bool>(StringComparer.Ordinal);
         var curves = new Dictionary<string, EquatableArray<SkillStatCurve>>(StringComparer.Ordinal);
-        if (colony.WorkPawns is WorkPawnsRead.Read { Pawns: var workers })
+        var workers = colony.WorkPawns.Pawns;
         {
             foreach (var worker in workers)
             {

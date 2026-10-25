@@ -49,7 +49,7 @@ public sealed class FoodFamilyTests
     public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
     {
         var policy = RoundsRules.DefaultRoundsPolicy();
-        var facts = new RoundsFacts { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
         var met = facts with
         {
             FoodDays = new FoodRunway.Days(1000.0), GrowingCells = Known(10_000L), FieldCoverage = Known(1.0),
@@ -109,7 +109,7 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastCookingRowReadsTheNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var facts = new RoundsFacts { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
             EssentialServicesRules.ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;

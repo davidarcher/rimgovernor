@@ -72,7 +72,7 @@ public sealed class BiotechSectionTests
             json);
         Assert.Equal(state, WireJson.Deserialize<O.PawnBiotechState>(json));
 
-        var lifted = PawnBiotech.Of(((O.PawnBiotechState.Active)state).Facts);
+        var lifted = PawnBiotech.Of(((O.PawnBiotechState.Active)state).Facts, new GeneEffects(), new Dictionary<WorkType, int>());
         Assert.Equal(new PawnMechGroup(1, 0.1, 1), lifted.Mech!.Group);
         Assert.Equal(new MechEnergy.Level(0.5), lifted.Mech.Energy);
         Assert.Null(lifted.Mechanitor);

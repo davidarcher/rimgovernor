@@ -217,19 +217,18 @@ public static class RoundsContainmentReads
             {
                 continue;
             }
-            var bt = PawnBiotech.Of(block);
             var id = new PawnId(row.Pawn.Id ?? "");
-            if (bt.Mechanitor is { } m && row.Colonist)
+            if (block.Mechanitor is { } nativeMechanitor && row.Colonist)
             {
-                mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m });
+                mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = PawnMechanitor.Of(nativeMechanitor) });
                 if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var at })
                 {
                     overseers[id.Value] = new Cell(at.X, at.Z);
                 }
             }
-            if (bt.Mech is { } mm && row.Mechanoid)
+            if (block.Mech is { } nativeMech && row.Mechanoid)
             {
-                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Place = row.Pawn.Place, Downed = row.Downed, Drafted = row.Drafted };
+                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = PawnMech.Of(nativeMech), Place = row.Pawn.Place, Downed = row.Downed, Drafted = row.Drafted };
                 if (row.Job.TargetA?.Target?.Entity is { } target)
                 {
                     mech = mech with { Target = new PawnId(target.Id ?? "") };
@@ -241,21 +240,21 @@ public static class RoundsContainmentReads
     }
 
 
-    internal static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
+    internal static EquatableArray<CarePawn> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
     {
-        var unknown = Unknown<EquatableArray<CarePawn>>();
+
         var parts = new DefinitionPartCatalog(catalog);
-        if (!emergency.AllSeen || colony is null || snapshot is null
+        if (colony is null || snapshot is null
             || colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
-            return unknown;
+            throw new ObservationContractException("medical pawn census disagrees with the colony roster");
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
         {
             if (row is null || byId.ContainsKey((row.Pawn.Id ?? "")))
             {
-                return unknown;
+                throw new ObservationContractException("medical pawn census disagrees with the colony roster");
             }
             byId[(row.Pawn.Id ?? "")] = row;
         }
@@ -265,7 +264,7 @@ public static class RoundsContainmentReads
             byId.TryGetValue(pawn.Id.Value, out var row);
             if (row is null || row.Dead != pawn.Dead || row.Downed != pawn.Downed || !row.Colonist)
             {
-                return unknown;
+                throw new ObservationContractException("medical pawn census disagrees with the colony roster");
             }
             var h = row.Health;
             // A colonist always has player settings; a living one on the map always has its surgery facts.
@@ -307,6 +306,6 @@ public static class RoundsContainmentReads
             };
             rows.Add(p);
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 }

@@ -383,10 +383,7 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>
     internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(Observation.ColonyProjection facts)
     {
-        if (facts.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            return null;
-        }
+        var pawns = facts.WorkPawns.Pawns;
         var output = new Dictionary<PawnId, Pol.TraitEffects>(pawns.Count);
         foreach (var p in pawns)
         {

@@ -195,7 +195,7 @@ public sealed record GoalsFacts
     public IdeologyMode Ideology { get; init; } = new IdeologyMode.NotInstalled();
 
     /// <summary>The colonists' pawn rows: the believer census a Believers goal is judged by.</summary>
-    public WorkPawnsRead Pawns { get; init; } = WorkPawnsRead.NotRead;
+    public WorkPawnsRead Pawns { get; init; } = new WorkPawnsRead([]);
 
     /// <summary>The reform the ideoligion goals plan (#3500); unknown while the ideoligion or catalog is unread.</summary>
     public DesignChoice? Reform { get; init; }
@@ -485,10 +485,7 @@ public static partial class GoalRules
     private static GoalStatus Skill(GoalRecord goal, GoalsFacts f)
     {
         var owner = AdminFamily.WorkAssignments;
-        if (f.Pawns is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            throw new RequiredFactException("pawn census");
-        }
+        var pawns = f.Pawns.Pawns;
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null)
         {
@@ -523,10 +520,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_recipe", default, GoalDeficit.Unmeasured);
         }
-        if (!f.Rounds.MedicalPawns.TryGetValue(out var pawns))
-        {
-            throw new RequiredFactException("medical pawns");
-        }
+        var pawns = f.Rounds.MedicalPawns;
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null || pawn.Dead)
         {

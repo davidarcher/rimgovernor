@@ -6,11 +6,11 @@ public sealed record MedicineCarryPawn
 {
     public PawnId Id { get; init; }
 
-    /// <summary>The Medicine stock count; unknown where the read did not carry the pawn's inventory stock, which is never written.</summary>
-    public Fact<int> Current { get; init; }
+    /// <summary>The observed Medicine inventory-stock count.</summary>
+    public int Current { get; init; }
 
-    /// <summary>The pawn's MedicalCareCategory name; unknown carries nothing new.</summary>
-    public Fact<string> Care { get; init; }
+    /// <summary>The pawn's configured medical care tier.</summary>
+    public MedicalCare Care { get; init; }
 
     /// <summary>Doctor work enabled.</summary>
     public bool Doctor { get; init; }
@@ -33,24 +33,21 @@ public static partial class MedicineCarryRules
     public const int FieldMaxCarry = 2;
 
     /// <summary>A MedicalCareCategory that allows any medicine.</summary>
-    private static bool CareAllowsMedicine(string care) => care is "HerbalOrWorse" or "NormalOrWorse" or "Best";
+    private static bool CareAllowsMedicine(MedicalCare care) => care is MedicalCare.Herbal or MedicalCare.Normal or MedicalCare.Best;
 
     /// <summary>
     /// Each pawn's wanted count. stock is the colony's usable medicine on the map, reserve the target it must stay
-    /// at. Unknown stock or reserve plans nothing (Ok false).
+    /// at. Both counts come from the current complete medicine census.
     /// </summary>
-    public static (Dictionary<PawnId, int> Want, bool Ok) MedicineCarryPlan(IReadOnlyList<MedicineCarryPawn> pawns, Fact<long> stock, Fact<long> reserve)
+    public static Dictionary<PawnId, int> MedicineCarryPlan(IReadOnlyList<MedicineCarryPawn> pawns, long stock, long reserve)
     {
-        if (!stock.TryGetValue(out var s) || !reserve.TryGetValue(out var r))
-        {
-            return ([], false);
-        }
-        var budget = s - r;
+
+        var budget = stock - reserve;
         foreach (var p in pawns)
         {
-            if (p.Current.TryGetValue(out var n) && n > 0)
+            if (p.Current > 0)
             {
-                budget += n;
+                budget += p.Current;
             }
         }
         var want = new Dictionary<PawnId, int>();
@@ -59,7 +56,7 @@ public static partial class MedicineCarryRules
         foreach (var p in pawns)
         {
             want[p.Id] = 0;
-            if (!p.Care.TryGetValue(out var care) || !CareAllowsMedicine(care))
+            if (!CareAllowsMedicine(p.Care))
             {
                 continue;
             }
@@ -88,28 +85,25 @@ public static partial class MedicineCarryRules
                 {
                     if (budget <= 0)
                     {
-                        return (want, true);
+                        return want;
                     }
                     want[id]++;
                     budget--;
                 }
             }
         }
-        return (want, true);
+        return want;
     }
 
-    /// <summary>The settings to write: every pawn with a known count that differs from its planned one.</summary>
-    public static List<PawnSettings> MedicineCarryChanges(IReadOnlyList<MedicineCarryPawn> pawns, Fact<long> stock, Fact<long> reserve)
+    /// <summary>The settings to write: every pawn whose observed count differs from its planned one.</summary>
+    public static List<PawnSettings> MedicineCarryChanges(IReadOnlyList<MedicineCarryPawn> pawns, long stock, long reserve)
     {
-        var (want, ok) = MedicineCarryPlan(pawns, stock, reserve);
+        var want = MedicineCarryPlan(pawns, stock, reserve);
         var changes = new List<PawnSettings>();
-        if (!ok)
-        {
-            return changes;
-        }
+
         foreach (var p in pawns)
         {
-            if (!p.Current.TryGetValue(out var current) || current == want.GetValueOrDefault(p.Id))
+            if (p.Current == want.GetValueOrDefault(p.Id))
             {
                 continue;
             }
@@ -126,13 +120,10 @@ public static partial class MedicineCarryRules
     }
 
     /// <summary>The review's MedicineCarryOwed fact.</summary>
-    public static Fact<bool> MedicineCarryOwed(WorkPawnsRead pawns, MedicalReserveReview reserve)
+    public static bool MedicineCarryOwed(WorkPawnsRead pawns, MedicalReserveReview reserve)
     {
-        if (pawns is not WorkPawnsRead.Read { Pawns: var rows })
-        {
-            return Unknown<bool>();
-        }
-        return Known(MedicineCarryChanges(MedicineCarryRows(rows), reserve.Stock, reserve.Target).Count > 0);
+        var rows = pawns.Pawns;
+        return MedicineCarryChanges(MedicineCarryRows(rows), reserve.Stock, reserve.Target).Count > 0;
     }
 
     /// <summary>Lifts the work census into carry rows.</summary>
@@ -144,7 +135,7 @@ public static partial class MedicineCarryRules
     /// </summary>
     public static MedicineCarryPawn ToMedicineCarryPawn(this WorkPawn w)
     {
-        var p = new MedicineCarryPawn { Id = w.Id, Care = w.Care is PawnCare.Configured care ? Known(Wire.Name(WorkRules.MedicalCareOf(care.MedicalCare))) : default };
+        var p = new MedicineCarryPawn { Id = w.Id, Care = w.Care is PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new DomainException($"colonist {w.Id} has no care setting") };
         var current = 0;
         foreach (var s in w.PolicyInputs.InventoryStock)
         {
@@ -153,7 +144,7 @@ public static partial class MedicineCarryRules
                 current = s.Count;
             }
         }
-        p = p with { Current = Known(current) };
+        p = p with { Current = current };
         var doctor = false;
         var hunter = false;
         foreach (var x in w.Work.Priorities())

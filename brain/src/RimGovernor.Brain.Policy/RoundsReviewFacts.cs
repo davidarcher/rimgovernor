@@ -15,9 +15,9 @@ public static partial class RoundsRules
             || coupled is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 }
             || f.HostilityOwed
             || f.CleanupPawns
-            || Positive(f.NamesOwed)
-            || Positive(f.MedicineCarryOwed)
-            || Positive(f.MedicalCareOwed)
+            || f.NamesOwed
+            || f.MedicineCarryOwed
+            || f.MedicalCareOwed
             || f.WorkCoverage == WorkCoverageState.Unmatched;
         if (owed)
         {

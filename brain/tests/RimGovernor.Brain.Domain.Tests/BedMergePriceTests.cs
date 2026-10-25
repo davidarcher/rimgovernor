@@ -514,6 +514,6 @@ public sealed class BedMergePriceTests
         Assert.IsType<StationWorkDay.NoEater>(LayoutLightRules.StationWorkDayOf(f with { Food = new FoodSupply { Larder = new(), Consumers = [] } }));
         Assert.IsType<StationWorkDay.NoCrop>(LayoutLightRules.StationWorkDayOf(f with { Crops = [] }));
         Assert.False(LayoutRegroupRules.StationWorkPrice(f with { Crops = [] }).Valid());
-        Assert.Empty(LayoutComfortChooseRules.AdviseComfort(f with { Crops = [], ExpectedMood = Known(0.5) }, new StationGraph(), 1));
+        Assert.Empty(LayoutComfortChooseRules.AdviseComfort(f with { Crops = [], ExpectedMood = new StationMood.Expected(0.5) }, new StationGraph(), 1));
     }
 }

@@ -64,12 +64,9 @@ public static class ColonyFramesReads
         return facts with { RecoveryBuildings = EquatableArray.From(rows) };
     }
 
-    internal static Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers(Fact<EquatableArray<MoodPawn>> pawns)
+    internal static Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers(EquatableArray<MoodPawn> pawns)
     {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            return Unknown<EquatableArray<RecoveryWorker>>();
-        }
+        var rows = pawns;
         var workers = new List<RecoveryWorker>(rows.Count);
         foreach (var p in rows)
         {
@@ -174,10 +171,9 @@ public static class ColonyFramesReads
                 Definition = new Resource(item.Definition),
                 Count = item.Count,
                 Forbidden = item.Forbidden,
-                Perishable = Known(item.Rot is O.ItemRot.Rotting),
-                RotTicks = ColonyDecodeReads.Optional(item.Rot is O.ItemRot.Rotting, item.Rot is O.ItemRot.Rotting rot ? rot.Ticks : 0),
+                Rot = item.Rot,
             });
         }
-        return r with { Items = Known(EquatableArray.From(stacks)) };
+        return r with { Items = EquatableArray.From(stacks) };
     }
 }

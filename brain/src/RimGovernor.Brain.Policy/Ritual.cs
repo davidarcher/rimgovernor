@@ -48,13 +48,13 @@ public sealed record RitualPlan
 public static partial class RitualRules
 {
     /// <summary>Whether the colony is calm enough to hold a ritual: known no hostile threat and no critical patient. Unknown stays unknown.</summary>
-    public static Fact<bool> RitualCalm(Fact<long> hostiles, Fact<long> patients)
+    public static Fact<bool> RitualCalm(Fact<long> hostiles, long patients)
     {
-        if (!hostiles.TryGetValue(out var h) || !patients.TryGetValue(out var p))
+        if (!hostiles.TryGetValue(out var h))
         {
             return Unknown<bool>();
         }
-        return Known(h == 0 && p == 0);
+        return Known(h == 0 && patients == 0);
     }
 
     /// <summary>

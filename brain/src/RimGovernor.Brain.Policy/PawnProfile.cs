@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -223,10 +222,10 @@ public sealed record PawnProfile
     /// </summary>
     public bool Child { get; init; }
 
-    /// <summary>The pawn's Biotech facts: life stage, genes and the rest; unknown without Biotech.</summary>
-    public Fact<PawnBiotech> Biotech { get; init; }
+    /// <summary>The pawn's Biotech facts: life stage, genes and the rest; Inactive without Biotech.</summary>
+    public PawnBiotechStatus Biotech { get; init; } = new PawnBiotechStatus.Inactive();
 
-    /// <summary>The active genes' typed effects; zero when unknown. Their stat modifiers are already folded into Effects.</summary>
+    /// <summary>The active genes' typed effects; empty without active genes. Their stat modifiers are already folded into Effects.</summary>
     public GeneEffects Genes { get; init; } = new();
 
     /// <summary>The race's minimum age per work type for a child; a work type absent has no minimum.</summary>
@@ -238,11 +237,11 @@ public sealed record PawnProfile
     /// <summary>Whether the primary weapon hunts (WeaponDef.Hunts).</summary>
     public bool Hunts { get; init; }
 
-    /// <summary>The current InspirationDef defName; known "" is none and unknown stays distinct from none.</summary>
-    public Fact<string> Inspiration { get; init; }
+    /// <summary>The current InspirationDef defName; "" means none.</summary>
+    public string Inspiration { get; init; } = "";
 
-    /// <summary>The hours per day the timetable assigns to Work or Anything (WorkPawn.WorkHoursPerDay); unknown when the schedule is.</summary>
-    public Fact<int> WorkHours { get; init; }
+    /// <summary>The hours per day the timetable assigns to Work or Anything (WorkPawn.WorkHoursPerDay); zero for a pawn without a timetable.</summary>
+    public int WorkHours { get; init; }
 
     /// <summary>The pawn's skill row; a skill absent from the read is level 0 and never learns (a disabled skill).</summary>
     public ProfileSkill Skill(string name) =>
@@ -284,12 +283,8 @@ public sealed record PawnProfile
         {
             return true;
         }
-        return work switch
-        {
-            WorkType.Hunting => Effects.MeleeOnly,
-            WorkType.Warden => Effects.Sociable < 0,
-            _ => false,
-        };
+        return (work == WorkType.Hunting && Effects.MeleeOnly)
+            || (work == WorkType.Warden && Effects.Sociable < 0);
     }
 
     /// <summary>Lists the work types Forbidden refuses for this pawn, in natural-priority order, for the dossier.</summary>
@@ -326,13 +321,14 @@ public sealed record PawnProfile
 public static class WorkPawnProfileExtensions
 {
     /// <summary>
-    /// How many hours of the pawn's timetable are Work or Anything. Unknown when the timetable is not 24 hours (a pawn
-    /// without one) or holds an assignment this does not classify.
+    /// How many hours of the pawn's timetable are Work or Anything. A pawn without a timetable has zero; malformed
+    /// nonempty timetables fail the read.
     /// </summary>
-    public static Fact<int> WorkHoursPerDay(this WorkPawn w) => WorkHoursPerDay(w.Schedule);
+    public static int WorkHoursPerDay(this WorkPawn w) => WorkHoursPerDay(w.Schedule);
 
     /// <summary>The Work or Anything hours of a timetable, one TimeAssignmentDef per hour (WorkHoursPerDay above).</summary>
-    public static Fact<int> WorkHoursPerDay(EquatableArray<string> rows) => PawnRules.WorkHours(rows) is { } n ? Known(n) : Unknown<int>();
+    public static int WorkHoursPerDay(EquatableArray<string> rows) =>
+        rows.Count == 0 ? 0 : PawnRules.WorkHours(rows) ?? throw new DomainException("invalid pawn timetable" );
 }
 
 public static partial class PawnRules
@@ -369,7 +365,7 @@ public static partial class PawnRules
         }
         if (pawn.Biotech is PawnBiotechStatus.Active { Facts: var bt })
         {
-            if (bt.Effects.TryGetValue(out var genes))
+            var genes = bt.Effects;
             {
                 genesEffects = genes;
                 effects = effects with
@@ -379,7 +375,7 @@ public static partial class PawnRules
                 };
             }
             child = bt.IsChild();
-            if (bt.WorkMinAges.TryGetValue(out var ages))
+            var ages = bt.WorkMinAges;
             {
                 workMinAge = ages;
             }
@@ -394,12 +390,12 @@ public static partial class PawnRules
             WorkSkill = workSkill,
             Age = pawn.Age,
             Child = child,
-            Biotech = pawn.Biotech is PawnBiotechStatus.Active { Facts: var facts } ? Known(facts) : default,
+            Biotech = pawn.Biotech,
             Genes = genesEffects,
             WorkMinAge = workMinAge,
             Ranged = pawn.Ranged,
             Hunts = pawn.Hunts,
-            Inspiration = Known(pawn.Inspiration),
+            Inspiration = pawn.Inspiration,
             WorkHours = pawn.WorkHoursPerDay(),
         };
     }

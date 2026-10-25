@@ -117,8 +117,7 @@ public static partial class TradePolicyRules
         return ok ? Math.Max(0, silver - reserve) : 0;
     }
 
-    /// <summary>The units the medical reserve review would have the routine trade buy; false while the review's facts are unread.</summary>
-    public static bool MedicineReplenish(MedicalReserveReview review, out long replenish) => review.Replenish.TryGetValue(out replenish);
+
 
     /// <summary>The rough silver a medicine replenish of <paramref name="replenish"/> units costs: the cheapest medicine's market value each (the routine trade's purchase, #3907).</summary>
     public static double MedicineClaim(ItemFacts items, long replenish) => replenish * items.CheapestMedicine().Price;
@@ -234,10 +233,7 @@ public static partial class TradePolicyRules
         TradeFoodContext? food = null
     )
     {
-        if (!MedicineReplenish(medicine, out var replenish))
-        {
-            return Unknown<TradeNeed>();
-        }
+        var replenish = medicine.Replenish;
         var stock = new Dictionary<Resource, long>();
         foreach (var row in resources)
         {

@@ -16,7 +16,7 @@ public sealed record AnimalAcquisition
 
     public required HerdPolicy Herd { get; init; }
 
-    public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
+    public EquatableArray<PawnProfile> Handlers { get; init; }
 
     /// <summary>Whether the herd can take another animal of the race: not retired and below its ceiling when it has one.</summary>
     internal bool Room(Resource race)
@@ -196,7 +196,8 @@ public static class AnimalAcquireRules
     public static IReadOnlyList<SupplyCandidate> TameFoodChannels(AnimalAcquisition input)
     {
         var wild = input.Wild;
-        if (!input.Handlers.TryGetValue(out var profiles) || input.Herd.FeedShort)
+        var profiles = input.Handlers;
+        if (input.Herd.FeedShort)
         {
             return [];
         }
@@ -310,12 +311,12 @@ public static class AnimalAcquireRules
         FoodPlan plan,
         EquatableArray<UpkeepAnimal> wild,
         Fact<bool> feedShort,
-        Fact<EquatableArray<PawnProfile>> handlers
+        EquatableArray<PawnProfile> handlers
     )
     {
         var fk = feedShort.TryGetValue(out var short_);
-        var hk = handlers.TryGetValue(out var profiles);
-        if (!fk || !hk)
+        var profiles = handlers;
+        if (!fk)
         {
             return new HusbandryChoice.Unread();
         }

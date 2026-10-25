@@ -123,6 +123,7 @@ public static class ColonyDecodeReads
         var buildings = tables.Buildings;
         if (!Resolved(buildings, development.Power, row => row.Building))
             throw new BridgeContractException("unresolved development power building");
+        if (tables.PawnCensus is null) throw new BridgeContractException("missing total pawn census");
         expected.Validate();
         var identity = DecodeReads.ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
@@ -461,7 +462,7 @@ public static class ColonyDecodeReads
         // Facts.Gear needs the catalog: ObserveColony fills it.
         var observedRooms = r.Rooms with { EligibleBeds = [.. f.Sleeping.Beds.Where(b => b.Humanlike && !b.Medical && !b.Prisoners).Select(b => b.Id)] };
         f = f with { Upkeep = f.Upkeep with { Rooms = observedRooms }, Sleeping = f.Sleeping with { Rooms = SleepingUpkeepReads.UpkeepRooms(tables.Rooms!, f.Sleeping.Beds) } };
-        return r with { Facts = f, Rooms = observedRooms };
+        return ColonyPawnReads.WithPawnCensus(r with { Facts = f, Rooms = observedRooms }, v, tables, RequireCatalog(catalog));
     }
 
     internal static DefinitionCatalog RequireCatalog(DefinitionCatalog? catalog) =>

@@ -310,9 +310,9 @@ public sealed class StockArrivalCatalogTests
         var items = ItemFactsFixtureRules.CoreItemFacts();
         var review = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
-            Colonists = 3, Catalog = items, Items = Known<EquatableArray<MedicineStackRow>>([]), Resources = [],
+            Colonists = 3, Catalog = items, Items = [], Resources = [],
         }, false, MedicalReservePolicy.Default());
-        Assert.Equal((true, 9L), (review.Active, review.Replenish.Value));
+        Assert.Equal((true, 9L), (review.Active, review.Replenish));
 
         // The gap of 9 at the cheapest kind's 18 is claimed first: 162 of the 700.
         var claimed = stock.WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default());

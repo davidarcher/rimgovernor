@@ -46,7 +46,11 @@ public sealed class PolicyDefaultsTests
         }
         using var doc = JsonDocument.Parse(buffer.WrittenMemory);
         var back = Codecs.Default.Read<PawnBiotech>(doc.RootElement);
-        Assert.Equal(biotech with { Genes = back.Genes }, back);
+        Assert.Equal(biotech with { Genes = back.Genes, Effects = back.Effects, WorkMinAges = back.WorkMinAges }, back);
+        Assert.Empty(back.Effects.Stats);
+        Assert.Empty(back.Effects.DisabledNeeds);
+        Assert.Empty(back.Effects.EnabledNeeds);
+        Assert.Empty(back.WorkMinAges);
         Assert.Null(back.Mechanitor);
         Assert.Equal(mech, back.Mech);
     }

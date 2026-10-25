@@ -206,10 +206,10 @@ public sealed record RoundsFacts
     /// <summary>The planned outdoor dash window through extreme cold (#2765); unknown or zero is closed.</summary>
     public Fact<DashWindow> Dash { get; init; }
 
-    public Fact<EquatableArray<MoodPawn>> MoodPawns { get; init; }
+    public EquatableArray<MoodPawn> MoodPawns { get; init; }
 
     /// <summary>Where the colony loses mood, built each review from the mood census and the catalog thought facts; unknown with the census.</summary>
-    public Fact<MoodLedger> MoodLedger { get; init; }
+    public MoodLedger MoodLedger { get; init; } = new();
 
     /// <summary>The Home census (#3771); null only on a projection that no colony facts read built.</summary>
     public RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts? HomeCoverage { get; init; }
@@ -470,9 +470,9 @@ public sealed record RoundsFacts
 
     public Bounds MapBounds { get; init; }
 
-    public Fact<EquatableArray<CarePawn>> MedicalPawns { get; init; }
+    public EquatableArray<CarePawn> MedicalPawns { get; init; }
 
-    public Fact<bool> MedicalCareRecovered { get; init; }
+    public bool MedicalCareRecovered { get; init; }
 
     /// <summary>The planner's per-work-type coverage (PlanWork): the owners each type wanted and found and the pawns capable of it, so a goal can name a missing capability instead of stalling.</summary>
     public WorkRosterRead WorkRoster { get; init; } = WorkRosterRead.NotRead;
@@ -497,7 +497,7 @@ public sealed record RoundsFacts
     public QuestCalm QuestCalm { get; init; } = new QuestCalm.Unsettled();
 
     /// <summary>Every work pawn's typed profile (Profiles); a presentation fact the review records, never a planner input.</summary>
-    public Fact<EquatableArray<PawnProfile>> WorkProfiles { get; init; }
+    public EquatableArray<PawnProfile> WorkProfiles { get; init; }
 
     public long Colonists { get; init; }
 
@@ -507,10 +507,10 @@ public sealed record RoundsFacts
 
     public Fact<long> GrowingCells { get; init; }
 
-    public Fact<long> Armed { get; init; }
+    public long Armed { get; init; }
 
     /// <summary>Counts living, conscious colonists able to fight who hold no weapon; military/defense stays unmet while it is positive.</summary>
-    public Fact<long> Unarmed { get; init; }
+    public long Unarmed { get; init; }
 
     /// <summary>
     /// The colonists' food runway (#3929): the shortest diet and rot aware runway over those who eat, or none eat.
@@ -639,14 +639,14 @@ public sealed record RoundsFacts
 
     public Fact<long> Hostiles { get; init; }
 
-    public Fact<long> CriticalPatients { get; init; }
+    public long CriticalPatients { get; init; }
 
     /// <summary>
     /// Counts the critical patients who are bleeding or downed with a tend outstanding
     /// (policy.UrgentPatients). The remote hold and the resource harvest read it; the medical family's critical
     /// Needs count every critical patient (#3258).
     /// </summary>
-    public Fact<long> UrgentPatients { get; init; }
+    public long UrgentPatients { get; init; }
 
     /// <summary>A drafted colonist no live plan needs waits for the undraft sweep.</summary>
     public bool CleanupPawns { get; init; }
@@ -655,13 +655,13 @@ public sealed record RoundsFacts
     public bool HostilityOwed { get; init; }
 
     /// <summary>A pawn whose medical care differs from its cap.</summary>
-    public Fact<bool> MedicalCareOwed { get; init; }
+    public bool MedicalCareOwed { get; init; }
 
     /// <summary>A colonist whose medicine carry count differs from the planned one; the admin/work-assignments Need writes it.</summary>
-    public Fact<bool> MedicineCarryOwed { get; init; }
+    public bool MedicineCarryOwed { get; init; }
 
     /// <summary>An owned pawn whose short name an older owned pawn holds; the admin/work-assignments Need renames it.</summary>
-    public Fact<bool> NamesOwed { get; init; }
+    public bool NamesOwed { get; init; }
 
     /// <summary>The standing butcher benches and the room each stands in; the food/supply Need's butcher facility is met once a table stands outside the kitchen.</summary>
     public EquatableArray<ButcherBench> ButcherBenches { get; init; }
@@ -907,13 +907,14 @@ public static partial class RoundsRules
         var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         // The colonist and capacity counts are native unsigned counts and need no check.
-        foreach (var fact in new[] { f.GrowingCells, f.Armed, f.Unarmed, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
+        foreach (var fact in new[] { f.GrowingCells, f.Hostiles })
         {
             if (fact.TryGetValue(out var v) && (v < 0 || v > long.MaxValue / 10))
             {
                 throw new DomainException("invalid routine count");
             }
         }
+        if (f.CriticalPatients < 0 || f.UrgentPatients < 0) throw new DomainException("invalid patient count");
         if (f.Wood < 0 || f.Wood > long.MaxValue / 10)
         {
             throw new DomainException("invalid routine count");

@@ -21,7 +21,7 @@ public sealed class BelieverConversionTests
         PolicyInputs = PawnFixtures.Inputs(ideo, certainty, guest: guest),
     };
 
-    private static WorkPawnsRead.Read Pawns(params WorkPawn[] rows) => new WorkPawnsRead.Read(EquatableArray.From(rows));
+    private static WorkPawnsRead Pawns(params WorkPawn[] rows) => new WorkPawnsRead(EquatableArray.From(rows));
 
     private static IdeologyMode.Installed Ideo(params HeldRole[] roles) => new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { IdeoId = Ours, Development = IdeoDevelopment.Fixed, Roles = roles }));
 
@@ -116,19 +116,19 @@ public sealed class BelieverConversionTests
         var met = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, 0.3))));
         Assert.Equal(GoalState.Met, met.State);
 
-        // An unread pawn census raises rather than block the goal.
-        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), WorkPawnsRead.NotRead))).Fact);
+        // A complete empty census has no colonist left to convert.
+        Assert.Equal(GoalState.Met, GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), new WorkPawnsRead([]))).State);
     }
 
     [Fact]
-    public void ShortfallAndOwedRaiseOnlyWhileABelieversGoalReadsUnreadInputs()
+    public void AnEmptyCensusOwesNoConversionForAnyGoal()
     {
         var other = new GoalRecord { Id = 6, Kind = GoalKind.Meme, Target = "Meme_x" };
-        Assert.Equal(0, ConversionRules.Shortfall([other], Ideo(), WorkPawnsRead.NotRead));
-        Assert.Equal(ConversionOwed.None, ConversionRules.Owed([other], Ideo(), WorkPawnsRead.NotRead));
-        Assert.Equal(0, ConversionRules.Shortfall([Everyone], new IdeologyMode.NotInstalled(), WorkPawnsRead.NotRead));
-        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Shortfall([Everyone], Ideo(), WorkPawnsRead.NotRead)).Fact);
-        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Owed([Everyone], Ideo(), WorkPawnsRead.NotRead)).Fact);
+        Assert.Equal(0, ConversionRules.Shortfall([other], Ideo(), new WorkPawnsRead([])));
+        Assert.Equal(ConversionOwed.None, ConversionRules.Owed([other], Ideo(), new WorkPawnsRead([])));
+        Assert.Equal(0, ConversionRules.Shortfall([Everyone], new IdeologyMode.NotInstalled(), new WorkPawnsRead([])));
+        Assert.Equal(0, ConversionRules.Shortfall([Everyone], Ideo(), new WorkPawnsRead([])));
+        Assert.Equal(ConversionOwed.None, ConversionRules.Owed([Everyone], Ideo(), new WorkPawnsRead([])));
     }
 
     [Fact]

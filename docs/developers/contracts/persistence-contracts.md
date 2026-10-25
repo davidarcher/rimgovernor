@@ -364,3 +364,5 @@ second stock target, saved goal queue or progress journal. Missing/partial revie
 evidence cannot establish satisfaction. See [essential services](essential-services.md).
 
 Selected practice references live role requirements through the existing Method action payload. The session journal stores the admitted participants and exact targets; requirements, XP projections and rejected alternatives remain derived in memory. The existing native bout registry owns transient selected rosters; no skill target or additional save state is written.
+
+Journal version 57 stores pawn profile work hours and biotech effects directly, replacing older journals. Medical care history retains unresolved tracked patients until a current observation proves recovery; an absent patient is never evidence of recovery. These values remain in the existing review and medical history records; there is no second census store.

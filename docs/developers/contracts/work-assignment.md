@@ -101,8 +101,7 @@ For each:
 `WorkDecision.Coverage` lists demand, owners and capable count per type
 (`RoundsFacts.WorkRoster`: `WorkRosterRead.Read` once the planner planned, `Unread` otherwise;
 `RoundsFacts.WorkCoverage` is the `WorkCoverageState` Unread, Matched or Unmatched).
-The pawn census the planner reads is `ColonyProjection.WorkPawns`, a `WorkPawnsRead`: `Read` with
-every colonist's row, or `Unread` with the reason no whole census was served. `Capacity` is false when a required type or a core
+The pawn census the planner reads is `ColonyProjection.WorkPawns`, a `WorkPawnsRead` containing every colonist's row. A complete census with no colonists is empty; an absent native census fails the read. `Capacity` is false when a required type or a core
 role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
@@ -642,3 +641,5 @@ Selected need effects return productive windows to the existing activity search;
 there is no independent needs labor budget. Existing routine assignment consumers
 may still inspect timetable availability, but the automatic timetable writer is
 removed and those observations cannot start a competing voluntary job.
+
+Pawn profiles carry the observed work hours, gene effects and work minimum ages directly. A pawn with no timetable has zero scheduled work hours; a malformed nonempty timetable fails the read. Routine and direct colony reads derive the same complete colonist profiles from the native pawn census.

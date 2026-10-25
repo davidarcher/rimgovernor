@@ -144,6 +144,11 @@ public readonly record struct Things(Table<Thing> Table)
 /// </param>
 public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, EquatableArray<string> FinishedResearch)
 {
+    /// <summary>The complete source pawn census; absent only in non-colony table uses.</summary>
+    public PawnSnapshot? PawnCensus { get; init; }
+
+    /// <summary>The same-frame emergency census whose references the pawn table resolves.</summary>
+    public RimGovernor.Brain.Policy.EmergencyFacts? Emergency { get; init; }
     /// <summary>The client's existing incremental construction projection; recordings derive directly from the rows.</summary>
     public Memo? ConstructionMemo { get; init; }
 

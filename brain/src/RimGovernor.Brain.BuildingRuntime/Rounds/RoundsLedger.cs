@@ -260,7 +260,7 @@ public sealed partial class Rounder
             }
             else
             {
-                EquatableArray<WorkPawn> pawns = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var rows } ? rows : [];
+                EquatableArray<WorkPawn> pawns = projection.WorkPawns.Pawns;
                 var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick.Value });
                 var plan = WorkRules.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
                 l.Orphans = plan.Orphans;

@@ -25,7 +25,7 @@ public sealed class SkillHealthGoalTests
     };
 
     private static GoalsFacts SkillFacts(GoalRecord goal, params WorkPawn[] pawns) =>
-        new() { Goals = [goal], Pawns = new WorkPawnsRead.Read(EquatableArray.From(pawns)) };
+        new() { Goals = [goal], Pawns = new WorkPawnsRead(EquatableArray.From(pawns)) };
 
     private static int Priority(WorkDecision decision, string pawn, WorkType work) =>
         decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.Single(p => p.Work == work).Priority;
@@ -38,7 +38,7 @@ public sealed class SkillHealthGoalTests
         Assert.Equal((GoalState.Pursuing, AdminFamily.WorkAssignments, 4.0), (open.State, open.Owner, ((GoalDeficit.Measured)open.Deficit).Amount));
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 12, 18))).State);
 
-        Assert.Equal("pawn census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts { Goals = [goal] })).Fact);
+        Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal, new GoalsFacts { Goals = [goal] })));
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("other", 6, 18)))));
         Assert.Equal((GoalState.NoMethod, "unknown_skill"), Reason(GoalRules.Evaluate(goal with { Qualifier = "Taming" }, SkillFacts(goal, Pawn("trainee", 6, 18)))));
         Assert.Equal((GoalState.NoMethod, "incapable"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18, cookingDisabled: true)))));
@@ -95,7 +95,7 @@ public sealed class SkillHealthGoalTests
         Rounds = new RoundsFacts
         {
             Recipes = new RecipeFacts { AddedHediffs = new Dictionary<string, string> { [Recipe] = "BionicEye" } },
-            MedicalPawns = Known(EquatableArray.From([patient])),
+            MedicalPawns = EquatableArray.From([patient]),
             Sleeping = bed ? Hospital : new SleepingObservation(),
         },
     };
@@ -113,7 +113,6 @@ public sealed class SkillHealthGoalTests
         Assert.Equal((GoalState.NoMethod, "unavailable"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true) with { Operations = [] }))));
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal with { Target = "other" }, HealthFacts(goal, Patient(true)))));
         var unread = HealthFacts(goal, Patient(true));
-        Assert.Equal("medical pawns", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, unread with { Rounds = unread.Rounds with { MedicalPawns = default } })).Fact);
     }
 
     [Fact]
@@ -129,10 +128,10 @@ public sealed class SkillHealthGoalTests
         Assert.Empty(SurgeryRules.SelectSurgery(facts.MedicalPawns, null, ctx with { Goals = [] }).Queue);
         var choice = Assert.Single(SurgeryRules.SelectSurgery(facts.MedicalPawns, null, ctx).Queue);
         Assert.Equal((Recipe, EyePart, true), (choice.Recipe, choice.Part, choice.Elective));
-        Assert.True(SurgeryRules.ElectiveSurgeryOwed(facts.MedicalPawns, ctx, null).Value);
+        Assert.True(SurgeryRules.ElectiveSurgeryOwed(facts.MedicalPawns, ctx, null));
 
         // Unstocked, the goal wants its part for the bill and trade paths.
-        var missing = Known(EquatableArray.From([Patient(false)]));
+        var missing = EquatableArray.From([Patient(false)]);
         Assert.Empty(SurgeryRules.SelectSurgery(missing, null, ctx).Queue);
         var want = Assert.Single(SurgeryRules.ChosenElectives(missing, ctx));
         Assert.Equal((EyePart, SurgeryWantReason.PartShort), (want.Part, want.Reason));

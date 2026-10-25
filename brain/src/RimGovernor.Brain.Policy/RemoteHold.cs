@@ -44,10 +44,7 @@ public static partial class RemoteRules
     /// </summary>
     public static Fact<bool> UrgentWorkCompeting(RoundsFacts f)
     {
-        if (!f.UrgentPatients.TryGetValue(out var patients))
-        {
-            return Unknown<bool>();
-        }
+        var patients = f.UrgentPatients;
         if (patients > 0)
         {
             return Known(true);

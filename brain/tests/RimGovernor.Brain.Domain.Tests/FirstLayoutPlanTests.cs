@@ -110,9 +110,9 @@ public sealed class FirstLayoutPlanTests
             Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
         },
         Colonists = colonists,
-        Patients = Fact.Known(EquatableArray.From<CarePawn>([])),
+        Patients = [],
         Prisoners = Fact.Known(0),
-        WorkPawns = new WorkPawnsRead.Read(EquatableArray.From<WorkPawn>([])),
+        WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([])),
         Rest = RestSchedule.Of([]),
         Food = new FoodSupply
         {

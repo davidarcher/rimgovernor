@@ -8,10 +8,7 @@ public static class CropResilienceRules
     /// </summary>
     public static (Fact<int> Growers, Fact<int> Cooks) CropWorkers(WorkPawnsRead fact)
     {
-        if (fact is not WorkPawnsRead.Read { Pawns: var pawns })
-        {
-            return default;
-        }
+        var pawns = fact.Pawns;
         var g = 0;
         var c = 0;
         foreach (var pawn in pawns)

@@ -21,7 +21,7 @@ public sealed record AnimalsFacts
     public FoodPlan? FoodPlan { get; init; }
 
     /// <summary>The colonists' work profiles (<see cref="PawnRules.Profiles"/>): who can tame, train and master.</summary>
-    public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
+    public EquatableArray<PawnProfile> Handlers { get; init; }
 
     /// <summary>The pen-bound animals not yet contained, released or slaughtered (<see cref="AnimalUpkeepRules.ReviewAnimalUpkeep"/>).</summary>
     public EquatableArray<PawnId> Uncontained { get; init; }

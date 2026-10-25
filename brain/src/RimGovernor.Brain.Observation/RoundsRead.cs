@@ -150,44 +150,7 @@ public static class RoundsReads
         p = p with { Facts = p.Facts with { Sleeping = sleeping, VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
         var census = frame.Buildings ?? throw new ObservationContractException("a routine frame carries no building census");
         p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
-        var pawns = RoundsPawnsOf(frame, id);
-        p = p with
-        {
-            WorkPawns = WorkPawnsRead.NotRead,
-            Rest = null,
-            Facts = p.Facts with { Armed = default, Unarmed = default, DefenseCapacity = default, MedicalPawns = default, MoodPawns = default },
-        };
-        if (pawns is not null)
-        {
-            var (armed, unarmed) = RoundsMoodReads.RoundsArmed(colony, emergency, pawns, catalog.CreepJoinerDownsides());
-            p = p with
-            {
-                Facts = p.Facts with
-                {
-                    Armed = armed,
-                    Unarmed = unarmed,
-                    DefenseCapacity = DefenseCapacityPolicy.DefenseCapacity(RoundsMoodReads.RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
-                },
-                MechCatalog = catalog.Biotech?.MechCatalog() ?? new(),
-                WorkPawns = RoundsWorkReads.RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
-                Rest = RoundsWorkReads.RoundsRest(pawns),
-            };
-            p = p with { Facts = p.Facts with { MedicalPawns = RoundsContainmentReads.RoundsMedical(colony, emergency, pawns, catalog) } };
-            p = p with { Facts = p.Facts with { MoodPawns = RoundsMoodReads.RoundsMood(colony, emergency, pawns) } };
-            var thoughtFacts = catalog.AllThoughtFacts();
-            p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodReads.RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
-        }
-        else if (emergency.AllSeen && emergency.Colonists.Count == 0 && colony.ColonistCount == 0)
-        {
-            p = p with
-            {
-                Facts = p.Facts with
-                {
-                    MoodPawns = Known<EquatableArray<MoodPawn>>([]),
-                    MoodLedger = Known(MoodRules.BuildMoodLedger([], new Dictionary<string, ThoughtFacts>())),
-                },
-            };
-        }
+        var pawns = frame.Pawns ?? throw new BridgeContractException("routine frame without its pawn census");
         p = p with { Facts = p.Facts with { StockArrival = StockArrivalReads.Of(catalog, finished, frame.Bills, pawns, colony, p.Facts.Items.MedicineTiers()) } };
         p = p with { Mechs = frame.Tables.Pawns.Count > 0 ? Known(RoundsContainmentReads.MechFleetOf(frame.Tables.Pawns.Table.Values())) : Unknown<MechFleet>() };
         p = p with
@@ -286,25 +249,6 @@ public static class RoundsReads
         p = p with { Facts = p.Facts with { Sleeping = bedded, Comfort = ComfortRules.HostedComfort(p.Facts.RequireBasicComfort(), comfortRooms) } };
         p = p with { Rooms = comfortRooms, Facts = p.Facts with { SleepingTemperature = TemperatureMethodRules.TemperatureRange(comfortRooms) } };
         return p;
-    }
-
-    /// <summary>
-    /// The frame's colonist pawn detail, validated against the frame's complete emergency roster; null when the
-    /// roster is incomplete or empty, or the frame carries no detail.
-    /// </summary>
-    private static O.PawnSnapshot? RoundsPawnsOf(RoundsFrame frame, C.Identity id)
-    {
-        var facts = frame.Emergency.Facts;
-        if (!facts.AllSeen || facts.Colonists.Count == 0 || frame.Pawns is null)
-        {
-            return null;
-        }
-        var ids = new List<string>(facts.Colonists.Count);
-        foreach (var pawn in facts.Colonists)
-        {
-            ids.Add(pawn.Id.Value);
-        }
-        return frame.Pawns;
     }
 
     /// <summary>Resolves definitions against the frame's catalog, research and crop rows.</summary>

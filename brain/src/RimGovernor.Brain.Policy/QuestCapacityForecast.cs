@@ -130,10 +130,7 @@ public static class QuestCapacityForecast
             foreach (var pawn in eligible)
             {
                 var p = byId[pawn.Pawn];
-                if (!p.WorkHoursPerDay().TryGetValue(out var scheduled))
-                {
-                    return "deadline_unknown";
-                }
+                var scheduled = p.WorkHoursPerDay();
                 if (!QuestWorkEnabled(p, task.Workload.Work))
                 {
                     continue;

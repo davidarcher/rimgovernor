@@ -34,7 +34,7 @@ public enum HospitalMethod
 /// <summary>Asks for a hospital bed; the planner stages RoomFurniture.HospitalBeds in preference order, a sleeping spot (the free bed) last.</summary>
 public sealed record HospitalRequest
 {
-    public Fact<EquatableArray<CarePawn>> Patients { get; init; }
+    public EquatableArray<CarePawn> Patients { get; init; }
     public SleepingObservation Sleeping { get; init; } = new();
     public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
     public IReadOnlyList<BenchDefinition> Definitions { get; init; } = [];
@@ -51,8 +51,8 @@ public sealed record HospitalRequest
     public long BedCapacity { get; init; }
     public long IndoorCapacity { get; init; }
 
-    /// <summary>The count of Doctor-capable colonists; a known zero means nobody could treat a patient in the ward, so no hospital work runs.</summary>
-    public Fact<int> Doctors { get; init; }
+    /// <summary>The count of Doctor-capable colonists; zero means nobody could treat a patient in the ward, so no hospital work runs.</summary>
+    public int Doctors { get; init; }
 
     /// <summary>Patients whose operation waits on a better bed or room (SurgeryBedShortPatients): each needs a hosted medical bed, and while any waits a sleeping spot neither counts nor is staged.</summary>
     public IReadOnlyList<PawnId> Surgical { get; init; } = [];
@@ -80,12 +80,9 @@ public static class HospitalRules
     /// condition, e.g. a scar) keeps the deficit and does not size the ward. Not ok when the census or a patient's
     /// rest or death is unknown.
     /// </summary>
-    internal static (HashSet<PawnId> Ill, bool Ok) IllPatients(Fact<EquatableArray<CarePawn>> patients, IReadOnlyList<PawnId> surgical)
+    internal static HashSet<PawnId> IllPatients(EquatableArray<CarePawn> patients, IReadOnlyList<PawnId> surgical)
     {
-        if (!patients.TryGetValue(out var rows))
-        {
-            return ([], false);
-        }
+        var rows = patients;
         var ill = new HashSet<PawnId>();
         foreach (var p in rows)
         {
@@ -98,7 +95,7 @@ public static class HospitalRules
         {
             ill.Add(id);
         }
-        return (ill, true);
+        return ill;
     }
 
     /// <summary>The beds standing in a room that can host the Hospital function.</summary>
@@ -141,18 +138,14 @@ public static class HospitalRules
     /// </summary>
     public static HospitalChoice SelectHospitalBed(HospitalRequest r)
     {
-        var (ill, known) = IllPatients(r.Patients, r.Surgical);
-        if (!known)
-        {
-            return new HospitalChoice { Method = HospitalMethod.Unknown };
-        }
+        var ill = IllPatients(r.Patients, r.Surgical);
         var surgical = r.Surgical.Count > 0;
         var choice = new HospitalChoice { Needed = Math.Max(ill.Count, r.MinBeds) };
         if (choice.Needed == 0)
         {
             return choice with { Method = HospitalMethod.NoDemand };
         }
-        if (r.Doctors.TryGetValue(out var doctors) && doctors <= 0)
+        if (r.Doctors <= 0)
         {
             return choice with { Method = HospitalMethod.Unavailable };
         }

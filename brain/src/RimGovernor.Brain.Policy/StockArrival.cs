@@ -219,10 +219,7 @@ public sealed record StockArrival
             return this;
         }
 
-        if (!TradePolicyRules.MedicineReplenish(review, out var replenish))
-        {
-            return this with { Unread = "medicine_reserve" };
-        }
+        var replenish = review.Replenish;
 
         var claim = (long)Math.Ceiling(TradePolicyRules.MedicineClaim(items, replenish));
         var parts = Trade.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) });

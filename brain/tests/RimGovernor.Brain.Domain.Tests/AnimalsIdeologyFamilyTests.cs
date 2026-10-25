@@ -66,7 +66,7 @@ public sealed class AnimalsIdeologyFamilyTests
             Animals = EquatableArray.From<UpkeepAnimal>([]),
             Wild = EquatableArray.From<UpkeepAnimal>([]),
             FeedShort = Known(false),
-            Handlers = Known<EquatableArray<PawnProfile>>([]),
+            Handlers = [],
             FoodPlan = new FoodPlan(),
             Uncontained = EquatableArray.From<PawnId>([]),
             Pen = Known(Step(HerdStepKind.None)),
@@ -99,7 +99,7 @@ public sealed class AnimalsIdeologyFamilyTests
             Animals = EquatableArray.From<UpkeepAnimal>([]),
             Wild = EquatableArray.From<UpkeepAnimal>([]),
             FeedShort = Known(false),
-            Handlers = Known<EquatableArray<PawnProfile>>([]),
+            Handlers = [],
         };
         // The food plan's slaughter and tame read it: unread, the herd is unknown, never held as met.
         Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => Animal(none, AnimalsFamily.Herd)).Fact);

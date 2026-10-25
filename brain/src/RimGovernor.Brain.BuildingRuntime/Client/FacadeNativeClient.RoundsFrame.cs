@@ -43,6 +43,7 @@ public sealed partial class FacadeNativeClient
         var identity = v.Context!.Identity!;
         var held = prepared.Held;
         var pawns = held.Pawns;
+        var pawnMeta = held.PawnMeta ?? throw BridgeContractException.Contract("routine frame without its pawn census" );
         var research = v.Research ?? throw BridgeContractException.Contract("routine frame without its research section");
         var output = new RoundsFrame
         {
@@ -51,13 +52,13 @@ public sealed partial class FacadeNativeClient
             Rooms = v.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"),
             Bills = v.Bills,
             Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
-            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]) { Rooms = v.Rooms ?? throw BridgeContractException.Contract("routine frame without its rooms section") },
+            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]) { PawnCensus = v.Pawns, Emergency = prepared.Emergency?.Facts, Rooms = v.Rooms ?? throw BridgeContractException.Contract("routine frame without its rooms section") },
             Research = research,
         };
         if (prepared.Emergency is { } emergency)
         {
             output = output with { Emergency = emergency };
-            if (held.PawnMeta is { } meta && RoundsPawnRows(meta, pawns, emergency) is { } colonists)
+            if (RoundsPawnRows(pawnMeta, pawns, emergency) is { } colonists)
             {
                 output = output with { Pawns = colonists };
             }
@@ -100,12 +101,12 @@ public sealed partial class FacadeNativeClient
     /// The routine list read answered from <paramref name="table"/>'s envelope and the rows
     /// the census colonists resolve against; null without a complete census or when the table misses one.
     /// </summary>
-    internal static PbObservations.PawnSnapshot? RoundsPawnRows(PbObservations.PawnSnapshot table, Pawns rows, EmergencyObservation emergency)
+    internal static PbObservations.PawnSnapshot RoundsPawnRows(PbObservations.PawnSnapshot table, Pawns rows, EmergencyObservation emergency)
     {
         var ids = RoundsPawnIds(emergency);
-        if (ids.Count == 0 || rows.Snapshot(table.Context, ids) is not { } output)
+        if (rows.Snapshot(table.Context, ids) is not { } output)
         {
-            return null;
+            throw BridgeContractException.Contract("routine pawn table misses a census colonist" );
         }
         return output;
     }
@@ -117,10 +118,6 @@ public sealed partial class FacadeNativeClient
     internal static List<string> RoundsPawnIds(EmergencyObservation emergency)
     {
         var ids = new List<string>();
-        if (!emergency.Facts.AllSeen)
-        {
-            return ids;
-        }
         foreach (var pawn in emergency.Facts.Colonists)
         {
             ids.Add(pawn.Id.Value);

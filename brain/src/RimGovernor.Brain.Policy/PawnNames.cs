@@ -42,5 +42,5 @@ public static partial class PawnRules
     }
 
     /// <summary>The review's NamesOwed fact: a rename is owed.</summary>
-    public static Fact<bool> NamesOwed(PrisonerCensus population) => Known(NicknameChanges(population.Names).Count > 0);
+    public static bool NamesOwed(PrisonerCensus population) => NicknameChanges(population.Names).Count > 0;
 }

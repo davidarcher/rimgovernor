@@ -77,10 +77,7 @@ public sealed partial class RoundsSurgeryPlanner
                 }
             }
         }
-        if (!read.Projection.Facts.MedicalPawns.TryGetValue(out _))
-        {
-            return new RoundsSurgeryResult { Verdict = FieldUnavailable("medical_pawns") };
-        }
+
         var surgery = read.Projection.SurgeryContext();
         var selection = SurgeryRules.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
         var result = new RoundsSurgeryResult { Wants = selection.Wants };

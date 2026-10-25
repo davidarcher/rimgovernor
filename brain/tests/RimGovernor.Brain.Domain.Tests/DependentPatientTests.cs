@@ -34,8 +34,9 @@ public sealed class DependentPatientTests
         Assert.Equal(["doctor", "guest", "refugee"], EmergencyPatientsRules.EmergencyRescuePatients(facts).Select(p => p.Value));
         Assert.Equal(["doctor", "guest", "entity"], EmergencyPatientsRules.EmergencyTendPatients(facts).Select(p => p.Value));
         var snapshot = Snapshot(facts);
-        Assert.Equal(3, EmergencyNeedsRules.EmergencyNeeds(snapshot, World, new(100)).Patients.Value);
-        Assert.Equal(3, EmergencyNeedsRules.UrgentPatients(snapshot, World, new(100)).Value);
+        Assert.Equal(3, EmergencyNeedsRules.EmergencyNeeds(snapshot, World, new(100)).Patients);
+        Assert.Equal(3, EmergencyNeedsRules.UrgentPatients(snapshot, World, new(100)));
+        Assert.Equal((3L, 3L), EmergencyNeedsRules.PatientCounts(facts, []));
         Assert.Equal(3, EmergencyRules.EvaluateEmergency(snapshot, World, new(100)).Holds.Count(h => h.Reason == EmergencyReason.CriticalMedical));
     }
 
@@ -44,13 +45,14 @@ public sealed class DependentPatientTests
     {
         var patient = Patient("guest", DependentPatientGroup.HostedGuest, true, true);
         var unresolved = Decode(Status(patient), Pawn("doctor"));
+        Assert.Throws<RequiredFactException>(() => EmergencyNeedsRules.PatientCounts(unresolved, []));
         Assert.Equal(["guest"], unresolved.Unseen.Select(p => p.Value));
-        Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(unresolved), World, new(100)).Patients.IsKnown);
+        Assert.Throws<RequiredFactException>(() => EmergencyNeedsRules.EmergencyNeeds(Snapshot(unresolved), World, new(100)));
         Assert.Contains(EmergencyRules.EvaluateEmergency(Snapshot(unresolved), World, new(100)).Holds,
             h => h.Reason == EmergencyReason.StaleFacts && h.Pawn.Value == "guest");
         var empty = Decode(Status(), Pawn("doctor"));
         Assert.True(EmergencyRules.EvaluateEmergency(Snapshot(empty), World, new(100)).Clear);
-        Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(empty), World, new(100)).Patients.Value);
+        Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(empty), World, new(100)).Patients);
     }
 
     [Fact]
@@ -58,8 +60,8 @@ public sealed class DependentPatientTests
     {
         var facts = Decode(Status(Patient("guest", DependentPatientGroup.HostedGuest, true, true)), Pawn("doctor"), Pawn("guest"));
         Assert.True(EmergencyRules.EvaluateEmergency(Snapshot(facts), World, new(100)).Clear);
-        Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.Value);
+        Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(facts), World, new(100)).Patients);
         var unknown = facts with { Unseen = [new("guest")] };
-        Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(unknown), World, new(100)).Patients.IsKnown);
+        Assert.Throws<RequiredFactException>(() => EmergencyNeedsRules.EmergencyNeeds(Snapshot(unknown), World, new(100)));
     }
 }

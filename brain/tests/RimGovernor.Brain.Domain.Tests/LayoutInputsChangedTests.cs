@@ -81,11 +81,11 @@ public sealed class LayoutInputsChangedTests
     public void StockMoodAndTheOtherHourlyFactsDoNotChangeTheKey()
     {
         var s = FirstLayoutPlanTests.Survey("mild");
-        var f = FirstLayoutPlanTests.Facts(s, 3) with { ExpectedMood = Known(0.4) };
+        var f = FirstLayoutPlanTests.Facts(s, 3) with { ExpectedMood = new StationMood.Expected(0.4) };
         var drifted = f with
         {
             Stock = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("WoodLog")] = 300 }),
-            ExpectedMood = Known(0.8),
+            ExpectedMood = new StationMood.Expected(0.8),
             FoodReserveDays = 12,
             OutdoorCurve = Known(EquatableArray.From(new[] { -22.0, -18, -10, -2, 4, 9, 12, 10, 3, -6, -14, -20 })),
         };

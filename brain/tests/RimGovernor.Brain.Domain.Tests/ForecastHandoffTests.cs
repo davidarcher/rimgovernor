@@ -36,7 +36,7 @@ public sealed class ForecastHandoffTests
     {
         commitments ??= new Dictionary<string, ForecastCommitment>();
         return ForecastHandoffPolicy.Project(request, commitments, outcome ?? Outcome(), stock,
-            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { MedicineComplete = true, Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, double.PositiveInfinity, p.Key == Food ? FoodEligibility.Eligible : FoodEligibility.Ineligible, p.Key == Food ? .5 : 0, [], p.Key == Medicine))) });
+            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, double.PositiveInfinity, p.Key == Food ? FoodEligibility.Eligible : FoodEligibility.Ineligible, p.Key == Food ? .5 : 0, [], p.Key == Medicine))) });
     }
 
     [Fact]

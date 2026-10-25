@@ -119,7 +119,7 @@ public sealed class BedStationPriceTests
     {
         Cluster = cluster,
         Embed = Embed,
-        Price = new RegroupPrice { Work = new WorkPrice(8000, LayoutRegroupRules.CellWalkDays(60)), Mood = cluster.Catalog.Mood, Expected = Known(0.37) },
+        Price = new RegroupPrice { Work = new WorkPrice(8000, LayoutRegroupRules.CellWalkDays(60)), Mood = cluster.Catalog.Mood, Expected = new StationMood.Expected(0.37) },
     });
 
     private static bool Shared(Clustering c, string a, string b) => c.Groups.Any(g => LayoutRegroupRules.HoldsNode(g, a) && LayoutRegroupRules.HoldsNode(g, b));

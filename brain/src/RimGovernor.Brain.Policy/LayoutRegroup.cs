@@ -15,7 +15,7 @@ public sealed record RegroupPrice
 {
     public WorkPrice Work { get; init; }
     public MoodModel Mood { get; init; } = new();
-    public Fact<double> Expected { get; init; }
+    public StationMood Expected { get; init; } = new StationMood.NoMood();
 
     /// <summary>
     /// A lost role effect in score points: its mood points taken from each pawn at the planned room's stage, as break risk. A
@@ -28,9 +28,9 @@ public sealed record RegroupPrice
         {
             return Work.Points(l.Days);
         }
-        var known = Expected.TryGetValue(out var level);
+        var mood = Expected;
         var (lost, ok) = l.Effect == RoleEffect.SleepDisturbed ? (l.Points, true) : Mood.LostPoints(l, LayoutMoodRules.MoodJudgment.PlannedStage);
-        if (!known || !ok)
+        if (mood is not StationMood.Expected { Level: var level } || !ok)
         {
             return 0;
         }
