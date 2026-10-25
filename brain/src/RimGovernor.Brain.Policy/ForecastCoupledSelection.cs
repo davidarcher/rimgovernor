@@ -539,7 +539,7 @@ public sealed partial record ForecastCoupledSelection
             foreach (var metric in row.Needs)
             {
                 if (metric.Kind is not ("food" or "rest")) continue;
-                if (!metric.ZeroTicks.TryGetValue(out var zero)) { baselineZeroKnown = false; break; }
+                if (metric.ZeroTicks is not ForecastTerm.Assessed(var zero)) { baselineZeroKnown = false; break; }
                 baselineZero[p] = Math.Max(baselineZero[p], zero);
             }
         }
@@ -944,8 +944,8 @@ public sealed partial record ForecastCoupledSelection
                 var value = term == Term.ZeroTicks ? metric.ZeroTicks
                     : term == Term.ThresholdDepthTicks ? metric.ThresholdDepthTicks
                     : term == Term.ThresholdExposureTicks ? metric.ThresholdExposureTicks
-                    : metric.FinalLevel.IsKnown ? Known(metric.FinalLevel.Value == 0 ? 1.0 : 0.0) : default;
-                if (!value.TryGetValue(out var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); reason ??= "unassessed:" + pawn + ":" + kind; complete = false; continue; }
+                    : metric.FinalLevel is ForecastTerm.Assessed(var level) ? new ForecastTerm.Assessed(level == 0 ? 1.0 : 0.0) : metric.FinalLevel;
+                if (value is not ForecastTerm.Assessed(var number)) { unknown.Add("unassessed:" + pawn + ":" + kind); reason ??= "unassessed:" + pawn + ":" + kind; complete = false; continue; }
                 sum += number;
                 if (!any || double.IsNaN(max) || number > max) max = number;
                 any = true;

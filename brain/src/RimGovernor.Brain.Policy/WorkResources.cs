@@ -6,7 +6,7 @@ public sealed record WorkBuildingCost(string Definition, string Stuff, Fact<Equa
     public Fact<Cell> Size { get; init; }
 }
 public sealed record WorkPawnAvailability(string Pawn, Fact<bool> Available, Fact<bool> Applies,
-    Fact<bool> Occupied, Fact<string> Target)
+    bool Occupied, Fact<string> Target)
 {
     public Fact<EquatableArray<string>> Schedule { get; init; }
     public Fact<double> LocalHour { get; init; }
@@ -132,28 +132,10 @@ public static partial class WorkRules
     public static ForecastCapacityResult WorkCapacityOf(WorkResourceView view, string pawn, double horizon, bool protectTimetable = true)
     {
         var observed = view.Evidence.Pawns.TryGetValue(out var rows) ? rows.SingleOrDefault(p => p.Pawn == pawn) : null;
-        var work = new ForecastCapacityPawn
-        {
-            Id = new(pawn),
-            Available = observed?.Available ?? default,
-            Applies = observed?.Applies ?? default,
-            Schedule = observed is not null && observed.Schedule.TryGetValue(out var schedule) ? schedule : [],
-        };
-        return ForecastCapacity.ForecastPawnCapacityOf(new()
-        {
-            Pawn = work,
-            ProtectTimetable = protectTimetable,
-            Location = "start",
-            HorizonTicks = horizon,
-            LocalHour = observed?.LocalHour ?? default,
-            OpportunityCostPerTick = 1.0,
-            CurrentWork = new(work.Id, observed?.Occupied ?? default, default,
-                observed?.Occupied == Known(false) ? Known(0.0) : default),
-            Occupancy = view.Claims.Truncated ? default : Known<EquatableArray<ForecastOccupancy>>(view.Claims.Pawns.Contains(pawn)
-                ? [new("journal", pawn, Known(0.0), default, ForecastOccupancyState.Active)] : [])
-        });
+        var protection = view.Claims.Truncated ? (ForecastProtection)new ForecastProtection.Truncated() : new ForecastProtection.Read(view.Claims.Pawns.Contains(pawn)
+            ? [new("journal", pawn, 0, 0, ForecastOccupancyState.Untimed)] : []);
+        return ForecastCapacity.ForecastPawnCapacityOf(ForecastCapacity.InputOf(pawn, observed, horizon, protection, protectTimetable));
     }
-
     public static RoundsFacts ReviewWorkResources(RoundsFacts facts, Fact<EquatableArray<ProductionBatch>> batches,
         WorkActionCensus actions)
     {
@@ -512,7 +494,7 @@ public static partial class WorkRules
         var usesBench = proposed.Actions.Any(a => a.ProductionBill is { Mode: BillMode.GearBatch }
             || a.PawnActivities is { } activity && activity.Orders.Any(o => o.Steps.Any(s => s.Recipe is not null) || o.OutputDelivery?.Recipe is not null));
         if (usesBench && (!view.Evidence.WorkResources.IsKnown || !view.Evidence.Pawns.TryGetValue(out var benchPawns)
-            || benchPawns.Any(p => !p.Occupied.IsKnown || p.Occupied.Value && !p.Target.IsKnown))) return "bench_evidence_unknown";
+            || benchPawns.Any(p => p.Occupied && !p.Target.IsKnown))) return "bench_evidence_unknown";
         foreach (var pawn in candidate.Pawns)
         {
             if (!view.Evidence.Pawns.TryGetValue(out var roster)) return "pawn_roster_unknown";
@@ -573,7 +555,7 @@ public static partial class WorkRules
                 && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))
                 : native.Any(n => n.Pawn == o.Pawn && n.Assignment == o.Assignment && n.Revision == o.Revision
                     && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))))
-            ? p with { Occupied = Known(false) } : p)))
+            ? p with { Occupied = false } : p)))
         };
     }
 }

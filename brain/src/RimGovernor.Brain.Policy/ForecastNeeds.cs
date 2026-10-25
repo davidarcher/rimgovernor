@@ -5,15 +5,15 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastNeedChoice(string Id, string Pawn, string Kind, string Target, string Resource,
     int Count, double Depart, double Start, double End, double Gain, EquatableArray<NeedMemory> Thoughts)
 {
-    public ForecastOccupancy Occupancy => new(Id, Pawn, Known(Depart), Known(End), ForecastOccupancyState.Active);
+    public ForecastOccupancy Occupancy => new(Id, Pawn, Depart, End, ForecastOccupancyState.Active);
     public ForecastActivity Activity => new(Id, Target, Target, [])
     { Inputs = Kind == "food" ? [new(new(Resource), Count)] : [] };
 }
-public sealed record ForecastNeedMetric(string Kind, Fact<double> FinalLevel, Fact<double> DeficitTicks,
-    Fact<double> ThresholdExposureTicks, Fact<double> WastedGain)
+public sealed record ForecastNeedMetric(string Kind, ForecastTerm FinalLevel, ForecastTerm DeficitTicks,
+    ForecastTerm ThresholdExposureTicks, ForecastTerm WastedGain)
 {
-    public Fact<double> ZeroTicks { get; init; }
-    public Fact<double> ThresholdDepthTicks { get; init; }
+    public ForecastTerm ZeroTicks { get; init; } = new ForecastTerm.Unassessed("need_unprojected");
+    public ForecastTerm ThresholdDepthTicks { get; init; } = new ForecastTerm.Unassessed("need_unprojected");
     /// <summary>The spans, in ticks from the review, the need's level is zero (food: the game's Starving category, whose malnutrition
     /// the capability-days ledger prices, #3520). Empty when the need never reaches zero.</summary>
     public EquatableArray<ForecastNeedSpan> ZeroSpans { get; init; }
@@ -26,7 +26,7 @@ public readonly record struct ForecastNeedSpan(double Start, double End);
 /// <summary>A span the need thought holds one stage; -1 is no thought (fed, rested).</summary>
 public readonly record struct ForecastNeedStageSpan(double Start, double End, int Stage);
 public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Needs,
-    Fact<double> ThoughtOffsetAtHorizon, Fact<double> MemoryAdjustedMoodTarget,
+    ForecastTerm ThoughtOffsetAtHorizon, ForecastTerm MemoryAdjustedMoodTarget,
     ForecastCapacityResult Capacity, EquatableArray<string> Findings)
 {
     public ForecastMoodResult? Mood { get; init; }
@@ -232,8 +232,8 @@ public static class ForecastNeeds
     /// <summary>What a needs timeline settles before its occupancy (#3468): the need metrics, the time the needs themselves
     /// occupy, the memory delta and target, the useful food gains, the findings so far and the service intervals. A search
     /// evaluates a pawn's choices under many occupancies, so this is computed once per distinct choices, grants and renewals.</summary>
-    internal sealed record NeedsCore(EquatableArray<ForecastNeedMetric> Needs, ForecastOccupancy[] Occupied, Fact<double> ThoughtOffsetAtHorizon,
-        Fact<double> MemoryAdjustedMoodTarget, Dictionary<string, double> UsefulFoodGain, string[] Findings, (ForecastNeedChoice Choice, double End)[] Intervals);
+    internal sealed record NeedsCore(EquatableArray<ForecastNeedMetric> Needs, ForecastOccupancy[] Occupied, ForecastTerm ThoughtOffsetAtHorizon,
+        ForecastTerm MemoryAdjustedMoodTarget, Dictionary<string, double> UsefulFoodGain, string[] Findings, (ForecastNeedChoice Choice, double End)[] Intervals);
 
     internal static NeedsCore NeedsCoreOf(NeedsForecastPawn pawn, double horizonTicks, IReadOnlyList<ForecastNeedChoice> selected,
         IReadOnlyDictionary<string, double>? interruptedAt, IReadOnlyList<(NeedMemory Thought, double Start)>? granted, IReadOnlyList<ForecastMemoryRenewal>? renewals)
@@ -249,8 +249,8 @@ public static class ForecastNeeds
             || intervals.Zip(intervals.Skip(1)).Any(p => p.First.End > p.Second.Choice.Depart))
             throw new DomainException("overlapping or invalid needs activities");
         var occupied = new List<ForecastOccupancy>();
-        if (!Voluntary(pawn.State)) occupied.Add(new("needs_state", pawn.Pawn, Known(0.0), Known(horizonTicks), ForecastOccupancyState.Active));
-        occupied.AddRange(intervals.Select(c => c.Choice.Occupancy with { End = Known(c.End) }));
+        if (!Voluntary(pawn.State)) occupied.Add(new("needs_state", pawn.Pawn, 0.0, horizonTicks, ForecastOccupancyState.Active));
+        occupied.AddRange(intervals.Select(c => c.Choice.Occupancy with { End = c.End }));
         var sleepEnds = SleepServiceEnds(pawn, selected, interruptedAt, findings);
         var metrics = new List<ForecastNeedMetric>();
         var usefulFood = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -262,8 +262,9 @@ public static class ForecastNeeds
             findings.UnionWith(need.Unsupported);
             if (need.Kind == "rest" && sleepEnds is null)
             {
-                metrics.Add(new(need.Kind, default, default, default, default));
-                occupied.Add(new("unknown_sleep", pawn.Pawn, Known(0d), default, ForecastOccupancyState.Active));
+                var unprojected = new ForecastTerm.Unassessed("sleep_unprojected");
+                metrics.Add(new(need.Kind, unprojected, unprojected, unprojected, unprojected) { ZeroTicks = unprojected, ThresholdDepthTicks = unprojected });
+                occupied.Add(new("unknown_sleep", pawn.Pawn, 0d, 0d, ForecastOccupancyState.Untimed));
                 continue;
             }
             var (level, fall, threshold) = (need.Level, need.FallPerTick, need.Threshold);
@@ -322,7 +323,7 @@ public static class ForecastNeeds
                     // Zero food/rest means physiological capacity is unassessed, never free productive labor.
                     if (need.Kind is "food" or "rest" && lo == 0 && hi == 0)
                         occupied.Add(new("need_zero/" + need.Kind + "/" + from + "/" + k, pawn.Pawn,
-                            Known(from + a), Known(from + b), ForecastOccupancyState.Active));
+                            from + a, from + b, ForecastOccupancyState.Active));
                 }
                 waste += Math.Max(0, raw - 1);
                 level = next;
@@ -333,13 +334,13 @@ public static class ForecastNeeds
                     waste += Math.Max(0, level + eat.Choice.Gain - 1); level = Math.Min(1, level + eat.Choice.Gain);
                 }
             }
-            metrics.Add(new(need.Kind, Known(level), Known(deficit), Known(exposure), Known(waste))
+            metrics.Add(new(need.Kind, new ForecastTerm.Assessed(level), new ForecastTerm.Assessed(deficit), new ForecastTerm.Assessed(exposure), new ForecastTerm.Assessed(waste))
             {
-                ZeroTicks = Known(zero), ThresholdDepthTicks = Known(depth), ZeroSpans = zeroSpans is null ? default : EquatableArray.From(zeroSpans),
+                ZeroTicks = new ForecastTerm.Assessed(zero), ThresholdDepthTicks = new ForecastTerm.Assessed(depth), ZeroSpans = zeroSpans is null ? default : EquatableArray.From(zeroSpans),
                 StageSpans = stageSpans is null ? default : EquatableArray.From(stageSpans),
             });
         }
-        Fact<double> thoughtDelta = default;
+        ForecastTerm thoughtDelta = new ForecastTerm.Unassessed("thought_projection_unavailable");
         if (pawn.Mood is { } mood)
         {
             var memories = mood.Memories;
@@ -366,10 +367,10 @@ public static class ForecastNeeds
                 if (planned is { } ends && ends.Ends[i] <= horizonTicks) continue;
                 delta += Remaining(thought, horizonTicks - start);
             }
-            thoughtDelta = complete ? Known(delta) : default;
+            thoughtDelta = complete ? new ForecastTerm.Assessed(delta) : new ForecastTerm.Unassessed("memory_projection_unsupported");
         }
         else findings.Add("unknown_thought_expiry");
-        var target = thoughtDelta.IsKnown && pawn.Mood is { } moodNow ? Known(Math.Clamp(moodNow.Target + thoughtDelta.Value / 100, 0, 1)) : default;
+        ForecastTerm target = thoughtDelta is ForecastTerm.Assessed(var offset) && pawn.Mood is { } moodNow ? new ForecastTerm.Assessed(Math.Clamp(moodNow.Target + offset / 100, 0, 1)) : new ForecastTerm.Unassessed("mood_target_unprojected");
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("room_mood_changes_unassessed");
         return new(EquatableArray.From(metrics), [.. occupied], thoughtDelta, target, usefulFood, [.. findings], intervals);
@@ -383,22 +384,23 @@ public static class ForecastNeeds
     {
         if (input.Pawn.Id.Value != pawn.Pawn) throw new DomainException("needs timeline identity mismatch");
         var intervals = core.Intervals;
-        var unknownProtection = !input.Occupancy.TryGetValue(out var protectedTime);
+        var unknownProtection = input.Occupancy is not ForecastProtection.Read;
+        var protectedTime = input.Occupancy is ForecastProtection.Read read ? read.Intervals : default(EquatableArray<ForecastOccupancy>);
         if (!unknownProtection && intervals.Any(c => protectedTime.Any(o => o.Pawn == pawn.Pawn && o.State == ForecastOccupancyState.Active
-            && o.Start.IsKnown && o.End.IsKnown && o.Start.Value < c.End && o.End.Value > c.Choice.Depart)))
+            && o.Start < c.End && o.End > c.Choice.Depart)))
             throw new DomainException("needs overlap protected work");
         var unprotected = input.ProtectTimetable ? input with { ProtectTimetable = false } : input;
         initialCapacity ??= ForecastCapacity.ForecastPawnCapacityOf(unprotected);
         if (intervals.Length > 0 && (!Voluntary(pawn.State) || initialCapacity.Capacity.Windows is not ForecastCapacityWindows.Read(var free)
             || intervals.Any(c => !free.Any(w => w.Start <= c.Choice.Depart && w.End >= c.End))))
             throw new DomainException("needs occupy unavailable pawn time");
-        Fact<EquatableArray<ForecastOccupancy>> occupancy = default;
+        ForecastProtection occupancy = new ForecastProtection.Truncated();
         if (!unknownProtection)
         {
             var rows = new ForecastOccupancy[protectedTime.Count + core.Occupied.Length];
             for (var i = 0; i < protectedTime.Count; i++) rows[i] = protectedTime[i];
             core.Occupied.CopyTo(rows, protectedTime.Count);
-            occupancy = Known(EquatableArray.Wrap(rows));
+            occupancy = new ForecastProtection.Read(EquatableArray.Wrap(rows));
         }
         var capacity = ForecastCapacity.ForecastPawnCapacityOf(unprotected with { Occupancy = occupancy });
         // The core's findings are sorted and distinct; the rest are merged in.

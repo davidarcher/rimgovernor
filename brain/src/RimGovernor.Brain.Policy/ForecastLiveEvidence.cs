@@ -31,7 +31,7 @@ public static class ForecastLiveEvidence
         {
             selection.Selected.Needs.TryGetValue(pawn.Pawn, out var needs);
             foreach (var (kind, metric) in new[] { ("food", ForecastMetric.FoodLevel), ("rest", ForecastMetric.RestLevel) })
-                yield return Row(metric, pawn.Pawn, "pawn_need", "level", Of(needs?.Needs.FirstOrDefault(n => n.Kind == kind)?.FinalLevel ?? default, "need_prediction_unavailable"));
+                yield return Row(metric, pawn.Pawn, "pawn_need", "level", needs?.Needs.FirstOrDefault(n => n.Kind == kind)?.FinalLevel is ForecastTerm.Assessed(var level) ? new EvidenceValue.Valued(level) : Unavailable("need_prediction_unavailable"));
             yield return Row(ForecastMetric.Mood, pawn.Pawn, "pawn_mood", "level", needs?.Mood is ForecastMoodResult.Projected projected ? new EvidenceValue.Valued(projected.TerminalMood) : Unavailable("mood_prediction_unavailable"));
         }
         foreach (var shelter in selection.Selected.Shelters)

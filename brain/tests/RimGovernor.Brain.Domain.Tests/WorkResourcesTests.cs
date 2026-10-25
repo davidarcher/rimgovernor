@@ -242,12 +242,12 @@ public sealed class WorkResourcesTests
         var vanilla = View(Holding(preemptible: true));
         var row = vanilla.Evidence.Pawns.Value.Single(p => p.Pawn == "helper");
         Assert.True(row.Preemptible);
-        Assert.Equal(Known(false), row.Occupied);
+        Assert.False(row.Occupied);
         Assert.Equal(Known("stack"), row.Target);
         Assert.True(vanilla.Capacity["helper"].Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start) > 0);
         Assert.Null(WorkRules.WorkResourcesRefusal(vanilla, Approach("stack")));
         var committed = View(Holding(preemptible: false));
-        Assert.Equal(Known(true), committed.Evidence.Pawns.Value.Single(p => p.Pawn == "helper").Occupied);
+        Assert.True(committed.Evidence.Pawns.Value.Single(p => p.Pawn == "helper").Occupied);
         Assert.Equal("pawn_target_claimed", WorkRules.WorkResourcesRefusal(committed, Approach("stack")));
     }
 

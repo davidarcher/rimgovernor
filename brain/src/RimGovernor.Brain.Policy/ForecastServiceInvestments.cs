@@ -30,13 +30,13 @@ public static class ForecastServiceInvestments
             if (observed is null || horizon <= 0 || horizon > GameTime.TicksPerDay) return false;
             var trajectory = ForecastNeeds.ForecastNeedsTimeline(observed, new ForecastCapacityInput
             {
-                Pawn = new() { Id = new(eater.Key), Available = Known(true), Applies = Known(true) },
-                Location = "current", LocalHour = Known(observed.LocalHour), HorizonTicks = horizon, ProtectTimetable = false,
-                CurrentWork = new(new(eater.Key), Known(false), default, Known(0d)),
-                Occupancy = ForecastCoupled.CoupledSearchCache.NoOccupancy, OpportunityCostPerTick = 1d
+                Pawn = new() { Id = new(eater.Key), State = ForecastPawnCapacityState.Available },
+                Location = "current", LocalHour = observed.LocalHour, HorizonTicks = horizon, ProtectTimetable = false,
+                CurrentWork = new(new(eater.Key), false, WorkType.None, new ForecastWorkRemaining.Timed(0d)),
+                Occupancy = new ForecastProtection.Read([]), OpportunityCostPerTick = 1d
             }, [], mood: false);
             var food = trajectory.Needs.SingleOrDefault(n => n.Kind == "food");
-            if (food?.ThresholdExposureTicks != Known(0d)) return false;
+            if (food?.ThresholdExposureTicks is not ForecastTerm.Assessed(0d)) return false;
         }
         return true;
     }
@@ -62,16 +62,16 @@ public static class ForecastServiceInvestments
             return EquatableArray.From(physical.Where(included.Contains));
         }
         var food = selected.Needs.Where(p => baseline.Needs.TryGetValue(p.Key, out var before)
-            && before.Needs.SingleOrDefault(n => n.Kind == "food")?.ThresholdExposureTicks is { IsKnown: true } old
-            && p.Value.Needs.SingleOrDefault(n => n.Kind == "food")?.ThresholdExposureTicks is { IsKnown: true } next
-            && next.Value < old.Value).Select(p => p.Key).Order(StringComparer.Ordinal).ToArray();
+            && before.Needs.SingleOrDefault(n => n.Kind == "food")?.ThresholdExposureTicks is ForecastTerm.Assessed(var old)
+            && p.Value.Needs.SingleOrDefault(n => n.Kind == "food")?.ThresholdExposureTicks is ForecastTerm.Assessed(var next)
+            && next < old).Select(p => p.Key).Order(StringComparer.Ordinal).ToArray();
         var foodTasks = Dependencies(context.NeedTasks.Where(n => n.Kind == "food" && food.Contains(n.Pawn)
             && selected.Plan.Allocations.Any(a => a.Activity == n.Task)).Select(n => n.Task));
         if (food.Length != 0 && foodTasks.Count != 0)
             result.Add(new(ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, horizonDays: Known(horizon / GameTime.TicksPerDay)),
                 EquatableArray.From(food), foodTasks, horizon, "food_threshold_ticks",
-                food.Sum(p => baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value
-                    - selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value),
+                food.Sum(p => ((ForecastTerm.Assessed)baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks).Value
+                    - ((ForecastTerm.Assessed)selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks).Value),
                 "fresh_food_trajectory_has_no_shortfall_or_chain_is_no_longer_feasible"));
         if (selected.CompletedDevelopmentSites.Count != 0 && selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 } relief)
             result.Add(new(ServiceTarget.ForNeed(ShelterFamily.Temperature, "", "owner_observed_recovery", Known(horizon / GameTime.TicksPerDay)),

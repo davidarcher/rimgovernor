@@ -79,7 +79,7 @@ public sealed class HospitalCreditTests
     private static ForecastCoupledOutcome Served(double shift, double servedAt = 0, ForecastActivityAllocation[]? allocations = null) =>
         new(new(allocations ?? [], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = MoodResults.Flat(0d, [Day, 0, 0], [new(shift, [0, 0, 0])]),
             },

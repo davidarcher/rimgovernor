@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The immutable review basis. A handoff never substitutes a new census or a new final date.</summary>
 public sealed record ForecastModelBasis(ColonyModelInput Input, ColonyModelPolicy Policy);
 public sealed record ForecastProjectDate(string Project, double Day);
-public sealed record ForecastTerminalNeed(string Pawn, string Kind, Fact<double> Level);
+public sealed record ForecastTerminalNeed(string Pawn, string Kind, ForecastTerm Level);
 /// <summary>Effects already in force, with their original start date for memory aging and outfit ordering.</summary>
 public sealed record ForecastTerminalEffect(ForecastCommitment Effect, double Day);
 /// <summary>
@@ -56,7 +56,7 @@ public static class ForecastHandoffPolicy
         var day = request.HorizonDays;
         var dates = new List<ForecastProjectDate>();
         var needs = outcome.Needs.SelectMany(p => p.Value.Needs.Select(n => new ForecastTerminalNeed(p.Key, n.Kind, n.FinalLevel))).ToArray();
-        foreach (var n in needs.Where(n => !n.Level.IsKnown)) gaps.Add($"terminal_need_unknown:{n.Pawn}:{n.Kind}");
+        foreach (var n in needs.Where(n => n.Level is ForecastTerm.Unassessed)) gaps.Add($"terminal_need_unknown:{n.Pawn}:{n.Kind}");
         foreach (var e in basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock is ModelStock.Materials or ModelStock.Medicine && string.IsNullOrEmpty(e.Resource.Value)))
             gaps.Add("terminal_scheduled_resource_unknown:" + e.Id);
         foreach (var pawn in basis.Input.Pawns)

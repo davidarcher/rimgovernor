@@ -2,7 +2,7 @@
 
 The existing full-review admission evidence owns the observed work-resource view:
 material census, exact building/recipe costs, native carried inputs and current
-pawn availability. Method actions remain the sole owner of commitments; current
+pawn availability. Its observed current-job occupancy is a plain boolean; the replaceable session journal discards older codec shapes on a schema version change. Method actions remain the sole owner of commitments; current
 pawn, bench, target and material claims are derived from them inside admission
 transactions. This extends the existing review row, not a second reservation
 store. Native reservations and carried/embedded inputs are reconciled against
@@ -17,7 +17,7 @@ still loads (its `standard/<id>` blobs are ignored). Databases from other versio
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 27 (`Store.SchemaVersion`) and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` follows `Store.SchemaVersion`, with the same `application_id`.
 Domain payloads (actions, admissions, transitions, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`

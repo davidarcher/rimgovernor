@@ -18,12 +18,12 @@ public sealed class WorkOccupancyTests
     private static WorkPawn WithRows(WorkPawn pawn, IEnumerable<WorkPriority> rows) => pawn with { Work = new PawnWorkTable.Works(true, EquatableArray.From(rows)) };
     private static WorkPawn Cooking(WorkPawn pawn) => pawn with { Job = new PawnJob { Def = "TestCook", Work = WorkType.Cooking } };
     /// <summary>The capacity forecast over the pawn's own roster row and current job.</summary>
-    private static ForecastCapacityInput Input(WorkPawn pawn, Fact<double> remaining = default) => new()
+    private static ForecastCapacityInput Input(WorkPawn pawn, ForecastWorkRemaining? remaining = null) => new()
     {
-        Pawn = new() { Id = pawn.Id, Available = Known(pawn.Available), Applies = Known(pawn.Applies), Schedule = pawn.Schedule },
+        Pawn = new() { Id = pawn.Id, State = pawn.Available && pawn.Applies ? ForecastPawnCapacityState.Available : ForecastPawnCapacityState.Unavailable, Schedule = pawn.Schedule },
         CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(pawn, remaining),
-        Location = "home", HorizonTicks = 100, LocalHour = Known(12.0), OpportunityCostPerTick = 1,
-        Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+        Location = "home", HorizonTicks = 100, LocalHour = 12.0, OpportunityCostPerTick = 1,
+        Occupancy = new ForecastProtection.Read([]),
     };
     private static int Priority(WorkDecision decision, string pawn, WorkType work) =>
         decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.Single(p => p.Work == work).Priority;
@@ -94,8 +94,8 @@ public sealed class WorkOccupancyTests
         var pawn = Pawn("pawn") with { Job = new PawnJob { Def = "Wait_Wander" } };
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(pawn)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         Assert.Contains("unknown_current_job_remaining", ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn))).Findings);
-        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn), Known(40.0))).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, Known(-1.0)));
+        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn), new ForecastWorkRemaining.Timed(40.0))).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, new ForecastWorkRemaining.Timed(-1.0)));
     }
 
     // #3670: a preemptible pawn's vanilla job leaves it free for the forecast, yet still protects its current role.
@@ -104,9 +104,9 @@ public sealed class WorkOccupancyTests
     {
         var cook = Pawn("cook", building: 20) with { Job = new PawnJob { Def = "DoBill", Work = WorkType.Cooking, Preemptible = true } };
         var current = ForecastCurrentWork.ForecastCurrentWorkOf(cook);
-        Assert.Equal(Known(false), current.Occupied);
-        Assert.Equal(Known(WorkType.Cooking), current.Work);
-        Assert.Equal(Known(0.0), current.RemainingTicks);
+        Assert.False(current.Occupied);
+        Assert.Equal(WorkType.Cooking, current.Work);
+        Assert.Equal(0, Assert.IsType<ForecastWorkRemaining.Timed>(current.Remaining).Ticks);
         Assert.True(ConstructionHelpersRules.IdleJob(cook.Job));
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(cook)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         var decision = Plan(cook, Pawn("free", cooking: 5));

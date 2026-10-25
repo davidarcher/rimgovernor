@@ -19,7 +19,7 @@ public static class ForecastHandoffReader
         ["shelters"] = handoff.Shelters.Count(s => s is ForecastShelterOutcome.Scheduled),
         ["shelter_mechanics"] = handoff.ShelterPlans.Count,
         ["served_rooms"] = handoff.ServedRooms.Count,
-        ["needs_known"] = handoff.Needs.Count(n => n.Level.IsKnown), ["needs"] = handoff.Needs.Count,
+        ["needs_known"] = handoff.Needs.Count(n => n.Level is ForecastTerm.Assessed), ["needs"] = handoff.Needs.Count,
         ["completed"] = handoff.Completed.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.Project}@{c.Day:R}")).ToArray(),
     };
 

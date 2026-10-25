@@ -258,6 +258,19 @@ public sealed class MedicineValueTests
     }
 
     [Fact]
+    public void RaidTreatmentDemandDistinguishesNoRaidFromMissingRaidEvidence()
+    {
+        var input = Colony(6, 1000);
+        var pawn = ForecastValueTests.HarmPawn();
+        var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay());
+        var pawns = new Dictionary<string, NeedsForecastPawn> { [pawn.Pawn] = pawn };
+        Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(context with { Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) }, pawns));
+        Assert.Equal(0d, ((ForecastTerm.Assessed)HarmLedger.TreatmentsPerDay(context with { Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) }, pawns)).Value);
+        var missing = context with { Harm = context.Harm with { Schedule = new() } };
+        Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.IsType<ForecastTerm.Unassessed>(HarmLedger.TreatmentsPerDay(missing, pawns)).Reason);
+        Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.Throws<RequiredFactException>(() => Value(input, missing.Harm).TreatmentsPerDay(input)).Fact);
+    }
+    [Fact]
     public void TheMedicineTendedADayAddsTheIllnessTermsTendsAtTheDayZeroTending()
     {
         var input = Colony(6, 1000);

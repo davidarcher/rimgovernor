@@ -43,14 +43,14 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private const string TendCare = "colony/tend";
 
     // The stub outcome the harm ledger prices a single pawn's outfit with: it reads the pawn set and the support only.
-    private static readonly ForecastNeedsResult NoNeeds = new([], default, default, new ForecastCapacityResult(default!, []), []);
+    private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastCapacityResult(default!, []), []);
 
     private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> harmCache = new();
     private readonly Dictionary<string, NeedsForecastPawn> rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
     // The perturbation runs walk the same outfits: one review's losses are priced once.
-    private readonly Dictionary<(string, EquatableArray<GearOption>), Fact<double>> losses = [];
+    private readonly Dictionary<(string, EquatableArray<GearOption>), LedgerTerm> losses = [];
 
     // The tending term's own cache: its raids are priced over the whole horizon, the apparel's over a day, and the keys omit it.
     private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> tendedCache = new();
@@ -442,10 +442,9 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// </summary>
     public double TreatmentsPerDay(ColonyModelInput input)
     {
-        if (!HarmLedger.TreatmentsPerDay(context, rows).TryGetValue(out var raids))
-        {
-            throw new RequiredFactException("raid treatments per day");
-        }
+        var treatments = HarmLedger.TreatmentsPerDay(context, rows);
+        if (treatments is not ForecastTerm.Assessed(var raids))
+            throw new RequiredFactException(((ForecastTerm.Unassessed)treatments).Reason);
 
         // No incident over the horizon takes no tend, whoever would tend it.
         if (context.Harm.Illness.Assessed && context.Harm.Illness.IncidentsPerDay(horizonDays) == 0)
@@ -613,7 +612,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
                 var (wearer, best) = ((string?)null, 0.0);
                 foreach (var (pawn, worn) in outfits)
                 {
-                    if (!DailyLoss(pawn, worn).TryGetValue(out var b) || !DailyLoss(pawn, Wearing(worn, option)).TryGetValue(out var a))
+                    if (DailyLoss(pawn, worn) is not LedgerTerm.Priced(var b) || DailyLoss(pawn, Wearing(worn, option)) is not LedgerTerm.Priced(var a))
                     {
                         return null;
                     }
@@ -642,7 +641,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         EquatableArray.From(worn.Where(w => w.Slot != option.Slot).Append(option));
 
     /// <summary>One pawn's harm in capability-days for a day of raids at the outfit; the horizon is a day so the loss is per day (the cache keys omit it).</summary>
-    private Fact<double> DailyLoss(string pawn, EquatableArray<GearOption> outfit)
+    private LedgerTerm DailyLoss(string pawn, EquatableArray<GearOption> outfit)
     {
         if (losses.TryGetValue((pawn, outfit), out var known))
         {

@@ -67,6 +67,16 @@ public sealed class ProductionAdmissionTests
         Assert.Null(RoundTrip(new WorkAdmissionEvidence()).Standing);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ObservedJobOccupancySurvivesTheJournalAsABoolean(bool occupied)
+    {
+        var pawn = new WorkPawnAvailability("pawn", Known(true), Known(true), occupied, Known("target"))
+        { LocalHour = Known(12d), Schedule = Known<EquatableArray<string>>([]) };
+        var evidence = new WorkAdmissionEvidence { Pawns = Known<EquatableArray<WorkPawnAvailability>>([pawn]) };
+        Assert.Equal(pawn, Assert.Single(RoundTrip(evidence).Pawns.Value));
+    }
     // #3895: a target's quantity is a stack's units or none, and its claimant capacity a plain count.
     [Fact]
     public void ANeedTargetCapacityKeepsItsStackOrItsAbsenceThroughTheJournalCodec()

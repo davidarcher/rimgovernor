@@ -18,8 +18,8 @@ public sealed class ForecastLiveEvidenceTests
     private static ForecastCoupledSelection Selection()
     {
         var plan = new ForecastActivityPlan([new("task", "pawn", 0, 0, 0, 50, 0, 0, 50, 50, 0)], 50, 50);
-        var needs = new ForecastNeedsResult([new("food", Known(.4), default, default, default), new("rest", Known(.5), default, default, default)],
-            default, default, new(new("pawn", "place", new ForecastCapacityWindows.Unread(), 0), []), []) { Mood = new ForecastMoodResult.Projected([], 0, 0, 0, .6, 0, new ForecastMoodBreaks.Unassessed(), []) };
+        var needs = new ForecastNeedsResult([new("food", new ForecastTerm.Assessed(.4), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")), new("rest", new ForecastTerm.Assessed(.5), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"))],
+            new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "place", new ForecastCapacityWindows.Unread(), 0), []), []) { Mood = new ForecastMoodResult.Projected([], 0, 0, 0, .6, 0, new ForecastMoodBreaks.Unassessed(), []) };
         var outcome = new ForecastCoupledOutcome(plan, true, new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, []);
         var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
         return new(new(["task"], plan, [], 0, false), outcome, outcome, vector, vector, [], 100, false);

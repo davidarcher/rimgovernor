@@ -25,10 +25,10 @@ public sealed class ForecastValueTests
 
     private static ForecastCapacityInput Input() => new()
     {
-        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
+        Pawn = new() { Id = new("pawn"), State = ForecastPawnCapacityState.Available,
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "start", HorizonTicks = Day, LocalHour = Known(12.0), OpportunityCostPerTick = 1.0,
-        CurrentWork = new(new("pawn"), Known(false), default, Known(0.0)), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+        Location = "start", HorizonTicks = Day, LocalHour = 12.0, OpportunityCostPerTick = 1.0,
+        CurrentWork = new(new("pawn"), false, WorkType.None, new ForecastWorkRemaining.Timed(0.0)), Occupancy = new ForecastProtection.Read([]),
         LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
 
@@ -165,7 +165,7 @@ public sealed class ForecastValueTests
     // A pawn whose rest is zero over the given spans, with nothing else wrong.
     private static ForecastNeedsResult Exhausted(params ForecastNeedSpan[] spans) => Calm() with
     {
-        Needs = [new("rest", Known(0d), default, default, default) { ZeroTicks = Known(spans.Sum(s => s.End - s.Start)), ZeroSpans = EquatableArray.From(spans) },
+        Needs = [new("rest", new ForecastTerm.Assessed(0d), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")) { ZeroTicks = new ForecastTerm.Assessed(spans.Sum(s => s.End - s.Start)), ZeroSpans = EquatableArray.From(spans) },
             .. Calm().Needs.Where(n => n.Kind != "rest")],
     };
 
@@ -252,8 +252,8 @@ public sealed class ForecastValueTests
     {
         // Review 12245 (#3598): food is at zero for the same span in both portfolios, so the urgent-zero floor ties; the
         // portfolio that keeps working leaves rest at zero for 33068 ticks but has less joy exposure. The sleep wins on rest.
-        var hungry = Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(47025d), ZeroSpans = [new(Day - 47025, Day)] };
-        static ForecastNeedMetric Joy(double exposure) => new("joy", Known(.5), Known(0d), Known(exposure), Known(0d)) { ZeroTicks = Known(0d), ThresholdDepthTicks = Known(0d) };
+        var hungry = Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = new ForecastTerm.Assessed(47025d), ZeroSpans = [new(Day - 47025, Day)] };
+        static ForecastNeedMetric Joy(double exposure) => new("joy", new ForecastTerm.Assessed(.5), new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(exposure), new ForecastTerm.Assessed(0d)) { ZeroTicks = new ForecastTerm.Assessed(0d), ThresholdDepthTicks = new ForecastTerm.Assessed(0d) };
         var exhausted = Exhausted(new ForecastNeedSpan(Day - 33068, Day)).Needs.Single(n => n.Kind == "rest");
         var rested = Calm().Needs.Single(n => n.Kind == "rest");
         var working = Calm() with { Needs = [exhausted, hungry, Joy(0)] };
@@ -276,7 +276,7 @@ public sealed class ForecastValueTests
     {
         // Review 0 of production/coupled-needs (#3598): the sleeping plan's food zero time summed to 39374.99978028882 ticks and the
         // working plan's to ...881, and that residue ranked the working plan first despite its 0.40 days of rest loss.
-        static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(zero), ZeroSpans = [new(Day - zero, Day)] };
+        static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = new ForecastTerm.Assessed(zero), ZeroSpans = [new(Day - zero, Day)] };
         var exhausted = Exhausted(new ForecastNeedSpan(Day - 33068, Day)).Needs.Single(n => n.Kind == "rest");
         var rested = Calm().Needs.Single(n => n.Kind == "rest");
         var working = Calm() with { Needs = [exhausted, Hungry(39374.99978028881)] };
@@ -298,7 +298,7 @@ public sealed class ForecastValueTests
     public void AnUnassessedRestTimelineLeavesTheRestTermUnknown()
     {
         var pawn = Pawn();
-        var unknown = Calm() with { Needs = [new("rest", default, default, default, default), .. Calm().Needs.Where(n => n.Kind != "rest")] };
+        var unknown = Calm() with { Needs = [new("rest", new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected")), .. Calm().Needs.Where(n => n.Kind != "rest")] };
 
         var value = ForecastValue.Of(Outcome(unknown), Context(pawn), Day, Outcome(unknown));
 
@@ -719,7 +719,7 @@ public sealed class ForecastValueTests
         params ForecastCommitment[] commitments)
         => ForecastCoupledSelection.StagedConsequences.Of(outcome, commitments, context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day));
 
-    private static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(zero), ZeroSpans = [new(Day - zero, Day)] };
+    private static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = new ForecastTerm.Assessed(zero), ZeroSpans = [new(Day - zero, Day)] };
 
     private static ForecastNeedsResult Starving(double zero) => Calm() with { Needs = [Calm().Needs.Single(n => n.Kind == "rest"), Hungry(zero)] };
 

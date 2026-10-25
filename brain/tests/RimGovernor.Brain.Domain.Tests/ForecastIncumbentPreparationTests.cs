@@ -45,7 +45,7 @@ public sealed class ForecastIncumbentPreparationTests
         var evidence = facts.WorkView!.Evidence with
         {
             WorkResources = native,
-            Pawns = Known(EquatableArray.From(facts.WorkView.Evidence.Pawns.Value.Select(p => p with { Occupied = Known(true) })))
+            Pawns = Known(EquatableArray.From(facts.WorkView.Evidence.Pawns.Value.Select(p => p with { Occupied = true })))
         };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var needs = facts.ForecastObserved.Needs!;
@@ -72,7 +72,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
         var candidates = Assert.IsType<ForecastCoupledCandidates>(prepared.CoupledAlternatives);
         Assert.DoesNotContain("pawn", candidates.Context.Resources.Claims.Pawns);
-        Assert.True(candidates.Context.Resources.Evidence.Pawns.Value[0].Occupied == Known(false));
+        Assert.True(candidates.Context.Resources.Evidence.Pawns.Value[0].Occupied == false);
         Assert.Equal(facts.WorkView!.Evidence.Stock, candidates.Context.Resources.Evidence.Stock);
         Assert.Equal(facts.WorkView.Evidence.Reservations, candidates.Context.Resources.Evidence.Reservations);
         var task = Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment);

@@ -367,7 +367,7 @@ public static partial class ForecastValue
         }
 
         findings.UnionWith(harmTerm.Findings);
-        LedgerTerm harm = harmTerm.Loss.TryGetValue(out var harmLoss) ? new LedgerTerm.Priced(harmLoss) : new LedgerTerm.Unassessed();
+        var harm = harmTerm.Loss;
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = -earned;
@@ -628,7 +628,7 @@ public static partial class ForecastValue
     {
         var food = Need(result, "food");
         if (food is null) return 0;
-        if (!food.ZeroTicks.IsKnown) { findings.Add("hunger_unassessed:" + pawn); return null; }
+        if (food.ZeroTicks is ForecastTerm.Unassessed) { findings.Add("hunger_unassessed:" + pawn); return null; }
         if (seen is null)
         { findings.Add("capacities_unobserved:" + pawn); return null; }
         var course = new Course(table, seen.Levels, movingMin, seen.Pawn.MalnutritionSeverity);
@@ -661,7 +661,7 @@ public static partial class ForecastValue
     {
         var rest = Need(result, "rest");
         if (rest is null) return 0;
-        if (!rest.ZeroTicks.IsKnown) { findings.Add("rest_unassessed:" + pawn); return null; }
+        if (rest.ZeroTicks is ForecastTerm.Unassessed) { findings.Add("rest_unassessed:" + pawn); return null; }
         var spans = rest.ZeroSpans;
         if (spans.Count == 0) return 0;
         NeedRate? rate = null;

@@ -299,7 +299,7 @@ public sealed class PlannedRoomCreditTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         var pawns = generated.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
         Assert.NotEmpty(pawns);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = MoodResults.Flat(0d, [0, 0, 0], [new(0, [Day, 0, 0])]),
         }), []);
@@ -327,7 +327,7 @@ public sealed class PlannedRoomCreditTests
         // The ingredient memory is priced: the same meal without it leaves a higher thought offset at the horizon.
         var plain = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled } };
         var (_, unflavoured) = Selected(WithEveryShippedRoom(plain), 150);
-        Assert.True(outcome.Needs["pawn"].ThoughtOffsetAtHorizon.Value < unflavoured.Needs["pawn"].ThoughtOffsetAtHorizon.Value);
+        Assert.True(outcome.Needs["pawn"].ThoughtOffsetAtHorizon.Number() < unflavoured.Needs["pawn"].ThoughtOffsetAtHorizon.Number());
         RunsEveryShippedCredit(generated, outcome, 150);
     }
 
@@ -508,7 +508,7 @@ public sealed class PlannedRoomCreditTests
         // Sent no order, the pawn sleeps on in its lie-down until its rest reaches the wake threshold (0.8 at 0.00005 a tick).
         var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
-        Assert.Equal(1, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
+        Assert.Equal(1, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Number(), 9);
         baseline.Needs["pawn"].Mood.Projected().Assessed();
     }
 
@@ -537,7 +537,7 @@ public sealed class PlannedRoomCreditTests
         }, WithEveryShippedRoom);
         var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
-        Assert.Equal(rest, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
+        Assert.Equal(rest, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Number(), 9);
         baseline.Needs["pawn"].Mood.Assessed();
         Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_continuation_unassessed");
         Assert.Equal(wakes, baseline.Findings.Any(f => f.Reason == "deathrest_chamber_thought_at_wake_not_modelled"));
@@ -752,7 +752,7 @@ public sealed class PlannedRoomCreditTests
         foreach (var pawn in drills.Select(d => d.Worker.Pawn).Distinct())
         {
             outcome.Needs[pawn].Mood.Projected().Assessed();
-            Assert.True(outcome.Needs[pawn].ThoughtOffsetAtHorizon.Value > alone.Needs[pawn].ThoughtOffsetAtHorizon.Value);
+            Assert.True(outcome.Needs[pawn].ThoughtOffsetAtHorizon.Number() > alone.Needs[pawn].ThoughtOffsetAtHorizon.Number());
         }
         RunsEveryShippedCredit(generated, outcome, 300);
     }

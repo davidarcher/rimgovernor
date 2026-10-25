@@ -28,10 +28,10 @@ public sealed class ForecastNeedThoughtTests
 
     private static ForecastCapacityInput Input(double horizon = H) => new()
     {
-        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
+        Pawn = new() { Id = new("pawn"), State = ForecastPawnCapacityState.Available,
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "start", HorizonTicks = horizon, LocalHour = Known(12.0), OpportunityCostPerTick = 1.0,
-        CurrentWork = new(new("pawn"), Known(false), default, Known(0.0)), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+        Location = "start", HorizonTicks = horizon, LocalHour = 12.0, OpportunityCostPerTick = 1.0,
+        CurrentWork = new(new("pawn"), false, WorkType.None, new ForecastWorkRemaining.Timed(0.0)), Occupancy = new ForecastProtection.Read([]),
         LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
 
@@ -39,7 +39,7 @@ public sealed class ForecastNeedThoughtTests
 
     private static ForecastNeedsResult Eats(NeedsForecastPawn pawn, double start) => ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [Meal(start)]);
 
-    private static ForecastNeedMetric Joy(double exposure) => new("joy", Known(.5), Known(0d), Known(exposure), Known(0d)) { ZeroTicks = Known(0d), ThresholdDepthTicks = Known(0d) };
+    private static ForecastNeedMetric Joy(double exposure) => new("joy", new ForecastTerm.Assessed(.5), new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(exposure), new ForecastTerm.Assessed(0d)) { ZeroTicks = new ForecastTerm.Assessed(0d), ThresholdDepthTicks = new ForecastTerm.Assessed(0d) };
 
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, [])
@@ -125,7 +125,7 @@ public sealed class ForecastNeedThoughtTests
 
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [MealWith(8000, WithoutTable(Day))]);
 
-        Assert.Equal(0, result.ThoughtOffsetAtHorizon.Value);
+        Assert.Equal(0, result.ThoughtOffsetAtHorizon.Number());
         result.Mood!.Assessed();
         Assert.DoesNotContain("unsupported_memory_renewal_or_stacking", result.Mood!.Findings);
     }
@@ -135,7 +135,7 @@ public sealed class ForecastNeedThoughtTests
     {
         var result = ForecastNeeds.ForecastNeedsTimeline(Pawn(.5), Input(), [MealWith(2000, WithoutTable(Day)), MealWith(12000, WithoutTable(Day))]);
 
-        Assert.Equal(-3, result.ThoughtOffsetAtHorizon.Value);
+        Assert.Equal(-3, result.ThoughtOffsetAtHorizon.Number());
         result.Mood!.Assessed();
     }
 
@@ -146,7 +146,7 @@ public sealed class ForecastNeedThoughtTests
 
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [MealWith(8000, WithoutTable(Day, stackLimit: 3))]);
 
-        Assert.False(result.ThoughtOffsetAtHorizon.IsKnown);
+        Assert.False(result.ThoughtOffsetAtHorizon is ForecastTerm.Assessed);
         Assert.Equal(["unsupported_memory_renewal_or_stacking"], result.Mood!.Findings);
     }
 
@@ -159,7 +159,7 @@ public sealed class ForecastNeedThoughtTests
 
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [Meal(8000)]);
 
-        Assert.Equal(5, result.ThoughtOffsetAtHorizon.Value);
+        Assert.Equal(5, result.ThoughtOffsetAtHorizon.Number());
         result.Mood!.Assessed();
         Assert.Contains("stacked_memory_expiry_additive", result.Mood!.Findings);
         Assert.Single(result.Findings, "stacked_memory_expiry_additive");

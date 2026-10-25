@@ -788,7 +788,7 @@ public static partial class WorkRules
         foreach (var w in workers)
         {
             var current = currentWork[w.Pawn.Id];
-            if (!w.Committed && current.Work.TryGetValue(out var work)
+            if (!w.Committed && current.Work is var work
                 && types.Contains(work) && DemandOf(work) > 0 && Able(w, work)
                 && w.Work[work].Priority > 0)
                 ongoing.Add(w.Pawn.Id, work);

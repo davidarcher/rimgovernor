@@ -54,7 +54,7 @@ public sealed class NurseryCreditTests
     private static ForecastCoupledOutcome Outcome(ForecastCoupledContext context) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = MoodResults.Flat(0d, [0, 0, 0], [.. PlannedRoomCredits.BreakShifts(context).GetValueOrDefault("pawn", []).Select(s => new ForecastShiftedBreaks(s, [s < 0 ? Day : 0, 0, 0]))]),
             },

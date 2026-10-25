@@ -68,7 +68,7 @@ public sealed class ForecastCoupledTests
         var compared = combinations.Select(c => Evaluate(facts, c)).First(f => f.Proposed.Coupled!.Alternatives.Any(p => p.Feasible));
         var useful = compared.Proposed.Coupled!.Alternatives.First(p => p.Feasible);
         Assert.True(useful.Plan.CompletedAt <= 300);
-        Assert.True(useful.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value > 0);
+        Assert.True(useful.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Number() > 0);
         Assert.Empty(compared.Baseline.Coupled!.Alternatives.Single().Plan.Allocations);
     }
 
@@ -453,7 +453,7 @@ public sealed class ForecastCoupledTests
         Assert.All(alternatives, p =>
         {
             Assert.False(p.Feasible);
-            Assert.True(p.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value <= .1);
+            Assert.True(p.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Number() <= .1);
         });
     }
     [Fact]
@@ -485,7 +485,7 @@ public sealed class ForecastCoupledTests
             }
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
-        Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].MemoryAdjustedMoodTarget.Value, 8);
+        Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].MemoryAdjustedMoodTarget.Number(), 8);
     }
 
     [Fact]
@@ -624,7 +624,7 @@ public sealed class ForecastCoupledTests
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible);
-        Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget.IsKnown);
+        Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget is ForecastTerm.Assessed);
         Assert.Contains(result.Plan.Allocations, a => a.Activity == wall.ActivityCompletions[0]);
     }
     [Theory]

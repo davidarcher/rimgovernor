@@ -146,7 +146,7 @@ public static class ForecastIncumbentPreparation
             var omitted = chosen.Select(e => (e.Row.Plan, e.Row.Action.Id)).Concat(methods.Select(m => (m.Row.Plan, m.Row.Action.Id))).ToHashSet();
             var releasedPawns = servicePawns.Concat(methods.SelectMany(m => m.Owners.Select(o => o.Pawn))).ToHashSet(StringComparer.Ordinal);
             var evidence = original.Evidence with { Pawns = Known(EquatableArray.From(availability.Select(p =>
-                releasedPawns.Contains(p.Pawn) ? p with { Occupied = Known(false) } : p))) };
+                releasedPawns.Contains(p.Pawn) ? p with { Occupied = false } : p))) };
             // The participants still working keep their claims: the Method as it stands after its reconsidered workers leave.
             var kept = methods.Where(m => m.Working.Length > 0)
                 .Select(m => m.Row with { Action = DomainAction.NewPawnActivitiesAction(m.Row.Action.Id, m.Kept) });

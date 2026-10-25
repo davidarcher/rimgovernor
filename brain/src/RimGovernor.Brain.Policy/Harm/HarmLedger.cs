@@ -112,7 +112,7 @@ public sealed record HarmDetail(double RaidsPerDay, double ExposureLo, double Ex
 public sealed record EscapeTerm(double EscapesPerDay, double Loss, double DeathsPerDay);
 
 /// <summary>The harm term of one outcome: the loss in capability-days (unknown with <see cref="Findings"/> saying why) and the detail behind it.</summary>
-internal sealed record HarmTerm(Fact<double> Loss, HarmDetail? Detail, IReadOnlyList<string> Findings);
+internal sealed record HarmTerm(LedgerTerm Loss, HarmDetail? Detail, IReadOnlyList<string> Findings);
 
 /// <summary>
 /// The harm term (harm model, #3471): raids per day × horizon days × Σ over pawns of the risk-transformed loss of one raid,
@@ -230,7 +230,7 @@ internal static class HarmLedger
 
         if (!complete)
         {
-            return new(default, null, [.. findings]);
+            return new(new LedgerTerm.Unassessed(), null, [.. findings]);
         }
 
         findings.UnionWith(Unmodelled);
@@ -385,7 +385,7 @@ internal static class HarmLedger
         var escape = Escapes(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
         var creepJoiner = CreepJoinerHarm.Term(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
         var detail = raids with { Illness = illness, Escape = escape, CreepJoiner = creepJoiner };
-        return new(Known(detail.RaidLoss + (illness?.Loss ?? 0) + escape.Loss + creepJoiner.Loss), detail, [.. findings]);
+        return new(new LedgerTerm.Priced(detail.RaidLoss + (illness?.Loss ?? 0) + escape.Loss + creepJoiner.Loss), detail, [.. findings]);
     }
 
     /// <summary>
@@ -393,37 +393,35 @@ internal static class HarmLedger
     /// wounds take (<see cref="HarmConsequences.Treatments"/>) at the pawn's exposure and worn outfit. Zero when no raid is expected;
     /// unknown when the schedule, composition, ratio, a pawn's outfit or the exposure cell is.
     /// </summary>
-    internal static Fact<double> TreatmentsPerDay(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns)
+    internal static ForecastTerm TreatmentsPerDay(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns)
     {
         var inputs = context.Harm;
         if (RaidsPerDay(inputs) is not { } raidsPerDay)
         {
-            return default;
+            return new ForecastTerm.Unassessed(ThreatScheduleUnknown);
         }
 
         if (raidsPerDay == 0)
         {
-            return Known(0d);
+            return new ForecastTerm.Assessed(0d);
         }
 
-        if (BinsOf(inputs) is not { } bins || PointsRatio(inputs) is not { } ratio || pawns.Count == 0)
-        {
-            return default;
-        }
+        if (BinsOf(inputs) is not { } bins) return new ForecastTerm.Unassessed(CompositionUnknown);
+        if (PointsRatio(inputs) is not { } ratio) return new ForecastTerm.Unassessed(inputs.Raid is HarmRaid.Unassessed unread ? unread.Finding : "defense_capacity_unobserved");
+        if (pawns.Count == 0) return new ForecastTerm.Unassessed("harm_unassessed:no_pawns");
 
         var treatments = 0.0;
         foreach (var (pawn, row) in pawns.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            if (!context.Outfits.TryGetValue(pawn, out var wearing)
-                || RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)) is not ExposureReading.Calibrated { Range: var hits })
-            {
-                return default;
-            }
+            if (!context.Outfits.TryGetValue(pawn, out var wearing)) return new ForecastTerm.Unassessed("outfit_unobserved:" + pawn);
+            var exposure = RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing));
+            if (exposure is not ExposureReading.Calibrated { Range: var hits })
+                return new ForecastTerm.Unassessed(string.Join(",", exposure.Findings));
 
             treatments += HarmConsequences.Treatments(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row);
         }
 
-        return Known(raidsPerDay * treatments);
+        return new ForecastTerm.Assessed(raidsPerDay * treatments);
     }
 
     /// <summary>The raids a day the schedule expects: its major threats a day × the raid share; null when the schedule is unread.</summary>

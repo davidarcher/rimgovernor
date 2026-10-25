@@ -102,7 +102,7 @@ public sealed class ColonyModelWiringTests
     [Fact]
     public void MissingRaidTreatmentFactsFailTheReview()
     {
-        Assert.Equal("raid treatments per day", Assert.Throws<RequiredFactException>(() =>
+        Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.Throws<RequiredFactException>(() =>
             RoundsColonyModel.Review(Frame(), Context(new HarmInputs()), null)).Fact);
     }
 

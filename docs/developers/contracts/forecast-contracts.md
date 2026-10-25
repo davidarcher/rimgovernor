@@ -191,6 +191,15 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
 
 ### Food and rest thoughts (#3598)
 
+Need metrics, terminal need levels, memory deltas and mood targets carry `ForecastTerm.Assessed(value)` or
+`Unassessed(reason)`. An unsupported sleep projection keeps the rest metrics unassessed and protects the pawn with an
+untimed occupancy; it does not create zero need exposure or free working time.
+
+Capacity uses `ForecastPawnCapacityState` to distinguish available, unavailable and unread admission evidence.
+An unavailable pawn has an empty budget. Unread evidence, `ForecastWorkRemaining.Untimed`, a truncated protected-interval
+census, or an active untimed occupancy leaves capacity unread. A timed job blocks only its remaining useful ticks;
+completed and cancelled occupancies release their time. Capacity never interprets an unassessed duration as zero.
+
 The `NeedFood` and `NeedRest` situational thoughts follow the needs timeline of
 the pawn's choices instead of staying at their observed stage.
 
@@ -582,6 +591,10 @@ at its source's full rate, limited by its ingredients; at the target the run mak
 nothing. `net[Medicine] = FixedProduction + inflow − tends`.
 
 ### Harm term and death floor (#3546)
+
+`HarmTerm.Loss` carries `LedgerTerm.Priced` or `Unassessed`, and raid treatment demand carries
+`ForecastTerm.Assessed` or `Unassessed`. The long-horizon colony model requires assessed treatment demand and raises
+`RequiredFactException` when that input is absent. Apparel comparisons require both daily harm losses to be priced.
 
 The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm` (`HarmInputs`, assembled per review by
 `HarmInputs.Of(RoundsFacts)`) and `Outfits`:

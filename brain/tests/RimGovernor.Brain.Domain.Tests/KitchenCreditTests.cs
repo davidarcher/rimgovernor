@@ -41,7 +41,7 @@ public sealed class KitchenCreditTests
     private static ForecastCoupledOutcome Serving(int room, double poisonCases = 0) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []),
+            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []),
         }, [])
         { ServedRooms = [new(room, "WoodLog", 0)], Support = new() { FoodPoisonExposure = poisonCases } };
 

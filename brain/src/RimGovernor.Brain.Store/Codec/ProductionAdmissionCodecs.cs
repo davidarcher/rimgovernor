@@ -59,10 +59,10 @@ internal sealed class WorkBuildingCostConverter : ObjectCodec<WorkBuildingCost>
 internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvailability>
 {
     protected override WorkPawnAvailability Read(JsonElement e, Codecs o) => new(e.Str("Pawn"), e.Get<Fact<bool>>("Available", o),
-        e.Get<Fact<bool>>("Applies", o), e.Get<Fact<bool>>("Occupied", o), e.Get<Fact<string>>("Target", o))
+        e.Get<Fact<bool>>("Applies", o), e.Bool("Occupied"), e.Get<Fact<string>>("Target", o))
     { Schedule = e.Get<Fact<EquatableArray<string>>>("Schedule", o), LocalHour = e.Get<Fact<double>>("LocalHour", o) };
     protected override void WriteFields(Utf8JsonWriter w, WorkPawnAvailability v, Codecs o)
-    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.Put("Occupied", v.Occupied, o); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); }
+    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.WriteBoolean("Occupied", v.Occupied); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); }
 }
 
 internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>

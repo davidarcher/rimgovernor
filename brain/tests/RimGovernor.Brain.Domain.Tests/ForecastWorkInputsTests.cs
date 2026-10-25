@@ -9,17 +9,17 @@ public sealed class ForecastWorkInputsTests
 {
     private static ForecastCapacityPawn Pawn(string id = "cook-builder") => new()
     {
-        Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
+        Id = new RimGovernor.Brain.Domain.PawnId(id), State = ForecastPawnCapacityState.Available,
         Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
     };
     private static ForecastCapacityInput Capacity(ForecastCapacityPawn? pawn = null) => new()
     {
-        Pawn = pawn ?? Pawn(), CurrentWork = new((pawn ?? Pawn()).Id, Known(false), default, Known(0.0)), Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
-        OpportunityCostPerTick = 1.0, Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+        Pawn = pawn ?? Pawn(), CurrentWork = new((pawn ?? Pawn()).Id, false, WorkType.None, new ForecastWorkRemaining.Timed(0.0)), Location = "home", HorizonTicks = 100, LocalHour = 12.0,
+        OpportunityCostPerTick = 1.0, Occupancy = new ForecastProtection.Read([]),
         LocationAfterProtectedTime = "home",
     };
     private static ForecastOccupancy Busy(string id, double start, double end, ForecastOccupancyState state = ForecastOccupancyState.Active) =>
-        new(id, "cook-builder", Known(start), Known(end), state);
+        new(id, "cook-builder", start, end, state);
     private static ForecastActivityProblem Jobs(params ForecastPawnCapacity[] pawns) => new()
     {
         Activities = [new("cook", "home", "home", []), new("build", "home", "home", [])],
@@ -67,21 +67,21 @@ public sealed class ForecastWorkInputsTests
     [Fact]
     public void NeedsAndOngoingObligationsOverlapOnceAndCancellationReleasesTheirTime()
     {
-        var input = Capacity() with { Occupancy = Known(EquatableArray.From(new[] { Busy("needs", 20, 50), Busy("work", 40, 70), Busy("work", 40, 70) })) };
+        var input = Capacity() with { Occupancy = new ForecastProtection.Read(EquatableArray.From(new[] { Busy("needs", 20, 50), Busy("work", 40, 70), Busy("work", 40, 70) })) };
         var result = ForecastCapacity.ForecastPawnCapacityOf(input);
         Assert.Equal(50, result.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         Assert.Equal(new ForecastTimeWindow(0, 20) { StartLocation = "home" }, result.Capacity.Windows.ReadWindows()[0]);
         Assert.Equal(70, result.Capacity.Windows.ReadWindows()[1].Start);
-        var cancelled = input with { Occupancy = Known(EquatableArray.From(new[] { Busy("needs", 20, 50, ForecastOccupancyState.Completed), Busy("work", 40, 70, ForecastOccupancyState.Cancelled) })) };
+        var cancelled = input with { Occupancy = new ForecastProtection.Read(EquatableArray.From(new[] { Busy("needs", 20, 50, ForecastOccupancyState.Completed), Busy("work", 40, 70, ForecastOccupancyState.Cancelled) })) };
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(cancelled).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        var unknown = input with { Occupancy = Known(EquatableArray.From(new[] { Busy("work", 0, 70) with { End = Unknown<double>() } })) };
+        var unknown = input with { Occupancy = new ForecastProtection.Read(EquatableArray.From(new[] { Busy("work", 0, 70) with { State = ForecastOccupancyState.Untimed } })) };
         Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(unknown).Capacity.Windows);
     }
 
     [Fact]
     public void JobsCannotSpanProtectedTimeAndUnknownLaterLocationDoesNotReuseOldPosition()
     {
-        var input = Capacity() with { Occupancy = Known(EquatableArray.From(new[] { Busy("duty", 20, 70) })) };
+        var input = Capacity() with { Occupancy = new ForecastProtection.Read(EquatableArray.From(new[] { Busy("duty", 20, 70) })) };
         var capacity = ForecastCapacity.ForecastPawnCapacityOf(input).Capacity;
         var problem = Jobs(capacity) with
         {
@@ -100,23 +100,41 @@ public sealed class ForecastWorkInputsTests
     public void ZeroUnknownUnavailableAndChangedTimetableAreDifferent()
     {
         Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { HorizonTicks = 0 }).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { Occupancy = default }).Capacity.Windows);
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = Known(false) })).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = default })).Capacity.Windows);
+        Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { Occupancy = new ForecastProtection.Truncated() }).Capacity.Windows);
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { State = ForecastPawnCapacityState.Unavailable })).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { State = ForecastPawnCapacityState.Unread })).Capacity.Windows);
         var sleeping = Pawn() with { Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) };
         Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(sleeping)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Capacity()).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         var slots = Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray();
         slots[13] = PawnRules.ScheduleSleep;
         var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = EquatableArray.From(slots) }) with
-        { LocalHour = Known(12.5), HorizonTicks = GameTime.TicksPerHour });
+        { LocalHour = 12.5, HorizonTicks = GameTime.TicksPerHour });
         Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         var worker = PawnFixtures.Worker("cook-builder") with { Job = new PawnJob { Def = "UsefulWork" } };
         var busy = Capacity() with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker) };
         Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows);
-        Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker, Known(20.0)) }).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker, new ForecastWorkRemaining.Timed(20.0)) }).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
     }
 
+    [Fact]
+    public void AdmissionEvidenceCannotTurnAnUnreadClockOrUntimedJobIntoFreeWork()
+    {
+        var observed = new WorkPawnAvailability("cook-builder", Known(true), Known(true), false, Known(""))
+        { LocalHour = Known(12d), Schedule = Known(Pawn().Schedule) };
+        var protection = new ForecastProtection.Read([]);
+        var free = ForecastCapacity.InputOf("cook-builder", observed, 100, protection);
+        Assert.Equal(ForecastPawnCapacityState.Available, free.Pawn.State);
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(free).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.Equal(ForecastPawnCapacityState.Unread, ForecastCapacity.InputOf("cook-builder", observed with { LocalHour = default }, 100, protection).Pawn.State);
+        Assert.Equal(ForecastPawnCapacityState.Unread, ForecastCapacity.InputOf("cook-builder", null, 100, protection).Pawn.State);
+        var unavailable = ForecastCapacity.InputOf("cook-builder", observed with { Available = Known(false), LocalHour = default }, 100, protection);
+        Assert.Equal(ForecastPawnCapacityState.Unavailable, unavailable.Pawn.State);
+        Assert.Empty(ForecastCapacity.ForecastPawnCapacityOf(unavailable).Capacity.Windows.ReadWindows());
+        var busy = ForecastCapacity.InputOf("cook-builder", observed with { Occupied = true }, 100, protection);
+        Assert.IsType<ForecastWorkRemaining.Untimed>(busy.CurrentWork.Remaining);
+        Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows);
+    }
     private static RoundsFacts Facts()
     {
         var building = new Building("TestBuilding", new Cell(1, 1), Rotation.North, "");

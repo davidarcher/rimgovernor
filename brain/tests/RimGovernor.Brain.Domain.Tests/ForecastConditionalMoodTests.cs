@@ -26,10 +26,10 @@ public sealed class ForecastConditionalMoodTests
         => new(id, "pawn", "rest", "bed", "", 0, from, from, to, (to - from) * .7 / (7 * Hour), []);
     private static ForecastCapacityInput Capacity() => new()
     {
-        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
+        Pawn = new() { Id = new("pawn"), State = ForecastPawnCapacityState.Available,
             Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
-        Location = "bed", HorizonTicks = Day, LocalHour = Known(6d), OpportunityCostPerTick = 1d,
-        CurrentWork = new(new("pawn"), Known(false), default, Known(0d)), Occupancy = Known<EquatableArray<ForecastOccupancy>>([]),
+        Location = "bed", HorizonTicks = Day, LocalHour = 6d, OpportunityCostPerTick = 1d,
+        CurrentWork = new(new("pawn"), false, WorkType.None, new ForecastWorkRemaining.Timed(0d)), Occupancy = new ForecastProtection.Read([]),
         LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
     private static ForecastMoodPoint At(ForecastMoodResult result, double tick)
@@ -190,8 +190,8 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void GenerationProtectsActualObligationsAndReportsBoundsDeterministically()
     {
-        var occupied = Capacity() with { Occupancy = Known<EquatableArray<ForecastOccupancy>>(
-            [new("urgent", "pawn", Known(5 * Hour), Known(12 * Hour), ForecastOccupancyState.Active)]) };
+        var occupied = Capacity() with { Occupancy = new ForecastProtection.Read(
+            [new("urgent", "pawn", 5 * Hour, 12 * Hour, ForecastOccupancyState.Active)]) };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(occupied), Day);
         Assert.DoesNotContain(generated.Choices, c => c.Depart < 12 * Hour && c.End > 5 * Hour);
         Assert.Contains(generated.Choices, c => Math.Abs(c.Start - 17 * Hour) < .001 && Math.Abs(c.End - Day) < .001);
@@ -208,7 +208,7 @@ public sealed class ForecastConditionalMoodTests
             WakeThreshold = .8, Needs = [NeedsFixtures.Rate("rest", .3, 0d, .28)] };
         var sleep = new ForecastNeedChoice("long", "pawn", "rest", "bed", "", 0, 0, 0, 1000, 1, []);
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity() with { HorizonTicks = 1000 }, [sleep]);
-        Assert.Equal(.8, result.Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 8);
+        Assert.Equal(.8, result.Needs.Single(n => n.Kind == "rest").FinalLevel.Number(), 8);
         Assert.False(At(result.Mood!, 500).Asleep);
         Assert.Equal(.4, At(result.Mood!, 500).Target, 8);
         Assert.Contains("sleep_service_capped_at_native_wake:long", result.Findings);
@@ -235,7 +235,7 @@ public sealed class ForecastConditionalMoodTests
         var pawn = Pawn() with { SleepBlocked = true };
         Assert.Empty(ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Capacity()), Day).Choices);
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [Sleep("unknown", 0, Hour)]);
-        Assert.False(result.Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
+        Assert.False(result.Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
         Assert.IsType<ForecastMoodResult.Unprojected>(result.Mood);
         // Asleep now without a rest from tick 0, the outcome wakes the pawn there (#3882): its mood runs awake from it.
         var woken = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, []);
@@ -253,12 +253,12 @@ public sealed class ForecastConditionalMoodTests
                 NeedsFixtures.Rate("food", 0d, 0d, .2)] };
         var sleep = Sleep("sleep", 200, 1000);
         var meal = new ForecastNeedChoice("meal", "pawn", "food", "food", "Rice", 1, 0, 0, 100, .5, []);
-        Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
-        Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [meal, sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
+        Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [meal, sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
         Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [meal, sleep], new Dictionary<string, double> { ["meal"] = 50 })
-            .Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
+            .Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
         Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn with { SleepWhileStarving = true }, Capacity(), [sleep])
-            .Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
+            .Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
     }
     private static (ForecastCoupledCandidates Candidates, ForecastCoupledSelection Result) SelectObserved(NeedsForecastPawn pawn, double horizon = Day)
     {

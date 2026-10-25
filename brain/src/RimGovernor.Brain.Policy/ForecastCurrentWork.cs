@@ -1,19 +1,23 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Observed occupancy, not an assignment or a prediction that a job will complete.</summary>
-public sealed partial record ForecastCurrentWork(PawnId Pawn, Fact<bool> Occupied, Fact<WorkType> Work,
-    Fact<double> RemainingTicks);
-
-public sealed partial record ForecastCurrentWork
+/// <summary>Useful time left in an observed job; an untimed job protects the whole forecast.</summary>
+public abstract record ForecastWorkRemaining
 {
-    /// <summary>The roster and timed forecast share current-job interpretation. Unknown duration is never free time.</summary>
-    public static ForecastCurrentWork ForecastCurrentWorkOf(WorkPawn pawn, Fact<double> remainingTicks = default)
+    private ForecastWorkRemaining() { }
+    public sealed record Timed(double Ticks) : ForecastWorkRemaining;
+    public sealed record Untimed : ForecastWorkRemaining;
+}
+
+/// <summary>Observed job occupancy. The work type remains descriptive for preemptible jobs.</summary>
+public sealed record ForecastCurrentWork(PawnId Pawn, bool Occupied, WorkType Work, ForecastWorkRemaining Remaining)
+{
+    public static ForecastCurrentWork ForecastCurrentWorkOf(WorkPawn pawn, ForecastWorkRemaining? remaining = null)
     {
-        if (remainingTicks.TryGetValue(out var remaining) && (!double.IsFinite(remaining) || remaining < 0))
+        remaining ??= new ForecastWorkRemaining.Untimed();
+        if (remaining is ForecastWorkRemaining.Timed(var ticks) && (!double.IsFinite(ticks) || ticks < 0))
             throw new DomainException("invalid current job remaining time");
         var job = pawn.Job;
-        // A preemptible vanilla job leaves the pawn free but keeps its work type: the role protection reads it (#3670).
-        if (ConstructionHelpersRules.IdleJob(job)) return new(pawn.Id, Known(false), Known(job.Preemptible ? job.Work : WorkType.None), Known(0.0));
-        return new(pawn.Id, Known(true), Known(job.Work), remainingTicks);
+        if (ConstructionHelpersRules.IdleJob(job)) return new(pawn.Id, false, job.Preemptible ? job.Work : WorkType.None, new ForecastWorkRemaining.Timed(0));
+        return new(pawn.Id, true, job.Work, remaining);
     }
 }

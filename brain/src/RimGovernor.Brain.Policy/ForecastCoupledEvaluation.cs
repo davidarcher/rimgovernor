@@ -8,24 +8,6 @@ using BandedThought = (string Thought, IReadOnlyList<(double Start, double End, 
 
 public static partial class ForecastCoupled
 {
-    private static ForecastCapacityInput CapacityInput(string pawn, WorkPawnAvailability? observed, double horizon, Fact<EquatableArray<ForecastOccupancy>> occupancy) => new()
-    {
-        Pawn = new()
-        {
-            Id = new(pawn),
-            Available = observed?.Available ?? default,
-            Applies = observed?.Applies ?? default
-        },
-        Location = "start",
-        HorizonTicks = horizon,
-        ProtectTimetable = false,
-        LocalHour = observed?.LocalHour ?? default,
-        OpportunityCostPerTick = 1.0,
-        CurrentWork = new(new(pawn), observed?.Occupied ?? default, default,
-            observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
-        Occupancy = occupancy
-    };
-
     /// <summary>A search cache's result with the id it was first cached under, so a later key holds the id instead of the value.</summary>
     internal readonly record struct Cached<T>(T Value, int Id);
 
@@ -191,8 +173,8 @@ public static partial class ForecastCoupled
                         if (row.Pawn == pawn.Pawn) { if (observed is not null) throw new InvalidOperationException("Sequence contains more than one matching element"); observed = row; }
                 var journal = false;
                 foreach (var claimant in context.Resources.Claims.Pawns) journal |= claimant == pawn.Pawn;
-                pawns[p] = new(pawn, CapacityInput(pawn.Pawn, observed, horizon, default), byPawn[pawn.Pawn].ToArray(),
-                    journal ? new("journal", pawn.Pawn, Known(0.0), default, ForecastOccupancyState.Active) : null);
+                pawns[p] = new(pawn, ForecastCapacity.InputOf(pawn.Pawn, observed, horizon, new ForecastProtection.Truncated(), protectTimetable: false), byPawn[pawn.Pawn].ToArray(),
+                    journal ? new("journal", pawn.Pawn, 0, 0, ForecastOccupancyState.Untimed) : null);
                 byName[pawn.Pawn] = p;
             }
             var shelterTasks = new HashSet<string>(StringComparer.Ordinal);
@@ -217,7 +199,6 @@ public static partial class ForecastCoupled
             pawnsOf = (context, horizon);
             return index;
         }
-        internal static readonly Fact<EquatableArray<ForecastOccupancy>> NoOccupancy = Known<EquatableArray<ForecastOccupancy>>([]);
         private int ids;
         private Cached<T> Next<T>(T value) => new(value, ids++);
         private static EquatableArray<T> Key<T>(IReadOnlyList<T>? rows) => rows is null || rows.Count == 0 ? default : EquatableArray.From(rows);
@@ -455,7 +436,7 @@ public static partial class ForecastCoupled
         private ForecastOccupancy Occupancy(ForecastActivityAllocation a)
         {
             if (!occupancyRows.TryGetValue(a, out var row))
-                occupancyRows.Add(a, row = new(a.Activity, a.Pawn, Known(a.Depart), Known(a.End), ForecastOccupancyState.Active));
+                occupancyRows.Add(a, row = new(a.Activity, a.Pawn, a.Depart, a.End, ForecastOccupancyState.Active));
             return row;
         }
 
@@ -1015,7 +996,7 @@ public static partial class ForecastCoupled
             var coreKey = (p, choicesId, grantedId, renewalsKey);
             if (!cores.TryGetValue(coreKey, out var core))
                 cores.Add(coreKey, core = ForecastNeeds.NeedsCoreOf(facts.Pawn, horizon, choiceKeys.Array(choicesId), null, grantedId == 0 ? null : grantedKeys.Array(grantedId), renewals));
-            var input = facts.Input with { Occupancy = occupancyId < 0 ? default : Known(occupancies.Canonical(occupancyId)) };
+            var input = facts.Input with { Occupancy = occupancyId < 0 ? new ForecastProtection.Truncated() : new ForecastProtection.Read(occupancies.Canonical(occupancyId)) };
             var capacityKey = (p, occupancyId);
             if (!capacities.TryGetValue(capacityKey, out var capacity)) capacities.Add(capacityKey, capacity = ForecastCapacity.ForecastPawnCapacityOf(input));
             needs.Add(key, result = Next(ForecastNeeds.NeedsWithCapacity(facts.Pawn, core, input, null, capacity)));

@@ -42,8 +42,8 @@ public sealed class ForecastObservedMealTests
         Assert.True(meals[1].Start > meals[0].End + 10000);
         Assert.All(meals, meal => Assert.StartsWith("need/pawn/meal-stack/", meal.Activity));
         var food = result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food");
-        Assert.Equal(0, food.ZeroTicks.Value);
-        Assert.True(food.FinalLevel.Value > 0);
+        Assert.Equal(0, food.ZeroTicks.Number());
+        Assert.True(food.FinalLevel.Number() > 0);
     }
 
     [Theory]
@@ -54,7 +54,7 @@ public sealed class ForecastObservedMealTests
         var result = Select(count, expiry);
         Assert.True(result.Selected.Feasible);
         Assert.True(result.Selected.Plan.Allocations.Length <= count);
-        Assert.True(result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Value > 0);
+        Assert.True(result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Number() > 0);
         Assert.All(result.Selected.Plan.Allocations, meal => Assert.True(meal.End <= expiry));
     }
 }

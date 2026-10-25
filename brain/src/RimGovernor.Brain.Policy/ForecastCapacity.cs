@@ -1,19 +1,20 @@
 namespace RimGovernor.Brain.Policy;
 
-public enum ForecastOccupancyState { Active, Completed, Cancelled }
+public enum ForecastOccupancyState { Active, Untimed, Completed, Cancelled }
 
 /// <summary>Relative ticks, including travel. Active intervals protect useful work or needs; no sunk work is charged.</summary>
-public sealed record ForecastOccupancy(string Id, string Pawn, Fact<double> Start, Fact<double> End, ForecastOccupancyState State);
+public sealed record ForecastOccupancy(string Id, string Pawn, double Start, double End, ForecastOccupancyState State);
 
 /// <summary>
-/// The pawn a capacity forecast times: whether it is available and ever works, each unknown while its evidence is,
+/// The pawn a capacity forecast times: whether admission evidence establishes availability, unavailability or remains unread,
 /// and its timetable, one TimeAssignmentDef per hour (hour 0 first; empty for a pawn without one).
 /// </summary>
+public enum ForecastPawnCapacityState { Unread, Unavailable, Available }
+
 public sealed record ForecastCapacityPawn
 {
     public required PawnId Id { get; init; }
-    public required Fact<bool> Available { get; init; }
-    public required Fact<bool> Applies { get; init; }
+    public ForecastPawnCapacityState State { get; init; }
     public EquatableArray<string> Schedule { get; init; } = [];
 }
 
@@ -23,20 +24,49 @@ public sealed record ForecastCapacityInput
     public required ForecastCapacityPawn Pawn { get; init; }
     public required string Location { get; init; }
     public double HorizonTicks { get; init; }
-    public Fact<double> LocalHour { get; init; }
+    public double LocalHour { get; init; }
     public required double OpportunityCostPerTick { get; init; }
     /// <summary>The pawn's current job: occupied or free, with its remaining useful time (ForecastCurrentWork.ForecastCurrentWorkOf).</summary>
     public required ForecastCurrentWork CurrentWork { get; init; }
     /// <summary>Explicit endpoint assumption for gaps after protected activity. Null (unread) endpoints block route evaluation.</summary>
     public string? LocationAfterProtectedTime { get; init; }
-    /// <summary>Known empty means no additional needs/protected work. Unknown is not a free day.</summary>
-    public Fact<EquatableArray<ForecastOccupancy>> Occupancy { get; init; }
+    /// <summary>A complete empty census means no additional protected work. A truncated census is not a free day.</summary>
+    public ForecastProtection Occupancy { get; init; } = new ForecastProtection.Truncated();
+}
+
+/// <summary>Complete protected intervals, or a journal census truncated before every owner was read.</summary>
+public abstract record ForecastProtection
+{
+    private ForecastProtection() { }
+    public sealed record Read(EquatableArray<ForecastOccupancy> Intervals) : ForecastProtection;
+    public sealed record Truncated : ForecastProtection;
 }
 
 public sealed record ForecastCapacityResult(ForecastPawnCapacity Capacity, string[] Findings);
 
 public static class ForecastCapacity
 {
+    /// <summary>Interpret the production-admission observation once for roster and coupled capacity. Unread admission evidence cannot create free time.</summary>
+    public static ForecastCapacityInput InputOf(string pawn, WorkPawnAvailability? observed, double horizon, ForecastProtection occupancy,
+        bool protectTimetable = true)
+    {
+        bool available = false, applies = false;
+        double hour = 0;
+        var availableRead = observed is not null && observed.Available.TryGetValue(out available);
+        var appliesRead = observed is not null && observed.Applies.TryGetValue(out applies);
+        var clockRead = observed is not null && observed.LocalHour.TryGetValue(out hour);
+        var state = availableRead && !available || appliesRead && !applies
+            ? ForecastPawnCapacityState.Unavailable
+            : availableRead && appliesRead && clockRead ? ForecastPawnCapacityState.Available : ForecastPawnCapacityState.Unread;
+        return new()
+        {
+            Pawn = new() { Id = new(pawn), State = state, Schedule = observed is not null && observed.Schedule.TryGetValue(out var schedule) ? schedule : [] },
+            Location = "start", HorizonTicks = horizon, ProtectTimetable = protectTimetable,
+            LocalHour = hour, OpportunityCostPerTick = 1,
+            CurrentWork = new(new(pawn), observed?.Occupied == true, WorkType.None, new ForecastWorkRemaining.Untimed()),
+            Occupancy = occupancy,
+        };
+    }
     /// <summary>One pawn timeline for all work types; overlapping obligations consume time only once.</summary>
     public static ForecastCapacityResult ForecastPawnCapacityOf(ForecastCapacityInput input)
     {
@@ -45,18 +75,21 @@ public static class ForecastCapacity
         ForecastCapacityResult Result(ForecastCapacityWindows windows, params string[] findings) =>
             new(new(input.Pawn.Id.Value, input.Location, windows, input.OpportunityCostPerTick), findings);
         var pawn = input.Pawn;
-        if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
+        if (!Enum.IsDefined(pawn.State)) throw new DomainException("invalid pawn capacity state");
+        if (pawn.State == ForecastPawnCapacityState.Unavailable)
             return Result(new ForecastCapacityWindows.Read([]), "pawn_unavailable");
         var current = input.CurrentWork;
         if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
-        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !WorkPawnProfileExtensions.WorkHoursPerDay(pawn.Schedule).IsKnown)
-            || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
+        if (pawn.State == ForecastPawnCapacityState.Unread || (input.ProtectTimetable && PawnRules.WorkHours(pawn.Schedule) is null)
+            || input.Occupancy is not ForecastProtection.Read(var occupancy))
             return Result(new ForecastCapacityWindows.Unread(), "unknown_capacity_inputs");
+        var hour = input.LocalHour;
         if (!double.IsFinite(hour) || hour < 0 || hour >= 24) throw new DomainException("invalid local hour");
         var blocked = new List<ForecastTimeWindow>();
-        if (occupied)
+        if (current.Occupied)
         {
-            if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(new ForecastCapacityWindows.Unread(), "unknown_current_job_remaining");
+            if (current.Remaining is not ForecastWorkRemaining.Timed(var remaining)) return Result(new ForecastCapacityWindows.Unread(), "unknown_current_job_remaining");
+            if (!double.IsFinite(remaining) || remaining < 0) throw new DomainException("invalid current job remaining time");
             if (remaining > 0) blocked.Add(new(0, Math.Min(remaining, input.HorizonTicks)));
         }
         // Each identity (pawn and id) is read once, at its first row, which every later row of it must equal.
@@ -71,9 +104,10 @@ public static class ForecastCapacity
                 conflicting = occupancy[j].Pawn == row.Pawn && occupancy[j].Id == row.Id && occupancy[j] != row;
             if (string.IsNullOrWhiteSpace(row.Id) || conflicting || !Enum.IsDefined(row.State))
                 throw new DomainException("conflicting occupancy identity");
-            if (row.Pawn != pawn.Id.Value || row.State != ForecastOccupancyState.Active) continue;
-            if (!row.Start.TryGetValue(out var start) || !row.End.TryGetValue(out var end))
+            if (row.Pawn != pawn.Id.Value || row.State is ForecastOccupancyState.Completed or ForecastOccupancyState.Cancelled) continue;
+            if (row.State == ForecastOccupancyState.Untimed)
                 return Result(new ForecastCapacityWindows.Unread(), "unknown_active_occupancy");
+            var (start, end) = (row.Start, row.End);
             if (!double.IsFinite(start) || !double.IsFinite(end) || start < 0 || end < start)
                 throw new DomainException("invalid occupancy interval");
             if (start < input.HorizonTicks && end > start) blocked.Add(new(start, Math.Min(end, input.HorizonTicks)));

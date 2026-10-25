@@ -42,7 +42,7 @@ public sealed class CorpseCreditTests
     private static ForecastCoupledOutcome Outcome(double shift, double servedAt = 2 * Day, params ForecastRoomService[] rooms) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = MoodResults.Flat(0d, [0, 0, 0], [new(shift, [Day, 0, 0])]),
             },

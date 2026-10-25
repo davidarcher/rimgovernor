@@ -86,10 +86,10 @@ public sealed class ForecastHandoffTests
     public void UnknownTerminalNeedIsPreservedRatherThanReset()
     {
         var outcome = Outcome() with { Needs = new Dictionary<string, ForecastNeedsResult>
-        { ["pawn"] = new([new("food", default, default, default, default), new("rest", Known(.17), default, default, default)], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []) } };
+        { ["pawn"] = new([new("food", new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")), new("rest", new ForecastTerm.Assessed(.17), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"))], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []) } };
         var handoff = Handoff(Request(), new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d }, outcome);
-        Assert.False(Assert.Single(handoff.Needs, n => n.Kind == "food").Level.IsKnown);
-        Assert.Equal(.17, Assert.Single(handoff.Needs, n => n.Kind == "rest").Level.Value);
+        Assert.False(Assert.Single(handoff.Needs, n => n.Kind == "food").Level is ForecastTerm.Assessed);
+        Assert.Equal(.17, Assert.Single(handoff.Needs, n => n.Kind == "rest").Level.Number());
         Assert.Contains("terminal_need_unknown:pawn:food", handoff.Gaps);
     }
 
