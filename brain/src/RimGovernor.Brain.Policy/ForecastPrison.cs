@@ -63,6 +63,9 @@ public static class ForecastPrison
     /// <summary>The named state of an unwaveringly loyal prisoner (Recruitable false): never recruited, it earns nothing.</summary>
     public const string Unrecruitable = "prison_unrecruitable";
 
+    /// <summary>The colony's shared population policy does not recruit this prisoner, so a prison enables no recruitment.</summary>
+    public const string NotRecruited = "prison_not_recruited";
+
     /// <summary>The named state of a recruit whose value as a colonist is not positive: recruiting it earns nothing.</summary>
     public const string CostsMore = "prison_joiner_costs_more";
 
@@ -481,7 +484,15 @@ public static class ForecastPrison
         var states = new SortedSet<string>(StringComparer.Ordinal);
         var unbedded = read.Prisoners.Where(p => !p.PrisonBed).ToArray();
         if (unbedded.Any(p => !p.Recruitable)) states.Add(Unrecruitable);
-        var recruits = unbedded.Where(p => p.Recruitable).ToArray();
+        var recruits = unbedded.Where(p => p.Recruitable).Select(prisoner =>
+        {
+            var population = context.PrisonerPopulation ?? throw new RequiredFactException("prisoner population");
+            var person = population.Prisoners.FirstOrDefault(p => p.Pawn.Value == prisoner.Pawn)
+                ?? throw new RequiredFactException("population prisoner:" + prisoner.Pawn);
+            var intent = PopulationRules.RecruitIntent(person, population.Colony);
+            if (intent is null) states.Add(NotRecruited);
+            return (Prisoner: prisoner, Person: person, Intent: intent);
+        }).Where(p => p.Intent is not null).ToArray();
         var warden = read.Wardens.OrderByDescending(w => w.NegotiationAbility).ThenBy(w => w.Pawn, StringComparer.Ordinal).FirstOrDefault();
         if (recruits.Length == 0) states.Add(NoRecruit);
         else if (warden is not { NegotiationAbility: > 0 }) states.Add(NoWarden);
@@ -496,7 +507,7 @@ public static class ForecastPrison
         var valued = new List<(PrisonerRecruitRead Prisoner, double Value)>();
         var certaintyByPawn = new Dictionary<string, double>(StringComparer.Ordinal);
         var converters = new Dictionary<string, ConversionReductionRead>(StringComparer.Ordinal);
-        foreach (var prisoner in recruits)
+        foreach (var (prisoner, person, intent) in recruits)
         {
             var value = JoinerMoodRules.ValueOf(prisoner.Pawn, prisoner.Joiner, shortfall, context);
             states.UnionWith(value.NotModelled);
@@ -508,10 +519,7 @@ public static class ForecastPrison
             }
 
             // A prisoner the autopilot converts first (#3915) is converted by the warden whose attempts take the most certainty.
-            var population = context.PrisonerPopulation ?? throw new RequiredFactException("prisoner population");
-            var person = population.Prisoners.FirstOrDefault(p => p.Pawn.Value == prisoner.Pawn)
-                ?? throw new RequiredFactException("population prisoner:" + prisoner.Pawn);
-            if (PopulationRules.RecruitIntent(person, population.Colony) == PrisonerInteractionMode.Convert)
+            if (intent == PrisonerInteractionMode.Convert)
             {
                 var conversion = prisoner.Conversion ?? throw new RequiredFactException("prisoner conversion:" + prisoner.Pawn);
                 if (conversion.Converters.MaxBy(c => c.Reduction) is not { } converter)

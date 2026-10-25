@@ -865,7 +865,8 @@ than success, death and failure, and surgeries on non-colonists. Two planned hos
 
 *Prison credit (#3805, #3899).* A planned prison the outcome serves is credited (`ForecastPrison.PrisonCredit`) the recruitment it
 enables, per prisoner under `prison/<room>/<prisoner>`. A held prisoner without a prison bed is never recruited; the outcome's
-served prisons, in service order, bed the recruitable ones (not unwaveringly loyal) up to their beds (planned beds plus the
+served prisons, in service order, bed the recruitable ones (not unwaveringly loyal) that the shared
+`PopulationRules.RecruitIntent` actually selects for recruitment or conversion, up to their beds (planned beds plus the
 prediction's), the most valuable first. The best-NegotiationAbility warden chats with each from the room's service, chat by chat
 (`ForecastPrison.Recruitment`): job k starts `k × 60000 / 2` ticks in; its five rapport chats come 350 ticks apart, each a
 `RapportBuilt` memory at its opinionOffset × the warden's SocialImpact with its stack limits (`ForecastPrison.Opinion`), and its

@@ -111,7 +111,10 @@ public sealed class PrisonCreditTests
         {
             Needs = context.Needs with { Prison = NeedsFixtures.NoPrison with { Wardens = warden ? [wardenRead ?? Warden()] : [], Prisoners = [.. prisoners(context)] } },
         };
-        context = context with { PrisonerPopulation = census ?? PopulationFixtures.Census(context.Needs.Prison.Prisoners.Select(p => PopulationFixtures.Held(p.Pawn, p.Recruitable))) };
+        // These arithmetic fixtures intentionally recruit their prospects through a named goal; a supplied census owns its own intent.
+        var population = census ?? PopulationFixtures.Census(context.Needs.Prison.Prisoners.Select(p => PopulationFixtures.Held(p.Pawn, p.Recruitable)));
+        if (census is null) population = population with { Colony = population.Colony with { NamedPrisoners = [.. population.Prisoners.Select(p => p.Pawn)] } };
+        context = context with { PrisonerPopulation = population };
         return new(context, selected.Selected with { ServedRooms = [Served] },
             [.. coupled.Alternatives.Concat(coupled.Incumbents).Where(c => chosen.Contains(c.Id))], selected.Horizon);
     }
@@ -297,6 +300,26 @@ public sealed class PrisonCreditTests
         Assert.Empty(review.Gains());
         Assert.Contains(ForecastPrison.Unrecruitable, review.Findings());
         Assert.Contains(ForecastPrison.NoRecruit, review.Findings());
+    }
+
+    [Fact]
+    public void APrisonerTheColonyHoldsInsteadOfRecruitingEarnsNothingUntilAGoalNamesIt()
+    {
+        var person = PopulationFixtures.Held("prisoner");
+        var census = PopulationFixtures.Census([person]);
+        Assert.Null(PopulationRules.RecruitIntent(person, census.Colony));
+        var held = Of(c => [Prisoner(c)], census: census);
+        var shortfall = JoinerMoodRules.ShortfallOf(held.Outcome, held.Commitments, held.Context, held.Horizon);
+        Assert.True(JoinerMoodRules.ValueOf("prisoner", held.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, held.Context).PerDay > 0);
+        Assert.Empty(held.Gains());
+        Assert.Contains(ForecastPrison.NotRecruited, held.Findings());
+        Assert.Contains(ForecastPrison.NoRecruit, held.Findings());
+
+        var named = census with { Colony = census.Colony with { NamedPrisoners = [new("prisoner")] } };
+        Assert.Equal(PrisonerInteractionMode.Recruit, PopulationRules.RecruitIntent(person, named.Colony));
+        var recruited = Of(c => [Prisoner(c)], census: named);
+        Assert.Single(recruited.Gains());
+        Assert.DoesNotContain(ForecastPrison.NotRecruited, recruited.Findings());
     }
 
     // A prisoner of another ideoligion the colony converts: Believers wanted makes PopulationRules.RecruitIntent set Convert (#3915).
